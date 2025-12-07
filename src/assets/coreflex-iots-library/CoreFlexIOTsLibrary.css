@@ -1,0 +1,53 @@
+/* Main container */
+.cf-library-container {
+  padding: 10px;
+  margin-top: 8px;
+}
+
+/* Title */
+.cf-library-title {
+  font-size: 14px;
+  font-weight: 600;
+  margin-bottom: 8px;
+  color: #444;
+}
+
+/* Grid layout */
+.cf-library-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(70px, 1fr));
+  gap: 10px;
+  max-height: 100%;
+  overflow-y: auto;
+  padding-right: 5px;
+}
+
+/* Thumbnail box (force 70x70) */
+.cf-library-thumb {
+  width: 70px;
+  height: 70px;
+  border: 1px solid #dcdcdc;
+  border-radius: 6px;
+  background: #f9f9f9;
+  cursor: grab;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: 0.2s ease;
+}
+
+/* Hover effect */
+.cf-library-thumb:hover {
+  border-color: #007aff;
+  transform: scale(1.05);
+}
+
+/* FORCE EVERY IMAGE TO EXACTLY 70px × 70px */
+.cf-library-thumb img {
+  width: 70px;
+  height: 70px;
+  object-fit: contain;
+  pointer-events: none;
+  user-select: none;
+}

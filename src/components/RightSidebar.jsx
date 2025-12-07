@@ -1,0 +1,103 @@
+export default function RightSidebar({
+  isRightCollapsed,
+  setIsRightCollapsed,
+  setShowImageLibrary,
+  setShowCoreflexLibrary,
+}) {
+  return (
+    <aside
+      className={
+        "border-l border-gray-300 flex flex-col transition-all duration-300 ease-in-out overflow-hidden " +
+        (isRightCollapsed
+          ? "w-[40px] p-2 itemsCenter justify-between bg-white"
+          : "w-[260px] p-6 bg-white overflow-y-auto")
+      }
+    >
+      {/* COLLAPSE BUTTON */}
+      <button
+        className={
+          "text-lg mb-4 rounded focus:outline-none transition-colors " +
+          (isRightCollapsed
+            ? "w-full flex itemsCenter justify-center py-2 hover:bg-gray-100"
+            : "self-start px-2 py-1 hover:bg-gray-100")
+        }
+        onClick={() => setIsRightCollapsed((prev) => !prev)}
+      >
+        {isRightCollapsed ? "📁" : "📁▶"}
+      </button>
+
+      {!isRightCollapsed && (
+        <div className="flex-1">
+
+          <h2 className="text-xl font-semibold mb-4 text-gray-800">
+            Entities
+          </h2>
+
+          {/* TEXT TOOLS */}
+          <h3 className="text-sm font-semibold mb-3 text-gray-600">Text Tools</h3>
+
+          <div className="space-y-6 mb-6">
+            {/* TEXT BOX */}
+            <div
+              className="cursor-pointer flex flex-col items-center gap-1"
+              draggable
+              onDragStart={(e) => e.dataTransfer.setData("shape", "textBox")}
+            >
+              <div className="w-[80px] h-[45px] border border-gray-400 bg-white flex items-center justify-center text-black text-xs">
+                Text
+              </div>
+              <span className="text-[14px] text-center">Text Box</span>
+            </div>
+
+            {/* ⭐ NEW DISPLAY BOX */}
+            <div
+              className="cursor-pointer flex flex-col items-center gap-1"
+              draggable
+              onDragStart={(e) => e.dataTransfer.setData("shape", "displayBox")}
+            >
+              {/* PREVIEW OF DISPLAY */}
+              <div
+                style={{
+                  width: "100px",
+                  height: "40px",
+                  background: "#e6e6e6",
+                  color: "#000",
+                  fontFamily: "monospace",
+                  fontWeight: "900",
+                  fontSize: "20px",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: 6,
+                  border: "2px solid #b5b5b5",
+                  boxShadow: "inset 0 0 6px rgba(0,0,0,0.25)",
+                  letterSpacing: "2px",
+                }}
+              >
+                00000
+              </div>
+
+              <span className="text-[14px] text-center">Display</span>
+            </div>
+          </div>
+
+          {/* IMAGE LIBRARY */}
+          <h3
+            className="text-sm font-semibold mb-3 text-gray-600 cursor-pointer hover:text-blue-500"
+            onClick={() => setShowImageLibrary(true)}
+          >
+            📁 Image Library
+          </h3>
+
+          {/* COREFLEX STATIC LIBRARY */}
+          <h3
+            className="mt-6 text-sm font-semibold mb-3 text-gray-600 cursor-pointer hover:text-blue-500"
+            onClick={() => setShowCoreflexLibrary(true)}
+          >
+            📁 CoreFlex IOTs Library
+          </h3>
+        </div>
+      )}
+    </aside>
+  );
+}

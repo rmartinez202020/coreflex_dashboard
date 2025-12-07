@@ -1,0 +1,92 @@
+<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="840.001" height="840.239" viewBox="0 0 840.001 840.239">
+  <defs>
+    <linearGradient id="a" x1="427.628" y1="488.835" x2="427.628" y2="794.365" gradientUnits="userSpaceOnUse">
+      <stop offset="0" stop-color="#474848"/>
+      <stop offset="0.089" stop-color="#636363"/>
+      <stop offset="0.113" stop-color="#5c5c5c"/>
+      <stop offset="0.178" stop-color="#505050"/>
+      <stop offset="0.241" stop-color="#4c4c4c"/>
+      <stop offset="0.277" stop-color="#595959"/>
+      <stop offset="0.344" stop-color="#7d7d7d"/>
+      <stop offset="0.435" stop-color="#b6b6b6"/>
+      <stop offset="0.488" stop-color="#dbdbdb"/>
+      <stop offset="0.509" stop-color="#cdcdcd"/>
+      <stop offset="0.603" stop-color="#939393"/>
+      <stop offset="0.673" stop-color="#6f7070"/>
+      <stop offset="0.71" stop-color="#616262"/>
+      <stop offset="0.763" stop-color="#656666"/>
+      <stop offset="0.822" stop-color="#727373"/>
+      <stop offset="0.865" stop-color="#818281"/>
+      <stop offset="0.886" stop-color="#7b7c7b"/>
+      <stop offset="0.915" stop-color="#6a6c6b"/>
+      <stop offset="0.949" stop-color="#4e5050"/>
+      <stop offset="0.985" stop-color="#282a2a"/>
+      <stop offset="1" stop-color="#151818"/>
+    </linearGradient>
+    <linearGradient id="b" x1="-3081.295" y1="-5405.664" x2="-2684.017" y2="-5405.664" gradientTransform="translate(2913.238 6047.264)" xlink:href="#a"/>
+    <linearGradient id="c" x1="-2905.041" y1="1125.095" x2="-2855.62" y2="1125.095" gradientTransform="translate(2948.147 -334.441)" xlink:href="#a"/>
+    <linearGradient id="d" x1="-3054.094" y1="1125.095" x2="-3004.673" y2="1125.095" gradientTransform="translate(3097.201 -483.495)" xlink:href="#a"/>
+    <linearGradient id="e" x1="-3203.148" y1="1125.095" x2="-3153.726" y2="1125.095" gradientTransform="translate(3246.254 -632.548)" xlink:href="#a"/>
+    <linearGradient id="f" x1="-458.936" y1="1375.281" x2="-458.936" y2="1680.81" gradientTransform="matrix(0, 1, 1, 0, -886.684, 886.684)" xlink:href="#a"/>
+    <linearGradient id="g" x1="-3967.74" y1="-6292.347" x2="-3570.462" y2="-6292.347" gradientTransform="matrix(1, 0, 0, -1, 4410.463, -6261.765)" xlink:href="#a"/>
+    <linearGradient id="h" x1="-2018.595" y1="2011.778" x2="-1969.174" y2="2011.778" gradientTransform="matrix(1, 0, 0, -1, 2784.3, 2079.596)" xlink:href="#a"/>
+    <linearGradient id="i" x1="-2167.649" y1="2011.778" x2="-2118.228" y2="2011.778" gradientTransform="matrix(1, 0, 0, -1, 2784.3, 2079.596)" xlink:href="#a"/>
+    <linearGradient id="j" x1="-2316.702" y1="2011.778" x2="-2267.281" y2="2011.778" gradientTransform="matrix(1, 0, 0, -1, 2784.3, 2079.596)" xlink:href="#a"/>
+  </defs>
+  <g>
+    <g>
+      <polygon points="488.597 488.835 61.13 488.835 61.13 794.365 794.127 794.365 488.597 488.835" fill="url(#a)"/>
+      <g>
+        <g>
+          <rect x="-168.056" y="611.017" width="397.278" height="61.165" transform="translate(-611.017 672.183) rotate(-90)" fill="url(#b)"/>
+          <rect x="-195.967" y="638.928" width="397.278" height="5.345" transform="translate(-638.928 644.272) rotate(-90)" fill="#fff" opacity="0.49"/>
+          <rect x="-140.146" y="638.928" width="397.278" height="5.345" transform="translate(-583.107 700.093) rotate(-90)" fill="#161616" opacity="0.49"/>
+        </g>
+        <g>
+          <g>
+            <rect x="43.107" y="784.002" width="49.421" height="13.304" transform="translate(858.471 722.836) rotate(90)" fill="url(#c)"/>
+            <rect x="49.177" y="790.072" width="49.421" height="1.162" transform="translate(864.542 716.766) rotate(90)" fill="#161616" opacity="0.49"/>
+            <rect x="37.036" y="790.072" width="49.421" height="1.162" transform="translate(852.4 728.907) rotate(90)" fill="#161616" opacity="0.49"/>
+          </g>
+          <g>
+            <rect x="43.107" y="634.948" width="49.421" height="13.304" transform="translate(709.417 573.783) rotate(90)" fill="url(#d)"/>
+            <rect x="49.177" y="641.019" width="49.421" height="1.162" transform="translate(715.488 567.712) rotate(90)" fill="#161616" opacity="0.49"/>
+            <rect x="37.036" y="641.019" width="49.421" height="1.162" transform="translate(703.347 579.854) rotate(90)" fill="#161616" opacity="0.49"/>
+          </g>
+          <g>
+            <rect x="43.107" y="485.895" width="49.421" height="13.304" transform="translate(560.364 424.729) rotate(90)" fill="url(#e)"/>
+            <rect x="49.177" y="491.965" width="49.421" height="1.162" transform="translate(566.435 418.659) rotate(90)" fill="#161616" opacity="0.49"/>
+            <rect x="37.036" y="491.965" width="49.421" height="1.162" transform="translate(554.293 430.8) rotate(90)" fill="#161616" opacity="0.49"/>
+          </g>
+        </g>
+      </g>
+    </g>
+    <g>
+      <polygon points="488.597 488.835 488.597 61.13 794.127 61.13 794.127 794.365 488.597 488.835" fill="url(#f)"/>
+      <g>
+        <g>
+          <rect x="442.723" width="397.278" height="61.165" transform="translate(1282.724 61.165) rotate(180)" fill="url(#g)"/>
+          <rect x="442.723" width="397.278" height="5.345" transform="translate(1282.724 5.345) rotate(180)" fill="#fff" opacity="0.49"/>
+          <rect x="442.723" y="55.821" width="397.278" height="5.345" transform="translate(1282.724 116.986) rotate(180)" fill="#161616" opacity="0.49"/>
+        </g>
+        <g>
+          <g>
+            <rect x="765.705" y="61.165" width="49.421" height="13.304" fill="url(#h)"/>
+            <rect x="765.705" y="73.307" width="49.421" height="1.162" fill="#161616" opacity="0.49"/>
+            <rect x="765.705" y="61.165" width="49.421" height="1.162" fill="#161616" opacity="0.49"/>
+          </g>
+          <g>
+            <rect x="616.651" y="61.165" width="49.421" height="13.304" fill="url(#i)"/>
+            <rect x="616.651" y="73.307" width="49.421" height="1.162" fill="#161616" opacity="0.49"/>
+            <rect x="616.651" y="61.165" width="49.421" height="1.162" fill="#161616" opacity="0.49"/>
+          </g>
+          <g>
+            <rect x="467.598" y="61.165" width="49.421" height="13.304" fill="url(#j)"/>
+            <rect x="467.598" y="73.307" width="49.421" height="1.162" fill="#161616" opacity="0.49"/>
+            <rect x="467.598" y="61.165" width="49.421" height="1.162" fill="#161616" opacity="0.49"/>
+          </g>
+        </g>
+      </g>
+    </g>
+  </g>
+</svg>
