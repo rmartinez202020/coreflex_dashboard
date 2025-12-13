@@ -1,3 +1,6 @@
+import { API_URL } from "./config/api";
+
+
 import {
   DndContext,
   PointerSensor,
@@ -5,7 +8,10 @@ import {
   useSensors,
 } from "@dnd-kit/core";
 
+    
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
+
 
 // PAGES
 import HomePage from "./components/HomePage";
@@ -37,6 +43,11 @@ import useObjectDragging from "./hooks/useObjectDragging";
 import useDropHandler from "./hooks/useDropHandler";
 
 export default function App() {
+  const navigate = useNavigate(); // ⭐ for logout navigation
+  
+
+
+   
   // DEVICE DATA
   const [sensorsData, setSensorsData] = useState([]);
 
@@ -177,33 +188,46 @@ export default function App() {
     e.target.value = "";
   };
 
-  // LOAD SENSOR DATA
   useEffect(() => {
-    fetch("http://localhost:8000/devices")
-      .then((res) => res.json())
-      .then((data) =>
-        setSensorsData(
-          data.map((s) => ({
-            ...s,
-            level_percent: Math.min(100, Math.round((s.level / 55) * 100)),
-            date_received: s.last_update?.split("T")[0] || "",
-            time_received: s.last_update
-              ? new Date(s.last_update).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "",
-          }))
-        )
+  fetch(`${API_URL}/devices`)
+    .then((res) => {
+      if (!res.ok) throw new Error("Failed to load devices");
+      return res.json();
+    })
+    .then((data) =>
+      setSensorsData(
+        data.map((s) => ({
+          ...s,
+          level_percent: Math.min(100, Math.round((s.level / 55) * 100)),
+          date_received: s.last_update?.split("T")[0] || "",
+          time_received: s.last_update
+            ? new Date(s.last_update).toLocaleTimeString([], {
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+            : "",
+        }))
       )
-      .catch((err) => console.error("Sensor API error:", err));
-  }, []);
+    )
+    .catch((err) => {
+      console.error("Sensor API error:", err);
+      setSensorsData([]); // prevent crash
+    });
+}, []);
+
 
   const hideContextMenu = () =>
     setContextMenu((prev) => ({ ...prev, visible: false }));
 
   const handleRightClick = (id, x, y) => {
     setContextMenu({ visible: true, x, y, targetId: id });
+  };
+
+  // ⭐ LOGOUT FUNCTION (clears login + redirects)
+  const handleLogout = () => {
+    localStorage.removeItem("coreflex_logged_in");
+    localStorage.removeItem("coreflex_token");
+    navigate("/"); // back to login page
   };
 
   // KEYBOARD SHORTCUTS
@@ -331,7 +355,6 @@ export default function App() {
     coreflexLibraryPos.x,
     coreflexLibraryPos.y,
   ]);
-
   // ============================================================
   // NORMAL APP LAYOUT
   // ============================================================
@@ -353,7 +376,15 @@ export default function App() {
       />
 
       {/* MAIN CONTENT */}
-      <main className="flex-1 p-6 bg-white overflow-visible">
+      <main className="flex-1 p-6 bg-white overflow-visible relative">
+        {/* ⭐ LOGOUT BUTTON - top right */}
+        <button
+          onClick={handleLogout}
+          className="absolute top-2 right-4 px-3 py-1 rounded-md text-sm bg-red-600 text-white hover:bg-red-700 shadow"
+        >
+          Logout
+        </button>
+
         {activePage === "dashboard" ? (
           <div className="flex items-center gap-4 mb-6">
             <h1 className="text-2xl font-bold text-gray-800">

@@ -5,34 +5,69 @@ import bgImage from "../assets/login_photo/satellite.jpg";
 export default function RegisterPage() {
   const [form, setForm] = useState({
     name: "",
+    company: "",
     email: "",
     password: "",
     confirmPassword: "",
-    company: "",
   });
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
+  // ==========================================
+  // 🔥 AUTO-DETECT BACKEND URL (LOCAL OR RENDER)
+  // ==========================================
+  const API_URL =
+    window.location.hostname === "localhost" ||
+    window.location.hostname === "127.0.0.1"
+      ? "http://127.0.0.1:8000"                   // LOCAL FASTAPI
+      : "https://coreflex-api.onrender.com";       // 🚀 RENDER LIVE BACKEND
+
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
 
-  const handleRegister = (e) => {
+  const handleRegister = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
 
+    // ------------------------------------------
+    // Password confirmation check
+    // ------------------------------------------
     if (form.password !== form.confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
 
-    // Temporary success until backend is ready
-    setSuccess("Account created successfully! Redirecting...");
-    setTimeout(() => {
-      window.location.href = "/"; // back to login
-    }, 1200);
+    try {
+      const response = await fetch(`${API_URL}/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: form.name,
+          company: form.company,
+          email: form.email,
+          password: form.password,
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.detail || "Registration failed.");
+        return;
+      }
+
+      setSuccess("Account created successfully! Redirecting...");
+
+      setTimeout(() => {
+        window.location.href = "/"; // Redirect to login
+      }, 1500);
+    } catch (err) {
+      console.error("Registration error:", err);
+      setError("Unable to reach server. Please try again.");
+    }
   };
 
   return (
@@ -45,12 +80,10 @@ export default function RegisterPage() {
         backgroundRepeat: "no-repeat",
       }}
     >
-      {/* DARK OVERLAY */}
       <div className="absolute inset-0 bg-black opacity-40"></div>
 
-      {/* REGISTER CARD */}
       <div className="relative bg-white bg-opacity-90 backdrop-blur-md shadow-2xl rounded-xl p-10 w-full max-w-lg z-10">
-        
+
         <h1 className="text-3xl font-bold text-center text-[#1e293b] mb-4">
           Create Your CoreFlex Account
         </h1>
@@ -72,7 +105,6 @@ export default function RegisterPage() {
         )}
 
         <form onSubmit={handleRegister} className="space-y-4">
-          
           <div>
             <label className="block text-sm mb-1 text-gray-700">Full Name</label>
             <input
@@ -110,9 +142,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm mb-1 text-gray-700">
-              Password
-            </label>
+            <label className="block text-sm mb-1 text-gray-700">Password</label>
             <input
               type="password"
               name="password"
@@ -125,9 +155,7 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm mb-1 text-gray-700">
-              Confirm Password
-            </label>
+            <label className="block text-sm mb-1 text-gray-700">Confirm Password</label>
             <input
               type="password"
               name="confirmPassword"

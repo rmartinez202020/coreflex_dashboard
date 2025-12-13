@@ -1,53 +1,50 @@
 // src/main.jsx
 
-import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 
 import "./index.css";
 import App from "./App.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
-import RegisterPage from "./pages/RegisterPage.jsx";   // ⭐ ADDED
+import RegisterPage from "./pages/RegisterPage.jsx";
 import LaunchedMainDashboard from "./pages/LaunchedMainDashboard.jsx";
 
-// Simple Auth Protection (temporary until backend auth is added)
+// 🔐 Simple Auth Protection
 function RequireAuth({ children }) {
   const loggedIn = localStorage.getItem("coreflex_logged_in") === "yes";
   return loggedIn ? children : <Navigate to="/" replace />;
 }
 
 createRoot(document.getElementById("root")).render(
-  <StrictMode>
-    <BrowserRouter>
-      <Routes>
+  <BrowserRouter>
+    <Routes>
 
-        {/* 🔐 LOGIN PAGE (default homepage) */}
-        <Route path="/" element={<LoginPage />} />
+      {/* 🔐 LOGIN PAGE */}
+      <Route path="/" element={<LoginPage />} />
 
-        {/* 📝 REGISTER PAGE (public) */}
-        <Route path="/register" element={<RegisterPage />} />   {/* ⭐ ADDED */}
+      {/* 📝 REGISTER PAGE */}
+      <Route path="/register" element={<RegisterPage />} />
 
-        {/* 🖥️ MAIN PLATFORM (protected) */}
-        <Route
-          path="/app"
-          element={
-            <RequireAuth>
-              <App />
-            </RequireAuth>
-          }
-        />
+      {/* 🖥️ MAIN APP (protected) */}
+      <Route
+        path="/app"
+        element={
+          <RequireAuth>
+            <App />
+          </RequireAuth>
+        }
+      />
 
-        {/* 🚀 LAUNCH MODE PAGE (protected) */}
-        <Route
-          path="/launchMainDashboard"
-          element={
-            <RequireAuth>
-              <LaunchedMainDashboard />
-            </RequireAuth>
-          }
-        />
+      {/* 🚀 LAUNCH MODE */}
+      <Route
+        path="/launchMainDashboard"
+        element={
+          <RequireAuth>
+            <LaunchedMainDashboard />
+          </RequireAuth>
+        }
+      />
 
-      </Routes>
-    </BrowserRouter>
-  </StrictMode>
+    </Routes>
+  </BrowserRouter>
 );
