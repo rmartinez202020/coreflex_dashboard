@@ -14,7 +14,6 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showResetInfo, setShowResetInfo] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
-  const [rememberMe, setRememberMe] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -39,12 +38,12 @@ export default function LoginPage() {
       }
 
       const data = await res.json();
+
       await new Promise((r) => setTimeout(r, remaining));
 
-      const storage = rememberMe ? localStorage : sessionStorage;
-
-      storage.setItem("coreflex_logged_in", "yes");
-      storage.setItem("coreflex_token", data.access_token);
+      // ✅ Session-only login
+      sessionStorage.setItem("coreflex_logged_in", "yes");
+      sessionStorage.setItem("coreflex_token", data.access_token);
 
       navigate("/app");
     } catch (err) {
@@ -124,18 +123,6 @@ export default function LoginPage() {
                 ⚠️ Caps Lock is ON
               </div>
             )}
-          </div>
-
-          {/* Remember me */}
-          <div className="flex items-center gap-2 text-sm text-gray-700">
-            <input
-              type="checkbox"
-              id="rememberMe"
-              checked={rememberMe}
-              onChange={(e) => setRememberMe(e.target.checked)}
-              disabled={loading}
-            />
-            <label htmlFor="rememberMe">Remember me</label>
           </div>
 
           <button
