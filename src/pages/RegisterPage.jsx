@@ -2,6 +2,8 @@ import { useState } from "react";
 import { Link } from "react-router-dom";
 import bgImage from "../assets/login_photo/satellite.jpg";
 
+import { API_URL } from "../config/api";
+
 export default function RegisterPage() {
   const [form, setForm] = useState({
     name: "",
@@ -14,15 +16,6 @@ export default function RegisterPage() {
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
-  // ==========================================
-  // 🔥 AUTO-DETECT BACKEND URL (LOCAL OR RENDER)
-  // ==========================================
-  const API_URL =
-    window.location.hostname === "localhost" ||
-    window.location.hostname === "127.0.0.1"
-      ? "http://127.0.0.1:8000"                   // LOCAL FASTAPI
-      : "https://coreflex-api.onrender.com";       // 🚀 RENDER LIVE BACKEND
-
   const handleChange = (e) => {
     setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
   };
@@ -32,16 +25,14 @@ export default function RegisterPage() {
     setError("");
     setSuccess("");
 
-    // ------------------------------------------
     // Password confirmation check
-    // ------------------------------------------
     if (form.password !== form.confirmPassword) {
       setError("Passwords do not match.");
       return;
     }
 
     try {
-      const response = await fetch(`${API_URL}/register`, {
+      const response = await fetch(`${API_URL}/auth/register`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -59,10 +50,10 @@ export default function RegisterPage() {
         return;
       }
 
-      setSuccess("Account created successfully! Redirecting...");
+      setSuccess("Account created successfully! Redirecting to login...");
 
       setTimeout(() => {
-        window.location.href = "/"; // Redirect to login
+        window.location.href = "/";
       }, 1500);
     } catch (err) {
       console.error("Registration error:", err);
@@ -80,10 +71,11 @@ export default function RegisterPage() {
         backgroundRepeat: "no-repeat",
       }}
     >
+      {/* Dark overlay */}
       <div className="absolute inset-0 bg-black opacity-40"></div>
 
+      {/* Register Card */}
       <div className="relative bg-white bg-opacity-90 backdrop-blur-md shadow-2xl rounded-xl p-10 w-full max-w-lg z-10">
-
         <h1 className="text-3xl font-bold text-center text-[#1e293b] mb-4">
           Create Your CoreFlex Account
         </h1>
@@ -155,7 +147,9 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm mb-1 text-gray-700">Confirm Password</label>
+            <label className="block text-sm mb-1 text-gray-700">
+              Confirm Password
+            </label>
             <input
               type="password"
               name="confirmPassword"
@@ -177,11 +171,13 @@ export default function RegisterPage() {
 
         <p className="text-center text-gray-600 text-sm mt-4">
           Already have an account?{" "}
-          <Link to="/" className="text-blue-600 font-semibold hover:underline">
+          <Link
+            to="/"
+            className="text-blue-600 font-semibold hover:underline"
+          >
             Login
           </Link>
         </p>
-
       </div>
     </div>
   );
