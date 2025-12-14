@@ -4,7 +4,7 @@ import bgImage from "../assets/login_photo/satellite.jpg";
 
 import { API_URL } from "../config/api";
 
-const MIN_LOADING_TIME = 2000; // 1.5 seconds
+const MIN_LOADING_TIME = 2000; // 2 seconds
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -13,6 +13,7 @@ export default function LoginPage() {
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
   const [showResetInfo, setShowResetInfo] = useState(false);
+  const [capsLockOn, setCapsLockOn] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -53,6 +54,11 @@ export default function LoginPage() {
       setError(err.message || "Login failed");
       setLoading(false);
     }
+  };
+
+  const handlePasswordKeyEvent = (e) => {
+    const caps = e.getModifierState && e.getModifierState("CapsLock");
+    setCapsLockOn(caps);
   };
 
   return (
@@ -104,11 +110,19 @@ export default function LoginPage() {
               type="password"
               value={password}
               onChange={(e) => setPassword(e.target.value)}
+              onKeyUp={handlePasswordKeyEvent}
+              onKeyDown={handlePasswordKeyEvent}
               required
               disabled={loading}
               className="w-full border rounded px-3 py-2 text-gray-800 disabled:bg-gray-100"
               placeholder="••••••••"
             />
+
+            {capsLockOn && (
+              <div className="mt-1 text-sm text-yellow-600">
+                ⚠️ Caps Lock is ON
+              </div>
+            )}
           </div>
 
           <button
