@@ -4,6 +4,8 @@ import bgImage from "../assets/login_photo/satellite.jpg";
 
 import { API_URL } from "../config/api";
 
+const MIN_LOADING_TIME = 1500; // 1.5 seconds
+
 export default function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
@@ -17,6 +19,8 @@ export default function LoginPage() {
     setError("");
     setLoading(true);
 
+    const startTime = Date.now();
+
     try {
       const res = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
@@ -24,17 +28,28 @@ export default function LoginPage() {
         body: JSON.stringify({ email, password }),
       });
 
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(MIN_LOADING_TIME - elapsed, 0);
+
       if (!res.ok) {
+        await new Promise((r) => setTimeout(r, remaining));
         throw new Error("Invalid email or password");
       }
 
       const data = await res.json();
+
+      await new Promise((r) => setTimeout(r, remaining));
 
       localStorage.setItem("coreflex_logged_in", "yes");
       localStorage.setItem("coreflex_token", data.access_token);
 
       navigate("/app");
     } catch (err) {
+      const elapsed = Date.now() - startTime;
+      const remaining = Math.max(MIN_LOADING_TIME - elapsed, 0);
+
+      await new Promise((r) => setTimeout(r, remaining));
+
       setError(err.message || "Login failed");
       setLoading(false);
     }
