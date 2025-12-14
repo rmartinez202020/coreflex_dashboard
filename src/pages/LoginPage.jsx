@@ -4,7 +4,7 @@ import bgImage from "../assets/login_photo/satellite.jpg";
 
 import { API_URL } from "../config/api";
 
-const MIN_LOADING_TIME = 1500; // 1.5 seconds
+const MIN_LOADING_TIME = 2000; // 1.5 seconds
 
 export default function LoginPage() {
   const navigate = useNavigate();
