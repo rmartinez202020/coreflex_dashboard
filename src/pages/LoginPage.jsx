@@ -9,6 +9,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [showResetInfo, setShowResetInfo] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -51,7 +52,6 @@ export default function LoginPage() {
 
       {/* Login Card */}
       <div className="relative bg-white bg-opacity-90 backdrop-blur-md shadow-2xl rounded-xl p-10 w-full max-w-lg z-10">
-
         <h1 className="text-3xl font-bold text-center text-[#1e293b] mb-4">
           CoreFlex IIoTs Platform
         </h1>
@@ -99,13 +99,43 @@ export default function LoginPage() {
           </button>
         </form>
 
+        {/* Forgot password section */}
+        <div className="text-center text-gray-600 text-sm mt-4">
+          <div className="flex items-center justify-center gap-2">
+            <span>Forgot your password?</span>
+
+            <button
+              type="button"
+              onClick={() => setShowResetInfo((prev) => !prev)}
+              className="text-blue-600 hover:text-blue-800 font-semibold"
+              title="How to reset password"
+            >
+              ℹ️
+            </button>
+          </div>
+
+          {showResetInfo && (
+            <div className="mt-2 text-gray-700">
+              Request a Reset Password at{" "}
+              <a
+                href="mailto:info@coreflexalliance.net"
+                className="text-blue-600 font-semibold hover:underline"
+              >
+                info@coreflexalliance.net
+              </a>
+            </div>
+          )}
+        </div>
+
         <p className="text-center text-gray-600 text-sm mt-4">
           Don’t have an account?{" "}
-          <Link to="/register" className="text-blue-600 font-semibold hover:underline">
+          <Link
+            to="/register"
+            className="text-blue-600 font-semibold hover:underline"
+          >
             Create one
           </Link>
         </p>
-
       </div>
     </div>
   );
