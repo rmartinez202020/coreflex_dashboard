@@ -14,6 +14,7 @@ export default function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [showResetInfo, setShowResetInfo] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
+  const [rememberMe, setRememberMe] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
@@ -38,11 +39,12 @@ export default function LoginPage() {
       }
 
       const data = await res.json();
-
       await new Promise((r) => setTimeout(r, remaining));
 
-      localStorage.setItem("coreflex_logged_in", "yes");
-      localStorage.setItem("coreflex_token", data.access_token);
+      const storage = rememberMe ? localStorage : sessionStorage;
+
+      storage.setItem("coreflex_logged_in", "yes");
+      storage.setItem("coreflex_token", data.access_token);
 
       navigate("/app");
     } catch (err) {
@@ -117,12 +119,23 @@ export default function LoginPage() {
               className="w-full border rounded px-3 py-2 text-gray-800 disabled:bg-gray-100"
               placeholder="••••••••"
             />
-
             {capsLockOn && (
               <div className="mt-1 text-sm text-yellow-600">
                 ⚠️ Caps Lock is ON
               </div>
             )}
+          </div>
+
+          {/* Remember me */}
+          <div className="flex items-center gap-2 text-sm text-gray-700">
+            <input
+              type="checkbox"
+              id="rememberMe"
+              checked={rememberMe}
+              onChange={(e) => setRememberMe(e.target.checked)}
+              disabled={loading}
+            />
+            <label htmlFor="rememberMe">Remember me</label>
           </div>
 
           <button
@@ -138,16 +151,14 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Forgot password section */}
+        {/* Forgot password */}
         <div className="text-center text-gray-600 text-sm mt-4">
           <div className="flex items-center justify-center gap-2">
             <span>Forgot your password?</span>
-
             <button
               type="button"
               onClick={() => setShowResetInfo((prev) => !prev)}
               className="text-blue-600 hover:text-blue-800 font-semibold"
-              title="How to reset password"
             >
               ℹ️
             </button>
@@ -168,10 +179,7 @@ export default function LoginPage() {
 
         <p className="text-center text-gray-600 text-sm mt-4">
           Don’t have an account?{" "}
-          <Link
-            to="/register"
-            className="text-blue-600 font-semibold hover:underline"
-          >
+          <Link to="/register" className="text-blue-600 font-semibold hover:underline">
             Create one
           </Link>
         </p>
