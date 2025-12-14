@@ -9,11 +9,13 @@ export default function LoginPage() {
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
+  const [loading, setLoading] = useState(false);
   const [showResetInfo, setShowResetInfo] = useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
+    setLoading(true);
 
     try {
       const res = await fetch(`${API_URL}/auth/login`, {
@@ -34,6 +36,7 @@ export default function LoginPage() {
       navigate("/app");
     } catch (err) {
       setError(err.message || "Login failed");
+      setLoading(false);
     }
   };
 
@@ -74,7 +77,8 @@ export default function LoginPage() {
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               required
-              className="w-full border rounded px-3 py-2 text-gray-800"
+              disabled={loading}
+              className="w-full border rounded px-3 py-2 text-gray-800 disabled:bg-gray-100"
               placeholder="you@example.com"
             />
           </div>
@@ -86,16 +90,22 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               required
-              className="w-full border rounded px-3 py-2 text-gray-800"
+              disabled={loading}
+              className="w-full border rounded px-3 py-2 text-gray-800 disabled:bg-gray-100"
               placeholder="••••••••"
             />
           </div>
 
           <button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded mt-4"
+            disabled={loading}
+            className={`w-full py-2 rounded mt-4 text-white transition ${
+              loading
+                ? "bg-blue-400 cursor-not-allowed"
+                : "bg-blue-600 hover:bg-blue-700"
+            }`}
           >
-            Login
+            {loading ? "Logging in…" : "Login"}
           </button>
         </form>
 
