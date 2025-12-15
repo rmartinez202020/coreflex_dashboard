@@ -1,6 +1,7 @@
 import { API_URL } from "./config/api";
 
 
+
 import {
   DndContext,
   PointerSensor,
@@ -11,6 +12,8 @@ import {
     
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import Header from "./components/Header";
+
 
 
 // PAGES
@@ -377,13 +380,8 @@ export default function App() {
 
       {/* MAIN CONTENT */}
       <main className="flex-1 p-6 bg-white overflow-visible relative">
-        {/* ⭐ LOGOUT BUTTON - top right */}
-        <button
-          onClick={handleLogout}
-          className="absolute top-2 right-4 px-3 py-1 rounded-md text-sm bg-red-600 text-white hover:bg-red-700 shadow"
-        >
-          Logout
-        </button>
+      {/* ⭐ HEADER */}
+        <Header onLogout={handleLogout} />
 
         {activePage === "dashboard" ? (
           <div className="flex items-center gap-4 mb-6">
