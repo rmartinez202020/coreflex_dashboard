@@ -13,7 +13,7 @@ import {
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "./components/Header";
-
+import { saveMainDashboard } from "./services/saveMainDashboard";
 
 
 // PAGES
@@ -412,6 +412,17 @@ export default function App() {
             >
               ✎ Edit
             </button>
+
+            {/* 💾 SAVE DASHBOARD */}
+              {dashboardMode === "edit" && (
+               <button
+               onClick={handleSaveDashboard}
+                   className="px-3 py-1 rounded-md text-sm bg-indigo-600 text-white hover:bg-indigo-700"
+               >
+                💾 Save Dashboard
+               </button>
+               )}
+
 
             {/* 🚀 LAUNCH — OPEN NEW URL */}
             <button
