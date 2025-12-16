@@ -1,7 +1,5 @@
 import { API_URL } from "./config/api";
 
-
-
 import {
   DndContext,
   PointerSensor,
@@ -13,6 +11,8 @@ import {
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "./components/Header";
+import DashboardHeader from "./components/DashboardHeader";
+import useDashboardLocalStorage from "./hooks/useDashboardLocalStorage";
 
 
 
@@ -58,6 +58,9 @@ export default function App() {
   const [droppedTanks, setDroppedTanks] = useState([]);
   const [selectedTank, setSelectedTank] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
+
+  // ✅ LOCAL STORAGE PERSISTENCE (EXTRACTED)
+useDashboardLocalStorage(droppedTanks, setDroppedTanks);
 
   // SIDEBARS
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
@@ -146,29 +149,6 @@ export default function App() {
     }
   }, [dashboardMode]);
 
-  // LOAD FROM LOCAL STORAGE
-  useEffect(() => {
-    try {
-      const saved = localStorage.getItem("coreflex_dashboard_objects");
-      if (saved) {
-        setDroppedTanks(JSON.parse(saved));
-      }
-    } catch (e) {
-      console.error("Error loading layout:", e);
-    }
-  }, []);
-
-  // SAVE TO LOCAL STORAGE
-  useEffect(() => {
-    try {
-      localStorage.setItem(
-        "coreflex_dashboard_objects",
-        JSON.stringify(droppedTanks)
-      );
-    } catch (e) {
-      console.error("Error saving layout:", e);
-    }
-  }, [droppedTanks]);
 
   // ⭐ IMAGE UPLOAD FUNCTION
   const handleImageUpload = (e) => {
@@ -384,48 +364,16 @@ export default function App() {
         <Header onLogout={handleLogout} />
 
         {activePage === "dashboard" ? (
-          <div className="flex items-center gap-4 mb-6">
-            <h1 className="text-2xl font-bold text-gray-800">
-              Main Dashboard
-            </h1>
-
-            {/* PLAY */}
-            <button
-              onClick={() => setDashboardMode("play")}
-              className={`px-3 py-1 rounded-md text-sm ${
-                dashboardMode === "play"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-200 text-gray-700"
-              }`}
-            >
-              ▶ Play
-            </button>
-
-            {/* EDIT */}
-            <button
-              onClick={() => setDashboardMode("edit")}
-              className={`px-3 py-1 rounded-md text-sm ${
-                dashboardMode === "edit"
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-200 text-gray-700"
-              }`}
-            >
-              ✎ Edit
-            </button>
-
-            {/* 🚀 LAUNCH — OPEN NEW URL */}
-            <button
-              onClick={() => window.open("/launchMainDashboard", "_blank")}
-              className="px-3 py-1 rounded-md text-sm bg-green-600 text-white hover:bg-green-700"
-            >
-              🚀 Launch
-            </button>
-          </div>
-        ) : (
-          <h1 className="text-2xl font-bold mb-4 text-gray-800">
-            {activePage === "home" ? "Home" : "Main Dashboard"}
-          </h1>
-        )}
+          <DashboardHeader
+             dashboardMode={dashboardMode}
+                 setDashboardMode={setDashboardMode}
+               onLaunch={() => window.open("/launchMainDashboard", "_blank")}
+                    />
+                     ) : (
+                     <h1 className="text-2xl font-bold mb-4 text-gray-800">
+                      {activePage === "home" ? "Home" : "Main Dashboard"}
+                      </h1>
+                )}
 
         {/* PAGE CONTENT */}
         {activePage === "home" ? (
@@ -566,3 +514,4 @@ export default function App() {
     </div>
   );
 }
+
