@@ -1,5 +1,5 @@
 // SidebarLeft.jsx
-import React from "react";
+import React, { useState } from "react";
 import {
   StandardTankIcon,
   HorizontalTankIcon,
@@ -18,6 +18,25 @@ export default function SidebarLeft({
   setShowLevelSensors,
   dashboardMode,
 }) {
+  const [isSaving, setIsSaving] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  const handleSaveProject = () => {
+    if (isSaving) return;
+
+    setIsSaving(true);
+    setSaved(false);
+
+    // Simulate save delay (3 seconds)
+    setTimeout(() => {
+      setIsSaving(false);
+      setSaved(true);
+
+      // Hide success message after 2 seconds
+      setTimeout(() => setSaved(false), 2000);
+    }, 3000);
+  };
+
   return (
     <aside
       className={
@@ -28,9 +47,7 @@ export default function SidebarLeft({
       {/* Collapse / Expand Button */}
       <button
         className="absolute top-3 z-50 text-white px-2 py-1 rounded hover:bg-[#1e293b] transition"
-        style={{
-          left: isLeftCollapsed ? "5px" : "232px",
-        }}
+        style={{ left: isLeftCollapsed ? "5px" : "232px" }}
         onClick={() => {
           if (dashboardMode === "play") return;
           setIsLeftCollapsed((prev) => !prev);
@@ -46,15 +63,28 @@ export default function SidebarLeft({
             CoreFlex IOTs V1.18
           </h1>
 
-          {/* 💾 SAVE PROJECT (GLOBAL ACTION) */}
+          {/* 💾 SAVE PROJECT */}
           <div
-            className="flex items-center gap-2 mb-6 cursor-pointer text-green-400 hover:text-green-300 transition"
-            onClick={() => {
-              console.log("Save Project clicked");
-            }}
+            className={`flex items-center gap-2 mb-6 cursor-pointer transition ${
+              isSaving
+                ? "text-yellow-400"
+                : saved
+                ? "text-green-400"
+                : "text-green-400 hover:text-green-300"
+            }`}
+            onClick={handleSaveProject}
           >
-            <span className="text-lg">💾</span>
-            <span className="font-semibold">Save Project</span>
+            <span className="text-lg">
+              {isSaving ? "⏳" : saved ? "✅" : "💾"}
+            </span>
+
+            <span className="font-semibold">
+              {isSaving
+                ? "Saving project..."
+                : saved
+                ? "Project saved"
+                : "Save Project"}
+            </span>
           </div>
 
           {/* Home */}
