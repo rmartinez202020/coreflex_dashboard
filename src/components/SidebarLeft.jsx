@@ -41,7 +41,12 @@ export default function SidebarLeft({
 
       {!isLeftCollapsed && (
         <div className="mt-10">
-          {/* 💾 SAVE PROJECT (VISIBLE INSIDE MENU) */}
+          {/* PLATFORM TITLE */}
+          <h1 className="text-xl font-bold mb-2">
+            CoreFlex IOTs V1.18
+          </h1>
+
+          {/* 💾 SAVE PROJECT (GLOBAL ACTION) */}
           <div
             className="flex items-center gap-2 mb-6 cursor-pointer text-green-400 hover:text-green-300 transition"
             onClick={() => {
@@ -51,8 +56,6 @@ export default function SidebarLeft({
             <span className="text-lg">💾</span>
             <span className="font-semibold">Save Project</span>
           </div>
-
-          <h1 className="text-xl font-bold mb-6">CoreFlex IOTs V1.18</h1>
 
           {/* Home */}
           <div
@@ -85,7 +88,6 @@ export default function SidebarLeft({
 
           {showDevices && (
             <div className="ml-4">
-              {/* Level Sensors */}
               <div
                 className="cursor-pointer mb-2 flex items-center gap-2"
                 onClick={() => setShowLevelSensors((prev) => !prev)}
