@@ -27,12 +27,12 @@ export default function SidebarLeft({
     setIsSaving(true);
     setSaved(false);
 
-    // Simulate save delay (3 seconds)
+    // ⏳ Simulate save delay (3 seconds)
     setTimeout(() => {
       setIsSaving(false);
       setSaved(true);
 
-      // Hide success message after 2 seconds
+      // Reset after success
       setTimeout(() => setSaved(false), 2000);
     }, 3000);
   };
@@ -48,7 +48,8 @@ export default function SidebarLeft({
       <button
         className="absolute top-3 z-50 text-white px-2 py-1 rounded hover:bg-[#1e293b] transition"
         style={{ left: isLeftCollapsed ? "5px" : "232px" }}
-        onClick={() => {
+        onClick={(e) => {
+          e.stopPropagation();
           if (dashboardMode === "play") return;
           setIsLeftCollapsed((prev) => !prev);
         }}
@@ -63,29 +64,28 @@ export default function SidebarLeft({
             CoreFlex IOTs V1.18
           </h1>
 
-          {/* 💾 SAVE PROJECT */}
-          <div
-            className={`flex items-center gap-2 mb-6 cursor-pointer transition ${
-              isSaving
-                ? "text-yellow-400"
-                : saved
-                ? "text-green-400"
-                : "text-green-400 hover:text-green-300"
-            }`}
-            onClick={handleSaveProject}
+          {/* 💾 SAVE PROJECT (FIXED BUTTON) */}
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation(); // ⭐ CRITICAL FIX
+              handleSaveProject();
+            }}
+            disabled={isSaving}
+            className={`w-full flex items-center gap-2 mb-6 px-3 py-2 rounded-md text-sm transition
+              ${
+                isSaving
+                  ? "bg-blue-600 text-white cursor-not-allowed"
+                  : saved
+                  ? "bg-green-600 text-white"
+                  : "bg-gray-800 hover:bg-gray-700 text-green-400"
+              }
+            `}
           >
-            <span className="text-lg">
-              {isSaving ? "⏳" : saved ? "✅" : "💾"}
-            </span>
-
-            <span className="font-semibold">
-              {isSaving
-                ? "Saving project..."
-                : saved
-                ? "Project saved"
-                : "Save Project"}
-            </span>
-          </div>
+            {isSaving && "⏳ Saving project..."}
+            {!isSaving && saved && "✅ Project saved"}
+            {!isSaving && !saved && "💾 Save Project"}
+          </button>
 
           {/* Home */}
           <div
