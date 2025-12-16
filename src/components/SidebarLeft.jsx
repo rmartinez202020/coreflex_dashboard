@@ -29,18 +29,29 @@ export default function SidebarLeft({
       <button
         className="absolute top-3 z-50 text-white px-2 py-1 rounded hover:bg-[#1e293b] transition"
         style={{
-          left: isLeftCollapsed ? "5px" : "232px",   // ⭐ automatically moves to correct edge
+          left: isLeftCollapsed ? "5px" : "232px",
         }}
         onClick={() => {
           if (dashboardMode === "play") return;
           setIsLeftCollapsed((prev) => !prev);
         }}
       >
-        {isLeftCollapsed ? "▶" : "◀"}  {/* ⭐ direction is correct */}
+        {isLeftCollapsed ? "▶" : "◀"}
       </button>
 
       {!isLeftCollapsed && (
         <div className="mt-10">
+          {/* 💾 SAVE PROJECT (VISIBLE INSIDE MENU) */}
+          <div
+            className="flex items-center gap-2 mb-6 cursor-pointer text-green-400 hover:text-green-300 transition"
+            onClick={() => {
+              console.log("Save Project clicked");
+            }}
+          >
+            <span className="text-lg">💾</span>
+            <span className="font-semibold">Save Project</span>
+          </div>
+
           <h1 className="text-xl font-bold mb-6">CoreFlex IOTs V1.18</h1>
 
           {/* Home */}
@@ -74,7 +85,6 @@ export default function SidebarLeft({
 
           {showDevices && (
             <div className="ml-4">
-
               {/* Level Sensors */}
               <div
                 className="cursor-pointer mb-2 flex items-center gap-2"
@@ -90,7 +100,6 @@ export default function SidebarLeft({
                     Tank Models
                   </h3>
 
-                  {/* STANDARD TANK */}
                   <div
                     draggable
                     onDragStart={(e) =>
@@ -102,7 +111,6 @@ export default function SidebarLeft({
                     <span className="text-xs mt-1">Standard Tank</span>
                   </div>
 
-                  {/* HORIZONTAL TANK */}
                   <div
                     draggable
                     onDragStart={(e) =>
@@ -114,7 +122,6 @@ export default function SidebarLeft({
                     <span className="text-xs mt-1">Horizontal Tank</span>
                   </div>
 
-                  {/* VERTICAL TANK */}
                   <div
                     draggable
                     onDragStart={(e) =>
@@ -126,7 +133,6 @@ export default function SidebarLeft({
                     <span className="text-xs mt-1">Vertical Tank</span>
                   </div>
 
-                  {/* SILO TANK */}
                   <div
                     draggable
                     onDragStart={(e) =>
