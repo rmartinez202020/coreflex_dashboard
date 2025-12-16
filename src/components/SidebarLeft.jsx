@@ -17,24 +17,34 @@ export default function SidebarLeft({
   showLevelSensors,
   setShowLevelSensors,
   dashboardMode,
+  onSaveProject, // ✅ REAL SAVE HANDLER FROM APP
 }) {
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  const handleSaveProject = () => {
+  const handleSaveClick = async (e) => {
+    e.stopPropagation();
     if (isSaving) return;
 
     setIsSaving(true);
     setSaved(false);
 
-    // ⏳ Simulate save delay (3 seconds)
-    setTimeout(() => {
-      setIsSaving(false);
-      setSaved(true);
+    try {
+      // 🔗 CALL REAL SAVE (API)
+      await onSaveProject();
 
-      // Reset after success
-      setTimeout(() => setSaved(false), 2000);
-    }, 3000);
+      // ⏳ Keep spinner visible for UX calm (3s total)
+      setTimeout(() => {
+        setIsSaving(false);
+        setSaved(true);
+
+        // Reset success message
+        setTimeout(() => setSaved(false), 2000);
+      }, 3000);
+    } catch (err) {
+      console.error("❌ Save Project failed:", err);
+      setIsSaving(false);
+    }
   };
 
   return (
@@ -60,17 +70,12 @@ export default function SidebarLeft({
       {!isLeftCollapsed && (
         <div className="mt-10">
           {/* PLATFORM TITLE */}
-          <h1 className="text-xl font-bold mb-2">
-            CoreFlex IOTs V1.18
-          </h1>
+          <h1 className="text-xl font-bold mb-2">CoreFlex IOTs V1.18</h1>
 
-          {/* 💾 SAVE PROJECT (FIXED BUTTON) */}
+          {/* 💾 SAVE PROJECT */}
           <button
             type="button"
-            onClick={(e) => {
-              e.stopPropagation(); // ⭐ CRITICAL FIX
-              handleSaveProject();
-            }}
+            onClick={handleSaveClick}
             disabled={isSaving}
             className={`w-full flex items-center gap-2 mb-6 px-3 py-2 rounded-md text-sm transition
               ${
@@ -79,8 +84,7 @@ export default function SidebarLeft({
                   : saved
                   ? "bg-green-600 text-white"
                   : "bg-gray-800 hover:bg-gray-700 text-green-400"
-              }
-            `}
+              }`}
           >
             {isSaving && "⏳ Saving project..."}
             {!isSaving && saved && "✅ Project saved"}

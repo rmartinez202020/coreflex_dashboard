@@ -1,23 +1,34 @@
+import { API_URL } from "../config/api";
+
 /**
  * Save Main Dashboard
- * -------------------
- * Responsible for persisting the user's Main Dashboard layout.
- * For now, this is a frontend stub.
- * Later, this will POST to the backend.
+ * Sends the full dashboard object to the backend
  */
+export async function saveMainDashboard(dashboard) {
+  const token = localStorage.getItem("coreflex_token");
 
-export async function saveMainDashboard(layout) {
-  if (!Array.isArray(layout)) {
-    throw new Error("Invalid dashboard layout");
+  if (!token) {
+    throw new Error("Not authenticated");
   }
 
-  // 🔹 TEMP: frontend-only stub
-  console.log("💾 Saving Main Dashboard (stub):", layout);
+  if (!dashboard || typeof dashboard !== "object") {
+    throw new Error("Invalid dashboard payload");
+  }
 
-  // Simulate async behavior (future API call)
-  return new Promise((resolve) => {
-    setTimeout(() => {
-      resolve({ success: true });
-    }, 500);
+  const res = await fetch(`${API_URL}/dashboard/main`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${token}`,
+    },
+    body: JSON.stringify(dashboard),
   });
+
+  if (!res.ok) {
+    const errorText = await res.text();
+    throw new Error(`Save failed: ${errorText}`);
+  }
+
+  return await res.json();
 }
+

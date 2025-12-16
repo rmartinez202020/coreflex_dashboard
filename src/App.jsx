@@ -6,14 +6,13 @@ import {
   useSensor,
   useSensors,
 } from "@dnd-kit/core";
-
     
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "./components/Header";
 import DashboardHeader from "./components/DashboardHeader";
 import useDashboardLocalStorage from "./hooks/useDashboardLocalStorage";
-
+import { saveMainDashboard } from "./services/saveMainDashboard";
 
 
 // PAGES
@@ -48,9 +47,6 @@ import useDropHandler from "./hooks/useDropHandler";
 export default function App() {
   const navigate = useNavigate(); // ⭐ for logout navigation
   
-
-
-   
   // DEVICE DATA
   const [sensorsData, setSensorsData] = useState([]);
 
@@ -213,6 +209,29 @@ useDashboardLocalStorage(droppedTanks, setDroppedTanks);
     navigate("/"); // back to login page
   };
 
+    // 💾 SAVE PROJECT (Main Dashboard → API)
+  const handleSaveProject = async () => {
+    const dashboardPayload = {
+      version: "1.0",
+      type: "main_dashboard",
+      canvas: {
+        objects: droppedTanks, // ✅ EVERYTHING on the main dashboard canvas
+      },
+      meta: {
+        dashboardMode,
+        savedAt: new Date().toISOString(),
+      },
+    };
+
+    try {
+      await saveMainDashboard(dashboardPayload);
+      console.log("✅ Main Dashboard saved");
+    } catch (err) {
+      console.error("❌ Save failed:", err);
+    }
+  };
+
+
   // KEYBOARD SHORTCUTS
   useKeyboardShortcuts({
     selectedIds,
@@ -345,18 +364,20 @@ useDashboardLocalStorage(droppedTanks, setDroppedTanks);
     <div className="flex h-screen bg-white" onClick={hideContextMenu}>
       {/* LEFT SIDEBAR */}
       <SidebarLeft
-        isLeftCollapsed={isLeftCollapsed}
-        setIsLeftCollapsed={setIsLeftCollapsed}
-        activePage={activePage}
-        setActivePage={setActivePage}
-        setActiveSubPage={setActiveSubPage}
-        setSubPageColor={setSubPageColor}
-        showDevices={showDevices}
-        setShowDevices={setShowDevices}
-        showLevelSensors={showLevelSensors}
-        setShowLevelSensors={setShowLevelSensors}
-        dashboardMode={dashboardMode}
-      />
+  isLeftCollapsed={isLeftCollapsed}
+  setIsLeftCollapsed={setIsLeftCollapsed}
+  activePage={activePage}
+  setActivePage={setActivePage}
+  setActiveSubPage={setActiveSubPage}
+  setSubPageColor={setSubPageColor}
+  showDevices={showDevices}
+  setShowDevices={setShowDevices}
+  showLevelSensors={showLevelSensors}
+  setShowLevelSensors={setShowLevelSensors}
+  dashboardMode={dashboardMode}
+  onSaveProject={handleSaveProject}   // ✅ THIS WAS MISSING
+/>
+
 
       {/* MAIN CONTENT */}
       <main className="flex-1 p-6 bg-white overflow-visible relative">
