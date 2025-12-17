@@ -171,6 +171,11 @@ const [lastSavedAt, setLastSavedAt] = useState(null);
     e.target.value = "";
   };
 
+  // ================================
+// 📡 FETCH LIVE SENSOR DATA FROM API
+// ================================
+
+
   useEffect(() => {
   fetch(`${API_URL}/devices`)
     .then((res) => {
@@ -198,6 +203,37 @@ const [lastSavedAt, setLastSavedAt] = useState(null);
     });
 }, []);
 
+// ⭐ ALWAYS LOAD LAST SAVED TIMESTAMP ON APP START
+useEffect(() => {
+  const loadLastSavedTimestamp = async () => {
+    try {
+      const token = localStorage.getItem("coreflex_token");
+      if (!token) return;
+
+      const res = await fetch(`${API_URL}/dashboard/main`, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      if (!res.ok) return;
+
+      const data = await res.json();
+
+      // ✅ CORRECT SOURCE
+      const savedAt = data?.meta?.savedAt;
+      if (savedAt) {
+        setLastSavedAt(new Date(savedAt));
+      }
+    } catch (err) {
+      console.error("Failed to load last saved timestamp:", err);
+    }
+  };
+
+  loadLastSavedTimestamp();
+}, []);
+
+
 
   const hideContextMenu = () =>
     setContextMenu((prev) => ({ ...prev, visible: false }));
@@ -220,7 +256,7 @@ const handleSaveProject = async () => {
       version: "1.0",
       type: "main_dashboard",
       canvas: {
-        objects: droppedTanks, // ✅ EVERYTHING on canvas
+        objects: droppedTanks,
       },
       meta: {
         dashboardMode,
@@ -232,7 +268,7 @@ const handleSaveProject = async () => {
   try {
     await saveMainDashboard(dashboardPayload);
 
-    // ✅ UPDATE LAST SAVED TIME (for Sidebar Upload section)
+    // ✅ UPDATE LAST SAVED TIME
     setLastSavedAt(new Date());
 
     console.log("✅ Main Dashboard saved");
