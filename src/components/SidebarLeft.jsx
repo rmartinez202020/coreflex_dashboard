@@ -18,8 +18,8 @@ export default function SidebarLeft({
   setShowLevelSensors,
   dashboardMode,
   onSaveProject,     // ✅ REAL SAVE HANDLER FROM APP
-  onUploadProject,   // ✅ ADD
-  lastSavedAt,       // ✅ ADD
+  onUploadProject,   // ✅ UPLOAD HANDLER
+  lastSavedAt,       // ✅ TIMESTAMP
 }) {
   /* =========================
      SAVE STATE
@@ -57,7 +57,6 @@ export default function SidebarLeft({
       setTimeout(() => {
         setIsSaving(false);
         setSaved(true);
-
         setTimeout(() => setSaved(false), 2000);
       }, 3000);
     } catch (err) {
@@ -82,7 +81,6 @@ export default function SidebarLeft({
       setTimeout(() => {
         setIsUploading(false);
         setUploaded(true);
-
         setTimeout(() => setUploaded(false), 2000);
       }, 3000);
     } catch (err) {
@@ -135,13 +133,13 @@ export default function SidebarLeft({
             {!isSaving && !saved && "💾 Save Project"}
           </button>
 
-          {/* ⬆ UPLOAD PROJECT + TIMESTAMP */}
-          <div className="flex items-center justify-between gap-2 mb-6">
+          {/* ⬆ UPLOAD PROJECT */}
+          <div className="mb-6">
             <button
               type="button"
               onClick={handleUploadClick}
               disabled={isUploading}
-              className={`px-3 py-2 rounded-md text-sm transition flex-1
+              className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition
                 ${
                   isUploading
                     ? "bg-blue-600 text-white cursor-not-allowed"
@@ -155,10 +153,9 @@ export default function SidebarLeft({
               {!isUploading && !uploaded && "⬆ Upload Project"}
             </button>
 
-            <span className="text-xs text-gray-400 whitespace-nowrap">
-              Last saved:<br />
-              {formatDate(lastSavedAt)}
-            </span>
+            <div className="mt-1 text-xs text-gray-400">
+              Last saved: {formatDate(lastSavedAt)}
+            </div>
           </div>
 
           {/* Home */}
