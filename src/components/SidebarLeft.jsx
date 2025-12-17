@@ -17,11 +17,33 @@ export default function SidebarLeft({
   showLevelSensors,
   setShowLevelSensors,
   dashboardMode,
-  onSaveProject, // ✅ REAL SAVE HANDLER FROM APP
+  onSaveProject,     // ✅ REAL SAVE HANDLER FROM APP
+  onUploadProject,   // ✅ ADD
+  lastSavedAt,       // ✅ ADD
 }) {
+  /* =========================
+     SAVE STATE
+  ========================= */
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
+  /* =========================
+     UPLOAD STATE
+  ========================= */
+  const [isUploading, setIsUploading] = useState(false);
+  const [uploaded, setUploaded] = useState(false);
+
+  /* =========================
+     HELPERS
+  ========================= */
+  const formatDate = (date) => {
+    if (!date) return "Never";
+    return date.toLocaleString();
+  };
+
+  /* =========================
+     SAVE HANDLER
+  ========================= */
   const handleSaveClick = async (e) => {
     e.stopPropagation();
     if (isSaving) return;
@@ -30,20 +52,42 @@ export default function SidebarLeft({
     setSaved(false);
 
     try {
-      // 🔗 CALL REAL SAVE (API)
       await onSaveProject();
 
-      // ⏳ Keep spinner visible for UX calm (3s total)
       setTimeout(() => {
         setIsSaving(false);
         setSaved(true);
 
-        // Reset success message
         setTimeout(() => setSaved(false), 2000);
       }, 3000);
     } catch (err) {
       console.error("❌ Save Project failed:", err);
       setIsSaving(false);
+    }
+  };
+
+  /* =========================
+     UPLOAD HANDLER
+  ========================= */
+  const handleUploadClick = async (e) => {
+    e.stopPropagation();
+    if (isUploading) return;
+
+    setIsUploading(true);
+    setUploaded(false);
+
+    try {
+      await onUploadProject();
+
+      setTimeout(() => {
+        setIsUploading(false);
+        setUploaded(true);
+
+        setTimeout(() => setUploaded(false), 2000);
+      }, 3000);
+    } catch (err) {
+      console.error("❌ Upload Project failed:", err);
+      setIsUploading(false);
     }
   };
 
@@ -77,7 +121,7 @@ export default function SidebarLeft({
             type="button"
             onClick={handleSaveClick}
             disabled={isSaving}
-            className={`w-full flex items-center gap-2 mb-6 px-3 py-2 rounded-md text-sm transition
+            className={`w-full flex items-center gap-2 mb-3 px-3 py-2 rounded-md text-sm transition
               ${
                 isSaving
                   ? "bg-blue-600 text-white cursor-not-allowed"
@@ -90,6 +134,32 @@ export default function SidebarLeft({
             {!isSaving && saved && "✅ Project saved"}
             {!isSaving && !saved && "💾 Save Project"}
           </button>
+
+          {/* ⬆ UPLOAD PROJECT + TIMESTAMP */}
+          <div className="flex items-center justify-between gap-2 mb-6">
+            <button
+              type="button"
+              onClick={handleUploadClick}
+              disabled={isUploading}
+              className={`px-3 py-2 rounded-md text-sm transition flex-1
+                ${
+                  isUploading
+                    ? "bg-blue-600 text-white cursor-not-allowed"
+                    : uploaded
+                    ? "bg-green-600 text-white"
+                    : "bg-gray-800 hover:bg-gray-700 text-blue-400"
+                }`}
+            >
+              {isUploading && "⏳ Uploading project..."}
+              {!isUploading && uploaded && "✅ Project uploaded"}
+              {!isUploading && !uploaded && "⬆ Upload Project"}
+            </button>
+
+            <span className="text-xs text-gray-400 whitespace-nowrap">
+              Last saved:<br />
+              {formatDate(lastSavedAt)}
+            </span>
+          </div>
 
           {/* Home */}
           <div
@@ -116,8 +186,7 @@ export default function SidebarLeft({
             className="cursor-pointer mb-2 flex items-center gap-2"
             onClick={() => setShowDevices((prev) => !prev)}
           >
-            Devices
-            <span>{showDevices ? "▾" : "▸"}</span>
+            Devices <span>{showDevices ? "▾" : "▸"}</span>
           </div>
 
           {showDevices && (
@@ -126,8 +195,7 @@ export default function SidebarLeft({
                 className="cursor-pointer mb-2 flex items-center gap-2"
                 onClick={() => setShowLevelSensors((prev) => !prev)}
               >
-                Level Sensors
-                <span>{showLevelSensors ? "▾" : "▸"}</span>
+                Level Sensors <span>{showLevelSensors ? "▾" : "▸"}</span>
               </div>
 
               {showLevelSensors && (
@@ -136,46 +204,22 @@ export default function SidebarLeft({
                     Tank Models
                   </h3>
 
-                  <div
-                    draggable
-                    onDragStart={(e) =>
-                      e.dataTransfer.setData("shape", "standardTank")
-                    }
-                    className="cursor-pointer flex flex-col items-center mb-4"
-                  >
+                  <div draggable onDragStart={(e) => e.dataTransfer.setData("shape", "standardTank")} className="cursor-pointer flex flex-col items-center mb-4">
                     <StandardTankIcon size={45} />
                     <span className="text-xs mt-1">Standard Tank</span>
                   </div>
 
-                  <div
-                    draggable
-                    onDragStart={(e) =>
-                      e.dataTransfer.setData("shape", "horizontalTank")
-                    }
-                    className="cursor-pointer flex flex-col items-center mb-4"
-                  >
+                  <div draggable onDragStart={(e) => e.dataTransfer.setData("shape", "horizontalTank")} className="cursor-pointer flex flex-col items-center mb-4">
                     <HorizontalTankIcon size={45} />
                     <span className="text-xs mt-1">Horizontal Tank</span>
                   </div>
 
-                  <div
-                    draggable
-                    onDragStart={(e) =>
-                      e.dataTransfer.setData("shape", "verticalTank")
-                    }
-                    className="cursor-pointer flex flex-col items-center mb-4"
-                  >
+                  <div draggable onDragStart={(e) => e.dataTransfer.setData("shape", "verticalTank")} className="cursor-pointer flex flex-col items-center mb-4">
                     <VerticalTankIcon size={45} />
                     <span className="text-xs mt-1">Vertical Tank</span>
                   </div>
 
-                  <div
-                    draggable
-                    onDragStart={(e) =>
-                      e.dataTransfer.setData("shape", "siloTank")
-                    }
-                    className="cursor-pointer flex flex-col items-center mb-4"
-                  >
+                  <div draggable onDragStart={(e) => e.dataTransfer.setData("shape", "siloTank")} className="cursor-pointer flex flex-col items-center mb-4">
                     <SiloTankIcon size={45} />
                     <span className="text-xs mt-1">Silo Tank</span>
                   </div>

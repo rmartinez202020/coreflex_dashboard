@@ -91,6 +91,10 @@ useDashboardLocalStorage(droppedTanks, setDroppedTanks);
   // ⭐ DASHBOARD MODE — DEFAULT EDIT
   const [dashboardMode, setDashboardMode] = useState("edit");
 
+  // ⭐ LAST SAVED TIMESTAMP (for Sidebar Upload section)
+const [lastSavedAt, setLastSavedAt] = useState(null);
+
+
   // IMAGE LIBRARY WINDOW
   const [showImageLibrary, setShowImageLibrary] = useState(false);
   const [uploadedImages, setUploadedImages] = useState([]);
@@ -209,27 +213,45 @@ useDashboardLocalStorage(droppedTanks, setDroppedTanks);
     navigate("/"); // back to login page
   };
 
-    // 💾 SAVE PROJECT (Main Dashboard → API)
-  const handleSaveProject = async () => {
-    const dashboardPayload = {
+// 💾 SAVE PROJECT (Main Dashboard → API)
+const handleSaveProject = async () => {
+  const dashboardPayload = {
+    layout: {
       version: "1.0",
       type: "main_dashboard",
       canvas: {
-        objects: droppedTanks, // ✅ EVERYTHING on the main dashboard canvas
+        objects: droppedTanks, // ✅ EVERYTHING on canvas
       },
       meta: {
         dashboardMode,
         savedAt: new Date().toISOString(),
       },
-    };
-
-    try {
-      await saveMainDashboard(dashboardPayload);
-      console.log("✅ Main Dashboard saved");
-    } catch (err) {
-      console.error("❌ Save failed:", err);
-    }
+    },
   };
+
+  try {
+    await saveMainDashboard(dashboardPayload);
+
+    // ✅ UPDATE LAST SAVED TIME (for Sidebar Upload section)
+    setLastSavedAt(new Date());
+
+    console.log("✅ Main Dashboard saved");
+  } catch (err) {
+    console.error("❌ Save failed:", err);
+  }
+};
+
+
+// ⬆ UPLOAD PROJECT (stub — UI only for now)
+const handleUploadProject = async () => {
+  try {
+    console.log("⬆ Upload project triggered");
+    // 🔜 Next phase: load dashboard from backend
+  } catch (err) {
+    console.error("❌ Upload failed:", err);
+  }
+};
+
 
 
   // KEYBOARD SHORTCUTS
@@ -363,19 +385,19 @@ useDashboardLocalStorage(droppedTanks, setDroppedTanks);
   return (
     <div className="flex h-screen bg-white" onClick={hideContextMenu}>
       {/* LEFT SIDEBAR */}
-      <SidebarLeft
+ <SidebarLeft
   isLeftCollapsed={isLeftCollapsed}
   setIsLeftCollapsed={setIsLeftCollapsed}
   activePage={activePage}
   setActivePage={setActivePage}
-  setActiveSubPage={setActiveSubPage}
-  setSubPageColor={setSubPageColor}
   showDevices={showDevices}
   setShowDevices={setShowDevices}
   showLevelSensors={showLevelSensors}
   setShowLevelSensors={setShowLevelSensors}
   dashboardMode={dashboardMode}
-  onSaveProject={handleSaveProject}   // ✅ THIS WAS MISSING
+  onSaveProject={handleSaveProject}
+  onUploadProject={handleUploadProject}
+  lastSavedAt={lastSavedAt}
 />
 
 
