@@ -220,8 +220,8 @@ useEffect(() => {
 
       const data = await res.json();
 
-      // ✅ CORRECT SOURCE
-      const savedAt = data?.meta?.savedAt;
+      // ✅ FIXED PATH
+      const savedAt = data?.layout?.meta?.savedAt || data?.meta?.savedAt;
       if (savedAt) {
         setLastSavedAt(new Date(savedAt));
       }
@@ -232,6 +232,7 @@ useEffect(() => {
 
   loadLastSavedTimestamp();
 }, []);
+
 
 
 
