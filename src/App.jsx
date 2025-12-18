@@ -282,11 +282,42 @@ const handleSaveProject = async () => {
 };
 
 
-// ⬆ UPLOAD PROJECT (stub — UI only for now)
+// ⬆ UPLOAD PROJECT (LOAD MAIN DASHBOARD FROM DB)
 const handleUploadProject = async () => {
   try {
-    console.log("⬆ Upload project triggered");
-    // 🔜 Next phase: load dashboard from backend
+    const token = localStorage.getItem("coreflex_token");
+    if (!token) {
+      throw new Error("No auth token found");
+    }
+
+    const res = await fetch(`${API_URL}/dashboard/main`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+      },
+    });
+
+    if (!res.ok) {
+      throw new Error("Failed to load dashboard from DB");
+    }
+
+    const data = await res.json();
+
+    // ✅ RESTORE CANVAS OBJECTS
+    if (Array.isArray(data?.canvas?.objects)) {
+      setDroppedTanks(data.canvas.objects);
+    }
+
+    // ✅ RESTORE DASHBOARD MODE
+    if (data?.meta?.dashboardMode) {
+      setDashboardMode(data.meta.dashboardMode);
+    }
+
+    // ✅ RESTORE LAST SAVED TIME
+    if (data?.meta?.savedAt) {
+      setLastSavedAt(new Date(data.meta.savedAt));
+    }
+
+    console.log("✅ Main dashboard loaded from DB");
   } catch (err) {
     console.error("❌ Upload failed:", err);
   }
