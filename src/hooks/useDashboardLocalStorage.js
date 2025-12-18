@@ -2,26 +2,17 @@ import { useEffect } from "react";
 
 /**
  * useDashboardLocalStorage
- *
  * - Loads dashboard layout from localStorage on mount
  * - Saves dashboard layout to localStorage on change
- * - PAUSES automatically while restoring from DB
- *
- * @param {Array} droppedTanks
- * @param {Function} setDroppedTanks
- * @param {boolean} isRestoringFromDB
+ * - PAUSES saving while restoring from DB
  */
 export default function useDashboardLocalStorage(
   droppedTanks,
   setDroppedTanks,
-  isRestoringFromDB = false
+  isRestoringFromDB
 ) {
-  // =========================
-  // LOAD FROM LOCAL STORAGE
-  // =========================
+  // LOAD FROM LOCAL STORAGE (ONCE)
   useEffect(() => {
-    if (isRestoringFromDB) return; // 🛑 DB restore in progress
-
     try {
       const saved = localStorage.getItem("coreflex_dashboard_objects");
       if (saved) {
@@ -30,13 +21,11 @@ export default function useDashboardLocalStorage(
     } catch (e) {
       console.error("Error loading dashboard layout:", e);
     }
-  }, [setDroppedTanks, isRestoringFromDB]);
+  }, [setDroppedTanks]);
 
-  // =========================
-  // SAVE TO LOCAL STORAGE
-  // =========================
+  // SAVE TO LOCAL STORAGE (ONLY WHEN NOT RESTORING)
   useEffect(() => {
-    if (isRestoringFromDB) return; // 🛑 DB restore in progress
+    if (isRestoringFromDB) return; // ⛔ STOP overwrite
 
     try {
       localStorage.setItem(

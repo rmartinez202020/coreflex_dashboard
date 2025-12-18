@@ -294,40 +294,39 @@ const handleSaveProject = async () => {
 const handleUploadProject = async () => {
   try {
     const token = localStorage.getItem("coreflex_token");
-    if (!token) {
-      throw new Error("No auth token found");
-    }
+    if (!token) throw new Error("No auth token found");
 
     const res = await fetch(`${API_URL}/dashboard/main`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-      },
+      headers: { Authorization: `Bearer ${token}` },
     });
 
-    if (!res.ok) {
-      throw new Error("Failed to load dashboard from DB");
-    }
+    if (!res.ok) throw new Error("Failed to load dashboard from DB");
 
     const data = await res.json();
 
-    // 🔥 IMPORTANT: clear localStorage BEFORE restoring
+    // 🛑 PAUSE localStorage while restoring
+    setIsRestoringFromDB(true);
+
+    // ✅ CLEAR CORRECT KEY
     localStorage.removeItem("coreflex_dashboard_objects");
 
-
-    // ✅ RESTORE CANVAS OBJECTS (DB → UI)
+    // ✅ RESTORE FROM DB
     if (Array.isArray(data?.canvas?.objects)) {
       setDroppedTanks(data.canvas.objects);
     }
 
-    // ✅ RESTORE DASHBOARD MODE
     if (data?.meta?.dashboardMode) {
       setDashboardMode(data.meta.dashboardMode);
     }
 
-    // ✅ RESTORE LAST SAVED TIME
     if (data?.meta?.savedAt) {
       setLastSavedAt(new Date(data.meta.savedAt));
     }
+
+    // ▶️ RESUME localStorage AFTER React finishes restoring
+    setTimeout(() => {
+      setIsRestoringFromDB(false);
+    }, 0);
 
     console.log("✅ Main dashboard loaded from DB (DB is source of truth)");
   } catch (err) {
