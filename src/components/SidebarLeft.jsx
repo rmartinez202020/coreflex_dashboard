@@ -119,7 +119,7 @@ export default function SidebarLeft({
             type="button"
             onClick={handleSaveClick}
             disabled={isSaving}
-            className={`w-full flex items-center gap-2 mb-3 px-3 py-2 rounded-md text-sm transition
+            className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition
               ${
                 isSaving
                   ? "bg-blue-600 text-white cursor-not-allowed"
@@ -132,6 +132,11 @@ export default function SidebarLeft({
             {!isSaving && saved && "✅ Project saved"}
             {!isSaving && !saved && "💾 Save Project"}
           </button>
+
+          {/* 🕒 LAST SAVED TIMESTAMP (MOVED HERE) */}
+          <div className="mt-1 mb-4 text-xs text-gray-400">
+            Last saved: {formatDate(lastSavedAt)}
+          </div>
 
           {/* ⬆ UPLOAD PROJECT */}
           <div className="mb-6">
@@ -152,10 +157,6 @@ export default function SidebarLeft({
               {!isUploading && uploaded && "✅ Project uploaded"}
               {!isUploading && !uploaded && "⬆ Upload Project"}
             </button>
-
-            <div className="mt-1 text-xs text-gray-400">
-              Last saved: {formatDate(lastSavedAt)}
-            </div>
           </div>
 
           {/* Home */}
@@ -201,22 +202,46 @@ export default function SidebarLeft({
                     Tank Models
                   </h3>
 
-                  <div draggable onDragStart={(e) => e.dataTransfer.setData("shape", "standardTank")} className="cursor-pointer flex flex-col items-center mb-4">
+                  <div
+                    draggable
+                    onDragStart={(e) =>
+                      e.dataTransfer.setData("shape", "standardTank")
+                    }
+                    className="cursor-pointer flex flex-col items-center mb-4"
+                  >
                     <StandardTankIcon size={45} />
                     <span className="text-xs mt-1">Standard Tank</span>
                   </div>
 
-                  <div draggable onDragStart={(e) => e.dataTransfer.setData("shape", "horizontalTank")} className="cursor-pointer flex flex-col items-center mb-4">
+                  <div
+                    draggable
+                    onDragStart={(e) =>
+                      e.dataTransfer.setData("shape", "horizontalTank")
+                    }
+                    className="cursor-pointer flex flex-col items-center mb-4"
+                  >
                     <HorizontalTankIcon size={45} />
                     <span className="text-xs mt-1">Horizontal Tank</span>
                   </div>
 
-                  <div draggable onDragStart={(e) => e.dataTransfer.setData("shape", "verticalTank")} className="cursor-pointer flex flex-col items-center mb-4">
+                  <div
+                    draggable
+                    onDragStart={(e) =>
+                      e.dataTransfer.setData("shape", "verticalTank")
+                    }
+                    className="cursor-pointer flex flex-col items-center mb-4"
+                  >
                     <VerticalTankIcon size={45} />
                     <span className="text-xs mt-1">Vertical Tank</span>
                   </div>
 
-                  <div draggable onDragStart={(e) => e.dataTransfer.setData("shape", "siloTank")} className="cursor-pointer flex flex-col items-center mb-4">
+                  <div
+                    draggable
+                    onDragStart={(e) =>
+                      e.dataTransfer.setData("shape", "siloTank")
+                    }
+                    className="cursor-pointer flex flex-col items-center mb-4"
+                  >
                     <SiloTankIcon size={45} />
                     <span className="text-xs mt-1">Silo Tank</span>
                   </div>
