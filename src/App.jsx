@@ -302,7 +302,10 @@ const handleUploadProject = async () => {
 
     const data = await res.json();
 
-    // ✅ RESTORE CANVAS OBJECTS
+    // 🔥 IMPORTANT: clear localStorage BEFORE restoring
+    localStorage.removeItem("coreflex_dashboard");
+
+    // ✅ RESTORE CANVAS OBJECTS (DB → UI)
     if (Array.isArray(data?.canvas?.objects)) {
       setDroppedTanks(data.canvas.objects);
     }
@@ -317,7 +320,7 @@ const handleUploadProject = async () => {
       setLastSavedAt(new Date(data.meta.savedAt));
     }
 
-    console.log("✅ Main dashboard loaded from DB");
+    console.log("✅ Main dashboard loaded from DB (DB is source of truth)");
   } catch (err) {
     console.error("❌ Upload failed:", err);
   }
