@@ -55,8 +55,16 @@ export default function App() {
   const [selectedTank, setSelectedTank] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
 
-  // ✅ LOCAL STORAGE PERSISTENCE (EXTRACTED)
-useDashboardLocalStorage(droppedTanks, setDroppedTanks);
+  // 🔄 DB RESTORE CONTROL (prevents localStorage overwrite)
+const [isRestoringFromDB, setIsRestoringFromDB] = useState(false);
+
+  // ✅ LOCAL STORAGE PERSISTENCE (PAUSED DURING DB RESTORE)
+useDashboardLocalStorage(
+  droppedTanks,
+  setDroppedTanks,
+  isRestoringFromDB
+);
+
 
   // SIDEBARS
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
@@ -303,7 +311,8 @@ const handleUploadProject = async () => {
     const data = await res.json();
 
     // 🔥 IMPORTANT: clear localStorage BEFORE restoring
-    localStorage.removeItem("coreflex_dashboard");
+    localStorage.removeItem("coreflex_dashboard_objects");
+
 
     // ✅ RESTORE CANVAS OBJECTS (DB → UI)
     if (Array.isArray(data?.canvas?.objects)) {
