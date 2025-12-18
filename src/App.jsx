@@ -295,15 +295,22 @@ const handleUploadProject = async () => {
 
     console.log("📦 Dashboard payload from DB:", data);
 
-    // 🧹 HARD RESET CANVAS FIRST (important)
+    // 🔥 FORCE HARD RESET (guarantees React re-render)
     setDroppedTanks([]);
 
-    // ⏭ allow React to flush state
+    // ⏭ Let React flush empty state first
     setTimeout(() => {
-      // ✅ RESTORE OBJECTS
-      if (Array.isArray(data?.canvas?.objects)) {
-        setDroppedTanks(data.canvas.objects);
-      }
+      // 🔍 FIND OBJECTS REGARDLESS OF BACKEND SHAPE
+      const objects =
+        data?.canvas?.objects ||
+        data?.layout?.canvas?.objects ||
+        data?.layout?.objects ||
+        [];
+
+      console.log("🧩 Restoring objects:", objects);
+
+      // ✅ RESTORE OBJECTS (THIS WAS THE ROOT CAUSE)
+      setDroppedTanks([...objects]);
 
       // ✅ RESTORE MODE
       if (data?.meta?.dashboardMode) {
@@ -311,8 +318,8 @@ const handleUploadProject = async () => {
       }
 
       // ✅ RESTORE TIMESTAMP
-      if (data?.meta?.savedAt) {
-        setLastSavedAt(new Date(data.meta.savedAt));
+      if (data?.meta?.savedAt || data?.updated_at) {
+        setLastSavedAt(new Date(data.meta?.savedAt || data.updated_at));
       }
 
       console.log("✅ Main dashboard restored from DB");
