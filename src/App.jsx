@@ -11,7 +11,6 @@ import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "./components/Header";
 import DashboardHeader from "./components/DashboardHeader";
-import useDashboardLocalStorage from "./hooks/useDashboardLocalStorage";
 import { saveMainDashboard } from "./services/saveMainDashboard";
 
 
@@ -54,16 +53,6 @@ export default function App() {
   const [droppedTanks, setDroppedTanks] = useState([]);
   const [selectedTank, setSelectedTank] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
-
-  // 🔄 DB RESTORE CONTROL (prevents localStorage overwrite)
-const [isRestoringFromDB, setIsRestoringFromDB] = useState(false);
-
-  // ✅ LOCAL STORAGE PERSISTENCE (PAUSED DURING DB RESTORE)
-useDashboardLocalStorage(
-  droppedTanks,
-  setDroppedTanks,
-  isRestoringFromDB
-);
 
 
   // SIDEBARS
@@ -304,36 +293,34 @@ const handleUploadProject = async () => {
 
     const data = await res.json();
 
-    // 🛑 PAUSE localStorage while restoring
-    setIsRestoringFromDB(true);
+    console.log("📦 Dashboard payload from DB:", data);
 
-    // ✅ CLEAR CORRECT KEY
-    localStorage.removeItem("coreflex_dashboard_objects");
+    // 🧹 HARD RESET CANVAS FIRST (important)
+    setDroppedTanks([]);
 
-    // ✅ RESTORE FROM DB
-    if (Array.isArray(data?.canvas?.objects)) {
-      setDroppedTanks(data.canvas.objects);
-    }
-
-    if (data?.meta?.dashboardMode) {
-      setDashboardMode(data.meta.dashboardMode);
-    }
-
-    if (data?.meta?.savedAt) {
-      setLastSavedAt(new Date(data.meta.savedAt));
-    }
-
-    // ▶️ RESUME localStorage AFTER React finishes restoring
+    // ⏭ allow React to flush state
     setTimeout(() => {
-      setIsRestoringFromDB(false);
-    }, 0);
+      // ✅ RESTORE OBJECTS
+      if (Array.isArray(data?.canvas?.objects)) {
+        setDroppedTanks(data.canvas.objects);
+      }
 
-    console.log("✅ Main dashboard loaded from DB (DB is source of truth)");
+      // ✅ RESTORE MODE
+      if (data?.meta?.dashboardMode) {
+        setDashboardMode(data.meta.dashboardMode);
+      }
+
+      // ✅ RESTORE TIMESTAMP
+      if (data?.meta?.savedAt) {
+        setLastSavedAt(new Date(data.meta.savedAt));
+      }
+
+      console.log("✅ Main dashboard restored from DB");
+    }, 0);
   } catch (err) {
     console.error("❌ Upload failed:", err);
   }
 };
-
 
 
   // KEYBOARD SHORTCUTS
