@@ -252,23 +252,26 @@ useEffect(() => {
 // 💾 SAVE PROJECT (Main Dashboard → API)
 const handleSaveProject = async () => {
   const dashboardPayload = {
-    layout: {
-      version: "1.0",
-      type: "main_dashboard",
-      canvas: {
-        objects: droppedTanks,
-      },
-      meta: {
-        dashboardMode,
-        savedAt: new Date().toISOString(),
-      },
+    // ✅ REQUIRED TOP-LEVEL FIELDS (THIS FIXES 422 ERROR)
+    version: "1.0",
+    type: "main_dashboard",
+
+    // ✅ DASHBOARD CONTENT
+    canvas: {
+      objects: droppedTanks, // everything on the canvas
+    },
+
+    // ✅ METADATA
+    meta: {
+      dashboardMode,
+      savedAt: new Date().toISOString(), // user-local time stored as ISO
     },
   };
 
   try {
     await saveMainDashboard(dashboardPayload);
 
-    // ✅ UPDATE LAST SAVED TIME
+    // ✅ UPDATE SIDEBAR TIMESTAMP IMMEDIATELY
     setLastSavedAt(new Date());
 
     console.log("✅ Main Dashboard saved");
