@@ -65,29 +65,34 @@ export default function SidebarLeft({
     }
   };
 
-  /* =========================
-     UPLOAD HANDLER
-  ========================= */
-  const handleUploadClick = async (e) => {
-    e.stopPropagation();
-    if (isUploading) return;
+/* =========================
+   UPLOAD HANDLER (DELAY → THEN LOAD FROM DB)
+========================= */
+const handleUploadClick = (e) => {
+  e.stopPropagation();
+  if (isUploading) return;
 
-    setIsUploading(true);
-    setUploaded(false);
+  setIsUploading(true);
+  setUploaded(false);
+
+  // ⏳ UX delay FIRST
+  setTimeout(async () => {
+    // ✅ NOW show "Project uploaded"
+    setIsUploading(false);
+    setUploaded(true);
 
     try {
+      // 🚀 START REAL DB LOAD HERE
       await onUploadProject();
-
-      setTimeout(() => {
-        setIsUploading(false);
-        setUploaded(true);
-        setTimeout(() => setUploaded(false), 2000);
-      }, 3000);
-    } catch (err) {
-      console.error("❌ Upload Project failed:", err);
-      setIsUploading(false);
+    } catch (dbErr) {
+      console.error("❌ DB load failed:", dbErr);
     }
-  };
+
+    // reset label after 2s
+    setTimeout(() => setUploaded(false), 2000);
+  }, 3000);
+};
+
 
   return (
     <aside
