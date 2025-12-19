@@ -28,7 +28,6 @@ export default function DraggableDroppedTank({
   const handleResize = useCallback(
     (e) => {
       if (!resizing) return;
-
       const newScale = Math.max(0.15, (tank.scale || 1) + e.movementX * 0.01);
       onUpdate({ ...tank, scale: newScale });
     },
@@ -68,16 +67,13 @@ export default function DraggableDroppedTank({
     height: "fit-content",
     cursor: selected ? "grab" : "pointer",
     zIndex: tank.zIndex ?? 1,
-    outline: selected ? "2px solid #2563eb" : "none",
-    borderRadius: 8,
     background: "transparent",
-    padding: 4,
+    padding: 0,               // ✅ FIXED
     boxSizing: "border-box",
   };
 
   return (
     <div
-      className="draggable-item"
       ref={setNodeRef}
       style={style}
       {...attributes}
@@ -92,24 +88,37 @@ export default function DraggableDroppedTank({
       }}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {/* Render IMAGE or TEXT passed in via children */}
-      {children}
+      {/* ✅ TIGHT SELECTION OUTLINE */}
+      <div
+        style={{
+          display: "inline-block",
+          outline: selected ? "2px solid #2563eb" : "none",
+          outlineOffset: 2,
+          borderRadius: 6,
+        }}
+      >
+        {children}
+      </div>
 
-      {/* Resize Handle */}
+      {/* ✅ RESIZE HANDLE (small & scale-safe) */}
       {selected && (
         <div
           onMouseDown={startResize}
           style={{
             position: "absolute",
-            width: 18,
-            height: 18,
-            background: "#00aaff",
-            right: -10,
-            bottom: -10,
-            borderRadius: 4,
+            width: 10,
+            height: 10,
+            background: "#2563eb",
+            right: -6,
+            bottom: -6,
+            borderRadius: 3,
             cursor: "nwse-resize",
-            border: "2px solid white",
+            border: "1px solid white",
             zIndex: 99999,
+
+            // keeps handle size constant while scaling
+            transform: `scale(${1 / (tank.scale || 1)})`,
+            transformOrigin: "bottom right",
           }}
         />
       )}
