@@ -52,7 +52,7 @@ export default function DraggableDroppedTank({
     ? `translate(${dragDelta.x}px, ${dragDelta.y}px) scale(${tank.scale || 1})`
     : `translate(${transform?.x || 0}px, ${transform?.y || 0}px) scale(${tank.scale || 1})`;
 
-  /** ❌ NO outline here */
+  /** OUTER: positioning only */
   const outerStyle = {
     position: "absolute",
     left: tank.x,
@@ -63,13 +63,22 @@ export default function DraggableDroppedTank({
     zIndex: tank.zIndex ?? 1,
   };
 
-  /** ✅ Visual wrapper only */
+  /** INNER: visual bounds */
   const visualWrapperStyle = {
     display: "inline-block",
-    borderRadius: 8,
-    padding: 4,
-    boxSizing: "border-box",
+    padding: 2,
+    borderRadius: 6,
     boxShadow: selected ? "0 0 0 2px #2563eb" : "none",
+  };
+
+  /** SVG FIX */
+  const contentStyle = {
+    display: "block",
+    width: "fit-content",
+    height: "fit-content",
+    maxWidth: "none",
+    maxHeight: "none",
+    pointerEvents: "none", // prevents SVG from hijacking mouse
   };
 
   return (
@@ -89,12 +98,12 @@ export default function DraggableDroppedTank({
       }}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {/* ✅ OUTLINE APPLIED ONLY TO REAL CONTENT */}
+      {/* 🔒 Tight visual bounds */}
       <div style={visualWrapperStyle}>
-        {children}
+        <div style={contentStyle}>{children}</div>
       </div>
 
-      {/* Resize Handle */}
+      {/* Resize handle */}
       {selected && (
         <div
           onMouseDown={startResize}
