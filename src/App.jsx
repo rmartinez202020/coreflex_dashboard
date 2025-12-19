@@ -323,11 +323,6 @@ const handleUploadProject = async () => {
         setDashboardMode(data.meta.dashboardMode);
       }
 
-      // ✅ RESTORE TIMESTAMP
-      if (data?.meta?.savedAt || data?.updated_at) {
-        setLastSavedAt(new Date(data.meta?.savedAt || data.updated_at));
-      }
-
       console.log("✅ Main dashboard restored from DB");
     }, 0);
   } catch (err) {
