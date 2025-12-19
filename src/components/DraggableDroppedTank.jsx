@@ -28,7 +28,6 @@ export default function DraggableDroppedTank({
   const handleResize = useCallback(
     (e) => {
       if (!resizing) return;
-
       const newScale = Math.max(0.15, (tank.scale || 1) + e.movementX * 0.01);
       onUpdate({ ...tank, scale: newScale });
     },
@@ -39,11 +38,7 @@ export default function DraggableDroppedTank({
     if (resizing) {
       window.addEventListener("mousemove", handleResize);
       window.addEventListener("mouseup", stopResize);
-    } else {
-      window.removeEventListener("mousemove", handleResize);
-      window.removeEventListener("mouseup", stopResize);
     }
-
     return () => {
       window.removeEventListener("mousemove", handleResize);
       window.removeEventListener("mouseup", stopResize);
@@ -57,8 +52,8 @@ export default function DraggableDroppedTank({
     ? `translate(${dragDelta.x}px, ${dragDelta.y}px) scale(${tank.scale || 1})`
     : `translate(${transform?.x || 0}px, ${transform?.y || 0}px) scale(${tank.scale || 1})`;
 
-  /* 🔹 OUTER DRAG CONTAINER — NO OUTLINE HERE */
-  const dragStyle = {
+  /** ❌ NO outline here */
+  const outerStyle = {
     position: "absolute",
     left: tank.x,
     top: tank.y,
@@ -66,14 +61,22 @@ export default function DraggableDroppedTank({
     transformOrigin: "top left",
     cursor: selected ? "grab" : "pointer",
     zIndex: tank.zIndex ?? 1,
-    background: "transparent",
+  };
+
+  /** ✅ Visual wrapper only */
+  const visualWrapperStyle = {
+    display: "inline-block",
+    borderRadius: 8,
+    padding: 4,
+    boxSizing: "border-box",
+    boxShadow: selected ? "0 0 0 2px #2563eb" : "none",
   };
 
   return (
     <div
-      className="draggable-item"
       ref={setNodeRef}
-      style={dragStyle}
+      style={outerStyle}
+      className="draggable-item"
       {...attributes}
       {...listeners}
       onClick={(e) => {
@@ -86,45 +89,31 @@ export default function DraggableDroppedTank({
       }}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {/* 🔹 INNER VISUAL WRAPPER (THIS FIXES THE BLUE BOX) */}
-      <div
-        style={{
-          position: "relative",
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          padding: 6,
-          borderRadius: 8,
-          outline: selected ? "2px solid #2563eb" : "none",
-          boxSizing: "border-box",
-          background: "transparent",
-        }}
-      >
+      {/* ✅ OUTLINE APPLIED ONLY TO REAL CONTENT */}
+      <div style={visualWrapperStyle}>
         {children}
-
-        {/* 🔹 RESIZE HANDLE (SCALES CORRECTLY) */}
-        {selected && (
-          <div
-            onMouseDown={startResize}
-            style={{
-              position: "absolute",
-              width: 10,
-              height: 10,
-              right: -6,
-              bottom: -6,
-              background: "#2563eb",
-              borderRadius: 3,
-              cursor: "nwse-resize",
-              border: "1px solid white",
-              zIndex: 99999,
-
-              // 🔥 Keeps handle size constant when scaling
-              transform: `scale(${1 / (tank.scale || 1)})`,
-              transformOrigin: "bottom right",
-            }}
-          />
-        )}
       </div>
+
+      {/* Resize Handle */}
+      {selected && (
+        <div
+          onMouseDown={startResize}
+          style={{
+            position: "absolute",
+            width: 10,
+            height: 10,
+            background: "#2563eb",
+            right: -6,
+            bottom: -6,
+            borderRadius: 3,
+            cursor: "nwse-resize",
+            border: "1px solid white",
+            zIndex: 99999,
+            transform: `scale(${1 / (tank.scale || 1)})`,
+            transformOrigin: "bottom right",
+          }}
+        />
+      )}
     </div>
   );
 }
