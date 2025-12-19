@@ -59,6 +59,10 @@ export default function App() {
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
   const [isRightCollapsed, setIsRightCollapsed] = useState(false);
 
+  // ⚠️ RESTORE WARNING MODAL
+const [showRestoreWarning, setShowRestoreWarning] = useState(false);
+
+
   // MENUS
   const [showDevices, setShowDevices] = useState(false);
   const [showLevelSensors, setShowLevelSensors] = useState(false);

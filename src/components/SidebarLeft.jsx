@@ -27,11 +27,7 @@ export default function SidebarLeft({
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  /* =========================
-     UPLOAD STATE
-  ========================= */
-  const [isUploading, setIsUploading] = useState(false);
-  const [uploaded, setUploaded] = useState(false);
+
 
   /* =========================
      HELPERS
@@ -66,7 +62,7 @@ export default function SidebarLeft({
   };
 
 /* =========================
-   UPLOAD HANDLER (DELAY → THEN LOAD FROM DB)
+   UPLOAD HANDLER (DELAY → SHOW WARNING)
 ========================= */
 const handleUploadClick = (e) => {
   e.stopPropagation();
@@ -75,23 +71,19 @@ const handleUploadClick = (e) => {
   setIsUploading(true);
   setUploaded(false);
 
-  // ⏳ UX delay FIRST
-  setTimeout(async () => {
-    // ✅ NOW show "Project uploaded"
+  // ⏳ UX delay FIRST (keep existing behavior)
+  setTimeout(() => {
     setIsUploading(false);
     setUploaded(true);
 
-    try {
-      // 🚀 START REAL DB LOAD HERE
-      await onUploadProject();
-    } catch (dbErr) {
-      console.error("❌ DB load failed:", dbErr);
-    }
+    // ⚠️ OPEN WARNING MODAL INSTEAD OF RESTORING
+    setShowRestoreWarning(true);
 
-    // reset label after 2s
+    // reset label after 2s (keep existing UX)
     setTimeout(() => setUploaded(false), 2000);
   }, 3000);
 };
+
 
 
   return (
