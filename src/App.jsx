@@ -465,7 +465,13 @@ const handleUploadProject = async () => {
   // NORMAL APP LAYOUT
   // ============================================================
   return (
-    <div className="flex h-screen bg-white" onClick={hideContextMenu}>
+    <div
+  className="flex h-screen bg-white"
+  onClick={(e) => {
+    if (showRestoreWarning) return; // ⛔ DO NOT CLOSE DURING MODAL
+    hideContextMenu();
+  }}
+>
       {/* LEFT SIDEBAR */}
  <SidebarLeft
   isLeftCollapsed={isLeftCollapsed}
@@ -478,7 +484,7 @@ const handleUploadProject = async () => {
   setShowLevelSensors={setShowLevelSensors}
   dashboardMode={dashboardMode}
   onSaveProject={handleSaveProject}
-  onUploadProject={() => setShowRestoreWarning(true)}
+  onRequestRestore={() => setShowRestoreWarning(true)}
   lastSavedAt={lastSavedAt}
 />
 
