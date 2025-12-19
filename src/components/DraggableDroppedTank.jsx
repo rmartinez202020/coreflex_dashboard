@@ -97,27 +97,23 @@ export default function DraggableDroppedTank({
 
       {/* Resize Handle */}
       {selected && (
-  <div
-    onMouseDown={startResize}
-    style={{
-      position: "absolute",
-      width: 10,
-      height: 10,
-      background: "#2563eb",
-      right: -6,
-      bottom: -6,
-      borderRadius: 3,
-      cursor: "nwse-resize",
-      border: "1px solid white",
-      zIndex: 99999,
-
-      // 🔥 CRITICAL FIX
-      transform: `scale(${1 / (tank.scale || 1)})`,
-      transformOrigin: "bottom right",
-    }}
-  />
-)}
-
+        <div
+          onMouseDown={startResize}
+          style={{
+            position: "absolute",
+            width: 18,
+            height: 18,
+            background: "#00aaff",
+            right: -10,
+            bottom: -10,
+            borderRadius: 4,
+            cursor: "nwse-resize",
+            border: "2px solid white",
+            zIndex: 99999,
+          }}
+        />
+      )}
     </div>
   );
 }
+            
