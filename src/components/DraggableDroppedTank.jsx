@@ -28,6 +28,7 @@ export default function DraggableDroppedTank({
   const handleResize = useCallback(
     (e) => {
       if (!resizing) return;
+
       const newScale = Math.max(0.15, (tank.scale || 1) + e.movementX * 0.01);
       onUpdate({ ...tank, scale: newScale });
     },
@@ -67,13 +68,16 @@ export default function DraggableDroppedTank({
     height: "fit-content",
     cursor: selected ? "grab" : "pointer",
     zIndex: tank.zIndex ?? 1,
+    outline: selected ? "2px solid #2563eb" : "none",
+    borderRadius: 8,
     background: "transparent",
-    padding: 0,               // ✅ FIXED
+    padding: 4,
     boxSizing: "border-box",
   };
 
   return (
     <div
+      className="draggable-item"
       ref={setNodeRef}
       style={style}
       {...attributes}
@@ -88,40 +92,32 @@ export default function DraggableDroppedTank({
       }}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {/* ✅ TIGHT SELECTION OUTLINE */}
-      <div
-        style={{
-          display: "inline-block",
-          outline: selected ? "2px solid #2563eb" : "none",
-          outlineOffset: 2,
-          borderRadius: 6,
-        }}
-      >
-        {children}
-      </div>
+      {/* Render IMAGE or TEXT passed in via children */}
+      {children}
 
-      {/* ✅ RESIZE HANDLE (small & scale-safe) */}
+      {/* Resize Handle */}
       {selected && (
-        <div
-          onMouseDown={startResize}
-          style={{
-            position: "absolute",
-            width: 10,
-            height: 10,
-            background: "#2563eb",
-            right: -6,
-            bottom: -6,
-            borderRadius: 3,
-            cursor: "nwse-resize",
-            border: "1px solid white",
-            zIndex: 99999,
+  <div
+    onMouseDown={startResize}
+    style={{
+      position: "absolute",
+      width: 10,
+      height: 10,
+      background: "#2563eb",
+      right: -6,
+      bottom: -6,
+      borderRadius: 3,
+      cursor: "nwse-resize",
+      border: "1px solid white",
+      zIndex: 99999,
 
-            // keeps handle size constant while scaling
-            transform: `scale(${1 / (tank.scale || 1)})`,
-            transformOrigin: "bottom right",
-          }}
-        />
-      )}
+      // 🔥 CRITICAL FIX
+      transform: `scale(${1 / (tank.scale || 1)})`,
+      transformOrigin: "bottom right",
+    }}
+  />
+)}
+
     </div>
   );
 }
