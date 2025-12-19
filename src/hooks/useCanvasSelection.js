@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState } from "react";
 
 export default function useCanvasSelection({
   droppedTanks,
@@ -8,10 +8,16 @@ export default function useCanvasSelection({
 }) {
   const [selectionBox, setSelectionBox] = useState(null);
 
-  // Mouse Down – start selection rectangle
+  // ===============================
+  // Mouse Down – start selection
+  // ===============================
   const handleCanvasMouseDown = (e) => {
     if (e.button !== 0) return; // left click only
-    if (e.target.closest(".draggable-item")) return;
+
+    // 🚫 DO NOT START SELECTION IF CLICK IS ON AN OBJECT
+    if (e.target.closest(".draggable-item")) {
+      return;
+    }
 
     const rect = e.currentTarget.getBoundingClientRect();
     const startX = e.clientX - rect.left;
@@ -27,16 +33,17 @@ export default function useCanvasSelection({
       height: 0,
     });
 
-    // Reset selected items
+    // Clear previous selection
     setSelectedIds([]);
     setSelectedTank(null);
     hideContextMenu();
   };
 
-  // Mouse Move – resize selection rectangle
+  // ===============================
+  // Mouse Move – resize selection
+  // ===============================
   const handleCanvasMouseMove = (e) => {
     if (!selectionBox?.active) return;
-    if (e.target.closest(".draggable-item")) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left;
@@ -51,7 +58,9 @@ export default function useCanvasSelection({
     }));
   };
 
+  // ===============================
   // Mouse Up – finalize selection
+  // ===============================
   const handleCanvasMouseUp = () => {
     if (!selectionBox?.active) {
       setSelectionBox(null);
@@ -63,7 +72,13 @@ export default function useCanvasSelection({
     const y2 = y + height;
 
     const ids = droppedTanks
-      .filter((t) => t.x >= x && t.y >= y && t.x <= x2 && t.y <= y2)
+      .filter(
+        (t) =>
+          t.x >= x &&
+          t.y >= y &&
+          t.x <= x2 &&
+          t.y <= y2
+      )
       .map((t) => t.id);
 
     setSelectedIds(ids);
