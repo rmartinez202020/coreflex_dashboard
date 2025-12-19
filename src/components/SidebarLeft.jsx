@@ -62,28 +62,12 @@ export default function SidebarLeft({
   };
 
 /* =========================
-   UPLOAD HANDLER (DELAY → SHOW WARNING)
+   UPLOAD HANDLER (OPEN WARNING MODAL)
 ========================= */
 const handleUploadClick = (e) => {
   e.stopPropagation();
-  if (isUploading) return;
-
-  setIsUploading(true);
-  setUploaded(false);
-
-  // ⏳ UX delay FIRST (keep existing behavior)
-  setTimeout(() => {
-    setIsUploading(false);
-    setUploaded(true);
-
-    // ⚠️ OPEN WARNING MODAL INSTEAD OF RESTORING
-    setShowRestoreWarning(true);
-
-    // reset label after 2s (keep existing UX)
-    setTimeout(() => setUploaded(false), 2000);
-  }, 3000);
+  onUploadProject(); // ✅ App.jsx decides what happens next
 };
-
 
 
   return (
@@ -138,22 +122,13 @@ const handleUploadClick = (e) => {
           {/* ⬆ UPLOAD PROJECT */}
           <div className="mb-6">
             <button
-              type="button"
-              onClick={handleUploadClick}
-              disabled={isUploading}
-              className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition
-                ${
-                  isUploading
-                    ? "bg-blue-600 text-white cursor-not-allowed"
-                    : uploaded
-                    ? "bg-green-600 text-white"
-                    : "bg-gray-800 hover:bg-gray-700 text-blue-400"
-                }`}
-            >
-              {isUploading && "⏳ Uploading project..."}
-              {!isUploading && uploaded && "✅ Project uploaded"}
-              {!isUploading && !uploaded && "⬆ Upload Project"}
-            </button>
+  type="button"
+  onClick={handleUploadClick}
+  className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition bg-gray-800 hover:bg-gray-700 text-blue-400"
+>
+  ⬆ Restore Project
+</button>
+
           </div>
 
           {/* Home */}
