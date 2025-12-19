@@ -12,6 +12,8 @@ import { useNavigate } from "react-router-dom";
 import Header from "./components/Header";
 import DashboardHeader from "./components/DashboardHeader";
 import { saveMainDashboard } from "./services/saveMainDashboard";
+import RestoreWarningModal from "./components/RestoreWarningModal";
+
 
 
 // PAGES
@@ -476,7 +478,7 @@ const handleUploadProject = async () => {
   setShowLevelSensors={setShowLevelSensors}
   dashboardMode={dashboardMode}
   onSaveProject={handleSaveProject}
-  onUploadProject={handleUploadProject}
+  onUploadProject={() => setShowRestoreWarning(true)}
   lastSavedAt={lastSavedAt}
 />
 
@@ -625,6 +627,18 @@ const handleUploadProject = async () => {
           onStartResizeWindow={() => setIsResizingCoreflex(true)}
         />
       </main>
+
+      {/* ⚠️ RESTORE WARNING MODAL */}
+<RestoreWarningModal
+  open={showRestoreWarning}
+  lastSavedAt={lastSavedAt}
+  onCancel={() => setShowRestoreWarning(false)}
+  onConfirm={async () => {
+    setShowRestoreWarning(false);
+    await handleUploadProject(); // ✅ ACTUAL RESTORE HAPPENS HERE
+  }}
+/>
+
 
       {/* RIGHT SIDEBAR */}
       <RightSidebar

@@ -18,7 +18,7 @@ export default function SidebarLeft({
   setShowLevelSensors,
   dashboardMode,
   onSaveProject,     // ✅ REAL SAVE HANDLER FROM APP
-  onUploadProject,   // ✅ UPLOAD HANDLER
+  onRequestRestore,   
   lastSavedAt,       // ✅ TIMESTAMP
 }) {
   /* =========================
@@ -66,7 +66,7 @@ export default function SidebarLeft({
 ========================= */
 const handleUploadClick = (e) => {
   e.stopPropagation();
-  onUploadProject(); // ✅ App.jsx decides what happens next
+  onRequestRestore(); // ✅ App.jsx decides what happens next
 };
 
 
