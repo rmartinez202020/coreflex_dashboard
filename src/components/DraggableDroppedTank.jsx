@@ -57,29 +57,23 @@ export default function DraggableDroppedTank({
     ? `translate(${dragDelta.x}px, ${dragDelta.y}px) scale(${tank.scale || 1})`
     : `translate(${transform?.x || 0}px, ${transform?.y || 0}px) scale(${tank.scale || 1})`;
 
-  const style = {
+  /* 🔹 OUTER DRAG CONTAINER — NO OUTLINE HERE */
+  const dragStyle = {
     position: "absolute",
     left: tank.x,
     top: tank.y,
     transform: liveTransform,
     transformOrigin: "top left",
-
-    width: "fit-content",
-    height: "fit-content",
     cursor: selected ? "grab" : "pointer",
     zIndex: tank.zIndex ?? 1,
-    outline: selected ? "2px solid #2563eb" : "none",
-    borderRadius: 8,
     background: "transparent",
-    padding: 4,
-    boxSizing: "border-box",
   };
 
   return (
     <div
       className="draggable-item"
       ref={setNodeRef}
-      style={style}
+      style={dragStyle}
       {...attributes}
       {...listeners}
       onClick={(e) => {
@@ -92,28 +86,45 @@ export default function DraggableDroppedTank({
       }}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {/* Render IMAGE or TEXT passed in via children */}
-      {children}
+      {/* 🔹 INNER VISUAL WRAPPER (THIS FIXES THE BLUE BOX) */}
+      <div
+        style={{
+          position: "relative",
+          display: "inline-flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 6,
+          borderRadius: 8,
+          outline: selected ? "2px solid #2563eb" : "none",
+          boxSizing: "border-box",
+          background: "transparent",
+        }}
+      >
+        {children}
 
-      {/* Resize Handle */}
-      {selected && (
-        <div
-          onMouseDown={startResize}
-          style={{
-            position: "absolute",
-            width: 18,
-            height: 18,
-            background: "#00aaff",
-            right: -10,
-            bottom: -10,
-            borderRadius: 4,
-            cursor: "nwse-resize",
-            border: "2px solid white",
-            zIndex: 99999,
-          }}
-        />
-      )}
+        {/* 🔹 RESIZE HANDLE (SCALES CORRECTLY) */}
+        {selected && (
+          <div
+            onMouseDown={startResize}
+            style={{
+              position: "absolute",
+              width: 10,
+              height: 10,
+              right: -6,
+              bottom: -6,
+              background: "#2563eb",
+              borderRadius: 3,
+              cursor: "nwse-resize",
+              border: "1px solid white",
+              zIndex: 99999,
+
+              // 🔥 Keeps handle size constant when scaling
+              transform: `scale(${1 / (tank.scale || 1)})`,
+              transformOrigin: "bottom right",
+            }}
+          />
+        )}
+      </div>
     </div>
   );
 }
-            
