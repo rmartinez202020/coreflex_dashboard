@@ -6,8 +6,8 @@
 // ⭐ STANDARD TANK (Dashboard)
 export function StandardTank({ level = 0 }) {
   return (
-    <div style={{ width: "100%", height: "100%" }}>
-      <svg width="45%" height="45%" viewBox="0 0 160 180" preserveAspectRatio="none">
+    <div style={{ width: "100", height: "100" }}>
+      <svg width="45" height="45" viewBox="0 0 160 180" preserveAspectRatio="none">
         <ellipse cx="60" cy="30" rx="45" ry="15" fill="none" stroke="#555" strokeWidth="2" />
         <line x1="15" y1="30" x2="15" y2="160" stroke="#555" strokeWidth="2" />
         <line x1="105" y1="30" x2="105" y2="160" stroke="#555" strokeWidth="2" />
@@ -24,8 +24,8 @@ export function StandardTank({ level = 0 }) {
 // ⭐ VERTICAL TANK (Dashboard)
 export function VerticalTank({ level = 0 }) {
   return (
-    <div style={{ width: "100%", height: "100%" }}>
-      <svg width="45%" height="45%" viewBox="0 0 160 180" preserveAspectRatio="none">
+    <div style={{ width: "100", height: "100" }}>
+      <svg width="45" height="45" viewBox="0 0 160 180" preserveAspectRatio="none">
         <ellipse cx="40" cy="25" rx="25" ry="10" fill="none" stroke="#555" strokeWidth="2" />
         <line x1="15" y1="25" x2="15" y2="165" stroke="#555" strokeWidth="2" />
         <line x1="65" y1="25" x2="65" y2="165" stroke="#555" strokeWidth="2" />
@@ -52,8 +52,8 @@ export const HorizontalTank = ({ level = 0 }) => {
   const fillWidth = (length - radiusX * 2) * (level / 100);
 
   return (
-    <div style={{ width: "100%", height: "100%" }}>
-      <svg width="45%" height="45%" viewBox={`0 0 ${length} ${height}`} preserveAspectRatio="none">
+    <div style={{ width: "100", height: "100" }}>
+      <svg width="45" height="45" viewBox={`0 0 ${length} ${height}`} preserveAspectRatio="none">
         <path
           d={`M ${radiusX} ${height / 2 - radiusY}
              H ${length - radiusX}
@@ -103,8 +103,8 @@ export function SiloTank({
   const displayPrimary = primaryValue ?? `${clampedLevel}%`;
 
   return (
-    <div style={{ width: "100%", height: "100%" }}>
-      <svg width="45%" height="45%" viewBox="0 0 160 200" preserveAspectRatio="none">
+    <div style={{ width: "100", height: "100" }}>
+      <svg width="45" height="45" viewBox="0 0 160 200" preserveAspectRatio="none">
         <defs>
           <clipPath id="siloClip">
             <path d="M 20 30 A 40 12 0 0 1 100 30 L 100 140 L 20 140 Z" />
