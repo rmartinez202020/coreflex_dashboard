@@ -52,7 +52,7 @@ export default function DraggableDroppedTank({
     ? `translate(${dragDelta.x}px, ${dragDelta.y}px) scale(${tank.scale || 1})`
     : `translate(${transform?.x || 0}px, ${transform?.y || 0}px) scale(${tank.scale || 1})`;
 
-  /** OUTER — positioning only */
+  /* OUTER — movement only (NO visuals here) */
   const outerStyle = {
     position: "absolute",
     left: tank.x,
@@ -63,27 +63,30 @@ export default function DraggableDroppedTank({
     zIndex: tank.zIndex ?? 1,
   };
 
-  /** INNER — tight visual bounds */
-  const wrapperStyle = {
-    display: "inline-block",
-    padding: 0,
+  /* INNER — tight visual bounds */
+  const visualWrapperStyle = {
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
     borderRadius: 6,
-    outline: selected ? "2px solid #2563eb" : "none",
+    boxShadow: selected ? "0 0 0 2px #2563eb" : "none",
   };
 
-  /** SVG FIX — remove phantom SVG size */
+  /* SVG FIX — critical */
   const contentStyle = {
     display: "inline-block",
     width: "auto",
     height: "auto",
-    pointerEvents: "none",
+    maxWidth: "none",
+    maxHeight: "none",
+    pointerEvents: "none", // SVG cannot hijack clicks
   };
 
   return (
     <div
       ref={setNodeRef}
-      style={outerStyle}
       className="draggable-item"
+      style={outerStyle}
       {...attributes}
       {...listeners}
       onClick={(e) => {
@@ -96,8 +99,8 @@ export default function DraggableDroppedTank({
       }}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {/* 🔒 TRUE visual bounds */}
-      <div style={wrapperStyle}>
+      {/* 🔒 SELECTION BOUNDS LIVE HERE */}
+      <div style={visualWrapperStyle}>
         <div style={contentStyle}>{children}</div>
       </div>
 
