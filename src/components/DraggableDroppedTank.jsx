@@ -65,12 +65,13 @@ export default function DraggableDroppedTank({
 
   /* INNER — tight visual bounds */
   const visualWrapperStyle = {
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    borderRadius: 6,
-    boxShadow: selected ? "0 0 0 2px #2563eb" : "none",
-  };
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  borderRadius: 8,
+  border: selected ? "1px solid #2563eb" : "1px solid transparent",
+};
+
 
   /* SVG FIX — critical */
   const contentStyle = {
