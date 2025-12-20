@@ -52,7 +52,7 @@ export default function DraggableDroppedTank({
     ? `translate(${dragDelta.x}px, ${dragDelta.y}px) scale(${tank.scale || 1})`
     : `translate(${transform?.x || 0}px, ${transform?.y || 0}px) scale(${tank.scale || 1})`;
 
-  /** OUTER: positioning only */
+  /** OUTER — positioning only */
   const outerStyle = {
     position: "absolute",
     left: tank.x,
@@ -63,22 +63,20 @@ export default function DraggableDroppedTank({
     zIndex: tank.zIndex ?? 1,
   };
 
-  /** INNER: visual bounds */
-  const visualWrapperStyle = {
+  /** INNER — tight visual bounds */
+  const wrapperStyle = {
     display: "inline-block",
-    padding: 2,
+    padding: 0,
     borderRadius: 6,
-    boxShadow: selected ? "0 0 0 2px #2563eb" : "none",
+    outline: selected ? "2px solid #2563eb" : "none",
   };
 
-  /** SVG FIX */
+  /** SVG FIX — remove phantom SVG size */
   const contentStyle = {
-    display: "block",
-    width: "fit-content",
-    height: "fit-content",
-    maxWidth: "none",
-    maxHeight: "none",
-    pointerEvents: "none", // prevents SVG from hijacking mouse
+    display: "inline-block",
+    width: "auto",
+    height: "auto",
+    pointerEvents: "none",
   };
 
   return (
@@ -98,8 +96,8 @@ export default function DraggableDroppedTank({
       }}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {/* 🔒 Tight visual bounds */}
-      <div style={visualWrapperStyle}>
+      {/* 🔒 TRUE visual bounds */}
+      <div style={wrapperStyle}>
         <div style={contentStyle}>{children}</div>
       </div>
 
