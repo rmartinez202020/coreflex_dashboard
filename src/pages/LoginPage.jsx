@@ -7,7 +7,7 @@ import { API_URL } from "../config/api";
 const MIN_LOADING_TIME = 2000; // 2 seconds
 
 export default function LoginPage() {
-  const navigate = useNavigate();
+  const navigate = useNavigate(); // (kept, even if unused now)
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -41,10 +41,12 @@ export default function LoginPage() {
 
       await new Promise((r) => setTimeout(r, remaining));
 
+      // ✅ ALWAYS overwrite token on login
       localStorage.setItem("coreflex_logged_in", "yes");
       localStorage.setItem("coreflex_token", data.access_token);
 
-      navigate("/app");
+      // ✅ FULL RELOAD so React state resets (prevents “shared dashboard” feel)
+      window.location.href = "/app";
     } catch (err) {
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(MIN_LOADING_TIME - elapsed, 0);
