@@ -7,7 +7,7 @@ import { API_URL } from "../config/api";
 const MIN_LOADING_TIME = 2000; // 2 seconds
 
 export default function LoginPage() {
-  const navigate = useNavigate(); // (kept, even if unused now)
+  const navigate = useNavigate();
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -41,12 +41,11 @@ export default function LoginPage() {
 
       await new Promise((r) => setTimeout(r, remaining));
 
-      // ✅ ALWAYS overwrite token on login
       localStorage.setItem("coreflex_logged_in", "yes");
       localStorage.setItem("coreflex_token", data.access_token);
 
-      // ✅ FULL RELOAD so React state resets (prevents “shared dashboard” feel)
-      window.location.href = "/app";
+      // ✅ IMPORTANT: use React Router navigation (prevents Vercel 404 on /app)
+      navigate("/app");
     } catch (err) {
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(MIN_LOADING_TIME - elapsed, 0);
@@ -73,10 +72,8 @@ export default function LoginPage() {
         backgroundRepeat: "no-repeat",
       }}
     >
-      {/* Dark overlay */}
       <div className="absolute inset-0 bg-black opacity-40"></div>
 
-      {/* Login Card */}
       <div className="relative bg-white bg-opacity-90 backdrop-blur-md shadow-2xl rounded-xl p-10 w-full max-w-lg z-10">
         <h1 className="text-3xl font-bold text-center text-[#1e293b] mb-4">
           CoreFlex IIoTs Platform
@@ -140,7 +137,6 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {/* Forgot password section */}
         <div className="text-center text-gray-600 text-sm mt-4">
           <div className="flex items-center justify-center gap-2">
             <span>Forgot your password?</span>
