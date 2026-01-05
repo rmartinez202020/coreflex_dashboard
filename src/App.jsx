@@ -301,16 +301,28 @@ useEffect(() => {
     setContextMenu({ visible: true, x, y, targetId: id });
   };
 
-// ⭐ LOGOUT FUNCTION (clears login + redirects)
+// ⭐ LOGOUT FUNCTION (clears login + resets state + redirects)
 const handleLogout = () => {
+  // 1) clear tokens
   localStorage.removeItem("coreflex_logged_in");
   localStorage.removeItem("coreflex_token");
 
-  // ✅ Tell the app (same tab) that auth changed
+  // 2) clear ALL dashboard state immediately (prevents shared state)
+  setCurrentUserKey(null);
+  setDroppedTanks([]);
+  setSelectedTank(null);
+  setSelectedIds([]);
+  setLastSavedAt(null);
+  setDashboardMode("edit");
+  setActivePage("home");
+
+  // 3) notify same tab listeners
   window.dispatchEvent(new Event("coreflex-auth-changed"));
 
-  navigate("/"); // back to login page
+  // 4) go to login
+  navigate("/");
 };
+
 
 // 💾 SAVE PROJECT (Main Dashboard → API)
 const handleSaveProject = async () => {
@@ -332,6 +344,10 @@ const handleSaveProject = async () => {
   };
 
   try {
+
+    console.log("✅ SAVE userKey:", getUserKeyFromToken());
+console.log("✅ SAVE token start:", (getToken() || "").slice(0, 25));
+
     await saveMainDashboard(dashboardPayload);
 
     // ✅ UPDATE SIDEBAR TIMESTAMP IMMEDIATELY
@@ -347,6 +363,9 @@ const handleSaveProject = async () => {
 const handleUploadProject = async () => {
   try {
     const token = getToken();
+    console.log("⬆️ RESTORE userKey:", getUserKeyFromToken());
+console.log("⬆️ RESTORE token start:", (token || "").slice(0, 25));
+
     if (!token) throw new Error("No auth token found");
 
     const res = await fetch(`${API_URL}/dashboard/main`, {
