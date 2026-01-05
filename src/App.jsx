@@ -13,6 +13,7 @@ import Header from "./components/Header";
 import DashboardHeader from "./components/DashboardHeader";
 import { saveMainDashboard } from "./services/saveMainDashboard";
 import RestoreWarningModal from "./components/RestoreWarningModal";
+import { getUserKeyFromToken, getToken } from "./utils/authToken";
 
 
 
@@ -47,7 +48,52 @@ import useDropHandler from "./hooks/useDropHandler";
 
 export default function App() {
   const navigate = useNavigate(); // ⭐ for logout navigation
-  
+
+  // ✅ identify which user is currently logged in (from JWT)
+const [currentUserKey, setCurrentUserKey] = useState(() => getUserKeyFromToken());
+
+// ✅ detect token changes (login/logout) and reset user state
+useEffect(() => {
+  const syncUserFromToken = () => {
+    const newUserKey = getUserKeyFromToken();
+
+    // if logged out
+    if (!newUserKey) {
+      setCurrentUserKey(null);
+      setDroppedTanks([]);
+      setSelectedTank(null);
+      setSelectedIds([]);
+      setLastSavedAt(null);
+      setDashboardMode("edit");
+      setActivePage("home");
+      return;
+    }
+
+    // if user changed
+    if (newUserKey !== currentUserKey) {
+      console.log("🔄 User changed → resetting dashboard state", currentUserKey, "→", newUserKey);
+
+      setCurrentUserKey(newUserKey);
+      setDroppedTanks([]);
+      setSelectedTank(null);
+      setSelectedIds([]);
+      setLastSavedAt(null);
+      setDashboardMode("edit");
+      setActivePage("home");
+    }
+  };
+
+  // run once on mount
+  syncUserFromToken();
+
+  // run when localStorage token changes (other tab / same tab if you dispatch event)
+  window.addEventListener("storage", syncUserFromToken);
+
+  return () => window.removeEventListener("storage", syncUserFromToken);
+}, [currentUserKey]);
+
+
+
   // DEVICE DATA
   const [sensorsData, setSensorsData] = useState([]);
 
@@ -210,34 +256,36 @@ const [lastSavedAt, setLastSavedAt] = useState(null);
 useEffect(() => {
   const loadLastSavedTimestamp = async () => {
     try {
-      const token = localStorage.getItem("coreflex_token");
-      if (!token) return;
+      const token = getToken();
+      if (!token) {
+        setLastSavedAt(null);
+        return;
+      }
 
       const res = await fetch(`${API_URL}/dashboard/main`, {
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
-      if (!res.ok) return;
+      if (!res.ok) {
+        setLastSavedAt(null);
+        return;
+      }
 
       const data = await res.json();
-
-      // ✅ FIXED PATH
       const savedAt = data?.layout?.meta?.savedAt || data?.meta?.savedAt;
-      if (savedAt) {
-        setLastSavedAt(new Date(savedAt));
-      }
+
+      if (savedAt) setLastSavedAt(new Date(savedAt));
+      else setLastSavedAt(null);
     } catch (err) {
       console.error("Failed to load last saved timestamp:", err);
+      setLastSavedAt(null);
     }
   };
 
   loadLastSavedTimestamp();
-}, []);
+}, [currentUserKey]); // ✅ THIS is the key change
 
-
-
+    
 
   const hideContextMenu = () =>
     setContextMenu((prev) => ({ ...prev, visible: false }));
@@ -284,11 +332,10 @@ const handleSaveProject = async () => {
   }
 };
 
-
 // ⬆ UPLOAD PROJECT (LOAD MAIN DASHBOARD FROM DB)
 const handleUploadProject = async () => {
   try {
-    const token = localStorage.getItem("coreflex_token");
+    const token = getToken();
     if (!token) throw new Error("No auth token found");
 
     const res = await fetch(`${API_URL}/dashboard/main`, {
@@ -298,7 +345,6 @@ const handleUploadProject = async () => {
     if (!res.ok) throw new Error("Failed to load dashboard from DB");
 
     const data = await res.json();
-
     console.log("📦 Dashboard payload from DB:", data);
 
     // 🔥 FORCE HARD RESET (guarantees React re-render)
@@ -315,13 +361,22 @@ const handleUploadProject = async () => {
 
       console.log("🧩 Restoring objects:", objects);
 
-      // ✅ RESTORE OBJECTS (THIS WAS THE ROOT CAUSE)
+      // ✅ RESTORE OBJECTS
       setDroppedTanks([...objects]);
 
-      // ✅ RESTORE MODE
-      if (data?.meta?.dashboardMode) {
-        setDashboardMode(data.meta.dashboardMode);
-      }
+      // ✅ RESTORE MODE (correct path from backend)
+      const mode =
+        data?.layout?.meta?.dashboardMode ||
+        data?.meta?.dashboardMode;
+
+      if (mode) setDashboardMode(mode);
+
+      // ✅ RESTORE LAST SAVED TIMESTAMP (sidebar)
+      const savedAt =
+        data?.layout?.meta?.savedAt ||
+        data?.meta?.savedAt;
+
+      setLastSavedAt(savedAt ? new Date(savedAt) : null);
 
       console.log("✅ Main dashboard restored from DB");
     }, 0);
