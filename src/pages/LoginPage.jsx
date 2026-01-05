@@ -44,6 +44,10 @@ export default function LoginPage() {
       localStorage.setItem("coreflex_logged_in", "yes");
       localStorage.setItem("coreflex_token", data.access_token);
 
+      // ✅ Tell the app (same tab) that auth changed
+window.dispatchEvent(new Event("coreflex-auth-changed"));
+
+
       // ✅ IMPORTANT: use React Router navigation (prevents Vercel 404 on /app)
       navigate("/app");
     } catch (err) {

@@ -52,12 +52,11 @@ export default function App() {
   // ✅ identify which user is currently logged in (from JWT)
 const [currentUserKey, setCurrentUserKey] = useState(() => getUserKeyFromToken());
 
-// ✅ detect token changes (login/logout) and reset user state
+// 🔁 USER AUTH STATE SYNC EFFECT
 useEffect(() => {
   const syncUserFromToken = () => {
     const newUserKey = getUserKeyFromToken();
 
-    // if logged out
     if (!newUserKey) {
       setCurrentUserKey(null);
       setDroppedTanks([]);
@@ -69,9 +68,13 @@ useEffect(() => {
       return;
     }
 
-    // if user changed
     if (newUserKey !== currentUserKey) {
-      console.log("🔄 User changed → resetting dashboard state", currentUserKey, "→", newUserKey);
+      console.log(
+        "🔄 User changed → resetting dashboard state",
+        currentUserKey,
+        "→",
+        newUserKey
+      );
 
       setCurrentUserKey(newUserKey);
       setDroppedTanks([]);
@@ -86,11 +89,15 @@ useEffect(() => {
   // run once on mount
   syncUserFromToken();
 
-  // run when localStorage token changes (other tab / same tab if you dispatch event)
-  window.addEventListener("storage", syncUserFromToken);
+  // ✅ SAME-TAB AUTH CHANGES
+  window.addEventListener("coreflex-auth-changed", syncUserFromToken);
 
-  return () => window.removeEventListener("storage", syncUserFromToken);
+  return () => {
+    window.removeEventListener("coreflex-auth-changed", syncUserFromToken);
+  };
 }, [currentUserKey]);
+
+
 
 
 
@@ -294,12 +301,16 @@ useEffect(() => {
     setContextMenu({ visible: true, x, y, targetId: id });
   };
 
-  // ⭐ LOGOUT FUNCTION (clears login + redirects)
-  const handleLogout = () => {
-    localStorage.removeItem("coreflex_logged_in");
-    localStorage.removeItem("coreflex_token");
-    navigate("/"); // back to login page
-  };
+// ⭐ LOGOUT FUNCTION (clears login + redirects)
+const handleLogout = () => {
+  localStorage.removeItem("coreflex_logged_in");
+  localStorage.removeItem("coreflex_token");
+
+  // ✅ Tell the app (same tab) that auth changed
+  window.dispatchEvent(new Event("coreflex-auth-changed"));
+
+  navigate("/"); // back to login page
+};
 
 // 💾 SAVE PROJECT (Main Dashboard → API)
 const handleSaveProject = async () => {
