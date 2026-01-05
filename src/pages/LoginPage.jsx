@@ -42,26 +42,15 @@ export default function LoginPage() {
       await new Promise((r) => setTimeout(r, remaining));
 
       localStorage.setItem("coreflex_logged_in", "yes");
-localStorage.setItem("coreflex_token", data.access_token);
+      localStorage.setItem("coreflex_token", data.access_token);
 
-/* ================================
-   🔥 CLEAR SHARED DASHBOARD CACHE
-   ================================ */
-localStorage.removeItem("mainDashboard");
-localStorage.removeItem("coreflex_main_dashboard");
-localStorage.removeItem("coreflex_last_dashboard");
-localStorage.removeItem("dashboard_layout");
-localStorage.removeItem("dashboardState");
-
-/* ================================
-   🔔 Notify app + HARD reload
-   ================================ */
+      // ✅ Tell the app (same tab) that auth changed
 window.dispatchEvent(new Event("coreflex-auth-changed"));
 
-// ⛔ IMPORTANT: force full reload to kill old user state
-window.location.href = "/app";
 
-
+      // ✅ IMPORTANT: use React Router navigation (prevents Vercel 404 on /app)
+      navigate("/app");
+      
     } catch (err) {
       const elapsed = Date.now() - startTime;
       const remaining = Math.max(MIN_LOADING_TIME - elapsed, 0);
