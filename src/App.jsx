@@ -306,72 +306,70 @@ export default function App() {
   };
 
   // 💾 SAVE PROJECT
-  const handleSaveProject = async () => {
-    const dashboardPayload = {
-      version: "1.0",
-      type: "main_dashboard",
-      canvas: { objects: droppedTanks },
-      meta: {
-        dashboardMode,
-        savedAt: new Date().toISOString(),
-      },
-    };
-
-    try {
-      console.log("✅ SAVE userKey:", getUserKeyFromToken());
-      console.log("✅ SAVE token start:", (getToken() || "").slice(0, 25));
-
-      await saveMainDashboard(dashboardPayload);
-
-      setLastSavedAt(new Date());
-      console.log("✅ Main Dashboard saved");
-    } catch (err) {
-      console.error("❌ Save failed:", err);
-    }
+const handleSaveProject = async () => {
+  const dashboardPayload = {
+    version: "1.0",
+    type: "main_dashboard",
+    canvas: { objects: droppedTanks },
+    meta: { dashboardMode, savedAt: new Date().toISOString() },
   };
+
+  try {
+    const token = getToken(); // ✅ one read
+    console.log("✅ SAVE token start:", token.slice(0, 25));
+    console.log("✅ SAVE userKey:", getUserKeyFromToken(token)); // ✅ decode same token
+
+    await saveMainDashboard(dashboardPayload);
+
+    setLastSavedAt(new Date());
+    console.log("✅ Main Dashboard saved");
+  } catch (err) {
+    console.error("❌ Save failed:", err);
+  }
+};
+
 
   // ⬆ RESTORE PROJECT
-  const handleUploadProject = async () => {
-    try {
-      const token = getToken();
-      console.log("⬆️ RESTORE userKey:", getUserKeyFromToken());
-      console.log("⬆️ RESTORE token start:", (token || "").slice(0, 25));
+const handleUploadProject = async () => {
+  try {
+    const token = getToken(); // ✅ one read
+    console.log("⬆️ RESTORE token start:", token.slice(0, 25));
+    console.log("⬆️ RESTORE userKey:", getUserKeyFromToken(token)); // ✅ decode same token
 
-      if (!token) throw new Error("No auth token found");
+    if (!token) throw new Error("No auth token found");
 
-      const res = await fetch(`${API_URL}/dashboard/main`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+    const res = await fetch(`${API_URL}/dashboard/main`, {
+      headers: { Authorization: `Bearer ${token}` },
+    });
 
-      if (!res.ok) throw new Error("Failed to load dashboard from DB");
+    if (!res.ok) throw new Error("Failed to load dashboard from DB");
 
-      const data = await res.json();
-      console.log("📦 Dashboard payload from DB:", data);
+    const data = await res.json();
+    console.log("📦 Dashboard payload from DB:", data);
 
-      setDroppedTanks([]);
+    setDroppedTanks([]);
 
-      setTimeout(() => {
-        const objects =
-          data?.canvas?.objects ||
-          data?.layout?.canvas?.objects ||
-          data?.layout?.objects ||
-          [];
+    setTimeout(() => {
+      const objects =
+        data?.canvas?.objects ||
+        data?.layout?.canvas?.objects ||
+        data?.layout?.objects ||
+        [];
 
-        setDroppedTanks([...objects]);
+      setDroppedTanks([...objects]);
 
-        const mode =
-          data?.layout?.meta?.dashboardMode || data?.meta?.dashboardMode;
-        if (mode) setDashboardMode(mode);
+      const mode = data?.layout?.meta?.dashboardMode || data?.meta?.dashboardMode;
+      if (mode) setDashboardMode(mode);
 
-        const savedAt = data?.layout?.meta?.savedAt || data?.meta?.savedAt;
-        setLastSavedAt(savedAt ? new Date(savedAt) : null);
+      const savedAt = data?.layout?.meta?.savedAt || data?.meta?.savedAt;
+      setLastSavedAt(savedAt ? new Date(savedAt) : null);
 
-        console.log("✅ Main dashboard restored from DB");
-      }, 0);
-    } catch (err) {
-      console.error("❌ Upload failed:", err);
-    }
-  };
+      console.log("✅ Main dashboard restored from DB");
+    }, 0);
+  } catch (err) {
+    console.error("❌ Upload failed:", err);
+  }
+};
 
   // KEYBOARD SHORTCUTS
   useKeyboardShortcuts({
