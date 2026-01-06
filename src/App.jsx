@@ -304,8 +304,11 @@ useEffect(() => {
 // ⭐ LOGOUT FUNCTION (clears login + resets state + redirects)
 const handleLogout = () => {
   // 1) clear tokens
-  localStorage.removeItem("coreflex_logged_in");
-  localStorage.removeItem("coreflex_token");
+ sessionStorage.removeItem("coreflex_logged_in");
+sessionStorage.removeItem("coreflex_token");
+localStorage.removeItem("coreflex_logged_in");
+localStorage.removeItem("coreflex_token");
+
 
   // 2) clear ALL dashboard state immediately (prevents shared state)
   setCurrentUserKey(null);

@@ -50,8 +50,13 @@ export default function LoginPage() {
       localStorage.removeItem("coreflex_logged_in");
 
       // ✅ Save new auth
-      localStorage.setItem("coreflex_logged_in", "yes");
-      localStorage.setItem("coreflex_token", data.access_token);
+     sessionStorage.setItem("coreflex_logged_in", "yes");
+sessionStorage.setItem("coreflex_token", data.access_token);
+
+// (optional) wipe old localStorage token to avoid confusion
+localStorage.removeItem("coreflex_logged_in");
+localStorage.removeItem("coreflex_token");
+
 
       /* ================================
          🔥 CLEAR SHARED DASHBOARD CACHE

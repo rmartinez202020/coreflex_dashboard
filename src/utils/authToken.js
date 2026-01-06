@@ -1,15 +1,42 @@
 // src/utils/authToken.js
+//
+// ✅ FIX: support multi-user in SAME BROWSER by using sessionStorage first.
+// - sessionStorage = per-tab (no collisions between tabs/users)
+// - localStorage  = fallback for backwards compatibility
+//
+// IMPORTANT:
+// - Update LoginPage to write token to sessionStorage (recommended).
+// - Keep fallback to localStorage so existing users still work.
 
-// ✅ Always read from localStorage at call-time (no caching)
+const TOKEN_KEY = "coreflex_token";
+const LOGGED_IN_KEY = "coreflex_logged_in";
+
+// ✅ Always read token at call-time (no caching)
 export const getToken = () => {
-  const t = localStorage.getItem("coreflex_token");
-  return (t || "").trim(); // avoid whitespace issues
+  const t =
+    sessionStorage.getItem(TOKEN_KEY) ||
+    localStorage.getItem(TOKEN_KEY);
+
+  return (t || "").trim();
 };
 
 // Optional: quick debug helper
 export const getTokenStart = (len = 25) => {
   const t = getToken();
   return t ? t.slice(0, len) : "";
+};
+
+// ✅ Prefer sessionStorage going forward (per-tab auth)
+export const setToken = (token) => {
+  const clean = (token || "").trim();
+  if (!clean) return;
+
+  sessionStorage.setItem(TOKEN_KEY, clean);
+  sessionStorage.setItem(LOGGED_IN_KEY, "yes");
+
+  // Optional: remove localStorage token to prevent cross-tab collisions
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(LOGGED_IN_KEY);
 };
 
 export const parseJwt = (token) => {
@@ -56,8 +83,11 @@ export const getUserKeyFromToken = () => {
   return payload?.sub ? String(payload.sub) : null;
 };
 
-// Optional helper (nice to have for logout code)
+// ✅ Clears BOTH storages (prevents “ghost” sessions)
 export const clearAuth = () => {
-  localStorage.removeItem("coreflex_logged_in");
-  localStorage.removeItem("coreflex_token");
+  sessionStorage.removeItem(LOGGED_IN_KEY);
+  sessionStorage.removeItem(TOKEN_KEY);
+
+  localStorage.removeItem(LOGGED_IN_KEY);
+  localStorage.removeItem(TOKEN_KEY);
 };
