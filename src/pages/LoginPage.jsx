@@ -15,6 +15,13 @@ export default function LoginPage() {
   const [showResetInfo, setShowResetInfo] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
 
+  // ✅ helper for consistent delay (keeps your 2s minimum)
+  const waitRemaining = async (startTime) => {
+    const elapsed = Date.now() - startTime;
+    const remaining = Math.max(MIN_LOADING_TIME - elapsed, 0);
+    if (remaining > 0) await new Promise((r) => setTimeout(r, remaining));
+  };
+
   const handleLogin = async (e) => {
     e.preventDefault();
     setError("");
@@ -26,38 +33,44 @@ export default function LoginPage() {
       const res = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, password }),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
 
-      const elapsed = Date.now() - startTime;
-      const remaining = Math.max(MIN_LOADING_TIME - elapsed, 0);
-
       if (!res.ok) {
-        await new Promise((r) => setTimeout(r, remaining));
+        await waitRemaining(startTime);
         throw new Error("Invalid email or password");
       }
 
       const data = await res.json();
 
-      await new Promise((r) => setTimeout(r, remaining));
+      await waitRemaining(startTime);
 
+      // ✅ Always clear old auth first (prevents stale token problems)
+      localStorage.removeItem("coreflex_token");
+      localStorage.removeItem("coreflex_logged_in");
+
+      // ✅ Save new auth
       localStorage.setItem("coreflex_logged_in", "yes");
       localStorage.setItem("coreflex_token", data.access_token);
 
+      /* ================================
+         🔥 CLEAR SHARED DASHBOARD CACHE
+         (safe: remove only known global keys)
+         ================================ */
+      localStorage.removeItem("mainDashboard");
+      localStorage.removeItem("coreflex_main_dashboard");
+      localStorage.removeItem("coreflex_last_dashboard");
+      localStorage.removeItem("dashboard_layout");
+      localStorage.removeItem("dashboardState");
+
       // ✅ Tell the app (same tab) that auth changed
-window.dispatchEvent(new Event("coreflex-auth-changed"));
+      window.dispatchEvent(new Event("coreflex-auth-changed"));
 
-
-      // ✅ IMPORTANT: use React Router navigation (prevents Vercel 404 on /app)
-      navigate("/app");
-      
+      // ✅ Use React Router navigation (avoid /app hard-refresh issues on Vercel)
+      navigate("/app", { replace: true });
     } catch (err) {
-      const elapsed = Date.now() - startTime;
-      const remaining = Math.max(MIN_LOADING_TIME - elapsed, 0);
-
-      await new Promise((r) => setTimeout(r, remaining));
-
-      setError(err.message || "Login failed");
+      await waitRemaining(startTime);
+      setError(err?.message || "Login failed");
       setLoading(false);
     }
   };
@@ -105,6 +118,7 @@ window.dispatchEvent(new Event("coreflex-auth-changed"));
               disabled={loading}
               className="w-full border rounded px-3 py-2 text-gray-800 disabled:bg-gray-100"
               placeholder="you@example.com"
+              autoComplete="email"
             />
           </div>
 
@@ -120,6 +134,7 @@ window.dispatchEvent(new Event("coreflex-auth-changed"));
               disabled={loading}
               className="w-full border rounded px-3 py-2 text-gray-800 disabled:bg-gray-100"
               placeholder="••••••••"
+              autoComplete="current-password"
             />
 
             {capsLockOn && (
