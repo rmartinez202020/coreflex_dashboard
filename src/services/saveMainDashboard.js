@@ -1,9 +1,5 @@
 import { API_URL } from "../config/api";
-
-// ✅ Always read token fresh (prevents stale auth issues)
-function getToken() {
-  return localStorage.getItem("coreflex_token") || "";
-}
+import { getToken } from "../utils/authToken";
 
 // Optional debug switch (set to true temporarily)
 const DEBUG_DASHBOARD_API = false;
@@ -33,14 +29,16 @@ export async function saveMainDashboard(dashboard) {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
-      Authorization: `Bearer ${token}`, // ✅ fresh token every call
+      Authorization: `Bearer ${token}`,
     },
     body: JSON.stringify(dashboard),
   });
 
   if (!res.ok) {
     const errorText = await res.text().catch(() => "");
-    throw new Error(`Save failed (${res.status}): ${errorText || res.statusText}`);
+    throw new Error(
+      `Save failed (${res.status}): ${errorText || res.statusText}`
+    );
   }
 
   return await res.json();
@@ -48,7 +46,6 @@ export async function saveMainDashboard(dashboard) {
 
 /**
  * Load Main Dashboard (for the CURRENT logged-in user)
- * This is critical for verifying dashboards are NOT shared between users.
  */
 export async function loadMainDashboard() {
   const token = getToken();
@@ -71,7 +68,9 @@ export async function loadMainDashboard() {
 
   if (!res.ok) {
     const errorText = await res.text().catch(() => "");
-    throw new Error(`Load failed (${res.status}): ${errorText || res.statusText}`);
+    throw new Error(
+      `Load failed (${res.status}): ${errorText || res.statusText}`
+    );
   }
 
   return await res.json();
