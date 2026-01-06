@@ -1,21 +1,21 @@
 import { API_URL } from "./config/api";
 
-import {
-  DndContext,
-  PointerSensor,
-  useSensor,
-  useSensors,
-} from "@dnd-kit/core";
-    
+import { PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "./components/Header";
 import DashboardHeader from "./components/DashboardHeader";
 import { saveMainDashboard } from "./services/saveMainDashboard";
 import RestoreWarningModal from "./components/RestoreWarningModal";
-import { getUserKeyFromToken, getToken } from "./utils/authToken";
 
-
+// ✅ UPDATED IMPORTS (use your helpers)
+import {
+  getUserKeyFromToken,
+  getToken,
+  clearAuth,
+  // isLoggedIn, // optional if you want
+} from "./utils/authToken";
 
 // PAGES
 import HomePage from "./components/HomePage";
@@ -47,59 +47,12 @@ import useObjectDragging from "./hooks/useObjectDragging";
 import useDropHandler from "./hooks/useDropHandler";
 
 export default function App() {
-  const navigate = useNavigate(); // ⭐ for logout navigation
+  const navigate = useNavigate();
 
   // ✅ identify which user is currently logged in (from JWT)
-const [currentUserKey, setCurrentUserKey] = useState(() => getUserKeyFromToken());
-
-// 🔁 USER AUTH STATE SYNC EFFECT
-useEffect(() => {
-  const syncUserFromToken = () => {
-    const newUserKey = getUserKeyFromToken();
-
-    if (!newUserKey) {
-      setCurrentUserKey(null);
-      setDroppedTanks([]);
-      setSelectedTank(null);
-      setSelectedIds([]);
-      setLastSavedAt(null);
-      setDashboardMode("edit");
-      setActivePage("home");
-      return;
-    }
-
-    if (newUserKey !== currentUserKey) {
-      console.log(
-        "🔄 User changed → resetting dashboard state",
-        currentUserKey,
-        "→",
-        newUserKey
-      );
-
-      setCurrentUserKey(newUserKey);
-      setDroppedTanks([]);
-      setSelectedTank(null);
-      setSelectedIds([]);
-      setLastSavedAt(null);
-      setDashboardMode("edit");
-      setActivePage("home");
-    }
-  };
-
-  // run once on mount
-  syncUserFromToken();
-
-  // ✅ SAME-TAB AUTH CHANGES
-  window.addEventListener("coreflex-auth-changed", syncUserFromToken);
-
-  return () => {
-    window.removeEventListener("coreflex-auth-changed", syncUserFromToken);
-  };
-}, [currentUserKey]);
-
-
-
-
+  const [currentUserKey, setCurrentUserKey] = useState(() =>
+    getUserKeyFromToken()
+  );
 
   // DEVICE DATA
   const [sensorsData, setSensorsData] = useState([]);
@@ -109,14 +62,12 @@ useEffect(() => {
   const [selectedTank, setSelectedTank] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
 
-
   // SIDEBARS
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
   const [isRightCollapsed, setIsRightCollapsed] = useState(false);
 
   // ⚠️ RESTORE WARNING MODAL
-const [showRestoreWarning, setShowRestoreWarning] = useState(false);
-
+  const [showRestoreWarning, setShowRestoreWarning] = useState(false);
 
   // MENUS
   const [showDevices, setShowDevices] = useState(false);
@@ -147,9 +98,8 @@ const [showRestoreWarning, setShowRestoreWarning] = useState(false);
   // ⭐ DASHBOARD MODE — DEFAULT EDIT
   const [dashboardMode, setDashboardMode] = useState("edit");
 
-  // ⭐ LAST SAVED TIMESTAMP (for Sidebar Upload section)
-const [lastSavedAt, setLastSavedAt] = useState(null);
-
+  // ⭐ LAST SAVED TIMESTAMP
+  const [lastSavedAt, setLastSavedAt] = useState(null);
 
   // IMAGE LIBRARY WINDOW
   const [showImageLibrary, setShowImageLibrary] = useState(false);
@@ -194,6 +144,50 @@ const [lastSavedAt, setLastSavedAt] = useState(null);
     return base * 10 + offset;
   };
 
+  // ✅ USER AUTH STATE SYNC (critical)
+  useEffect(() => {
+    const syncUserFromToken = () => {
+      const newUserKey = getUserKeyFromToken();
+      const token = getToken();
+
+      // if token missing -> full reset
+      if (!token || !newUserKey) {
+        setCurrentUserKey(null);
+        setDroppedTanks([]);
+        setSelectedTank(null);
+        setSelectedIds([]);
+        setLastSavedAt(null);
+        setDashboardMode("edit");
+        setActivePage("home");
+        return;
+      }
+
+      if (newUserKey !== currentUserKey) {
+        console.log(
+          "🔄 User changed → resetting dashboard state",
+          currentUserKey,
+          "→",
+          newUserKey
+        );
+
+        setCurrentUserKey(newUserKey);
+        setDroppedTanks([]);
+        setSelectedTank(null);
+        setSelectedIds([]);
+        setLastSavedAt(null);
+        setDashboardMode("edit");
+        setActivePage("home");
+      }
+    };
+
+    syncUserFromToken();
+    window.addEventListener("coreflex-auth-changed", syncUserFromToken);
+
+    return () => {
+      window.removeEventListener("coreflex-auth-changed", syncUserFromToken);
+    };
+  }, [currentUserKey]);
+
   // ⭐ COLLAPSE BOTH SIDEBARS WHEN IN PLAY
   useEffect(() => {
     if (dashboardMode === "play") {
@@ -204,7 +198,6 @@ const [lastSavedAt, setLastSavedAt] = useState(null);
       setIsRightCollapsed(false);
     }
   }, [dashboardMode]);
-
 
   // ⭐ IMAGE UPLOAD FUNCTION
   const handleImageUpload = (e) => {
@@ -228,71 +221,66 @@ const [lastSavedAt, setLastSavedAt] = useState(null);
   };
 
   // ================================
-// 📡 FETCH LIVE SENSOR DATA FROM API
-// ================================
-
-
+  // 📡 FETCH LIVE SENSOR DATA FROM API
+  // ================================
   useEffect(() => {
-  fetch(`${API_URL}/devices`)
-    .then((res) => {
-      if (!res.ok) throw new Error("Failed to load devices");
-      return res.json();
-    })
-    .then((data) =>
-      setSensorsData(
-        data.map((s) => ({
-          ...s,
-          level_percent: Math.min(100, Math.round((s.level / 55) * 100)),
-          date_received: s.last_update?.split("T")[0] || "",
-          time_received: s.last_update
-            ? new Date(s.last_update).toLocaleTimeString([], {
-                hour: "2-digit",
-                minute: "2-digit",
-              })
-            : "",
-        }))
+    fetch(`${API_URL}/devices`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load devices");
+        return res.json();
+      })
+      .then((data) =>
+        setSensorsData(
+          data.map((s) => ({
+            ...s,
+            level_percent: Math.min(100, Math.round((s.level / 55) * 100)),
+            date_received: s.last_update?.split("T")[0] || "",
+            time_received: s.last_update
+              ? new Date(s.last_update).toLocaleTimeString([], {
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "",
+          }))
+        )
       )
-    )
-    .catch((err) => {
-      console.error("Sensor API error:", err);
-      setSensorsData([]); // prevent crash
-    });
-}, []);
-
-// ⭐ ALWAYS LOAD LAST SAVED TIMESTAMP ON APP START
-useEffect(() => {
-  const loadLastSavedTimestamp = async () => {
-    try {
-      const token = getToken();
-      if (!token) {
-        setLastSavedAt(null);
-        return;
-      }
-
-      const res = await fetch(`${API_URL}/dashboard/main`, {
-        headers: { Authorization: `Bearer ${token}` },
+      .catch((err) => {
+        console.error("Sensor API error:", err);
+        setSensorsData([]);
       });
+  }, []);
 
-      if (!res.ok) {
+  // ⭐ LOAD LAST SAVED TIMESTAMP (per user)
+  useEffect(() => {
+    const loadLastSavedTimestamp = async () => {
+      try {
+        const token = getToken();
+        if (!token) {
+          setLastSavedAt(null);
+          return;
+        }
+
+        const res = await fetch(`${API_URL}/dashboard/main`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) {
+          setLastSavedAt(null);
+          return;
+        }
+
+        const data = await res.json();
+        const savedAt = data?.layout?.meta?.savedAt || data?.meta?.savedAt;
+
+        setLastSavedAt(savedAt ? new Date(savedAt) : null);
+      } catch (err) {
+        console.error("Failed to load last saved timestamp:", err);
         setLastSavedAt(null);
-        return;
       }
+    };
 
-      const data = await res.json();
-      const savedAt = data?.layout?.meta?.savedAt || data?.meta?.savedAt;
-
-      if (savedAt) setLastSavedAt(new Date(savedAt));
-      else setLastSavedAt(null);
-    } catch (err) {
-      console.error("Failed to load last saved timestamp:", err);
-      setLastSavedAt(null);
-    }
-  };
-
-  loadLastSavedTimestamp();
-}, [currentUserKey]); // ✅ THIS is the key change
-
-    
+    loadLastSavedTimestamp();
+  }, [currentUserKey]);
 
   const hideContextMenu = () =>
     setContextMenu((prev) => ({ ...prev, visible: false }));
@@ -301,123 +289,89 @@ useEffect(() => {
     setContextMenu({ visible: true, x, y, targetId: id });
   };
 
-// ⭐ LOGOUT FUNCTION (clears login + resets state + redirects)
-const handleLogout = () => {
-  // 1) clear tokens
- sessionStorage.removeItem("coreflex_logged_in");
-sessionStorage.removeItem("coreflex_token");
-localStorage.removeItem("coreflex_logged_in");
-localStorage.removeItem("coreflex_token");
+  // ✅ LOGOUT (single source of truth)
+  const handleLogout = () => {
+    clearAuth();
 
+    setCurrentUserKey(null);
+    setDroppedTanks([]);
+    setSelectedTank(null);
+    setSelectedIds([]);
+    setLastSavedAt(null);
+    setDashboardMode("edit");
+    setActivePage("home");
 
-  // 2) clear ALL dashboard state immediately (prevents shared state)
-  setCurrentUserKey(null);
-  setDroppedTanks([]);
-  setSelectedTank(null);
-  setSelectedIds([]);
-  setLastSavedAt(null);
-  setDashboardMode("edit");
-  setActivePage("home");
-
-  // 3) notify same tab listeners
-  window.dispatchEvent(new Event("coreflex-auth-changed"));
-
-  // 4) go to login
-  navigate("/");
-};
-
-
-// 💾 SAVE PROJECT (Main Dashboard → API)
-const handleSaveProject = async () => {
-  const dashboardPayload = {
-    // ✅ REQUIRED TOP-LEVEL FIELDS (THIS FIXES 422 ERROR)
-    version: "1.0",
-    type: "main_dashboard",
-
-    // ✅ DASHBOARD CONTENT
-    canvas: {
-      objects: droppedTanks, // everything on the canvas
-    },
-
-    // ✅ METADATA
-    meta: {
-      dashboardMode,
-      savedAt: new Date().toISOString(), // user-local time stored as ISO
-    },
+    window.dispatchEvent(new Event("coreflex-auth-changed"));
+    navigate("/");
   };
 
-  try {
+  // 💾 SAVE PROJECT
+  const handleSaveProject = async () => {
+    const dashboardPayload = {
+      version: "1.0",
+      type: "main_dashboard",
+      canvas: { objects: droppedTanks },
+      meta: {
+        dashboardMode,
+        savedAt: new Date().toISOString(),
+      },
+    };
 
-    console.log("✅ SAVE userKey:", getUserKeyFromToken());
-console.log("✅ SAVE token start:", (getToken() || "").slice(0, 25));
+    try {
+      console.log("✅ SAVE userKey:", getUserKeyFromToken());
+      console.log("✅ SAVE token start:", (getToken() || "").slice(0, 25));
 
-    await saveMainDashboard(dashboardPayload);
+      await saveMainDashboard(dashboardPayload);
 
-    // ✅ UPDATE SIDEBAR TIMESTAMP IMMEDIATELY
-    setLastSavedAt(new Date());
+      setLastSavedAt(new Date());
+      console.log("✅ Main Dashboard saved");
+    } catch (err) {
+      console.error("❌ Save failed:", err);
+    }
+  };
 
-    console.log("✅ Main Dashboard saved");
-  } catch (err) {
-    console.error("❌ Save failed:", err);
-  }
-};
+  // ⬆ RESTORE PROJECT
+  const handleUploadProject = async () => {
+    try {
+      const token = getToken();
+      console.log("⬆️ RESTORE userKey:", getUserKeyFromToken());
+      console.log("⬆️ RESTORE token start:", (token || "").slice(0, 25));
 
-// ⬆ UPLOAD PROJECT (LOAD MAIN DASHBOARD FROM DB)
-const handleUploadProject = async () => {
-  try {
-    const token = getToken();
-    console.log("⬆️ RESTORE userKey:", getUserKeyFromToken());
-console.log("⬆️ RESTORE token start:", (token || "").slice(0, 25));
+      if (!token) throw new Error("No auth token found");
 
-    if (!token) throw new Error("No auth token found");
+      const res = await fetch(`${API_URL}/dashboard/main`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
-    const res = await fetch(`${API_URL}/dashboard/main`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+      if (!res.ok) throw new Error("Failed to load dashboard from DB");
 
-    if (!res.ok) throw new Error("Failed to load dashboard from DB");
+      const data = await res.json();
+      console.log("📦 Dashboard payload from DB:", data);
 
-    const data = await res.json();
-    console.log("📦 Dashboard payload from DB:", data);
+      setDroppedTanks([]);
 
-    // 🔥 FORCE HARD RESET (guarantees React re-render)
-    setDroppedTanks([]);
+      setTimeout(() => {
+        const objects =
+          data?.canvas?.objects ||
+          data?.layout?.canvas?.objects ||
+          data?.layout?.objects ||
+          [];
 
-    // ⏭ Let React flush empty state first
-    setTimeout(() => {
-      // 🔍 FIND OBJECTS REGARDLESS OF BACKEND SHAPE
-      const objects =
-        data?.canvas?.objects ||
-        data?.layout?.canvas?.objects ||
-        data?.layout?.objects ||
-        [];
+        setDroppedTanks([...objects]);
 
-      console.log("🧩 Restoring objects:", objects);
+        const mode =
+          data?.layout?.meta?.dashboardMode || data?.meta?.dashboardMode;
+        if (mode) setDashboardMode(mode);
 
-      // ✅ RESTORE OBJECTS
-      setDroppedTanks([...objects]);
+        const savedAt = data?.layout?.meta?.savedAt || data?.meta?.savedAt;
+        setLastSavedAt(savedAt ? new Date(savedAt) : null);
 
-      // ✅ RESTORE MODE (correct path from backend)
-      const mode =
-        data?.layout?.meta?.dashboardMode ||
-        data?.meta?.dashboardMode;
-
-      if (mode) setDashboardMode(mode);
-
-      // ✅ RESTORE LAST SAVED TIMESTAMP (sidebar)
-      const savedAt =
-        data?.layout?.meta?.savedAt ||
-        data?.meta?.savedAt;
-
-      setLastSavedAt(savedAt ? new Date(savedAt) : null);
-
-      console.log("✅ Main dashboard restored from DB");
-    }, 0);
-  } catch (err) {
-    console.error("❌ Upload failed:", err);
-  }
-};
-
+        console.log("✅ Main dashboard restored from DB");
+      }, 0);
+    } catch (err) {
+      console.error("❌ Upload failed:", err);
+    }
+  };
 
   // KEYBOARD SHORTCUTS
   useKeyboardShortcuts({
@@ -443,17 +397,12 @@ console.log("⬆️ RESTORE token start:", (token || "").slice(0, 25));
   });
 
   // OBJECT DRAGGING
-  const {
-    dragDelta,
-    setDragDelta,
-    handleDragMove,
-    handleDragEnd,
-    guides,
-  } = useObjectDragging({
-    selectedIds,
-    droppedTanks,
-    setDroppedTanks,
-  });
+  const { dragDelta, setDragDelta, handleDragMove, handleDragEnd, guides } =
+    useObjectDragging({
+      selectedIds,
+      droppedTanks,
+      setDroppedTanks,
+    });
 
   // DROP HANDLER
   const { handleDrop } = useDropHandler({
@@ -478,7 +427,6 @@ console.log("⬆️ RESTORE token start:", (token || "").slice(0, 25));
   // ⭐ GLOBAL MOUSE MOVE / UP FOR DRAGGING + RESIZING WINDOWS
   useEffect(() => {
     const handleMouseMove = (e) => {
-      // Drag Image Library
       if (isDraggingLibrary) {
         setImageLibraryPos({
           x: e.clientX - libraryDragOffset.x,
@@ -486,7 +434,6 @@ console.log("⬆️ RESTORE token start:", (token || "").slice(0, 25));
         });
       }
 
-      // Resize Image Library
       if (isResizingLibrary) {
         setImageLibrarySize((prev) => ({
           width: Math.max(260, e.clientX - imageLibraryPos.x),
@@ -494,7 +441,6 @@ console.log("⬆️ RESTORE token start:", (token || "").slice(0, 25));
         }));
       }
 
-      // Drag CoreFlex Library
       if (isDraggingCoreflex) {
         setCoreflexLibraryPos({
           x: e.clientX - coreflexDragOffset.x,
@@ -502,7 +448,6 @@ console.log("⬆️ RESTORE token start:", (token || "").slice(0, 25));
         });
       }
 
-      // Resize CoreFlex Library
       if (isResizingCoreflex) {
         setCoreflexLibrarySize((prev) => ({
           width: Math.max(260, e.clientX - coreflexLibraryPos.x),
@@ -544,52 +489,45 @@ console.log("⬆️ RESTORE token start:", (token || "").slice(0, 25));
     coreflexLibraryPos.x,
     coreflexLibraryPos.y,
   ]);
-  // ============================================================
-  // NORMAL APP LAYOUT
-  // ============================================================
+
   return (
     <div
-  className="flex h-screen bg-white"
-  onClick={(e) => {
-    if (showRestoreWarning) return; // ⛔ DO NOT CLOSE DURING MODAL
-    hideContextMenu();
-  }}
->
-      {/* LEFT SIDEBAR */}
- <SidebarLeft
-  isLeftCollapsed={isLeftCollapsed}
-  setIsLeftCollapsed={setIsLeftCollapsed}
-  activePage={activePage}
-  setActivePage={setActivePage}
-  showDevices={showDevices}
-  setShowDevices={setShowDevices}
-  showLevelSensors={showLevelSensors}
-  setShowLevelSensors={setShowLevelSensors}
-  dashboardMode={dashboardMode}
-  onSaveProject={handleSaveProject}
-  onRequestRestore={() => setShowRestoreWarning(true)}
-  lastSavedAt={lastSavedAt}
-/>
+      className="flex h-screen bg-white"
+      onClick={() => {
+        if (showRestoreWarning) return;
+        hideContextMenu();
+      }}
+    >
+      <SidebarLeft
+        isLeftCollapsed={isLeftCollapsed}
+        setIsLeftCollapsed={setIsLeftCollapsed}
+        activePage={activePage}
+        setActivePage={setActivePage}
+        showDevices={showDevices}
+        setShowDevices={setShowDevices}
+        showLevelSensors={showLevelSensors}
+        setShowLevelSensors={setShowLevelSensors}
+        dashboardMode={dashboardMode}
+        onSaveProject={handleSaveProject}
+        onRequestRestore={() => setShowRestoreWarning(true)}
+        lastSavedAt={lastSavedAt}
+      />
 
-
-      {/* MAIN CONTENT */}
       <main className="flex-1 p-6 bg-white overflow-visible relative">
-      {/* ⭐ HEADER */}
         <Header onLogout={handleLogout} />
 
         {activePage === "dashboard" ? (
           <DashboardHeader
-             dashboardMode={dashboardMode}
-                 setDashboardMode={setDashboardMode}
-               onLaunch={() => window.open("/launchMainDashboard", "_blank")}
-                    />
-                     ) : (
-                     <h1 className="text-2xl font-bold mb-4 text-gray-800">
-                      {activePage === "home" ? "Home" : "Main Dashboard"}
-                      </h1>
-                )}
+            dashboardMode={dashboardMode}
+            setDashboardMode={setDashboardMode}
+            onLaunch={() => window.open("/launchMainDashboard", "_blank")}
+          />
+        ) : (
+          <h1 className="text-2xl font-bold mb-4 text-gray-800">
+            {activePage === "home" ? "Home" : "Main Dashboard"}
+          </h1>
+        )}
 
-        {/* PAGE CONTENT */}
         {activePage === "home" ? (
           <div className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg bg-white">
             <div className="w-full h-full p-6">
@@ -640,7 +578,6 @@ console.log("⬆️ RESTORE token start:", (token || "").slice(0, 25));
           />
         )}
 
-        {/* DISPLAY MODAL */}
         {displayTarget && (
           <DisplaySettingsModal
             tank={displayTarget}
@@ -663,7 +600,6 @@ console.log("⬆️ RESTORE token start:", (token || "").slice(0, 25));
           />
         )}
 
-        {/* SILO MODAL */}
         {showSiloProps && activeSilo && (
           <SiloPropertiesModal
             open={showSiloProps}
@@ -671,15 +607,12 @@ console.log("⬆️ RESTORE token start:", (token || "").slice(0, 25));
             onClose={() => setShowSiloProps(false)}
             onSave={(updatedSilo) =>
               setDroppedTanks((prev) =>
-                prev.map((t) =>
-                  t.id === updatedSilo.id ? updatedSilo : t
-                )
+                prev.map((t) => (t.id === updatedSilo.id ? updatedSilo : t))
               )
             }
           />
         )}
 
-        {/* IMAGE LIBRARY */}
         <ImageLibrary
           visible={showImageLibrary}
           position={imageLibraryPos}
@@ -687,9 +620,7 @@ console.log("⬆️ RESTORE token start:", (token || "").slice(0, 25));
           images={uploadedImages}
           onClose={() => setShowImageLibrary(false)}
           onUpload={handleImageUpload}
-          onDragStartImage={(e, img) =>
-            e.dataTransfer.setData("imageId", img.id)
-          }
+          onDragStartImage={(e, img) => e.dataTransfer.setData("imageId", img.id)}
           onStartDragWindow={(e) => {
             setIsDraggingLibrary(true);
             setLibraryDragOffset({
@@ -700,7 +631,6 @@ console.log("⬆️ RESTORE token start:", (token || "").slice(0, 25));
           onStartResizeWindow={() => setIsResizingLibrary(true)}
         />
 
-        {/* COREFLEX LIBRARY */}
         <CoreFlexLibrary
           visible={showCoreflexLibrary}
           position={coreflexLibraryPos}
@@ -717,19 +647,16 @@ console.log("⬆️ RESTORE token start:", (token || "").slice(0, 25));
         />
       </main>
 
-      {/* ⚠️ RESTORE WARNING MODAL */}
-<RestoreWarningModal
-  open={showRestoreWarning}
-  lastSavedAt={lastSavedAt}
-  onCancel={() => setShowRestoreWarning(false)}
-  onConfirm={async () => {
-    setShowRestoreWarning(false);
-    await handleUploadProject(); // ✅ ACTUAL RESTORE HAPPENS HERE
-  }}
-/>
+      <RestoreWarningModal
+        open={showRestoreWarning}
+        lastSavedAt={lastSavedAt}
+        onCancel={() => setShowRestoreWarning(false)}
+        onConfirm={async () => {
+          setShowRestoreWarning(false);
+          await handleUploadProject();
+        }}
+      />
 
-
-      {/* RIGHT SIDEBAR */}
       <RightSidebar
         isRightCollapsed={isRightCollapsed}
         setIsRightCollapsed={setIsRightCollapsed}
@@ -740,4 +667,3 @@ console.log("⬆️ RESTORE token start:", (token || "").slice(0, 25));
     </div>
   );
 }
-

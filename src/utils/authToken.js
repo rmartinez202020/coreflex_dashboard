@@ -1,41 +1,27 @@
 // src/utils/authToken.js
 
-const TOKEN_KEY = "coreflex_token";
-const LOGGED_IN_KEY = "coreflex_logged_in";
-
-// ✅ per-tab auth first (sessionStorage), fallback to localStorage
+// ✅ sessionStorage first (per-tab), fallback to localStorage (legacy)
 export const getToken = () => {
   const t =
-    sessionStorage.getItem(TOKEN_KEY) ||
-    localStorage.getItem(TOKEN_KEY);
-
+    sessionStorage.getItem("coreflex_token") ||
+    localStorage.getItem("coreflex_token");
   return (t || "").trim();
-};
-
-export const getTokenStart = (len = 25) => {
-  const t = getToken();
-  return t ? t.slice(0, len) : "";
 };
 
 export const setToken = (token) => {
   const clean = (token || "").trim();
   if (!clean) return;
 
-  sessionStorage.setItem(TOKEN_KEY, clean);
-  sessionStorage.setItem(LOGGED_IN_KEY, "yes");
+  // ✅ per-tab token
+  sessionStorage.setItem("coreflex_token", clean);
+  sessionStorage.setItem("coreflex_logged_in", "yes");
 
-  // Prevent cross-tab collisions
-  localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(LOGGED_IN_KEY);
+  // ✅ wipe legacy localStorage to prevent cross-user bleed
+  localStorage.removeItem("coreflex_token");
+  localStorage.removeItem("coreflex_logged_in");
 };
 
-// ✅ IMPORTANT: your app should use THIS to decide if user is logged in
-export const isLoggedIn = () => {
-  const hasSessionFlag = sessionStorage.getItem(LOGGED_IN_KEY) === "yes";
-  const hasLocalFlag = localStorage.getItem(LOGGED_IN_KEY) === "yes";
-  const hasToken = !!getToken();
-  return hasSessionFlag || hasLocalFlag || hasToken;
-};
+export const isLoggedIn = () => !!getToken();
 
 export const parseJwt = (token) => {
   try {
@@ -71,13 +57,13 @@ export const getUserKeyFromToken = () => {
     const n = Number(userId);
     return Number.isFinite(n) ? n : String(userId);
   }
+
   return payload?.sub ? String(payload.sub) : null;
 };
 
 export const clearAuth = () => {
-  sessionStorage.removeItem(LOGGED_IN_KEY);
-  sessionStorage.removeItem(TOKEN_KEY);
-
-  localStorage.removeItem(LOGGED_IN_KEY);
-  localStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem("coreflex_logged_in");
+  sessionStorage.removeItem("coreflex_token");
+  localStorage.removeItem("coreflex_logged_in");
+  localStorage.removeItem("coreflex_token");
 };
