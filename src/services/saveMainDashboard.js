@@ -2,11 +2,9 @@
 import { API_URL } from "../config/api";
 import { getToken, clearAuth, getUserKeyFromToken } from "../utils/authToken";
 
-// Optional debug switch (set to true temporarily)
 const DEBUG_DASHBOARD_API = false;
 
 async function readErrorBody(res) {
-  // FastAPI sometimes returns JSON { detail: ... }, sometimes plain text
   const contentType = res.headers.get("content-type") || "";
   try {
     if (contentType.includes("application/json")) {
@@ -19,9 +17,6 @@ async function readErrorBody(res) {
   }
 }
 
-/**
- * Save Main Dashboard
- */
 export async function saveMainDashboard(dashboard) {
   const token = getToken();
 
@@ -32,7 +27,7 @@ export async function saveMainDashboard(dashboard) {
 
   if (DEBUG_DASHBOARD_API) {
     console.log("[saveMainDashboard] POST /dashboard/main");
-    console.log("[saveMainDashboard] userKey:", getUserKeyFromToken());
+    console.log("[saveMainDashboard] userKey:", getUserKeyFromToken(token)); // ✅ use SAME token
     console.log("[saveMainDashboard] token start:", token.slice(0, 20));
     console.log("[saveMainDashboard] payload keys:", Object.keys(dashboard));
   }
@@ -46,7 +41,6 @@ export async function saveMainDashboard(dashboard) {
     body: JSON.stringify(dashboard),
   });
 
-  // ✅ If token is invalid/expired, force clean re-login
   if (res.status === 401 || res.status === 403) {
     clearAuth();
     window.dispatchEvent(new Event("coreflex-auth-changed"));
@@ -55,24 +49,19 @@ export async function saveMainDashboard(dashboard) {
 
   if (!res.ok) {
     const errorText = await readErrorBody(res);
-    throw new Error(
-      `Save failed (${res.status}): ${errorText || res.statusText}`
-    );
+    throw new Error(`Save failed (${res.status}): ${errorText || res.statusText}`);
   }
 
   return await res.json();
 }
 
-/**
- * Load Main Dashboard (CURRENT logged-in user)
- */
 export async function loadMainDashboard() {
   const token = getToken();
   if (!token) throw new Error("Not authenticated (missing token)");
 
   if (DEBUG_DASHBOARD_API) {
     console.log("[loadMainDashboard] GET /dashboard/main");
-    console.log("[loadMainDashboard] userKey:", getUserKeyFromToken());
+    console.log("[loadMainDashboard] userKey:", getUserKeyFromToken(token)); // ✅ use SAME token
     console.log("[loadMainDashboard] token start:", token.slice(0, 20));
   }
 
@@ -81,7 +70,6 @@ export async function loadMainDashboard() {
     headers: { Authorization: `Bearer ${token}` },
   });
 
-  // ✅ If token is invalid/expired, force clean re-login
   if (res.status === 401 || res.status === 403) {
     clearAuth();
     window.dispatchEvent(new Event("coreflex-auth-changed"));
@@ -90,9 +78,7 @@ export async function loadMainDashboard() {
 
   if (!res.ok) {
     const errorText = await readErrorBody(res);
-    throw new Error(
-      `Load failed (${res.status}): ${errorText || res.statusText}`
-    );
+    throw new Error(`Load failed (${res.status}): ${errorText || res.statusText}`);
   }
 
   return await res.json();
