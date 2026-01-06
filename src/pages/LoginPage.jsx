@@ -1,8 +1,11 @@
+// src/pages/LoginPage.jsx
 import { useState } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import bgImage from "../assets/login_photo/satellite.jpg";
-
 import { API_URL } from "../config/api";
+
+// ✅ use your centralized auth helpers (sessionStorage-first)
+import { setToken, clearAuth } from "../utils/authToken";
 
 const MIN_LOADING_TIME = 2000; // 2 seconds
 
@@ -30,33 +33,32 @@ export default function LoginPage() {
     const startTime = Date.now();
 
     try {
+      // ✅ Clear old auth before attempting login (prevents stale state)
+      clearAuth();
+
       const res = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email: email.trim(), password }),
       });
 
+      // Try to parse JSON even on errors (FastAPI often returns {detail: ...})
+      const data = await res.json().catch(() => ({}));
+
       if (!res.ok) {
         await waitRemaining(startTime);
-        throw new Error("Invalid email or password");
+        throw new Error(data?.detail || "Invalid email or password");
       }
 
-      const data = await res.json();
+      if (!data?.access_token) {
+        await waitRemaining(startTime);
+        throw new Error("Login failed: missing access_token");
+      }
 
       await waitRemaining(startTime);
 
-      // ✅ Always clear old auth first (prevents stale token problems)
-      localStorage.removeItem("coreflex_token");
-      localStorage.removeItem("coreflex_logged_in");
-
-      // ✅ Save new auth
-     sessionStorage.setItem("coreflex_logged_in", "yes");
-sessionStorage.setItem("coreflex_token", data.access_token);
-
-// (optional) wipe old localStorage token to avoid confusion
-localStorage.removeItem("coreflex_logged_in");
-localStorage.removeItem("coreflex_token");
-
+      // ✅ Save new auth (sessionStorage-first)
+      setToken(data.access_token);
 
       /* ================================
          🔥 CLEAR SHARED DASHBOARD CACHE
@@ -71,7 +73,7 @@ localStorage.removeItem("coreflex_token");
       // ✅ Tell the app (same tab) that auth changed
       window.dispatchEvent(new Event("coreflex-auth-changed"));
 
-      // ✅ Use React Router navigation (avoid /app hard-refresh issues on Vercel)
+      // ✅ Use React Router navigation
       navigate("/app", { replace: true });
     } catch (err) {
       await waitRemaining(startTime);
