@@ -1,24 +1,25 @@
 // src/utils/authToken.js
 
-// ✅ sessionStorage first (per-tab), fallback to localStorage (legacy)
-export const getToken = () => {
-  const t =
-    sessionStorage.getItem("coreflex_token") ||
-    localStorage.getItem("coreflex_token");
-  return (t || "").trim();
-};
+const TOKEN_KEY = "coreflex_token";
+const LOGIN_KEY = "coreflex_logged_in";
+
+// ✅ single source of truth: localStorage
+export const getToken = () => (localStorage.getItem(TOKEN_KEY) || "").trim();
 
 export const setToken = (token) => {
-  const clean = (token || "").trim();
-  if (!clean) return;
+  const t = (token || "").trim();
+  if (!t) return;
+  localStorage.setItem(TOKEN_KEY, t);
+  localStorage.setItem(LOGIN_KEY, "yes");
+};
 
-  // ✅ per-tab token
-  sessionStorage.setItem("coreflex_token", clean);
-  sessionStorage.setItem("coreflex_logged_in", "yes");
+export const clearAuth = () => {
+  localStorage.removeItem(TOKEN_KEY);
+  localStorage.removeItem(LOGIN_KEY);
 
-  // ✅ wipe legacy localStorage to prevent cross-user bleed
-  localStorage.removeItem("coreflex_token");
-  localStorage.removeItem("coreflex_logged_in");
+  // also clean sessionStorage in case old code wrote there
+  sessionStorage.removeItem(TOKEN_KEY);
+  sessionStorage.removeItem(LOGIN_KEY);
 };
 
 export const isLoggedIn = () => !!getToken();
@@ -54,16 +55,8 @@ export const getUserKeyFromToken = () => {
 
   const userId = payload?.user_id;
   if (userId !== undefined && userId !== null && userId !== "") {
-    const n = Number(userId);
-    return Number.isFinite(n) ? n : String(userId);
+    return String(userId);
   }
 
   return payload?.sub ? String(payload.sub) : null;
-};
-
-export const clearAuth = () => {
-  sessionStorage.removeItem("coreflex_logged_in");
-  sessionStorage.removeItem("coreflex_token");
-  localStorage.removeItem("coreflex_logged_in");
-  localStorage.removeItem("coreflex_token");
 };

@@ -4,7 +4,7 @@ import { useNavigate, Link } from "react-router-dom";
 import bgImage from "../assets/login_photo/satellite.jpg";
 import { API_URL } from "../config/api";
 
-// ✅ use your centralized auth helpers (sessionStorage-first)
+// ✅ Centralized auth helpers (should store token in localStorage)
 import { setToken, clearAuth } from "../utils/authToken";
 
 const MIN_LOADING_TIME = 2000; // 2 seconds
@@ -27,6 +27,8 @@ export default function LoginPage() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    if (loading) return;
+
     setError("");
     setLoading(true);
 
@@ -39,7 +41,10 @@ export default function LoginPage() {
       const res = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify({
+          email: (email || "").trim(),
+          password,
+        }),
       });
 
       // Try to parse JSON even on errors (FastAPI often returns {detail: ...})
@@ -55,9 +60,10 @@ export default function LoginPage() {
         throw new Error("Login failed: missing access_token");
       }
 
+      // keep your minimum loading delay
       await waitRemaining(startTime);
 
-      // ✅ Save new auth (sessionStorage-first)
+      // ✅ Save new auth (must match what App.jsx reads via getToken())
       setToken(data.access_token);
 
       /* ================================
@@ -73,7 +79,7 @@ export default function LoginPage() {
       // ✅ Tell the app (same tab) that auth changed
       window.dispatchEvent(new Event("coreflex-auth-changed"));
 
-      // ✅ Use React Router navigation
+      // ✅ Navigate into app
       navigate("/app", { replace: true });
     } catch (err) {
       await waitRemaining(startTime);
@@ -84,7 +90,7 @@ export default function LoginPage() {
 
   const handlePasswordKeyEvent = (e) => {
     const caps = e.getModifierState && e.getModifierState("CapsLock");
-    setCapsLockOn(caps);
+    setCapsLockOn(!!caps);
   };
 
   return (
@@ -145,9 +151,7 @@ export default function LoginPage() {
             />
 
             {capsLockOn && (
-              <div className="mt-1 text-sm text-yellow-600">
-                ⚠️ Caps Lock is ON
-              </div>
+              <div className="mt-1 text-sm text-yellow-600">⚠️ Caps Lock is ON</div>
             )}
           </div>
 
@@ -173,6 +177,7 @@ export default function LoginPage() {
               onClick={() => setShowResetInfo((prev) => !prev)}
               className="text-blue-600 hover:text-blue-800 font-semibold"
               title="How to reset password"
+              disabled={loading}
             >
               ℹ️
             </button>
@@ -193,10 +198,7 @@ export default function LoginPage() {
 
         <p className="text-center text-gray-600 text-sm mt-4">
           Don’t have an account?{" "}
-          <Link
-            to="/register"
-            className="text-blue-600 font-semibold hover:underline"
-          >
+          <Link to="/register" className="text-blue-600 font-semibold hover:underline">
             Create one
           </Link>
         </p>
