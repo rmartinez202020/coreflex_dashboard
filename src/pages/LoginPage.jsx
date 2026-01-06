@@ -4,10 +4,9 @@ import { useNavigate, Link } from "react-router-dom";
 import bgImage from "../assets/login_photo/satellite.jpg";
 import { API_URL } from "../config/api";
 
-// ✅ Centralized auth helpers (should store token in localStorage)
 import { setToken, clearAuth } from "../utils/authToken";
 
-const MIN_LOADING_TIME = 2000; // 2 seconds
+const MIN_LOADING_TIME = 2000;
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -18,7 +17,6 @@ export default function LoginPage() {
   const [showResetInfo, setShowResetInfo] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
 
-  // ✅ helper for consistent delay (keeps your 2s minimum)
   const waitRemaining = async (startTime) => {
     const elapsed = Date.now() - startTime;
     const remaining = Math.max(MIN_LOADING_TIME - elapsed, 0);
@@ -27,27 +25,21 @@ export default function LoginPage() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (loading) return;
-
     setError("");
     setLoading(true);
 
     const startTime = Date.now();
 
     try {
-      // ✅ Clear old auth before attempting login (prevents stale state)
+      // ✅ Clear any old tokens first
       clearAuth();
 
       const res = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          email: (email || "").trim(),
-          password,
-        }),
+        body: JSON.stringify({ email: email.trim(), password }),
       });
 
-      // Try to parse JSON even on errors (FastAPI often returns {detail: ...})
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
@@ -60,27 +52,23 @@ export default function LoginPage() {
         throw new Error("Login failed: missing access_token");
       }
 
-      // keep your minimum loading delay
       await waitRemaining(startTime);
 
-      // ✅ Save new auth (must match what App.jsx reads via getToken())
+      // ✅ Store token in ONE place
       setToken(data.access_token);
 
-      /* ================================
-         🔥 CLEAR SHARED DASHBOARD CACHE
-         (safe: remove only known global keys)
-         ================================ */
+      // ✅ Clear ONLY dashboard caches (not auth)
       localStorage.removeItem("mainDashboard");
       localStorage.removeItem("coreflex_main_dashboard");
       localStorage.removeItem("coreflex_last_dashboard");
       localStorage.removeItem("dashboard_layout");
       localStorage.removeItem("dashboardState");
 
-      // ✅ Tell the app (same tab) that auth changed
+      // ✅ Notify app
       window.dispatchEvent(new Event("coreflex-auth-changed"));
 
-      // ✅ Navigate into app
-      navigate("/app", { replace: true });
+      // ✅ HARD redirect so App re-inits with correct token/user
+      window.location.href = "/app";
     } catch (err) {
       await waitRemaining(startTime);
       setError(err?.message || "Login failed");
@@ -90,7 +78,7 @@ export default function LoginPage() {
 
   const handlePasswordKeyEvent = (e) => {
     const caps = e.getModifierState && e.getModifierState("CapsLock");
-    setCapsLockOn(!!caps);
+    setCapsLockOn(caps);
   };
 
   return (
@@ -151,7 +139,9 @@ export default function LoginPage() {
             />
 
             {capsLockOn && (
-              <div className="mt-1 text-sm text-yellow-600">⚠️ Caps Lock is ON</div>
+              <div className="mt-1 text-sm text-yellow-600">
+                ⚠️ Caps Lock is ON
+              </div>
             )}
           </div>
 
@@ -171,13 +161,11 @@ export default function LoginPage() {
         <div className="text-center text-gray-600 text-sm mt-4">
           <div className="flex items-center justify-center gap-2">
             <span>Forgot your password?</span>
-
             <button
               type="button"
               onClick={() => setShowResetInfo((prev) => !prev)}
               className="text-blue-600 hover:text-blue-800 font-semibold"
               title="How to reset password"
-              disabled={loading}
             >
               ℹ️
             </button>
@@ -198,7 +186,10 @@ export default function LoginPage() {
 
         <p className="text-center text-gray-600 text-sm mt-4">
           Don’t have an account?{" "}
-          <Link to="/register" className="text-blue-600 font-semibold hover:underline">
+          <Link
+            to="/register"
+            className="text-blue-600 font-semibold hover:underline"
+          >
             Create one
           </Link>
         </p>

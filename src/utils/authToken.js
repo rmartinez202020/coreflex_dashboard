@@ -1,29 +1,33 @@
 // src/utils/authToken.js
+// ✅ SINGLE SOURCE OF TRUTH: localStorage only
 
 const TOKEN_KEY = "coreflex_token";
-const LOGIN_KEY = "coreflex_logged_in";
+const LOGGED_IN_KEY = "coreflex_logged_in";
 
-// ✅ single source of truth: localStorage
-export const getToken = () => (localStorage.getItem(TOKEN_KEY) || "").trim();
+export const getToken = () => {
+  const t = localStorage.getItem(TOKEN_KEY);
+  return (t || "").trim();
+};
 
 export const setToken = (token) => {
   const t = (token || "").trim();
   if (!t) return;
   localStorage.setItem(TOKEN_KEY, t);
-  localStorage.setItem(LOGIN_KEY, "yes");
+  localStorage.setItem(LOGGED_IN_KEY, "yes");
 };
 
 export const clearAuth = () => {
   localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(LOGIN_KEY);
+  localStorage.removeItem(LOGGED_IN_KEY);
 
-  // also clean sessionStorage in case old code wrote there
+  // ✅ clean up any old experiments you may still have
   sessionStorage.removeItem(TOKEN_KEY);
-  sessionStorage.removeItem(LOGIN_KEY);
+  sessionStorage.removeItem(LOGGED_IN_KEY);
 };
 
 export const isLoggedIn = () => !!getToken();
 
+// ---------- JWT helpers ----------
 export const parseJwt = (token) => {
   try {
     if (!token || typeof token !== "string") return null;
@@ -46,8 +50,12 @@ export const parseJwt = (token) => {
   }
 };
 
-export const getUserKeyFromToken = () => {
-  const token = getToken();
+/**
+ * ✅ IMPORTANT:
+ * Accept tokenOverride so we ALWAYS decode the SAME token used for API calls.
+ */
+export const getUserKeyFromToken = (tokenOverride) => {
+  const token = (tokenOverride ?? getToken()).trim();
   if (!token) return null;
 
   const payload = parseJwt(token);
@@ -60,3 +68,6 @@ export const getUserKeyFromToken = () => {
 
   return payload?.sub ? String(payload.sub) : null;
 };
+
+// Optional debug helper
+export const getTokenStart = (len = 25) => getToken().slice(0, len);
