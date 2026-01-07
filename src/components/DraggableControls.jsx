@@ -13,11 +13,6 @@ const CONTROLS = [
     icon: "⏺",
   },
   {
-    type: "selectorControl",
-    label: "Selector Switch",
-    icon: "🎚",
-  },
-  {
     type: "interlockControl",
     label: "Interlock",
     icon: "🔒",
@@ -31,9 +26,7 @@ export default function DraggableControls() {
         <div
           key={ctrl.type}
           draggable
-          onDragStart={(e) =>
-            e.dataTransfer.setData("control", ctrl.type)
-          }
+          onDragStart={(e) => e.dataTransfer.setData("control", ctrl.type)}
           className="cursor-grab active:cursor-grabbing
                      text-sm text-gray-300 hover:text-white
                      flex items-center gap-2"
