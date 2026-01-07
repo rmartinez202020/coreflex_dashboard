@@ -515,66 +515,81 @@ const handleUploadProject = async () => {
         <Header onLogout={handleLogout} />
 
         {activePage === "dashboard" ? (
-          <DashboardHeader
-            dashboardMode={dashboardMode}
-            setDashboardMode={setDashboardMode}
-            onLaunch={() => window.open("/launchMainDashboard", "_blank")}
-          />
-        ) : (
-          <h1 className="text-2xl font-bold mb-4 text-gray-800">
-            {activePage === "home" ? "Home" : "Main Dashboard"}
-          </h1>
-        )}
+  <DashboardHeader
+    dashboardMode={dashboardMode}
+    setDashboardMode={setDashboardMode}
+    onLaunch={() => window.open("/launchMainDashboard", "_blank")}
+  />
+) : (
+  <h1 className="text-2xl font-bold mb-4 text-gray-800">
+    {activePage === "home"
+      ? "Home"
+      : activePage === "deviceControls"
+      ? "Device Controls"
+      : "Main Dashboard"}
+  </h1>
+)}
 
         {activePage === "home" ? (
-          <div className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg bg-white">
-            <div className="w-full h-full p-6">
-              {activeSubPage === "profile" ? (
-                <ProfilePage
-                  subPageColor={subPageColor}
-                  setActiveSubPage={setActiveSubPage}
-                />
-              ) : (
-                <HomePage
-                  setActiveSubPage={setActiveSubPage}
-                  setSubPageColor={setSubPageColor}
-                />
-              )}
-            </div>
-          </div>
-        ) : (
-          <DashboardCanvas
-            dashboardMode={dashboardMode}
-            sensors={sensors}
-            sensorsData={sensorsData}
-            droppedTanks={droppedTanks}
-            setDroppedTanks={setDroppedTanks}
-            selectedIds={selectedIds}
-            setSelectedIds={setSelectedIds}
-            selectedTank={selectedTank}
-            setSelectedTank={setSelectedTank}
-            dragDelta={dragDelta}
-            setDragDelta={setDragDelta}
-            contextMenu={contextMenu}
-            setContextMenu={setContextMenu}
-            activeSiloId={activeSiloId}
-            setActiveSiloId={setActiveSiloId}
-            setShowSiloProps={setShowSiloProps}
-            handleSelect={handleSelect}
-            handleRightClick={handleRightClick}
-            handleDrop={handleDrop}
-            handleDragMove={handleDragMove}
-            handleDragEnd={handleDragEnd}
-            handleCanvasMouseDown={handleCanvasMouseDown}
-            handleCanvasMouseMove={handleCanvasMouseMove}
-            handleCanvasMouseUp={handleCanvasMouseUp}
-            getLayerScore={getLayerScore}
-            selectionBox={selectionBox}
-            hideContextMenu={hideContextMenu}
-            guides={guides}
-            onOpenDisplaySettings={openDisplaySettings}
-          />
-        )}
+  <div className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg bg-white">
+    <div className="w-full h-full p-6">
+      {activeSubPage === "profile" ? (
+        <ProfilePage
+          subPageColor={subPageColor}
+          setActiveSubPage={setActiveSubPage}
+        />
+      ) : (
+        <HomePage
+          setActiveSubPage={setActiveSubPage}
+          setSubPageColor={setSubPageColor}
+        />
+      )}
+    </div>
+  </div>
+) : activePage === "dashboard" ? (
+  <DashboardCanvas
+    dashboardMode={dashboardMode}
+    sensors={sensors}
+    sensorsData={sensorsData}
+    droppedTanks={droppedTanks}
+    setDroppedTanks={setDroppedTanks}
+    selectedIds={selectedIds}
+    setSelectedIds={setSelectedIds}
+    selectedTank={selectedTank}
+    setSelectedTank={setSelectedTank}
+    dragDelta={dragDelta}
+    setDragDelta={setDragDelta}
+    contextMenu={contextMenu}
+    setContextMenu={setContextMenu}
+    activeSiloId={activeSiloId}
+    setActiveSiloId={setActiveSiloId}
+    setShowSiloProps={setShowSiloProps}
+    handleSelect={handleSelect}
+    handleRightClick={handleRightClick}
+    handleDrop={handleDrop}
+    handleDragMove={handleDragMove}
+    handleDragEnd={handleDragEnd}
+    handleCanvasMouseDown={handleCanvasMouseDown}
+    handleCanvasMouseMove={handleCanvasMouseMove}
+    handleCanvasMouseUp={handleCanvasMouseUp}
+    getLayerScore={getLayerScore}
+    selectionBox={selectionBox}
+    hideContextMenu={hideContextMenu}
+    guides={guides}
+    onOpenDisplaySettings={openDisplaySettings}
+  />
+) : activePage === "deviceControls" ? (
+  <div className="w-full h-full border rounded-lg bg-white p-6">
+    <h2 className="text-lg font-semibold text-gray-800 mb-2">
+      Device Controls
+    </h2>
+
+    <p className="text-sm text-gray-600">
+      Here we will add buttons + toggle switches for devices.
+    </p>
+  </div>
+) : null}
+
 
         {displayTarget && (
           <DisplaySettingsModal

@@ -17,17 +17,15 @@ export default function SidebarLeft({
   showLevelSensors,
   setShowLevelSensors,
   dashboardMode,
-  onSaveProject,     // ✅ REAL SAVE HANDLER FROM APP
-  onRequestRestore,   
-  lastSavedAt,       // ✅ TIMESTAMP
+  onSaveProject, // ✅ REAL SAVE HANDLER FROM APP
+  onRequestRestore,
+  lastSavedAt, // ✅ TIMESTAMP
 }) {
   /* =========================
      SAVE STATE
   ========================= */
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
-
-
 
   /* =========================
      HELPERS
@@ -61,14 +59,13 @@ export default function SidebarLeft({
     }
   };
 
-/* =========================
-   UPLOAD HANDLER (OPEN WARNING MODAL)
-========================= */
-const handleUploadClick = (e) => {
-  e.stopPropagation();
-  onRequestRestore(); // ✅ App.jsx decides what happens next
-};
-
+  /* =========================
+     UPLOAD HANDLER (OPEN WARNING MODAL)
+  ========================= */
+  const handleUploadClick = (e) => {
+    e.stopPropagation();
+    onRequestRestore(); // ✅ App.jsx decides what happens next
+  };
 
   return (
     <aside
@@ -114,21 +111,20 @@ const handleUploadClick = (e) => {
             {!isSaving && !saved && "💾 Save Project"}
           </button>
 
-          {/* 🕒 LAST SAVED TIMESTAMP (MOVED HERE) */}
+          {/* 🕒 LAST SAVED TIMESTAMP */}
           <div className="mt-1 mb-4 text-xs text-gray-400">
             Last saved: {formatDate(lastSavedAt)}
           </div>
 
-          {/* ⬆ UPLOAD PROJECT */}
+          {/* ⬆ RESTORE PROJECT */}
           <div className="mb-6">
             <button
-  type="button"
-  onClick={handleUploadClick}
-  className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition bg-gray-800 hover:bg-gray-700 text-blue-400"
->
-  ⬆ Restore Project
-</button>
-
+              type="button"
+              onClick={handleUploadClick}
+              className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition bg-gray-800 hover:bg-gray-700 text-blue-400"
+            >
+              ⬆ Restore Project
+            </button>
           </div>
 
           {/* Home */}
@@ -161,6 +157,17 @@ const handleUploadClick = (e) => {
 
           {showDevices && (
             <div className="ml-4">
+              {/* ✅ NEW: Device Controls */}
+              <div
+  className={`cursor-pointer mb-2 ${
+    activePage === "deviceControls" ? "font-bold text-blue-300" : "text-gray-200"
+  }`}
+  onClick={() => setActivePage("deviceControls")}
+>
+  Device Controls
+</div>
+
+              {/* Level Sensors */}
               <div
                 className="cursor-pointer mb-2 flex items-center gap-2"
                 onClick={() => setShowLevelSensors((prev) => !prev)}
@@ -222,8 +229,7 @@ const handleUploadClick = (e) => {
             </div>
           )}
 
-          {/* Settings */}
-          <div className="cursor-pointer mt-6">Settings</div>
+          {/* ✅ Settings REMOVED */}
         </div>
       )}
     </aside>
