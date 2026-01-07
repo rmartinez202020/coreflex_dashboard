@@ -7,6 +7,8 @@ import {
   SiloTankIcon,
 } from "./ProTankIcon";
 
+import DraggableControls from "./DraggableControls"; // ✅ NEW IMPORT
+
 export default function SidebarLeft({
   isLeftCollapsed,
   setIsLeftCollapsed,
@@ -17,15 +19,20 @@ export default function SidebarLeft({
   showLevelSensors,
   setShowLevelSensors,
   dashboardMode,
-  onSaveProject, // ✅ REAL SAVE HANDLER FROM APP
+  onSaveProject,
   onRequestRestore,
-  lastSavedAt, // ✅ TIMESTAMP
+  lastSavedAt,
 }) {
   /* =========================
      SAVE STATE
   ========================= */
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+
+  /* =========================
+     DEVICE CONTROLS MENU
+  ========================= */
+  const [showDeviceControls, setShowDeviceControls] = useState(false);
 
   /* =========================
      HELPERS
@@ -47,7 +54,6 @@ export default function SidebarLeft({
 
     try {
       await onSaveProject();
-
       setTimeout(() => {
         setIsSaving(false);
         setSaved(true);
@@ -60,11 +66,11 @@ export default function SidebarLeft({
   };
 
   /* =========================
-     UPLOAD HANDLER (OPEN WARNING MODAL)
+     RESTORE HANDLER
   ========================= */
   const handleUploadClick = (e) => {
     e.stopPropagation();
-    onRequestRestore(); // ✅ App.jsx decides what happens next
+    onRequestRestore();
   };
 
   return (
@@ -74,9 +80,9 @@ export default function SidebarLeft({
         (isLeftCollapsed ? "w-[45px]" : "w-[260px] p-4")
       }
     >
-      {/* Collapse / Expand Button */}
+      {/* Collapse / Expand */}
       <button
-        className="absolute top-3 z-50 text-white px-2 py-1 rounded hover:bg-[#1e293b] transition"
+        className="absolute top-3 z-50 text-white px-2 py-1 rounded hover:bg-[#1e293b]"
         style={{ left: isLeftCollapsed ? "5px" : "232px" }}
         onClick={(e) => {
           e.stopPropagation();
@@ -89,45 +95,36 @@ export default function SidebarLeft({
 
       {!isLeftCollapsed && (
         <div className="mt-10">
-          {/* PLATFORM TITLE */}
           <h1 className="text-xl font-bold mb-2">CoreFlex IOTs V1.18</h1>
 
-          {/* 💾 SAVE PROJECT */}
+          {/* SAVE */}
           <button
-            type="button"
             onClick={handleSaveClick}
             disabled={isSaving}
-            className={`w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition
+            className={`w-full px-3 py-2 rounded-md text-sm mb-1
               ${
                 isSaving
-                  ? "bg-blue-600 text-white cursor-not-allowed"
+                  ? "bg-blue-600"
                   : saved
-                  ? "bg-green-600 text-white"
+                  ? "bg-green-600"
                   : "bg-gray-800 hover:bg-gray-700 text-green-400"
               }`}
           >
-            {isSaving && "⏳ Saving project..."}
-            {!isSaving && saved && "✅ Project saved"}
-            {!isSaving && !saved && "💾 Save Project"}
+            {isSaving ? "⏳ Saving..." : saved ? "✅ Saved" : "💾 Save Project"}
           </button>
 
-          {/* 🕒 LAST SAVED TIMESTAMP */}
-          <div className="mt-1 mb-4 text-xs text-gray-400">
+          <div className="text-xs text-gray-400 mb-4">
             Last saved: {formatDate(lastSavedAt)}
           </div>
 
-          {/* ⬆ RESTORE PROJECT */}
-          <div className="mb-6">
-            <button
-              type="button"
-              onClick={handleUploadClick}
-              className="w-full flex items-center gap-2 px-3 py-2 rounded-md text-sm transition bg-gray-800 hover:bg-gray-700 text-blue-400"
-            >
-              ⬆ Restore Project
-            </button>
-          </div>
+          <button
+            onClick={handleUploadClick}
+            className="w-full px-3 py-2 rounded-md text-sm mb-6 bg-gray-800 hover:bg-gray-700 text-blue-400"
+          >
+            ⬆ Restore Project
+          </button>
 
-          {/* Home */}
+          {/* Navigation */}
           <div
             className={`cursor-pointer mb-4 ${
               activePage === "home" ? "font-bold" : ""
@@ -137,7 +134,6 @@ export default function SidebarLeft({
             Home
           </div>
 
-          {/* Main Dashboard */}
           <div
             className={`cursor-pointer mb-4 ${
               activePage === "dashboard" ? "font-bold" : ""
@@ -147,7 +143,7 @@ export default function SidebarLeft({
             Main Dashboard
           </div>
 
-          {/* Devices */}
+          {/* DEVICES */}
           <div
             className="cursor-pointer mb-2 flex items-center gap-2"
             onClick={() => setShowDevices((prev) => !prev)}
@@ -157,17 +153,18 @@ export default function SidebarLeft({
 
           {showDevices && (
             <div className="ml-4">
-              {/* ✅ NEW: Device Controls */}
+              {/* DEVICE CONTROLS */}
               <div
-  className={`cursor-pointer mb-2 ${
-    activePage === "deviceControls" ? "font-bold text-blue-300" : "text-gray-200"
-  }`}
-  onClick={() => setActivePage("deviceControls")}
->
-  Device Controls
-</div>
+                className="cursor-pointer mb-2 flex items-center gap-2"
+                onClick={() => setShowDeviceControls((prev) => !prev)}
+              >
+                Device Controls <span>{showDeviceControls ? "▾" : "▸"}</span>
+              </div>
 
-              {/* Level Sensors */}
+              {/* ✅ REPLACED INLINE LIST WITH COMPONENT */}
+              {showDeviceControls && <DraggableControls />}
+
+              {/* LEVEL SENSORS */}
               <div
                 className="cursor-pointer mb-2 flex items-center gap-2"
                 onClick={() => setShowLevelSensors((prev) => !prev)}
@@ -177,59 +174,28 @@ export default function SidebarLeft({
 
               {showLevelSensors && (
                 <div className="ml-4">
-                  <h3 className="text-sm font-semibold text-gray-400 mb-2">
-                    Tank Models
-                  </h3>
+                  <h3 className="text-sm text-gray-400 mb-2">Tank Models</h3>
 
-                  <div
-                    draggable
-                    onDragStart={(e) =>
-                      e.dataTransfer.setData("shape", "standardTank")
-                    }
-                    className="cursor-pointer flex flex-col items-center mb-4"
-                  >
-                    <StandardTankIcon size={45} />
-                    <span className="text-xs mt-1">Standard Tank</span>
-                  </div>
-
-                  <div
-                    draggable
-                    onDragStart={(e) =>
-                      e.dataTransfer.setData("shape", "horizontalTank")
-                    }
-                    className="cursor-pointer flex flex-col items-center mb-4"
-                  >
-                    <HorizontalTankIcon size={45} />
-                    <span className="text-xs mt-1">Horizontal Tank</span>
-                  </div>
-
-                  <div
-                    draggable
-                    onDragStart={(e) =>
-                      e.dataTransfer.setData("shape", "verticalTank")
-                    }
-                    className="cursor-pointer flex flex-col items-center mb-4"
-                  >
-                    <VerticalTankIcon size={45} />
-                    <span className="text-xs mt-1">Vertical Tank</span>
-                  </div>
-
-                  <div
-                    draggable
-                    onDragStart={(e) =>
-                      e.dataTransfer.setData("shape", "siloTank")
-                    }
-                    className="cursor-pointer flex flex-col items-center mb-4"
-                  >
-                    <SiloTankIcon size={45} />
-                    <span className="text-xs mt-1">Silo Tank</span>
-                  </div>
+                  {[
+                    { Icon: StandardTankIcon, name: "standardTank" },
+                    { Icon: HorizontalTankIcon, name: "horizontalTank" },
+                    { Icon: VerticalTankIcon, name: "verticalTank" },
+                    { Icon: SiloTankIcon, name: "siloTank" },
+                  ].map(({ Icon, name }) => (
+                    <div
+                      key={name}
+                      draggable
+                      onDragStart={(e) => e.dataTransfer.setData("shape", name)}
+                      className="cursor-pointer flex flex-col items-center mb-4"
+                    >
+                      <Icon size={45} />
+                      <span className="text-xs mt-1">{name}</span>
+                    </div>
+                  ))}
                 </div>
               )}
             </div>
           )}
-
-          {/* ✅ Settings REMOVED */}
         </div>
       )}
     </aside>
