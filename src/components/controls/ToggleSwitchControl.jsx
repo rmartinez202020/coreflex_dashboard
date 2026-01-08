@@ -22,7 +22,8 @@ export function ToggleSwitchControl({
   const knobSize = Math.max(18, safeH - pad * 2);
   const outerRadius = safeH / 2;
 
-  const knobLeft = isOn ? safeW - pad - knobSize : pad;
+  // ✅ ON = LEFT, OFF = RIGHT  (what you asked)
+  const knobLeft = isOn ? pad : safeW - pad - knobSize;
 
   const bezelBg =
     "linear-gradient(180deg, #3A3A3A 0%, #141414 50%, #2A2A2A 100%)";
