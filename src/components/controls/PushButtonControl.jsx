@@ -6,7 +6,9 @@ import React from "react";
  * - Press animation (pressed=true)
  * - Scales with width/height
  */
-export default function PushButtonControl({
+
+// ✅ Named export (optional safety)
+export function PushButtonControl({
   variant = "NO", // "NO" = green, "NC" = red
   width = 110,
   height = 110,
@@ -17,11 +19,15 @@ export default function PushButtonControl({
   const safeH = Math.max(70, Number(height) || 110);
   const size = Math.min(safeW, safeH);
 
-  const bezel = Math.max(8, Math.round(size * 0.11));
-  const ring = Math.max(6, Math.round(size * 0.09));
-  const btn = size - bezel * 2 - ring * 2;
+  // sizing (guarded)
+  const bezel = Math.max(7, Math.round(size * 0.105));
+  const ring = Math.max(5, Math.round(size * 0.085));
 
-  const isGreen = String(variant).toUpperCase() === "NO";
+  // make sure face never goes negative
+  const btn = Math.max(26, size - bezel * 2 - ring * 2);
+
+  const v = String(variant).toUpperCase();
+  const isGreen = v === "NO";
   const text = (label ?? (isGreen ? "NO" : "NC")).toUpperCase();
 
   const bezelBg =
@@ -35,7 +41,7 @@ export default function PushButtonControl({
     : "linear-gradient(180deg, #FF6060 0%, #E60000 55%, #B20000 100%)";
 
   // press effect
-  const pressDepth = Math.max(4, Math.round(size * 0.06));
+  const pressDepth = Math.max(3, Math.round(size * 0.055));
   const translateY = pressed ? pressDepth : 0;
 
   const faceShadow = pressed
@@ -85,13 +91,14 @@ export default function PushButtonControl({
             justifyContent: "center",
             padding: ring,
             position: "relative",
+            overflow: "hidden", // ✅ important: clip the sheen
           }}
         >
           {/* ring sheen */}
           <div
             style={{
               position: "absolute",
-              inset: ring - 2,
+              inset: Math.max(0, ring - 2),
               borderRadius: "999px",
               background: ringBg,
               pointerEvents: "none",
@@ -149,3 +156,6 @@ export default function PushButtonControl({
     </div>
   );
 }
+
+// ✅ Default export (safe for imports)
+export default PushButtonControl;

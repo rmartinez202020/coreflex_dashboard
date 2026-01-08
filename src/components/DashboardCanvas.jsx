@@ -11,6 +11,9 @@ import DraggableDisplayBox from "./DraggableDisplayBox";
 // ✅ Toggle switch visual
 import ToggleSwitchControl from "./controls/ToggleSwitchControl";
 
+// ✅ Push button visual
+import PushButtonControl from "./controls/PushButtonControl";
+
 import {
   StandardTank,
   HorizontalTank,
@@ -81,7 +84,7 @@ export default function DashboardCanvas({
               disableDrag: isPlay,
               disableSelect: isPlay,
               disableSettings: isPlay,
-              dashboardMode, // ✅ IMPORTANT: lets DraggableDroppedTank allow toggle click only in PLAY
+              dashboardMode, // ✅ allows DraggableDroppedTank to toggle only in PLAY
               onSelect: handleSelect,
               onRightClick: handleRightClick,
               onUpdate: (updated) =>
@@ -113,7 +116,7 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅ TOGGLE SWITCH CONTROL (click handled in DraggableDroppedTank only in PLAY)
+            // ✅ TOGGLE SWITCH CONTROL
             if (tank.shape === "toggleSwitch" || tank.shape === "toggleControl") {
               const w = tank.w ?? tank.width ?? 180;
               const h = tank.h ?? tank.height ?? 70;
@@ -122,6 +125,30 @@ export default function DashboardCanvas({
               return (
                 <DraggableDroppedTank {...commonProps}>
                   <ToggleSwitchControl isOn={isOn} width={w} height={h} />
+                </DraggableDroppedTank>
+              );
+            }
+
+            // ✅ PUSH BUTTON (NO) — GREEN
+            if (tank.shape === "pushButtonNO") {
+              const w = tank.w ?? tank.width ?? 110;
+              const h = tank.h ?? tank.height ?? 110;
+
+              return (
+                <DraggableDroppedTank {...commonProps}>
+                  <PushButtonControl variant="NO" width={w} height={h} />
+                </DraggableDroppedTank>
+              );
+            }
+
+            // ✅ PUSH BUTTON (NC) — RED
+            if (tank.shape === "pushButtonNC") {
+              const w = tank.w ?? tank.width ?? 110;
+              const h = tank.h ?? tank.height ?? 110;
+
+              return (
+                <DraggableDroppedTank {...commonProps}>
+                  <PushButtonControl variant="NC" width={w} height={h} />
                 </DraggableDroppedTank>
               );
             }
