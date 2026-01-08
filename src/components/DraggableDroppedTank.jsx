@@ -65,13 +65,16 @@ export default function DraggableDroppedTank({
 
   /* INNER — tight visual bounds */
   const visualWrapperStyle = {
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  borderRadius: 8,
-  border: selected ? "1px solid #2563eb" : "1px solid transparent",
-};
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    borderRadius: 8,
+    border: selected ? "1px solid #2563eb" : "1px solid transparent",
+  };
 
+  // ✅ Identify toggle only (so we don’t affect any other object)
+  const isToggle =
+    tank.shape === "toggleSwitch" || tank.shape === "toggleControl";
 
   /* SVG FIX — critical */
   const contentStyle = {
@@ -80,7 +83,9 @@ export default function DraggableDroppedTank({
     height: "auto",
     maxWidth: "none",
     maxHeight: "none",
-    pointerEvents: "none", // SVG cannot hijack clicks
+
+    // ✅ ONLY toggle needs clicks; keep the old behavior for everything else
+    pointerEvents: isToggle ? "auto" : "none",
   };
 
   return (
@@ -92,6 +97,14 @@ export default function DraggableDroppedTank({
       {...listeners}
       onClick={(e) => {
         e.stopPropagation();
+
+        // ✅ ONLY toggle: flip ON/OFF here (so it works even if child click is swallowed)
+        if (isToggle) {
+          onUpdate?.({ ...tank, isOn: !(tank.isOn ?? true) });
+          return;
+        }
+
+        // ✅ everything else: normal selection behavior
         onSelect(tank.id);
       }}
       onDoubleClick={(e) => {
