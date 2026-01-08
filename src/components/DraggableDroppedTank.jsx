@@ -10,6 +10,9 @@ export default function DraggableDroppedTank({
   onDoubleClick,
   children,
   onUpdate,
+
+  // ✅ NEW: so we can toggle ONLY in PLAY
+  dashboardMode = "edit",
 }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: tank.id,
@@ -76,6 +79,9 @@ export default function DraggableDroppedTank({
   const isToggle =
     tank.shape === "toggleSwitch" || tank.shape === "toggleControl";
 
+  // ✅ Only toggle in PLAY
+  const isPlay = dashboardMode === "play";
+
   /* SVG FIX — critical */
   const contentStyle = {
     display: "inline-block",
@@ -84,8 +90,9 @@ export default function DraggableDroppedTank({
     maxWidth: "none",
     maxHeight: "none",
 
-    // ✅ ONLY toggle needs clicks; keep the old behavior for everything else
-    pointerEvents: isToggle ? "auto" : "none",
+    // ✅ Toggle needs clicks ONLY in PLAY
+    // ✅ In EDIT we keep old behavior so click selects + resize works
+    pointerEvents: isToggle && isPlay ? "auto" : "none",
   };
 
   return (
@@ -98,13 +105,13 @@ export default function DraggableDroppedTank({
       onClick={(e) => {
         e.stopPropagation();
 
-        // ✅ ONLY toggle: flip ON/OFF here (so it works even if child click is swallowed)
-        if (isToggle) {
+        // ✅ PLAY: ONLY toggle should flip ON/OFF
+        if (isToggle && isPlay) {
           onUpdate?.({ ...tank, isOn: !(tank.isOn ?? true) });
           return;
         }
 
-        // ✅ everything else: normal selection behavior
+        // ✅ EDIT (and everything else): normal select
         onSelect(tank.id);
       }}
       onDoubleClick={(e) => {
@@ -118,8 +125,8 @@ export default function DraggableDroppedTank({
         <div style={contentStyle}>{children}</div>
       </div>
 
-      {/* Resize handle */}
-      {selected && (
+      {/* Resize handle ✅ only show in EDIT */}
+      {selected && !isPlay && (
         <div
           onMouseDown={startResize}
           style={{

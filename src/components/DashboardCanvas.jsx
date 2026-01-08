@@ -8,7 +8,7 @@ import DraggableTextBox from "./DraggableTextBox";
 import DraggableImage from "./DraggableImage";
 import DraggableDisplayBox from "./DraggableDisplayBox";
 
-// ✅ NEW: Toggle switch visual
+// ✅ Toggle switch visual
 import ToggleSwitchControl from "./controls/ToggleSwitchControl";
 
 import {
@@ -19,7 +19,7 @@ import {
 } from "./ProTankIcon";
 
 export default function DashboardCanvas({
-  dashboardMode,          // ⭐ NEW — PLAY/EDIT
+  dashboardMode, // ⭐ PLAY/EDIT
   sensors,
   sensorsData,
   droppedTanks,
@@ -47,31 +47,25 @@ export default function DashboardCanvas({
   selectionBox,
   hideContextMenu,
   guides,
-  onOpenDisplaySettings
+  onOpenDisplaySettings,
 }) {
-
-  const isPlay = dashboardMode === "play";   // ⭐ BLOCKS INTERACTION
+  const isPlay = dashboardMode === "play";
 
   return (
-    <DndContext 
-      sensors={isPlay ? [] : sensors}      // ❌ no dragging sensors in play mode
+    <DndContext
+      sensors={isPlay ? [] : sensors}
       onDragMove={isPlay ? undefined : handleDragMove}
       onDragEnd={isPlay ? undefined : handleDragEnd}
     >
       <div
         className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg bg-white"
         style={{ position: "relative", overflow: "hidden" }}
-
-        // ❌ No dropping new items in play mode
         onDragOver={(e) => !isPlay && e.preventDefault()}
         onDrop={(e) => !isPlay && handleDrop(e)}
-
-        // ❌ No selection box in play mode
         onMouseDown={(e) => !isPlay && handleCanvasMouseDown(e)}
         onMouseMove={(e) => !isPlay && handleCanvasMouseMove(e)}
         onMouseUp={(e) => !isPlay && handleCanvasMouseUp(e)}
       >
-
         {droppedTanks
           .slice()
           .sort((a, b) => getLayerScore(a) - getLayerScore(b))
@@ -81,12 +75,13 @@ export default function DashboardCanvas({
             const commonProps = {
               key: tank.id,
               tank,
-              selected: isSelected && !isPlay,  // ❌ no selection highlight
+              selected: isSelected && !isPlay,
               selectedIds,
               dragDelta,
-              disableDrag: isPlay,              // ⭐ NEW — disable movement
-              disableSelect: isPlay,            // ⭐ NEW — disable selection
-              disableSettings: isPlay,          // ⭐ NEW — block double click
+              disableDrag: isPlay,
+              disableSelect: isPlay,
+              disableSettings: isPlay,
+              dashboardMode, // ✅ IMPORTANT: lets DraggableDroppedTank allow toggle click only in PLAY
               onSelect: handleSelect,
               onRightClick: handleRightClick,
               onUpdate: (updated) =>
@@ -118,10 +113,7 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅ TOGGLE SWITCH CONTROL (PLAY MODE CLICK ENABLED)
-            // Supports both names:
-            // - "toggleSwitch" (recommended)
-            // - "toggleControl" (legacy)
+            // ✅ TOGGLE SWITCH CONTROL (click handled in DraggableDroppedTank only in PLAY)
             if (tank.shape === "toggleSwitch" || tank.shape === "toggleControl") {
               const w = tank.w ?? tank.width ?? 180;
               const h = tank.h ?? tank.height ?? 70;
@@ -129,23 +121,7 @@ export default function DashboardCanvas({
 
               return (
                 <DraggableDroppedTank {...commonProps}>
-                  <div
-                    style={{
-                      width: w,
-                      height: h,
-                      cursor: isPlay ? "pointer" : "default",
-                    }}
-                    onClick={(e) => {
-                      if (!isPlay) return;      // ✅ only toggle in play mode
-                      e.stopPropagation();      // ✅ don't bubble to canvas
-                      commonProps.onUpdate({
-                        ...tank,
-                        isOn: !isOn,
-                      });
-                    }}
-                  >
-                    <ToggleSwitchControl isOn={isOn} width={w} height={h} />
-                  </div>
+                  <ToggleSwitchControl isOn={isOn} width={w} height={h} />
                 </DraggableDroppedTank>
               );
             }
@@ -210,7 +186,7 @@ export default function DashboardCanvas({
             return null;
           })}
 
-        {/* ❌ NO SELECTION BOX IN PLAY */}
+        {/* Selection box */}
         {!isPlay && selectionBox && (
           <div
             style={{
@@ -227,8 +203,9 @@ export default function DashboardCanvas({
           />
         )}
 
-        {/* ❌ NO ALIGNMENT LINES IN PLAY */}
-        {!isPlay && guides &&
+        {/* Alignment guides */}
+        {!isPlay &&
+          guides &&
           guides.map((g, i) => (
             <div
               key={i}
