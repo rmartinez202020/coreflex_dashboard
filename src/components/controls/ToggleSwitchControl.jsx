@@ -1,72 +1,57 @@
 import React from "react";
 
 /**
- * iOS-style toggle (operator-ready)
- * Fixes:
- * - No ON/OFF text inside
- * - Knob fully covers the green/red edge near the knob
- * - Thinner black borders (outer bezel + knob ring)
+ * iOS-style toggle (final visual tuning)
+ * - Slim black bezel
+ * - Larger green/red fill
+ * - NO text inside
+ * - Knob fully covers color edge
  */
 
-export function ToggleSwitchControl({
+export default function ToggleSwitchControl({
   isOn = true,
   width = 180,
   height = 70,
-  // keep prop if you want later, but default is OFF and we won't render text now
-  showText = false,
-  labelOn = "ON",
-  labelOff = "OFF",
 }) {
-  // safety for resizing / weird values
   const safeW = Math.max(90, Number(width) || 180);
   const safeH = Math.max(40, Number(height) || 70);
 
-  const outerRadius = safeH / 2;
+  const radius = safeH / 2;
 
-  // Slightly smaller outer padding = thinner bezel look
-  const bezelPad = Math.max(4, Math.round(safeH * 0.07));
+  /* === VISUAL TUNING === */
+  const bezelPad = Math.max(3, Math.round(safeH * 0.05));   // thinner outer bezel
+  const trackPad = Math.max(4, Math.round(safeH * 0.08));   // thinner inner track
+  const panelInset = Math.max(6, Math.round(safeH * 0.14)); // larger green area
 
-  // Track padding inside the bezel
-  const pad = Math.max(6, Math.round(safeH * 0.11));
+  const knobSize = safeH - trackPad * 2 + Math.round(safeH * 0.05);
+  const knobTop = trackPad - Math.round(safeH * 0.02);
 
-  // ✅ Make knob a touch bigger so it covers the colored panel edge
-  const knobSize = Math.max(18, safeH - pad * 2 + Math.round(safeH * 0.06));
-  const knobTop = pad - Math.round(safeH * 0.03); // lift a bit to overlap edges more
-
-  // ✅ ON = LEFT, OFF = RIGHT
-  const knobLeft = isOn ? pad : safeW - pad - knobSize;
-
-  // ✅ thinner borders
-  const knobRing = Math.max(2, Math.round(safeH * 0.03));
-  const bezelBorder = 1; // thin outer border
+  // ON = LEFT, OFF = RIGHT
+  const knobLeft = isOn
+    ? trackPad
+    : safeW - trackPad - knobSize;
 
   const bezelBg =
-    "linear-gradient(180deg, #3A3A3A 0%, #141414 50%, #2A2A2A 100%)";
+    "linear-gradient(180deg, #2E2E2E 0%, #0F0F0F 50%, #1F1F1F 100%)";
 
-  const trackShadow =
-    "inset 0 4px 10px rgba(0,0,0,0.75), inset 0 -3px 8px rgba(255,255,255,0.08)";
+  const trackBg = "#0B0B0B";
 
   const panelBg = isOn
-    ? "linear-gradient(180deg, #61FF78 0%, #22C63B 55%, #10A82B 100%)"
-    : "linear-gradient(180deg, #FF4B4B 0%, #E00000 55%, #B10000 100%)";
+    ? "linear-gradient(180deg, #5CFF72 0%, #2EDB4A 60%, #14A82E 100%)"
+    : "linear-gradient(180deg, #FF5050 0%, #E00000 60%, #B10000 100%)";
 
   const knobBg =
-    "linear-gradient(180deg, #4B4B4B 0%, #1F1F1F 55%, #3A3A3A 100%)";
-
-  // ✅ Pull the colored panel inward so it won’t peek around the knob edge
-  const panelInset = Math.max(10, Math.round(safeH * 0.20));
+    "linear-gradient(180deg, #3C3C3C 0%, #141414 60%, #2A2A2A 100%)";
 
   return (
     <div
       style={{
         width: safeW,
         height: safeH,
-        borderRadius: outerRadius,
+        borderRadius: radius,
         background: bezelBg,
         padding: bezelPad,
-        border: `${bezelBorder}px solid rgba(0,0,0,0.65)`,
-        boxShadow:
-          "0 10px 20px rgba(0,0,0,0.55), inset 0 2px 6px rgba(255,255,255,0.06)",
+        boxShadow: "0 10px 20px rgba(0,0,0,0.45)",
         position: "relative",
         userSelect: "none",
       }}
@@ -76,50 +61,21 @@ export function ToggleSwitchControl({
         style={{
           width: "100%",
           height: "100%",
-          borderRadius: outerRadius - 6,
-          background: "#111",
-          boxShadow: trackShadow,
+          borderRadius: radius - 4,
+          background: trackBg,
           position: "relative",
           overflow: "hidden",
         }}
       >
-        {/* Color Panel */}
+        {/* Color fill */}
         <div
           style={{
             position: "absolute",
             inset: panelInset,
-            borderRadius: outerRadius,
+            borderRadius: radius,
             background: panelBg,
-            boxShadow:
-              "inset 0 2px 6px rgba(255,255,255,0.18), inset 0 -4px 10px rgba(0,0,0,0.35)",
           }}
         />
-
-        {/* ✅ Removed ON/OFF text inside (kept optional switch if you ever want it back) */}
-        {showText && (
-          <div
-            style={{
-              position: "absolute",
-              left: Math.max(10, Math.round(safeH * 0.18)),
-              right: Math.max(10, Math.round(safeH * 0.18)),
-              top: 0,
-              bottom: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: isOn ? "flex-start" : "flex-end",
-              fontWeight: 800,
-              letterSpacing: Math.max(1, Math.round(safeH * 0.04)),
-              color: "rgba(255,255,255,0.92)",
-              fontSize: Math.max(12, Math.floor(safeH * 0.28)),
-              textShadow: "0 2px 4px rgba(0,0,0,0.55)",
-              paddingLeft: isOn ? Math.round(safeH * 0.22) : 0,
-              paddingRight: isOn ? 0 : Math.round(safeH * 0.22),
-              zIndex: 2,
-            }}
-          >
-            {isOn ? labelOn : labelOff}
-          </div>
-        )}
 
         {/* Knob */}
         <div
@@ -132,15 +88,13 @@ export function ToggleSwitchControl({
             borderRadius: knobSize / 2,
             background: knobBg,
             boxShadow:
-              "0 8px 16px rgba(0,0,0,0.6), inset 0 2px 5px rgba(255,255,255,0.12), inset 0 -6px 10px rgba(0,0,0,0.5)",
-            border: `${knobRing}px solid rgba(0,0,0,0.55)`,
-            zIndex: 3,
+              "0 6px 14px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.12)",
+            border: "2px solid rgba(0,0,0,0.55)", // thinner ring
             transition: "left 180ms ease",
+            zIndex: 3,
           }}
         />
       </div>
     </div>
   );
 }
-
-export default ToggleSwitchControl;
