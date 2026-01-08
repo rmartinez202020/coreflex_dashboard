@@ -8,6 +8,9 @@ import DraggableTextBox from "./DraggableTextBox";
 import DraggableImage from "./DraggableImage";
 import DraggableDisplayBox from "./DraggableDisplayBox";
 
+// ✅ NEW: Toggle switch visual
+import ToggleSwitchControl from "./controls/ToggleSwitchControl";
+
 import {
   StandardTank,
   HorizontalTank,
@@ -111,6 +114,22 @@ export default function DashboardCanvas({
                   }}
                 >
                   <DraggableDisplayBox tank={tank} />
+                </DraggableDroppedTank>
+              );
+            }
+
+            // ✅ TOGGLE SWITCH CONTROL (visual only)
+            // Supports both names to avoid breaking your drop handler:
+            // - "toggleSwitch" (recommended new shape)
+            // - "toggleControl" (if your handler uses ctrl.type directly)
+            if (tank.shape === "toggleSwitch" || tank.shape === "toggleControl") {
+              const w = tank.w ?? tank.width ?? 180;
+              const h = tank.h ?? tank.height ?? 70;
+              const isOn = tank.isOn ?? true;
+
+              return (
+                <DraggableDroppedTank {...commonProps}>
+                  <ToggleSwitchControl isOn={isOn} width={w} height={h} />
                 </DraggableDroppedTank>
               );
             }
