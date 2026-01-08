@@ -118,10 +118,10 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅ TOGGLE SWITCH CONTROL (visual only)
-            // Supports both names to avoid breaking your drop handler:
-            // - "toggleSwitch" (recommended new shape)
-            // - "toggleControl" (if your handler uses ctrl.type directly)
+            // ✅ TOGGLE SWITCH CONTROL (PLAY MODE CLICK ENABLED)
+            // Supports both names:
+            // - "toggleSwitch" (recommended)
+            // - "toggleControl" (legacy)
             if (tank.shape === "toggleSwitch" || tank.shape === "toggleControl") {
               const w = tank.w ?? tank.width ?? 180;
               const h = tank.h ?? tank.height ?? 70;
@@ -129,7 +129,23 @@ export default function DashboardCanvas({
 
               return (
                 <DraggableDroppedTank {...commonProps}>
-                  <ToggleSwitchControl isOn={isOn} width={w} height={h} />
+                  <div
+                    style={{
+                      width: w,
+                      height: h,
+                      cursor: isPlay ? "pointer" : "default",
+                    }}
+                    onClick={(e) => {
+                      if (!isPlay) return;      // ✅ only toggle in play mode
+                      e.stopPropagation();      // ✅ don't bubble to canvas
+                      commonProps.onUpdate({
+                        ...tank,
+                        isOn: !isOn,
+                      });
+                    }}
+                  >
+                    <ToggleSwitchControl isOn={isOn} width={w} height={h} />
+                  </div>
                 </DraggableDroppedTank>
               );
             }
