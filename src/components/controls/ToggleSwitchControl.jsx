@@ -3,7 +3,7 @@ import React from "react";
 /**
  * iOS-style toggle (final polish)
  * - Slightly thinner black bezel
- * - ON text inside green area
+ * - ON text centered in the visible green section (right of the knob)
  * - Knob fully overlaps color edge
  */
 
@@ -26,9 +26,7 @@ export default function ToggleSwitchControl({
   const knobTop = trackPad - Math.round(safeH * 0.015);
 
   // ON = LEFT, OFF = RIGHT
-  const knobLeft = isOn
-    ? trackPad
-    : safeW - trackPad - knobSize;
+  const knobLeft = isOn ? trackPad : safeW - trackPad - knobSize;
 
   const bezelBg =
     "linear-gradient(180deg, #2B2B2B 0%, #0E0E0E 50%, #1C1C1C 100%)";
@@ -41,6 +39,9 @@ export default function ToggleSwitchControl({
 
   const knobBg =
     "linear-gradient(180deg, #3A3A3A 0%, #141414 60%, #2A2A2A 100%)";
+
+  // ✅ ON text area starts AFTER the knob, so the text is centered in the visible green
+  const textLeft = Math.round(trackPad + knobSize * 0.92);
 
   return (
     <div
@@ -76,12 +77,15 @@ export default function ToggleSwitchControl({
           }}
         />
 
-        {/* ON text (only when ON, inside green) */}
+        {/* ✅ ON text centered in visible green (right of knob) */}
         {isOn && (
           <div
             style={{
               position: "absolute",
-              inset: panelInset,
+              top: panelInset,
+              bottom: panelInset,
+              left: textLeft,
+              right: panelInset,
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -91,6 +95,7 @@ export default function ToggleSwitchControl({
               color: "white",
               textShadow: "0 2px 4px rgba(0,0,0,0.45)",
               pointerEvents: "none",
+              zIndex: 2,
             }}
           >
             ON
