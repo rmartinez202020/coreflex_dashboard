@@ -1,29 +1,44 @@
 import React from "react";
 
 /**
- * iOS-style toggle like your screenshot.
- * - Scales cleanly with width/height (for future corner-resize)
+ * iOS-style toggle (operator-ready)
+ * Fixes:
+ * - No ON/OFF text inside
+ * - Knob fully covers the green/red edge near the knob
+ * - Thinner black borders (outer bezel + knob ring)
  */
 
-// ✅ Named export ALSO (optional safety)
 export function ToggleSwitchControl({
   isOn = true,
   width = 180,
   height = 70,
-  showText = true,
+  // keep prop if you want later, but default is OFF and we won't render text now
+  showText = false,
   labelOn = "ON",
   labelOff = "OFF",
 }) {
-  // ✅ safety for resizing / weird values
+  // safety for resizing / weird values
   const safeW = Math.max(90, Number(width) || 180);
   const safeH = Math.max(40, Number(height) || 70);
 
-  const pad = Math.max(6, Math.round(safeH * 0.11));
-  const knobSize = Math.max(18, safeH - pad * 2);
   const outerRadius = safeH / 2;
 
-  // ✅ ON = LEFT, OFF = RIGHT  (what you asked)
+  // Slightly smaller outer padding = thinner bezel look
+  const bezelPad = Math.max(4, Math.round(safeH * 0.07));
+
+  // Track padding inside the bezel
+  const pad = Math.max(6, Math.round(safeH * 0.11));
+
+  // ✅ Make knob a touch bigger so it covers the colored panel edge
+  const knobSize = Math.max(18, safeH - pad * 2 + Math.round(safeH * 0.06));
+  const knobTop = pad - Math.round(safeH * 0.03); // lift a bit to overlap edges more
+
+  // ✅ ON = LEFT, OFF = RIGHT
   const knobLeft = isOn ? pad : safeW - pad - knobSize;
+
+  // ✅ thinner borders
+  const knobRing = Math.max(2, Math.round(safeH * 0.03));
+  const bezelBorder = 1; // thin outer border
 
   const bezelBg =
     "linear-gradient(180deg, #3A3A3A 0%, #141414 50%, #2A2A2A 100%)";
@@ -38,7 +53,8 @@ export function ToggleSwitchControl({
   const knobBg =
     "linear-gradient(180deg, #4B4B4B 0%, #1F1F1F 55%, #3A3A3A 100%)";
 
-  const text = isOn ? labelOn : labelOff;
+  // ✅ Pull the colored panel inward so it won’t peek around the knob edge
+  const panelInset = Math.max(10, Math.round(safeH * 0.20));
 
   return (
     <div
@@ -47,13 +63,15 @@ export function ToggleSwitchControl({
         height: safeH,
         borderRadius: outerRadius,
         background: bezelBg,
-        padding: Math.max(5, Math.round(safeH * 0.09)),
+        padding: bezelPad,
+        border: `${bezelBorder}px solid rgba(0,0,0,0.65)`,
         boxShadow:
           "0 10px 20px rgba(0,0,0,0.55), inset 0 2px 6px rgba(255,255,255,0.06)",
         position: "relative",
         userSelect: "none",
       }}
     >
+      {/* Track */}
       <div
         style={{
           width: "100%",
@@ -69,7 +87,7 @@ export function ToggleSwitchControl({
         <div
           style={{
             position: "absolute",
-            inset: Math.max(8, Math.round(safeH * 0.14)),
+            inset: panelInset,
             borderRadius: outerRadius,
             background: panelBg,
             boxShadow:
@@ -77,7 +95,7 @@ export function ToggleSwitchControl({
           }}
         />
 
-        {/* ON/OFF text */}
+        {/* ✅ Removed ON/OFF text inside (kept optional switch if you ever want it back) */}
         {showText && (
           <div
             style={{
@@ -99,7 +117,7 @@ export function ToggleSwitchControl({
               zIndex: 2,
             }}
           >
-            {text}
+            {isOn ? labelOn : labelOff}
           </div>
         )}
 
@@ -107,7 +125,7 @@ export function ToggleSwitchControl({
         <div
           style={{
             position: "absolute",
-            top: pad,
+            top: knobTop,
             left: knobLeft,
             width: knobSize,
             height: knobSize,
@@ -115,7 +133,7 @@ export function ToggleSwitchControl({
             background: knobBg,
             boxShadow:
               "0 8px 16px rgba(0,0,0,0.6), inset 0 2px 5px rgba(255,255,255,0.12), inset 0 -6px 10px rgba(0,0,0,0.5)",
-            border: `${Math.max(3, Math.round(safeH * 0.06))}px solid rgba(0,0,0,0.55)`,
+            border: `${knobRing}px solid rgba(0,0,0,0.55)`,
             zIndex: 3,
             transition: "left 180ms ease",
           }}
@@ -125,5 +143,4 @@ export function ToggleSwitchControl({
   );
 }
 
-// ✅ Default export (what your DashboardCanvas import expects)
 export default ToggleSwitchControl;
