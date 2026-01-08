@@ -1,11 +1,10 @@
 import React from "react";
 
 /**
- * iOS-style toggle (final visual tuning)
- * - Slim black bezel
- * - Larger green/red fill
- * - NO text inside
- * - Knob fully covers color edge
+ * iOS-style toggle (final polish)
+ * - Slightly thinner black bezel
+ * - ON text inside green area
+ * - Knob fully overlaps color edge
  */
 
 export default function ToggleSwitchControl({
@@ -18,13 +17,13 @@ export default function ToggleSwitchControl({
 
   const radius = safeH / 2;
 
-  /* === VISUAL TUNING === */
-  const bezelPad = Math.max(3, Math.round(safeH * 0.05));   // thinner outer bezel
-  const trackPad = Math.max(4, Math.round(safeH * 0.08));   // thinner inner track
-  const panelInset = Math.max(6, Math.round(safeH * 0.14)); // larger green area
+  /* === VISUAL TUNING (FINAL) === */
+  const bezelPad = Math.max(2, Math.round(safeH * 0.045)); // thinner black
+  const trackPad = Math.max(4, Math.round(safeH * 0.075));
+  const panelInset = Math.max(8, Math.round(safeH * 0.13));
 
-  const knobSize = safeH - trackPad * 2 + Math.round(safeH * 0.05);
-  const knobTop = trackPad - Math.round(safeH * 0.02);
+  const knobSize = safeH - trackPad * 2 + Math.round(safeH * 0.04);
+  const knobTop = trackPad - Math.round(safeH * 0.015);
 
   // ON = LEFT, OFF = RIGHT
   const knobLeft = isOn
@@ -32,16 +31,16 @@ export default function ToggleSwitchControl({
     : safeW - trackPad - knobSize;
 
   const bezelBg =
-    "linear-gradient(180deg, #2E2E2E 0%, #0F0F0F 50%, #1F1F1F 100%)";
+    "linear-gradient(180deg, #2B2B2B 0%, #0E0E0E 50%, #1C1C1C 100%)";
 
-  const trackBg = "#0B0B0B";
+  const trackBg = "#0A0A0A";
 
   const panelBg = isOn
-    ? "linear-gradient(180deg, #5CFF72 0%, #2EDB4A 60%, #14A82E 100%)"
-    : "linear-gradient(180deg, #FF5050 0%, #E00000 60%, #B10000 100%)";
+    ? "linear-gradient(180deg, #63FF78 0%, #2EE04C 60%, #14A82E 100%)"
+    : "linear-gradient(180deg, #FF4F4F 0%, #E00000 60%, #B10000 100%)";
 
   const knobBg =
-    "linear-gradient(180deg, #3C3C3C 0%, #141414 60%, #2A2A2A 100%)";
+    "linear-gradient(180deg, #3A3A3A 0%, #141414 60%, #2A2A2A 100%)";
 
   return (
     <div
@@ -51,7 +50,7 @@ export default function ToggleSwitchControl({
         borderRadius: radius,
         background: bezelBg,
         padding: bezelPad,
-        boxShadow: "0 10px 20px rgba(0,0,0,0.45)",
+        boxShadow: "0 8px 18px rgba(0,0,0,0.45)",
         position: "relative",
         userSelect: "none",
       }}
@@ -77,6 +76,27 @@ export default function ToggleSwitchControl({
           }}
         />
 
+        {/* ON text (only when ON, inside green) */}
+        {isOn && (
+          <div
+            style={{
+              position: "absolute",
+              inset: panelInset,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 800,
+              fontSize: Math.max(14, Math.round(safeH * 0.28)),
+              letterSpacing: 1,
+              color: "white",
+              textShadow: "0 2px 4px rgba(0,0,0,0.45)",
+              pointerEvents: "none",
+            }}
+          >
+            ON
+          </div>
+        )}
+
         {/* Knob */}
         <div
           style={{
@@ -89,7 +109,7 @@ export default function ToggleSwitchControl({
             background: knobBg,
             boxShadow:
               "0 6px 14px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.12)",
-            border: "2px solid rgba(0,0,0,0.55)", // thinner ring
+            border: "2px solid rgba(0,0,0,0.5)",
             transition: "left 180ms ease",
             zIndex: 3,
           }}
