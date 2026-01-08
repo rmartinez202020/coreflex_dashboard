@@ -1,7 +1,4 @@
-export default function useDropHandler({
-  uploadedImages,
-  setDroppedTanks,
-}) {
+export default function useDropHandler({ uploadedImages, setDroppedTanks }) {
   const handleDrop = (e) => {
     e.preventDefault();
 
@@ -48,7 +45,7 @@ export default function useDropHandler({
       return;
     }
 
-    // ✅ 3️⃣ DEVICE CONTROLS DROP (NEW)
+    // ✅ 3️⃣ DEVICE CONTROLS DROP (Toggle / Push Buttons / Interlock)
     // from DraggableControls.jsx -> e.dataTransfer.setData("control", ctrl.type)
     const control = e.dataTransfer.getData("control");
     if (control) {
@@ -70,7 +67,43 @@ export default function useDropHandler({
         return;
       }
 
-      // Placeholders (we’ll style these next)
+      // ✅ Push Button (NO) -> Green
+      if (control === "pushButtonNO") {
+        setDroppedTanks((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            shape: "pushButtonNO",
+            x,
+            y,
+            w: 110,
+            h: 110,
+            // later: pressed / tag / deviceId, etc.
+            zIndex: 1,
+          },
+        ]);
+        return;
+      }
+
+      // ✅ Push Button (NC) -> Red
+      if (control === "pushButtonNC") {
+        setDroppedTanks((prev) => [
+          ...prev,
+          {
+            id: Date.now().toString(),
+            shape: "pushButtonNC",
+            x,
+            y,
+            w: 110,
+            h: 110,
+            // later: pressed / tag / deviceId, etc.
+            zIndex: 1,
+          },
+        ]);
+        return;
+      }
+
+      // (keep your old placeholder if you still want it — optional)
       if (control === "pushButtonControl") {
         setDroppedTanks((prev) => [
           ...prev,
