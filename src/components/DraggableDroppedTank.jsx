@@ -52,7 +52,9 @@ export default function DraggableDroppedTank({
 
   const liveTransform = isMultiDragging
     ? `translate(${dragDelta.x}px, ${dragDelta.y}px) scale(${tank.scale || 1})`
-    : `translate(${transform?.x || 0}px, ${transform?.y || 0}px) scale(${tank.scale || 1})`;
+    : `translate(${transform?.x || 0}px, ${transform?.y || 0}px) scale(${
+        tank.scale || 1
+      })`;
 
   const outerStyle = {
     position: "absolute",
@@ -76,37 +78,33 @@ export default function DraggableDroppedTank({
     tank.shape === "toggleSwitch" || tank.shape === "toggleControl";
 
   const isPushButton =
-    tank.shape === "pushButtonNO" || tank.shape === "pushButtonNC";
+    tank.shape === "pushButtonNO" ||
+    tank.shape === "pushButtonNC" ||
+    tank.shape === "pushButtonControl";
 
   const contentStyle = {
     display: "inline-block",
+    width: "auto",
+    height: "auto",
+    maxWidth: "none",
+    maxHeight: "none",
     pointerEvents: isPlay && (isToggle || isPushButton) ? "auto" : "none",
   };
 
-  /* =============================
-     MOMENTARY PUSH BUTTON LOGIC
-     ============================= */
-
+  // ✅ PLAY MODE INTERACTION (Toggle + PushButtons only)
   const handleMouseDown = (e) => {
     if (!isPlay) return;
     e.stopPropagation();
 
-    // Toggle (latching)
+    // Toggle = latching
     if (isToggle) {
-      onUpdate({ ...tank, isOn: !(tank.isOn ?? true) });
+      onUpdate?.({ ...tank, isOn: !(tank.isOn ?? true) });
       return;
     }
 
-    // NO = pressed while down
-    if (tank.shape === "pushButtonNO") {
-      onUpdate({ ...tank, pressed: true });
-      return;
-    }
-
-    // NC = released while down
-    if (tank.shape === "pushButtonNC") {
-      onUpdate({ ...tank, pressed: false });
-      return;
+    // ✅ Push buttons (NO + NC): same visual behavior
+    if (isPushButton) {
+      onUpdate?.({ ...tank, pressed: true });
     }
   };
 
@@ -114,26 +112,20 @@ export default function DraggableDroppedTank({
     if (!isPlay) return;
     e.stopPropagation();
 
-    // NO returns to released
-    if (tank.shape === "pushButtonNO") {
-      onUpdate({ ...tank, pressed: false });
-      return;
-    }
-
-    // NC returns to pressed
-    if (tank.shape === "pushButtonNC") {
-      onUpdate({ ...tank, pressed: true });
-      return;
+    if (isPushButton) {
+      onUpdate?.({ ...tank, pressed: false });
     }
   };
 
   return (
     <div
       ref={setNodeRef}
+      className="draggable-item"
       style={outerStyle}
       {...attributes}
       {...listeners}
       onClick={(e) => {
+        // ✅ EDIT: select works
         if (!isPlay) {
           e.stopPropagation();
           onSelect(tank.id);
@@ -150,7 +142,7 @@ export default function DraggableDroppedTank({
           style={contentStyle}
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp} // safety: release if cursor leaves
+          onMouseLeave={handleMouseUp} // ✅ safety release if cursor leaves
         >
           {children}
         </div>
