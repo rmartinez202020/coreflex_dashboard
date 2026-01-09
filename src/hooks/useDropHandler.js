@@ -49,7 +49,7 @@ export default function useDropHandler({ uploadedImages, setDroppedTanks }) {
     // from DraggableControls.jsx -> e.dataTransfer.setData("control", ctrl.type)
     const control = e.dataTransfer.getData("control");
     if (control) {
-      // Toggle Switch -> render the iOS-style toggle on canvas
+      // Toggle Switch
       if (control === "toggleControl") {
         setDroppedTanks((prev) => [
           ...prev,
@@ -78,7 +78,6 @@ export default function useDropHandler({ uploadedImages, setDroppedTanks }) {
             y,
             w: 110,
             h: 110,
-            // later: pressed / tag / deviceId, etc.
             zIndex: 1,
           },
         ]);
@@ -96,30 +95,13 @@ export default function useDropHandler({ uploadedImages, setDroppedTanks }) {
             y,
             w: 110,
             h: 110,
-            // later: pressed / tag / deviceId, etc.
             zIndex: 1,
           },
         ]);
         return;
       }
 
-      // (keep your old placeholder if you still want it — optional)
-      if (control === "pushButtonControl") {
-        setDroppedTanks((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            shape: "pushButtonControl",
-            x,
-            y,
-            w: 90,
-            h: 90,
-            zIndex: 1,
-          },
-        ]);
-        return;
-      }
-
+      // Interlock
       if (control === "interlockControl") {
         setDroppedTanks((prev) => [
           ...prev,

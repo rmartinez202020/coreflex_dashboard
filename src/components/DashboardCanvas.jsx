@@ -84,7 +84,7 @@ export default function DashboardCanvas({
               disableDrag: isPlay,
               disableSelect: isPlay,
               disableSettings: isPlay,
-              dashboardMode, // ✅ allows DraggableDroppedTank to toggle only in PLAY
+              dashboardMode, // ✅ allows DraggableDroppedTank to toggle/click controls only in PLAY
               onSelect: handleSelect,
               onRightClick: handleRightClick,
               onUpdate: (updated) =>
@@ -133,10 +133,16 @@ export default function DashboardCanvas({
             if (tank.shape === "pushButtonNO") {
               const w = tank.w ?? tank.width ?? 110;
               const h = tank.h ?? tank.height ?? 110;
+              const pressed = !!tank.pressed;
 
               return (
                 <DraggableDroppedTank {...commonProps}>
-                  <PushButtonControl variant="NO" width={w} height={h} />
+                  <PushButtonControl
+                    variant="NO"
+                    width={w}
+                    height={h}
+                    pressed={pressed}
+                  />
                 </DraggableDroppedTank>
               );
             }
@@ -145,10 +151,16 @@ export default function DashboardCanvas({
             if (tank.shape === "pushButtonNC") {
               const w = tank.w ?? tank.width ?? 110;
               const h = tank.h ?? tank.height ?? 110;
+              const pressed = !!tank.pressed;
 
               return (
                 <DraggableDroppedTank {...commonProps}>
-                  <PushButtonControl variant="NC" width={w} height={h} />
+                  <PushButtonControl
+                    variant="NC"
+                    width={w}
+                    height={h}
+                    pressed={pressed}
+                  />
                 </DraggableDroppedTank>
               );
             }

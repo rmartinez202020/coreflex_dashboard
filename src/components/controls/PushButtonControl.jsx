@@ -5,10 +5,9 @@ import React from "react";
  * - Variant: "NO" (green) or "NC" (red)
  * - Press animation (pressed=true)
  * - Scales with width/height
+ * - ✅ Thinner bezel/ring (less black area)
  */
-
-// ✅ Named export (optional safety)
-export function PushButtonControl({
+export default function PushButtonControl({
   variant = "NO", // "NO" = green, "NC" = red
   width = 110,
   height = 110,
@@ -19,15 +18,12 @@ export function PushButtonControl({
   const safeH = Math.max(70, Number(height) || 110);
   const size = Math.min(safeW, safeH);
 
-  // sizing (guarded)
-  const bezel = Math.max(7, Math.round(size * 0.105));
-  const ring = Math.max(5, Math.round(size * 0.085));
+  // ✅ Thinner black areas
+  const bezel = Math.max(5, Math.round(size * 0.075)); // was ~0.11
+  const ring = Math.max(4, Math.round(size * 0.06));   // was ~0.09
+  const btn = size - bezel * 2 - ring * 2;
 
-  // make sure face never goes negative
-  const btn = Math.max(26, size - bezel * 2 - ring * 2);
-
-  const v = String(variant).toUpperCase();
-  const isGreen = v === "NO";
+  const isGreen = String(variant).toUpperCase() === "NO";
   const text = (label ?? (isGreen ? "NO" : "NC")).toUpperCase();
 
   const bezelBg =
@@ -41,12 +37,12 @@ export function PushButtonControl({
     : "linear-gradient(180deg, #FF6060 0%, #E60000 55%, #B20000 100%)";
 
   // press effect
-  const pressDepth = Math.max(3, Math.round(size * 0.055));
+  const pressDepth = Math.max(4, Math.round(size * 0.055));
   const translateY = pressed ? pressDepth : 0;
 
   const faceShadow = pressed
-    ? "inset 0 10px 16px rgba(0,0,0,0.55), inset 0 2px 6px rgba(255,255,255,0.10)"
-    : "0 10px 18px rgba(0,0,0,0.45), inset 0 2px 8px rgba(255,255,255,0.12), inset 0 -10px 14px rgba(0,0,0,0.35)";
+    ? "inset 0 12px 18px rgba(0,0,0,0.60), inset 0 2px 6px rgba(255,255,255,0.10)"
+    : "0 10px 18px rgba(0,0,0,0.42), inset 0 2px 8px rgba(255,255,255,0.12), inset 0 -10px 14px rgba(0,0,0,0.35)";
 
   const highlight = isGreen
     ? "radial-gradient(circle at 30% 25%, rgba(255,255,255,0.55), rgba(255,255,255,0) 55%)"
@@ -70,7 +66,7 @@ export function PushButtonControl({
           height: size,
           borderRadius: size / 2,
           background: bezelBg,
-          boxShadow: "0 12px 22px rgba(0,0,0,0.45)",
+          boxShadow: "0 10px 18px rgba(0,0,0,0.42)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -91,14 +87,13 @@ export function PushButtonControl({
             justifyContent: "center",
             padding: ring,
             position: "relative",
-            overflow: "hidden", // ✅ important: clip the sheen
           }}
         >
           {/* ring sheen */}
           <div
             style={{
               position: "absolute",
-              inset: Math.max(0, ring - 2),
+              inset: Math.max(1, ring - 2),
               borderRadius: "999px",
               background: ringBg,
               pointerEvents: "none",
@@ -113,10 +108,10 @@ export function PushButtonControl({
               height: btn,
               borderRadius: btn / 2,
               background: faceBg,
-              transform: `translateY(${translateY}px)`,
+              transform: `translateY(${translateY}px) scale(${pressed ? 0.985 : 1})`,
               transition: "transform 120ms ease, box-shadow 120ms ease",
               boxShadow: faceShadow,
-              border: "1px solid rgba(0,0,0,0.45)",
+              border: "1px solid rgba(0,0,0,0.40)",
               display: "flex",
               alignItems: "center",
               justifyContent: "center",
@@ -127,11 +122,11 @@ export function PushButtonControl({
             <div
               style={{
                 position: "absolute",
-                inset: Math.max(6, Math.round(btn * 0.08)),
+                inset: Math.max(6, Math.round(btn * 0.085)),
                 borderRadius: "999px",
                 background: highlight,
                 pointerEvents: "none",
-                opacity: pressed ? 0.28 : 0.45,
+                opacity: pressed ? 0.22 : 0.42,
                 transition: "opacity 120ms ease",
               }}
             />
@@ -156,6 +151,3 @@ export function PushButtonControl({
     </div>
   );
 }
-
-// ✅ Default export (safe for imports)
-export default PushButtonControl;
