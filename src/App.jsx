@@ -8,6 +8,8 @@ import Header from "./components/Header";
 import DashboardHeader from "./components/DashboardHeader";
 import { saveMainDashboard } from "./services/saveMainDashboard";
 import RestoreWarningModal from "./components/RestoreWarningModal";
+import GraphicDisplaySettingsModal from "./components/GraphicDisplaySettingsModal";
+
 
 // ✅ UPDATED IMPORTS (use your helpers)
 import {
@@ -89,6 +91,12 @@ export default function App() {
   const [displaySettingsId, setDisplaySettingsId] = useState(null);
   const openDisplaySettings = (tank) => setDisplaySettingsId(tank.id);
   const closeDisplaySettings = () => setDisplaySettingsId(null);
+
+  // ✅ GRAPHIC DISPLAY SETTINGS MODAL
+const [graphicSettingsId, setGraphicSettingsId] = useState(null);
+const openGraphicDisplaySettings = (tank) => setGraphicSettingsId(tank.id);
+const closeGraphicDisplaySettings = () => setGraphicSettingsId(null);
+
 
   // NAVIGATION
   const [activePage, setActivePage] = useState("home");
@@ -421,6 +429,10 @@ const handleUploadProject = async () => {
   const displayTarget = droppedTanks.find(
     (t) => t.id === displaySettingsId && t.shape === "displayBox"
   );
+
+  const graphicTarget = droppedTanks.find(
+  (t) => t.id === graphicSettingsId && t.shape === "graphicDisplay"
+);
 
   // ⭐ GLOBAL MOUSE MOVE / UP FOR DRAGGING + RESIZING WINDOWS
   useEffect(() => {

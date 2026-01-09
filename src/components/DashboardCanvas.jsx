@@ -14,7 +14,7 @@ import ToggleSwitchControl from "./controls/ToggleSwitchControl";
 // ✅ Push button visual
 import PushButtonControl from "./controls/PushButtonControl";
 
-// ✅ NEW: Graphic Display visual
+// ✅ Graphic Display visual
 import GraphicDisplay from "./controls/GraphicDisplay";
 
 import {
@@ -54,6 +54,9 @@ export default function DashboardCanvas({
   hideContextMenu,
   guides,
   onOpenDisplaySettings,
+
+  // ✅ NEW: open Graphic Display settings modal (double click)
+  onOpenGraphicDisplaySettings,
 }) {
   const isPlay = dashboardMode === "play";
 
@@ -87,7 +90,7 @@ export default function DashboardCanvas({
               disableDrag: isPlay,
               disableSelect: isPlay,
               disableSettings: isPlay,
-              dashboardMode, // ✅ allows DraggableDroppedTank to click controls only in PLAY
+              dashboardMode, // ✅ lets DraggableDroppedTank click controls only in PLAY
               onSelect: handleSelect,
               onRightClick: handleRightClick,
               onUpdate: (updated) =>
@@ -111,7 +114,7 @@ export default function DashboardCanvas({
                 <DraggableDroppedTank
                   {...commonProps}
                   onDoubleClick={() => {
-                    if (!isPlay) onOpenDisplaySettings(tank);
+                    if (!isPlay) onOpenDisplaySettings?.(tank);
                   }}
                 >
                   <DraggableDisplayBox tank={tank} />
@@ -119,11 +122,15 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅ NEW: GRAPHIC DISPLAY
-            // shape name: "graphicDisplay"
+            // ✅ GRAPHIC DISPLAY (double click opens settings in EDIT)
             if (tank.shape === "graphicDisplay") {
               return (
-                <DraggableDroppedTank {...commonProps}>
+                <DraggableDroppedTank
+                  {...commonProps}
+                  onDoubleClick={() => {
+                    if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
+                  }}
+                >
                   <GraphicDisplay
                     tank={tank}
                     onUpdate={commonProps.onUpdate}
