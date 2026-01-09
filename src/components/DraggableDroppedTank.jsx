@@ -1,5 +1,5 @@
 import { useDraggable } from "@dnd-kit/core";
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 
 export default function DraggableDroppedTank({
   tank,
@@ -10,8 +10,6 @@ export default function DraggableDroppedTank({
   onDoubleClick,
   children,
   onUpdate,
-
-  // ✅ so we can toggle/press ONLY in PLAY
   dashboardMode = "edit",
 }) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
@@ -19,9 +17,7 @@ export default function DraggableDroppedTank({
   });
 
   const isPlay = dashboardMode === "play";
-
   const [resizing, setResizing] = useState(false);
-  const pressTimerRef = useRef(null);
 
   const startResize = (e) => {
     e.stopPropagation();
@@ -51,12 +47,6 @@ export default function DraggableDroppedTank({
     };
   }, [resizing, handleResize, stopResize]);
 
-  useEffect(() => {
-    return () => {
-      if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
-    };
-  }, []);
-
   const isMultiDragging =
     selectedIds.length > 1 && selectedIds.includes(tank.id);
 
@@ -64,7 +54,6 @@ export default function DraggableDroppedTank({
     ? `translate(${dragDelta.x}px, ${dragDelta.y}px) scale(${tank.scale || 1})`
     : `translate(${transform?.x || 0}px, ${transform?.y || 0}px) scale(${tank.scale || 1})`;
 
-  /* OUTER — movement only (NO visuals here) */
   const outerStyle = {
     position: "absolute",
     left: tank.x,
@@ -75,7 +64,6 @@ export default function DraggableDroppedTank({
     zIndex: tank.zIndex ?? 1,
   };
 
-  /* INNER — tight visual bounds */
   const visualWrapperStyle = {
     display: "inline-flex",
     alignItems: "center",
@@ -84,66 +72,72 @@ export default function DraggableDroppedTank({
     border: selected ? "1px solid #2563eb" : "1px solid transparent",
   };
 
-  // ✅ Identify toggle
   const isToggle =
     tank.shape === "toggleSwitch" || tank.shape === "toggleControl";
 
-  // ✅ Identify push button variants
   const isPushButton =
-    tank.shape === "pushButtonNO" ||
-    tank.shape === "pushButtonNC" ||
-    tank.shape === "pushButtonControl";
+    tank.shape === "pushButtonNO" || tank.shape === "pushButtonNC";
 
-  // ✅ Press animation helper (PLAY only)
-  const doPushPress = () => {
-    // pressed ON instantly
-    onUpdate?.({ ...tank, pressed: true });
-
-    // release shortly after
-    if (pressTimerRef.current) clearTimeout(pressTimerRef.current);
-    pressTimerRef.current = setTimeout(() => {
-      onUpdate?.({ ...tank, pressed: false });
-    }, 140);
-  };
-
-  /* Content pointer events:
-     - In PLAY: toggle + push button must receive click
-     - In EDIT: keep your old behavior (children do NOT hijack clicks)
-  */
   const contentStyle = {
     display: "inline-block",
-    width: "auto",
-    height: "auto",
-    maxWidth: "none",
-    maxHeight: "none",
     pointerEvents: isPlay && (isToggle || isPushButton) ? "auto" : "none",
+  };
+
+  /* =============================
+     MOMENTARY PUSH BUTTON LOGIC
+     ============================= */
+
+  const handleMouseDown = (e) => {
+    if (!isPlay) return;
+    e.stopPropagation();
+
+    // Toggle (latching)
+    if (isToggle) {
+      onUpdate({ ...tank, isOn: !(tank.isOn ?? true) });
+      return;
+    }
+
+    // NO = pressed while down
+    if (tank.shape === "pushButtonNO") {
+      onUpdate({ ...tank, pressed: true });
+      return;
+    }
+
+    // NC = released while down
+    if (tank.shape === "pushButtonNC") {
+      onUpdate({ ...tank, pressed: false });
+      return;
+    }
+  };
+
+  const handleMouseUp = (e) => {
+    if (!isPlay) return;
+    e.stopPropagation();
+
+    // NO returns to released
+    if (tank.shape === "pushButtonNO") {
+      onUpdate({ ...tank, pressed: false });
+      return;
+    }
+
+    // NC returns to pressed
+    if (tank.shape === "pushButtonNC") {
+      onUpdate({ ...tank, pressed: true });
+      return;
+    }
   };
 
   return (
     <div
       ref={setNodeRef}
-      className="draggable-item"
       style={outerStyle}
       {...attributes}
       {...listeners}
       onClick={(e) => {
-        e.stopPropagation();
-
-        // ✅ PLAY mode: ONLY controls react to click
-        if (isPlay) {
-          if (isToggle) {
-            onUpdate?.({ ...tank, isOn: !(tank.isOn ?? true) });
-            return;
-          }
-          if (isPushButton) {
-            doPushPress();
-            return;
-          }
-          return; // everything else does nothing in play mode
+        if (!isPlay) {
+          e.stopPropagation();
+          onSelect(tank.id);
         }
-
-        // ✅ EDIT: normal select
-        onSelect(tank.id);
       }}
       onDoubleClick={(e) => {
         e.stopPropagation();
@@ -151,12 +145,18 @@ export default function DraggableDroppedTank({
       }}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {/* 🔒 SELECTION BOUNDS LIVE HERE */}
       <div style={visualWrapperStyle}>
-        <div style={contentStyle}>{children}</div>
+        <div
+          style={contentStyle}
+          onMouseDown={handleMouseDown}
+          onMouseUp={handleMouseUp}
+          onMouseLeave={handleMouseUp} // safety: release if cursor leaves
+        >
+          {children}
+        </div>
       </div>
 
-      {/* Resize handle ✅ only show in EDIT */}
+      {/* Resize handle — EDIT only */}
       {selected && !isPlay && (
         <div
           onMouseDown={startResize}
