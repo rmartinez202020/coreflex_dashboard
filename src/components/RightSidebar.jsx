@@ -28,13 +28,12 @@ export default function RightSidebar({
 
       {!isRightCollapsed && (
         <div className="flex-1">
-
-          <h2 className="text-xl font-semibold mb-4 text-gray-800">
-            Entities
-          </h2>
+          <h2 className="text-xl font-semibold mb-4 text-gray-800">Entities</h2>
 
           {/* TEXT TOOLS */}
-          <h3 className="text-sm font-semibold mb-3 text-gray-600">Text Tools</h3>
+          <h3 className="text-sm font-semibold mb-3 text-gray-600">
+            Text Tools
+          </h3>
 
           <div className="space-y-6 mb-6">
             {/* TEXT BOX */}
@@ -49,7 +48,7 @@ export default function RightSidebar({
               <span className="text-[14px] text-center">Text Box</span>
             </div>
 
-            {/* ⭐ NEW DISPLAY BOX */}
+            {/* DISPLAY BOX */}
             <div
               className="cursor-pointer flex flex-col items-center gap-1"
               draggable
@@ -78,6 +77,74 @@ export default function RightSidebar({
               </div>
 
               <span className="text-[14px] text-center">Display</span>
+            </div>
+
+            {/* ✅ NEW: GRAPHIC DISPLAY (Trend / Chart) */}
+            <div
+              className="cursor-pointer flex flex-col items-center gap-1"
+              draggable
+              onDragStart={(e) =>
+                e.dataTransfer.setData("shape", "graphicDisplay")
+              }
+            >
+              {/* PREVIEW OF GRAPHIC DISPLAY */}
+              <div
+                style={{
+                  width: "120px",
+                  height: "55px",
+                  background: "linear-gradient(180deg, #ffffff 0%, #f3f3f3 100%)",
+                  borderRadius: 8,
+                  border: "2px solid #cfcfcf",
+                  boxShadow: "0 4px 10px rgba(0,0,0,0.08), inset 0 0 6px rgba(0,0,0,0.10)",
+                  position: "relative",
+                  overflow: "hidden",
+                }}
+              >
+                {/* small grid lines */}
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    background:
+                      "linear-gradient(to right, rgba(0,0,0,0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.06) 1px, transparent 1px)",
+                    backgroundSize: "16px 16px",
+                    opacity: 0.55,
+                  }}
+                />
+
+                {/* fake trend line */}
+                <svg
+                  width="120"
+                  height="55"
+                  viewBox="0 0 120 55"
+                  style={{ position: "absolute", inset: 0 }}
+                >
+                  <path
+                    d="M 6 40 L 22 32 L 36 36 L 52 22 L 68 26 L 84 18 L 100 24 L 114 14"
+                    fill="none"
+                    stroke="#2563eb"
+                    strokeWidth="2.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    opacity="0.9"
+                  />
+                </svg>
+
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 8,
+                    top: 6,
+                    fontSize: 10,
+                    fontWeight: 900,
+                    color: "#111",
+                  }}
+                >
+                  GRAPH
+                </div>
+              </div>
+
+              <span className="text-[14px] text-center">Graphic Display</span>
             </div>
           </div>
 

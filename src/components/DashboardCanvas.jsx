@@ -14,6 +14,9 @@ import ToggleSwitchControl from "./controls/ToggleSwitchControl";
 // ✅ Push button visual
 import PushButtonControl from "./controls/PushButtonControl";
 
+// ✅ NEW: Graphic Display visual
+import GraphicDisplay from "./controls/GraphicDisplay";
+
 import {
   StandardTank,
   HorizontalTank,
@@ -84,7 +87,7 @@ export default function DashboardCanvas({
               disableDrag: isPlay,
               disableSelect: isPlay,
               disableSettings: isPlay,
-              dashboardMode, // ✅ allows DraggableDroppedTank to toggle/click controls only in PLAY
+              dashboardMode, // ✅ allows DraggableDroppedTank to click controls only in PLAY
               onSelect: handleSelect,
               onRightClick: handleRightClick,
               onUpdate: (updated) =>
@@ -112,6 +115,21 @@ export default function DashboardCanvas({
                   }}
                 >
                   <DraggableDisplayBox tank={tank} />
+                </DraggableDroppedTank>
+              );
+            }
+
+            // ✅ NEW: GRAPHIC DISPLAY
+            // shape name: "graphicDisplay"
+            if (tank.shape === "graphicDisplay") {
+              return (
+                <DraggableDroppedTank {...commonProps}>
+                  <GraphicDisplay
+                    tank={tank}
+                    onUpdate={commonProps.onUpdate}
+                    isPlay={isPlay}
+                    sensorsData={sensorsData}
+                  />
                 </DraggableDroppedTank>
               );
             }

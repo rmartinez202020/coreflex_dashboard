@@ -125,6 +125,42 @@ export default function useDropHandler({ uploadedImages, setDroppedTanks }) {
     const shape = e.dataTransfer.getData("shape");
     if (!shape) return;
 
+    // ✅ GRAPHIC DISPLAY (Trend)
+    if (shape === "graphicDisplay") {
+      setDroppedTanks((prev) => [
+        ...prev,
+        {
+          id: Date.now().toString(),
+          shape: "graphicDisplay",
+          x,
+          y,
+          w: 520,
+          h: 260,
+          zIndex: 1,
+
+          // ✅ time scale config (we will expose in settings later)
+          timeUnit: "seconds", // seconds | minutes | hours | days
+          sampleEveryMs: 1000, // sampling rate
+          windowCount: 60, // how many points shown on screen
+
+          // ✅ supports multiple inputs (we will let user add/edit later)
+          // Each entry will read from sensorsData using deviceId + field
+          series: [
+            {
+              name: "Level %",
+              deviceId: "", // user will choose later
+              field: "level_percent",
+            },
+          ],
+
+          // ✅ recording state + stored samples for export
+          recording: false,
+          samples: [], // [{ t: ISOString, values: { s0: number, s1: number... } }]
+        },
+      ]);
+      return;
+    }
+
     // TEXT BOX
     if (shape === "textBox") {
       setDroppedTanks((prev) => [
