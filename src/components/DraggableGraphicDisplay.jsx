@@ -6,6 +6,7 @@ export default function DraggableGraphicDisplay({
   tank,
   onUpdate,
   onSelect,
+  onDoubleClick, // ✅ receive from DashboardCanvas
   selected,
   selectedIds = [],
   dragDelta = { x: 0, y: 0 },
@@ -50,6 +51,7 @@ export default function DraggableGraphicDisplay({
 
   const startResize = (dir, e) => {
     e.stopPropagation();
+    e.preventDefault();
     setIsResizing(true);
     setResizeDir(dir);
 
@@ -69,10 +71,16 @@ export default function DraggableGraphicDisplay({
       let newH = startRef.current.h;
 
       if (resizeDir === "right") {
-        newW = Math.max(300, startRef.current.w + (e.clientX - startRef.current.x));
+        newW = Math.max(
+          300,
+          startRef.current.w + (e.clientX - startRef.current.x)
+        );
       }
       if (resizeDir === "bottom") {
-        newH = Math.max(180, startRef.current.h + (e.clientY - startRef.current.y));
+        newH = Math.max(
+          180,
+          startRef.current.h + (e.clientY - startRef.current.y)
+        );
       }
 
       safeOnUpdate({ ...tank, w: newW, h: newH });
@@ -98,14 +106,19 @@ export default function DraggableGraphicDisplay({
       {...listeners}
       {...attributes}
       style={style}
-      onClick={(e) => {
+      // ✅ IMPORTANT: stop canvas selection box (blue rectangle)
+      onMouseDown={(e) => {
         e.stopPropagation();
         onSelect?.(tank.id);
       }}
+      onPointerDown={(e) => {
+        e.stopPropagation();
+      }}
       onDoubleClick={(e) => {
         e.stopPropagation();
-        tank.onOpenSettings?.(tank);
+        onDoubleClick?.(tank);
       }}
+      onContextMenu={(e) => e.preventDefault()}
     >
       <GraphicDisplay tank={tank} />
 
