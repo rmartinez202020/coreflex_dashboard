@@ -106,9 +106,13 @@ export default function DraggableGraphicDisplay({
       style={style}
       {...attributes}
       {...listeners}
-      // ✅ stop the canvas selection-box from starting (does NOT break DnD)
-      onMouseDownCapture={(e) => e.stopPropagation()}
-      onClick={(e) => {
+      // ✅ Stop canvas selection box BUT allow resize handles to work
+      onMouseDownCapture={(e) => {
+        const isResizeHandle = e.target.closest("[data-resize-handle='true']");
+        if (!isResizeHandle) e.stopPropagation();
+      }}
+      onMouseDown={(e) => {
+        // select on mouse down (better than click)
         e.stopPropagation();
         onSelect?.(tank.id);
       }}
@@ -123,6 +127,7 @@ export default function DraggableGraphicDisplay({
       {/* RIGHT EDGE */}
       {selected && (
         <div
+          data-resize-handle="true"
           onMouseDown={(e) => startResize("right", e)}
           style={{
             position: "absolute",
@@ -138,6 +143,7 @@ export default function DraggableGraphicDisplay({
       {/* BOTTOM EDGE */}
       {selected && (
         <div
+          data-resize-handle="true"
           onMouseDown={(e) => startResize("bottom", e)}
           style={{
             position: "absolute",
