@@ -6,7 +6,7 @@ export default function DraggableGraphicDisplay({
   tank,
   onUpdate,
   onSelect,
-  onDoubleClick, // ✅ receive from DashboardCanvas
+  onDoubleClick,
   selected,
   selectedIds = [],
   dragDelta = { x: 0, y: 0 },
@@ -103,16 +103,18 @@ export default function DraggableGraphicDisplay({
   return (
     <div
       ref={setNodeRef}
-      {...listeners}
-      {...attributes}
       style={style}
-      // ✅ IMPORTANT: stop canvas selection box (blue rectangle)
-      onMouseDown={(e) => {
-        e.stopPropagation();
-        onSelect?.(tank.id);
-      }}
+      {...attributes}
+      // ✅ use DnD listener BUT don't overwrite it
       onPointerDown={(e) => {
+        // 1) start drag (DnD-kit)
+        listeners?.onPointerDown?.(e);
+
+        // 2) prevent canvas selection box
         e.stopPropagation();
+
+        // 3) select the item
+        onSelect?.(tank.id);
       }}
       onDoubleClick={(e) => {
         e.stopPropagation();
