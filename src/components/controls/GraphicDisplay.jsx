@@ -3,10 +3,9 @@ import React from "react";
 /**
  * GraphicDisplay
  * - Reads settings from `tank` (title, timeUnit, sampleMs, window)
- * - Double-click opens settings modal (parent controls it)
- * - Uses pointerDown capture to prevent DnD-kit from swallowing the double click
+ * - IMPORTANT: do NOT stop pointer events here, or it will break dragging
  */
-export default function GraphicDisplay({ tank, onOpenSettings }) {
+export default function GraphicDisplay({ tank }) {
   const title = tank?.title ?? "Graphic Display";
   const timeUnit = tank?.timeUnit ?? "seconds"; // seconds | minutes | hours | days
   const windowSize = tank?.window ?? 60;
@@ -14,12 +13,6 @@ export default function GraphicDisplay({ tank, onOpenSettings }) {
 
   return (
     <div
-      onPointerDownCapture={(e) => e.stopPropagation()}
-      onMouseDownCapture={(e) => e.stopPropagation()}
-      onDoubleClick={(e) => {
-        e.stopPropagation();
-        onOpenSettings?.(tank);
-      }}
       style={{
         width: tank?.w ?? 520,
         height: tank?.h ?? 240,
@@ -29,10 +22,8 @@ export default function GraphicDisplay({ tank, onOpenSettings }) {
         boxShadow: "0 10px 22px rgba(0,0,0,0.10)",
         overflow: "hidden",
         userSelect: "none",
-        pointerEvents: "auto",
-        cursor: "default",
+        pointerEvents: "none", // ✅ keep none so dragging works anywhere in edit mode
       }}
-      title="Double-click to edit graph settings"
     >
       {/* HEADER */}
       <div
@@ -77,8 +68,6 @@ export default function GraphicDisplay({ tank, onOpenSettings }) {
 
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
             <button
-              onPointerDownCapture={(e) => e.stopPropagation()}
-              onMouseDownCapture={(e) => e.stopPropagation()}
               style={{
                 border: "1px solid #bfe6c8",
                 background: "linear-gradient(180deg,#bff2c7,#6fdc89)",
@@ -86,15 +75,11 @@ export default function GraphicDisplay({ tank, onOpenSettings }) {
                 fontWeight: 900,
                 borderRadius: 8,
                 padding: "6px 12px",
-                cursor: "pointer",
               }}
             >
               RECORD
             </button>
-
             <button
-              onPointerDownCapture={(e) => e.stopPropagation()}
-              onMouseDownCapture={(e) => e.stopPropagation()}
               style={{
                 border: "1px solid #ddd",
                 background: "#f3f3f3",
@@ -102,15 +87,11 @@ export default function GraphicDisplay({ tank, onOpenSettings }) {
                 fontWeight: 800,
                 borderRadius: 8,
                 padding: "6px 12px",
-                cursor: "pointer",
               }}
             >
               EXPORT
             </button>
-
             <button
-              onPointerDownCapture={(e) => e.stopPropagation()}
-              onMouseDownCapture={(e) => e.stopPropagation()}
               style={{
                 border: "1px solid #ddd",
                 background: "#f3f3f3",
@@ -118,7 +99,6 @@ export default function GraphicDisplay({ tank, onOpenSettings }) {
                 fontWeight: 800,
                 borderRadius: 8,
                 padding: "6px 12px",
-                cursor: "pointer",
               }}
             >
               CLEAR
@@ -127,7 +107,7 @@ export default function GraphicDisplay({ tank, onOpenSettings }) {
         </div>
       </div>
 
-      {/* BODY / CHART AREA (placeholder) */}
+      {/* BODY */}
       <div style={{ padding: 12 }}>
         <div
           style={{
@@ -139,7 +119,6 @@ export default function GraphicDisplay({ tank, onOpenSettings }) {
             position: "relative",
           }}
         >
-          {/* grid */}
           <div
             style={{
               position: "absolute",
@@ -148,7 +127,6 @@ export default function GraphicDisplay({ tank, onOpenSettings }) {
                 "linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px)",
               backgroundSize: "40px 30px",
               borderRadius: 10,
-              pointerEvents: "none",
             }}
           />
           <div

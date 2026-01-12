@@ -589,6 +589,8 @@ const handleUploadProject = async () => {
     hideContextMenu={hideContextMenu}
     guides={guides}
     onOpenDisplaySettings={openDisplaySettings}
+    onOpenGraphicDisplaySettings={openGraphicDisplaySettings}
+
   />
 ) : activePage === "deviceControls" ? (
   <div className="w-full h-full border rounded-lg bg-white p-6">
@@ -624,6 +626,23 @@ const handleUploadProject = async () => {
             }}
           />
         )}
+
+        {graphicTarget && (
+  <GraphicDisplaySettingsModal
+    open={true}
+    tank={graphicTarget}
+    onClose={closeGraphicDisplaySettings}
+    onSave={(updatedTank) => {
+      setDroppedTanks((prev) =>
+        prev.map((t) =>
+          t.id === updatedTank.id ? updatedTank : t
+        )
+      );
+      closeGraphicDisplaySettings();
+    }}
+  />
+)}
+
 
         {showSiloProps && activeSilo && (
           <SiloPropertiesModal
