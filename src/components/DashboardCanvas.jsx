@@ -8,6 +8,9 @@ import DraggableTextBox from "./DraggableTextBox";
 import DraggableImage from "./DraggableImage";
 import DraggableDisplayBox from "./DraggableDisplayBox";
 
+// ✅ NEW: Graphic display gets its own draggable/resizable wrapper (textbox-style)
+import DraggableGraphicDisplay from "./DraggableGraphicDisplay";
+
 // ✅ Toggle switch visual
 import ToggleSwitchControl from "./controls/ToggleSwitchControl";
 
@@ -16,9 +19,6 @@ import PushButtonControl from "./controls/PushButtonControl";
 
 // ✅ Interlock visual (NEW)
 import InterlockControl from "./controls/InterlockControl";
-
-// ✅ Graphic Display visual
-import GraphicDisplay from "./controls/GraphicDisplay";
 
 import {
   StandardTank,
@@ -125,22 +125,25 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅ GRAPHIC DISPLAY (double click opens settings in EDIT)
+            // ✅ GRAPHIC DISPLAY (textbox-style resize handled by its own wrapper)
             if (tank.shape === "graphicDisplay") {
               return (
-                <DraggableDroppedTank
-                  {...commonProps}
+                <DraggableGraphicDisplay
+                  key={tank.id}
+                  tank={tank}
+                  selected={isSelected && !isPlay}
+                  selectedIds={selectedIds}
+                  dragDelta={dragDelta}
+                  onSelect={(id) => handleSelect(id)}
+                  onUpdate={(updated) =>
+                    setDroppedTanks((prev) =>
+                      prev.map((t) => (t.id === updated.id ? updated : t))
+                    )
+                  }
                   onDoubleClick={() => {
                     if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
                   }}
-                >
-                  <GraphicDisplay
-                    tank={tank}
-                    onUpdate={commonProps.onUpdate}
-                    isPlay={isPlay}
-                    sensorsData={sensorsData}
-                  />
-                </DraggableDroppedTank>
+                />
               );
             }
 
