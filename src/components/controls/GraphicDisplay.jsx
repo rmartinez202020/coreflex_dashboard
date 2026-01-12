@@ -2,14 +2,29 @@ import React from "react";
 
 /**
  * GraphicDisplay
- * - Reads settings from `tank` (title, timeUnit, sampleMs, window)
- * - IMPORTANT: do NOT stop pointer events here, or it will break dragging
+ * - uses tank settings: title, timeUnit, sampleMs, window
+ * - NEW: yMin, yMax, yUnits, graphStyle
+ * - FIX: chart border doesn't overlap content (flex layout)
  */
 export default function GraphicDisplay({ tank }) {
   const title = tank?.title ?? "Graphic Display";
-  const timeUnit = tank?.timeUnit ?? "seconds"; // seconds | minutes | hours | days
+  const timeUnit = tank?.timeUnit ?? "seconds";
   const windowSize = tank?.window ?? 60;
   const sampleMs = tank?.sampleMs ?? 1000;
+
+  const yMin = Number.isFinite(tank?.yMin) ? tank.yMin : 0;
+  const yMax = Number.isFinite(tank?.yMax) ? tank.yMax : 100;
+  const yUnits = tank?.yUnits ?? "";
+
+  const graphStyle = tank?.graphStyle ?? "line";
+
+  const styleBadge = (() => {
+    if (graphStyle === "line") return "LINE";
+    if (graphStyle === "area") return "AREA";
+    if (graphStyle === "bar") return "BAR";
+    if (graphStyle === "step") return "STEP";
+    return "LINE";
+  })();
 
   return (
     <div
@@ -22,7 +37,10 @@ export default function GraphicDisplay({ tank }) {
         boxShadow: "0 10px 22px rgba(0,0,0,0.10)",
         overflow: "hidden",
         userSelect: "none",
-        pointerEvents: "none", // ✅ keep none so dragging works anywhere in edit mode
+        // keep passive so dragging works
+        pointerEvents: "none",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
       {/* HEADER */}
@@ -33,16 +51,33 @@ export default function GraphicDisplay({ tank }) {
           background: "linear-gradient(180deg, #ffffff 0%, #f6f6f6 100%)",
         }}
       >
-        <div
-          style={{
-            fontWeight: 900,
-            fontSize: 16,
-            color: "#111",
-            lineHeight: 1.2,
-            marginBottom: 6,
-          }}
-        >
-          {title}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <div
+            style={{
+              fontWeight: 900,
+              fontSize: 16,
+              color: "#111",
+              lineHeight: 1.2,
+              marginBottom: 6,
+            }}
+          >
+            {title}
+          </div>
+
+          <div
+            style={{
+              marginLeft: "auto",
+              fontSize: 11,
+              fontWeight: 900,
+              border: "1px solid #ddd",
+              borderRadius: 999,
+              padding: "3px 10px",
+              background: "#fff",
+              color: "#333",
+            }}
+          >
+            {styleBadge}
+          </div>
         </div>
 
         <div
@@ -64,6 +99,11 @@ export default function GraphicDisplay({ tank }) {
           <span>•</span>
           <span>
             Window: <b>{windowSize}</b>
+          </span>
+
+          <span style={{ marginLeft: 10 }}>•</span>
+          <span>
+            Y: <b>{yMin}</b> → <b>{yMax}</b> {yUnits ? `(${yUnits})` : ""}
           </span>
 
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
@@ -107,18 +147,28 @@ export default function GraphicDisplay({ tank }) {
         </div>
       </div>
 
-      {/* BODY */}
-      <div style={{ padding: 12 }}>
+      {/* BODY / CHART AREA */}
+      <div
+        style={{
+          padding: 12,
+          flex: 1,
+          minHeight: 0,
+        }}
+      >
         <div
           style={{
             width: "100%",
-            height: "170px",
+            height: "100%",
             borderRadius: 10,
-            border: "1px solid #d9d9d9",
             background: "linear-gradient(180deg,#ffffff,#fbfbfb)",
             position: "relative",
+            overflow: "hidden",
+            // ✅ move border to container, not overlay
+            outline: "1px solid #d9d9d9",
+            outlineOffset: "-1px",
           }}
         >
+          {/* grid */}
           <div
             style={{
               position: "absolute",
@@ -127,8 +177,11 @@ export default function GraphicDisplay({ tank }) {
                 "linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px)",
               backgroundSize: "40px 30px",
               borderRadius: 10,
+              pointerEvents: "none",
             }}
           />
+
+          {/* Y labels */}
           <div
             style={{
               position: "absolute",
@@ -137,9 +190,12 @@ export default function GraphicDisplay({ tank }) {
               fontFamily: "monospace",
               fontSize: 12,
               color: "#555",
+              background: "rgba(255,255,255,0.75)",
+              padding: "2px 6px",
+              borderRadius: 6,
             }}
           >
-            0.00
+            {yMin.toFixed(2)}
           </div>
           <div
             style={{
@@ -149,9 +205,29 @@ export default function GraphicDisplay({ tank }) {
               fontFamily: "monospace",
               fontSize: 12,
               color: "#555",
+              background: "rgba(255,255,255,0.75)",
+              padding: "2px 6px",
+              borderRadius: 6,
             }}
           >
-            100.00
+            {yMax.toFixed(2)}
+          </div>
+
+          {/* placeholder “style” visual */}
+          <div
+            style={{
+              position: "absolute",
+              right: 12,
+              bottom: 12,
+              fontSize: 11,
+              fontWeight: 900,
+              color: "#666",
+              background: "rgba(255,255,255,0.75)",
+              padding: "2px 8px",
+              borderRadius: 999,
+            }}
+          >
+            {styleBadge} MODE
           </div>
         </div>
       </div>
