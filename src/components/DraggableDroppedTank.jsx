@@ -82,13 +82,25 @@ export default function DraggableDroppedTank({
     tank.shape === "pushButtonNC" ||
     tank.shape === "pushButtonControl";
 
+  const isGraphicDisplay = tank.shape === "graphicDisplay";
+
+  // ✅ IMPORTANT:
+  // - In PLAY: allow pointer events only for toggle + pushbuttons
+  // - In EDIT: allow pointer events for graphic display so double-click works
+  // - Otherwise: keep "none" to avoid fighting DnD
   const contentStyle = {
     display: "inline-block",
     width: "auto",
     height: "auto",
     maxWidth: "none",
     maxHeight: "none",
-    pointerEvents: isPlay && (isToggle || isPushButton) ? "auto" : "none",
+    pointerEvents: isPlay
+      ? isToggle || isPushButton
+        ? "auto"
+        : "none"
+      : isGraphicDisplay
+      ? "auto"
+      : "none",
   };
 
   // ✅ PLAY MODE INTERACTION (Toggle + PushButtons only)
@@ -102,7 +114,7 @@ export default function DraggableDroppedTank({
       return;
     }
 
-    // ✅ Push buttons (NO + NC): same visual behavior
+    // Push buttons
     if (isPushButton) {
       onUpdate?.({ ...tank, pressed: true });
     }
@@ -125,7 +137,6 @@ export default function DraggableDroppedTank({
       {...attributes}
       {...listeners}
       onClick={(e) => {
-        // ✅ EDIT: select works
         if (!isPlay) {
           e.stopPropagation();
           onSelect(tank.id);
@@ -142,7 +153,7 @@ export default function DraggableDroppedTank({
           style={contentStyle}
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}
-          onMouseLeave={handleMouseUp} // ✅ safety release if cursor leaves
+          onMouseLeave={handleMouseUp}
         >
           {children}
         </div>

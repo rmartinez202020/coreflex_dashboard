@@ -3,9 +3,10 @@ import React from "react";
 /**
  * GraphicDisplay
  * - Reads settings from `tank` (title, timeUnit, sampleMs, window)
- * - Adds padding so the title is not touching the border
+ * - Double-click opens settings modal (parent controls it)
+ * - Uses pointerDown capture to prevent DnD-kit from swallowing the double click
  */
-export default function GraphicDisplay({ tank }) {
+export default function GraphicDisplay({ tank, onOpenSettings }) {
   const title = tank?.title ?? "Graphic Display";
   const timeUnit = tank?.timeUnit ?? "seconds"; // seconds | minutes | hours | days
   const windowSize = tank?.window ?? 60;
@@ -13,6 +14,12 @@ export default function GraphicDisplay({ tank }) {
 
   return (
     <div
+      onPointerDownCapture={(e) => e.stopPropagation()}
+      onMouseDownCapture={(e) => e.stopPropagation()}
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        onOpenSettings?.(tank);
+      }}
       style={{
         width: tank?.w ?? 520,
         height: tank?.h ?? 240,
@@ -22,12 +29,15 @@ export default function GraphicDisplay({ tank }) {
         boxShadow: "0 10px 22px rgba(0,0,0,0.10)",
         overflow: "hidden",
         userSelect: "none",
+        pointerEvents: "auto",
+        cursor: "default",
       }}
+      title="Double-click to edit graph settings"
     >
       {/* HEADER */}
       <div
         style={{
-          padding: "10px 12px 8px 12px", // ✅ more breathing room
+          padding: "10px 12px 8px 12px",
           borderBottom: "1px solid #e6e6e6",
           background: "linear-gradient(180deg, #ffffff 0%, #f6f6f6 100%)",
         }}
@@ -38,7 +48,7 @@ export default function GraphicDisplay({ tank }) {
             fontSize: 16,
             color: "#111",
             lineHeight: 1.2,
-            marginBottom: 6, // ✅ pushes it away from border
+            marginBottom: 6,
           }}
         >
           {title}
@@ -65,9 +75,10 @@ export default function GraphicDisplay({ tank }) {
             Window: <b>{windowSize}</b>
           </span>
 
-          {/* Buttons (your existing ones can stay; placeholder visual only) */}
           <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
             <button
+              onPointerDownCapture={(e) => e.stopPropagation()}
+              onMouseDownCapture={(e) => e.stopPropagation()}
               style={{
                 border: "1px solid #bfe6c8",
                 background: "linear-gradient(180deg,#bff2c7,#6fdc89)",
@@ -80,7 +91,10 @@ export default function GraphicDisplay({ tank }) {
             >
               RECORD
             </button>
+
             <button
+              onPointerDownCapture={(e) => e.stopPropagation()}
+              onMouseDownCapture={(e) => e.stopPropagation()}
               style={{
                 border: "1px solid #ddd",
                 background: "#f3f3f3",
@@ -93,7 +107,10 @@ export default function GraphicDisplay({ tank }) {
             >
               EXPORT
             </button>
+
             <button
+              onPointerDownCapture={(e) => e.stopPropagation()}
+              onMouseDownCapture={(e) => e.stopPropagation()}
               style={{
                 border: "1px solid #ddd",
                 background: "#f3f3f3",
