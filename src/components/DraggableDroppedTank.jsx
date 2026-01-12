@@ -82,8 +82,6 @@ export default function DraggableDroppedTank({
     tank.shape === "pushButtonNC" ||
     tank.shape === "pushButtonControl";
 
-  const isGraphicDisplay = tank.shape === "graphicDisplay";
-
   // ✅ IMPORTANT:
   // - In PLAY: allow pointer events only for toggle + pushbuttons
   // - In EDIT: allow pointer events for graphic display so double-click works
