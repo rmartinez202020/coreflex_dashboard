@@ -14,6 +14,9 @@ import ToggleSwitchControl from "./controls/ToggleSwitchControl";
 // ✅ Push button visual
 import PushButtonControl from "./controls/PushButtonControl";
 
+// ✅ Interlock visual (NEW)
+import InterlockControl from "./controls/InterlockControl";
+
 // ✅ Graphic Display visual
 import GraphicDisplay from "./controls/GraphicDisplay";
 
@@ -137,6 +140,19 @@ export default function DashboardCanvas({
                     isPlay={isPlay}
                     sensorsData={sensorsData}
                   />
+                </DraggableDroppedTank>
+              );
+            }
+
+            // ✅ INTERLOCK CONTROL (NEW)
+            if (tank.shape === "interlock" || tank.shape === "interlockControl") {
+              const w = tank.w ?? tank.width ?? 190;
+              const h = tank.h ?? tank.height ?? 80;
+              const locked = tank.locked ?? true;
+
+              return (
+                <DraggableDroppedTank {...commonProps}>
+                  <InterlockControl locked={locked} width={w} height={h} />
                 </DraggableDroppedTank>
               );
             }

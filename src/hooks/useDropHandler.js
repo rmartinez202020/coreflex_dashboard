@@ -79,6 +79,7 @@ export default function useDropHandler({ uploadedImages, setDroppedTanks }) {
             w: 110,
             h: 110,
             zIndex: 1,
+            pressed: false,
           },
         ]);
         return;
@@ -96,13 +97,14 @@ export default function useDropHandler({ uploadedImages, setDroppedTanks }) {
             w: 110,
             h: 110,
             zIndex: 1,
+            pressed: false,
           },
         ]);
         return;
       }
 
-      // Interlock
-      if (control === "interlockControl") {
+      // ✅ Interlock (NEW) — match DashboardCanvas defaults
+      if (control === "interlockControl" || control === "interlock") {
         setDroppedTanks((prev) => [
           ...prev,
           {
@@ -110,8 +112,9 @@ export default function useDropHandler({ uploadedImages, setDroppedTanks }) {
             shape: "interlockControl",
             x,
             y,
-            w: 120,
-            h: 90,
+            w: 190,
+            h: 80,
+            locked: true,
             zIndex: 1,
           },
         ]);
@@ -138,24 +141,33 @@ export default function useDropHandler({ uploadedImages, setDroppedTanks }) {
           h: 260,
           zIndex: 1,
 
-          // ✅ time scale config (we will expose in settings later)
-          timeUnit: "seconds", // seconds | minutes | hours | days
-          sampleEveryMs: 1000, // sampling rate
-          windowCount: 60, // how many points shown on screen
+          // ✅ defaults (align with your modal naming)
+          title: "Graphic Display",
+          timeUnit: "seconds",
+          sampleMs: 1000,
+          window: 60,
 
-          // ✅ supports multiple inputs (we will let user add/edit later)
-          // Each entry will read from sensorsData using deviceId + field
+          // ✅ NEW defaults for vertical axis + style (matches modal)
+          yMin: 0,
+          yMax: 100,
+          yUnits: "",
+          graphStyle: "line",
+
+          // keep your old fields too (backward compatible if other code uses them)
+          sampleEveryMs: 1000,
+          windowCount: 60,
+
+          // series config
           series: [
             {
               name: "Level %",
-              deviceId: "", // user will choose later
+              deviceId: "",
               field: "level_percent",
             },
           ],
 
-          // ✅ recording state + stored samples for export
           recording: false,
-          samples: [], // [{ t: ISOString, values: { s0: number, s1: number... } }]
+          samples: [],
         },
       ]);
       return;
