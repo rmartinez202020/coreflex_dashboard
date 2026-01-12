@@ -20,7 +20,7 @@ export default function DraggableGraphicDisplay({
   });
 
   const [isResizing, setIsResizing] = useState(false);
-  const [resizeDir, setResizeDir] = useState(null); // left | right | top | bottom
+  const [resizeDir, setResizeDir] = useState(null); // "left" | "right" | "top" | "bottom"
   const startRef = useRef({ x: 0, y: 0, w: 0, h: 0 });
 
   const width = tank.w ?? 520;
@@ -44,15 +44,19 @@ export default function DraggableGraphicDisplay({
     transform: activeTransform,
     transformOrigin: "top left",
     border: selected ? "2px solid #2563eb" : "2px solid transparent",
-    borderRadius: 10,
     cursor: isResizing ? "default" : "move",
     userSelect: "none",
     zIndex: tank.zIndex ?? 1,
+
+    // ✅ IMPORTANT: allow resize handles that sit slightly outside
+    overflow: "visible",
   };
 
   const startResize = (dir, e) => {
+    // ✅ prevent canvas selection box + prevent DnD drag
     e.stopPropagation();
     e.preventDefault();
+
     setIsResizing(true);
     setResizeDir(dir);
 
@@ -75,10 +79,11 @@ export default function DraggableGraphicDisplay({
       const dy = e.clientY - startRef.current.y;
 
       if (resizeDir === "right") newW = Math.max(300, startRef.current.w + dx);
-      if (resizeDir === "left") newW = Math.max(300, startRef.current.w - dx);
+      if (resizeDir === "bottom") newH = Math.max(180, startRef.current.h + dy);
 
-      if (resizeDir === "bottom")
-        newH = Math.max(180, startRef.current.h + dy);
+      // Optional: enable left/top resize later (needs changing x/y too)
+      // For now we keep it simple like your screenshot edges.
+      if (resizeDir === "left") newW = Math.max(300, startRef.current.w - dx);
       if (resizeDir === "top") newH = Math.max(180, startRef.current.h - dy);
 
       safeOnUpdate({ ...tank, w: newW, h: newH });
@@ -98,30 +103,24 @@ export default function DraggableGraphicDisplay({
     };
   }, [isResizing, resizeDir, safeOnUpdate, tank]);
 
-  // ✅ Bigger hit area like TextBox (but easier)
-  const EDGE = 10;
-
-  // ✅ Handles must be ABOVE the chart to receive hover/cursor
-  const handleBase = {
-    position: "absolute",
-    zIndex: 9999,
-    pointerEvents: "auto",
-    background: "transparent", // keep invisible
-  };
-
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...(!isResizing ? listeners : {})}
-      onMouseDownCapture={(e) => {
-        const isResizeHandle = e.target.closest("[data-resize-handle='true']");
-        if (!isResizeHandle) e.stopPropagation();
-      }}
-      onMouseDown={(e) => {
+      // ✅ DO NOT spread {...listeners} here because we need to stopPropagation cleanly
+      onPointerDown={(e) => {
+        // If we are resizing, do nothing
+        if (isResizing) return;
+
+        // 1) prevent canvas selection box
         e.stopPropagation();
+
+        // 2) select item
         onSelect?.(tank.id);
+
+        // 3) start dnd drag
+        listeners?.onPointerDown?.(e);
       }}
       onDoubleClick={(e) => {
         e.stopPropagation();
@@ -129,67 +128,78 @@ export default function DraggableGraphicDisplay({
       }}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {/* ✅ In EDIT + selected, disable pointer events inside chart so edges are easy to hit */}
-      <div style={{ width: "100%", height: "100%", pointerEvents: selected ? "none" : "auto" }}>
+      {/* ✅ Important: block internal clicks from starting selection-box */}
+      <div
+        style={{ width: "100%", height: "100%", pointerEvents: "auto" }}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
         <GraphicDisplay tank={tank} />
       </div>
 
-      {/* ⭐ 4-edge resize (BIG hit areas) */}
+      {/* ✅ 4px invisible resize edges (like TextBox) */}
       {selected && (
         <>
           {/* LEFT */}
           <div
-            data-resize-handle="true"
-            onMouseDown={(e) => startResize("left", e)}
+            onPointerDown={(e) => startResize("left", e)}
             style={{
-              ...handleBase,
-              left: -EDGE / 2,
+              position: "absolute",
+              left: -2,
               top: 0,
-              width: EDGE,
+              width: 4,
               height: "100%",
               cursor: "ew-resize",
+              zIndex: 999999,
+              pointerEvents: "auto",
+              background: "transparent",
             }}
           />
 
           {/* RIGHT */}
           <div
-            data-resize-handle="true"
-            onMouseDown={(e) => startResize("right", e)}
+            onPointerDown={(e) => startResize("right", e)}
             style={{
-              ...handleBase,
-              right: -EDGE / 2,
+              position: "absolute",
+              right: -2,
               top: 0,
-              width: EDGE,
+              width: 4,
               height: "100%",
               cursor: "ew-resize",
+              zIndex: 999999,
+              pointerEvents: "auto",
+              background: "transparent",
             }}
           />
 
           {/* TOP */}
           <div
-            data-resize-handle="true"
-            onMouseDown={(e) => startResize("top", e)}
+            onPointerDown={(e) => startResize("top", e)}
             style={{
-              ...handleBase,
-              top: -EDGE / 2,
+              position: "absolute",
+              top: -2,
               left: 0,
-              height: EDGE,
+              height: 4,
               width: "100%",
               cursor: "ns-resize",
+              zIndex: 999999,
+              pointerEvents: "auto",
+              background: "transparent",
             }}
           />
 
           {/* BOTTOM */}
           <div
-            data-resize-handle="true"
-            onMouseDown={(e) => startResize("bottom", e)}
+            onPointerDown={(e) => startResize("bottom", e)}
             style={{
-              ...handleBase,
-              bottom: -EDGE / 2,
+              position: "absolute",
+              bottom: -2,
               left: 0,
-              height: EDGE,
+              height: 4,
               width: "100%",
               cursor: "ns-resize",
+              zIndex: 999999,
+              pointerEvents: "auto",
+              background: "transparent",
             }}
           />
         </>
