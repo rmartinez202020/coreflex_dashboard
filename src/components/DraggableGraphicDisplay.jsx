@@ -15,12 +15,14 @@ export default function DraggableGraphicDisplay({
 
   const safeOnUpdate = typeof onUpdate === "function" ? onUpdate : () => {};
 
+  // ✅ IMPORTANT: disable dnd listeners while resizing
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: tank.id,
+    disabled: false, // we will conditionally not spread listeners below
   });
 
   const [isResizing, setIsResizing] = useState(false);
-  const [resizeDir, setResizeDir] = useState(null);
+  const [resizeDir, setResizeDir] = useState(null); // left | right | top | bottom
   const startRef = useRef({ x: 0, y: 0, w: 0, h: 0 });
 
   const width = tank.w ?? 520;
@@ -44,6 +46,7 @@ export default function DraggableGraphicDisplay({
     transform: activeTransform,
     transformOrigin: "top left",
     border: selected ? "2px solid #2563eb" : "2px solid transparent",
+    borderRadius: 10,
     cursor: isResizing ? "default" : "move",
     userSelect: "none",
     zIndex: tank.zIndex ?? 1,
@@ -70,18 +73,15 @@ export default function DraggableGraphicDisplay({
       let newW = startRef.current.w;
       let newH = startRef.current.h;
 
-      if (resizeDir === "right") {
-        newW = Math.max(
-          300,
-          startRef.current.w + (e.clientX - startRef.current.x)
-        );
-      }
-      if (resizeDir === "bottom") {
-        newH = Math.max(
-          180,
-          startRef.current.h + (e.clientY - startRef.current.y)
-        );
-      }
+      const dx = e.clientX - startRef.current.x;
+      const dy = e.clientY - startRef.current.y;
+
+      if (resizeDir === "right") newW = Math.max(300, startRef.current.w + dx);
+      if (resizeDir === "left") newW = Math.max(300, startRef.current.w - dx);
+
+      if (resizeDir === "bottom")
+        newH = Math.max(180, startRef.current.h + dy);
+      if (resizeDir === "top") newH = Math.max(180, startRef.current.h - dy);
 
       safeOnUpdate({ ...tank, w: newW, h: newH });
     };
@@ -105,14 +105,14 @@ export default function DraggableGraphicDisplay({
       ref={setNodeRef}
       style={style}
       {...attributes}
-      {...listeners}
-      // ✅ Stop canvas selection box BUT allow resize handles to work
+      // ✅ Spread listeners ONLY when not resizing (same idea as textbox feel)
+      {...(!isResizing ? listeners : {})}
+      // ✅ prevent canvas selection box but DO NOT block resize handles
       onMouseDownCapture={(e) => {
         const isResizeHandle = e.target.closest("[data-resize-handle='true']");
         if (!isResizeHandle) e.stopPropagation();
       }}
       onMouseDown={(e) => {
-        // select on mouse down (better than click)
         e.stopPropagation();
         onSelect?.(tank.id);
       }}
@@ -124,36 +124,65 @@ export default function DraggableGraphicDisplay({
     >
       <GraphicDisplay tank={tank} />
 
-      {/* RIGHT EDGE */}
+      {/* ⭐ 4px invisible resize edges — EXACTLY LIKE TEXTBOX ⭐ */}
       {selected && (
-        <div
-          data-resize-handle="true"
-          onMouseDown={(e) => startResize("right", e)}
-          style={{
-            position: "absolute",
-            right: -3,
-            top: 0,
-            width: 6,
-            height: "100%",
-            cursor: "ew-resize",
-          }}
-        />
-      )}
+        <>
+          {/* LEFT */}
+          <div
+            data-resize-handle="true"
+            onMouseDown={(e) => startResize("left", e)}
+            style={{
+              position: "absolute",
+              left: -2,
+              top: 0,
+              width: 4,
+              height: "100%",
+              cursor: "ew-resize",
+            }}
+          />
 
-      {/* BOTTOM EDGE */}
-      {selected && (
-        <div
-          data-resize-handle="true"
-          onMouseDown={(e) => startResize("bottom", e)}
-          style={{
-            position: "absolute",
-            bottom: -3,
-            left: 0,
-            height: 6,
-            width: "100%",
-            cursor: "ns-resize",
-          }}
-        />
+          {/* RIGHT */}
+          <div
+            data-resize-handle="true"
+            onMouseDown={(e) => startResize("right", e)}
+            style={{
+              position: "absolute",
+              right: -2,
+              top: 0,
+              width: 4,
+              height: "100%",
+              cursor: "ew-resize",
+            }}
+          />
+
+          {/* TOP */}
+          <div
+            data-resize-handle="true"
+            onMouseDown={(e) => startResize("top", e)}
+            style={{
+              position: "absolute",
+              top: -2,
+              left: 0,
+              height: 4,
+              width: "100%",
+              cursor: "ns-resize",
+            }}
+          />
+
+          {/* BOTTOM */}
+          <div
+            data-resize-handle="true"
+            onMouseDown={(e) => startResize("bottom", e)}
+            style={{
+              position: "absolute",
+              bottom: -2,
+              left: 0,
+              height: 4,
+              width: "100%",
+              cursor: "ns-resize",
+            }}
+          />
+        </>
       )}
     </div>
   );
