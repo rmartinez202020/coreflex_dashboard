@@ -31,7 +31,7 @@ export default function DraggableDroppedTank({
     (e) => {
       if (!resizing) return;
       const newScale = Math.max(0.15, (tank.scale || 1) + e.movementX * 0.01);
-      onUpdate({ ...tank, scale: newScale });
+      onUpdate?.({ ...tank, scale: newScale });
     },
     [resizing, tank, onUpdate]
   );
@@ -82,7 +82,6 @@ export default function DraggableDroppedTank({
     tank.shape === "pushButtonNC" ||
     tank.shape === "pushButtonControl";
 
-  // ✅ FIX: was referenced but never defined (caused crash)
   const isGraphicDisplay = tank.shape === "graphicDisplay";
 
   // ✅ IMPORTANT:
@@ -140,7 +139,7 @@ export default function DraggableDroppedTank({
       onClick={(e) => {
         if (!isPlay) {
           e.stopPropagation();
-          onSelect(tank.id);
+          onSelect?.(tank.id);
         }
       }}
       onDoubleClick={(e) => {
@@ -152,6 +151,14 @@ export default function DraggableDroppedTank({
       <div style={visualWrapperStyle}>
         <div
           style={contentStyle}
+          // ✅ KEY FIX:
+          // Stop canvas selection box (canvas uses onMouseDown)
+          // but DO NOT block pointerdown (DnD-kit uses pointerdown)
+          onMouseDownCapture={(e) => {
+            if (!isPlay && isGraphicDisplay) {
+              e.stopPropagation();
+            }
+          }}
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}
           onMouseLeave={handleMouseUp}
