@@ -106,11 +106,9 @@ export default function DraggableGraphicDisplay({
       style={style}
       {...attributes}
       {...listeners}
-      // ✅ STOP CANVAS SELECTION BOX (capture phase)
-      onPointerDownCapture={(e) => e.stopPropagation()}
+      // ✅ stop the canvas selection-box from starting (does NOT break DnD)
       onMouseDownCapture={(e) => e.stopPropagation()}
-      // ✅ selection
-      onMouseDown={(e) => {
+      onClick={(e) => {
         e.stopPropagation();
         onSelect?.(tank.id);
       }}
