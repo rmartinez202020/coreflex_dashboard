@@ -15,10 +15,8 @@ export default function DraggableGraphicDisplay({
 
   const safeOnUpdate = typeof onUpdate === "function" ? onUpdate : () => {};
 
-  // ✅ IMPORTANT: disable dnd listeners while resizing
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: tank.id,
-    disabled: false, // we will conditionally not spread listeners below
   });
 
   const [isResizing, setIsResizing] = useState(false);
@@ -100,14 +98,23 @@ export default function DraggableGraphicDisplay({
     };
   }, [isResizing, resizeDir, safeOnUpdate, tank]);
 
+  // ✅ Bigger hit area like TextBox (but easier)
+  const EDGE = 10;
+
+  // ✅ Handles must be ABOVE the chart to receive hover/cursor
+  const handleBase = {
+    position: "absolute",
+    zIndex: 9999,
+    pointerEvents: "auto",
+    background: "transparent", // keep invisible
+  };
+
   return (
     <div
       ref={setNodeRef}
       style={style}
       {...attributes}
-      // ✅ Spread listeners ONLY when not resizing (same idea as textbox feel)
       {...(!isResizing ? listeners : {})}
-      // ✅ prevent canvas selection box but DO NOT block resize handles
       onMouseDownCapture={(e) => {
         const isResizeHandle = e.target.closest("[data-resize-handle='true']");
         if (!isResizeHandle) e.stopPropagation();
@@ -122,9 +129,12 @@ export default function DraggableGraphicDisplay({
       }}
       onContextMenu={(e) => e.preventDefault()}
     >
-      <GraphicDisplay tank={tank} />
+      {/* ✅ In EDIT + selected, disable pointer events inside chart so edges are easy to hit */}
+      <div style={{ width: "100%", height: "100%", pointerEvents: selected ? "none" : "auto" }}>
+        <GraphicDisplay tank={tank} />
+      </div>
 
-      {/* ⭐ 4px invisible resize edges — EXACTLY LIKE TEXTBOX ⭐ */}
+      {/* ⭐ 4-edge resize (BIG hit areas) */}
       {selected && (
         <>
           {/* LEFT */}
@@ -132,10 +142,10 @@ export default function DraggableGraphicDisplay({
             data-resize-handle="true"
             onMouseDown={(e) => startResize("left", e)}
             style={{
-              position: "absolute",
-              left: -2,
+              ...handleBase,
+              left: -EDGE / 2,
               top: 0,
-              width: 4,
+              width: EDGE,
               height: "100%",
               cursor: "ew-resize",
             }}
@@ -146,10 +156,10 @@ export default function DraggableGraphicDisplay({
             data-resize-handle="true"
             onMouseDown={(e) => startResize("right", e)}
             style={{
-              position: "absolute",
-              right: -2,
+              ...handleBase,
+              right: -EDGE / 2,
               top: 0,
-              width: 4,
+              width: EDGE,
               height: "100%",
               cursor: "ew-resize",
             }}
@@ -160,10 +170,10 @@ export default function DraggableGraphicDisplay({
             data-resize-handle="true"
             onMouseDown={(e) => startResize("top", e)}
             style={{
-              position: "absolute",
-              top: -2,
+              ...handleBase,
+              top: -EDGE / 2,
               left: 0,
-              height: 4,
+              height: EDGE,
               width: "100%",
               cursor: "ns-resize",
             }}
@@ -174,10 +184,10 @@ export default function DraggableGraphicDisplay({
             data-resize-handle="true"
             onMouseDown={(e) => startResize("bottom", e)}
             style={{
-              position: "absolute",
-              bottom: -2,
+              ...handleBase,
+              bottom: -EDGE / 2,
               left: 0,
-              height: 4,
+              height: EDGE,
               width: "100%",
               cursor: "ns-resize",
             }}
