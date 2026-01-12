@@ -105,15 +105,13 @@ export default function DraggableGraphicDisplay({
       ref={setNodeRef}
       style={style}
       {...attributes}
-      // ✅ use DnD listener BUT don't overwrite it
-      onPointerDown={(e) => {
-        // 1) start drag (DnD-kit)
-        listeners?.onPointerDown?.(e);
-
-        // 2) prevent canvas selection box
+      {...listeners}
+      // ✅ STOP CANVAS SELECTION BOX (capture phase)
+      onPointerDownCapture={(e) => e.stopPropagation()}
+      onMouseDownCapture={(e) => e.stopPropagation()}
+      // ✅ selection
+      onMouseDown={(e) => {
         e.stopPropagation();
-
-        // 3) select the item
         onSelect?.(tank.id);
       }}
       onDoubleClick={(e) => {
