@@ -2,7 +2,7 @@ import { API_URL } from "./config/api";
 
 import { PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import Header from "./components/Header";
 import DashboardHeader from "./components/DashboardHeader";
@@ -10,13 +10,11 @@ import { saveMainDashboard } from "./services/saveMainDashboard";
 import RestoreWarningModal from "./components/RestoreWarningModal";
 import GraphicDisplaySettingsModal from "./components/GraphicDisplaySettingsModal";
 
-
 // ✅ UPDATED IMPORTS (use your helpers)
 import {
   getUserKeyFromToken,
   getToken,
   clearAuth,
-  // isLoggedIn, // optional if you want
 } from "./utils/authToken";
 
 // PAGES
@@ -93,15 +91,23 @@ export default function App() {
   const closeDisplaySettings = () => setDisplaySettingsId(null);
 
   // ✅ GRAPHIC DISPLAY SETTINGS MODAL
-const [graphicSettingsId, setGraphicSettingsId] = useState(null);
-const openGraphicDisplaySettings = (tank) => setGraphicSettingsId(tank.id);
-const closeGraphicDisplaySettings = () => setGraphicSettingsId(null);
+  const [graphicSettingsId, setGraphicSettingsId] = useState(null);
+  const openGraphicDisplaySettings = (tank) => setGraphicSettingsId(tank.id);
+  const closeGraphicDisplaySettings = () => setGraphicSettingsId(null);
 
-
-  // NAVIGATION
-  const [activePage, setActivePage] = useState("home");
+  // ===============================
+  // ✅ NAVIGATION (persist on refresh)
+  // ===============================
+  const [activePage, setActivePage] = useState(() => {
+    return localStorage.getItem("coreflex_activePage") || "home";
+  });
   const [activeSubPage, setActiveSubPage] = useState(null);
   const [subPageColor, setSubPageColor] = useState("");
+
+  // Persist activePage changes
+  useEffect(() => {
+    localStorage.setItem("coreflex_activePage", activePage);
+  }, [activePage]);
 
   // ⭐ DASHBOARD MODE — DEFAULT EDIT
   const [dashboardMode, setDashboardMode] = useState("edit");
@@ -314,70 +320,122 @@ const closeGraphicDisplaySettings = () => setGraphicSettingsId(null);
   };
 
   // 💾 SAVE PROJECT
-const handleSaveProject = async () => {
-  const dashboardPayload = {
-    version: "1.0",
-    type: "main_dashboard",
-    canvas: { objects: droppedTanks },
-    meta: { dashboardMode, savedAt: new Date().toISOString() },
+  const handleSaveProject = async () => {
+    const dashboardPayload = {
+      version: "1.0",
+      type: "main_dashboard",
+      canvas: { objects: droppedTanks },
+      meta: { dashboardMode, savedAt: new Date().toISOString() },
+    };
+
+    try {
+      const token = getToken();
+      console.log("✅ SAVE token start:", token?.slice?.(0, 25));
+      console.log("✅ SAVE userKey:", getUserKeyFromToken(token));
+
+      await saveMainDashboard(dashboardPayload);
+
+      setLastSavedAt(new Date());
+      console.log("✅ Main Dashboard saved");
+    } catch (err) {
+      console.error("❌ Save failed:", err);
+    }
   };
 
-  try {
-    const token = getToken(); // ✅ one read
-    console.log("✅ SAVE token start:", token.slice(0, 25));
-    console.log("✅ SAVE userKey:", getUserKeyFromToken(token)); // ✅ decode same token
+  // ⬆ RESTORE PROJECT (manual button)
+  const handleUploadProject = async () => {
+    try {
+      const token = getToken();
+      console.log("⬆️ RESTORE token start:", token?.slice?.(0, 25));
+      console.log("⬆️ RESTORE userKey:", getUserKeyFromToken(token));
 
-    await saveMainDashboard(dashboardPayload);
+      if (!token) throw new Error("No auth token found");
 
-    setLastSavedAt(new Date());
-    console.log("✅ Main Dashboard saved");
-  } catch (err) {
-    console.error("❌ Save failed:", err);
-  }
-};
+      const res = await fetch(`${API_URL}/dashboard/main`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
 
+      if (!res.ok) throw new Error("Failed to load dashboard from DB");
 
-  // ⬆ RESTORE PROJECT
-const handleUploadProject = async () => {
-  try {
-    const token = getToken(); // ✅ one read
-    console.log("⬆️ RESTORE token start:", token.slice(0, 25));
-    console.log("⬆️ RESTORE userKey:", getUserKeyFromToken(token)); // ✅ decode same token
+      const data = await res.json();
+      console.log("📦 Dashboard payload from DB:", data);
 
-    if (!token) throw new Error("No auth token found");
+      setDroppedTanks([]);
 
-    const res = await fetch(`${API_URL}/dashboard/main`, {
-      headers: { Authorization: `Bearer ${token}` },
-    });
+      setTimeout(() => {
+        const objects =
+          data?.canvas?.objects ||
+          data?.layout?.canvas?.objects ||
+          data?.layout?.objects ||
+          [];
 
-    if (!res.ok) throw new Error("Failed to load dashboard from DB");
+        setDroppedTanks([...objects]);
 
-    const data = await res.json();
-    console.log("📦 Dashboard payload from DB:", data);
+        const mode =
+          data?.layout?.meta?.dashboardMode || data?.meta?.dashboardMode;
+        if (mode) setDashboardMode(mode);
 
-    setDroppedTanks([]);
+        const savedAt = data?.layout?.meta?.savedAt || data?.meta?.savedAt;
+        setLastSavedAt(savedAt ? new Date(savedAt) : null);
 
-    setTimeout(() => {
-      const objects =
-        data?.canvas?.objects ||
-        data?.layout?.canvas?.objects ||
-        data?.layout?.objects ||
-        [];
+        console.log("✅ Main dashboard restored from DB");
+      }, 0);
+    } catch (err) {
+      console.error("❌ Upload failed:", err);
+    }
+  };
 
-      setDroppedTanks([...objects]);
+  // ==========================================
+  // ✅ AUTO-RESTORE FROM DB ON REFRESH (FIX)
+  // ==========================================
+  const autoRestoreRanRef = useRef(false);
 
-      const mode = data?.layout?.meta?.dashboardMode || data?.meta?.dashboardMode;
-      if (mode) setDashboardMode(mode);
+  useEffect(() => {
+    const autoRestore = async () => {
+      if (autoRestoreRanRef.current) return;
 
-      const savedAt = data?.layout?.meta?.savedAt || data?.meta?.savedAt;
-      setLastSavedAt(savedAt ? new Date(savedAt) : null);
+      // only for dashboard page
+      if (activePage !== "dashboard") return;
 
-      console.log("✅ Main dashboard restored from DB");
-    }, 0);
-  } catch (err) {
-    console.error("❌ Upload failed:", err);
-  }
-};
+      // don't overwrite if already has objects
+      if (droppedTanks.length > 0) return;
+
+      const token = getToken();
+      if (!token) return;
+
+      autoRestoreRanRef.current = true;
+
+      try {
+        const res = await fetch(`${API_URL}/dashboard/main`, {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+
+        if (!res.ok) return;
+
+        const data = await res.json();
+        const objects =
+          data?.canvas?.objects ||
+          data?.layout?.canvas?.objects ||
+          data?.layout?.objects ||
+          [];
+
+        setDroppedTanks(objects);
+
+        const mode =
+          data?.layout?.meta?.dashboardMode || data?.meta?.dashboardMode;
+        if (mode) setDashboardMode(mode);
+
+        const savedAt = data?.layout?.meta?.savedAt || data?.meta?.savedAt;
+        setLastSavedAt(savedAt ? new Date(savedAt) : null);
+
+        console.log("✅ Auto restored dashboard on refresh");
+      } catch (err) {
+        console.error("❌ Auto restore failed:", err);
+      }
+    };
+
+    autoRestore();
+  }, [activePage, currentUserKey]); // important: run when page/user is known
 
   // KEYBOARD SHORTCUTS
   useKeyboardShortcuts({
@@ -431,8 +489,8 @@ const handleUploadProject = async () => {
   );
 
   const graphicTarget = droppedTanks.find(
-  (t) => t.id === graphicSettingsId && t.shape === "graphicDisplay"
-);
+    (t) => t.id === graphicSettingsId && t.shape === "graphicDisplay"
+  );
 
   // ⭐ GLOBAL MOUSE MOVE / UP FOR DRAGGING + RESIZING WINDOWS
   useEffect(() => {
@@ -527,83 +585,81 @@ const handleUploadProject = async () => {
         <Header onLogout={handleLogout} />
 
         {activePage === "dashboard" ? (
-  <DashboardHeader
-    dashboardMode={dashboardMode}
-    setDashboardMode={setDashboardMode}
-    onLaunch={() => window.open("/launchMainDashboard", "_blank")}
-  />
-) : (
-  <h1 className="text-2xl font-bold mb-4 text-gray-800">
-    {activePage === "home"
-      ? "Home"
-      : activePage === "deviceControls"
-      ? "Device Controls"
-      : "Main Dashboard"}
-  </h1>
-)}
+          <DashboardHeader
+            dashboardMode={dashboardMode}
+            setDashboardMode={setDashboardMode}
+            onLaunch={() => window.open("/launchMainDashboard", "_blank")}
+          />
+        ) : (
+          <h1 className="text-2xl font-bold mb-4 text-gray-800">
+            {activePage === "home"
+              ? "Home"
+              : activePage === "deviceControls"
+              ? "Device Controls"
+              : "Main Dashboard"}
+          </h1>
+        )}
 
         {activePage === "home" ? (
-  <div className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg bg-white">
-    <div className="w-full h-full p-6">
-      {activeSubPage === "profile" ? (
-        <ProfilePage
-          subPageColor={subPageColor}
-          setActiveSubPage={setActiveSubPage}
-        />
-      ) : (
-        <HomePage
-          setActiveSubPage={setActiveSubPage}
-          setSubPageColor={setSubPageColor}
-        />
-      )}
-    </div>
-  </div>
-) : activePage === "dashboard" ? (
-  <DashboardCanvas
-    dashboardMode={dashboardMode}
-    sensors={sensors}
-    sensorsData={sensorsData}
-    droppedTanks={droppedTanks}
-    setDroppedTanks={setDroppedTanks}
-    selectedIds={selectedIds}
-    setSelectedIds={setSelectedIds}
-    selectedTank={selectedTank}
-    setSelectedTank={setSelectedTank}
-    dragDelta={dragDelta}
-    setDragDelta={setDragDelta}
-    contextMenu={contextMenu}
-    setContextMenu={setContextMenu}
-    activeSiloId={activeSiloId}
-    setActiveSiloId={setActiveSiloId}
-    setShowSiloProps={setShowSiloProps}
-    handleSelect={handleSelect}
-    handleRightClick={handleRightClick}
-    handleDrop={handleDrop}
-    handleDragMove={handleDragMove}
-    handleDragEnd={handleDragEnd}
-    handleCanvasMouseDown={handleCanvasMouseDown}
-    handleCanvasMouseMove={handleCanvasMouseMove}
-    handleCanvasMouseUp={handleCanvasMouseUp}
-    getLayerScore={getLayerScore}
-    selectionBox={selectionBox}
-    hideContextMenu={hideContextMenu}
-    guides={guides}
-    onOpenDisplaySettings={openDisplaySettings}
-    onOpenGraphicDisplaySettings={openGraphicDisplaySettings}
+          <div className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg bg-white">
+            <div className="w-full h-full p-6">
+              {activeSubPage === "profile" ? (
+                <ProfilePage
+                  subPageColor={subPageColor}
+                  setActiveSubPage={setActiveSubPage}
+                />
+              ) : (
+                <HomePage
+                  setActiveSubPage={setActiveSubPage}
+                  setSubPageColor={setSubPageColor}
+                />
+              )}
+            </div>
+          </div>
+        ) : activePage === "dashboard" ? (
+          <DashboardCanvas
+            dashboardMode={dashboardMode}
+            sensors={sensors}
+            sensorsData={sensorsData}
+            droppedTanks={droppedTanks}
+            setDroppedTanks={setDroppedTanks}
+            selectedIds={selectedIds}
+            setSelectedIds={setSelectedIds}
+            selectedTank={selectedTank}
+            setSelectedTank={setSelectedTank}
+            dragDelta={dragDelta}
+            setDragDelta={setDragDelta}
+            contextMenu={contextMenu}
+            setContextMenu={setContextMenu}
+            activeSiloId={activeSiloId}
+            setActiveSiloId={setActiveSiloId}
+            setShowSiloProps={setShowSiloProps}
+            handleSelect={handleSelect}
+            handleRightClick={handleRightClick}
+            handleDrop={handleDrop}
+            handleDragMove={handleDragMove}
+            handleDragEnd={handleDragEnd}
+            handleCanvasMouseDown={handleCanvasMouseDown}
+            handleCanvasMouseMove={handleCanvasMouseMove}
+            handleCanvasMouseUp={handleCanvasMouseUp}
+            getLayerScore={getLayerScore}
+            selectionBox={selectionBox}
+            hideContextMenu={hideContextMenu}
+            guides={guides}
+            onOpenDisplaySettings={openDisplaySettings}
+            onOpenGraphicDisplaySettings={openGraphicDisplaySettings}
+          />
+        ) : activePage === "deviceControls" ? (
+          <div className="w-full h-full border rounded-lg bg-white p-6">
+            <h2 className="text-lg font-semibold text-gray-800 mb-2">
+              Device Controls
+            </h2>
 
-  />
-) : activePage === "deviceControls" ? (
-  <div className="w-full h-full border rounded-lg bg-white p-6">
-    <h2 className="text-lg font-semibold text-gray-800 mb-2">
-      Device Controls
-    </h2>
-
-    <p className="text-sm text-gray-600">
-      Here we will add buttons + toggle switches for devices.
-    </p>
-  </div>
-) : null}
-
+            <p className="text-sm text-gray-600">
+              Here we will add buttons + toggle switches for devices.
+            </p>
+          </div>
+        ) : null}
 
         {displayTarget && (
           <DisplaySettingsModal
@@ -628,21 +684,18 @@ const handleUploadProject = async () => {
         )}
 
         {graphicTarget && (
-  <GraphicDisplaySettingsModal
-    open={true}
-    tank={graphicTarget}
-    onClose={closeGraphicDisplaySettings}
-    onSave={(updatedTank) => {
-      setDroppedTanks((prev) =>
-        prev.map((t) =>
-          t.id === updatedTank.id ? updatedTank : t
-        )
-      );
-      closeGraphicDisplaySettings();
-    }}
-  />
-)}
-
+          <GraphicDisplaySettingsModal
+            open={true}
+            tank={graphicTarget}
+            onClose={closeGraphicDisplaySettings}
+            onSave={(updatedTank) => {
+              setDroppedTanks((prev) =>
+                prev.map((t) => (t.id === updatedTank.id ? updatedTank : t))
+              );
+              closeGraphicDisplaySettings();
+            }}
+          />
+        )}
 
         {showSiloProps && activeSilo && (
           <SiloPropertiesModal
