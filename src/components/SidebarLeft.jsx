@@ -7,7 +7,7 @@ import {
   SiloTankIcon,
 } from "./ProTankIcon";
 
-import DraggableControls from "./DraggableControls"; // ✅ NEW IMPORT
+import DraggableControls from "./DraggableControls"; // ✅ Device Controls
 
 export default function SidebarLeft({
   isLeftCollapsed,
@@ -30,9 +30,10 @@ export default function SidebarLeft({
   const [saved, setSaved] = useState(false);
 
   /* =========================
-     DEVICE CONTROLS MENU
+     DEVICE MENUS
   ========================= */
   const [showDeviceControls, setShowDeviceControls] = useState(false);
+  const [showValves, setShowValves] = useState(false); // ✅ NEW
 
   /* =========================
      HELPERS
@@ -72,6 +73,15 @@ export default function SidebarLeft({
     e.stopPropagation();
     onRequestRestore();
   };
+
+  /* =========================
+     VALVE DRAG ITEMS
+  ========================= */
+  const VALVES = [
+    { label: "Ball Valve", valveType: "ball", icon: "⚙️" },
+    { label: "Gate Valve", valveType: "gate", icon: "🛠️" },
+    { label: "Butterfly Valve", valveType: "butterfly", icon: "🌀" },
+  ];
 
   return (
     <aside
@@ -161,8 +171,38 @@ export default function SidebarLeft({
                 Device Controls <span>{showDeviceControls ? "▾" : "▸"}</span>
               </div>
 
-              {/* ✅ REPLACED INLINE LIST WITH COMPONENT */}
               {showDeviceControls && <DraggableControls />}
+
+              {/* ✅ VALVES (NEW) */}
+              <div
+                className="cursor-pointer mb-2 flex items-center gap-2"
+                onClick={() => setShowValves((prev) => !prev)}
+              >
+                Valves <span>{showValves ? "▾" : "▸"}</span>
+              </div>
+
+              {showValves && (
+                <div className="ml-4 mb-3">
+                  <h3 className="text-sm text-gray-400 mb-2">Valve Types</h3>
+
+                  {VALVES.map((v) => (
+                    <div
+                      key={v.valveType}
+                      draggable
+                      onDragStart={(e) => {
+                        // ✅ drop handler will read these
+                        e.dataTransfer.setData("shape", "valve");
+                        e.dataTransfer.setData("valveType", v.valveType);
+                      }}
+                      className="cursor-grab select-none flex items-center gap-2 mb-2 px-2 py-1 rounded hover:bg-[#1e293b]"
+                      title="Drag into dashboard"
+                    >
+                      <span>{v.icon}</span>
+                      <span className="text-sm">{v.label}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
 
               {/* LEVEL SENSORS */}
               <div
