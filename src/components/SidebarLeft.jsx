@@ -7,7 +7,8 @@ import {
   SiloTankIcon,
 } from "./ProTankIcon";
 
-import DraggableControls from "./DraggableControls"; // ✅ Device Controls
+import DraggableControls from "./DraggableControls";
+import DraggableValves from "./DraggableValves"; // ✅ NEW IMPORT
 
 export default function SidebarLeft({
   isLeftCollapsed,
@@ -34,6 +35,7 @@ export default function SidebarLeft({
   ========================= */
   const [showDeviceControls, setShowDeviceControls] = useState(false);
   const [showValves, setShowValves] = useState(false); // ✅ NEW
+  const [showValveTypes, setShowValveTypes] = useState(true); // ✅ NEW (expanded by default)
 
   /* =========================
      HELPERS
@@ -73,15 +75,6 @@ export default function SidebarLeft({
     e.stopPropagation();
     onRequestRestore();
   };
-
-  /* =========================
-     VALVE DRAG ITEMS
-  ========================= */
-  const VALVES = [
-    { label: "Ball Valve", valveType: "ball", icon: "⚙️" },
-    { label: "Gate Valve", valveType: "gate", icon: "🛠️" },
-    { label: "Butterfly Valve", valveType: "butterfly", icon: "🌀" },
-  ];
 
   return (
     <aside
@@ -173,7 +166,7 @@ export default function SidebarLeft({
 
               {showDeviceControls && <DraggableControls />}
 
-              {/* ✅ VALVES (NEW) */}
+              {/* ✅ VALVES (NEW SECTION) */}
               <div
                 className="cursor-pointer mb-2 flex items-center gap-2"
                 onClick={() => setShowValves((prev) => !prev)}
@@ -182,25 +175,15 @@ export default function SidebarLeft({
               </div>
 
               {showValves && (
-                <div className="ml-4 mb-3">
-                  <h3 className="text-sm text-gray-400 mb-2">Valve Types</h3>
+                <div className="ml-2">
+                  <div
+                    className="cursor-pointer mb-2 flex items-center gap-2 text-sm text-gray-300"
+                    onClick={() => setShowValveTypes((prev) => !prev)}
+                  >
+                    Valve Types <span>{showValveTypes ? "▾" : "▸"}</span>
+                  </div>
 
-                  {VALVES.map((v) => (
-                    <div
-                      key={v.valveType}
-                      draggable
-                      onDragStart={(e) => {
-                        // ✅ drop handler will read these
-                        e.dataTransfer.setData("shape", "valve");
-                        e.dataTransfer.setData("valveType", v.valveType);
-                      }}
-                      className="cursor-grab select-none flex items-center gap-2 mb-2 px-2 py-1 rounded hover:bg-[#1e293b]"
-                      title="Drag into dashboard"
-                    >
-                      <span>{v.icon}</span>
-                      <span className="text-sm">{v.label}</span>
-                    </div>
-                  ))}
+                  {showValveTypes && <DraggableValves />}
                 </div>
               )}
 
