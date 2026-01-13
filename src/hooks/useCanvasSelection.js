@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 export default function useCanvasSelection({
   droppedTanks,
@@ -8,6 +8,58 @@ export default function useCanvasSelection({
 }) {
   const [selectionBox, setSelectionBox] = useState(null);
 
+  // Track whether we actually moved enough to be considered a selection drag
+  const movedRef = useRef(false);
+
+  // How far mouse must move before we consider it a selection drag
+  const DRAG_THRESHOLD_PX = 4;
+
+  // ===============================
+  // Helpers
+  // ===============================
+  const isClickOnObject = (e) => {
+    // If the click started on any draggable object, do not start selection
+    // This covers clicks inside SVG/canvas inside the object too.
+    return !!e.target.closest(".draggable-item");
+  };
+
+  const getMousePos = (e) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    return {
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+    };
+  };
+
+  // Estimate bounding box for selection
+  const getObjectBounds = (t) => {
+    // Graphic uses w/h, text uses width/height, tanks/images use scale.
+    const scale = typeof t.scale === "number" ? t.scale : 1;
+
+    // Prefer explicit width/height (text boxes)
+    const width =
+      (typeof t.w === "number" ? t.w : null) ??
+      (typeof t.width === "number" ? t.width : null) ??
+      // reasonable fallback base size for icon-like items
+      120 * scale;
+
+    const height =
+      (typeof t.h === "number" ? t.h : null) ??
+      (typeof t.height === "number" ? t.height : null) ??
+      80 * scale;
+
+    return {
+      x1: t.x ?? 0,
+      y1: t.y ?? 0,
+      x2: (t.x ?? 0) + width,
+      y2: (t.y ?? 0) + height,
+    };
+  };
+
+  const rectsIntersect = (a, b) => {
+    return !(a.x2 < b.x1 || a.x1 > b.x2 || a.y2 < b.y1 || a.y1 > b.y2);
+  };
+
   // ===============================
   // Mouse Down – start selection
   // ===============================
@@ -15,13 +67,11 @@ export default function useCanvasSelection({
     if (e.button !== 0) return; // left click only
 
     // 🚫 DO NOT START SELECTION IF CLICK IS ON AN OBJECT
-    if (e.target.closest(".draggable-item")) {
-      return;
-    }
+    if (isClickOnObject(e)) return;
 
-    const rect = e.currentTarget.getBoundingClientRect();
-    const startX = e.clientX - rect.left;
-    const startY = e.clientY - rect.top;
+    const { x: startX, y: startY } = getMousePos(e);
+
+    movedRef.current = false;
 
     setSelectionBox({
       active: true,
@@ -36,7 +86,7 @@ export default function useCanvasSelection({
     // Clear previous selection
     setSelectedIds([]);
     setSelectedTank(null);
-    hideContextMenu();
+    hideContextMenu?.();
   };
 
   // ===============================
@@ -45,9 +95,18 @@ export default function useCanvasSelection({
   const handleCanvasMouseMove = (e) => {
     if (!selectionBox?.active) return;
 
-    const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const { x, y } = getMousePos(e);
+
+    const dx = x - selectionBox.startX;
+    const dy = y - selectionBox.startY;
+
+    // don't show selection box until user actually drags a bit
+    if (!movedRef.current) {
+      if (Math.abs(dx) < DRAG_THRESHOLD_PX && Math.abs(dy) < DRAG_THRESHOLD_PX) {
+        return;
+      }
+      movedRef.current = true;
+    }
 
     setSelectionBox((prev) => ({
       ...prev,
@@ -67,18 +126,26 @@ export default function useCanvasSelection({
       return;
     }
 
+    // If user didn't drag enough, treat as "click empty canvas" -> just clear selection
+    if (!movedRef.current) {
+      setSelectionBox(null);
+      return;
+    }
+
     const { x, y, width, height } = selectionBox;
-    const x2 = x + width;
-    const y2 = y + height;
+
+    const selRect = {
+      x1: x,
+      y1: y,
+      x2: x + width,
+      y2: y + height,
+    };
 
     const ids = droppedTanks
-      .filter(
-        (t) =>
-          t.x >= x &&
-          t.y >= y &&
-          t.x <= x2 &&
-          t.y <= y2
-      )
+      .filter((t) => {
+        const b = getObjectBounds(t);
+        return rectsIntersect(selRect, b);
+      })
       .map((t) => t.id);
 
     setSelectedIds(ids);

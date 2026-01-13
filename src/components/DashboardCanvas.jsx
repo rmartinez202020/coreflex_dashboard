@@ -8,7 +8,7 @@ import DraggableTextBox from "./DraggableTextBox";
 import DraggableImage from "./DraggableImage";
 import DraggableDisplayBox from "./DraggableDisplayBox";
 
-// ✅ NEW: Graphic display gets its own draggable/resizable wrapper (textbox-style)
+// ✅ NEW: Graphic has its own wrapper (NOT DraggableDroppedTank)
 import DraggableGraphicDisplay from "./DraggableGraphicDisplay";
 
 // ✅ Toggle switch visual
@@ -17,7 +17,7 @@ import ToggleSwitchControl from "./controls/ToggleSwitchControl";
 // ✅ Push button visual
 import PushButtonControl from "./controls/PushButtonControl";
 
-// ✅ Interlock visual (NEW)
+// ✅ Interlock visual
 import InterlockControl from "./controls/InterlockControl";
 
 import {
@@ -57,8 +57,6 @@ export default function DashboardCanvas({
   hideContextMenu,
   guides,
   onOpenDisplaySettings,
-
-  // ✅ NEW: open Graphic Display settings modal (double click)
   onOpenGraphicDisplaySettings,
 }) {
   const isPlay = dashboardMode === "play";
@@ -84,6 +82,30 @@ export default function DashboardCanvas({
           .map((tank) => {
             const isSelected = selectedIds.includes(tank.id);
 
+            const commonUpdate = (updated) =>
+              setDroppedTanks((prev) =>
+                prev.map((t) => (t.id === updated.id ? updated : t))
+              );
+
+            // ✅ GRAPHIC DISPLAY (SPECIAL: NOT wrapped by DraggableDroppedTank)
+            if (tank.shape === "graphicDisplay") {
+              return (
+                <DraggableGraphicDisplay
+                  key={tank.id}
+                  tank={tank}
+                  onUpdate={commonUpdate}
+                  onSelect={handleSelect}
+                  onDoubleClick={() => {
+                    if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
+                  }}
+                  selected={isSelected && !isPlay}
+                  selectedIds={selectedIds}
+                  dragDelta={dragDelta}
+                  dashboardMode={dashboardMode}
+                />
+              );
+            }
+
             const commonProps = {
               key: tank.id,
               tank,
@@ -93,13 +115,10 @@ export default function DashboardCanvas({
               disableDrag: isPlay,
               disableSelect: isPlay,
               disableSettings: isPlay,
-              dashboardMode, // ✅ lets DraggableDroppedTank click controls only in PLAY
+              dashboardMode,
               onSelect: handleSelect,
               onRightClick: handleRightClick,
-              onUpdate: (updated) =>
-                setDroppedTanks((prev) =>
-                  prev.map((t) => (t.id === updated.id ? updated : t))
-                ),
+              onUpdate: commonUpdate,
             };
 
             // IMAGE
@@ -125,29 +144,7 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅ GRAPHIC DISPLAY (textbox-style resize handled by its own wrapper)
-            if (tank.shape === "graphicDisplay") {
-              return (
-                <DraggableGraphicDisplay
-                  key={tank.id}
-                  tank={tank}
-                  selected={isSelected && !isPlay}
-                  selectedIds={selectedIds}
-                  dragDelta={dragDelta}
-                  onSelect={(id) => handleSelect(id)}
-                  onUpdate={(updated) =>
-                    setDroppedTanks((prev) =>
-                      prev.map((t) => (t.id === updated.id ? updated : t))
-                    )
-                  }
-                  onDoubleClick={() => {
-                    if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
-                  }}
-                />
-              );
-            }
-
-            // ✅ INTERLOCK CONTROL (NEW)
+            // ✅ INTERLOCK
             if (tank.shape === "interlock" || tank.shape === "interlockControl") {
               const w = tank.w ?? tank.width ?? 190;
               const h = tank.h ?? tank.height ?? 80;
@@ -160,7 +157,7 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅ TOGGLE SWITCH CONTROL
+            // ✅ TOGGLE SWITCH
             if (tank.shape === "toggleSwitch" || tank.shape === "toggleControl") {
               const w = tank.w ?? tank.width ?? 180;
               const h = tank.h ?? tank.height ?? 70;
@@ -173,7 +170,7 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅ PUSH BUTTON (NO) — GREEN
+            // ✅ PUSH BUTTON (NO)
             if (tank.shape === "pushButtonNO") {
               const w = tank.w ?? tank.width ?? 110;
               const h = tank.h ?? tank.height ?? 110;
@@ -191,7 +188,7 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅ PUSH BUTTON (NC) — RED
+            // ✅ PUSH BUTTON (NC)
             if (tank.shape === "pushButtonNC") {
               const w = tank.w ?? tank.width ?? 110;
               const h = tank.h ?? tank.height ?? 110;
@@ -255,7 +252,7 @@ export default function DashboardCanvas({
               );
             }
 
-            // TEXT BOXES
+            // TEXT BOX
             if (tank.shape === "textBox") {
               return (
                 <DraggableTextBox
