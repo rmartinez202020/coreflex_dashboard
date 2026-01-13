@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 
 /**
- * ValveControl (3 styles)
+ * ValveControl (3 styles) - INDUSTRIAL ICONS (no emojis)
  * type: "ball" | "gate" | "butterfly"
  * isOpen: boolean
  * width/height are respected by the wrapper (Dashboard objects use w/h)
@@ -18,9 +18,7 @@ export default function ValveControl({
 
   // ✅ prevent SVG gradient ID collisions when multiple valves exist
   const gid = useMemo(() => `valve_${Math.random().toString(16).slice(2)}`, []);
-  const bvBodyId = `${gid}_bvBody`;
-  const gvBodyId = `${gid}_gvBody`;
-  const bfBodyId = `${gid}_bfBody`;
+  const steelId = `${gid}_steel`;
 
   const outer = {
     width: W,
@@ -76,11 +74,11 @@ export default function ValveControl({
     height: 54,
     borderRadius: 14,
     background:
-      "radial-gradient(circle at 30% 30%, rgba(255,255,255,0.35) 0%, rgba(255,255,255,0.08) 40%, rgba(0,0,0,0.35) 100%)",
+      "radial-gradient(circle at 30% 30%, rgba(255,255,255,0.30) 0%, rgba(255,255,255,0.06) 45%, rgba(0,0,0,0.40) 100%)",
     border: "1px solid rgba(255,255,255,0.12)",
     display: "grid",
     placeItems: "center",
-    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.2)",
+    boxShadow: "inset 0 1px 0 rgba(255,255,255,0.18)",
     flex: "0 0 auto",
   };
 
@@ -99,10 +97,11 @@ export default function ValveControl({
   };
 
   const Icon = () => {
-    if (type === "gate") return <GateValveIcon isOpen={isOpen} gvBodyId={gvBodyId} />;
+    if (type === "gate")
+      return <GateValveIcon isOpen={isOpen} steelId={steelId} />;
     if (type === "butterfly")
-      return <ButterflyValveIcon isOpen={isOpen} bfBodyId={bfBodyId} />;
-    return <BallValveIcon isOpen={isOpen} bvBodyId={bvBodyId} />;
+      return <ButterflyValveIcon isOpen={isOpen} steelId={steelId} />;
+    return <BallValveIcon isOpen={isOpen} steelId={steelId} />;
   };
 
   return (
@@ -124,96 +123,149 @@ export default function ValveControl({
 }
 
 /* =========================
-   ICONS (SVG)
+   ICONS (SVG) - INDUSTRIAL
 ========================= */
 
-function BallValveIcon({ isOpen, bvBodyId }) {
+function SteelDefs({ steelId }) {
+  return (
+    <defs>
+      <linearGradient id={steelId} x1="0" y1="0" x2="0" y2="1">
+        <stop offset="0" stopColor="#e5e7eb" />
+        <stop offset="0.35" stopColor="#9ca3af" />
+        <stop offset="1" stopColor="#374151" />
+      </linearGradient>
+    </defs>
+  );
+}
+
+function BallValveIcon({ isOpen, steelId }) {
+  // OPEN = handle horizontal, CLOSED = vertical
   const angle = isOpen ? 0 : 90;
 
   return (
     <svg width="42" height="42" viewBox="0 0 64 64">
-      <defs>
-        <linearGradient id={bvBodyId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#9ca3af" />
-          <stop offset="1" stopColor="#374151" />
-        </linearGradient>
-      </defs>
+      <SteelDefs steelId={steelId} />
 
-      <rect x="8" y="26" width="48" height="12" rx="6" fill={`url(#${bvBodyId})`} />
-      <circle cx="32" cy="32" r="14" fill="#111827" stroke="#d1d5db" strokeWidth="2" />
-      <circle cx="32" cy="32" r="8" fill="#0b1220" stroke="#9ca3af" strokeWidth="1" />
+      {/* pipe */}
+      <rect x="4" y="28" width="56" height="8" rx="4" fill="#4b5563" />
 
-      <g transform={`translate(32 10) rotate(${angle}) translate(-32 -10)`}>
-        <rect x="18" y="6" width="28" height="8" rx="4" fill="#ef4444" stroke="#7f1d1d" />
-        <rect x="28" y="10" width="8" height="10" rx="4" fill="#111827" />
+      {/* body */}
+      <circle
+        cx="32"
+        cy="32"
+        r="14"
+        fill="#111827"
+        stroke="#9ca3af"
+        strokeWidth="2"
+      />
+
+      {/* ball */}
+      <circle cx="32" cy="32" r="7" fill="#0b1220" stroke="#6b7280" />
+
+      {/* handle */}
+      <g transform={`rotate(${angle} 32 14)`}>
+        <rect
+          x="16"
+          y="11"
+          width="32"
+          height="6"
+          rx="3"
+          fill={`url(#${steelId})`}
+          stroke="#111827"
+          strokeWidth="1"
+        />
+        <rect x="30" y="17" width="4" height="8" rx="2" fill="#6b7280" />
       </g>
     </svg>
   );
 }
 
-function GateValveIcon({ isOpen, gvBodyId }) {
+function GateValveIcon({ isOpen, steelId }) {
   return (
     <svg width="42" height="42" viewBox="0 0 64 64">
-      <defs>
-        <linearGradient id={gvBodyId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#cbd5e1" />
-          <stop offset="1" stopColor="#334155" />
-        </linearGradient>
-      </defs>
+      <SteelDefs steelId={steelId} />
 
-      <rect x="6" y="28" width="16" height="8" rx="4" fill="#4b5563" />
-      <rect x="42" y="28" width="16" height="8" rx="4" fill="#4b5563" />
+      {/* pipes */}
+      <rect x="4" y="28" width="16" height="8" rx="4" fill="#4b5563" />
+      <rect x="44" y="28" width="16" height="8" rx="4" fill="#4b5563" />
 
+      {/* body */}
       <rect
         x="18"
-        y="20"
+        y="22"
         width="28"
-        height="24"
-        rx="8"
-        fill={`url(#${gvBodyId})`}
-        stroke="#111827"
-      />
-
-      <rect
-        x="28"
-        y={isOpen ? 14 : 26}
-        width="8"
-        height="18"
-        rx="3"
+        height="20"
+        rx="6"
         fill="#111827"
+        stroke="#9ca3af"
+        strokeWidth="2"
+      />
+      <rect
+        x="21"
+        y="25"
+        width="22"
+        height="14"
+        rx="5"
+        fill={`url(#${steelId})`}
         opacity={0.95}
       />
 
-      <rect x="30" y="10" width="4" height="12" rx="2" fill="#9ca3af" />
+      {/* gate (up=open / down=closed) */}
+      <rect
+        x="28"
+        y={isOpen ? 16 : 28}
+        width="8"
+        height="16"
+        rx="2"
+        fill="#9ca3af"
+      />
 
-      <circle cx="32" cy="8" r="7" fill="#ef4444" stroke="#7f1d1d" />
-      <circle cx="32" cy="8" r="2" fill="#111827" />
+      {/* stem */}
+      <rect x="30" y="6" width="4" height="18" rx="2" fill="#6b7280" />
+
+      {/* wheel */}
+      <circle cx="32" cy="6" r="5" fill="#374151" stroke="#9ca3af" />
+      <circle cx="32" cy="6" r="2" fill="#111827" />
     </svg>
   );
 }
 
-function ButterflyValveIcon({ isOpen, bfBodyId }) {
+function ButterflyValveIcon({ isOpen, steelId }) {
+  // OPEN = disk parallel, CLOSED = perpendicular
   const angle = isOpen ? 0 : 90;
 
   return (
     <svg width="42" height="42" viewBox="0 0 64 64">
-      <defs>
-        <linearGradient id={bfBodyId} x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#d1d5db" />
-          <stop offset="1" stopColor="#111827" />
-        </linearGradient>
-      </defs>
+      <SteelDefs steelId={steelId} />
 
-      <rect x="10" y="22" width="44" height="20" rx="10" fill={`url(#${bfBodyId})`} />
+      {/* pipe/body */}
+      <rect
+        x="6"
+        y="24"
+        width="52"
+        height="16"
+        rx="8"
+        fill="#111827"
+        stroke="#9ca3af"
+        strokeWidth="2"
+      />
+      <rect
+        x="9"
+        y="26"
+        width="46"
+        height="12"
+        rx="6"
+        fill={`url(#${steelId})`}
+        opacity={0.95}
+      />
 
-      <g transform={`translate(32 32) rotate(${angle}) translate(-32 -32)`}>
-        <rect x="30" y="18" width="4" height="28" rx="2" fill="#ef4444" />
-        <circle cx="32" cy="32" r="10" fill="rgba(0,0,0,0.15)" />
+      {/* disk */}
+      <g transform={`rotate(${angle} 32 32)`}>
+        <rect x="30" y="18" width="4" height="28" rx="2" fill="#6b7280" />
       </g>
 
-      <rect x="30" y="10" width="4" height="12" rx="2" fill="#9ca3af" />
-      <rect x="22" y="6" width="20" height="6" rx="3" fill="#ef4444" stroke="#7f1d1d" />
+      {/* stem */}
+      <rect x="30" y="6" width="4" height="12" rx="2" fill="#6b7280" />
     </svg>
   );
 }
-
