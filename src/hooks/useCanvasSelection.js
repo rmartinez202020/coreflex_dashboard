@@ -8,16 +8,24 @@ export default function useCanvasSelection({
 }) {
   const [selectionBox, setSelectionBox] = useState(null);
 
+  // ✅ helper: returns true if the event started inside ANY canvas object
+  const isInsideObject = (e) => {
+    // anything that is part of a dropped object should have .draggable-item somewhere above it
+    const el = e.target;
+    if (!el) return false;
+
+    // closest() works for SVG too in modern browsers
+    return !!el.closest?.(".draggable-item");
+  };
+
   // ===============================
   // Mouse Down – start selection
   // ===============================
   const handleCanvasMouseDown = (e) => {
     if (e.button !== 0) return; // left click only
 
-    // ❌ DO NOT START SELECTION if clicking on ANY draggable item
-    if (e.target.closest("[data-canvas-item='true']")) {
-      return;
-    }
+    // ✅ DO NOT START SELECTION if click started inside an object
+    if (isInsideObject(e)) return;
 
     const rect = e.currentTarget.getBoundingClientRect();
     const startX = e.clientX - rect.left;
@@ -33,9 +41,10 @@ export default function useCanvasSelection({
       height: 0,
     });
 
+    // Clear previous selection (only when user clicks empty canvas)
     setSelectedIds([]);
     setSelectedTank(null);
-    hideContextMenu();
+    hideContextMenu?.();
   };
 
   // ===============================
@@ -71,13 +80,7 @@ export default function useCanvasSelection({
     const y2 = y + height;
 
     const ids = droppedTanks
-      .filter(
-        (t) =>
-          t.x >= x &&
-          t.y >= y &&
-          t.x <= x2 &&
-          t.y <= y2
-      )
+      .filter((t) => t.x >= x && t.y >= y && t.x <= x2 && t.y <= y2)
       .map((t) => t.id);
 
     setSelectedIds(ids);
