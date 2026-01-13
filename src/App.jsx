@@ -10,6 +10,9 @@ import { saveMainDashboard } from "./services/saveMainDashboard";
 import RestoreWarningModal from "./components/RestoreWarningModal";
 import GraphicDisplaySettingsModal from "./components/GraphicDisplaySettingsModal";
 
+const IMAGE_LIBRARY_KEY = "coreflex_image_library_v1";
+
+
 // ✅ UPDATED IMPORTS (use your helpers)
 import {
   getUserKeyFromToken,
@@ -115,9 +118,36 @@ export default function App() {
   // ⭐ LAST SAVED TIMESTAMP
   const [lastSavedAt, setLastSavedAt] = useState(null);
 
+
+
   // IMAGE LIBRARY WINDOW
   const [showImageLibrary, setShowImageLibrary] = useState(false);
-  const [uploadedImages, setUploadedImages] = useState([]);
+  
+const [uploadedImages, setUploadedImages] = useState(() => {
+  try {
+    const saved = localStorage.getItem(IMAGE_LIBRARY_KEY);
+    return saved ? JSON.parse(saved) : [];
+  } catch {
+    return [];
+  }
+});
+
+  // ================================
+// 💾 IMAGE LIBRARY PERSISTENCE
+// Auto-save uploaded images so they survive refresh
+// ================================
+useEffect(() => {
+  try {
+    localStorage.setItem(
+      IMAGE_LIBRARY_KEY,
+      JSON.stringify(uploadedImages)
+    );
+  } catch (err) {
+    console.error("Image library persistence failed:", err);
+  }
+}, [uploadedImages]);
+
+
   const [imageLibraryPos, setImageLibraryPos] = useState({ x: 260, y: 140 });
   const [imageLibrarySize, setImageLibrarySize] = useState({
     width: 400,
