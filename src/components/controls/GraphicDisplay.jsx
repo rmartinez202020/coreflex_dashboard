@@ -5,6 +5,7 @@ import React from "react";
  * - uses tank settings: title, timeUnit, sampleMs, window
  * - NEW: yMin, yMax, yUnits, graphStyle
  * - FIX: chart border doesn't overlap content (flex layout)
+ * - FIX: chart frame always closes clean on RIGHT + BOTTOM when resizing
  */
 export default function GraphicDisplay({ tank }) {
   const title = tank?.title ?? "Graphic Display";
@@ -29,18 +30,24 @@ export default function GraphicDisplay({ tank }) {
   return (
     <div
       style={{
-        width: tank?.w ?? 520,
-        height: tank?.h ?? 240,
+        // ✅ IMPORTANT: fill the draggable container (no hard pixels here)
+        width: "100%",
+        height: "100%",
+
         background: "#fff",
         borderRadius: 10,
         border: "1px solid #cfcfcf",
         boxShadow: "0 10px 22px rgba(0,0,0,0.10)",
         overflow: "hidden",
         userSelect: "none",
-        // keep passive so dragging works
+
+        // keep passive so dragging works (DraggableGraphicDisplay controls events)
         pointerEvents: "none",
+
         display: "flex",
         flexDirection: "column",
+        minWidth: 0,
+        minHeight: 0,
       }}
     >
       {/* HEADER */}
@@ -49,6 +56,8 @@ export default function GraphicDisplay({ tank }) {
           padding: "10px 12px 8px 12px",
           borderBottom: "1px solid #e6e6e6",
           background: "linear-gradient(180deg, #ffffff 0%, #f6f6f6 100%)",
+          flex: "0 0 auto",
+          minWidth: 0,
         }}
       >
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
@@ -59,6 +68,10 @@ export default function GraphicDisplay({ tank }) {
               color: "#111",
               lineHeight: 1.2,
               marginBottom: 6,
+              minWidth: 0,
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
             }}
           >
             {title}
@@ -74,6 +87,7 @@ export default function GraphicDisplay({ tank }) {
               padding: "3px 10px",
               background: "#fff",
               color: "#333",
+              flex: "0 0 auto",
             }}
           >
             {styleBadge}
@@ -87,6 +101,8 @@ export default function GraphicDisplay({ tank }) {
             gap: 10,
             color: "#444",
             fontSize: 12,
+            minWidth: 0,
+            flexWrap: "wrap",
           }}
         >
           <span>
@@ -150,22 +166,30 @@ export default function GraphicDisplay({ tank }) {
       {/* BODY / CHART AREA */}
       <div
         style={{
-          padding: 12,
-          flex: 1,
+          // ✅ chart area must fill remaining height perfectly
+          flex: "1 1 auto",
           minHeight: 0,
+          minWidth: 0,
+          padding: 12,
+          display: "flex",
         }}
       >
         <div
           style={{
+            // ✅ this is the "frame" — it now ALWAYS closes on right/bottom
+            flex: "1 1 auto",
+            minWidth: 0,
+            minHeight: 0,
             width: "100%",
             height: "100%",
+
             borderRadius: 10,
             background: "linear-gradient(180deg,#ffffff,#fbfbfb)",
             position: "relative",
             overflow: "hidden",
-            // ✅ move border to container, not overlay
-            outline: "1px solid #d9d9d9",
-            outlineOffset: "-1px",
+
+            // ✅ real border (no outline tricks) so edges look clean
+            border: "1px solid #d9d9d9",
           }}
         >
           {/* grid */}
@@ -176,7 +200,6 @@ export default function GraphicDisplay({ tank }) {
               backgroundImage:
                 "linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px)",
               backgroundSize: "40px 30px",
-              borderRadius: 10,
               pointerEvents: "none",
             }}
           />
