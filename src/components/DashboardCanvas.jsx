@@ -8,7 +8,7 @@ import DraggableTextBox from "./DraggableTextBox";
 import DraggableImage from "./DraggableImage";
 import DraggableDisplayBox from "./DraggableDisplayBox";
 
-// ✅ NEW: Graphic has its own wrapper (NOT DraggableDroppedTank)
+// ✅ NEW
 import DraggableGraphicDisplay from "./DraggableGraphicDisplay";
 
 // ✅ Toggle switch visual
@@ -28,7 +28,7 @@ import {
 } from "./ProTankIcon";
 
 export default function DashboardCanvas({
-  dashboardMode, // ⭐ PLAY/EDIT
+  dashboardMode,
   sensors,
   sensorsData,
   droppedTanks,
@@ -82,43 +82,19 @@ export default function DashboardCanvas({
           .map((tank) => {
             const isSelected = selectedIds.includes(tank.id);
 
-            const commonUpdate = (updated) =>
-              setDroppedTanks((prev) =>
-                prev.map((t) => (t.id === updated.id ? updated : t))
-              );
-
-            // ✅ GRAPHIC DISPLAY (SPECIAL: NOT wrapped by DraggableDroppedTank)
-            if (tank.shape === "graphicDisplay") {
-              return (
-                <DraggableGraphicDisplay
-                  key={tank.id}
-                  tank={tank}
-                  onUpdate={commonUpdate}
-                  onSelect={handleSelect}
-                  onDoubleClick={() => {
-                    if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
-                  }}
-                  selected={isSelected && !isPlay}
-                  selectedIds={selectedIds}
-                  dragDelta={dragDelta}
-                  dashboardMode={dashboardMode}
-                />
-              );
-            }
-
             const commonProps = {
               key: tank.id,
               tank,
               selected: isSelected && !isPlay,
               selectedIds,
               dragDelta,
-              disableDrag: isPlay,
-              disableSelect: isPlay,
-              disableSettings: isPlay,
               dashboardMode,
               onSelect: handleSelect,
               onRightClick: handleRightClick,
-              onUpdate: commonUpdate,
+              onUpdate: (updated) =>
+                setDroppedTanks((prev) =>
+                  prev.map((t) => (t.id === updated.id ? updated : t))
+                ),
             };
 
             // IMAGE
@@ -144,7 +120,25 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅ INTERLOCK
+            // ✅ GRAPHIC DISPLAY (uses its own draggable + resize)
+            if (tank.shape === "graphicDisplay") {
+              return (
+                <DraggableGraphicDisplay
+                  key={tank.id}
+                  tank={tank}
+                  selected={isSelected && !isPlay}
+                  selectedIds={selectedIds}
+                  dragDelta={dragDelta}
+                  onSelect={handleSelect}
+                  onUpdate={commonProps.onUpdate}
+                  onDoubleClick={() => {
+                    if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
+                  }}
+                />
+              );
+            }
+
+            // INTERLOCK
             if (tank.shape === "interlock" || tank.shape === "interlockControl") {
               const w = tank.w ?? tank.width ?? 190;
               const h = tank.h ?? tank.height ?? 80;
@@ -157,7 +151,7 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅ TOGGLE SWITCH
+            // TOGGLE
             if (tank.shape === "toggleSwitch" || tank.shape === "toggleControl") {
               const w = tank.w ?? tank.width ?? 180;
               const h = tank.h ?? tank.height ?? 70;
@@ -170,7 +164,7 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅ PUSH BUTTON (NO)
+            // PUSH BUTTON NO
             if (tank.shape === "pushButtonNO") {
               const w = tank.w ?? tank.width ?? 110;
               const h = tank.h ?? tank.height ?? 110;
@@ -178,17 +172,12 @@ export default function DashboardCanvas({
 
               return (
                 <DraggableDroppedTank {...commonProps}>
-                  <PushButtonControl
-                    variant="NO"
-                    width={w}
-                    height={h}
-                    pressed={pressed}
-                  />
+                  <PushButtonControl variant="NO" width={w} height={h} pressed={pressed} />
                 </DraggableDroppedTank>
               );
             }
 
-            // ✅ PUSH BUTTON (NC)
+            // PUSH BUTTON NC
             if (tank.shape === "pushButtonNC") {
               const w = tank.w ?? tank.width ?? 110;
               const h = tank.h ?? tank.height ?? 110;
@@ -196,12 +185,7 @@ export default function DashboardCanvas({
 
               return (
                 <DraggableDroppedTank {...commonProps}>
-                  <PushButtonControl
-                    variant="NC"
-                    width={w}
-                    height={h}
-                    pressed={pressed}
-                  />
+                  <PushButtonControl variant="NC" width={w} height={h} pressed={pressed} />
                 </DraggableDroppedTank>
               );
             }
@@ -233,7 +217,7 @@ export default function DashboardCanvas({
               );
             }
 
-            // SILO TANK
+            // SILO
             if (tank.shape === "siloTank") {
               return (
                 <DraggableDroppedTank
