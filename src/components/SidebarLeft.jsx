@@ -8,7 +8,6 @@ import {
 } from "./ProTankIcon";
 
 import DraggableControls from "./DraggableControls";
-import DraggableValves from "./DraggableValves"; // ✅ NEW IMPORT
 
 export default function SidebarLeft({
   isLeftCollapsed,
@@ -34,8 +33,7 @@ export default function SidebarLeft({
      DEVICE MENUS
   ========================= */
   const [showDeviceControls, setShowDeviceControls] = useState(false);
-  const [showValves, setShowValves] = useState(false); // ✅ NEW
-  const [showValveTypes, setShowValveTypes] = useState(true); // ✅ NEW (expanded by default)
+ 
 
   /* =========================
      HELPERS
@@ -166,26 +164,6 @@ export default function SidebarLeft({
 
               {showDeviceControls && <DraggableControls />}
 
-              {/* ✅ VALVES (NEW SECTION) */}
-              <div
-                className="cursor-pointer mb-2 flex items-center gap-2"
-                onClick={() => setShowValves((prev) => !prev)}
-              >
-                Valves <span>{showValves ? "▾" : "▸"}</span>
-              </div>
-
-              {showValves && (
-                <div className="ml-2">
-                  <div
-                    className="cursor-pointer mb-2 flex items-center gap-2 text-sm text-gray-300"
-                    onClick={() => setShowValveTypes((prev) => !prev)}
-                  >
-                    Valve Types <span>{showValveTypes ? "▾" : "▸"}</span>
-                  </div>
-
-                  {showValveTypes && <DraggableValves />}
-                </div>
-              )}
 
               {/* LEVEL SENSORS */}
               <div
