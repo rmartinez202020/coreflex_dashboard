@@ -15,16 +15,13 @@ export default function DraggableGraphicDisplay({
 
   const safeOnUpdate = typeof onUpdate === "function" ? onUpdate : () => {};
 
-  // DnD-kit
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: tank.id,
   });
 
-  // Size (like your drop handler defaults)
   const width = tank.w ?? tank.width ?? 520;
   const height = tank.h ?? tank.height ?? 260;
 
-  // Multi-drag support
   const isMultiDragging =
     selectedIds.length > 1 && selectedIds.includes(tank.id);
 
@@ -34,9 +31,9 @@ export default function DraggableGraphicDisplay({
     ? `translate(${transform.x}px, ${transform.y}px)`
     : "translate(0px, 0px)";
 
-  // Resizing (like TextBox)
+  // Resize (TextBox style)
   const [isResizing, setIsResizing] = useState(false);
-  const [resizeDir, setResizeDir] = useState(null); // "left" | "right" | "top" | "bottom"
+  const [resizeDir, setResizeDir] = useState(null);
   const startRef = useRef({ x: 0, y: 0, w: 0, h: 0 });
 
   const startResize = (dir, e) => {
@@ -60,27 +57,32 @@ export default function DraggableGraphicDisplay({
       let newW = startRef.current.w;
       let newH = startRef.current.h;
 
-      // Right/Left
       if (resizeDir === "right") {
-        newW = Math.max(320, startRef.current.w + (e.clientX - startRef.current.x));
+        newW = Math.max(
+          320,
+          startRef.current.w + (e.clientX - startRef.current.x)
+        );
       }
       if (resizeDir === "left") {
-        newW = Math.max(320, startRef.current.w - (e.clientX - startRef.current.x));
+        newW = Math.max(
+          320,
+          startRef.current.w - (e.clientX - startRef.current.x)
+        );
       }
-
-      // Bottom/Top
       if (resizeDir === "bottom") {
-        newH = Math.max(200, startRef.current.h + (e.clientY - startRef.current.y));
+        newH = Math.max(
+          200,
+          startRef.current.h + (e.clientY - startRef.current.y)
+        );
       }
       if (resizeDir === "top") {
-        newH = Math.max(200, startRef.current.h - (e.clientY - startRef.current.y));
+        newH = Math.max(
+          200,
+          startRef.current.h - (e.clientY - startRef.current.y)
+        );
       }
 
-      safeOnUpdate({
-        ...tank,
-        w: newW,
-        h: newH,
-      });
+      safeOnUpdate({ ...tank, w: newW, h: newH });
     };
 
     const stopMove = () => {
@@ -97,8 +99,7 @@ export default function DraggableGraphicDisplay({
     };
   }, [isResizing, resizeDir, safeOnUpdate, tank, width, height]);
 
-  // Main wrapper style
-  const style = {
+  const wrapperStyle = {
     position: "absolute",
     left: tank.x,
     top: tank.y,
@@ -114,14 +115,24 @@ export default function DraggableGraphicDisplay({
     zIndex: tank.zIndex ?? 1,
   };
 
+  // ✅ IMPORTANT: Drag is ONLY started from the handle.
+  // We MERGE the dnd-kit handler so it definitely fires.
+  const handleBarPointerDown = (e) => {
+    e.stopPropagation(); // prevents canvas selection box
+    onSelect?.(tank.id);
+
+    // fire dnd-kit pointer down to start drag
+    listeners?.onPointerDown?.(e);
+  };
+
   return (
     <div
       ref={setNodeRef}
       className="draggable-item"
-      style={style}
+      style={wrapperStyle}
       {...attributes}
-      // IMPORTANT: click selects, but does NOT start canvas selection
       onMouseDown={(e) => {
+        // select when clicking anywhere on the component
         e.stopPropagation();
         onSelect?.(tank.id);
       }}
@@ -131,44 +142,35 @@ export default function DraggableGraphicDisplay({
       }}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {/* ✅ Drag Handle (prevents chart clicks from triggering canvas select-box) */}
+      {/* ✅ DRAG HANDLE BAR */}
       <div
-        {...listeners}
-        onMouseDown={(e) => {
-          e.stopPropagation(); // stop canvas selection
-          onSelect?.(tank.id);
-          // DnD-kit needs this to start drag
-          listeners?.onMouseDown?.(e);
-        }}
-        onPointerDown={(e) => {
-          e.stopPropagation();
-          onSelect?.(tank.id);
-          listeners?.onPointerDown?.(e);
-        }}
+        // DON'T spread {...listeners} here because we'd override it
+        // We call listeners.onPointerDown manually above.
+        onPointerDown={handleBarPointerDown}
         style={{
-          height: 26,
+          height: 28,
           width: "100%",
-          cursor: isResizing ? "default" : "move",
-          background: selected ? "rgba(37,99,235,0.08)" : "rgba(0,0,0,0.03)",
+          cursor: isResizing ? "default" : "grab",
+          background: selected ? "rgba(37,99,235,0.10)" : "rgba(0,0,0,0.04)",
           display: "flex",
           alignItems: "center",
           padding: "0 10px",
           fontSize: 12,
-          fontWeight: 700,
+          fontWeight: 800,
         }}
+        title="Drag here"
       >
         {tank.title || "Graphic Display"}
       </div>
 
-      {/* ✅ Actual Graphic Area (does NOT start drag, so you can click inside it) */}
+      {/* GRAPH AREA */}
       <div
         style={{
           width: "100%",
-          height: `calc(100% - 26px)`,
-          pointerEvents: "auto",
+          height: "calc(100% - 28px)",
         }}
         onMouseDown={(e) => {
-          // stop canvas selection box
+          // stop canvas selection box when clicking inside the graph
           e.stopPropagation();
           onSelect?.(tank.id);
         }}
@@ -176,10 +178,9 @@ export default function DraggableGraphicDisplay({
         <GraphicDisplay tank={tank} />
       </div>
 
-      {/* ✅ 4px invisible resize edges (same as TextBox) */}
+      {/* ✅ RESIZE EDGES (TextBox style) */}
       {selected && (
         <>
-          {/* LEFT */}
           <div
             onMouseDown={(e) => startResize("left", e)}
             style={{
@@ -192,7 +193,6 @@ export default function DraggableGraphicDisplay({
               zIndex: 99999,
             }}
           />
-          {/* RIGHT */}
           <div
             onMouseDown={(e) => startResize("right", e)}
             style={{
@@ -205,7 +205,6 @@ export default function DraggableGraphicDisplay({
               zIndex: 99999,
             }}
           />
-          {/* TOP */}
           <div
             onMouseDown={(e) => startResize("top", e)}
             style={{
@@ -218,7 +217,6 @@ export default function DraggableGraphicDisplay({
               zIndex: 99999,
             }}
           />
-          {/* BOTTOM */}
           <div
             onMouseDown={(e) => startResize("bottom", e)}
             style={{
