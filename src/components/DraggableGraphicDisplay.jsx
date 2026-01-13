@@ -10,7 +10,7 @@ export default function DraggableGraphicDisplay({
   selected,
   selectedIds = [],
   dragDelta = { x: 0, y: 0 },
-  dashboardMode = "edit", // ✅ allow play/edit behavior
+  dashboardMode = "edit",
 }) {
   if (!tank) return null;
 
@@ -18,9 +18,7 @@ export default function DraggableGraphicDisplay({
   const safeOnUpdate = typeof onUpdate === "function" ? onUpdate : () => {};
 
   const { attributes, listeners, setNodeRef, transform, isDragging } =
-    useDraggable({
-      id: tank.id,
-    });
+    useDraggable({ id: tank.id });
 
   const [isResizing, setIsResizing] = useState(false);
   const [resizeDir, setResizeDir] = useState(null);
@@ -33,12 +31,8 @@ export default function DraggableGraphicDisplay({
     selectedIds.length > 1 && selectedIds.includes(tank.id);
 
   const activeTransform = useMemo(() => {
-    if (isMultiDragging) {
-      return `translate(${dragDelta.x}px, ${dragDelta.y}px)`;
-    }
-    if (transform) {
-      return `translate(${transform.x}px, ${transform.y}px)`;
-    }
+    if (isMultiDragging) return `translate(${dragDelta.x}px, ${dragDelta.y}px)`;
+    if (transform) return `translate(${transform.x}px, ${transform.y}px)`;
     return "translate(0px, 0px)";
   }, [isMultiDragging, dragDelta.x, dragDelta.y, transform]);
 
@@ -51,21 +45,18 @@ export default function DraggableGraphicDisplay({
     transform: activeTransform,
     transformOrigin: "top left",
 
-    // ✅ selection border
     border: selected ? "2px solid #2563eb" : "2px solid transparent",
     borderRadius: 10,
 
-    // ✅ Make the "hand" appear ANYWHERE over the graphic in EDIT
     cursor: isPlay ? "default" : isDragging ? "grabbing" : "grab",
-
     userSelect: "none",
     zIndex: tank.zIndex ?? 1,
   };
 
   const startResize = (dir, e) => {
+    if (isPlay) return;
     e.stopPropagation();
     e.preventDefault();
-    if (isPlay) return;
 
     setIsResizing(true);
     setResizeDir(dir);
@@ -86,16 +77,10 @@ export default function DraggableGraphicDisplay({
       let newH = startRef.current.h;
 
       if (resizeDir === "right") {
-        newW = Math.max(
-          300,
-          startRef.current.w + (e.clientX - startRef.current.x)
-        );
+        newW = Math.max(300, startRef.current.w + (e.clientX - startRef.current.x));
       }
       if (resizeDir === "bottom") {
-        newH = Math.max(
-          180,
-          startRef.current.h + (e.clientY - startRef.current.y)
-        );
+        newH = Math.max(180, startRef.current.h + (e.clientY - startRef.current.y));
       }
 
       safeOnUpdate({ ...tank, w: newW, h: newH });
@@ -118,18 +103,22 @@ export default function DraggableGraphicDisplay({
   return (
     <div
       ref={setNodeRef}
+      data-canvas-item="true"   // ✅ critical: canvas selection ignores this
       style={style}
       {...attributes}
       onPointerDown={(e) => {
         if (isPlay) return;
 
-        // ✅ 1) start drag (DnD-kit)
+        // ✅ If resizing, don’t trigger drag
+        if (isResizing) return;
+
+        // ✅ start dnd drag
         listeners?.onPointerDown?.(e);
 
-        // ✅ 2) prevent canvas selection box
+        // ✅ prevent canvas selection box
         e.stopPropagation();
 
-        // ✅ 3) select the item
+        // ✅ select the item
         onSelect?.(tank.id);
       }}
       onDoubleClick={(e) => {
@@ -139,7 +128,9 @@ export default function DraggableGraphicDisplay({
       }}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {/* ✅ In EDIT: don't let the chart steal the cursor/events (so grab hand shows everywhere) */}
+      {/* ✅ CHART WRAPPER
+          EDIT: block chart pointer events so drag works anywhere + no selection box
+          PLAY: allow chart interactions if you add them later */}
       <div
         style={{
           width: "100%",
@@ -147,7 +138,7 @@ export default function DraggableGraphicDisplay({
           borderRadius: 10,
           overflow: "hidden",
           cursor: "inherit",
-          pointerEvents: isPlay ? "auto" : "none", // ✅ KEY LINE
+          pointerEvents: isPlay ? "auto" : "none",
         }}
       >
         <GraphicDisplay tank={tank} />
@@ -161,12 +152,14 @@ export default function DraggableGraphicDisplay({
             onMouseDown={(e) => startResize("right", e)}
             style={{
               position: "absolute",
-              right: -3,
+              right: -4,
               top: 0,
-              width: 10,
+              width: 12,
               height: "100%",
               cursor: "ew-resize",
+              zIndex: 999999,
               pointerEvents: "auto",
+              background: "transparent",
             }}
           />
 
@@ -175,12 +168,14 @@ export default function DraggableGraphicDisplay({
             onMouseDown={(e) => startResize("bottom", e)}
             style={{
               position: "absolute",
-              bottom: -3,
+              bottom: -4,
               left: 0,
-              height: 10,
+              height: 12,
               width: "100%",
               cursor: "ns-resize",
+              zIndex: 999999,
               pointerEvents: "auto",
+              background: "transparent",
             }}
           />
         </>
