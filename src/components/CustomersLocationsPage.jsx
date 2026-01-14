@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 import AddressPicker from "./AddressPicker";
+import LocationsMapModal from "./LocationsMapModal";
 
 export default function CustomersLocationsPage({ subPageColor, setActiveSubPage }) {
   const [items, setItems] = useState([]);
@@ -10,8 +11,8 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
   // If editingItemId != null => edit mode
   const [editingItemId, setEditingItemId] = useState(null);
 
-  // Search
-  const [query, setQuery] = useState("");
+  // Map modal
+  const [showMap, setShowMap] = useState(false);
 
   const emptyForm = useMemo(
     () => ({
@@ -59,38 +60,13 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
         if (mounted) setItems(Array.isArray(data) ? data : []);
       } catch (e) {
         console.error(e);
-        if (mounted) {
-          setMsg("❌ Could not load customers/locations. (API not reachable or route missing)");
-        }
+        if (mounted) setMsg("❌ Could not load customers/locations. (API not reachable or route missing)");
       } finally {
         if (mounted) setLoading(false);
       }
     })();
     return () => (mounted = false);
   }, []);
-
-  const filteredItems = useMemo(() => {
-    const q = query.trim().toLowerCase();
-    if (!q) return items;
-
-    return items.filter((x) => {
-      const hay = [
-        x.customer_name,
-        x.site_name,
-        x.street,
-        x.city,
-        x.state,
-        x.zip,
-        x.country,
-        x.notes,
-      ]
-        .filter(Boolean)
-        .join(" ")
-        .toLowerCase();
-
-      return hay.includes(q);
-    });
-  }, [items, query]);
 
   const startEdit = (x) => {
     setMsg("");
@@ -233,10 +209,8 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
         throw new Error(text || `Delete failed (${res.status})`);
       }
 
-      // Optimistic UI update
       setItems((prev) => prev.filter((x) => x.id !== id));
 
-      // If we were editing this one, cancel edit
       if (editingItemId === id) cancelEdit();
 
       setMsg("✅ Deleted!");
@@ -339,75 +313,79 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
         </div>
 
         {/* LIST */}
-        <div className="bg-white p-6 rounded-xl shadow-md">
-          <div className="flex items-center justify-between gap-3 mb-3">
-            <h3 className="text-xl font-semibold text-gray-800">
+        <div className="bg-white p-6 rounded-xl shadow-md flex flex-col">
+          <div className="flex items-center justify-between">
+            <h3 className="text-xl font-semibold mb-3 text-gray-800">
               Your Customers / Locations
             </h3>
-            <div className="text-xs text-gray-500 whitespace-nowrap">
-              {filteredItems.length}/{items.length}
+
+            <div className="text-xs text-gray-500">
+              {items.length}/{items.length}
             </div>
           </div>
 
-          <div className="flex items-center gap-2 mb-3">
-            <input
-              className="w-full p-2 border border-gray-300 rounded-md"
-              placeholder="Search customers, city, state, zip..."
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-            />
-            {query ? (
-              <button
-                className="px-3 py-2 rounded-md border border-gray-300 hover:bg-gray-50 text-sm"
-                onClick={() => setQuery("")}
-              >
-                Clear
-              </button>
-            ) : null}
-          </div>
-
-          {loading ? (
-            <div className="text-sm text-gray-600">Loading...</div>
-          ) : filteredItems.length === 0 ? (
-            <div className="text-sm text-gray-600">
-              {items.length === 0 ? "No customers yet." : "No matches found."}
-            </div>
-          ) : (
-            <div className="space-y-3 max-h-[520px] overflow-auto pr-2">
-              {filteredItems.map((x) => (
-                <div key={x.id} className="border border-gray-200 rounded-lg p-3">
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <div className="font-semibold text-gray-800">
-                        {x.customer_name} — {x.site_name}
+          {/* Scrollable list area */}
+          <div className="flex-1 min-h-0 overflow-auto pr-1">
+            {loading ? (
+              <div className="text-sm text-gray-600">Loading...</div>
+            ) : items.length === 0 ? (
+              <div className="text-sm text-gray-600">No customers yet.</div>
+            ) : (
+              <div className="space-y-3">
+                {items.map((x) => (
+                  <div key={x.id} className="border border-gray-200 rounded-lg p-3">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <div className="font-semibold text-gray-800">
+                          {x.customer_name} — {x.site_name}
+                        </div>
+                        <div className="text-sm text-gray-700 mt-1">
+                          {x.street}, {x.city}, {x.state} {x.zip}, {x.country}
+                        </div>
+                        {x.notes ? (
+                          <div className="text-xs text-gray-500 mt-1">{x.notes}</div>
+                        ) : null}
                       </div>
-                      <div className="text-sm text-gray-700 mt-1">
-                        {x.street}, {x.city}, {x.state} {x.zip}, {x.country}
-                      </div>
-                      {x.notes ? (
-                        <div className="text-xs text-gray-500 mt-1">{x.notes}</div>
-                      ) : null}
-                    </div>
 
-                    <div className="flex flex-col gap-2">
-                      <button
-                        onClick={() => startEdit(x)}
-                        className="text-sm px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={() => requestDelete(x.id)}
-                        className="text-sm px-3 py-2 rounded-md bg-red-100 hover:bg-red-200 text-red-700"
-                      >
-                        Delete
-                      </button>
+                      <div className="flex flex-col gap-2">
+                        <button
+                          onClick={() => startEdit(x)}
+                          className="text-sm px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200"
+                        >
+                          Edit
+                        </button>
+                        <button
+                          onClick={() => requestDelete(x.id)}
+                          className="text-sm px-3 py-2 rounded-md bg-red-100 hover:bg-red-200 text-red-700"
+                        >
+                          Delete
+                        </button>
+                      </div>
                     </div>
                   </div>
-                </div>
-              ))}
+                ))}
+              </div>
+            )}
+          </div>
+
+          {/* Bottom button (yellow area) */}
+          <div className="pt-4">
+            <button
+              onClick={() => setShowMap(true)}
+              disabled={items.length === 0}
+              className={`w-full px-5 py-3 rounded-lg text-white transition ${
+                items.length === 0
+                  ? "bg-gray-300 cursor-not-allowed"
+                  : "bg-teal-600 hover:bg-teal-700"
+              }`}
+            >
+              See your locations on the map
+            </button>
+
+            <div className="text-xs text-gray-500 mt-2">
+              This opens a map with one pin per saved location.
             </div>
-          )}
+          </div>
         </div>
       </div>
 
@@ -437,6 +415,13 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
           </div>
         </div>
       ) : null}
+
+      {/* MAP MODAL */}
+      <LocationsMapModal
+        open={showMap}
+        onClose={() => setShowMap(false)}
+        items={items}
+      />
     </div>
   );
 }
