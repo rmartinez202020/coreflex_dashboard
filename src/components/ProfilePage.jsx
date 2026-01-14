@@ -52,7 +52,7 @@ export default function ProfilePage({ subPageColor, setActiveSubPage }) {
             </label>
             <input
               className="w-full p-2 border border-gray-300 rounded-md"
-              placeholder="CEO, Engineer, Technician..."
+              placeholder="Engineer, Integrator, Technician..."
             />
           </div>
 
@@ -74,7 +74,7 @@ export default function ProfilePage({ subPageColor, setActiveSubPage }) {
             </label>
             <input
               className="w-full p-2 border border-gray-300 rounded-md"
-              placeholder="CoreFlex Alliance LLC"
+              placeholder="Company"
             />
           </div>
 
@@ -85,7 +85,7 @@ export default function ProfilePage({ subPageColor, setActiveSubPage }) {
             </label>
             <input
               className="w-full p-2 border:border-gray-300 rounded-md"
-              placeholder="123 Industrial Ave, New Jersey"
+              placeholder="123 Industrial Ave, OH....."
             />
           </div>
 
