@@ -12,8 +12,8 @@ export default function AddressPicker({ value, onChange }) {
   const [countryIso, setCountryIso] = useState("");
   const [stateIso, setStateIso] = useState("");
 
-  const setField = (key, v) => {
-    onChange?.({ ...(value || {}), [key]: v });
+  const update = (patch) => {
+    onChange?.({ ...(value || {}), ...patch });
   };
 
   // ✅ Initialize / sync Country ISO from value.country (name or iso)
@@ -30,9 +30,9 @@ export default function AddressPicker({ value, onChange }) {
 
     setCountryIso(match.isoCode);
 
-    // ensure value.country is a proper name in parent state
+    // keep parent value consistent
     if ((value?.country || "") !== match.name) {
-      setField("country", match.name);
+      update({ country: match.name });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [countries]);
@@ -64,7 +64,6 @@ export default function AddressPicker({ value, onChange }) {
     return City.getCitiesOfState(countryIso, stateIso);
   }, [countryIso, stateIso]);
 
-  // ✅ If value.city exists but not in list (rare), keep it; otherwise normal select works
   const cityValue = (value?.city || "").trim();
 
   return (
@@ -78,12 +77,17 @@ export default function AddressPicker({ value, onChange }) {
           onChange={(e) => {
             const iso = e.target.value;
             setCountryIso(iso);
-            setStateIso(""); // reset
+            setStateIso("");
+
             const countryName =
               countries.find((c) => c.isoCode === iso)?.name || "";
-            setField("country", countryName);
-            setField("state", "");
-            setField("city", "");
+
+            // ✅ one update only
+            update({
+              country: countryName,
+              state: "",
+              city: "",
+            });
           }}
         >
           <option value="" disabled>
@@ -106,9 +110,14 @@ export default function AddressPicker({ value, onChange }) {
           onChange={(e) => {
             const iso = e.target.value;
             setStateIso(iso);
+
             const stateName = states.find((s) => s.isoCode === iso)?.name || "";
-            setField("state", stateName);
-            setField("city", "");
+
+            // ✅ one update only
+            update({
+              state: stateName,
+              city: "",
+            });
           }}
           disabled={!countryIso}
         >
@@ -129,7 +138,7 @@ export default function AddressPicker({ value, onChange }) {
         <select
           className="w-full p-2 border border-gray-300 rounded-md"
           value={cityValue}
-          onChange={(e) => setField("city", e.target.value)}
+          onChange={(e) => update({ city: e.target.value })}
           disabled={!stateIso}
         >
           <option value="" disabled>
@@ -150,7 +159,7 @@ export default function AddressPicker({ value, onChange }) {
           className="w-full p-2 border border-gray-300 rounded-md"
           placeholder="123 Industrial Ave"
           value={value?.street || ""}
-          onChange={(e) => setField("street", e.target.value)}
+          onChange={(e) => update({ street: e.target.value })}
         />
       </div>
 
@@ -161,7 +170,7 @@ export default function AddressPicker({ value, onChange }) {
           className="w-full p-2 border border-gray-300 rounded-md"
           placeholder="07102"
           value={value?.zip || ""}
-          onChange={(e) => setField("zip", e.target.value)}
+          onChange={(e) => update({ zip: e.target.value })}
         />
       </div>
     </div>
