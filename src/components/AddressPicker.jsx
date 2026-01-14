@@ -1,20 +1,43 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Country, State, City } from "country-state-city";
 
-const AddressPicker = ({ value, onChange }) => {
+/**
+ * AddressPicker
+ * - Country -> State -> City cascading selects
+ * - Outputs: { country, state, city, street, zip }
+ *
+ * Props:
+ * - value: { country, state, city, street, zip }
+ * - onChange: (nextValue) => void
+ */
+export default function AddressPicker({ value, onChange }) {
   const countries = useMemo(() => Country.getAllCountries(), []);
   const [countryIso, setCountryIso] = useState("");
   const [stateIso, setStateIso] = useState("");
 
+  const setField = (key, v) => {
+    onChange?.({ ...(value || {}), [key]: v });
+  };
+
+  // ✅ Initialize country (default US)
   useEffect(() => {
-    const initialCountry = value?.country || "United States";
+    const desiredName = value?.country || "United States";
+
     const match =
-      countries.find((c) => c.name === initialCountry) ||
+      countries.find((c) => c.name === desiredName) ||
       countries.find((c) => c.isoCode === "US") ||
       countries.find((c) => c.name.toLowerCase().includes("united states"));
 
-    if (match) setCountryIso(match.isoCode);
-  }, [countries, value?.country]);
+    if (match) {
+      setCountryIso(match.isoCode);
+
+      // also keep parent country name consistent
+      if (!value?.country || value.country !== match.name) {
+        setField("country", match.name);
+      }
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [countries]);
 
   const states = useMemo(() => {
     if (!countryIso) return [];
@@ -26,7 +49,36 @@ const AddressPicker = ({ value, onChange }) => {
     return City.getCitiesOfState(countryIso, stateIso);
   }, [countryIso, stateIso]);
 
-  const setField = (key, v) => onChange?.({ ...(value || {}), [key]: v });
+  // ✅ CRITICAL FIX:
+  // If parent already has a state NAME (value.state), sync internal stateIso
+  useEffect(() => {
+    if (!countryIso) return;
+
+    const stateName = (value?.state || "").trim();
+    if (!stateName) return;
+
+    const match = states.find(
+      (s) => s.name.toLowerCase() === stateName.toLowerCase()
+    );
+
+    if (match && match.isoCode !== stateIso) {
+      setStateIso(match.isoCode);
+    }
+  }, [countryIso, states, value?.state, stateIso]);
+
+  // ✅ If state changes and current city isn't valid anymore, clear city
+  useEffect(() => {
+    if (!stateIso) return;
+    if (!value?.city) return;
+
+    const cityName = value.city.trim();
+    const cityExists = cities.some(
+      (c) => c.name.toLowerCase() === cityName.toLowerCase()
+    );
+
+    if (!cityExists) setField("city", "");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [stateIso, cities]);
 
   return (
     <div className="space-y-4">
@@ -40,7 +92,10 @@ const AddressPicker = ({ value, onChange }) => {
             const iso = e.target.value;
             setCountryIso(iso);
             setStateIso("");
-            const countryName = countries.find((c) => c.isoCode === iso)?.name || "";
+
+            const countryName =
+              countries.find((c) => c.isoCode === iso)?.name || "";
+
             setField("country", countryName);
             setField("state", "");
             setField("city", "");
@@ -66,6 +121,7 @@ const AddressPicker = ({ value, onChange }) => {
           onChange={(e) => {
             const iso = e.target.value;
             setStateIso(iso);
+
             const stateName = states.find((s) => s.isoCode === iso)?.name || "";
             setField("state", stateName);
             setField("city", "");
@@ -126,6 +182,4 @@ const AddressPicker = ({ value, onChange }) => {
       </div>
     </div>
   );
-};
-
-export default AddressPicker;
+}
