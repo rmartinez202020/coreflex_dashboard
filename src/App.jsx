@@ -9,6 +9,8 @@ import DashboardHeader from "./components/DashboardHeader";
 import { saveMainDashboard } from "./services/saveMainDashboard";
 import RestoreWarningModal from "./components/RestoreWarningModal";
 import GraphicDisplaySettingsModal from "./components/GraphicDisplaySettingsModal";
+import CustomersLocationsPage from "./components/CustomersLocationsPage";
+
 
 const IMAGE_LIBRARY_KEY = "coreflex_image_library_v1";
 
@@ -633,17 +635,23 @@ useEffect(() => {
         {activePage === "home" ? (
           <div className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg bg-white">
             <div className="w-full h-full p-6">
-              {activeSubPage === "profile" ? (
-                <ProfilePage
-                  subPageColor={subPageColor}
-                  setActiveSubPage={setActiveSubPage}
-                />
-              ) : (
-                <HomePage
-                  setActiveSubPage={setActiveSubPage}
-                  setSubPageColor={setSubPageColor}
-                />
-              )}
+           {activeSubPage === "profile" ? (
+  <ProfilePage
+    subPageColor={subPageColor}
+    setActiveSubPage={setActiveSubPage}
+  />
+) : activeSubPage === "customers" ? (
+  <CustomersLocationsPage
+    subPageColor={subPageColor}
+    setActiveSubPage={setActiveSubPage}
+  />
+) : (
+  <HomePage
+    setActiveSubPage={setActiveSubPage}
+    setSubPageColor={setSubPageColor}
+  />
+)}
+
             </div>
           </div>
         ) : activePage === "dashboard" ? (
