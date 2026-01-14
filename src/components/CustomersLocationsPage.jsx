@@ -10,6 +10,9 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
   // If editingItemId != null => edit mode
   const [editingItemId, setEditingItemId] = useState(null);
 
+  // Search
+  const [query, setQuery] = useState("");
+
   const emptyForm = useMemo(
     () => ({
       customer_name: "",
@@ -43,33 +46,51 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
       const t = await res.text().catch(() => "");
       throw new Error(t || `Failed to fetch (${res.status})`);
     }
-
     return res.json();
   };
 
   useEffect(() => {
     let mounted = true;
-
     (async () => {
       try {
         setLoading(true);
         setMsg("");
-
         const data = await fetchItems();
         if (mounted) setItems(Array.isArray(data) ? data : []);
       } catch (e) {
         console.error(e);
-        if (mounted)
-          setMsg(
-            "❌ Could not load customers/locations. (API not reachable or route missing)"
-          );
+        if (mounted) {
+          setMsg("❌ Could not load customers/locations. (API not reachable or route missing)");
+        }
       } finally {
         if (mounted) setLoading(false);
       }
     })();
-
     return () => (mounted = false);
   }, []);
+
+  const filteredItems = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    if (!q) return items;
+
+    return items.filter((x) => {
+      const hay = [
+        x.customer_name,
+        x.site_name,
+        x.street,
+        x.city,
+        x.state,
+        x.zip,
+        x.country,
+        x.notes,
+      ]
+        .filter(Boolean)
+        .join(" ")
+        .toLowerCase();
+
+      return hay.includes(q);
+    });
+  }, [items, query]);
 
   const startEdit = (x) => {
     setMsg("");
@@ -97,14 +118,13 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
     setMsg("");
   };
 
-  // ✅ FIX: use trim for state/city too
   const validate = () => {
     if (!form.customer_name.trim()) return "❌ Customer name is required.";
     if (!form.site_name.trim()) return "❌ Site name is required.";
-    if (!form.address.state?.trim()) return "❌ Select a state.";
-    if (!form.address.city?.trim()) return "❌ Select a city.";
-    if (!form.address.street?.trim()) return "❌ Street address is required.";
-    if (!form.address.zip?.trim()) return "❌ ZIP is required.";
+    if (!form.address.state) return "❌ Select a state.";
+    if (!form.address.city) return "❌ Select a city.";
+    if (!form.address.street.trim()) return "❌ Street address is required.";
+    if (!form.address.zip.trim()) return "❌ ZIP is required.";
     return null;
   };
 
@@ -159,11 +179,8 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
 
       if (!res.ok) {
         const text = await res.text().catch(() => "");
-        // Friendly hints if backend not created yet
         if (res.status === 404 && isEdit) {
-          throw new Error(
-            "Update endpoint not found (need PUT /customer-locations/{id} on backend)."
-          );
+          throw new Error("Update endpoint not found (need PUT /customer-locations/{id} on backend).");
         }
         throw new Error(text || `Save failed (${res.status})`);
       }
@@ -171,9 +188,7 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
       const saved = await res.json();
 
       if (isEdit) {
-        setItems((prev) =>
-          prev.map((x) => (x.id === editingItemId ? saved : x))
-        );
+        setItems((prev) => prev.map((x) => (x.id === editingItemId ? saved : x)));
         setMsg("✅ Updated!");
       } else {
         setItems((prev) => [saved, ...prev]);
@@ -213,9 +228,7 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
       if (!res.ok) {
         const text = await res.text().catch(() => "");
         if (res.status === 404) {
-          throw new Error(
-            "Delete endpoint not found (need DELETE /customer-locations/{id} on backend)."
-          );
+          throw new Error("Delete endpoint not found (need DELETE /customer-locations/{id} on backend).");
         }
         throw new Error(text || `Delete failed (${res.status})`);
       }
@@ -239,11 +252,7 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
   return (
     <div className="w-full h-full">
       {/* HEADER */}
-      <div
-        className={`w-full p-4 rounded-lg text-white ${
-          subPageColor || "bg-teal-500"
-        }`}
-      >
+      <div className={`w-full p-4 rounded-lg text-white ${subPageColor || "bg-teal-500"}`}>
         <button
           onClick={() => setActiveSubPage(null)}
           className="bg-white bg-opacity-20 hover:bg-opacity-40 text-white px-3 py-1 rounded"
@@ -262,9 +271,7 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
         <div className="bg-white p-6 rounded-xl shadow-md">
           <div className="flex items-center justify-between gap-3">
             <h3 className="text-xl font-semibold text-gray-800">
-              {editingItemId
-                ? "Edit Customer / Location"
-                : "Add Customer / Location"}
+              {editingItemId ? "Edit Customer / Location" : "Add Customer / Location"}
             </h3>
 
             {editingItemId ? (
@@ -282,31 +289,23 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
 
           <div className="space-y-4 mt-3">
             <div>
-              <label className="block text-gray-700 text-sm mb-1">
-                Customer Name
-              </label>
+              <label className="block text-gray-700 text-sm mb-1">Customer Name</label>
               <input
                 className="w-full p-2 border border-gray-300 rounded-md"
                 placeholder="Walmart"
                 value={form.customer_name}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, customer_name: e.target.value }))
-                }
+                onChange={(e) => setForm((p) => ({ ...p, customer_name: e.target.value }))}
                 disabled={saving}
               />
             </div>
 
             <div>
-              <label className="block text-gray-700 text-sm mb-1">
-                Site Name
-              </label>
+              <label className="block text-gray-700 text-sm mb-1">Site Name</label>
               <input
                 className="w-full p-2 border border-gray-300 rounded-md"
                 placeholder="DC Newark"
                 value={form.site_name}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, site_name: e.target.value }))
-                }
+                onChange={(e) => setForm((p) => ({ ...p, site_name: e.target.value }))}
                 disabled={saving}
               />
             </div>
@@ -317,16 +316,12 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
             />
 
             <div>
-              <label className="block text-gray-700 text-sm mb-1">
-                Notes (optional)
-              </label>
+              <label className="block text-gray-700 text-sm mb-1">Notes (optional)</label>
               <textarea
                 className="w-full p-2 border border-gray-300 rounded-md"
                 placeholder="Gate code, contact, etc..."
                 value={form.notes}
-                onChange={(e) =>
-                  setForm((p) => ({ ...p, notes: e.target.value }))
-                }
+                onChange={(e) => setForm((p) => ({ ...p, notes: e.target.value }))}
                 disabled={saving}
               />
             </div>
@@ -335,37 +330,52 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
               onClick={save}
               disabled={saving}
               className={`px-6 py-3 text-white rounded-lg transition ${
-                saving
-                  ? "bg-teal-300 cursor-not-allowed"
-                  : "bg-teal-600 hover:bg-teal-700"
+                saving ? "bg-teal-300 cursor-not-allowed" : "bg-teal-600 hover:bg-teal-700"
               }`}
             >
-              {saving
-                ? "Saving..."
-                : editingItemId
-                ? "Update Customer/Location"
-                : "Save Customer/Location"}
+              {saving ? "Saving..." : editingItemId ? "Update Customer/Location" : "Save Customer/Location"}
             </button>
           </div>
         </div>
 
         {/* LIST */}
         <div className="bg-white p-6 rounded-xl shadow-md">
-          <h3 className="text-xl font-semibold mb-3 text-gray-800">
-            Your Customers / Locations
-          </h3>
+          <div className="flex items-center justify-between gap-3 mb-3">
+            <h3 className="text-xl font-semibold text-gray-800">
+              Your Customers / Locations
+            </h3>
+            <div className="text-xs text-gray-500 whitespace-nowrap">
+              {filteredItems.length}/{items.length}
+            </div>
+          </div>
+
+          <div className="flex items-center gap-2 mb-3">
+            <input
+              className="w-full p-2 border border-gray-300 rounded-md"
+              placeholder="Search customers, city, state, zip..."
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+            />
+            {query ? (
+              <button
+                className="px-3 py-2 rounded-md border border-gray-300 hover:bg-gray-50 text-sm"
+                onClick={() => setQuery("")}
+              >
+                Clear
+              </button>
+            ) : null}
+          </div>
 
           {loading ? (
             <div className="text-sm text-gray-600">Loading...</div>
-          ) : items.length === 0 ? (
-            <div className="text-sm text-gray-600">No customers yet.</div>
+          ) : filteredItems.length === 0 ? (
+            <div className="text-sm text-gray-600">
+              {items.length === 0 ? "No customers yet." : "No matches found."}
+            </div>
           ) : (
-            <div className="space-y-3">
-              {items.map((x) => (
-                <div
-                  key={x.id}
-                  className="border border-gray-200 rounded-lg p-3"
-                >
+            <div className="space-y-3 max-h-[520px] overflow-auto pr-2">
+              {filteredItems.map((x) => (
+                <div key={x.id} className="border border-gray-200 rounded-lg p-3">
                   <div className="flex items-start justify-between gap-3">
                     <div>
                       <div className="font-semibold text-gray-800">
@@ -375,9 +385,7 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
                         {x.street}, {x.city}, {x.state} {x.zip}, {x.country}
                       </div>
                       {x.notes ? (
-                        <div className="text-xs text-gray-500 mt-1">
-                          {x.notes}
-                        </div>
+                        <div className="text-xs text-gray-500 mt-1">{x.notes}</div>
                       ) : null}
                     </div>
 
@@ -385,14 +393,12 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
                       <button
                         onClick={() => startEdit(x)}
                         className="text-sm px-3 py-2 rounded-md bg-gray-100 hover:bg-gray-200"
-                        disabled={saving || deletingId != null}
                       >
                         Edit
                       </button>
                       <button
                         onClick={() => requestDelete(x.id)}
                         className="text-sm px-3 py-2 rounded-md bg-red-100 hover:bg-red-200 text-red-700"
-                        disabled={saving || deletingId != null}
                       >
                         Delete
                       </button>
@@ -409,9 +415,7 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
       {deletingId != null ? (
         <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black bg-opacity-40">
           <div className="bg-white rounded-xl shadow-lg w-full max-w-md p-6">
-            <h4 className="text-lg font-semibold text-gray-800">
-              Delete location?
-            </h4>
+            <h4 className="text-lg font-semibold text-gray-800">Delete location?</h4>
             <p className="text-sm text-gray-600 mt-2">
               This will permanently remove this customer/location.
             </p>
