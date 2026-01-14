@@ -54,14 +54,26 @@ async function geocodeNominatim(q) {
   )}`;
 
   const res = await fetch(url, {
+    method: "GET",
     headers: {
-      // Nominatim likes having a referrer; browser will set it
+      Accept: "application/json",
+      "Accept-Language": "en",
     },
+    // helps in some deployments; safe to include
+    referrerPolicy: "no-referrer-when-downgrade",
   });
 
-  if (!res.ok) return null;
+  if (!res.ok) {
+    const text = await res.text().catch(() => "");
+    console.error("Nominatim error:", res.status, text);
+    return null;
+  }
+
   const data = await res.json();
-  if (!Array.isArray(data) || data.length === 0) return null;
+  if (!Array.isArray(data) || data.length === 0) {
+    console.warn("No geocode results for:", q);
+    return null;
+  }
 
   const first = data[0];
   return {
@@ -122,6 +134,8 @@ export default function LocationsMapModal({ open, onClose, items }) {
         return !(cached?.lat != null && cached?.lng != null);
       });
 
+      let resolvedCount = 0;
+
       for (const x of toGeocode) {
         if (cancelled) break;
 
@@ -131,6 +145,8 @@ export default function LocationsMapModal({ open, onClose, items }) {
           const coords = await geocodeNominatim(addr);
 
           if (coords?.lat != null && coords?.lng != null) {
+            resolvedCount += 1;
+
             cache[addr] = coords;
             saveCache(cache);
 
@@ -141,7 +157,8 @@ export default function LocationsMapModal({ open, onClose, items }) {
               }));
             }
           }
-        } catch {
+        } catch (err) {
+          console.error("Geocode failed for:", addr, err);
           // ignore per item
         }
 
@@ -151,9 +168,10 @@ export default function LocationsMapModal({ open, onClose, items }) {
 
       if (!cancelled) {
         // If none resolved, show hint
-        const count = Object.keys(loadCache()).length;
-        if ((items || []).length > 0 && markers.length === 0 && count === 0) {
-          setError("Could not geocode addresses. Try again in a moment.");
+        if ((items || []).length > 0 && resolvedCount === 0 && markers.length === 0) {
+          setError(
+            "Could not geocode addresses. (Geocoder may be blocking requests or address not found)"
+          );
         }
         setLoading(false);
       }
@@ -165,13 +183,14 @@ export default function LocationsMapModal({ open, onClose, items }) {
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
+  }, [open]); // keep it only when opening
 
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black bg-opacity-40 p-4">
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-5xl overflow-hidden">
+      {/* ✅ BIGGER + TALLER MODAL */}
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-[95vw] h-[90vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <div>
@@ -192,7 +211,7 @@ export default function LocationsMapModal({ open, onClose, items }) {
         </div>
 
         {/* Body */}
-        <div className="p-5">
+        <div className="p-5 flex-1 flex flex-col min-h-0">
           {error ? (
             <div className="text-sm text-red-600 mb-3">{error}</div>
           ) : null}
@@ -200,9 +219,7 @@ export default function LocationsMapModal({ open, onClose, items }) {
           <div className="flex items-center justify-between mb-3">
             <div className="text-sm text-gray-600">
               Showing{" "}
-              <span className="font-semibold text-gray-800">
-                {markers.length}
-              </span>{" "}
+              <span className="font-semibold text-gray-800">{markers.length}</span>{" "}
               pin(s) out of{" "}
               <span className="font-semibold text-gray-800">
                 {(items || []).length}
@@ -215,7 +232,8 @@ export default function LocationsMapModal({ open, onClose, items }) {
             ) : null}
           </div>
 
-          <div className="w-full h-[520px] rounded-lg overflow-hidden border border-gray-200">
+          {/* ✅ map fills the remaining modal height */}
+          <div className="flex-1 w-full rounded-lg overflow-hidden border border-gray-200 min-h-0">
             <MapContainer
               center={center}
               zoom={markers.length > 0 ? 10 : 4}
@@ -223,7 +241,7 @@ export default function LocationsMapModal({ open, onClose, items }) {
               scrollWheelZoom={true}
             >
               <TileLayer
-                attribution='&copy; OpenStreetMap contributors'
+                attribution="&copy; OpenStreetMap contributors"
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
 
