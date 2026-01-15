@@ -1,5 +1,5 @@
-import React, { useEffect, useMemo, useState } from "react";
-import { MapContainer, TileLayer, Marker, Popup } from "react-leaflet";
+import React, { useMemo } from "react";
+import { MapContainer, TileLayer, Marker, Popup, useMap } from "react-leaflet";
 import L from "leaflet";
 
 // Fix default marker icons in Vite/React builds
@@ -17,8 +17,6 @@ const DefaultIcon = L.icon({
 
 L.Marker.prototype.options.icon = DefaultIcon;
 
-const CACHE_KEY = "coreflex_geocode_cache_v1";
-
 function buildAddressString(x) {
   const parts = [
     x.street,
@@ -30,167 +28,63 @@ function buildAddressString(x) {
   return parts.join(", ");
 }
 
-function loadCache() {
-  try {
-    const raw = localStorage.getItem(CACHE_KEY);
-    return raw ? JSON.parse(raw) : {};
-  } catch {
-    return {};
-  }
-}
+// ✅ Fit map to all markers whenever markers change
+function FitBounds({ markers }) {
+  const map = useMap();
 
-function saveCache(cache) {
-  try {
-    localStorage.setItem(CACHE_KEY, JSON.stringify(cache));
-  } catch {
-    // ignore
-  }
-}
+  React.useEffect(() => {
+    if (!map) return;
 
-async function geocodeNominatim(q) {
-  // Nominatim usage: keep it gentle (no spam), cache results
-  const url = `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(
-    q
-  )}`;
+    if (!markers || markers.length === 0) return;
 
-  const res = await fetch(url, {
-    method: "GET",
-    headers: {
-      Accept: "application/json",
-      "Accept-Language": "en",
-    },
-    // helps in some deployments; safe to include
-    referrerPolicy: "no-referrer-when-downgrade",
-  });
+    const bounds = L.latLngBounds(
+      markers.map((m) => [m.lat, m.lng])
+    );
 
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    console.error("Nominatim error:", res.status, text);
-    return null;
-  }
+    // Add padding so pins aren't touching the edges
+    map.fitBounds(bounds, { padding: [40, 40] });
+  }, [map, markers]);
 
-  const data = await res.json();
-  if (!Array.isArray(data) || data.length === 0) {
-    console.warn("No geocode results for:", q);
-    return null;
-  }
-
-  const first = data[0];
-  return {
-    lat: parseFloat(first.lat),
-    lng: parseFloat(first.lon),
-  };
+  return null;
 }
 
 export default function LocationsMapModal({ open, onClose, items }) {
-  const [loading, setLoading] = useState(false);
-  const [coordsById, setCoordsById] = useState({}); // { [id]: {lat,lng} }
-  const [error, setError] = useState("");
+  const safeItems = Array.isArray(items) ? items : [];
 
+  // ✅ Markers come straight from DB coords now
   const markers = useMemo(() => {
-    const m = [];
-    for (const x of items || []) {
-      const c = coordsById[x.id];
-      if (c?.lat != null && c?.lng != null) {
-        m.push({ id: x.id, lat: c.lat, lng: c.lng, item: x });
-      }
-    }
-    return m;
-  }, [items, coordsById]);
+    return safeItems
+      .filter(
+        (x) =>
+          x?.lat != null &&
+          x?.lng != null &&
+          !Number.isNaN(Number(x.lat)) &&
+          !Number.isNaN(Number(x.lng))
+      )
+      .map((x) => ({
+        id: x.id,
+        lat: Number(x.lat),
+        lng: Number(x.lng),
+        item: x,
+      }));
+  }, [safeItems]);
 
-  const center = useMemo(() => {
-    // If we have markers, center on first marker; else center US
+  const total = safeItems.length;
+  const pinned = markers.length;
+  const missing = Math.max(0, total - pinned);
+
+  const fallbackCenter = useMemo(() => {
+    // If we have at least 1 marker, center on first; else USA
     if (markers.length > 0) return [markers[0].lat, markers[0].lng];
     return [39.5, -98.35]; // USA center-ish
   }, [markers]);
-
-  useEffect(() => {
-    if (!open) return;
-
-    let cancelled = false;
-
-    const run = async () => {
-      setError("");
-      setLoading(true);
-
-      const cache = loadCache();
-      const nextCoords = {};
-
-      // Pre-fill from cache
-      for (const x of items || []) {
-        const addr = buildAddressString(x);
-        const cached = cache[addr];
-        if (cached?.lat != null && cached?.lng != null) {
-          nextCoords[x.id] = cached;
-        }
-      }
-
-      if (!cancelled) setCoordsById((prev) => ({ ...prev, ...nextCoords }));
-
-      // Now geocode missing ones (sequential + small delay)
-      const toGeocode = (items || []).filter((x) => {
-        const addr = buildAddressString(x);
-        const cached = cache[addr];
-        return !(cached?.lat != null && cached?.lng != null);
-      });
-
-      let resolvedCount = 0;
-
-      for (const x of toGeocode) {
-        if (cancelled) break;
-
-        const addr = buildAddressString(x);
-
-        try {
-          const coords = await geocodeNominatim(addr);
-
-          if (coords?.lat != null && coords?.lng != null) {
-            resolvedCount += 1;
-
-            cache[addr] = coords;
-            saveCache(cache);
-
-            if (!cancelled) {
-              setCoordsById((prev) => ({
-                ...prev,
-                [x.id]: coords,
-              }));
-            }
-          }
-        } catch (err) {
-          console.error("Geocode failed for:", addr, err);
-          // ignore per item
-        }
-
-        // gentle delay (avoid rate-limits)
-        await new Promise((r) => setTimeout(r, 450));
-      }
-
-      if (!cancelled) {
-        // If none resolved, show hint
-        if ((items || []).length > 0 && resolvedCount === 0 && markers.length === 0) {
-          setError(
-            "Could not geocode addresses. (Geocoder may be blocking requests or address not found)"
-          );
-        }
-        setLoading(false);
-      }
-    };
-
-    run();
-
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]); // keep it only when opening
 
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black bg-opacity-40 p-4">
       {/* ✅ BIGGER + TALLER MODAL */}
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-[95vw] h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-xl shadow-xl w-full max-w-[95vw] h-[92vh] overflow-hidden flex flex-col">
         {/* Header */}
         <div className="flex items-center justify-between px-5 py-4 border-b">
           <div>
@@ -198,7 +92,7 @@ export default function LocationsMapModal({ open, onClose, items }) {
               Customer Locations Map
             </div>
             <div className="text-xs text-gray-500">
-              Pins are generated from your saved addresses.
+              Pins come from saved coordinates (lat/lng) in your database.
             </div>
           </div>
 
@@ -212,31 +106,33 @@ export default function LocationsMapModal({ open, onClose, items }) {
 
         {/* Body */}
         <div className="p-5 flex-1 flex flex-col min-h-0">
-          {error ? (
-            <div className="text-sm text-red-600 mb-3">{error}</div>
-          ) : null}
-
-          <div className="flex items-center justify-between mb-3">
+          {/* Stats row */}
+          <div className="flex items-center justify-between mb-3 gap-3">
             <div className="text-sm text-gray-600">
               Showing{" "}
-              <span className="font-semibold text-gray-800">{markers.length}</span>{" "}
+              <span className="font-semibold text-gray-800">{pinned}</span>{" "}
               pin(s) out of{" "}
-              <span className="font-semibold text-gray-800">
-                {(items || []).length}
-              </span>{" "}
+              <span className="font-semibold text-gray-800">{total}</span>{" "}
               location(s)
             </div>
 
-            {loading ? (
-              <div className="text-sm text-gray-600">Loading map pins…</div>
-            ) : null}
+            {missing > 0 ? (
+              <div className="text-xs text-amber-700 bg-amber-50 border border-amber-200 px-3 py-2 rounded-md">
+                {missing} location(s) missing coordinates yet. (They will appear
+                once backend geocoding runs.)
+              </div>
+            ) : (
+              <div className="text-xs text-green-700 bg-green-50 border border-green-200 px-3 py-2 rounded-md">
+                All locations have pins ✅
+              </div>
+            )}
           </div>
 
-          {/* ✅ map fills the remaining modal height */}
+          {/* Map */}
           <div className="flex-1 w-full rounded-lg overflow-hidden border border-gray-200 min-h-0">
             <MapContainer
-              center={center}
-              zoom={markers.length > 0 ? 10 : 4}
+              center={fallbackCenter}
+              zoom={markers.length > 0 ? 8 : 4}
               style={{ width: "100%", height: "100%" }}
               scrollWheelZoom={true}
             >
@@ -244,6 +140,9 @@ export default function LocationsMapModal({ open, onClose, items }) {
                 attribution="&copy; OpenStreetMap contributors"
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
+
+              {/* ✅ Auto fit to markers */}
+              <FitBounds markers={markers} />
 
               {markers.map((m) => (
                 <Marker key={m.id} position={[m.lat, m.lng]}>
@@ -260,12 +159,28 @@ export default function LocationsMapModal({ open, onClose, items }) {
                           {m.item.notes}
                         </div>
                       ) : null}
+                      <div className="mt-2 text-[11px] text-gray-400">
+                        lat: {m.lat}, lng: {m.lng}
+                      </div>
                     </div>
                   </Popup>
                 </Marker>
               ))}
+
+              {/* Helpful empty state */}
+              {markers.length === 0 ? (
+                <></>
+              ) : null}
             </MapContainer>
           </div>
+
+          {markers.length === 0 ? (
+            <div className="mt-3 text-sm text-gray-600">
+              No pins yet. This usually means the locations don’t have lat/lng
+              saved in the DB yet. Once you create new locations (or run backend
+              geocoding for existing ones), pins will appear here.
+            </div>
+          ) : null}
         </div>
       </div>
     </div>
