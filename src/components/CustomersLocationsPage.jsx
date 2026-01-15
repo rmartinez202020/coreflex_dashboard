@@ -4,6 +4,140 @@ import { getToken } from "../utils/authToken";
 import AddressPicker from "./AddressPicker";
 import LocationsMapModal from "./LocationsMapModal";
 
+// Leaflet (map picker)
+import { MapContainer, TileLayer, Marker, useMapEvents } from "react-leaflet";
+import L from "leaflet";
+import "leaflet/dist/leaflet.css";
+
+// Fix default marker icons (important for Vite/React builds)
+import markerIcon2x from "leaflet/dist/images/marker-icon-2x.png";
+import markerIcon from "leaflet/dist/images/marker-icon.png";
+import markerShadow from "leaflet/dist/images/marker-shadow.png";
+
+delete L.Icon.Default.prototype._getIconUrl;
+L.Icon.Default.mergeOptions({
+  iconRetinaUrl: markerIcon2x,
+  iconUrl: markerIcon,
+  shadowUrl: markerShadow,
+});
+
+// Small helper to format coords nicely
+const fmt = (n) => (typeof n === "number" ? n.toFixed(6) : "");
+
+function PinPickerMap({ value, onChange }) {
+  // value: { lat: number|null, lng: number|null }
+  const start = useMemo(() => {
+    // Default center (NJ-ish) if no pin yet
+    if (value?.lat != null && value?.lng != null) return [value.lat, value.lng];
+    return [40.275, -74.55];
+  }, [value?.lat, value?.lng]);
+
+  function ClickToSetMarker() {
+    useMapEvents({
+      click(e) {
+        onChange({ lat: e.latlng.lat, lng: e.latlng.lng });
+      },
+    });
+    return null;
+  }
+
+  return (
+    <div className="w-full h-[480px] rounded-lg overflow-hidden border border-gray-200">
+      <MapContainer
+        center={start}
+        zoom={value?.lat != null ? 14 : 6}
+        style={{ width: "100%", height: "100%" }}
+      >
+        <TileLayer
+          attribution='&copy; OpenStreetMap contributors'
+          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+        />
+        <ClickToSetMarker />
+        {value?.lat != null && value?.lng != null ? (
+          <Marker
+            position={[value.lat, value.lng]}
+            draggable
+            eventHandlers={{
+              dragend: (e) => {
+                const ll = e.target.getLatLng();
+                onChange({ lat: ll.lat, lng: ll.lng });
+              },
+            }}
+          />
+        ) : null}
+      </MapContainer>
+    </div>
+  );
+}
+
+function PinPickerModal({ open, onClose, value, onConfirm }) {
+  const [temp, setTemp] = useState(value || { lat: null, lng: null });
+
+  useEffect(() => {
+    if (open) setTemp(value || { lat: null, lng: null });
+  }, [open, value]);
+
+  if (!open) return null;
+
+  const hasPin = temp?.lat != null && temp?.lng != null;
+
+  return (
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40 p-4">
+      <div className="bg-white rounded-xl shadow-lg w-full max-w-4xl p-5">
+        <div className="flex items-center justify-between gap-3">
+          <div>
+            <h4 className="text-lg font-semibold text-gray-800">Pin on map</h4>
+            <p className="text-xs text-gray-500 mt-1">
+              Click on the map to drop a pin. You can also drag the pin to adjust.
+            </p>
+          </div>
+
+          <button
+            onClick={onClose}
+            className="px-3 py-2 rounded-md border border-gray-300 hover:bg-gray-50"
+          >
+            Close
+          </button>
+        </div>
+
+        <div className="mt-4">
+          <PinPickerMap value={temp} onChange={setTemp} />
+        </div>
+
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <div className="text-sm text-gray-700">
+            {hasPin ? (
+              <span>
+                Selected: <span className="font-mono">Lat {fmt(temp.lat)}, Lng {fmt(temp.lng)}</span>
+              </span>
+            ) : (
+              <span className="text-gray-500">No pin selected yet.</span>
+            )}
+          </div>
+
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setTemp({ lat: null, lng: null })}
+              className="px-4 py-2 rounded-md bg-gray-100 hover:bg-gray-200 text-gray-800"
+            >
+              Clear
+            </button>
+            <button
+              onClick={() => onConfirm(temp)}
+              disabled={!hasPin}
+              className={`px-4 py-2 rounded-md text-white ${
+                !hasPin ? "bg-gray-300 cursor-not-allowed" : "bg-teal-600 hover:bg-teal-700"
+              }`}
+            >
+              Use this pin
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function CustomersLocationsPage({ subPageColor, setActiveSubPage }) {
   const [items, setItems] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -11,8 +145,11 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
   // If editingItemId != null => edit mode
   const [editingItemId, setEditingItemId] = useState(null);
 
-  // Map modal
+  // Map modal (view pins)
   const [showMap, setShowMap] = useState(false);
+
+  // Pin picker modal (set pin for current form)
+  const [showPinPicker, setShowPinPicker] = useState(false);
 
   const emptyForm = useMemo(
     () => ({
@@ -26,6 +163,8 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
         street: "",
         zip: "",
       },
+      // ✅ NEW: optional manual pin coords
+      pin: { lat: null, lng: null },
     }),
     []
   );
@@ -82,6 +221,11 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
         street: x.street || "",
         zip: x.zip || "",
       },
+      // ✅ Load existing coordinates (if any)
+      pin: {
+        lat: typeof x.lat === "number" ? x.lat : null,
+        lng: typeof x.lng === "number" ? x.lng : null,
+      },
     });
 
     // scroll user to the top form area
@@ -113,8 +257,10 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
     zip: form.address.zip.trim(),
     country: form.address.country || "United States",
     notes: form.notes?.trim() || null,
-    lat: null,
-    lng: null,
+
+    // ✅ NEW: send manual pin if chosen
+    lat: form.pin?.lat ?? null,
+    lng: form.pin?.lng ?? null,
   });
 
   const save = async () => {
@@ -223,6 +369,8 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
     }
   };
 
+  const hasPin = form.pin?.lat != null && form.pin?.lng != null;
+
   return (
     <div className="w-full h-full">
       {/* HEADER */}
@@ -300,15 +448,53 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
               />
             </div>
 
-            <button
-              onClick={save}
-              disabled={saving}
-              className={`px-6 py-3 text-white rounded-lg transition ${
-                saving ? "bg-teal-300 cursor-not-allowed" : "bg-teal-600 hover:bg-teal-700"
-              }`}
-            >
-              {saving ? "Saving..." : editingItemId ? "Update Customer/Location" : "Save Customer/Location"}
-            </button>
+            {/* ✅ BUTTON ROW: Save + Pin on Map (yellow area) */}
+            <div className="flex items-center gap-3">
+              <button
+                onClick={save}
+                disabled={saving}
+                className={`px-6 py-3 text-white rounded-lg transition ${
+                  saving ? "bg-teal-300 cursor-not-allowed" : "bg-teal-600 hover:bg-teal-700"
+                }`}
+              >
+                {saving ? "Saving..." : editingItemId ? "Update Customer/Location" : "Save Customer/Location"}
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setShowPinPicker(true)}
+                disabled={saving}
+                className={`px-6 py-3 rounded-lg transition border ${
+                  saving
+                    ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+                    : hasPin
+                    ? "bg-teal-50 text-teal-800 border-teal-200 hover:bg-teal-100"
+                    : "bg-white text-gray-800 border-gray-300 hover:bg-gray-50"
+                }`}
+                title="Drop a pin to set the exact location (lat/lng)"
+              >
+                📍 {hasPin ? "Pin set" : "Pin on Map"}
+              </button>
+            </div>
+
+            {/* Show coords when pinned */}
+            {hasPin ? (
+              <div className="text-xs text-gray-600">
+                Pinned: <span className="font-mono">Lat {fmt(form.pin.lat)}, Lng {fmt(form.pin.lng)}</span>
+                <button
+                  type="button"
+                  className="ml-3 underline text-gray-600 hover:text-gray-900"
+                  onClick={() => setForm((p) => ({ ...p, pin: { lat: null, lng: null } }))}
+                  disabled={saving}
+                >
+                  clear
+                </button>
+              </div>
+            ) : (
+              <div className="text-xs text-gray-500">
+                Tip: Use <b>Pin on Map</b> if the address doesn’t geocode correctly.
+              </div>
+            )}
           </div>
         </div>
 
@@ -345,6 +531,15 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
                         {x.notes ? (
                           <div className="text-xs text-gray-500 mt-1">{x.notes}</div>
                         ) : null}
+
+                        {/* Small indicator if pinned or missing coords */}
+                        <div className="text-xs text-gray-500 mt-1">
+                          {typeof x.lat === "number" && typeof x.lng === "number"
+                            ? `📍 Pinned (${fmt(x.lat)}, ${fmt(x.lng)})`
+                            : x.geocode_status
+                            ? `⚠️ No coords (${x.geocode_status})`
+                            : "⚠️ No coords"}
+                        </div>
                       </div>
 
                       <div className="flex flex-col gap-2">
@@ -368,7 +563,7 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
             )}
           </div>
 
-          {/* Bottom button (yellow area) */}
+          {/* Bottom button (view map) */}
           <div className="pt-4">
             <button
               onClick={() => setShowMap(true)}
@@ -416,7 +611,18 @@ export default function CustomersLocationsPage({ subPageColor, setActiveSubPage 
         </div>
       ) : null}
 
-      {/* MAP MODAL */}
+      {/* PIN PICKER MODAL */}
+      <PinPickerModal
+        open={showPinPicker}
+        onClose={() => setShowPinPicker(false)}
+        value={form.pin}
+        onConfirm={(pin) => {
+          setForm((p) => ({ ...p, pin }));
+          setShowPinPicker(false);
+        }}
+      />
+
+      {/* MAP MODAL (VIEW) */}
       <LocationsMapModal
         open={showMap}
         onClose={() => setShowMap(false)}
