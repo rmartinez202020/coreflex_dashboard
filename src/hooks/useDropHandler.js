@@ -1,4 +1,12 @@
-export default function useDropHandler({ uploadedImages, setDroppedTanks }) {
+export default function useDropHandler({ setDroppedTanks }) {
+  const makeId = () => {
+    try {
+      return crypto.randomUUID();
+    } catch {
+      return Date.now().toString() + Math.random().toString(16).slice(2);
+    }
+  };
+
   const handleDrop = (e) => {
     e.preventDefault();
 
@@ -6,24 +14,22 @@ export default function useDropHandler({ uploadedImages, setDroppedTanks }) {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    // 1️⃣ USER IMAGE LIBRARY DROP
-    const imageId = e.dataTransfer.getData("imageId");
-    if (imageId) {
-      const img = uploadedImages.find((i) => i.id === imageId);
-      if (img) {
-        setDroppedTanks((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString(),
-            shape: "img",
-            x,
-            y,
-            scale: 1,
-            src: img.src,
-            zIndex: 1,
-          },
-        ]);
-      }
+    // 1️⃣ USER IMAGE LIBRARY DROP (Cloudinary)
+    // App.jsx / ImageLibrary.jsx sets: e.dataTransfer.setData("imageUrl", img.src)
+    const imageUrl = e.dataTransfer.getData("imageUrl");
+    if (imageUrl) {
+      setDroppedTanks((prev) => [
+        ...prev,
+        {
+          id: makeId(),
+          shape: "img",
+          x,
+          y,
+          scale: 1,
+          src: imageUrl,
+          zIndex: 1,
+        },
+      ]);
       return;
     }
 
@@ -33,7 +39,7 @@ export default function useDropHandler({ uploadedImages, setDroppedTanks }) {
       setDroppedTanks((prev) => [
         ...prev,
         {
-          id: Date.now().toString(),
+          id: makeId(),
           shape: "img",
           x,
           y,
@@ -54,7 +60,7 @@ export default function useDropHandler({ uploadedImages, setDroppedTanks }) {
         setDroppedTanks((prev) => [
           ...prev,
           {
-            id: Date.now().toString(),
+            id: makeId(),
             shape: "toggleSwitch",
             x,
             y,
@@ -72,7 +78,7 @@ export default function useDropHandler({ uploadedImages, setDroppedTanks }) {
         setDroppedTanks((prev) => [
           ...prev,
           {
-            id: Date.now().toString(),
+            id: makeId(),
             shape: "pushButtonNO",
             x,
             y,
@@ -90,7 +96,7 @@ export default function useDropHandler({ uploadedImages, setDroppedTanks }) {
         setDroppedTanks((prev) => [
           ...prev,
           {
-            id: Date.now().toString(),
+            id: makeId(),
             shape: "pushButtonNC",
             x,
             y,
@@ -108,7 +114,7 @@ export default function useDropHandler({ uploadedImages, setDroppedTanks }) {
         setDroppedTanks((prev) => [
           ...prev,
           {
-            id: Date.now().toString(),
+            id: makeId(),
             shape: "interlockControl",
             x,
             y,
@@ -133,7 +139,7 @@ export default function useDropHandler({ uploadedImages, setDroppedTanks }) {
       setDroppedTanks((prev) => [
         ...prev,
         {
-          id: Date.now().toString(),
+          id: makeId(),
           shape: "graphicDisplay",
           x,
           y,
@@ -178,7 +184,7 @@ export default function useDropHandler({ uploadedImages, setDroppedTanks }) {
       setDroppedTanks((prev) => [
         ...prev,
         {
-          id: Date.now().toString(),
+          id: makeId(),
           shape: "textBox",
           x,
           y,
@@ -197,7 +203,7 @@ export default function useDropHandler({ uploadedImages, setDroppedTanks }) {
     setDroppedTanks((prev) => [
       ...prev,
       {
-        id: Date.now().toString(),
+        id: makeId(),
         shape,
         x,
         y,

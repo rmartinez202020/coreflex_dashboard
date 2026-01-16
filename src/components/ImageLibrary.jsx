@@ -1,14 +1,126 @@
+import React, { useEffect, useRef, useState } from "react";
+import { API_URL } from "../config/api";
+import { getToken } from "../utils/authToken";
+
 export default function ImageLibrary({
   visible,
   position,
   size,
-  images,
   onClose,
-  onUpload,
   onDragStartImage,
   onStartDragWindow,
   onStartResizeWindow,
 }) {
+  const [images, setImages] = useState([]); // { id, src, public_id }
+  const [loading, setLoading] = useState(false);
+  const [uploading, setUploading] = useState(false);
+  const [statusText, setStatusText] = useState("");
+
+  const fileInputRef = useRef(null);
+
+  // ✅ Load user's images when modal opens
+  useEffect(() => {
+    if (!visible) return;
+
+    const load = async () => {
+      const token = getToken();
+
+      try {
+        if (!token) {
+          throw new Error("No auth token. Please login again.");
+        }
+
+        setLoading(true);
+        setStatusText("Loading images...");
+
+        const res = await fetch(`${API_URL}/images`, {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || "Failed to load images");
+        }
+
+        const data = await res.json();
+
+        // backend returns [{id,url,public_id,...}]
+        const mapped = (data || []).map((r) => ({
+          id: r.id,
+          src: r.url,
+          public_id: r.public_id,
+        }));
+
+        setImages(mapped);
+        setStatusText("");
+      } catch (e) {
+        console.error(e);
+        setStatusText(`Error: ${e.message}`);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    load();
+  }, [visible]);
+
+  // ✅ Sequential upload: prevents “only some saved”
+  const handleUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (!files.length) return;
+
+    const token = getToken();
+
+    try {
+      if (!token) {
+        throw new Error("No auth token. Please login again.");
+      }
+
+      setUploading(true);
+
+      for (let i = 0; i < files.length; i++) {
+        const file = files[i];
+        setStatusText(`Uploading ${i + 1} / ${files.length}...`);
+
+        const form = new FormData();
+        form.append("file", file);
+
+        const res = await fetch(`${API_URL}/images/upload`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+          body: form,
+        });
+
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.detail || "Upload failed");
+        }
+
+        const saved = await res.json();
+        // saved: {id,url,public_id,...}
+
+        setImages((prev) => [
+          { id: saved.id, src: saved.url, public_id: saved.public_id },
+          ...prev,
+        ]);
+      }
+
+      setStatusText("✅ Upload complete");
+      setTimeout(() => setStatusText(""), 1200);
+    } catch (err) {
+      console.error(err);
+      setStatusText(`Error: ${err.message}`);
+    } finally {
+      setUploading(false);
+      // Reset file input so selecting same file again triggers onChange
+      if (fileInputRef.current) fileInputRef.current.value = "";
+    }
+  };
+
   if (!visible) return null;
 
   return (
@@ -47,7 +159,16 @@ export default function ImageLibrary({
         }}
         onMouseDown={(e) => onStartDragWindow(e)}
       >
-        Image Library
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span>Image Library</span>
+          {(loading || uploading || statusText) && (
+            <span style={{ fontWeight: 400, fontSize: 12, opacity: 0.9 }}>
+              {statusText ||
+                (loading ? "Loading..." : uploading ? "Uploading..." : "")}
+            </span>
+          )}
+        </div>
+
         <button
           onClick={onClose}
           style={{
@@ -73,11 +194,16 @@ export default function ImageLibrary({
       >
         {/* Upload Button */}
         <input
+          ref={fileInputRef}
           type="file"
           accept="image/*"
           multiple
-          onChange={onUpload}
-          style={{ marginBottom: 12, cursor: "pointer" }}
+          onChange={handleUpload}
+          disabled={uploading || loading}
+          style={{
+            marginBottom: 12,
+            cursor: uploading || loading ? "not-allowed" : "pointer",
+          }}
         />
 
         {/* IMAGE GRID */}
@@ -104,6 +230,7 @@ export default function ImageLibrary({
                 justifyContent: "center",
                 cursor: "grab",
               }}
+              title={img.public_id || ""}
             >
               <img
                 src={img.src}
@@ -113,6 +240,7 @@ export default function ImageLibrary({
                   objectFit: "contain",
                 }}
                 draggable={false}
+                alt=""
               />
             </div>
           ))}

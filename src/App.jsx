@@ -12,10 +12,6 @@ import GraphicDisplaySettingsModal from "./components/GraphicDisplaySettingsModa
 import CustomersLocationsPage from "./components/CustomersLocationsPage";
 
 
-
-const IMAGE_LIBRARY_KEY = "coreflex_image_library_v1";
-
-
 // ✅ UPDATED IMPORTS (use your helpers)
 import {
   getUserKeyFromToken,
@@ -126,30 +122,6 @@ export default function App() {
   // IMAGE LIBRARY WINDOW
   const [showImageLibrary, setShowImageLibrary] = useState(false);
   
-const [uploadedImages, setUploadedImages] = useState(() => {
-  try {
-    const saved = localStorage.getItem(IMAGE_LIBRARY_KEY);
-    return saved ? JSON.parse(saved) : [];
-  } catch {
-    return [];
-  }
-});
-
-  // ================================
-// 💾 IMAGE LIBRARY PERSISTENCE
-// Auto-save uploaded images so they survive refresh
-// ================================
-useEffect(() => {
-  try {
-    localStorage.setItem(
-      IMAGE_LIBRARY_KEY,
-      JSON.stringify(uploadedImages)
-    );
-  } catch (err) {
-    console.error("Image library persistence failed:", err);
-  }
-}, [uploadedImages]);
-
 
   const [imageLibraryPos, setImageLibraryPos] = useState({ x: 260, y: 140 });
   const [imageLibrarySize, setImageLibrarySize] = useState({
@@ -245,27 +217,6 @@ useEffect(() => {
       setIsRightCollapsed(false);
     }
   }, [dashboardMode]);
-
-  // ⭐ IMAGE UPLOAD FUNCTION
-  const handleImageUpload = (e) => {
-    const files = Array.from(e.target.files || []);
-    if (!files.length) return;
-
-    files.forEach((file) => {
-      const reader = new FileReader();
-      reader.onload = () =>
-        setUploadedImages((prev) => [
-          ...prev,
-          {
-            id: Date.now().toString() + Math.random().toString(16),
-            src: reader.result,
-          },
-        ]);
-      reader.readAsDataURL(file);
-    });
-
-    e.target.value = "";
-  };
 
   // ================================
   // 📡 FETCH LIVE SENSOR DATA FROM API
@@ -503,7 +454,7 @@ useEffect(() => {
 
   // DROP HANDLER
   const { handleDrop } = useDropHandler({
-    uploadedImages,
+  
     setDroppedTanks,
   });
 
@@ -750,22 +701,21 @@ useEffect(() => {
         )}
 
         <ImageLibrary
-          visible={showImageLibrary}
-          position={imageLibraryPos}
-          size={imageLibrarySize}
-          images={uploadedImages}
-          onClose={() => setShowImageLibrary(false)}
-          onUpload={handleImageUpload}
-          onDragStartImage={(e, img) => e.dataTransfer.setData("imageId", img.id)}
-          onStartDragWindow={(e) => {
-            setIsDraggingLibrary(true);
-            setLibraryDragOffset({
-              x: e.clientX - imageLibraryPos.x,
-              y: e.clientY - imageLibraryPos.y,
-            });
-          }}
-          onStartResizeWindow={() => setIsResizingLibrary(true)}
-        />
+  visible={showImageLibrary}
+  position={imageLibraryPos}
+  size={imageLibrarySize}
+  onClose={() => setShowImageLibrary(false)}
+  onDragStartImage={(e, img) => e.dataTransfer.setData("imageUrl", img.src)}
+  onStartDragWindow={(e) => {
+    setIsDraggingLibrary(true);
+    setLibraryDragOffset({
+      x: e.clientX - imageLibraryPos.x,
+      y: e.clientY - imageLibraryPos.y,
+    });
+  }}
+  onStartResizeWindow={() => setIsResizingLibrary(true)}
+/>
+
 
         <CoreFlexLibrary
           visible={showCoreflexLibrary}
