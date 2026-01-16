@@ -137,16 +137,16 @@ export default function App() {
   const [isResizingLibrary, setIsResizingLibrary] = useState(false);
   const [libraryDragOffset, setLibraryDragOffset] = useState({ x: 0, y: 0 });
 
-  // COREFLEX LIBRARY WINDOW
-  const [showCoreflexLibrary, setShowCoreflexLibrary] = useState(false);
-  const [coreflexLibraryPos, setCoreflexLibraryPos] = useState({
-    x: 680,
-    y: 140,
-  });
-  const [coreflexLibrarySize, setCoreflexLibrarySize] = useState({
-    width: 400,
-    height: 300,
-  });
+ // COREFLEX LIBRARY WINDOW
+const [showCoreflexLibrary, setShowCoreflexLibrary] = useState(false);
+const [coreflexLibraryPos, setCoreflexLibraryPos] = useState({
+  x: 520,
+  y: 120,
+});
+const [coreflexLibrarySize, setCoreflexLibrarySize] = useState({
+  width: 1200,   // ⬅️ was 400
+  height: 900,   // ⬅️ was 300
+});
   const [isDraggingCoreflex, setIsDraggingCoreflex] = useState(false);
   const [isResizingCoreflex, setIsResizingCoreflex] = useState(false);
   const [coreflexDragOffset, setCoreflexDragOffset] = useState({
@@ -507,8 +507,8 @@ export default function App() {
 
       if (isResizingCoreflex) {
         setCoreflexLibrarySize((prev) => ({
-          width: Math.max(260, e.clientX - coreflexLibraryPos.x),
-          height: Math.max(180, e.clientY - coreflexLibraryPos.y),
+          width: Math.max(600, e.clientX - coreflexLibraryPos.x),
+          height: Math.max(400, e.clientY - coreflexLibraryPos.y),
         }));
       }
     };
