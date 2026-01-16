@@ -124,10 +124,15 @@ export default function App() {
   
 
   const [imageLibraryPos, setImageLibraryPos] = useState({ x: 260, y: 140 });
-  const [imageLibrarySize, setImageLibrarySize] = useState({
-    width: 400,
-    height: 300,
-  });
+  const [imageLibrarySize, setImageLibrarySize] = useState(() => {
+  const maxW = window.innerWidth - 80;
+  const maxH = window.innerHeight - 140;
+
+  return {
+    width: Math.min(1200, maxW),  // 400 * 3
+    height: Math.min(900, maxH),  // 300 * 3
+  };
+});
   const [isDraggingLibrary, setIsDraggingLibrary] = useState(false);
   const [isResizingLibrary, setIsResizingLibrary] = useState(false);
   const [libraryDragOffset, setLibraryDragOffset] = useState({ x: 0, y: 0 });
@@ -488,8 +493,8 @@ export default function App() {
 
       if (isResizingLibrary) {
         setImageLibrarySize((prev) => ({
-          width: Math.max(260, e.clientX - imageLibraryPos.x),
-          height: Math.max(180, e.clientY - imageLibraryPos.y),
+          width: Math.max(600, e.clientX - imageLibraryPos.x),
+          height: Math.max(400, e.clientY - imageLibraryPos.y),
         }));
       }
 
