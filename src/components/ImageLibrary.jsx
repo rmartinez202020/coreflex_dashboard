@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 
@@ -12,11 +12,14 @@ export default function ImageLibrary({
   onStartResizeWindow,
 }) {
   const [images, setImages] = useState([]); // { id, src, public_id }
-  const [selectedIds, setSelectedIds] = useState([]); // selected image ids
   const [loading, setLoading] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [statusText, setStatusText] = useState("");
+
+  // ✅ Multi-select
+  const [selectedIds, setSelectedIds] = useState([]); // array of imageAsset.id
+  const lastClickedIndexRef = useRef(null);
 
   const token = getToken();
   const fileInputRef = useRef(null);
@@ -29,7 +32,6 @@ export default function ImageLibrary({
       try {
         setLoading(true);
         setStatusText("Loading images...");
-
         const res = await fetch(`${API_URL}/images`, {
           headers: { Authorization: `Bearer ${token}` },
         });
@@ -47,7 +49,8 @@ export default function ImageLibrary({
         }));
 
         setImages(mapped);
-        setSelectedIds([]);
+        setSelectedIds([]); // reset selection on open
+        lastClickedIndexRef.current = null;
         setStatusText("");
       } catch (e) {
         console.error(e);
@@ -87,7 +90,6 @@ export default function ImageLibrary({
         }
 
         const saved = await res.json();
-
         setImages((prev) => [
           { id: saved.id, src: saved.url, public_id: saved.public_id },
           ...prev,
@@ -105,25 +107,55 @@ export default function ImageLibrary({
     }
   };
 
-  // ✅ Click to select (shift-click adds/removes)
-  const toggleSelect = (id, shiftKey) => {
+  // ✅ Multi-select click handling (toggle + shift range)
+  const handleClickImage = (e, imgId, index) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const isShift = e.shiftKey;
+    const isToggleKey = e.ctrlKey || e.metaKey; // ctrl on Windows/Linux, cmd on Mac
+
+    // If shift-click and we have an anchor, select range
+    if (isShift && lastClickedIndexRef.current !== null) {
+      const start = Math.min(lastClickedIndexRef.current, index);
+      const end = Math.max(lastClickedIndexRef.current, index);
+
+      const rangeIds = images.slice(start, end + 1).map((x) => x.id);
+
+      // If toggle key also pressed, we "add range"
+      // Otherwise, we replace selection with range (common UX)
+      setSelectedIds((prev) => {
+        if (isToggleKey) {
+          const set = new Set(prev);
+          rangeIds.forEach((id) => set.add(id));
+          return Array.from(set);
+        }
+        return rangeIds;
+      });
+
+      return;
+    }
+
+    // Normal click (or ctrl/cmd click): toggle selection
     setSelectedIds((prev) => {
-      const exists = prev.includes(id);
-      if (shiftKey) {
-        // multi select toggle
-        return exists ? prev.filter((x) => x !== id) : [...prev, id];
-      }
-      // single select
-      return exists ? [] : [id];
+      const exists = prev.includes(imgId);
+      if (exists) return prev.filter((id) => id !== imgId);
+
+      // If user did NOT hold ctrl/cmd, many apps replace selection with single.
+      // But you asked for multi selection, so we keep "toggle" as default.
+      return [...prev, imgId];
     });
+
+    lastClickedIndexRef.current = index;
   };
 
-  // ✅ Delete selected
+  // ✅ Delete selected (calls backend per image)
   const handleDeleteSelected = async () => {
     if (!selectedIds.length) return;
 
+    // confirm once
     const ok = window.confirm(
-      `Delete ${selectedIds.length} image(s)? This cannot be undone.`
+      `Delete ${selectedIds.length} image(s) from your library?`
     );
     if (!ok) return;
 
@@ -131,7 +163,7 @@ export default function ImageLibrary({
       setDeleting(true);
       setStatusText(`Deleting ${selectedIds.length}...`);
 
-      // delete sequentially (simple + reliable)
+      // delete sequential to be safe with rate limits
       for (let i = 0; i < selectedIds.length; i++) {
         const id = selectedIds[i];
         setStatusText(`Deleting ${i + 1} / ${selectedIds.length}...`);
@@ -143,13 +175,14 @@ export default function ImageLibrary({
 
         if (!res.ok) {
           const err = await res.json().catch(() => ({}));
-          throw new Error(err.detail || "Delete failed");
+          throw new Error(err.detail || `Delete failed for image ${id}`);
         }
       }
 
-      // remove locally
+      // update UI
       setImages((prev) => prev.filter((img) => !selectedIds.includes(img.id)));
       setSelectedIds([]);
+      lastClickedIndexRef.current = null;
 
       setStatusText("✅ Deleted");
       setTimeout(() => setStatusText(""), 1200);
@@ -159,6 +192,11 @@ export default function ImageLibrary({
     } finally {
       setDeleting(false);
     }
+  };
+
+  const clearSelection = () => {
+    setSelectedIds([]);
+    lastClickedIndexRef.current = null;
   };
 
   if (!visible) return null;
@@ -206,7 +244,13 @@ export default function ImageLibrary({
           {(busy || statusText) && (
             <span style={{ fontWeight: 400, fontSize: 12, opacity: 0.9 }}>
               {statusText ||
-                (loading ? "Loading..." : uploading ? "Uploading..." : deleting ? "Deleting..." : "")}
+                (loading
+                  ? "Loading..."
+                  : uploading
+                  ? "Uploading..."
+                  : deleting
+                  ? "Deleting..."
+                  : "")}
             </span>
           )}
         </div>
@@ -225,6 +269,67 @@ export default function ImageLibrary({
         </button>
       </div>
 
+      {/* TOOLBAR */}
+      <div
+        style={{
+          padding: "8px 10px",
+          display: "flex",
+          gap: 10,
+          alignItems: "center",
+          borderBottom: "1px solid #e5e7eb",
+        }}
+      >
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={handleUpload}
+          disabled={uploading || deleting}
+          style={{
+            cursor: uploading || deleting ? "not-allowed" : "pointer",
+          }}
+        />
+
+        <button
+          onClick={handleDeleteSelected}
+          disabled={!selectedIds.length || busy}
+          style={{
+            padding: "7px 12px",
+            borderRadius: 8,
+            border: "1px solid #ef4444",
+            background: selectedIds.length ? "#ef4444" : "#fee2e2",
+            color: selectedIds.length ? "white" : "#991b1b",
+            cursor: !selectedIds.length || busy ? "not-allowed" : "pointer",
+            fontWeight: 700,
+          }}
+          title="Delete selected images"
+        >
+          Delete Selected ({selectedIds.length})
+        </button>
+
+        <button
+          onClick={clearSelection}
+          disabled={!selectedIds.length || busy}
+          style={{
+            padding: "7px 12px",
+            borderRadius: 8,
+            border: "1px solid #64748b",
+            background: "white",
+            color: "#0f172a",
+            cursor: !selectedIds.length || busy ? "not-allowed" : "pointer",
+            fontWeight: 600,
+          }}
+          title="Clear selection"
+        >
+          Clear
+        </button>
+
+        <div style={{ marginLeft: "auto", fontSize: 12, color: "#334155" }}>
+          Tip: click to multi-select, Shift+click for range
+        </div>
+      </div>
+
       {/* CONTENT */}
       <div
         style={{
@@ -234,35 +339,6 @@ export default function ImageLibrary({
           background: "white",
         }}
       >
-        {/* Upload + Delete bar */}
-        <div style={{ display: "flex", gap: 10, alignItems: "center", marginBottom: 12 }}>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept="image/*"
-            multiple
-            onChange={handleUpload}
-            disabled={busy}
-            style={{ cursor: busy ? "not-allowed" : "pointer" }}
-          />
-
-          <button
-            onClick={handleDeleteSelected}
-            disabled={busy || selectedIds.length === 0}
-            style={{
-              padding: "8px 10px",
-              borderRadius: 8,
-              border: "1px solid #cbd5e1",
-              background: selectedIds.length ? "#ef4444" : "#e5e7eb",
-              color: selectedIds.length ? "white" : "#6b7280",
-              cursor: busy || !selectedIds.length ? "not-allowed" : "pointer",
-              fontWeight: 600,
-            }}
-          >
-            Delete Selected ({selectedIds.length})
-          </button>
-        </div>
-
         {/* IMAGE GRID */}
         <div
           style={{
@@ -271,25 +347,26 @@ export default function ImageLibrary({
             gap: "12px",
           }}
         >
-          {images.map((img) => {
+          {images.map((img, index) => {
             const selected = selectedIds.includes(img.id);
+
             return (
               <div
                 key={img.id}
                 draggable
                 onDragStart={(e) => onDragStartImage(e, img)}
-                onClick={(e) => toggleSelect(img.id, e.shiftKey)}
+                onClick={(e) => handleClickImage(e, img.id, index)}
                 style={{
                   width: 70,
                   height: 70,
                   border: selected ? "2px solid #2563eb" : "1px solid #d1d5db",
                   borderRadius: "6px",
-                  background: selected ? "rgba(37,99,235,0.08)" : "white",
+                  background: selected ? "#eff6ff" : "white",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   cursor: "pointer",
-                  boxSizing: "border-box",
+                  boxShadow: selected ? "0 0 0 2px rgba(37,99,235,0.25)" : "none",
                 }}
                 title={img.public_id || ""}
               >
