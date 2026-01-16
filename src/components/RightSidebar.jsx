@@ -1,8 +1,15 @@
+// RightSidebar.jsx
 export default function RightSidebar({
   isRightCollapsed,
   setIsRightCollapsed,
   setShowImageLibrary,
   setShowCoreflexLibrary,
+
+  // ✅ NEW independent folders/windows
+  setShowHmiLibrary,
+  setShowHvacLibrary,
+  setShowManufacturingLibrary,
+  setShowTanksPipesLibrary,
 }) {
   return (
     <aside
@@ -54,7 +61,6 @@ export default function RightSidebar({
               draggable
               onDragStart={(e) => e.dataTransfer.setData("shape", "displayBox")}
             >
-              {/* PREVIEW OF DISPLAY */}
               <div
                 style={{
                   width: "100px",
@@ -79,7 +85,7 @@ export default function RightSidebar({
               <span className="text-[14px] text-center">Display</span>
             </div>
 
-            {/* ✅ NEW: GRAPHIC DISPLAY (Trend / Chart) */}
+            {/* GRAPHIC DISPLAY */}
             <div
               className="cursor-pointer flex flex-col items-center gap-1"
               draggable
@@ -87,20 +93,20 @@ export default function RightSidebar({
                 e.dataTransfer.setData("shape", "graphicDisplay")
               }
             >
-              {/* PREVIEW OF GRAPHIC DISPLAY */}
               <div
                 style={{
                   width: "120px",
                   height: "55px",
-                  background: "linear-gradient(180deg, #ffffff 0%, #f3f3f3 100%)",
+                  background:
+                    "linear-gradient(180deg, #ffffff 0%, #f3f3f3 100%)",
                   borderRadius: 8,
                   border: "2px solid #cfcfcf",
-                  boxShadow: "0 4px 10px rgba(0,0,0,0.08), inset 0 0 6px rgba(0,0,0,0.10)",
+                  boxShadow:
+                    "0 4px 10px rgba(0,0,0,0.08), inset 0 0 6px rgba(0,0,0,0.10)",
                   position: "relative",
                   overflow: "hidden",
                 }}
               >
-                {/* small grid lines */}
                 <div
                   style={{
                     position: "absolute",
@@ -111,8 +117,6 @@ export default function RightSidebar({
                     opacity: 0.55,
                   }}
                 />
-
-                {/* fake trend line */}
                 <svg
                   width="120"
                   height="55"
@@ -148,21 +152,50 @@ export default function RightSidebar({
             </div>
           </div>
 
-          {/* IMAGE LIBRARY */}
-          <h3
-            className="text-sm font-semibold mb-3 text-gray-600 cursor-pointer hover:text-blue-500"
+          {/* LIBRARIES */}
+          <h3 className="text-sm font-semibold mb-3 text-gray-600">Libraries</h3>
+
+          <div
+            className="text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
             onClick={() => setShowImageLibrary(true)}
           >
-            📁 Image Library
-          </h3>
+            📁 <span>Image Library</span>
+          </div>
 
-          {/* COREFLEX STATIC LIBRARY */}
-          <h3
-            className="mt-6 text-sm font-semibold mb-3 text-gray-600 cursor-pointer hover:text-blue-500"
+          <div
+            className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
             onClick={() => setShowCoreflexLibrary(true)}
           >
-            📁 CoreFlex IOTs Library
-          </h3>
+            📁 <span>CoreFlex IOTs Library</span>
+          </div>
+
+          <div
+            className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
+            onClick={() => setShowHmiLibrary(true)}
+          >
+            📁 <span>HMI Symbols</span>
+          </div>
+
+          <div
+            className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
+            onClick={() => setShowHvacLibrary(true)}
+          >
+            📁 <span>HVAC Symbols</span>
+          </div>
+
+          <div
+            className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
+            onClick={() => setShowManufacturingLibrary(true)}
+          >
+            📁 <span>Manufacturing Symbols</span>
+          </div>
+
+          <div
+            className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
+            onClick={() => setShowTanksPipesLibrary(true)}
+          >
+            📁 <span>Tanks & Pipes Symbols</span>
+          </div>
         </div>
       )}
     </aside>
