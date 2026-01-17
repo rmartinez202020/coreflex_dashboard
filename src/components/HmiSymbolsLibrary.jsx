@@ -1,6 +1,5 @@
-// HmiSymbolsLibrary.jsx
 import FloatingWindow from "./FloatingWindow";
-import HmiSymbolsLibraryContent from "../assets/Hmi-symbols/HmiSymbolsLibraryContent";
+import HmiSymbolsLibraryContent from "../assets/Hmi-symbols/HmiSymbolsLibraryContent.jsx";
 
 export default function HmiSymbolsLibrary(props) {
   return (
@@ -9,3 +8,4 @@ export default function HmiSymbolsLibrary(props) {
     </FloatingWindow>
   );
 }
+

@@ -1,6 +1,5 @@
-// TanksAndPipesSymbols3DLibrary.jsx
 import FloatingWindow from "./FloatingWindow";
-import TanksAndPipesSymbols3DLibraryContent from "../assets/tanks-and-pipes-symbols-3d/TanksAndPipesSymbols3DLibraryContent";
+import TanksAndPipesSymbols3DLibraryContent from "../assets/tanks-and-pipes-symbols-3d/TanksAndPipesSymbols3DLibraryContent.jsx";
 
 export default function TanksAndPipesSymbols3DLibrary(props) {
   return (
