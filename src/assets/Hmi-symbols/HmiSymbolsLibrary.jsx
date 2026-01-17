@@ -1,5 +1,6 @@
 import React from "react";
-import "./CoreFlexIOTsLibrary.css";
+import "../coreflex-iots-library/CoreFlexIOTsLibrary.css";
+
 
 const images = import.meta.glob(
   "/src/assets/hmi-symbols/*.{png,jpg,jpeg,svg,gif}",
