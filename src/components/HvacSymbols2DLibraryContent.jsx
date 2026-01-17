@@ -1,10 +1,10 @@
-import React from "react";
+import HvacSymbols2DLibrary from "../assets/hvac-symbols-2d/HvacSymbols2DLibrary";
 
 export default function HvacSymbols2DLibraryContent() {
   return (
-    <div className="p-4">
-      <h3 className="text-lg font-semibold">HVAC Symbols 2D</h3>
-      <p className="text-sm text-gray-500">Content connected successfully.</p>
-    </div>
+    <HvacSymbols2DLibrary
+      onSelect={(src) => console.log("Selected:", src)}
+      onDragStart={(src) => console.log("Dragging:", src)}
+    />
   );
 }

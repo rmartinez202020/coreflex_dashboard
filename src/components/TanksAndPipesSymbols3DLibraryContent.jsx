@@ -1,10 +1,10 @@
-import React from "react";
+import TanksAndPipesSymbols3DLibrary from "../assets/tanks-and-pipes-symbols-3d/TanksAndPipesSymbols3DLibrary";
 
 export default function TanksAndPipesSymbols3DLibraryContent() {
   return (
-    <div className="p-4">
-      <h3 className="text-lg font-semibold">Tanks & Pipes Symbols 3D</h3>
-      <p className="text-sm text-gray-500">Content connected successfully.</p>
-    </div>
+    <TanksAndPipesSymbols3DLibrary
+      onSelect={(src) => console.log("Selected:", src)}
+      onDragStart={(src) => console.log("Dragging:", src)}
+    />
   );
 }

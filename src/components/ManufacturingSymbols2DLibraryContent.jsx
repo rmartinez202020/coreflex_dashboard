@@ -1,10 +1,10 @@
-import React from "react";
+import ManufacturingSymbols2DLibrary from "../assets/manufacturing-symbols-2d/ManufacturingSymbols2DLibrary";
 
 export default function ManufacturingSymbols2DLibraryContent() {
   return (
-    <div className="p-4">
-      <h3 className="text-lg font-semibold">Manufacturing Symbols 2D</h3>
-      <p className="text-sm text-gray-500">Content connected successfully.</p>
-    </div>
+    <ManufacturingSymbols2DLibrary
+      onSelect={(src) => console.log("Selected:", src)}
+      onDragStart={(src) => console.log("Dragging:", src)}
+    />
   );
 }
