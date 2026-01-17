@@ -1,5 +1,5 @@
 import FloatingWindow from "./FloatingWindow";
-import HvacSymbols3DLibraryContent from "../assets/hvac-symbols-3d/HvacSymbols3DLibraryContent.jsx";
+import HvacSymbols3DLibraryContent from "./HvacSymbols3DLibraryContent";
 
 export default function HvacSymbols3DLibrary(props) {
   return (
