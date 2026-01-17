@@ -1,5 +1,5 @@
 import FloatingWindow from "./FloatingWindow";
-import TanksAndPipesSymbols2DLibraryContent from "../assets/tanks-and-pipes-symbols-2d/TanksAndPipesSymbols2DLibraryContent.jsx";
+import TanksAndPipesSymbols2DLibraryContent from "./TanksAndPipesSymbols2DLibraryContent";
 
 export default function TanksAndPipesSymbols2DLibrary(props) {
   return (
