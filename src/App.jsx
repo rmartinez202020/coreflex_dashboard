@@ -11,6 +11,14 @@ import RestoreWarningModal from "./components/RestoreWarningModal";
 import GraphicDisplaySettingsModal from "./components/GraphicDisplaySettingsModal";
 import CustomersLocationsPage from "./components/CustomersLocationsPage";
 
+import HmiSymbolsLibrary from "./components/HmiSymbolsLibrary";
+import HvacSymbols2DLibrary from "./components/HvacSymbols2DLibrary";
+import HvacSymbols3DLibrary from "./components/HvacSymbols3DLibrary";
+import ManufacturingSymbols2DLibrary from "./components/ManufacturingSymbols2DLibrary";
+import ManufacturingSymbols3DLibrary from "./components/ManufacturingSymbols3DLibrary";
+import TanksAndPipesSymbols2DLibrary from "./components/TanksAndPipesSymbols2DLibrary";
+import TanksAndPipesSymbols3DLibrary from "./components/TanksAndPipesSymbols3DLibrary";
+
 
 // ✅ UPDATED IMPORTS (use your helpers)
 import {
@@ -153,6 +161,46 @@ const [coreflexLibrarySize, setCoreflexLibrarySize] = useState({
     x: 0,
     y: 0,
   });
+
+  // ===============================
+// ✅ SYMBOL LIBRARIES DRAG / RESIZE
+// ===============================
+const [activeSymbolWindow, setActiveSymbolWindow] = useState(null);
+// "hmi" | "hvac2d" | "hvac3d" | "mfg2d" | "mfg3d" | "tp2d" | "tp3d"
+
+const [isDraggingSymbol, setIsDraggingSymbol] = useState(false);
+const [isResizingSymbol, setIsResizingSymbol] = useState(false);
+
+const [symbolDragOffset, setSymbolDragOffset] = useState({
+  x: 0,
+  y: 0,
+});
+
+
+  // ✅ SYMBOL LIBRARIES WINDOWS
+const [showHmiLibrary, setShowHmiLibrary] = useState(false);
+const [showHvac2DLibrary, setShowHvac2DLibrary] = useState(false);
+const [showHvac3DLibrary, setShowHvac3DLibrary] = useState(false);
+const [showManufacturing2DLibrary, setShowManufacturing2DLibrary] = useState(false);
+const [showManufacturing3DLibrary, setShowManufacturing3DLibrary] = useState(false);
+const [showTanksPipes2DLibrary, setShowTanksPipes2DLibrary] = useState(false);
+const [showTanksPipes3DLibrary, setShowTanksPipes3DLibrary] = useState(false);
+
+// positions (you can adjust)
+const [hmiPos, setHmiPos] = useState({ x: 520, y: 120 });
+const [hvac2DPos, setHvac2DPos] = useState({ x: 560, y: 140 });
+const [hvac3DPos, setHvac3DPos] = useState({ x: 600, y: 160 });
+const [mfg2DPos, setMfg2DPos] = useState({ x: 640, y: 180 });
+const [mfg3DPos, setMfg3DPos] = useState({ x: 680, y: 200 });
+const [tp2DPos, setTp2DPos] = useState({ x: 720, y: 220 });
+const [tp3DPos, setTp3DPos] = useState({ x: 760, y: 240 });
+
+// sizes (reuse CoreFlex size if you want)
+const [symbolsSize, setSymbolsSize] = useState({
+  width: 1200,
+  height: 900,
+});
+
 
   // SENSOR SETUP
   const sensors = useSensors(
@@ -374,6 +422,29 @@ const [coreflexLibrarySize, setCoreflexLibrarySize] = useState({
     }
   };
 
+  // ===============================
+// ✅ OPEN SYMBOL LIBRARIES (SYNC SIZE)
+// ===============================
+const openSymbolLibrary = (key) => {
+  // 🔁 Match CoreFlex library size on open
+  setSymbolsSize({
+    width: coreflexLibrarySize.width,
+    height: coreflexLibrarySize.height,
+  });
+
+  // track active symbol window (for drag/resize)
+  setActiveSymbolWindow(key);
+
+  if (key === "hmi") setShowHmiLibrary(true);
+  if (key === "hvac2d") setShowHvac2DLibrary(true);
+  if (key === "hvac3d") setShowHvac3DLibrary(true);
+  if (key === "mfg2d") setShowManufacturing2DLibrary(true);
+  if (key === "mfg3d") setShowManufacturing3DLibrary(true);
+  if (key === "tp2d") setShowTanksPipes2DLibrary(true);
+  if (key === "tp3d") setShowTanksPipes3DLibrary(true);
+};
+
+
   // ==========================================
   // ✅ AUTO-RESTORE FROM DB ON REFRESH (FIX)
   // ==========================================
@@ -512,6 +583,37 @@ const [coreflexLibrarySize, setCoreflexLibrarySize] = useState({
         }));
       }
     };
+
+    // ===============================
+// ✅ SYMBOL LIBRARIES DRAG / RESIZE
+// ===============================
+if (isDraggingSymbol && activeSymbolWindow) {
+  const setters = {
+    hmi: setHmiPos,
+    hvac2d: setHvac2DPos,
+    hvac3d: setHvac3DPos,
+    mfg2d: setMfg2DPos,
+    mfg3d: setMfg3DPos,
+    tp2d: setTp2DPos,
+    tp3d: setTp3DPos,
+  };
+
+  const setPos = setters[activeSymbolWindow];
+  if (setPos) {
+    setPos({
+      x: e.clientX - symbolDragOffset.x,
+      y: e.clientY - symbolDragOffset.y,
+    });
+  }
+}
+
+if (isResizingSymbol && activeSymbolWindow) {
+  setSymbolsSize((prev) => ({
+    width: Math.max(600, e.clientX - hmiPos.x),
+    height: Math.max(400, e.clientY - hmiPos.y),
+  }));
+}
+
 
     const handleMouseUp = () => {
       if (
@@ -736,6 +838,58 @@ const [coreflexLibrarySize, setCoreflexLibrarySize] = useState({
           }}
           onStartResizeWindow={() => setIsResizingCoreflex(true)}
         />
+
+        {/* ✅ ADD THEM RIGHT HERE */}
+<HmiSymbolsLibrary
+  visible={showHmiLibrary}
+  position={hmiPos}
+  size={symbolsSize}
+  onClose={() => setShowHmiLibrary(false)}
+/>
+
+<HvacSymbols2DLibrary
+  visible={showHvac2DLibrary}
+  position={hvac2DPos}
+  size={symbolsSize}
+  onClose={() => setShowHvac2DLibrary(false)}
+/>
+
+<HvacSymbols3DLibrary
+  visible={showHvac3DLibrary}
+  position={hvac3DPos}
+  size={symbolsSize}
+  onClose={() => setShowHvac3DLibrary(false)}
+/>
+
+<ManufacturingSymbols2DLibrary
+  visible={showManufacturing2DLibrary}
+  position={mfg2DPos}
+  size={symbolsSize}
+  onClose={() => setShowManufacturing2DLibrary(false)}
+/>
+
+<ManufacturingSymbols3DLibrary
+  visible={showManufacturing3DLibrary}
+  position={mfg3DPos}
+  size={symbolsSize}
+  onClose={() => setShowManufacturing3DLibrary(false)}
+/>
+
+<TanksAndPipesSymbols2DLibrary
+  visible={showTanksPipes2DLibrary}
+  position={tp2DPos}
+  size={symbolsSize}
+  onClose={() => setShowTanksPipes2DLibrary(false)}
+/>
+
+<TanksAndPipesSymbols3DLibrary
+  visible={showTanksPipes3DLibrary}
+  position={tp3DPos}
+  size={symbolsSize}
+  onClose={() => setShowTanksPipes3DLibrary(false)}
+/>
+{/* ✅ END ADD */}
+
       </main>
 
       <RestoreWarningModal
@@ -750,10 +904,17 @@ const [coreflexLibrarySize, setCoreflexLibrarySize] = useState({
 
       <RightSidebar
         isRightCollapsed={isRightCollapsed}
-        setIsRightCollapsed={setIsRightCollapsed}
-        setShowImageLibrary={setShowImageLibrary}
-        setShowCoreflexLibrary={setShowCoreflexLibrary}
-        dashboardMode={dashboardMode}
+  setIsRightCollapsed={setIsRightCollapsed}
+  setShowImageLibrary={setShowImageLibrary}
+  setShowCoreflexLibrary={setShowCoreflexLibrary}
+  setShowHmiLibrary={setShowHmiLibrary}
+  setShowHvac2DLibrary={setShowHvac2DLibrary}
+  setShowHvac3DLibrary={setShowHvac3DLibrary}
+  setShowManufacturing2DLibrary={setShowManufacturing2DLibrary}
+  setShowManufacturing3DLibrary={setShowManufacturing3DLibrary}
+  setShowTanksPipes2DLibrary={setShowTanksPipes2DLibrary}
+  setShowTanksPipes3DLibrary={setShowTanksPipes3DLibrary}
+  dashboardMode={dashboardMode}
       />
     </div>
   );

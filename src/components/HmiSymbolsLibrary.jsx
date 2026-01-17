@@ -1,10 +1,11 @@
-import HmiSymbolsLibraryContent from "../assets/hmi-symbols/HmiSymbolsLibraryContent";
-import CoreFlexLibrary from "./CoreFlexLibrary";
+// HmiSymbolsLibrary.jsx
+import FloatingWindow from "./FloatingWindow";
+import HmiSymbolsLibraryContent from "../assets/Hmi-symbols/HmiSymbolsLibraryContent";
 
 export default function HmiSymbolsLibrary(props) {
   return (
-    <CoreFlexLibrary {...props} title="HMI Symbols">
+    <FloatingWindow {...props} title="HMI Symbols">
       <HmiSymbolsLibraryContent />
-    </CoreFlexLibrary>
+    </FloatingWindow>
   );
 }
