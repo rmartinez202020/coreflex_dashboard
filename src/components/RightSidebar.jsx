@@ -7,16 +7,19 @@ export default function RightSidebar({
 
   // ✅ NEW independent folders/windows
   setShowHmiLibrary,
-  setShowHvacLibrary,
-  setShowManufacturingLibrary,
-  setShowTanksPipesLibrary,
+  setShowHvac2DLibrary,
+  setShowHvac3DLibrary,
+  setShowManufacturing2DLibrary,
+  setShowManufacturing3DLibrary,
+  setShowTanksPipes2DLibrary,
+  setShowTanksPipes3DLibrary,
 }) {
   return (
     <aside
       className={
         "border-l border-gray-300 flex flex-col transition-all duration-300 ease-in-out overflow-hidden " +
         (isRightCollapsed
-          ? "w-[40px] p-2 itemsCenter justify-between bg-white"
+          ? "w-[40px] p-2 items-center justify-between bg-white"
           : "w-[260px] p-6 bg-white overflow-y-auto")
       }
     >
@@ -25,7 +28,7 @@ export default function RightSidebar({
         className={
           "text-lg mb-4 rounded focus:outline-none transition-colors " +
           (isRightCollapsed
-            ? "w-full flex itemsCenter justify-center py-2 hover:bg-gray-100"
+            ? "w-full flex items-center justify-center py-2 hover:bg-gray-100"
             : "self-start px-2 py-1 hover:bg-gray-100")
         }
         onClick={() => setIsRightCollapsed((prev) => !prev)}
@@ -178,23 +181,44 @@ export default function RightSidebar({
 
           <div
             className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
-            onClick={() => setShowHvacLibrary(true)}
+            onClick={() => setShowHvac2DLibrary(true)}
           >
-            📁 <span>HVAC Symbols</span>
+            📁 <span>HVAC Symbols 2D</span>
           </div>
 
           <div
             className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
-            onClick={() => setShowManufacturingLibrary(true)}
+            onClick={() => setShowHvac3DLibrary(true)}
           >
-            📁 <span>Manufacturing Symbols</span>
+            📁 <span>HVAC Symbols 3D</span>
           </div>
 
           <div
             className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
-            onClick={() => setShowTanksPipesLibrary(true)}
+            onClick={() => setShowManufacturing2DLibrary(true)}
           >
-            📁 <span>Tanks & Pipes Symbols</span>
+            📁 <span>Manufacturing Symbols 2D</span>
+          </div>
+
+          <div
+            className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
+            onClick={() => setShowManufacturing3DLibrary(true)}
+          >
+            📁 <span>Manufacturing Symbols 3D</span>
+          </div>
+
+          <div
+            className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
+            onClick={() => setShowTanksPipes2DLibrary(true)}
+          >
+            📁 <span>Tanks & Pipes Symbols 2D</span>
+          </div>
+
+          <div
+            className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
+            onClick={() => setShowTanksPipes3DLibrary(true)}
+          >
+            📁 <span>Tanks & Pipes Symbols 3D</span>
           </div>
         </div>
       )}
