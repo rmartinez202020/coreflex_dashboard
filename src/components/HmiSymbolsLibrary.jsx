@@ -1,5 +1,5 @@
 import FloatingWindow from "./FloatingWindow";
-import HmiSymbolsLibraryContent from "../assets/hmi-symbols/HmiSymbolsLibraryContent.jsx";
+import HmiSymbolsLibraryContent from "./HmiSymbolsLibraryContent";
 
 export default function HmiSymbolsLibrary(props) {
   return (
