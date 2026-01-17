@@ -1,5 +1,6 @@
 import React from "react";
-import "./CoreFlexIOTsLibrary.css";
+import "../coreflex-iots-library/CoreFlexIOTsLibrary.css";
+
 
 const images = import.meta.glob(
   "/src/assets/hvac-symbols-3d/*.{png,jpg,jpeg,svg,gif}",
