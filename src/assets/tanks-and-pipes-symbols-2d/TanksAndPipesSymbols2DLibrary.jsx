@@ -1,5 +1,5 @@
 import React from "react";
-import "./CoreFlexIOTsLibrary.css";
+import "../coreflex-iots-library/CoreFlexIOTsLibrary.css";
 
 const images = import.meta.glob(
   "/src/assets/tanks-and-pipes-symbols-2d/*.{png,jpg,jpeg,svg,gif}",
