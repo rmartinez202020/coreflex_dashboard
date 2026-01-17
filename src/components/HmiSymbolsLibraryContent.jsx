@@ -1,4 +1,4 @@
-import HmiSymbolsLibrary from "../assets/hmi-symbols/HmiSymbolsLibrary";
+import HmiSymbolsLibrary from "./HmiSymbolsLibrary.jsx";
 
 export default function HmiSymbolsLibraryContent() {
   return (
