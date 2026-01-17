@@ -1,10 +1,10 @@
 import FloatingWindow from "./FloatingWindow";
-import ManufacturingSymbols3DLibraryContent from "../assets/manufacturing-symbols-3d/ManufacturingSymbols3DLibraryContent.jsx";
+import HvacSymbols3DLibraryContent from "./HvacSymbols3DLibraryContent";
 
-export default function ManufacturingSymbols3DLibrary(props) {
+export default function HvacSymbols3DLibrary(props) {
   return (
-    <FloatingWindow {...props} title="Manufacturing Symbols 3D">
-      <ManufacturingSymbols3DLibraryContent />
+    <FloatingWindow {...props} title="HVAC Symbols 3D">
+      <HvacSymbols3DLibraryContent />
     </FloatingWindow>
   );
 }
