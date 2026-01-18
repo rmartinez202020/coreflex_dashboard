@@ -13,8 +13,8 @@ export default function RegisterPage() {
     email: "",
     password: "",
     confirmPassword: "",
-    acceptedControlTerms: false, // ✅ required
-    showControlTerms: false, // ✅ NEW (collapse/expand)
+    acceptedControlTerms: false,
+    showControlTerms: false,
   });
 
   const [error, setError] = useState("");
@@ -34,7 +34,6 @@ export default function RegisterPage() {
     setError("");
     setSuccess("");
 
-    // ✅ Require acceptance
     if (!form.acceptedControlTerms) {
       setError(
         "You must accept the Control & Automation Acknowledgment to create an account."
@@ -42,7 +41,6 @@ export default function RegisterPage() {
       return;
     }
 
-    // Password confirmation check
     if (form.password !== form.confirmPassword) {
       setError("Passwords do not match.");
       return;
@@ -57,8 +55,6 @@ export default function RegisterPage() {
           company: form.company,
           email: form.email,
           password: form.password,
-
-          // 🔐 Control terms tracking (backend stores timestamp)
           accepted_control_terms: true,
           control_terms_version: CONTROL_TERMS_VERSION,
         }),
@@ -82,9 +78,12 @@ export default function RegisterPage() {
     }
   };
 
+  const inputClass =
+    "w-full border rounded px-3 py-2 text-gray-800 bg-white";
+
   return (
     <div
-      className="min-h-screen flex items-center justify-center relative"
+      className="min-h-screen flex items-center justify-center relative px-4 py-10"
       style={{
         backgroundImage: `url(${bgImage})`,
         backgroundSize: "cover",
@@ -92,12 +91,11 @@ export default function RegisterPage() {
         backgroundRepeat: "no-repeat",
       }}
     >
-      {/* Dark overlay */}
       <div className="absolute inset-0 bg-black opacity-40"></div>
 
-      {/* Register Card */}
-      <div className="relative bg-white bg-opacity-90 backdrop-blur-md shadow-2xl rounded-xl p-8 w-full max-w-xl z-10">
-        <h1 className="text-3xl font-bold text-center text-[#1e293b] mb-3">
+      {/* Wider + shorter card */}
+      <div className="relative bg-white bg-opacity-90 backdrop-blur-md shadow-2xl rounded-xl p-6 w-full max-w-5xl z-10">
+        <h1 className="text-3xl font-bold text-center text-[#1e293b] mb-2">
           Create Your CoreFlex Account
         </h1>
 
@@ -118,164 +116,172 @@ export default function RegisterPage() {
         )}
 
         <form onSubmit={handleRegister} className="space-y-4">
-          <div>
-            <label className="block text-sm mb-1 text-gray-700">Full Name</label>
-            <input
-              name="name"
-              value={form.name}
-              onChange={handleChange}
-              required
-              className="w-full border rounded px-3 py-2 text-gray-800"
-              placeholder="John Doe"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm mb-1 text-gray-700">Company</label>
-            <input
-              name="company"
-              value={form.company}
-              onChange={handleChange}
-              className="w-full border rounded px-3 py-2 text-gray-800"
-              placeholder="CoreFlex Alliance"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm mb-1 text-gray-700">Email</label>
-            <input
-              type="email"
-              name="email"
-              value={form.email}
-              onChange={handleChange}
-              required
-              className="w-full border rounded px-3 py-2 text-gray-800"
-              placeholder="you@example.com"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm mb-1 text-gray-700">Password</label>
-            <input
-              type="password"
-              name="password"
-              value={form.password}
-              onChange={handleChange}
-              required
-              className="w-full border rounded px-3 py-2 text-gray-800"
-              placeholder="••••••••"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm mb-1 text-gray-700">
-              Confirm Password
-            </label>
-            <input
-              type="password"
-              name="confirmPassword"
-              value={form.confirmPassword}
-              onChange={handleChange}
-              required
-              className="w-full border rounded px-3 py-2 text-gray-800"
-              placeholder="••••••••"
-            />
-          </div>
-
-          {/* ✅ Control & Automation Acknowledgment (compact + scroll) */}
-          <div className="border rounded-lg p-4 bg-gray-50 mt-2">
-            <div className="flex items-start justify-between gap-3">
-              <div>
-                <h3 className="font-semibold text-base flex items-center gap-2">
-                  🔐 Control &amp; Automation Acknowledgment
-                </h3>
-                <p className="text-xs text-gray-600 mt-1">
-                  CoreFlex IIoTs Platform
-                </p>
-              </div>
-
-              <button
-                type="button"
-                onClick={() =>
-                  setForm((prev) => ({
-                    ...prev,
-                    showControlTerms: !prev.showControlTerms,
-                  }))
-                }
-                className="text-blue-600 text-sm font-semibold hover:underline whitespace-nowrap"
-              >
-                {form.showControlTerms ? "Hide" : "View"}
-              </button>
+          {/* 2-column layout on large screens */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div>
+              <label className="block text-sm mb-1 text-gray-700">
+                Full Name
+              </label>
+              <input
+                name="name"
+                value={form.name}
+                onChange={handleChange}
+                required
+                className={inputClass}
+                placeholder="John Doe"
+              />
             </div>
 
-            {/* Collapsible Terms */}
-            {form.showControlTerms && (
-              <div className="mt-3 border rounded-md bg-white p-3">
-                <div className="max-h-40 overflow-y-auto pr-2 text-sm text-gray-700 space-y-3">
-                  <p>
-                    The <strong>CoreFlex IIoTs Platform</strong> provides
-                    supervisory monitoring, configuration, visualization, and
-                    remote command capabilities only. Any closed-loop control
-                    functions (including PID or time-proportioning control) must
-                    be executed locally on customer-owned devices or controllers
-                    specifically designed for real-time operation.
+            <div>
+              <label className="block text-sm mb-1 text-gray-700">Company</label>
+              <input
+                name="company"
+                value={form.company}
+                onChange={handleChange}
+                className={inputClass}
+                placeholder="CoreFlex Alliance"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm mb-1 text-gray-700">Email</label>
+              <input
+                type="email"
+                name="email"
+                value={form.email}
+                onChange={handleChange}
+                required
+                className={inputClass}
+                placeholder="you@example.com"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm mb-1 text-gray-700">Password</label>
+              <input
+                type="password"
+                name="password"
+                value={form.password}
+                onChange={handleChange}
+                required
+                className={inputClass}
+                placeholder="••••••••"
+              />
+            </div>
+
+            <div>
+              <label className="block text-sm mb-1 text-gray-700">
+                Confirm Password
+              </label>
+              <input
+                type="password"
+                name="confirmPassword"
+                value={form.confirmPassword}
+                onChange={handleChange}
+                required
+                className={inputClass}
+                placeholder="••••••••"
+              />
+            </div>
+
+            {/* Terms block spans full width */}
+            <div className="lg:col-span-2">
+              <div className="border rounded-lg p-4 bg-gray-50">
+                <div className="flex items-start justify-between gap-3">
+                  <div>
+                    <h3 className="font-semibold text-base flex items-center gap-2">
+                      🔐 Control &amp; Automation Acknowledgment
+                    </h3>
+                    <p className="text-xs text-gray-600 mt-1">
+                      CoreFlex IIoTs Platform
+                    </p>
+                  </div>
+
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setForm((prev) => ({
+                        ...prev,
+                        showControlTerms: !prev.showControlTerms,
+                      }))
+                    }
+                    className="text-blue-600 text-sm font-semibold hover:underline whitespace-nowrap"
+                  >
+                    {form.showControlTerms ? "Hide" : "View"}
+                  </button>
+                </div>
+
+                {form.showControlTerms && (
+                  <div className="mt-3 border rounded-md bg-white p-3">
+                    <div className="max-h-32 overflow-y-auto pr-2 text-sm text-gray-700 space-y-3">
+                      <p>
+                        The <strong>CoreFlex IIoTs Platform</strong> provides
+                        supervisory monitoring, configuration, visualization,
+                        and remote command capabilities only. Any closed-loop
+                        control functions (including PID or time-proportioning
+                        control) must be executed locally on customer-owned
+                        devices or controllers specifically designed for
+                        real-time operation.
+                      </p>
+
+                      <p>
+                        The CoreFlex IIoTs Platform does not guarantee
+                        deterministic timing, continuous connectivity, or
+                        fail-safe behavior of Ethernet, cellular, internet, or
+                        third-party network services. Users are solely
+                        responsible for ensuring that all control strategies,
+                        safety interlocks, limits, fallback states, and tuning
+                        parameters are properly implemented, tested, and
+                        compliant with applicable codes, standards, and
+                        equipment manufacturer requirements.
+                      </p>
+
+                      <p>
+                        The CoreFlex IIoTs Platform is not intended to function
+                        as a primary safety system or as a real-time control
+                        system for life-safety-critical or equipment-critical
+                        processes. Configuration and use of automation and
+                        control features must be performed by qualified
+                        personnel. Certain control features may be limited or
+                        restricted based on device capabilities and
+                        configuration.
+                      </p>
+                    </div>
+                  </div>
+                )}
+
+                <div className="mt-4">
+                  <p className="font-semibold text-sm text-gray-800 mb-2">
+                    ✅ Acknowledgment
                   </p>
 
-                  <p>
-                    The CoreFlex IIoTs Platform does not guarantee deterministic
-                    timing, continuous connectivity, or fail-safe behavior of
-                    Ethernet, cellular, internet, or third-party network
-                    services. Users are solely responsible for ensuring that all
-                    control strategies, safety interlocks, limits, fallback
-                    states, and tuning parameters are properly implemented,
-                    tested, and compliant with applicable codes, standards, and
-                    equipment manufacturer requirements.
-                  </p>
+                  <label className="flex items-start gap-2 text-sm">
+                    <input
+                      type="checkbox"
+                      name="acceptedControlTerms"
+                      checked={form.acceptedControlTerms}
+                      onChange={handleChange}
+                      className="mt-1"
+                    />
+                    <span>
+                      I understand and agree that CoreFlex IIoTs Platform is a
+                      supervisory system and does not perform real-time or
+                      safety-critical control.
+                    </span>
+                  </label>
 
-                  <p>
-                    The CoreFlex IIoTs Platform is not intended to function as a
-                    primary safety system or as a real-time control system for
-                    life-safety-critical or equipment-critical processes.
-                    Configuration and use of automation and control features
-                    must be performed by qualified personnel. Certain control
-                    features may be limited or restricted based on device
-                    capabilities and configuration.
+                  <p className="text-xs text-gray-500 mt-2">
+                    (You must accept this acknowledgment to create an account.)
                   </p>
                 </div>
               </div>
-            )}
-
-            {/* Acknowledgment checkbox ALWAYS visible */}
-            <div className="mt-4">
-              <p className="font-semibold text-sm text-gray-800 mb-2">
-                ✅ Acknowledgment
-              </p>
-
-              <label className="flex items-start gap-2 text-sm">
-                <input
-                  type="checkbox"
-                  name="acceptedControlTerms"
-                  checked={form.acceptedControlTerms}
-                  onChange={handleChange}
-                  className="mt-1"
-                />
-                <span>
-                  I understand and agree that CoreFlex IIoTs Platform is a
-                  supervisory system and does not perform real-time or
-                  safety-critical control.
-                </span>
-              </label>
-
-              <p className="text-xs text-gray-500 mt-2">
-                (You must accept this acknowledgment to create an account.)
-              </p>
             </div>
           </div>
 
           <button
             type="submit"
             disabled={!form.acceptedControlTerms}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Create Account
           </button>
@@ -288,7 +294,6 @@ export default function RegisterPage() {
           </Link>
         </p>
 
-        {/* Optional: show version for audit clarity */}
         <p className="text-center text-gray-400 text-xs mt-3">
           Control Terms Version: {CONTROL_TERMS_VERSION}
         </p>
