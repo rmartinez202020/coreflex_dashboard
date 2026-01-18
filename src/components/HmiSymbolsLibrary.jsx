@@ -1,10 +1,14 @@
+import React from "react";
 import FloatingWindow from "./FloatingWindow";
-import HmiSymbolsLibraryContent from "./HmiSymbolsLibraryContent";
+import HmiSymbolsLibraryGrid from "./HmiSymbolsLibraryGrid";
 
 export default function HmiSymbolsLibrary(props) {
   return (
     <FloatingWindow {...props} title="HMI Symbols">
-      <HmiSymbolsLibraryContent />
+      <HmiSymbolsLibraryGrid
+        onSelect={props.onSelect}
+        onDragStart={props.onDragStart}
+      />
     </FloatingWindow>
   );
 }
