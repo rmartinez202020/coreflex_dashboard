@@ -1,8 +1,9 @@
 import React from "react";
 import "../assets/coreflex-iots-library/CoreFlexIOTsLibrary.css";
 
+// ✅ IMPORTANT: use absolute /src path (best for Vercel)
 const images = import.meta.glob(
-  "../assets/hmi-symbols/*.{png,jpg,jpeg,svg,gif}",
+  "/src/assets/hmi-symbols/**/*.{png,jpg,jpeg,svg,gif}",
   { eager: true }
 );
 
@@ -17,8 +18,10 @@ export default function HmiSymbolsLibraryGrid({ onSelect, onDragStart }) {
       <h4 className="cf-library-title">HMI Symbols</h4>
 
       {imageList.length === 0 ? (
-        <div className="text-gray-500 text-sm p-3">
-          No HMI images found. Check: <b>src/assets/hmi-symbols</b>
+        <div style={{ padding: 12, fontSize: 13, color: "#6b7280" }}>
+          No HMI images found in build. <br />
+          ✅ Check that images are committed to GitHub and path is:
+          <b> src/assets/hmi-symbols/</b>
         </div>
       ) : (
         <div className="cf-library-grid">
