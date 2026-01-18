@@ -177,6 +177,9 @@ const [symbolDragOffset, setSymbolDragOffset] = useState({
 });
 
 
+
+
+
   // ✅ SYMBOL LIBRARIES WINDOWS
 const [showHmiLibrary, setShowHmiLibrary] = useState(false);
 const [showHvac2DLibrary, setShowHvac2DLibrary] = useState(false);
@@ -194,6 +197,42 @@ const [mfg2DPos, setMfg2DPos] = useState({ x: 640, y: 180 });
 const [mfg3DPos, setMfg3DPos] = useState({ x: 680, y: 200 });
 const [tp2DPos, setTp2DPos] = useState({ x: 720, y: 220 });
 const [tp3DPos, setTp3DPos] = useState({ x: 760, y: 240 });
+
+// get current symbol window position
+const getSymbolPos = (key) => {
+  const map = {
+    hmi: hmiPos,
+    hvac2d: hvac2DPos,
+    hvac3d: hvac3DPos,
+    mfg2d: mfg2DPos,
+    mfg3d: mfg3DPos,
+    tp2d: tp2DPos,
+    tp3d: tp3DPos,
+  };
+  return map[key];
+};
+
+// start dragging a symbol window
+const startDragSymbolWindow = (key, e) => {
+  e.stopPropagation();
+
+  setActiveSymbolWindow(key);
+  setIsDraggingSymbol(true);
+
+  const pos = getSymbolPos(key);
+  setSymbolDragOffset({
+    x: e.clientX - pos.x,
+    y: e.clientY - pos.y,
+  });
+};
+
+// start resizing a symbol window
+const startResizeSymbolWindow = (key, e) => {
+  e.stopPropagation();
+
+  setActiveSymbolWindow(key);
+  setIsResizingSymbol(true);
+};
 
 // sizes (reuse CoreFlex size if you want)
 const [symbolsSize, setSymbolsSize] = useState({
