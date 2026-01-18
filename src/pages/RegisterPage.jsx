@@ -5,25 +5,41 @@ import bgImage from "../assets/login_photo/satellite.jpg";
 import { API_URL } from "../config/api";
 
 export default function RegisterPage() {
+  const CONTROL_TERMS_VERSION = "v1.0";
+
   const [form, setForm] = useState({
     name: "",
     company: "",
     email: "",
     password: "",
     confirmPassword: "",
+    acceptedControlTerms: false, // ✅ NEW
   });
 
   const [error, setError] = useState("");
   const [success, setSuccess] = useState("");
 
   const handleChange = (e) => {
-    setForm((prev) => ({ ...prev, [e.target.name]: e.target.value }));
+    const { name, value, type, checked } = e.target;
+
+    setForm((prev) => ({
+      ...prev,
+      [name]: type === "checkbox" ? checked : value,
+    }));
   };
 
   const handleRegister = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
+
+    // ✅ Require acceptance
+    if (!form.acceptedControlTerms) {
+      setError(
+        "You must accept the Control & Automation Acknowledgment to create an account."
+      );
+      return;
+    }
 
     // Password confirmation check
     if (form.password !== form.confirmPassword) {
@@ -40,6 +56,11 @@ export default function RegisterPage() {
           company: form.company,
           email: form.email,
           password: form.password,
+
+          // 🔐 Control terms tracking (backend should store user_id + timestamp)
+          accepted_control_terms: true,
+          control_terms_version: CONTROL_TERMS_VERSION,
+          // timestamp: backend should set this (recommended)
         }),
       });
 
@@ -161,9 +182,76 @@ export default function RegisterPage() {
             />
           </div>
 
+          {/* ✅ Control & Automation Acknowledgment */}
+          <div className="border rounded-lg p-4 bg-gray-50 mt-2">
+            <h3 className="font-semibold text-base flex items-center gap-2">
+              🔐 Control &amp; Automation Acknowledgment
+            </h3>
+
+            <p className="font-medium mt-2">CoreFlex IIoTs Platform</p>
+
+            <div className="mt-3 text-sm text-gray-700 space-y-3">
+              <p>
+                The <strong>CoreFlex IIoTs Platform</strong> provides supervisory
+                monitoring, configuration, visualization, and remote command
+                capabilities only. Any closed-loop control functions (including
+                PID or time-proportioning control) must be executed locally on
+                customer-owned devices or controllers specifically designed for
+                real-time operation.
+              </p>
+
+              <p>
+                The CoreFlex IIoTs Platform does not guarantee deterministic
+                timing, continuous connectivity, or fail-safe behavior of
+                Ethernet, cellular, internet, or third-party network services.
+                Users are solely responsible for ensuring that all control
+                strategies, safety interlocks, limits, fallback states, and
+                tuning parameters are properly implemented, tested, and
+                compliant with applicable codes, standards, and equipment
+                manufacturer requirements.
+              </p>
+
+              <p>
+                The CoreFlex IIoTs Platform is not intended to function as a
+                primary safety system or as a real-time control system for
+                life-safety-critical or equipment-critical processes.
+                Configuration and use of automation and control features must be
+                performed by qualified personnel. Certain control features may
+                be limited or restricted based on device capabilities and
+                configuration.
+              </p>
+            </div>
+
+            <div className="mt-4">
+              <p className="font-semibold text-sm text-gray-800 mb-2">
+                ✅ Acknowledgment
+              </p>
+
+              <label className="flex items-start gap-2 text-sm">
+                <input
+                  type="checkbox"
+                  name="acceptedControlTerms"
+                  checked={form.acceptedControlTerms}
+                  onChange={handleChange}
+                  className="mt-1"
+                />
+                <span>
+                  I understand and agree that CoreFlex IIoTs Platform is a
+                  supervisory system and does not perform real-time or
+                  safety-critical control.
+                </span>
+              </label>
+
+              <p className="text-xs text-gray-500 mt-2">
+                (You must accept this acknowledgment to create an account.)
+              </p>
+            </div>
+          </div>
+
           <button
             type="submit"
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded mt-4"
+            disabled={!form.acceptedControlTerms}
+            className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2 rounded mt-4 disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Create Account
           </button>
@@ -171,12 +259,14 @@ export default function RegisterPage() {
 
         <p className="text-center text-gray-600 text-sm mt-4">
           Already have an account?{" "}
-          <Link
-            to="/"
-            className="text-blue-600 font-semibold hover:underline"
-          >
+          <Link to="/" className="text-blue-600 font-semibold hover:underline">
             Login
           </Link>
+        </p>
+
+        {/* Optional: show version for audit clarity */}
+        <p className="text-center text-gray-400 text-xs mt-3">
+          Control Terms Version: {CONTROL_TERMS_VERSION}
         </p>
       </div>
     </div>
