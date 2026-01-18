@@ -13,7 +13,8 @@ export default function RegisterPage() {
     email: "",
     password: "",
     confirmPassword: "",
-    acceptedControlTerms: false, // ✅ NEW
+    acceptedControlTerms: false, // ✅ required
+    showControlTerms: false, // ✅ NEW (collapse/expand)
   });
 
   const [error, setError] = useState("");
@@ -57,10 +58,9 @@ export default function RegisterPage() {
           email: form.email,
           password: form.password,
 
-          // 🔐 Control terms tracking (backend should store user_id + timestamp)
+          // 🔐 Control terms tracking (backend stores timestamp)
           accepted_control_terms: true,
           control_terms_version: CONTROL_TERMS_VERSION,
-          // timestamp: backend should set this (recommended)
         }),
       });
 
@@ -96,12 +96,12 @@ export default function RegisterPage() {
       <div className="absolute inset-0 bg-black opacity-40"></div>
 
       {/* Register Card */}
-      <div className="relative bg-white bg-opacity-90 backdrop-blur-md shadow-2xl rounded-xl p-10 w-full max-w-lg z-10">
-        <h1 className="text-3xl font-bold text-center text-[#1e293b] mb-4">
+      <div className="relative bg-white bg-opacity-90 backdrop-blur-md shadow-2xl rounded-xl p-8 w-full max-w-xl z-10">
+        <h1 className="text-3xl font-bold text-center text-[#1e293b] mb-3">
           Create Your CoreFlex Account
         </h1>
 
-        <p className="text-center text-gray-600 mb-6">
+        <p className="text-center text-gray-600 mb-5">
           Fill in the information below to get started
         </p>
 
@@ -182,46 +182,70 @@ export default function RegisterPage() {
             />
           </div>
 
-          {/* ✅ Control & Automation Acknowledgment */}
+          {/* ✅ Control & Automation Acknowledgment (compact + scroll) */}
           <div className="border rounded-lg p-4 bg-gray-50 mt-2">
-            <h3 className="font-semibold text-base flex items-center gap-2">
-              🔐 Control &amp; Automation Acknowledgment
-            </h3>
+            <div className="flex items-start justify-between gap-3">
+              <div>
+                <h3 className="font-semibold text-base flex items-center gap-2">
+                  🔐 Control &amp; Automation Acknowledgment
+                </h3>
+                <p className="text-xs text-gray-600 mt-1">
+                  CoreFlex IIoTs Platform
+                </p>
+              </div>
 
-            <p className="font-medium mt-2">CoreFlex IIoTs Platform</p>
-
-            <div className="mt-3 text-sm text-gray-700 space-y-3">
-              <p>
-                The <strong>CoreFlex IIoTs Platform</strong> provides supervisory
-                monitoring, configuration, visualization, and remote command
-                capabilities only. Any closed-loop control functions (including
-                PID or time-proportioning control) must be executed locally on
-                customer-owned devices or controllers specifically designed for
-                real-time operation.
-              </p>
-
-              <p>
-                The CoreFlex IIoTs Platform does not guarantee deterministic
-                timing, continuous connectivity, or fail-safe behavior of
-                Ethernet, cellular, internet, or third-party network services.
-                Users are solely responsible for ensuring that all control
-                strategies, safety interlocks, limits, fallback states, and
-                tuning parameters are properly implemented, tested, and
-                compliant with applicable codes, standards, and equipment
-                manufacturer requirements.
-              </p>
-
-              <p>
-                The CoreFlex IIoTs Platform is not intended to function as a
-                primary safety system or as a real-time control system for
-                life-safety-critical or equipment-critical processes.
-                Configuration and use of automation and control features must be
-                performed by qualified personnel. Certain control features may
-                be limited or restricted based on device capabilities and
-                configuration.
-              </p>
+              <button
+                type="button"
+                onClick={() =>
+                  setForm((prev) => ({
+                    ...prev,
+                    showControlTerms: !prev.showControlTerms,
+                  }))
+                }
+                className="text-blue-600 text-sm font-semibold hover:underline whitespace-nowrap"
+              >
+                {form.showControlTerms ? "Hide" : "View"}
+              </button>
             </div>
 
+            {/* Collapsible Terms */}
+            {form.showControlTerms && (
+              <div className="mt-3 border rounded-md bg-white p-3">
+                <div className="max-h-40 overflow-y-auto pr-2 text-sm text-gray-700 space-y-3">
+                  <p>
+                    The <strong>CoreFlex IIoTs Platform</strong> provides
+                    supervisory monitoring, configuration, visualization, and
+                    remote command capabilities only. Any closed-loop control
+                    functions (including PID or time-proportioning control) must
+                    be executed locally on customer-owned devices or controllers
+                    specifically designed for real-time operation.
+                  </p>
+
+                  <p>
+                    The CoreFlex IIoTs Platform does not guarantee deterministic
+                    timing, continuous connectivity, or fail-safe behavior of
+                    Ethernet, cellular, internet, or third-party network
+                    services. Users are solely responsible for ensuring that all
+                    control strategies, safety interlocks, limits, fallback
+                    states, and tuning parameters are properly implemented,
+                    tested, and compliant with applicable codes, standards, and
+                    equipment manufacturer requirements.
+                  </p>
+
+                  <p>
+                    The CoreFlex IIoTs Platform is not intended to function as a
+                    primary safety system or as a real-time control system for
+                    life-safety-critical or equipment-critical processes.
+                    Configuration and use of automation and control features
+                    must be performed by qualified personnel. Certain control
+                    features may be limited or restricted based on device
+                    capabilities and configuration.
+                  </p>
+                </div>
+              </div>
+            )}
+
+            {/* Acknowledgment checkbox ALWAYS visible */}
             <div className="mt-4">
               <p className="font-semibold text-sm text-gray-800 mb-2">
                 ✅ Acknowledgment
