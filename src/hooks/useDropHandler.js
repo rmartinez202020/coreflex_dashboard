@@ -14,10 +14,19 @@ export default function useDropHandler({ setDroppedTanks }) {
     const x = e.clientX - rect.left;
     const y = e.clientY - rect.top;
 
-    // 1️⃣ USER IMAGE LIBRARY DROP (Cloudinary)
-    // App.jsx / ImageLibrary.jsx sets: e.dataTransfer.setData("imageUrl", img.src)
-    const imageUrl = e.dataTransfer.getData("imageUrl");
-    if (imageUrl) {
+    // ===============================
+    // ✅ 1) IMAGE DROP (ALL SOURCES)
+    // ===============================
+    // Supports:
+    // - User Image Library (Cloudinary) -> "imageUrl"
+    // - CoreFlex static libraries -> "coreflex-image"
+    // - Fallback -> "text/plain"
+    const imgSrc =
+      e.dataTransfer.getData("imageUrl") ||
+      e.dataTransfer.getData("coreflex-image") ||
+      e.dataTransfer.getData("text/plain");
+
+    if (imgSrc) {
       setDroppedTanks((prev) => [
         ...prev,
         {
@@ -26,32 +35,14 @@ export default function useDropHandler({ setDroppedTanks }) {
           x,
           y,
           scale: 1,
-          src: imageUrl,
+          src: imgSrc,
           zIndex: 1,
         },
       ]);
       return;
     }
 
-    // 2️⃣ COREFLEX STATIC IMAGE DROP
-    const staticImgSrc = e.dataTransfer.getData("coreflex-image");
-    if (staticImgSrc) {
-      setDroppedTanks((prev) => [
-        ...prev,
-        {
-          id: makeId(),
-          shape: "img",
-          x,
-          y,
-          scale: 1,
-          src: staticImgSrc,
-          zIndex: 1,
-        },
-      ]);
-      return;
-    }
-
-    // ✅ 3️⃣ DEVICE CONTROLS DROP (Toggle / Push Buttons / Interlock)
+    // ✅ 2) DEVICE CONTROLS DROP (Toggle / Push Buttons / Interlock)
     // from DraggableControls.jsx -> e.dataTransfer.setData("control", ctrl.type)
     const control = e.dataTransfer.getData("control");
     if (control) {
@@ -130,7 +121,7 @@ export default function useDropHandler({ setDroppedTanks }) {
       return;
     }
 
-    // 4️⃣ DRAGGING A SHAPE / TEXT BOX
+    // 3) DRAGGING A SHAPE / TEXT BOX
     const shape = e.dataTransfer.getData("shape");
     if (!shape) return;
 
@@ -199,7 +190,7 @@ export default function useDropHandler({ setDroppedTanks }) {
       return;
     }
 
-    // 5️⃣ TANK MODELS (standard/horizontal/vertical/silo)
+    // 4) TANK MODELS (standard/horizontal/vertical/silo)
     setDroppedTanks((prev) => [
       ...prev,
       {

@@ -14,7 +14,10 @@ const imageList = Object.keys(images).map((key) => ({
 
 export default function HmiSymbolsLibraryGrid({ onSelect, onDragStart }) {
   return (
-    <div className="cf-library-container" onMouseDown={(e) => e.stopPropagation()}>
+    <div
+      className="cf-library-container"
+      onMouseDown={(e) => e.stopPropagation()}
+    >
       <h4 className="cf-library-title">HMI Symbols</h4>
 
       {imageList.length === 0 ? (
@@ -37,8 +40,17 @@ export default function HmiSymbolsLibraryGrid({ onSelect, onDragStart }) {
               }}
               onDragStart={(e) => {
                 e.stopPropagation();
-                e.dataTransfer.setData("coreflex-image", img.src);
+
+                // ✅ Helps browser show correct drag intent
+                e.dataTransfer.effectAllowed = "copy";
+
+                // ✅ Standard keys (support multiple drop handlers)
                 e.dataTransfer.setData("imageUrl", img.src);
+                e.dataTransfer.setData("coreflex-image", img.src);
+
+                // ✅ Fallback (some handlers read text/plain)
+                e.dataTransfer.setData("text/plain", img.src);
+
                 onDragStart?.(img.src);
               }}
             >
