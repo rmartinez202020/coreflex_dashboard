@@ -4,91 +4,97 @@ import React from "react";
 const CONTROLS = [
   {
     type: "toggleControl",
-    label: "Toggle Switch",
+    label: "  Toggle Switch (DO)",
     icon: "🔘",
   },
 
   // ✅ Keep NO / NC badge INSIDE the design (no "Normally ..." text)
   {
     type: "pushButtonNO",
-    label: "Push Button",
+    label: "Push Button (DO)",
     badge: { text: "NO", bg: "#22c55e" }, // green
   },
   {
     type: "pushButtonNC",
-    label: "Push Button",
+    label: "Push Button (DO)",
     badge: { text: "NC", bg: "#ef4444" }, // red
   },
 
   {
     type: "interlockControl",
-    label: "Interlock",
+    label: "Interlock (DI)",
     icon: "🔒",
   },
 
-  // ✅ NEW: Display Output (Device Output)
-  // This uses a professional circular "OUT" button look (different from Display Input)
+  // ✅ Display Output (AO) — small display icon (instead of OUT pill)
   {
     type: "displayOutput",
-    label: "Display Output",
+    label: "Display Output (AO)",
     render: "displayOutput",
   },
 ];
 
 function DisplayOutputIcon() {
+  // small “mini display” icon to match the Display Output concept
+  // (rectangular, LCD-ish, but compact for sidebar)
   return (
     <div
       style={{
-        width: 34,
-        height: 34,
-        borderRadius: 999,
-        position: "relative",
-        background:
-          "radial-gradient(circle at 30% 30%, #93c5fd 0%, #2563eb 38%, #0b2a6b 100%)",
+        width: 38,
+        height: 22,
+        borderRadius: 6,
+        background: "linear-gradient(#f1f5f9, #dbeafe)",
+        border: "1px solid rgba(255,255,255,0.25)",
         boxShadow:
-          "0 4px 10px rgba(0,0,0,0.35), inset 0 0 10px rgba(255,255,255,0.14)",
-        border: "2px solid rgba(255,255,255,0.20)",
+          "0 2px 8px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(15,23,42,0.35)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
         flexShrink: 0,
+        position: "relative",
       }}
     >
-      {/* inner ring */}
+      {/* inner lcd */}
       <div
         style={{
-          position: "absolute",
-          inset: 3,
-          borderRadius: 999,
-          border: "1px solid rgba(255,255,255,0.22)",
-          boxShadow: "inset 0 0 6px rgba(0,0,0,0.35)",
-        }}
-      />
-      {/* OUT label */}
-      <div
-        style={{
-          zIndex: 2,
-          color: "white",
-          fontWeight: 900,
-          fontSize: 10,
-          letterSpacing: 0.8,
-          textShadow: "0 1px 6px rgba(0,0,0,0.55)",
-          fontFamily: "system-ui, Arial",
+          width: "84%",
+          height: "68%",
+          borderRadius: 4,
+          background: "linear-gradient(#0b1220, #111827)",
+          boxShadow: "inset 0 0 10px rgba(0,0,0,0.55)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          border: "1px solid rgba(255,255,255,0.12)",
         }}
       >
-        OUT
+        <span
+          style={{
+            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+            fontWeight: 900,
+            fontSize: 10,
+            letterSpacing: 1.2,
+            color: "#93c5fd",
+            textShadow: "0 0 6px rgba(147,197,253,0.25)",
+            lineHeight: 1,
+          }}
+        >
+          000
+        </span>
       </div>
-      {/* indicator dot */}
+
+      {/* tiny indicator dot */}
       <div
         style={{
           position: "absolute",
-          bottom: 4,
-          right: 5,
+          right: 3,
+          bottom: 3,
           width: 5,
           height: 5,
           borderRadius: 999,
-          background: "rgba(255,255,255,0.85)",
-          boxShadow: "0 0 6px rgba(255,255,255,0.45)",
+          background: "#22c55e",
+          boxShadow: "0 0 8px rgba(34,197,94,0.45)",
+          opacity: 0.9,
         }}
       />
     </div>
@@ -129,7 +135,7 @@ export default function DraggableControls() {
             </span>
           )}
 
-          {/* ✅ Display Output uses a professional mini "OUT" button icon */}
+          {/* ✅ Display Output uses a mini display icon */}
           {ctrl.render === "displayOutput" && <DisplayOutputIcon />}
 
           <span>{ctrl.label}</span>
