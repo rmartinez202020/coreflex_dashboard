@@ -1,3 +1,4 @@
+// useDropHandler.js
 export default function useDropHandler({ setDroppedTanks }) {
   const makeId = () => {
     try {
@@ -42,7 +43,7 @@ export default function useDropHandler({ setDroppedTanks }) {
       return;
     }
 
-    // ✅ 2) DEVICE CONTROLS DROP (Toggle / Push Buttons / Interlock)
+    // ✅ 2) DEVICE CONTROLS DROP (Toggle / Push Buttons / Interlock / Display Output)
     // from DraggableControls.jsx -> e.dataTransfer.setData("control", ctrl.type)
     const control = e.dataTransfer.getData("control");
     if (control) {
@@ -118,6 +119,25 @@ export default function useDropHandler({ setDroppedTanks }) {
         return;
       }
 
+      // ✅ NEW: Display Output (Device Output)
+      // dragged as control="displayOutput"
+      if (control === "displayOutput") {
+        setDroppedTanks((prev) => [
+          ...prev,
+          {
+            id: makeId(),
+            shape: "displayOutput",
+            x,
+            y,
+            w: 110,
+            h: 110,
+            value: "OFF",
+            zIndex: 1,
+          },
+        ]);
+        return;
+      }
+
       return;
     }
 
@@ -144,13 +164,13 @@ export default function useDropHandler({ setDroppedTanks }) {
           sampleMs: 1000,
           window: 60,
 
-          // ✅ NEW defaults for vertical axis + style (matches modal)
+          // ✅ defaults for vertical axis + style (matches modal)
           yMin: 0,
           yMax: 100,
           yUnits: "",
           graphStyle: "line",
 
-          // keep your old fields too (backward compatible if other code uses them)
+          // keep old fields too (backward compatible if other code uses them)
           sampleEveryMs: 1000,
           windowCount: 60,
 

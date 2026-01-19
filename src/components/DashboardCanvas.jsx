@@ -27,6 +27,90 @@ import {
   SiloTank,
 } from "./ProTankIcon";
 
+/* =========================================================
+   ✅ Display Output visual (professional, different from Input)
+   - Blue "OUT" button style (similar quality to NO/NC button)
+   - This is only a visual; later we’ll bind it to device outputs.
+========================================================= */
+function DisplayOutputControl({ width = 110, height = 110, value = "OFF" }) {
+  const size = Math.min(width, height);
+
+  return (
+    <div
+      style={{
+        width: size,
+        height: size,
+        borderRadius: 999,
+        position: "relative",
+        background:
+          "radial-gradient(circle at 30% 30%, #93c5fd 0%, #2563eb 35%, #0b2a6b 100%)",
+        boxShadow:
+          "0 10px 22px rgba(0,0,0,0.28), inset 0 0 14px rgba(255,255,255,0.18)",
+        border: "3px solid rgba(255,255,255,0.22)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        userSelect: "none",
+      }}
+    >
+      {/* Inner ring */}
+      <div
+        style={{
+          position: "absolute",
+          inset: Math.max(6, Math.round(size * 0.075)),
+          borderRadius: 999,
+          border: "2px solid rgba(255,255,255,0.22)",
+          boxShadow: "inset 0 0 10px rgba(0,0,0,0.35)",
+        }}
+      />
+
+      {/* OUT label */}
+      <div
+        style={{
+          zIndex: 2,
+          color: "white",
+          fontWeight: 900,
+          fontSize: Math.max(14, Math.round(size * 0.18)),
+          letterSpacing: 1.5,
+          textShadow: "0 2px 8px rgba(0,0,0,0.55)",
+          fontFamily: "system-ui, Arial",
+        }}
+      >
+        OUT
+      </div>
+
+      {/* Small top-left state value (OFF/ON/123) */}
+      <div
+        style={{
+          position: "absolute",
+          top: Math.max(8, Math.round(size * 0.09)),
+          left: Math.max(10, Math.round(size * 0.11)),
+          fontSize: Math.max(10, Math.round(size * 0.10)),
+          fontWeight: 900,
+          color: "rgba(255,255,255,0.88)",
+          textShadow: "0 2px 6px rgba(0,0,0,0.45)",
+        }}
+      >
+        {value}
+      </div>
+
+      {/* Indicator dot */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: Math.max(10, Math.round(size * 0.11)),
+          right: Math.max(12, Math.round(size * 0.13)),
+          width: Math.max(6, Math.round(size * 0.07)),
+          height: Math.max(6, Math.round(size * 0.07)),
+          borderRadius: 999,
+          background: "rgba(255,255,255,0.85)",
+          boxShadow: "0 0 10px rgba(255,255,255,0.45)",
+        }}
+      />
+    </div>
+  );
+}
+
 export default function DashboardCanvas({
   dashboardMode,
   sensors,
@@ -106,7 +190,7 @@ export default function DashboardCanvas({
               );
             }
 
-            // DISPLAY BOX
+            // DISPLAY BOX (INPUT)
             if (tank.shape === "displayBox") {
               return (
                 <DraggableDroppedTank
@@ -116,6 +200,22 @@ export default function DashboardCanvas({
                   }}
                 >
                   <DraggableDisplayBox tank={tank} />
+                </DraggableDroppedTank>
+              );
+            }
+
+            // ✅ DISPLAY OUTPUT (DEVICE OUTPUT)
+            if (
+              tank.shape === "displayOutput" ||
+              tank.shape === "displayOutputControl"
+            ) {
+              const w = tank.w ?? tank.width ?? 110;
+              const h = tank.h ?? tank.height ?? 110;
+              const value = tank.value ?? "OFF";
+
+              return (
+                <DraggableDroppedTank {...commonProps}>
+                  <DisplayOutputControl width={w} height={h} value={value} />
                 </DraggableDroppedTank>
               );
             }
@@ -172,7 +272,12 @@ export default function DashboardCanvas({
 
               return (
                 <DraggableDroppedTank {...commonProps}>
-                  <PushButtonControl variant="NO" width={w} height={h} pressed={pressed} />
+                  <PushButtonControl
+                    variant="NO"
+                    width={w}
+                    height={h}
+                    pressed={pressed}
+                  />
                 </DraggableDroppedTank>
               );
             }
@@ -185,7 +290,12 @@ export default function DashboardCanvas({
 
               return (
                 <DraggableDroppedTank {...commonProps}>
-                  <PushButtonControl variant="NC" width={w} height={h} pressed={pressed} />
+                  <PushButtonControl
+                    variant="NC"
+                    width={w}
+                    height={h}
+                    pressed={pressed}
+                  />
                 </DraggableDroppedTank>
               );
             }

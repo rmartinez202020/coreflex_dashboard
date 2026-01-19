@@ -25,7 +25,75 @@ const CONTROLS = [
     label: "Interlock",
     icon: "🔒",
   },
+
+  // ✅ NEW: Display Output (Device Output)
+  // This uses a professional circular "OUT" button look (different from Display Input)
+  {
+    type: "displayOutput",
+    label: "Display Output",
+    render: "displayOutput",
+  },
 ];
+
+function DisplayOutputIcon() {
+  return (
+    <div
+      style={{
+        width: 34,
+        height: 34,
+        borderRadius: 999,
+        position: "relative",
+        background:
+          "radial-gradient(circle at 30% 30%, #93c5fd 0%, #2563eb 38%, #0b2a6b 100%)",
+        boxShadow:
+          "0 4px 10px rgba(0,0,0,0.35), inset 0 0 10px rgba(255,255,255,0.14)",
+        border: "2px solid rgba(255,255,255,0.20)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        flexShrink: 0,
+      }}
+    >
+      {/* inner ring */}
+      <div
+        style={{
+          position: "absolute",
+          inset: 3,
+          borderRadius: 999,
+          border: "1px solid rgba(255,255,255,0.22)",
+          boxShadow: "inset 0 0 6px rgba(0,0,0,0.35)",
+        }}
+      />
+      {/* OUT label */}
+      <div
+        style={{
+          zIndex: 2,
+          color: "white",
+          fontWeight: 900,
+          fontSize: 10,
+          letterSpacing: 0.8,
+          textShadow: "0 1px 6px rgba(0,0,0,0.55)",
+          fontFamily: "system-ui, Arial",
+        }}
+      >
+        OUT
+      </div>
+      {/* indicator dot */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 4,
+          right: 5,
+          width: 5,
+          height: 5,
+          borderRadius: 999,
+          background: "rgba(255,255,255,0.85)",
+          boxShadow: "0 0 6px rgba(255,255,255,0.45)",
+        }}
+      />
+    </div>
+  );
+}
 
 export default function DraggableControls() {
   return (
@@ -60,6 +128,9 @@ export default function DraggableControls() {
               {ctrl.badge.text}
             </span>
           )}
+
+          {/* ✅ Display Output uses a professional mini "OUT" button icon */}
+          {ctrl.render === "displayOutput" && <DisplayOutputIcon />}
 
           <span>{ctrl.label}</span>
         </div>
