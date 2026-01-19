@@ -137,8 +137,8 @@ export default function App() {
   const maxH = window.innerHeight - 140;
 
   return {
-    width: Math.min(1200, maxW),  // 400 * 3
-    height: Math.min(900, maxH),  // 300 * 3
+    width: Math.min(720, maxW),  // 400 * 3
+    height: Math.min(480, maxH),  // 300 * 3
   };
 });
   const [isDraggingLibrary, setIsDraggingLibrary] = useState(false);
@@ -152,8 +152,8 @@ const [coreflexLibraryPos, setCoreflexLibraryPos] = useState({
   y: 120,
 });
 const [coreflexLibrarySize, setCoreflexLibrarySize] = useState({
-  width: 1200,   // ⬅️ was 400
-  height: 900,   // ⬅️ was 300
+  width: 720,   // ⬅️ was 400
+  height: 480,   // ⬅️ was 300
 });
   const [isDraggingCoreflex, setIsDraggingCoreflex] = useState(false);
   const [isResizingCoreflex, setIsResizingCoreflex] = useState(false);
