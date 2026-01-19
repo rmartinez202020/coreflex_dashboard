@@ -72,6 +72,12 @@ export default function App() {
   const [selectedTank, setSelectedTank] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
 
+  // ✅ UNDO / REDO HISTORY (last 6 actions)
+const MAX_HISTORY = 6;
+const [history, setHistory] = useState([]);
+const [historyIndex, setHistoryIndex] = useState(-1);
+const historyIndexRef = useRef(-1);
+
   // SIDEBARS
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
   const [isRightCollapsed, setIsRightCollapsed] = useState(false);
@@ -259,6 +265,34 @@ const [symbolsSize, setSymbolsSize] = useState(() => {
     else if (obj.shape === "displayBox") offset = 3;
     return base * 10 + offset;
   };
+
+  // ===============================
+// ⏪ UNDO / REDO HELPERS
+// ===============================
+const pushToHistory = (nextObjects) => {
+  setHistory((prev) => {
+    // remove redo steps if user makes a new action
+    const trimmed = prev.slice(0, historyIndex + 1);
+
+    const updated = [...trimmed, nextObjects];
+
+    // keep last MAX_HISTORY states
+    if (updated.length > MAX_HISTORY) {
+      updated.shift();
+      setHistoryIndex((i) => Math.max(i - 1, 0));
+      return updated;
+    }
+
+    setHistoryIndex(updated.length - 1);
+    return updated;
+  });
+};
+
+// ✅ ADD THIS RIGHT HERE ⬇⬇⬇
+useEffect(() => {
+  historyIndexRef.current = historyIndex;
+}, [historyIndex]);
+
 
   // ✅ USER AUTH STATE SYNC (critical)
   useEffect(() => {

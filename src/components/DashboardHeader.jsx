@@ -3,6 +3,7 @@
  * - Displays dashboard title
  * - Play / Edit toggle
  * - Launch button
+ * - ✅ Undo / Redo buttons
  * - Pure UI component
  */
 
@@ -10,12 +11,47 @@ export default function DashboardHeader({
   dashboardMode,
   setDashboardMode,
   onLaunch,
+
+  // ✅ NEW
+  onUndo,
+  onRedo,
+  canUndo = false,
+  canRedo = false,
 }) {
+  const isPlay = dashboardMode === "play";
+
   return (
     <div className="flex items-center gap-4 mb-6">
-      <h1 className="text-2xl font-bold text-gray-800">
-        Main Dashboard
-      </h1>
+      <h1 className="text-2xl font-bold text-gray-800">Main Dashboard</h1>
+
+      {/* ✅ UNDO / REDO */}
+      <div className="flex items-center gap-2 ml-2">
+        <button
+          title="Undo (Ctrl+Z)"
+          onClick={() => onUndo?.()}
+          disabled={isPlay || !canUndo}
+          className={`px-2 py-1 rounded-md text-sm border ${
+            isPlay || !canUndo
+              ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+              : "bg-white text-gray-800 border-gray-300 hover:bg-gray-50"
+          }`}
+        >
+          ↩
+        </button>
+
+        <button
+          title="Redo (Ctrl+Y / Ctrl+Shift+Z)"
+          onClick={() => onRedo?.()}
+          disabled={isPlay || !canRedo}
+          className={`px-2 py-1 rounded-md text-sm border ${
+            isPlay || !canRedo
+              ? "bg-gray-100 text-gray-400 border-gray-200 cursor-not-allowed"
+              : "bg-white text-gray-800 border-gray-300 hover:bg-gray-50"
+          }`}
+        >
+          ↪
+        </button>
+      </div>
 
       {/* PLAY */}
       <button
