@@ -43,10 +43,7 @@ export default function RightSidebar({
         <div className="flex-1">
           <h2 className="text-xl font-semibold mb-4 text-gray-800">Entities</h2>
 
-          {/* TEXT TOOLS */}
-          <h3 className="text-sm font-semibold mb-3 text-gray-600">
-            Text Tools
-          </h3>
+          {/* ✅ REMOVED: "Text Tools" heading (it was doing nothing) */}
 
           <div className="space-y-6 mb-6">
             {/* TEXT BOX */}
@@ -89,7 +86,9 @@ export default function RightSidebar({
               </div>
 
               {/* ✅ RENAMED */}
-              <span className="text-[14px] text-center">Display Input</span>
+              <span className="text-[14px] text-center">
+                Display Input (AI)
+              </span>
             </div>
 
             {/* GRAPHIC DISPLAY */}
@@ -155,7 +154,10 @@ export default function RightSidebar({
                 </div>
               </div>
 
-              <span className="text-[14px] text-center">Graphic Display</span>
+              {/* ✅ RENAMED */}
+              <span className="text-[14px] text-center">
+                Graphic Display (AI)
+              </span>
             </div>
           </div>
 
