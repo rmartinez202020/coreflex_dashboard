@@ -592,101 +592,120 @@ const openSymbolLibrary = (key) => {
   );
 
   // ⭐ GLOBAL MOUSE MOVE / UP FOR DRAGGING + RESIZING WINDOWS
-  useEffect(() => {
-    const handleMouseMove = (e) => {
-      if (isDraggingLibrary) {
-        setImageLibraryPos({
-          x: e.clientX - libraryDragOffset.x,
-          y: e.clientY - libraryDragOffset.y,
+useEffect(() => {
+  const handleMouseMove = (e) => {
+    // IMAGE LIBRARY
+    if (isDraggingLibrary) {
+      setImageLibraryPos({
+        x: e.clientX - libraryDragOffset.x,
+        y: e.clientY - libraryDragOffset.y,
+      });
+    }
+
+    if (isResizingLibrary) {
+      setImageLibrarySize({
+        width: Math.max(600, e.clientX - imageLibraryPos.x),
+        height: Math.max(400, e.clientY - imageLibraryPos.y),
+      });
+    }
+
+    // COREFLEX LIBRARY
+    if (isDraggingCoreflex) {
+      setCoreflexLibraryPos({
+        x: e.clientX - coreflexDragOffset.x,
+        y: e.clientY - coreflexDragOffset.y,
+      });
+    }
+
+    if (isResizingCoreflex) {
+      setCoreflexLibrarySize({
+        width: Math.max(600, e.clientX - coreflexLibraryPos.x),
+        height: Math.max(400, e.clientY - coreflexLibraryPos.y),
+      });
+    }
+
+    // ✅ SYMBOL LIBRARIES DRAG
+    if (isDraggingSymbol && activeSymbolWindow) {
+      const setters = {
+        hmi: setHmiPos,
+        hvac2d: setHvac2DPos,
+        hvac3d: setHvac3DPos,
+        mfg2d: setMfg2DPos,
+        mfg3d: setMfg3DPos,
+        tp2d: setTp2DPos,
+        tp3d: setTp3DPos,
+      };
+
+      const setPos = setters[activeSymbolWindow];
+      if (setPos) {
+        setPos({
+          x: e.clientX - symbolDragOffset.x,
+          y: e.clientY - symbolDragOffset.y,
         });
       }
+    }
 
-      if (isResizingLibrary) {
-        setImageLibrarySize((prev) => ({
-          width: Math.max(600, e.clientX - imageLibraryPos.x),
-          height: Math.max(400, e.clientY - imageLibraryPos.y),
-        }));
-      }
+    // ✅ SYMBOL LIBRARIES RESIZE
+    if (isResizingSymbol && activeSymbolWindow) {
+      const pos = getSymbolPos(activeSymbolWindow);
 
-      if (isDraggingCoreflex) {
-        setCoreflexLibraryPos({
-          x: e.clientX - coreflexDragOffset.x,
-          y: e.clientY - coreflexDragOffset.y,
-        });
-      }
-
-      if (isResizingCoreflex) {
-        setCoreflexLibrarySize((prev) => ({
-          width: Math.max(600, e.clientX - coreflexLibraryPos.x),
-          height: Math.max(400, e.clientY - coreflexLibraryPos.y),
-        }));
-      }
-    };
-
-    // ===============================
-// ✅ SYMBOL LIBRARIES DRAG / RESIZE
-// ===============================
-if (isDraggingSymbol && activeSymbolWindow) {
-  const setters = {
-    hmi: setHmiPos,
-    hvac2d: setHvac2DPos,
-    hvac3d: setHvac3DPos,
-    mfg2d: setMfg2DPos,
-    mfg3d: setMfg3DPos,
-    tp2d: setTp2DPos,
-    tp3d: setTp3DPos,
+      setSymbolsSize({
+        width: Math.max(600, e.clientX - pos.x),
+        height: Math.max(400, e.clientY - pos.y),
+      });
+    }
   };
 
-  const setPos = setters[activeSymbolWindow];
-  if (setPos) {
-    setPos({
-      x: e.clientX - symbolDragOffset.x,
-      y: e.clientY - symbolDragOffset.y,
-    });
-  }
-}
+  const handleMouseUp = () => {
+    setIsDraggingLibrary(false);
+    setIsResizingLibrary(false);
+    setIsDraggingCoreflex(false);
+    setIsResizingCoreflex(false);
 
-if (isResizingSymbol && activeSymbolWindow) {
-  setSymbolsSize((prev) => ({
-    width: Math.max(600, e.clientX - hmiPos.x),
-    height: Math.max(400, e.clientY - hmiPos.y),
-  }));
-}
+    // ✅ stop symbol drag/resize too
+    setIsDraggingSymbol(false);
+    setIsResizingSymbol(false);
+    setActiveSymbolWindow(null);
+  };
 
+  window.addEventListener("mousemove", handleMouseMove);
+  window.addEventListener("mouseup", handleMouseUp);
 
-    const handleMouseUp = () => {
-      if (
-        isDraggingLibrary ||
-        isResizingLibrary ||
-        isDraggingCoreflex ||
-        isResizingCoreflex
-      ) {
-        setIsDraggingLibrary(false);
-        setIsResizingLibrary(false);
-        setIsDraggingCoreflex(false);
-        setIsResizingCoreflex(false);
-      }
-    };
+  return () => {
+    window.removeEventListener("mousemove", handleMouseMove);
+    window.removeEventListener("mouseup", handleMouseUp);
+  };
+}, [
+  // library
+  isDraggingLibrary,
+  isResizingLibrary,
+  libraryDragOffset,
+  imageLibraryPos.x,
+  imageLibraryPos.y,
 
-    window.addEventListener("mousemove", handleMouseMove);
-    window.addEventListener("mouseup", handleMouseUp);
+  // coreflex
+  isDraggingCoreflex,
+  isResizingCoreflex,
+  coreflexDragOffset,
+  coreflexLibraryPos.x,
+  coreflexLibraryPos.y,
 
-    return () => {
-      window.removeEventListener("mousemove", handleMouseMove);
-      window.removeEventListener("mouseup", handleMouseUp);
-    };
-  }, [
-    isDraggingLibrary,
-    isResizingLibrary,
-    isDraggingCoreflex,
-    isResizingCoreflex,
-    libraryDragOffset,
-    coreflexDragOffset,
-    imageLibraryPos.x,
-    imageLibraryPos.y,
-    coreflexLibraryPos.x,
-    coreflexLibraryPos.y,
-  ]);
+  // symbols
+  isDraggingSymbol,
+  isResizingSymbol,
+  activeSymbolWindow,
+  symbolDragOffset,
+
+  // positions used by getSymbolPos
+  hmiPos,
+  hvac2DPos,
+  hvac3DPos,
+  mfg2DPos,
+  mfg3DPos,
+  tp2DPos,
+  tp3DPos,
+]);
+
 
   return (
     <div
@@ -879,11 +898,14 @@ if (isResizingSymbol && activeSymbolWindow) {
         />
 
         {/* ✅ ADD THEM RIGHT HERE */}
+
 <HmiSymbolsLibrary
   visible={showHmiLibrary}
   position={hmiPos}
   size={symbolsSize}
   onClose={() => setShowHmiLibrary(false)}
+  onStartDragWindow={(e) => startDragSymbolWindow("hmi", e)}
+  onStartResizeWindow={(e) => startResizeSymbolWindow("hmi", e)}
 />
 
 <HvacSymbols2DLibrary
@@ -891,6 +913,8 @@ if (isResizingSymbol && activeSymbolWindow) {
   position={hvac2DPos}
   size={symbolsSize}
   onClose={() => setShowHvac2DLibrary(false)}
+  onStartDragWindow={(e) => startDragSymbolWindow("hvac2d", e)}
+  onStartResizeWindow={(e) => startResizeSymbolWindow("hvac2d", e)}
 />
 
 <HvacSymbols3DLibrary
@@ -898,6 +922,8 @@ if (isResizingSymbol && activeSymbolWindow) {
   position={hvac3DPos}
   size={symbolsSize}
   onClose={() => setShowHvac3DLibrary(false)}
+  onStartDragWindow={(e) => startDragSymbolWindow("hvac3d", e)}
+  onStartResizeWindow={(e) => startResizeSymbolWindow("hvac3d", e)}
 />
 
 <ManufacturingSymbols2DLibrary
@@ -905,6 +931,8 @@ if (isResizingSymbol && activeSymbolWindow) {
   position={mfg2DPos}
   size={symbolsSize}
   onClose={() => setShowManufacturing2DLibrary(false)}
+  onStartDragWindow={(e) => startDragSymbolWindow("mfg2d", e)}
+  onStartResizeWindow={(e) => startResizeSymbolWindow("mfg2d", e)}
 />
 
 <ManufacturingSymbols3DLibrary
@@ -912,6 +940,8 @@ if (isResizingSymbol && activeSymbolWindow) {
   position={mfg3DPos}
   size={symbolsSize}
   onClose={() => setShowManufacturing3DLibrary(false)}
+  onStartDragWindow={(e) => startDragSymbolWindow("mfg3d", e)}
+  onStartResizeWindow={(e) => startResizeSymbolWindow("mfg3d", e)}
 />
 
 <TanksAndPipesSymbols2DLibrary
@@ -919,6 +949,8 @@ if (isResizingSymbol && activeSymbolWindow) {
   position={tp2DPos}
   size={symbolsSize}
   onClose={() => setShowTanksPipes2DLibrary(false)}
+  onStartDragWindow={(e) => startDragSymbolWindow("tp2d", e)}
+  onStartResizeWindow={(e) => startResizeSymbolWindow("tp2d", e)}
 />
 
 <TanksAndPipesSymbols3DLibrary
@@ -926,7 +958,11 @@ if (isResizingSymbol && activeSymbolWindow) {
   position={tp3DPos}
   size={symbolsSize}
   onClose={() => setShowTanksPipes3DLibrary(false)}
+  onStartDragWindow={(e) => startDragSymbolWindow("tp3d", e)}
+  onStartResizeWindow={(e) => startResizeSymbolWindow("tp3d", e)}
 />
+
+
 {/* ✅ END ADD */}
 
       </main>
