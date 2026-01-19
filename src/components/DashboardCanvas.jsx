@@ -28,85 +28,77 @@ import {
 } from "./ProTankIcon";
 
 /* =========================================================
-   ✅ Display Output visual (professional, different from Input)
-   - Blue "OUT" button style (similar quality to NO/NC button)
-   - This is only a visual; later we’ll bind it to device outputs.
+   ✅ Display Output (square numeric box)
+   - Looks like a clean industrial panel readout
+   - Double-click lets you set a numeric value (edit mode only)
 ========================================================= */
-function DisplayOutputControl({ width = 110, height = 110, value = "OFF" }) {
-  const size = Math.min(width, height);
+function DisplayOutputBox({ value = "0", width = 140, height = 60 }) {
+  const v =
+    value === null || value === undefined || value === "" ? "0" : String(value);
 
   return (
     <div
       style={{
-        width: size,
-        height: size,
-        borderRadius: 999,
-        position: "relative",
-        background:
-          "radial-gradient(circle at 30% 30%, #93c5fd 0%, #2563eb 35%, #0b2a6b 100%)",
+        width,
+        height,
+        background: "linear-gradient(180deg, #ffffff 0%, #f2f2f2 100%)",
+        borderRadius: 8,
+        border: "2px solid #1d4ed8",
         boxShadow:
-          "0 10px 22px rgba(0,0,0,0.28), inset 0 0 14px rgba(255,255,255,0.18)",
-        border: "3px solid rgba(255,255,255,0.22)",
+          "0 6px 18px rgba(0,0,0,0.14), inset 0 0 10px rgba(0,0,0,0.10)",
+        position: "relative",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        padding: 10,
         userSelect: "none",
       }}
     >
-      {/* Inner ring */}
+      {/* OUT tag */}
       <div
         style={{
           position: "absolute",
-          inset: Math.max(6, Math.round(size * 0.075)),
-          borderRadius: 999,
-          border: "2px solid rgba(255,255,255,0.22)",
-          boxShadow: "inset 0 0 10px rgba(0,0,0,0.35)",
-        }}
-      />
-
-      {/* OUT label */}
-      <div
-        style={{
-          zIndex: 2,
-          color: "white",
+          top: 6,
+          left: 8,
+          fontSize: 10,
           fontWeight: 900,
-          fontSize: Math.max(14, Math.round(size * 0.18)),
-          letterSpacing: 1.5,
-          textShadow: "0 2px 8px rgba(0,0,0,0.55)",
-          fontFamily: "system-ui, Arial",
+          color: "white",
+          background: "#1d4ed8",
+          padding: "2px 6px",
+          borderRadius: 6,
+          boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
+          letterSpacing: 0.8,
         }}
       >
         OUT
       </div>
 
-      {/* Small top-left state value (OFF/ON/123) */}
+      {/* Value */}
       <div
         style={{
-          position: "absolute",
-          top: Math.max(8, Math.round(size * 0.09)),
-          left: Math.max(10, Math.round(size * 0.11)),
-          fontSize: Math.max(10, Math.round(size * 0.10)),
+          fontFamily: "monospace",
           fontWeight: 900,
-          color: "rgba(255,255,255,0.88)",
-          textShadow: "0 2px 6px rgba(0,0,0,0.45)",
+          fontSize: 24,
+          color: "#0b1220",
+          letterSpacing: 2,
         }}
       >
-        {value}
+        {v}
       </div>
 
-      {/* Indicator dot */}
+      {/* hint */}
       <div
         style={{
           position: "absolute",
-          bottom: Math.max(10, Math.round(size * 0.11)),
-          right: Math.max(12, Math.round(size * 0.13)),
-          width: Math.max(6, Math.round(size * 0.07)),
-          height: Math.max(6, Math.round(size * 0.07)),
-          borderRadius: 999,
-          background: "rgba(255,255,255,0.85)",
-          boxShadow: "0 0 10px rgba(255,255,255,0.45)",
+          bottom: 6,
+          right: 8,
+          fontSize: 9,
+          fontWeight: 700,
+          color: "rgba(0,0,0,0.45)",
         }}
-      />
+      >
+        OUTPUT
+      </div>
     </div>
   );
 }
@@ -204,23 +196,43 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅ DISPLAY OUTPUT (DEVICE OUTPUT)
-            if (
-              tank.shape === "displayOutput" ||
-              tank.shape === "displayOutputControl"
-            ) {
-              const w = tank.w ?? tank.width ?? 110;
-              const h = tank.h ?? tank.height ?? 110;
-              const value = tank.value ?? "OFF";
+            // ✅ DISPLAY OUTPUT (square numeric)
+            if (tank.shape === "displayOutput") {
+              const w = tank.w ?? tank.width ?? 140;
+              const h = tank.h ?? tank.height ?? 60;
+              const value = tank.value ?? "0";
 
               return (
-                <DraggableDroppedTank {...commonProps}>
-                  <DisplayOutputControl width={w} height={h} value={value} />
+                <DraggableDroppedTank
+                  {...commonProps}
+                  onDoubleClick={() => {
+                    if (isPlay) return;
+
+                    const current = tank.value ?? "0";
+                    const next = window.prompt(
+                      "Set Display Output value (number):",
+                      String(current)
+                    );
+
+                    if (next === null) return; // cancelled
+
+                    const cleaned = String(next).trim();
+
+                    // allow blank -> 0
+                    const finalValue = cleaned === "" ? "0" : cleaned;
+
+                    commonProps.onUpdate({
+                      ...tank,
+                      value: finalValue,
+                    });
+                  }}
+                >
+                  <DisplayOutputBox value={value} width={w} height={h} />
                 </DraggableDroppedTank>
               );
             }
 
-            // ✅ GRAPHIC DISPLAY (uses its own draggable + resize)
+            // ✅ GRAPHIC DISPLAY
             if (tank.shape === "graphicDisplay") {
               return (
                 <DraggableGraphicDisplay
