@@ -88,7 +88,8 @@ export default function RightSidebar({
                 00000
               </div>
 
-              <span className="text-[14px] text-center">Display</span>
+              {/* ✅ RENAMED */}
+              <span className="text-[14px] text-center">Display Input</span>
             </div>
 
             {/* GRAPHIC DISPLAY */}
