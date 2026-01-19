@@ -13,29 +13,52 @@ export default function useObjectDragging({
 
   // LIVE DRAG (no snapping)
   const handleDragMove = ({ active, delta }) => {
-    const activeObj = droppedTanks.find((o) => o.id === active.id);
+    const activeObj = droppedTanks.find((o) => o.id === active?.id);
     if (activeObj) checkAlignment(activeObj, droppedTanks);
 
     setDragDelta(delta);
   };
 
-  // END DRAG (no snapping, just normal movement)
+  // END DRAG (✅ supports multi-move)
   const handleDragEnd = ({ active, delta }) => {
+    const activeId = active?.id;
+
+    // ✅ if dragging one of the selected items, move ALL selected
+    const isGroupMove =
+      activeId && selectedIds?.length > 1 && selectedIds.includes(activeId);
+
     setDroppedTanks((prev) =>
-      prev.map((obj) =>
-        obj.id === active.id
-          ? {
-              ...obj,
-              x: obj.x + delta.x,
-              y: obj.y + delta.y,
-            }
-          : obj
-      )
+      prev.map((obj) => {
+        const shouldMove = isGroupMove
+          ? selectedIds.includes(obj.id)
+          : obj.id === activeId;
+
+        if (!shouldMove) return obj;
+
+        return {
+          ...obj,
+          x: (obj.x || 0) + (delta?.x || 0),
+          y: (obj.y || 0) + (delta?.y || 0),
+        };
+      })
     );
 
     setDragDelta({ x: 0, y: 0 });
     clearGuides();
   };
 
-  return { dragDelta, setDragDelta, handleDragMove, handleDragEnd, guides };
+  // ✅ if you ever wire onDragCancel, this prevents “stuck floating”
+  const handleDragCancel = () => {
+    setDragDelta({ x: 0, y: 0 });
+    clearGuides();
+  };
+
+  return {
+    dragDelta,
+    setDragDelta,
+    handleDragMove,
+    handleDragEnd,
+    handleDragCancel, // safe to export (optional usage)
+    guides,
+  };
 }
