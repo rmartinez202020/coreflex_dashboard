@@ -26,18 +26,38 @@ import {
   SiloTank,
 } from "./ProTankIcon";
 
+/**
+ * ✅ Format to "numbers only" and apply the pop-up Number Format rule:
+ * - keeps digits only
+ * - pads to format length (e.g. "00" -> 2 digits, "00000" -> 5 digits)
+ * - if longer than format length, keeps the RIGHT-most digits
+ * - if empty, shows empty (NO default "0")
+ */
+function formatNumericValue(rawValue, numberFormat) {
+  const fmt = String(numberFormat || "").trim();
+  const fmtLen = fmt.length;
+
+  if (rawValue === undefined || rawValue === null) return "";
+
+  const digitsOnly = String(rawValue).replace(/\D/g, "");
+  if (!digitsOnly) return "";
+
+  if (!fmtLen) return digitsOnly;
+
+  if (digitsOnly.length < fmtLen) return digitsOnly.padStart(fmtLen, "0");
+  if (digitsOnly.length > fmtLen) return digitsOnly.slice(-fmtLen);
+
+  return digitsOnly;
+}
+
 function DisplayOutputTextBoxStyle({ tank }) {
   const w = tank.w ?? tank.width ?? 160;
   const h = tank.h ?? tank.height ?? 60;
 
-  // ✅ show live value if you have it
-  const value =
-    tank.value !== undefined && tank.value !== null && tank.value !== ""
-      ? String(tank.value)
-      : "0";
-
-  // label from settings modal (if used)
   const label = tank?.properties?.label || "";
+  const numberFormat = tank?.properties?.numberFormat || "00000";
+
+  const value = formatNumericValue(tank.value, numberFormat);
 
   return (
     <div
@@ -45,38 +65,50 @@ function DisplayOutputTextBoxStyle({ tank }) {
         width: w,
         height: h,
         background: "white",
-        border: "2px solid black",
+        border: "2px solid #000",
         borderRadius: 0,
-        display: "flex",
-        flexDirection: "column",
-        justifyContent: "center",
-        padding: 8,
         boxSizing: "border-box",
         userSelect: "none",
+        position: "relative",
+        overflow: "hidden",
       }}
     >
+      {/* ✅ Label MUST be top-left corner */}
       {label ? (
         <div
           style={{
+            position: "absolute",
+            left: 6,
+            top: 4,
             fontSize: 11,
             fontWeight: 700,
             color: "#111",
-            marginBottom: 4,
             lineHeight: "12px",
+            maxWidth: "calc(100% - 12px)",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
           }}
         >
           {label}
         </div>
       ) : null}
 
+      {/* ✅ Center value like a clean textbox (NO random 0) */}
       <div
         style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          paddingTop: label ? 10 : 0, // small offset if label exists
+          boxSizing: "border-box",
           fontFamily: "monospace",
           fontWeight: 900,
           fontSize: 22,
           color: "#111",
           letterSpacing: 1.5,
-          lineHeight: "22px",
         }}
       >
         {value}
@@ -178,7 +210,7 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅ DISPLAY OUTPUT (textbox style + SAME modal on double click)
+            // ✅ DISPLAY OUTPUT (textbox style + open same settings modal on double click)
             if (tank.shape === "displayOutput") {
               return (
                 <DraggableDroppedTank
@@ -211,7 +243,10 @@ export default function DashboardCanvas({
             }
 
             // INTERLOCK
-            if (tank.shape === "interlock" || tank.shape === "interlockControl") {
+            if (
+              tank.shape === "interlock" ||
+              tank.shape === "interlockControl"
+            ) {
               const w = tank.w ?? tank.width ?? 190;
               const h = tank.h ?? tank.height ?? 80;
               const locked = tank.locked ?? true;

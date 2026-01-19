@@ -131,7 +131,10 @@ export default function useDropHandler({ setDroppedTanks }) {
             y,
             w: 160,
             h: 60,
-            value: "0",
+
+            // ✅ DO NOT force "0" (this was causing the unwanted 0)
+            value: "",
+
             zIndex: 1,
             properties: {
               label: "",
