@@ -119,7 +119,7 @@ export default function useDropHandler({ setDroppedTanks }) {
         return;
       }
 
-      // ✅ NEW: Display Output (Device Output)
+      // ✅ Display Output (textbox style)
       // dragged as control="displayOutput"
       if (control === "displayOutput") {
         setDroppedTanks((prev) => [
@@ -129,10 +129,15 @@ export default function useDropHandler({ setDroppedTanks }) {
             shape: "displayOutput",
             x,
             y,
-            w: 110,
-            h: 110,
-            value: "OFF",
+            w: 160,
+            h: 60,
+            value: "0",
             zIndex: 1,
+            properties: {
+              label: "",
+              numberFormat: "00000",
+              theme: "TextBox",
+            },
           },
         ]);
         return;

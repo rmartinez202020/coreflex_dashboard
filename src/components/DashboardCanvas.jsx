@@ -2,7 +2,6 @@
 import React from "react";
 import { DndContext } from "@dnd-kit/core";
 
-import DraggableTank from "./DraggableTank";
 import DraggableDroppedTank from "./DraggableDroppedTank";
 import DraggableTextBox from "./DraggableTextBox";
 import DraggableImage from "./DraggableImage";
@@ -27,77 +26,60 @@ import {
   SiloTank,
 } from "./ProTankIcon";
 
-/* =========================================================
-   ✅ Display Output (square numeric box)
-   - Looks like a clean industrial panel readout
-   - Double-click lets you set a numeric value (edit mode only)
-========================================================= */
-function DisplayOutputBox({ value = "0", width = 140, height = 60 }) {
-  const v =
-    value === null || value === undefined || value === "" ? "0" : String(value);
+function DisplayOutputTextBoxStyle({ tank }) {
+  const w = tank.w ?? tank.width ?? 160;
+  const h = tank.h ?? tank.height ?? 60;
+
+  // ✅ show live value if you have it
+  const value =
+    tank.value !== undefined && tank.value !== null && tank.value !== ""
+      ? String(tank.value)
+      : "0";
+
+  // label from settings modal (if used)
+  const label = tank?.properties?.label || "";
 
   return (
     <div
       style={{
-        width,
-        height,
-        background: "linear-gradient(180deg, #ffffff 0%, #f2f2f2 100%)",
-        borderRadius: 8,
-        border: "2px solid #1d4ed8",
-        boxShadow:
-          "0 6px 18px rgba(0,0,0,0.14), inset 0 0 10px rgba(0,0,0,0.10)",
-        position: "relative",
+        width: w,
+        height: h,
+        background: "white",
+        border: "2px solid black",
+        borderRadius: 0,
         display: "flex",
-        alignItems: "center",
+        flexDirection: "column",
         justifyContent: "center",
-        padding: 10,
+        padding: 8,
+        boxSizing: "border-box",
         userSelect: "none",
       }}
     >
-      {/* OUT tag */}
-      <div
-        style={{
-          position: "absolute",
-          top: 6,
-          left: 8,
-          fontSize: 10,
-          fontWeight: 900,
-          color: "white",
-          background: "#1d4ed8",
-          padding: "2px 6px",
-          borderRadius: 6,
-          boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
-          letterSpacing: 0.8,
-        }}
-      >
-        OUT
-      </div>
+      {label ? (
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: "#111",
+            marginBottom: 4,
+            lineHeight: "12px",
+          }}
+        >
+          {label}
+        </div>
+      ) : null}
 
-      {/* Value */}
       <div
         style={{
           fontFamily: "monospace",
           fontWeight: 900,
-          fontSize: 24,
-          color: "#0b1220",
-          letterSpacing: 2,
+          fontSize: 22,
+          color: "#111",
+          letterSpacing: 1.5,
+          lineHeight: "22px",
         }}
       >
-        {v}
-      </div>
-
-      {/* hint */}
-      <div
-        style={{
-          position: "absolute",
-          bottom: 6,
-          right: 8,
-          fontSize: 9,
-          fontWeight: 700,
-          color: "rgba(0,0,0,0.45)",
-        }}
-      >
-        OUTPUT
+        {value}
       </div>
     </div>
   );
@@ -182,7 +164,7 @@ export default function DashboardCanvas({
               );
             }
 
-            // DISPLAY BOX (INPUT)
+            // DISPLAY INPUT (existing)
             if (tank.shape === "displayBox") {
               return (
                 <DraggableDroppedTank
@@ -196,38 +178,16 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅ DISPLAY OUTPUT (square numeric)
+            // ✅ DISPLAY OUTPUT (textbox style + SAME modal on double click)
             if (tank.shape === "displayOutput") {
-              const w = tank.w ?? tank.width ?? 140;
-              const h = tank.h ?? tank.height ?? 60;
-              const value = tank.value ?? "0";
-
               return (
                 <DraggableDroppedTank
                   {...commonProps}
                   onDoubleClick={() => {
-                    if (isPlay) return;
-
-                    const current = tank.value ?? "0";
-                    const next = window.prompt(
-                      "Set Display Output value (number):",
-                      String(current)
-                    );
-
-                    if (next === null) return; // cancelled
-
-                    const cleaned = String(next).trim();
-
-                    // allow blank -> 0
-                    const finalValue = cleaned === "" ? "0" : cleaned;
-
-                    commonProps.onUpdate({
-                      ...tank,
-                      value: finalValue,
-                    });
+                    if (!isPlay) onOpenDisplaySettings?.(tank);
                   }}
                 >
-                  <DisplayOutputBox value={value} width={w} height={h} />
+                  <DisplayOutputTextBoxStyle tank={tank} />
                 </DraggableDroppedTank>
               );
             }

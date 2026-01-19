@@ -607,9 +607,12 @@ const openSymbolLibrary = (key) => {
     (t) => t.id === activeSiloId && t.shape === "siloTank"
   );
 
-  const displayTarget = droppedTanks.find(
-    (t) => t.id === displaySettingsId && t.shape === "displayBox"
-  );
+ const displayTarget = droppedTanks.find(
+  (t) =>
+    t.id === displaySettingsId &&
+    (t.shape === "displayBox" || t.shape === "displayOutput")
+);
+
 
   const graphicTarget = droppedTanks.find(
     (t) => t.id === graphicSettingsId && t.shape === "graphicDisplay"
