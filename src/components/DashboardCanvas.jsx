@@ -26,38 +26,42 @@ import {
   SiloTank,
 } from "./ProTankIcon";
 
-/**
- * ✅ Format to "numbers only" and apply the pop-up Number Format rule:
- * - keeps digits only
- * - pads to format length (e.g. "00" -> 2 digits, "00000" -> 5 digits)
- * - if longer than format length, keeps the RIGHT-most digits
- * - if empty, shows empty (NO default "0")
- */
-function formatNumericValue(rawValue, numberFormat) {
-  const fmt = String(numberFormat || "").trim();
-  const fmtLen = fmt.length;
-
-  if (rawValue === undefined || rawValue === null) return "";
-
-  const digitsOnly = String(rawValue).replace(/\D/g, "");
-  if (!digitsOnly) return "";
-
-  if (!fmtLen) return digitsOnly;
-
-  if (digitsOnly.length < fmtLen) return digitsOnly.padStart(fmtLen, "0");
-  if (digitsOnly.length > fmtLen) return digitsOnly.slice(-fmtLen);
-
-  return digitsOnly;
+// ===============================
+// ✅ helpers for Display Output input formatting
+// ===============================
+function getFormatSpec(numberFormat) {
+  const fmt = String(numberFormat || "00000");
+  // support "00000" style (digits only). If you later add decimals, we can extend.
+  const digits = (fmt.match(/0/g) || []).length;
+  return { maxDigits: Math.max(1, digits), fmt };
 }
 
-function DisplayOutputTextBoxStyle({ tank }) {
+function formatDigitsToPattern(rawDigits, numberFormat) {
+  const { maxDigits } = getFormatSpec(numberFormat);
+
+  // keep only digits
+  const digitsOnly = String(rawDigits || "").replace(/\D/g, "");
+
+  // if user has not typed anything, show blank (NOT zeros)
+  if (!digitsOnly) return "";
+
+  // limit to maxDigits
+  const trimmed = digitsOnly.slice(0, maxDigits);
+
+  // pad left with zeros to match format length
+  return trimmed.padStart(maxDigits, "0");
+}
+
+function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
   const w = tank.w ?? tank.width ?? 160;
   const h = tank.h ?? tank.height ?? 60;
 
   const label = tank?.properties?.label || "";
   const numberFormat = tank?.properties?.numberFormat || "00000";
 
-  const value = formatNumericValue(tank.value, numberFormat);
+  const value = tank?.value ?? "";
+
+  const displayValue = formatDigitsToPattern(value, numberFormat);
 
   return (
     <div
@@ -65,36 +69,32 @@ function DisplayOutputTextBoxStyle({ tank }) {
         width: w,
         height: h,
         background: "white",
-        border: "2px solid #000",
+        border: "2px solid black",
         borderRadius: 0,
+        position: "relative",
         boxSizing: "border-box",
         userSelect: "none",
-        position: "relative",
-        overflow: "hidden",
       }}
     >
-      {/* ✅ Label MUST be top-left corner */}
+      {/* ✅ label top-left */}
       {label ? (
         <div
           style={{
             position: "absolute",
-            left: 6,
             top: 4,
-            fontSize: 11,
+            left: 6,
+            fontSize: 12,
             fontWeight: 700,
             color: "#111",
             lineHeight: "12px",
-            maxWidth: "calc(100% - 12px)",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
+            pointerEvents: "none",
           }}
         >
           {label}
         </div>
       ) : null}
 
-      {/* ✅ Center value like a clean textbox (NO random 0) */}
+      {/* ✅ value centered */}
       <div
         style={{
           position: "absolute",
@@ -102,16 +102,56 @@ function DisplayOutputTextBoxStyle({ tank }) {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          paddingTop: label ? 10 : 0, // small offset if label exists
+          paddingTop: label ? 10 : 0,
           boxSizing: "border-box",
-          fontFamily: "monospace",
-          fontWeight: 900,
-          fontSize: 22,
-          color: "#111",
-          letterSpacing: 1.5,
         }}
       >
-        {value}
+        {isPlay ? (
+          <input
+            value={displayValue}
+            onChange={(e) => {
+              const nextFormatted = formatDigitsToPattern(
+                e.target.value,
+                numberFormat
+              );
+
+              // store formatted value (or blank)
+              onUpdate?.({
+                ...tank,
+                value: nextFormatted,
+              });
+            }}
+            inputMode="numeric"
+            autoComplete="off"
+            spellCheck={false}
+            style={{
+              width: "100%",
+              height: "100%",
+              border: "none",
+              outline: "none",
+              background: "transparent",
+              textAlign: "center",
+              fontFamily: "monospace",
+              fontWeight: 900,
+              fontSize: 22,
+              color: "#111",
+              letterSpacing: 1.5,
+            }}
+          />
+        ) : (
+          <div
+            style={{
+              fontFamily: "monospace",
+              fontWeight: 900,
+              fontSize: 22,
+              color: "#111",
+              letterSpacing: 1.5,
+              lineHeight: "22px",
+            }}
+          >
+            {displayValue}
+          </div>
+        )}
       </div>
     </div>
   );
@@ -210,7 +250,7 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅ DISPLAY OUTPUT (textbox style + open same settings modal on double click)
+            // ✅ DISPLAY OUTPUT (textbox style + editable in PLAY)
             if (tank.shape === "displayOutput") {
               return (
                 <DraggableDroppedTank
@@ -219,7 +259,11 @@ export default function DashboardCanvas({
                     if (!isPlay) onOpenDisplaySettings?.(tank);
                   }}
                 >
-                  <DisplayOutputTextBoxStyle tank={tank} />
+                  <DisplayOutputTextBoxStyle
+                    tank={tank}
+                    isPlay={isPlay}
+                    onUpdate={commonProps.onUpdate}
+                  />
                 </DraggableDroppedTank>
               );
             }
@@ -243,10 +287,7 @@ export default function DashboardCanvas({
             }
 
             // INTERLOCK
-            if (
-              tank.shape === "interlock" ||
-              tank.shape === "interlockControl"
-            ) {
+            if (tank.shape === "interlock" || tank.shape === "interlockControl") {
               const w = tank.w ?? tank.width ?? 190;
               const h = tank.h ?? tank.height ?? 80;
               const locked = tank.locked ?? true;
