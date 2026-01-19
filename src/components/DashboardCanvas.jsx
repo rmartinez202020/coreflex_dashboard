@@ -49,9 +49,7 @@ function padToFormat(rawDigits, numberFormat) {
   return d.padStart(maxDigits, "0");
 }
 
-// ✅ DISPLAY OUTPUT (textbox style + editable in PLAY)
-// Key fix: do NOT pad on every keystroke (caret jump).
-// Only pad on blur / enter.
+// ✅ DISPLAY OUTPUT (textbox style + editable in PLAY + SET button)
 function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
   const w = tank.w ?? tank.width ?? 160;
   const h = tank.h ?? tank.height ?? 60;
@@ -63,17 +61,74 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
   const rawValue =
     tank.value !== undefined && tank.value !== null ? String(tank.value) : "";
 
+  const inputRef = React.useRef(null);
+
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(onlyDigits(rawValue));
+  const [flashSet, setFlashSet] = React.useState(false);
 
   // Sync draft from tank when not editing (restore/load/etc)
   React.useEffect(() => {
     if (!editing) setDraft(onlyDigits(rawValue));
   }, [rawValue, editing]);
 
+  // In PLAY:
+  // - while editing -> show draft digits (no padding)
+  // - when not editing -> show padded value
   const displayed = isPlay
-    ? (editing ? draft : padToFormat(rawValue, numberFormat))
+    ? editing
+      ? draft
+      : padToFormat(rawValue, numberFormat)
     : padToFormat(rawValue, numberFormat);
+
+  const commitFormattedValue = () => {
+    const formatted = padToFormat(draft, numberFormat);
+
+    // save formatted (or blank) into the tank
+    onUpdate?.({
+      ...tank,
+      value: formatted,
+    });
+
+    return formatted;
+  };
+
+  const handleSet = () => {
+    // 1) commit/pad the current draft
+    const formatted = commitFormattedValue();
+
+    // 2) store "sent" metadata so you can see what was set
+    const now = new Date().toISOString();
+    onUpdate?.({
+      ...tank,
+      value: formatted,
+      lastSetValue: formatted,
+      lastSetAt: now,
+    });
+
+    // 3) fire an event for future device-writing integration
+    window.dispatchEvent(
+      new CustomEvent("coreflex-displayOutput-set", {
+        detail: {
+          id: tank.id,
+          value: formatted,
+          label,
+          numberFormat,
+          at: now,
+        },
+      })
+    );
+
+    // quick visual feedback
+    setFlashSet(true);
+    setTimeout(() => setFlashSet(false), 180);
+  };
+
+  const showSetButton = isPlay; // only in play
+
+  // If SET button is visible, reserve space at bottom
+  const setBtnH = showSetButton ? 26 : 0;
+  const valueAreaPadBottom = showSetButton ? setBtnH : 0;
 
   return (
     <div
@@ -102,6 +157,7 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
             background: "white",
             padding: "0 4px",
             pointerEvents: "none",
+            zIndex: 2,
           }}
         >
           {label}
@@ -112,16 +168,21 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
       <div
         style={{
           position: "absolute",
-          inset: 0,
+          left: 0,
+          top: 0,
+          right: 0,
+          bottom: 0,
+          paddingTop: label ? 10 : 0,
+          paddingBottom: valueAreaPadBottom,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          paddingTop: label ? 10 : 0,
           boxSizing: "border-box",
         }}
       >
         {isPlay ? (
           <input
+            ref={inputRef}
             value={displayed}
             inputMode="numeric"
             autoComplete="off"
@@ -133,7 +194,7 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
               e.stopPropagation();
               setEditing(true);
 
-              // put caret at end
+              // caret to end
               requestAnimationFrame(() => {
                 try {
                   const len = e.target.value.length;
@@ -147,18 +208,13 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
               setDraft(next);
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter") e.currentTarget.blur();
+              if (e.key === "Enter") {
+                e.currentTarget.blur();
+              }
             }}
             onBlur={() => {
               setEditing(false);
-
-              // ✅ commit padded value ONLY when done typing
-              const formatted = padToFormat(draft, numberFormat);
-
-              onUpdate?.({
-                ...tank,
-                value: formatted,
-              });
+              commitFormattedValue();
             }}
             style={{
               width: "100%",
@@ -189,6 +245,38 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
           </div>
         )}
       </div>
+
+      {/* ✅ SET button (PLAY only) */}
+      {showSetButton && (
+        <button
+          type="button"
+          onMouseDown={(e) => {
+            // keep focus from being stolen by canvas
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+            handleSet();
+          }}
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: setBtnH,
+            border: "none",
+            borderTop: "2px solid black",
+            background: flashSet ? "#e5e7eb" : "#f9fafb",
+            fontWeight: 900,
+            letterSpacing: 1,
+            cursor: "pointer",
+            userSelect: "none",
+          }}
+          title="Send/commit this setpoint"
+        >
+          SET
+        </button>
+      )}
     </div>
   );
 }
@@ -286,7 +374,7 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅ DISPLAY OUTPUT
+            // ✅ DISPLAY OUTPUT (textbox style + editable in PLAY + SET button)
             if (tank.shape === "displayOutput") {
               return (
                 <DraggableDroppedTank
