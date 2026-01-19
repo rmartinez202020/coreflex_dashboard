@@ -13,6 +13,10 @@ export default function FloatingWindow({
 }) {
   if (!visible) return null;
 
+  // ✅ Clamp window size so it NEVER opens larger than the viewport
+  const safeWidth = Math.min(size?.width ?? 820, window.innerWidth - 80);
+  const safeHeight = Math.min(size?.height ?? 560, window.innerHeight - 120);
+
   return (
     <div
       className="floating-window"
@@ -20,8 +24,15 @@ export default function FloatingWindow({
         position: "absolute",
         left: position.x,
         top: position.y,
-        width: size.width,
-        height: size.height,
+
+        // ✅ Use clamped size
+        width: safeWidth,
+        height: safeHeight,
+
+        // ✅ Hard max constraints (extra safety)
+        maxWidth: "calc(100vw - 80px)",
+        maxHeight: "calc(100vh - 120px)",
+
         background: "white",
         color: "black",
         border: "2px solid #1e293b",
@@ -77,7 +88,10 @@ export default function FloatingWindow({
         style={{
           flex: 1,
           padding: "10px",
-          overflowY: "auto",
+
+          // ✅ Allow horizontal scroll instead of forcing the window wider
+          overflow: "auto",
+
           background: "white",
         }}
         onMouseDown={(e) => e.stopPropagation()}
