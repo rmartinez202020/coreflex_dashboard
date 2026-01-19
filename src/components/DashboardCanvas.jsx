@@ -49,7 +49,68 @@ function padToFormat(rawDigits, numberFormat) {
   return d.padStart(maxDigits, "0");
 }
 
-// ✅ DISPLAY OUTPUT (textbox style + editable in PLAY + SET button)
+// ✅ Green "PushButton NO" style SET button (always visible)
+// - In EDIT: looks the same but does nothing (disabled behavior)
+// - In PLAY: clickable + press animation
+function SetButton({ isPlay, onSet }) {
+  const [pressed, setPressed] = React.useState(false);
+
+  const baseBg = "#22c55e"; // green
+  const darkBg = "#16a34a"; // darker green
+
+  return (
+    <button
+      type="button"
+      // ✅ don't let canvas/drag steal click
+      onMouseDown={(e) => {
+        e.stopPropagation();
+        // only animate/act in play
+        if (!isPlay) return;
+        setPressed(true);
+      }}
+      onMouseUp={(e) => {
+        e.stopPropagation();
+        if (!isPlay) return;
+        setPressed(false);
+      }}
+      onMouseLeave={(e) => {
+        e.stopPropagation();
+        if (!isPlay) return;
+        setPressed(false);
+      }}
+      onClick={(e) => {
+        e.stopPropagation();
+        if (!isPlay) return; // ✅ do nothing in edit
+        onSet?.();
+      }}
+      style={{
+        width: "100%",
+        height: "100%",
+        border: "none",
+        cursor: isPlay ? "pointer" : "default",
+        userSelect: "none",
+        fontWeight: 900,
+        letterSpacing: 1,
+
+        // ✅ 3D pushbutton look
+        background: isPlay ? (pressed ? darkBg : baseBg) : "#cbd5e1", // grey in edit
+        color: isPlay ? "white" : "#334155",
+        boxShadow: isPlay
+          ? pressed
+            ? "inset 0 3px 10px rgba(0,0,0,0.35)"
+            : "0 3px 0 rgba(0,0,0,0.35)"
+          : "none",
+        transform: isPlay ? (pressed ? "translateY(1px)" : "translateY(0)") : "none",
+        transition: "transform 80ms ease, box-shadow 80ms ease, background 120ms ease",
+      }}
+      title={isPlay ? "Send/commit this setpoint" : "SET works in Play mode"}
+    >
+      SET
+    </button>
+  );
+}
+
+// ✅ DISPLAY OUTPUT (textbox style + editable in PLAY + SET always visible)
 function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
   const w = tank.w ?? tank.width ?? 160;
   const h = tank.h ?? tank.height ?? 60;
@@ -61,11 +122,8 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
   const rawValue =
     tank.value !== undefined && tank.value !== null ? String(tank.value) : "";
 
-  const inputRef = React.useRef(null);
-
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(onlyDigits(rawValue));
-  const [flashSet, setFlashSet] = React.useState(false);
 
   // Sync draft from tank when not editing (restore/load/etc)
   React.useEffect(() => {
@@ -84,7 +142,6 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
   const commitFormattedValue = () => {
     const formatted = padToFormat(draft, numberFormat);
 
-    // save formatted (or blank) into the tank
     onUpdate?.({
       ...tank,
       value: formatted,
@@ -94,10 +151,12 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
   };
 
   const handleSet = () => {
+    if (!isPlay) return; // ✅ only actuate in play
+
     // 1) commit/pad the current draft
     const formatted = commitFormattedValue();
 
-    // 2) store "sent" metadata so you can see what was set
+    // 2) store "sent" metadata
     const now = new Date().toISOString();
     onUpdate?.({
       ...tank,
@@ -106,7 +165,7 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
       lastSetAt: now,
     });
 
-    // 3) fire an event for future device-writing integration
+    // 3) fire event for future integration
     window.dispatchEvent(
       new CustomEvent("coreflex-displayOutput-set", {
         detail: {
@@ -118,17 +177,10 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
         },
       })
     );
-
-    // quick visual feedback
-    setFlashSet(true);
-    setTimeout(() => setFlashSet(false), 180);
   };
 
-  const showSetButton = isPlay; // only in play
-
-  // If SET button is visible, reserve space at bottom
-  const setBtnH = showSetButton ? 26 : 0;
-  const valueAreaPadBottom = showSetButton ? setBtnH : 0;
+  // ✅ SET always visible (edit + play)
+  const setBtnH = 26;
 
   return (
     <div
@@ -171,9 +223,8 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
           left: 0,
           top: 0,
           right: 0,
-          bottom: 0,
+          bottom: setBtnH, // reserve space for SET always
           paddingTop: label ? 10 : 0,
-          paddingBottom: valueAreaPadBottom,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -182,12 +233,10 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
       >
         {isPlay ? (
           <input
-            ref={inputRef}
             value={displayed}
             inputMode="numeric"
             autoComplete="off"
             spellCheck={false}
-            // ✅ prevent canvas/drag handlers from stealing focus
             onMouseDown={(e) => e.stopPropagation()}
             onPointerDown={(e) => e.stopPropagation()}
             onFocus={(e) => {
@@ -203,7 +252,6 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
               });
             }}
             onChange={(e) => {
-              // ✅ store ONLY raw digits while typing (no padding)
               const next = onlyDigits(e.target.value).slice(0, maxDigits);
               setDraft(next);
             }}
@@ -246,37 +294,21 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
         )}
       </div>
 
-      {/* ✅ SET button (PLAY only) */}
-      {showSetButton && (
-        <button
-          type="button"
-          onMouseDown={(e) => {
-            // keep focus from being stolen by canvas
-            e.stopPropagation();
-          }}
-          onClick={(e) => {
-            e.stopPropagation();
-            handleSet();
-          }}
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            bottom: 0,
-            height: setBtnH,
-            border: "none",
-            borderTop: "2px solid black",
-            background: flashSet ? "#e5e7eb" : "#f9fafb",
-            fontWeight: 900,
-            letterSpacing: 1,
-            cursor: "pointer",
-            userSelect: "none",
-          }}
-          title="Send/commit this setpoint"
-        >
-          SET
-        </button>
-      )}
+      {/* ✅ SET button ALWAYS visible */}
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          right: 0,
+          bottom: 0,
+          height: setBtnH,
+          borderTop: "2px solid black",
+        }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        <SetButton isPlay={isPlay} onSet={handleSet} />
+      </div>
     </div>
   );
 }
@@ -374,7 +406,7 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅ DISPLAY OUTPUT (textbox style + editable in PLAY + SET button)
+            // ✅ DISPLAY OUTPUT (textbox style + SET always visible)
             if (tank.shape === "displayOutput") {
               return (
                 <DraggableDroppedTank
