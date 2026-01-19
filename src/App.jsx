@@ -235,9 +235,14 @@ const startResizeSymbolWindow = (key, e) => {
 };
 
 // sizes (reuse CoreFlex size if you want)
-const [symbolsSize, setSymbolsSize] = useState({
-  width: 1200,
-  height: 900,
+const [symbolsSize, setSymbolsSize] = useState(() => {
+  const maxW = window.innerWidth - 120;
+  const maxH = window.innerHeight - 180;
+
+  return {
+    width: Math.min(820, maxW),
+    height: Math.min(560, maxH),
+  };
 });
 
 
@@ -461,17 +466,36 @@ const [symbolsSize, setSymbolsSize] = useState({
     }
   };
 
-  // ===============================
-// ✅ OPEN SYMBOL LIBRARIES (SYNC SIZE)
+// ===============================
+// ✅ OPEN SYMBOL LIBRARIES (CENTER + SMALL)
 // ===============================
 const openSymbolLibrary = (key) => {
-  // 🔁 Match CoreFlex library size on open
-  setSymbolsSize({
-    width: coreflexLibrarySize.width,
-    height: coreflexLibrarySize.height,
-  });
+  // 📐 default smaller size
+  const maxW = window.innerWidth - 120;
+  const maxH = window.innerHeight - 180;
 
-  // track active symbol window (for drag/resize)
+  const newSize = {
+    width: Math.min(820, maxW),
+    height: Math.min(560, maxH),
+  };
+
+  setSymbolsSize(newSize);
+
+  // 🎯 center on screen
+  const centerPos = {
+    x: Math.max(20, Math.round((window.innerWidth - newSize.width) / 2)),
+    y: Math.max(20, Math.round((window.innerHeight - newSize.height) / 2)),
+  };
+
+  // set position per library
+  if (key === "hmi") setHmiPos(centerPos);
+  if (key === "hvac2d") setHvac2DPos(centerPos);
+  if (key === "hvac3d") setHvac3DPos(centerPos);
+  if (key === "mfg2d") setMfg2DPos(centerPos);
+  if (key === "mfg3d") setMfg3DPos(centerPos);
+  if (key === "tp2d") setTp2DPos(centerPos);
+  if (key === "tp3d") setTp3DPos(centerPos);
+
   setActiveSymbolWindow(key);
 
   if (key === "hmi") setShowHmiLibrary(true);
@@ -990,6 +1014,9 @@ useEffect(() => {
   setShowTanksPipes2DLibrary={setShowTanksPipes2DLibrary}
   setShowTanksPipes3DLibrary={setShowTanksPipes3DLibrary}
   dashboardMode={dashboardMode}
+
+  /** ✅ ADD THIS LINE **/
+  openSymbolLibrary={openSymbolLibrary}
       />
     </div>
   );

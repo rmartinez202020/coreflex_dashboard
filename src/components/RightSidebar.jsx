@@ -5,7 +5,10 @@ export default function RightSidebar({
   setShowImageLibrary,
   setShowCoreflexLibrary,
 
-  // ✅ NEW independent folders/windows
+  // ✅ OPEN SYMBOL LIBRARIES (center + small)
+  openSymbolLibrary,
+
+  // ✅ OLD setters (you can remove later, but keep for now)
   setShowHmiLibrary,
   setShowHvac2DLibrary,
   setShowHvac3DLibrary,
@@ -172,51 +175,52 @@ export default function RightSidebar({
             📁 <span>CoreFlex IOTs Library</span>
           </div>
 
+          {/* ✅ SYMBOL LIBRARIES → use openSymbolLibrary so they open centered + smaller */}
           <div
             className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
-            onClick={() => setShowHmiLibrary(true)}
+            onClick={() => openSymbolLibrary("hmi")}
           >
             📁 <span>HMI Symbols</span>
           </div>
 
           <div
             className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
-            onClick={() => setShowHvac2DLibrary(true)}
+            onClick={() => openSymbolLibrary("hvac2d")}
           >
             📁 <span>HVAC Symbols 2D</span>
           </div>
 
           <div
             className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
-            onClick={() => setShowHvac3DLibrary(true)}
+            onClick={() => openSymbolLibrary("hvac3d")}
           >
             📁 <span>HVAC Symbols 3D</span>
           </div>
 
           <div
             className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
-            onClick={() => setShowManufacturing2DLibrary(true)}
+            onClick={() => openSymbolLibrary("mfg2d")}
           >
             📁 <span>Manufacturing Symbols 2D</span>
           </div>
 
           <div
             className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
-            onClick={() => setShowManufacturing3DLibrary(true)}
+            onClick={() => openSymbolLibrary("mfg3d")}
           >
             📁 <span>Manufacturing Symbols 3D</span>
           </div>
 
           <div
             className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
-            onClick={() => setShowTanksPipes2DLibrary(true)}
+            onClick={() => openSymbolLibrary("tp2d")}
           >
             📁 <span>Tanks & Pipes Symbols 2D</span>
           </div>
 
           <div
             className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
-            onClick={() => setShowTanksPipes3DLibrary(true)}
+            onClick={() => openSymbolLibrary("tp3d")}
           >
             📁 <span>Tanks & Pipes Symbols 3D</span>
           </div>
