@@ -31,37 +31,49 @@ import {
 // ===============================
 function getFormatSpec(numberFormat) {
   const fmt = String(numberFormat || "00000");
-  // support "00000" style (digits only). If you later add decimals, we can extend.
   const digits = (fmt.match(/0/g) || []).length;
   return { maxDigits: Math.max(1, digits), fmt };
 }
 
-function formatDigitsToPattern(rawDigits, numberFormat) {
-  const { maxDigits } = getFormatSpec(numberFormat);
-
-  // keep only digits
-  const digitsOnly = String(rawDigits || "").replace(/\D/g, "");
-
-  // if user has not typed anything, show blank (NOT zeros)
-  if (!digitsOnly) return "";
-
-  // limit to maxDigits
-  const trimmed = digitsOnly.slice(0, maxDigits);
-
-  // pad left with zeros to match format length
-  return trimmed.padStart(maxDigits, "0");
+function onlyDigits(str) {
+  return String(str || "").replace(/\D/g, "");
 }
 
+function padToFormat(rawDigits, numberFormat) {
+  const { maxDigits } = getFormatSpec(numberFormat);
+  const d = onlyDigits(rawDigits).slice(0, maxDigits);
+
+  // ✅ if nothing typed, show blank (not zeros)
+  if (!d) return "";
+
+  return d.padStart(maxDigits, "0");
+}
+
+// ✅ DISPLAY OUTPUT (textbox style + editable in PLAY)
+// Key fix: do NOT pad on every keystroke (caret jump).
+// Only pad on blur / enter.
 function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
   const w = tank.w ?? tank.width ?? 160;
   const h = tank.h ?? tank.height ?? 60;
 
   const label = tank?.properties?.label || "";
   const numberFormat = tank?.properties?.numberFormat || "00000";
+  const { maxDigits } = getFormatSpec(numberFormat);
 
-  const value = tank?.value ?? "";
+  const rawValue =
+    tank.value !== undefined && tank.value !== null ? String(tank.value) : "";
 
-  const displayValue = formatDigitsToPattern(value, numberFormat);
+  const [editing, setEditing] = React.useState(false);
+  const [draft, setDraft] = React.useState(onlyDigits(rawValue));
+
+  // Sync draft from tank when not editing (restore/load/etc)
+  React.useEffect(() => {
+    if (!editing) setDraft(onlyDigits(rawValue));
+  }, [rawValue, editing]);
+
+  const displayed = isPlay
+    ? (editing ? draft : padToFormat(rawValue, numberFormat))
+    : padToFormat(rawValue, numberFormat);
 
   return (
     <div
@@ -87,6 +99,8 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
             fontWeight: 700,
             color: "#111",
             lineHeight: "12px",
+            background: "white",
+            padding: "0 4px",
             pointerEvents: "none",
           }}
         >
@@ -108,22 +122,44 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
       >
         {isPlay ? (
           <input
-            value={displayValue}
-            onChange={(e) => {
-              const nextFormatted = formatDigitsToPattern(
-                e.target.value,
-                numberFormat
-              );
-
-              // store formatted value (or blank)
-              onUpdate?.({
-                ...tank,
-                value: nextFormatted,
-              });
-            }}
+            value={displayed}
             inputMode="numeric"
             autoComplete="off"
             spellCheck={false}
+            // ✅ prevent canvas/drag handlers from stealing focus
+            onMouseDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
+            onFocus={(e) => {
+              e.stopPropagation();
+              setEditing(true);
+
+              // put caret at end
+              requestAnimationFrame(() => {
+                try {
+                  const len = e.target.value.length;
+                  e.target.setSelectionRange(len, len);
+                } catch {}
+              });
+            }}
+            onChange={(e) => {
+              // ✅ store ONLY raw digits while typing (no padding)
+              const next = onlyDigits(e.target.value).slice(0, maxDigits);
+              setDraft(next);
+            }}
+            onKeyDown={(e) => {
+              if (e.key === "Enter") e.currentTarget.blur();
+            }}
+            onBlur={() => {
+              setEditing(false);
+
+              // ✅ commit padded value ONLY when done typing
+              const formatted = padToFormat(draft, numberFormat);
+
+              onUpdate?.({
+                ...tank,
+                value: formatted,
+              });
+            }}
             style={{
               width: "100%",
               height: "100%",
@@ -149,7 +185,7 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
               lineHeight: "22px",
             }}
           >
-            {displayValue}
+            {displayed}
           </div>
         )}
       </div>
@@ -250,7 +286,7 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅ DISPLAY OUTPUT (textbox style + editable in PLAY)
+            // ✅ DISPLAY OUTPUT
             if (tank.shape === "displayOutput") {
               return (
                 <DraggableDroppedTank
