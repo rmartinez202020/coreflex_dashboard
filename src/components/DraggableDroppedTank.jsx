@@ -84,8 +84,11 @@ export default function DraggableDroppedTank({
 
   const isGraphicDisplay = tank.shape === "graphicDisplay";
 
+  // ✅ NEW: display output textbox
+  const isDisplayOutput = tank.shape === "displayOutput";
+
   // ✅ IMPORTANT:
-  // - In PLAY: allow pointer events only for toggle + pushbuttons
+  // - In PLAY: allow pointer events for toggle + pushbuttons + displayOutput
   // - In EDIT: allow pointer events for graphic display so double-click works
   // - Otherwise: keep "none" to avoid fighting DnD
   const contentStyle = {
@@ -95,7 +98,7 @@ export default function DraggableDroppedTank({
     maxWidth: "none",
     maxHeight: "none",
     pointerEvents: isPlay
-      ? isToggle || isPushButton
+      ? isToggle || isPushButton || isDisplayOutput
         ? "auto"
         : "none"
       : isGraphicDisplay
@@ -129,13 +132,19 @@ export default function DraggableDroppedTank({
     }
   };
 
+  // ✅ KEY FIX:
+  // If it's a "typing widget" in PLAY mode, do NOT attach dnd-kit listeners,
+  // otherwise pointerdown will start drag and the input won't focus reliably.
+  const dragListeners =
+    isPlay && isDisplayOutput ? undefined : listeners;
+
   return (
     <div
       ref={setNodeRef}
       className="draggable-item"
       style={outerStyle}
       {...attributes}
-      {...listeners}
+      {...(dragListeners || {})}
       onClick={(e) => {
         if (!isPlay) {
           e.stopPropagation();
@@ -151,9 +160,7 @@ export default function DraggableDroppedTank({
       <div style={visualWrapperStyle}>
         <div
           style={contentStyle}
-          // ✅ KEY FIX:
-          // Stop canvas selection box (canvas uses onMouseDown)
-          // but DO NOT block pointerdown (DnD-kit uses pointerdown)
+          // ✅ Stop canvas selection box in edit for graphic display
           onMouseDownCapture={(e) => {
             if (!isPlay && isGraphicDisplay) {
               e.stopPropagation();
