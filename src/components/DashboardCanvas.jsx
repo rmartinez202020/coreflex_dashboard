@@ -183,6 +183,24 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
   const setBtnH = 26;
 
   return (
+  // ✅ wrapper: label sits ABOVE the display box
+  <div style={{ width: w, userSelect: "none" }}>
+    {/* ✅ LABEL ABOVE (NOT inside) */}
+    {label ? (
+      <div
+        style={{
+          marginBottom: 4,
+          fontSize: 12,
+          fontWeight: 700,
+          color: "#111",
+          textAlign: "left",
+        }}
+      >
+        {label}
+      </div>
+    ) : null}
+
+    {/* ✅ display box */}
     <div
       style={{
         width: w,
@@ -192,30 +210,8 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
         borderRadius: 0,
         position: "relative",
         boxSizing: "border-box",
-        userSelect: "none",
       }}
     >
-      {/* ✅ label top-left */}
-      {label ? (
-        <div
-          style={{
-            position: "absolute",
-            top: 4,
-            left: 6,
-            fontSize: 12,
-            fontWeight: 700,
-            color: "#111",
-            lineHeight: "12px",
-            background: "white",
-            padding: "0 4px",
-            pointerEvents: "none",
-            zIndex: 2,
-          }}
-        >
-          {label}
-        </div>
-      ) : null}
-
       {/* ✅ value centered */}
       <div
         style={{
@@ -223,8 +219,7 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
           left: 0,
           top: 0,
           right: 0,
-          bottom: setBtnH, // reserve space for SET always
-          paddingTop: label ? 10 : 0,
+          bottom: setBtnH,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -243,7 +238,6 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
               e.stopPropagation();
               setEditing(true);
 
-              // caret to end
               requestAnimationFrame(() => {
                 try {
                   const len = e.target.value.length;
@@ -256,9 +250,7 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
               setDraft(next);
             }}
             onKeyDown={(e) => {
-              if (e.key === "Enter") {
-                e.currentTarget.blur();
-              }
+              if (e.key === "Enter") e.currentTarget.blur();
             }}
             onBlur={() => {
               setEditing(false);
@@ -310,7 +302,9 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
         <SetButton isPlay={isPlay} onSet={handleSet} />
       </div>
     </div>
-  );
+  </div>
+);
+
 }
 
 export default function DashboardCanvas({
