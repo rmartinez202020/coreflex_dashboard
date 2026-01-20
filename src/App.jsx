@@ -895,6 +895,13 @@ useEffect(() => {
             dashboardMode={dashboardMode}
             setDashboardMode={setDashboardMode}
             onLaunch={() => window.open("/launchMainDashboard", "_blank")}
+            // ✅ wire the buttons
+  onUndo={handleUndo}
+  onRedo={handleRedo}
+
+  // ✅ enable/disable state
+  canUndo={historyIndexRef.current > 0}
+  canRedo={historyIndexRef.current < history.length - 1}
           />
         ) : (
           <h1 className="text-2xl font-bold mb-4 text-gray-800">

@@ -3,7 +3,8 @@
  * - Displays dashboard title
  * - Play / Edit toggle
  * - Launch button
- * - Undo / Redo
+ * - Undo / Redo buttons
+ * - Pure UI component
  */
 
 export default function DashboardHeader({
@@ -14,38 +15,40 @@ export default function DashboardHeader({
   // ✅ NEW
   onUndo,
   onRedo,
-  canUndo,
-  canRedo,
+  canUndo = false,
+  canRedo = false,
 }) {
   return (
-    <div className="flex items-center gap-4 mb-6">
-      <h1 className="text-2xl font-bold text-gray-800">Main Dashboard</h1>
+    <div className="flex items-center gap-3 mb-6">
+      <h1 className="text-2xl font-bold text-gray-800 mr-2">Main Dashboard</h1>
 
       {/* ✅ UNDO / REDO */}
       <button
+        type="button"
         onClick={onUndo}
         disabled={!canUndo}
         title="Undo (Ctrl+Z)"
         className={`px-2 py-1 rounded-md text-sm border ${
           canUndo
-            ? "bg-white hover:bg-gray-100 text-gray-700"
-            : "bg-gray-100 text-gray-300 cursor-not-allowed"
+            ? "bg-white text-gray-800 hover:bg-gray-100"
+            : "bg-gray-100 text-gray-400 cursor-not-allowed"
         }`}
       >
-        ↩
+        ↶
       </button>
 
       <button
+        type="button"
         onClick={onRedo}
         disabled={!canRedo}
-        title="Redo (Ctrl+Y / Ctrl+Shift+Z)"
+        title="Redo (Ctrl+Y)"
         className={`px-2 py-1 rounded-md text-sm border ${
           canRedo
-            ? "bg-white hover:bg-gray-100 text-gray-700"
-            : "bg-gray-100 text-gray-300 cursor-not-allowed"
+            ? "bg-white text-gray-800 hover:bg-gray-100"
+            : "bg-gray-100 text-gray-400 cursor-not-allowed"
         }`}
       >
-        ↪
+        ↷
       </button>
 
       {/* PLAY */}
@@ -72,7 +75,7 @@ export default function DashboardHeader({
         ✎ Edit
       </button>
 
-      {/* 🚀 LAUNCH */}
+      {/* LAUNCH */}
       <button
         onClick={onLaunch}
         className="px-3 py-1 rounded-md text-sm bg-green-600 text-white hover:bg-green-700"
