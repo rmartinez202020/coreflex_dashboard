@@ -187,18 +187,20 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
   <div style={{ width: w, userSelect: "none" }}>
     {/* ✅ LABEL ABOVE (NOT inside) */}
     {label ? (
-      <div
-        style={{
-          marginBottom: 4,
-          fontSize: 12,
-          fontWeight: 700,
-          color: "#111",
-          textAlign: "left",
-        }}
-      >
-        {label}
-      </div>
-    ) : null}
+  <div
+    style={{
+      marginBottom: 6,
+      fontSize: 18,        // ✅ bigger like display input
+      fontWeight: 900,     // ✅ bold
+      color: "#111",
+      textAlign: "center", // ✅ centered
+      letterSpacing: 0.5,  // ✅ panel look
+    }}
+  >
+    {label}
+  </div>
+) : null}
+
 
     {/* ✅ display box */}
     <div
