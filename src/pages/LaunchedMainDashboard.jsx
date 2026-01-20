@@ -73,7 +73,10 @@ export default function LaunchedMainDashboard() {
         setSensorsData(
           (data || []).map((s) => ({
             ...s,
-            level_percent: Math.min(100, Math.round((Number(s.level || 0) / 55) * 100)),
+            level_percent: Math.min(
+              100,
+              Math.round((Number(s.level || 0) / 55) * 100)
+            ),
             date_received: s.last_update?.split?.("T")?.[0] || "",
             time_received: s.last_update
               ? new Date(s.last_update).toLocaleTimeString([], {
@@ -138,7 +141,10 @@ export default function LaunchedMainDashboard() {
   }
 
   // --------------------------------------------------------------
-  // ✅ STEP 3 — Render DashboardCanvas in PLAY (VIEW) mode only
+  // ✅ STEP 3 — Render DashboardCanvas in PLAY mode
+  //    IMPORTANT:
+  //    - We allow setDroppedTanks so toggle/pushbutton can update state
+  //    - We still block drag/edit via play mode + empty handlers
   // --------------------------------------------------------------
   return (
     <div
@@ -150,18 +156,18 @@ export default function LaunchedMainDashboard() {
       }}
     >
       <DashboardCanvas
-        dashboardMode="play" // ✅ VIEW-ONLY
-        embedMode={true} // ✅ hide extra UI inside canvas (your DashboardCanvas should respect this)
+        dashboardMode="play"
+        embedMode={true}
 
         /* ----- Layout Objects ----- */
         droppedTanks={droppedTanks}
-        setDroppedTanks={() => {}} // ✅ disable editing layout
+        setDroppedTanks={setDroppedTanks} // ✅ allow controls to update their own state in play
 
         /* ----- Sensor Data ----- */
         sensorsData={sensorsData}
         sensors={[]} // ✅ no drag items in launched mode
 
-        /* ----- Disable EVERYTHING EDITABLE ----- */
+        /* ----- Disable editing UI / interactions ----- */
         selectedIds={[]}
         setSelectedIds={() => {}}
         selectedTank={null}
@@ -173,6 +179,8 @@ export default function LaunchedMainDashboard() {
         activeSiloId={null}
         setActiveSiloId={() => {}}
         setShowSiloProps={() => {}}
+
+        // ✅ disable selection + drag actions in launched mode
         handleSelect={() => {}}
         handleRightClick={() => {}}
         handleDrop={() => {}}
@@ -181,10 +189,13 @@ export default function LaunchedMainDashboard() {
         handleCanvasMouseDown={() => {}}
         handleCanvasMouseMove={() => {}}
         handleCanvasMouseUp={() => {}}
+
         getLayerScore={(o) => o.zIndex || 1}
         selectionBox={null}
         hideContextMenu={() => {}}
         guides={[]}
+
+        // ✅ no property modals in launch mode
         onOpenDisplaySettings={() => {}}
         onOpenGraphicDisplaySettings={() => {}}
       />
