@@ -1,9 +1,10 @@
 import { API_URL } from "./config/api";
 
 import { PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+import LaunchedMainDashboard from "./pages/LaunchedMainDashboard";
 
 import { useEffect, useState, useRef } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useLocation } from "react-router-dom";
 import Header from "./components/Header";
 import DashboardHeader from "./components/DashboardHeader";
 import { saveMainDashboard } from "./services/saveMainDashboard";
@@ -58,6 +59,9 @@ import useDropHandler from "./hooks/useDropHandler";
 
 export default function App() {
   const navigate = useNavigate();
+  const location = useLocation();
+const isLaunchPage = location.pathname === "/launchMainDashboard";
+
 
   // ✅ identify which user is currently logged in (from JWT)
   const [currentUserKey, setCurrentUserKey] = useState(() =>
@@ -862,6 +866,12 @@ useEffect(() => {
   tp2DPos,
   tp3DPos,
 ]);
+
+// ✅ LAUNCH PAGE — RENDER ONLY PLAY MODE DASHBOARD
+if (isLaunchPage) {
+  return <LaunchedMainDashboard />;
+}
+
 
 
   return (
