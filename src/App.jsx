@@ -134,6 +134,15 @@ const hasHistoryInitRef = useRef(false);
   // ⭐ DASHBOARD MODE — DEFAULT EDIT
   const [dashboardMode, setDashboardMode] = useState("edit");
 
+  // ✅ ACTIVE DASHBOARD CONTEXT (Main vs Customer Dashboard)
+const [activeDashboard, setActiveDashboard] = useState({
+  type: "main",            // "main" | "customer"
+  dashboardId: null,       // string | null
+  dashboardName: "Main Dashboard",
+  customerId: null,        // number | null
+  customerName: "",
+});
+
   // ⭐ LAST SAVED TIMESTAMP
   const [lastSavedAt, setLastSavedAt] = useState(null);
 
@@ -271,6 +280,21 @@ const [symbolsSize, setSymbolsSize] = useState(() => {
     else if (obj.shape === "displayBox") offset = 3;
     return base * 10 + offset;
   };
+// ==========================================
+// ✅ Dashboard API endpoint resolver
+// ==========================================
+const getDashboardEndpoint = (ctx) => {
+  // main dashboard
+  if (!ctx || ctx.type === "main") return `${API_URL}/dashboard/main`;
+
+  // customer dashboard (must have an id)
+  if (ctx.type === "customer" && ctx.dashboardId) {
+    return `${API_URL}/customers-dashboards/${ctx.dashboardId}`;
+  }
+
+  // fallback
+  return `${API_URL}/dashboard/main`;
+};
 
   // ===============================
 // ⏪ UNDO / REDO HELPERS
@@ -489,9 +513,10 @@ useEffect(() => {
           return;
         }
 
-        const res = await fetch(`${API_URL}/dashboard/main`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await fetch(getDashboardEndpoint(activeDashboard), {
+  headers: { Authorization: `Bearer ${token}` },
+});
+
 
         if (!res.ok) {
           setLastSavedAt(null);
@@ -509,7 +534,8 @@ useEffect(() => {
     };
 
     loadLastSavedTimestamp();
-  }, [currentUserKey]);
+  }, [currentUserKey, activeDashboard]);
+
 
   const hideContextMenu = () =>
     setContextMenu((prev) => ({ ...prev, visible: false }));
@@ -548,7 +574,7 @@ useEffect(() => {
       console.log("✅ SAVE token start:", token?.slice?.(0, 25));
       console.log("✅ SAVE userKey:", getUserKeyFromToken(token));
 
-      await saveMainDashboard(dashboardPayload);
+      await saveMainDashboard(dashboardPayload, activeDashboard);
 
       setLastSavedAt(new Date());
       console.log("✅ Main Dashboard saved");
@@ -566,9 +592,10 @@ useEffect(() => {
 
       if (!token) throw new Error("No auth token found");
 
-      const res = await fetch(`${API_URL}/dashboard/main`, {
-        headers: { Authorization: `Bearer ${token}` },
-      });
+      const res = await fetch(getDashboardEndpoint(activeDashboard), {
+  headers: { Authorization: `Bearer ${token}` },
+});
+
 
       if (!res.ok) throw new Error("Failed to load dashboard from DB");
 
@@ -641,6 +668,11 @@ const openSymbolLibrary = (key) => {
   if (key === "tp3d") setShowTanksPipes3DLibrary(true);
 };
 
+// 🔁 RESET AUTO-RESTORE WHEN DASHBOARD CONTEXT CHANGES
+useEffect(() => {
+  autoRestoreRanRef.current = false;
+}, [activeDashboard]);
+
 
   // ==========================================
   // ✅ AUTO-RESTORE FROM DB ON REFRESH (FIX)
@@ -663,9 +695,9 @@ const openSymbolLibrary = (key) => {
       autoRestoreRanRef.current = true;
 
       try {
-        const res = await fetch(`${API_URL}/dashboard/main`, {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+       const res = await fetch(getDashboardEndpoint(activeDashboard), {
+  headers: { Authorization: `Bearer ${token}` },
+});
 
         if (!res.ok) return;
 
@@ -692,7 +724,8 @@ const openSymbolLibrary = (key) => {
     };
 
     autoRestore();
-  }, [activePage, currentUserKey]); // important: run when page/user is known
+  }, [activePage, currentUserKey, activeDashboard, droppedTanks.length]);
+
 
   // KEYBOARD SHORTCUTS
   useKeyboardShortcuts({
@@ -900,28 +933,40 @@ if (isLaunchPage) {
       <main className="flex-1 p-6 bg-white overflow-visible relative">
         <Header onLogout={handleLogout} />
 
-        {activePage === "dashboard" ? (
-          <DashboardHeader
-            dashboardMode={dashboardMode}
-            setDashboardMode={setDashboardMode}
-            onLaunch={() => window.open("/launchMainDashboard", "_blank")}
-            // ✅ wire the buttons
-  onUndo={handleUndo}
-  onRedo={handleRedo}
+      {activePage === "dashboard" ? (
+  <DashboardHeader
+    title={
+      activeDashboard.type === "main"
+        ? "Main Dashboard"
+        : `${activeDashboard.customerName} — ${activeDashboard.dashboardName}`
+    }
+    dashboardMode={dashboardMode}
+    setDashboardMode={setDashboardMode}
+    onLaunch={() => {
+      if (activeDashboard.type === "main") {
+        window.open("/launchMainDashboard", "_blank");
+      } else {
+        window.open(
+          `/launchDashboard/${activeDashboard.dashboardId}`,
+          "_blank"
+        );
+      }
+    }}
+    onUndo={handleUndo}
+    onRedo={handleRedo}
+    canUndo={historyIndexRef.current > 0}
+    canRedo={historyIndexRef.current < history.length - 1}
+  />
+) : (
+  <h1 className="text-2xl font-bold mb-4 text-gray-800">
+    {activePage === "home"
+      ? "Home"
+      : activePage === "deviceControls"
+      ? "Device Controls"
+      : "Main Dashboard"}
+  </h1>
+)}
 
-  // ✅ enable/disable state
-  canUndo={historyIndexRef.current > 0}
-  canRedo={historyIndexRef.current < history.length - 1}
-          />
-        ) : (
-          <h1 className="text-2xl font-bold mb-4 text-gray-800">
-            {activePage === "home"
-              ? "Home"
-              : activePage === "deviceControls"
-              ? "Device Controls"
-              : "Main Dashboard"}
-          </h1>
-        )}
 
         {activePage === "home" ? (
           <div className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg bg-white">

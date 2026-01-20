@@ -40,19 +40,31 @@ export default function HomePage({ setActiveSubPage, setSubPageColor }) {
         </div>
       </div>
 
-      {/* ADMIN DASHBOARD CARD */}
+      {/* ADMIN DASHBOARD CARD (now clickable to open Dashboard Admin section) */}
       <div className="mt-4 md:mt-6">
-        <div className="rounded-xl bg-gray-700 text-white p-4 md:p-5 flex flex-col justify-between">
+        <div
+          className="rounded-xl bg-gray-700 text-white p-4 md:p-5 flex flex-col justify-between cursor-pointer hover:bg-gray-800 transition"
+          onClick={() => {
+            // ✅ NEW: this opens the new section we’ll build next
+            setActiveSubPage("dashboardAdmin");
+            setSubPageColor("bg-gray-700");
+          }}
+        >
           <h2 className="text-lg font-semibold mb-2">Admin Dashboard</h2>
           <p className="text-sm text-gray-200 mb-2">
-            Central control for users, locations and devices.
+            Create and manage customer dashboards.
           </p>
+
           <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs md:text-sm">
-            <span>• Manage Users</span>
-            <span>• Manage Devices</span>
-            <span>• Manage Locations</span>
-            <span>• Billing</span>
-            <span>• Logs</span>
+            <span>• Create Dashboards</span>
+            <span>• Assign to Customers</span>
+            <span>• Open / Edit / Launch</span>
+            <span>• Permissions</span>
+            <span>• Versions</span>
+          </div>
+
+          <div className="mt-3 text-xs text-gray-300 opacity-90">
+            Click to open Dashboard Admin
           </div>
         </div>
       </div>

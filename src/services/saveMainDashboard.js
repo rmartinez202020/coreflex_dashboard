@@ -17,28 +17,52 @@ async function readErrorBody(res) {
   }
 }
 
-export async function saveMainDashboard(dashboard) {
+// ✅ NEW: resolve endpoint based on dashboard context
+function resolveDashboardEndpoint(activeDashboard) {
+  // default = main
+  if (!activeDashboard || activeDashboard.type === "main") {
+    return `${API_URL}/dashboard/main`;
+  }
+
+  // customer dashboard
+  if (activeDashboard.type === "customer" && activeDashboard.dashboardId) {
+    return `${API_URL}/dashboards/${activeDashboard.dashboardId}`;
+  }
+
+  // fallback
+  return `${API_URL}/dashboard/main`;
+}
+
+/**
+ * ✅ Save dashboard (Main OR Customer dashboard)
+ * @param {object} dashboardPayload - your dashboard JSON payload
+ * @param {object} activeDashboard - { type:"main"|"customer", dashboardId?:string }
+ */
+export async function saveMainDashboard(dashboardPayload, activeDashboard) {
   const token = getToken();
 
   if (!token) throw new Error("Not authenticated (missing token)");
-  if (!dashboard || typeof dashboard !== "object") {
+  if (!dashboardPayload || typeof dashboardPayload !== "object") {
     throw new Error("Invalid dashboard payload (must be an object)");
   }
 
+  const endpoint = resolveDashboardEndpoint(activeDashboard);
+
   if (DEBUG_DASHBOARD_API) {
-    console.log("[saveMainDashboard] POST /dashboard/main");
-    console.log("[saveMainDashboard] userKey:", getUserKeyFromToken(token)); // ✅ use SAME token
-    console.log("[saveMainDashboard] token start:", token.slice(0, 20));
-    console.log("[saveMainDashboard] payload keys:", Object.keys(dashboard));
+    console.log("[saveDashboard] POST", endpoint);
+    console.log("[saveDashboard] userKey:", getUserKeyFromToken(token));
+    console.log("[saveDashboard] token start:", token.slice(0, 20));
+    console.log("[saveDashboard] payload keys:", Object.keys(dashboardPayload));
+    console.log("[saveDashboard] activeDashboard:", activeDashboard);
   }
 
-  const res = await fetch(`${API_URL}/dashboard/main`, {
+  const res = await fetch(endpoint, {
     method: "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify(dashboard),
+    body: JSON.stringify(dashboardPayload),
   });
 
   if (res.status === 401 || res.status === 403) {
@@ -49,23 +73,32 @@ export async function saveMainDashboard(dashboard) {
 
   if (!res.ok) {
     const errorText = await readErrorBody(res);
-    throw new Error(`Save failed (${res.status}): ${errorText || res.statusText}`);
+    throw new Error(
+      `Save failed (${res.status}): ${errorText || res.statusText}`
+    );
   }
 
   return await res.json();
 }
 
-export async function loadMainDashboard() {
+/**
+ * ✅ Load dashboard (Main OR Customer dashboard)
+ * @param {object} activeDashboard - { type:"main"|"customer", dashboardId?:string }
+ */
+export async function loadMainDashboard(activeDashboard) {
   const token = getToken();
   if (!token) throw new Error("Not authenticated (missing token)");
 
+  const endpoint = resolveDashboardEndpoint(activeDashboard);
+
   if (DEBUG_DASHBOARD_API) {
-    console.log("[loadMainDashboard] GET /dashboard/main");
-    console.log("[loadMainDashboard] userKey:", getUserKeyFromToken(token)); // ✅ use SAME token
-    console.log("[loadMainDashboard] token start:", token.slice(0, 20));
+    console.log("[loadDashboard] GET", endpoint);
+    console.log("[loadDashboard] userKey:", getUserKeyFromToken(token));
+    console.log("[loadDashboard] token start:", token.slice(0, 20));
+    console.log("[loadDashboard] activeDashboard:", activeDashboard);
   }
 
-  const res = await fetch(`${API_URL}/dashboard/main`, {
+  const res = await fetch(endpoint, {
     method: "GET",
     headers: { Authorization: `Bearer ${token}` },
   });
@@ -78,7 +111,9 @@ export async function loadMainDashboard() {
 
   if (!res.ok) {
     const errorText = await readErrorBody(res);
-    throw new Error(`Load failed (${res.status}): ${errorText || res.statusText}`);
+    throw new Error(
+      `Load failed (${res.status}): ${errorText || res.statusText}`
+    );
   }
 
   return await res.json();

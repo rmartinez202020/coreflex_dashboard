@@ -1,6 +1,6 @@
 /**
  * DashboardHeader
- * - Displays dashboard title
+ * - Displays dashboard title (dynamic)
  * - Play / Edit toggle
  * - Launch button (opens clean PLAY mode in new tab)
  * - Undo / Redo buttons
@@ -8,6 +8,9 @@
  */
 
 export default function DashboardHeader({
+  // ✅ NEW: dynamic title (Main Dashboard or "Customer — Dashboard")
+  title = "Main Dashboard",
+
   dashboardMode,
   setDashboardMode,
   onLaunch,
@@ -21,7 +24,7 @@ export default function DashboardHeader({
   return (
     <div className="flex items-center gap-3 mb-6">
       <h1 className="text-2xl font-bold text-gray-800 mr-2">
-        Main Dashboard
+        {title}
       </h1>
 
       {/* ========================= */}
