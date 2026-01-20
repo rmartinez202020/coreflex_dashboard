@@ -77,6 +77,8 @@ const MAX_HISTORY = 6;
 const [history, setHistory] = useState([]);
 const [historyIndex, setHistoryIndex] = useState(-1);
 const historyIndexRef = useRef(-1);
+const skipHistoryRef = useRef(false);
+const hasHistoryInitRef = useRef(false);
 
   // SIDEBARS
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
@@ -269,21 +271,32 @@ const [symbolsSize, setSymbolsSize] = useState(() => {
   // ===============================
 // ⏪ UNDO / REDO HELPERS
 // ===============================
-const pushToHistory = (nextObjects) => {
-  setHistory((prev) => {
-    // remove redo steps if user makes a new action
-    const trimmed = prev.slice(0, historyIndex + 1);
+const cloneObjects = (objs) => JSON.parse(JSON.stringify(objs || []));
 
-    const updated = [...trimmed, nextObjects];
+// ⏪ push snapshot
+const pushToHistory = (nextObjects) => {
+  if (skipHistoryRef.current) {
+    skipHistoryRef.current = false;
+    return;
+  }
+
+  const snap = cloneObjects(nextObjects);
+
+  setHistory((prev) => {
+    const idx = historyIndexRef.current;
+
+    // remove redo steps if user makes a new action
+    const trimmed = prev.slice(0, idx + 1);
+
+    const updated = [...trimmed, snap];
 
     // keep last MAX_HISTORY states
-    if (updated.length > MAX_HISTORY) {
-      updated.shift();
-      setHistoryIndex((i) => Math.max(i - 1, 0));
-      return updated;
-    }
+    if (updated.length > MAX_HISTORY) updated.shift();
 
-    setHistoryIndex(updated.length - 1);
+    const newIndex = updated.length - 1;
+    setHistoryIndex(newIndex);
+    historyIndexRef.current = newIndex;
+
     return updated;
   });
 };
@@ -292,6 +305,89 @@ const pushToHistory = (nextObjects) => {
 useEffect(() => {
   historyIndexRef.current = historyIndex;
 }, [historyIndex]);
+
+const resetHistory = (objects) => {
+  const snap = cloneObjects(objects);
+  setHistory([snap]);
+  setHistoryIndex(0);
+  historyIndexRef.current = 0;
+  hasHistoryInitRef.current = true;
+};
+
+const handleUndo = () => {
+  const idx = historyIndexRef.current;
+  if (idx <= 0) return;
+
+  skipHistoryRef.current = true;
+  setDroppedTanks(cloneObjects(history[idx - 1]));
+  setHistoryIndex(idx - 1);
+
+  setSelectedIds([]);
+  setSelectedTank(null);
+};
+
+const handleRedo = () => {
+  const idx = historyIndexRef.current;
+  if (idx >= history.length - 1) return;
+
+  skipHistoryRef.current = true;
+  setDroppedTanks(cloneObjects(history[idx + 1]));
+  setHistoryIndex(idx + 1);
+
+  setSelectedIds([]);
+  setSelectedTank(null);
+};
+
+// ✅✅✅ STEP 4 — INITIALIZE HISTORY ONCE
+useEffect(() => {
+  // only on dashboard page
+  if (activePage !== "dashboard") return;
+
+  // only run once
+  if (hasHistoryInitRef.current) return;
+
+  // initialize history with the current objects
+  resetHistory(droppedTanks);
+}, [activePage]);  // <-- IMPORTANT: only activePage (NOT droppedTanks)
+
+// ✅ ADD THIS EFFECT RIGHT AFTER STEP 4
+useEffect(() => {
+  if (activePage !== "dashboard") return;
+  if (!hasHistoryInitRef.current) return;
+
+  // will be skipped automatically during undo/redo because skipHistoryRef is true
+  pushToHistory(droppedTanks);
+}, [droppedTanks]);
+
+// ✅ STEP 6 — KEYBOARD LISTENER (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z)
+useEffect(() => {
+  const onKeyDown = (e) => {
+    if (activePage !== "dashboard") return;
+
+    const key = (e.key || "").toLowerCase();
+    const isMac = navigator.platform.toLowerCase().includes("mac");
+    const mod = isMac ? e.metaKey : e.ctrlKey;
+
+    if (!mod) return;
+
+    // Ctrl+Z (undo)
+    if (key === "z" && !e.shiftKey) {
+      e.preventDefault();
+      handleUndo();
+      return;
+    }
+
+    // Ctrl+Shift+Z (redo) OR Ctrl+Y (redo)
+    if ((key === "z" && e.shiftKey) || key === "y") {
+      e.preventDefault();
+      handleRedo();
+      return;
+    }
+  };
+
+  window.addEventListener("keydown", onKeyDown);
+  return () => window.removeEventListener("keydown", onKeyDown);
+}, [activePage, history, handleUndo, handleRedo]);
 
 
   // ✅ USER AUTH STATE SYNC (critical)
