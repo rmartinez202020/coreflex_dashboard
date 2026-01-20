@@ -971,6 +971,7 @@ if (isLaunchPage) {
         {activePage === "home" ? (
           <div className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg bg-white">
             <div className="w-full h-full p-6">
+
            {activeSubPage === "profile" ? (
   <ProfilePage
     subPageColor={subPageColor}
@@ -981,12 +982,22 @@ if (isLaunchPage) {
     subPageColor={subPageColor}
     setActiveSubPage={setActiveSubPage}
   />
+) : activeSubPage === "dashboardAdmin" ? (
+  <div className="w-full h-full p-6 rounded-lg bg-white border">
+    <h2 className="text-2xl font-bold text-gray-800 mb-2">
+      Admin Dashboard
+    </h2>
+    <p className="text-gray-600">
+      Dashboard Admin is wired correctly ✅
+    </p>
+  </div>
 ) : (
   <HomePage
     setActiveSubPage={setActiveSubPage}
     setSubPageColor={setSubPageColor}
   />
 )}
+
 
             </div>
           </div>

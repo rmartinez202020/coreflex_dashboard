@@ -7,7 +7,7 @@ export default function HomePage({ setActiveSubPage, setSubPageColor }) {
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         {/* PROFILE CARD */}
         <div
-          className="rounded-xl bg-blue-600 text-white p-4 md:p-5 flex flex-col justify-between cursor-pointer"
+          className="rounded-xl bg-blue-600 text-white p-4 md:p-5 flex flex-col justify-between cursor-pointer hover:opacity-95 transition"
           onClick={() => {
             setActiveSubPage("profile");
             setSubPageColor("bg-blue-600");
@@ -19,7 +19,7 @@ export default function HomePage({ setActiveSubPage, setSubPageColor }) {
 
         {/* CUSTOMERS / LOCATIONS CARD */}
         <div
-          className="rounded-xl bg-teal-500 text-white p-4 md:p-5 flex flex-col justify-between cursor-pointer"
+          className="rounded-xl bg-teal-500 text-white p-4 md:p-5 flex flex-col justify-between cursor-pointer hover:opacity-95 transition"
           onClick={() => {
             setActiveSubPage("customers");
             setSubPageColor("bg-teal-500");
@@ -40,12 +40,13 @@ export default function HomePage({ setActiveSubPage, setSubPageColor }) {
         </div>
       </div>
 
-      {/* ADMIN DASHBOARD CARD (now clickable to open Dashboard Admin section) */}
+      {/* ADMIN DASHBOARD CARD */}
       <div className="mt-4 md:mt-6">
         <div
           className="rounded-xl bg-gray-700 text-white p-4 md:p-5 flex flex-col justify-between cursor-pointer hover:bg-gray-800 transition"
           onClick={() => {
-            // ✅ NEW: this opens the new section we’ll build next
+            // ✅ IMPORTANT: App.jsx must render this key
+            // Add a renderer for activeSubPage === "dashboardAdmin"
             setActiveSubPage("dashboardAdmin");
             setSubPageColor("bg-gray-700");
           }}
