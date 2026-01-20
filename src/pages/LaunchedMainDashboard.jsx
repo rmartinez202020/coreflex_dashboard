@@ -1,4 +1,5 @@
 // src/pages/LaunchedMainDashboard.jsx
+
 import React, { useEffect, useState } from "react";
 import DashboardCanvas from "../components/DashboardCanvas";
 import { API_URL } from "../config/api";
@@ -7,52 +8,73 @@ import { getToken } from "../utils/authToken";
 export default function LaunchedMainDashboard() {
   const [sensorsData, setSensorsData] = useState([]);
   const [droppedTanks, setDroppedTanks] = useState([]);
+  const [loading, setLoading] = useState(true);
+  const [fatalError, setFatalError] = useState("");
 
   // --------------------------------------------------------------
-  // STEP 1 — Load FULL dashboard layout from localStorage
+  // ✅ STEP 1 — Load THIS USER main dashboard layout from DB (token)
   // --------------------------------------------------------------
   useEffect(() => {
-    try {
-      const saved = localStorage.getItem("coreflex_dashboard_objects");
-      if (saved) {
-        const parsed = JSON.parse(saved);
-        setDroppedTanks(parsed || []);
-      }
-    } catch (e) {
-      console.error("❌ Error loading dashboard layout:", e);
-    }
-  }, []);
-
-  // --------------------------------------------------------------
-  // STEP 2 — Load live sensor data from backend API
-  // --------------------------------------------------------------
-  useEffect(() => {
-    const controller = new AbortController();
-
-    async function loadDevices() {
+    const loadLayout = async () => {
       try {
+        setLoading(true);
+        setFatalError("");
+
         const token = getToken();
-        const res = await fetch(`${API_URL}/devices`, {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          },
-          signal: controller.signal,
+        if (!token) {
+          setFatalError("Not logged in. Please login first, then click Launch.");
+          setDroppedTanks([]);
+          setLoading(false);
+          return;
+        }
+
+        const res = await fetch(`${API_URL}/dashboard/main`, {
+          headers: { Authorization: `Bearer ${token}` },
         });
 
         if (!res.ok) {
-          const text = await res.text();
-          throw new Error(`Devices API failed: ${res.status} ${text}`);
+          // If user has no saved dashboard yet, just show empty canvas
+          setDroppedTanks([]);
+          setLoading(false);
+          return;
         }
 
         const data = await res.json();
 
+        const objects =
+          data?.canvas?.objects ||
+          data?.layout?.canvas?.objects ||
+          data?.layout?.objects ||
+          [];
+
+        setDroppedTanks(Array.isArray(objects) ? objects : []);
+        setLoading(false);
+      } catch (e) {
+        console.error("❌ Launch load layout error:", e);
+        setFatalError("Failed to load dashboard layout.");
+        setDroppedTanks([]);
+        setLoading(false);
+      }
+    };
+
+    loadLayout();
+  }, []);
+
+  // --------------------------------------------------------------
+  // ✅ STEP 2 — Load live sensor/device data
+  // --------------------------------------------------------------
+  useEffect(() => {
+    fetch(`${API_URL}/devices`)
+      .then((res) => {
+        if (!res.ok) throw new Error("Failed to load devices");
+        return res.json();
+      })
+      .then((data) =>
         setSensorsData(
           (data || []).map((s) => ({
             ...s,
-            level_percent: Math.min(100, Math.round(((s.level || 0) / 55) * 100)),
-            date_received: s.last_update?.split("T")[0] || "",
+            level_percent: Math.min(100, Math.round((Number(s.level || 0) / 55) * 100)),
+            date_received: s.last_update?.split?.("T")?.[0] || "",
             time_received: s.last_update
               ? new Date(s.last_update).toLocaleTimeString([], {
                   hour: "2-digit",
@@ -60,20 +82,63 @@ export default function LaunchedMainDashboard() {
                 })
               : "",
           }))
-        );
-      } catch (err) {
-        if (err?.name !== "AbortError") {
-          console.error("❌ Sensor API error:", err);
-        }
-      }
-    }
-
-    loadDevices();
-    return () => controller.abort();
+        )
+      )
+      .catch((err) => {
+        console.error("❌ Sensor API error:", err);
+        setSensorsData([]);
+      });
   }, []);
 
   // --------------------------------------------------------------
-  // STEP 3 — Render DashboardCanvas in VIEW MODE ONLY
+  // ✅ UI: never show a “mystery blank” page
+  // --------------------------------------------------------------
+  if (loading) {
+    return (
+      <div
+        style={{
+          width: "100vw",
+          height: "100vh",
+          background: "white",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontFamily: "system-ui, Arial",
+          fontSize: 16,
+          color: "#111827",
+        }}
+      >
+        Loading dashboard…
+      </div>
+    );
+  }
+
+  if (fatalError) {
+    return (
+      <div
+        style={{
+          width: "100vw",
+          height: "100vh",
+          background: "white",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          padding: 24,
+          fontFamily: "system-ui, Arial",
+          color: "#111827",
+          textAlign: "center",
+        }}
+      >
+        <div>
+          <div style={{ fontWeight: 700, marginBottom: 8 }}>Launch error</div>
+          <div style={{ opacity: 0.85 }}>{fatalError}</div>
+        </div>
+      </div>
+    );
+  }
+
+  // --------------------------------------------------------------
+  // ✅ STEP 3 — Render DashboardCanvas in PLAY (VIEW) mode only
   // --------------------------------------------------------------
   return (
     <div
@@ -85,12 +150,18 @@ export default function LaunchedMainDashboard() {
       }}
     >
       <DashboardCanvas
-        dashboardMode="play"
-        embedMode={true}
+        dashboardMode="play" // ✅ VIEW-ONLY
+        embedMode={true} // ✅ hide extra UI inside canvas (your DashboardCanvas should respect this)
+
+        /* ----- Layout Objects ----- */
         droppedTanks={droppedTanks}
-        setDroppedTanks={() => {}}
+        setDroppedTanks={() => {}} // ✅ disable editing layout
+
+        /* ----- Sensor Data ----- */
         sensorsData={sensorsData}
-        sensors={[]}
+        sensors={[]} // ✅ no drag items in launched mode
+
+        /* ----- Disable EVERYTHING EDITABLE ----- */
         selectedIds={[]}
         setSelectedIds={() => {}}
         selectedTank={null}
@@ -115,6 +186,7 @@ export default function LaunchedMainDashboard() {
         hideContextMenu={() => {}}
         guides={[]}
         onOpenDisplaySettings={() => {}}
+        onOpenGraphicDisplaySettings={() => {}}
       />
     </div>
   );
