@@ -109,39 +109,48 @@ const skipHistoryPushRef = useRef(false);
 // avoids pushing the initial empty snapshot twice
 const hasUndoInitRef = useRef(false);
 
+// ✅ ADD THIS LINE RIGHT HERE ⬇️
+const isObjectDraggingRef = useRef(false);
+
 const deepClone = (x) => JSON.parse(JSON.stringify(x || []));
 
 // ✅ prevents duplicate undo snapshots (THIS FIXES YOUR ISSUE)
 const lastPushedSnapshotRef = useRef("");
 
 
-  // ✅ push snapshots ONLY when canvas meaningfully changes
+// ✅ push snapshots when droppedTanks changes (SKIP while dragging + dedupe)
 useEffect(() => {
   if (activePage !== "dashboard") return;
 
-  const snapshot = JSON.stringify(deepClone(droppedTanks));
+  // 🚫 DO NOT snapshot while dragging
+  if (isObjectDraggingRef.current) return;
 
-  // init once per session
+  const snapshot = JSON.stringify(droppedTanks || []);
+
+  // init once per dashboard load
   if (!hasUndoInitRef.current) {
     hasUndoInitRef.current = true;
     reset();
-    push(JSON.parse(snapshot));
+    lastPushedSnapshotRef.current = snapshot;
+    push(deepClone(droppedTanks));
+    return;
+  }
+
+  // skip when undo/redo is applying state
+  if (skipHistoryPushRef.current) {
+    skipHistoryPushRef.current = false;
     lastPushedSnapshotRef.current = snapshot;
     return;
   }
 
-  // skip when applying undo/redo
-  if (skipHistoryPushRef.current) {
-    skipHistoryPushRef.current = false;
-    return;
-  }
-
-  // 🚫 prevent duplicate snapshots (THIS FIXES DOUBLE CTRL+Z)
+  // ✅ DEDUPE: don't push the same snapshot twice
   if (snapshot === lastPushedSnapshotRef.current) return;
 
-  push(JSON.parse(snapshot));
   lastPushedSnapshotRef.current = snapshot;
-}, [activePage, droppedTanks]);
+  push(deepClone(droppedTanks));
+}, [activePage, droppedTanks, reset, push]);
+
+
 
 
 const handleUndo = () => {
@@ -790,12 +799,29 @@ useEffect(() => {
   });
 
   // OBJECT DRAGGING
-  const { dragDelta, setDragDelta, handleDragMove, handleDragEnd, guides } =
-    useObjectDragging({
-      selectedIds,
-      droppedTanks,
-      setDroppedTanks,
-    });
+const {
+  dragDelta,
+  setDragDelta,
+  handleDragMove: rawHandleDragMove,
+  handleDragEnd: rawHandleDragEnd,
+  guides,
+} = useObjectDragging({
+  selectedIds,
+  droppedTanks,
+  setDroppedTanks,
+});
+
+// ✅ WRAPPED HANDLERS (prevents double-undo)
+const handleDragMove = (...args) => {
+  isObjectDraggingRef.current = true;
+  rawHandleDragMove(...args);
+};
+
+const handleDragEnd = (...args) => {
+  isObjectDraggingRef.current = false;
+  rawHandleDragEnd(...args);
+};
+
 
   // DROP HANDLER
   const { handleDrop } = useDropHandler({
