@@ -187,37 +187,6 @@ useEffect(() => {
   return () => window.removeEventListener("keydown", onKeyDown);
 }, [activePage]); // ✅ only rebind when page changes
 
-// ✅ DELETE SELECTED OBJECTS (Delete / Backspace)
-const deleteSelected = () => {
-  if (activePage !== "dashboard") return;
-  if (dashboardMode !== "edit") return;
-  if (!selectedIds || selectedIds.length === 0) return;
-
-  setDroppedTanks((prev) => prev.filter((obj) => !selectedIds.includes(obj.id)));
-  setSelectedIds([]);
-  setSelectedTank(null);
-};
-
-useEffect(() => {
-  const onKeyDown = (e) => {
-    if (activePage !== "dashboard") return;
-    if (dashboardMode !== "edit") return;
-
-    // don't delete while typing in inputs/textareas
-    const el = document.activeElement;
-    const tag = (el?.tagName || "").toLowerCase();
-    const typing = tag === "input" || tag === "textarea" || el?.isContentEditable;
-    if (typing) return;
-
-    if (e.key === "Delete" || e.key === "Backspace") {
-      e.preventDefault();
-      deleteSelected();
-    }
-  };
-
-  window.addEventListener("keydown", onKeyDown);
-  return () => window.removeEventListener("keydown", onKeyDown);
-}, [activePage, dashboardMode, selectedIds]);
 
 
 
@@ -257,6 +226,39 @@ useEffect(() => {
 
   // ⭐ DASHBOARD MODE — DEFAULT EDIT
   const [dashboardMode, setDashboardMode] = useState("edit");
+
+  // ✅ DELETE SELECTED OBJECTS (Delete / Backspace)
+const deleteSelected = () => {
+  if (activePage !== "dashboard") return;
+  if (dashboardMode !== "edit") return;
+  if (!selectedIds || selectedIds.length === 0) return;
+
+  setDroppedTanks((prev) => prev.filter((obj) => !selectedIds.includes(obj.id)));
+
+  setSelectedIds([]);
+  setSelectedTank(null);
+};
+
+useEffect(() => {
+  const onKeyDown = (e) => {
+    if (activePage !== "dashboard") return;
+    if (dashboardMode !== "edit") return;
+
+    // ⛔ Don't delete while typing
+    const el = document.activeElement;
+    const tag = (el?.tagName || "").toLowerCase();
+    if (tag === "input" || tag === "textarea" || el?.isContentEditable) return;
+
+    if (e.key === "Delete" || e.key === "Backspace") {
+      e.preventDefault();
+      deleteSelected();
+    }
+  };
+
+  window.addEventListener("keydown", onKeyDown);
+  return () => window.removeEventListener("keydown", onKeyDown);
+}, [activePage, dashboardMode, selectedIds]);
+
 
   // ✅ ACTIVE DASHBOARD CONTEXT (Main vs Customer Dashboard)
 const [activeDashboard, setActiveDashboard] = useState({
