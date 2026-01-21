@@ -698,6 +698,11 @@ const handleUploadProject = async () => {
     // ✅ block history while restoring
     isRestoringRef.current = true;
 
+    // ✅ one snapshot per drag action
+const dragStartedRef = useRef(false);
+const dragStartSnapshotRef = useRef("");
+
+
     // ✅ hard reset undo state BEFORE touching droppedTanks
     hasUndoInitRef.current = false;
     reset();
@@ -878,14 +883,41 @@ const {
 
 // ✅ WRAPPED HANDLERS (prevents double-undo)
 const handleDragMove = (...args) => {
+  // ✅ first movement of this drag action
+  if (!dragStartedRef.current) {
+    dragStartedRef.current = true;
+    dragStartSnapshotRef.current = JSON.stringify(droppedRef.current || []);
+  }
+
+  // ✅ block effect snapshot pushes while dragging
   isObjectDraggingRef.current = true;
+
   rawHandleDragMove(...args);
 };
 
 const handleDragEnd = (...args) => {
-  isObjectDraggingRef.current = false;
+  // ✅ keep blocking effect pushes during the final state update
+  isObjectDraggingRef.current = true;
+
   rawHandleDragEnd(...args);
+
+  // ✅ after React applies final droppedTanks state, push ONE snapshot
+  setTimeout(() => {
+    const afterArr = deepClone(droppedRef.current || []);
+    const afterSnap = JSON.stringify(afterArr);
+
+    // stop “drag mode”
+    isObjectDraggingRef.current = false;
+    dragStartedRef.current = false;
+
+    // ✅ only push if changed
+    if (afterSnap !== lastPushedSnapshotRef.current) {
+      lastPushedSnapshotRef.current = afterSnap;
+      push(afterArr);
+    }
+  }, 0);
 };
+
 
 
   // DROP HANDLER
