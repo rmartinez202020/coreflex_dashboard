@@ -111,25 +111,38 @@ const hasUndoInitRef = useRef(false);
 
 const deepClone = (x) => JSON.parse(JSON.stringify(x || []));
 
-  // ✅ push snapshots when droppedTanks changes (but NOT when applying undo/redo)
+// ✅ prevents duplicate undo snapshots (THIS FIXES YOUR ISSUE)
+const lastPushedSnapshotRef = useRef("");
+
+
+  // ✅ push snapshots ONLY when canvas meaningfully changes
 useEffect(() => {
   if (activePage !== "dashboard") return;
 
-  // init once per "session" (prevents double initial snapshot)
+  const snapshot = JSON.stringify(deepClone(droppedTanks));
+
+  // init once per session
   if (!hasUndoInitRef.current) {
     hasUndoInitRef.current = true;
     reset();
-    push(deepClone(droppedTanks));
+    push(JSON.parse(snapshot));
+    lastPushedSnapshotRef.current = snapshot;
     return;
   }
 
+  // skip when applying undo/redo
   if (skipHistoryPushRef.current) {
     skipHistoryPushRef.current = false;
     return;
   }
 
-  push(deepClone(droppedTanks));
-}, [activePage, droppedTanks]); // ✅ keep this dependency list
+  // 🚫 prevent duplicate snapshots (THIS FIXES DOUBLE CTRL+Z)
+  if (snapshot === lastPushedSnapshotRef.current) return;
+
+  push(JSON.parse(snapshot));
+  lastPushedSnapshotRef.current = snapshot;
+}, [activePage, droppedTanks]);
+
 
 const handleUndo = () => {
   if (activePage !== "dashboard") return;
