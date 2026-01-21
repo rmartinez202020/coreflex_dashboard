@@ -116,6 +116,10 @@ const hasUndoInitRef = useRef(false);
 // ✅ ADD THIS LINE RIGHT HERE ⬇️
 const isObjectDraggingRef = useRef(false);
 
+// ✅ ADD THESE TWO LINES RIGHT HERE
+const dragStartedRef = useRef(false);
+const dragStartSnapshotRef = useRef("");
+
 const deepClone = (x) => JSON.parse(JSON.stringify(x || []));
 
 // ✅ prevents duplicate undo snapshots (THIS FIXES YOUR ISSUE)
@@ -908,6 +912,9 @@ const handleDragEnd = (...args) => {
 
     // stop “drag mode”
     isObjectDraggingRef.current = false;
+    dragStartedRef.current = false;
+  dragStartSnapshotRef.current = "";
+
     dragStartedRef.current = false;
 
     // ✅ only push if changed
