@@ -69,6 +69,21 @@ const isLaunchPage = location.pathname === "/launchMainDashboard";
     getUserKeyFromToken()
   );
 
+    // ===============================
+  // ✅ NAVIGATION (persist on refresh)
+  // ===============================
+  const [activePage, setActivePage] = useState(() => {
+    return localStorage.getItem("coreflex_activePage") || "home";
+  });
+  const [activeSubPage, setActiveSubPage] = useState(null);
+  const [subPageColor, setSubPageColor] = useState("");
+
+  // Persist activePage changes
+  useEffect(() => {
+    localStorage.setItem("coreflex_activePage", activePage);
+  }, [activePage]);
+
+
   // DEVICE DATA
   const [sensorsData, setSensorsData] = useState([]);
 
@@ -206,20 +221,6 @@ useEffect(() => {
   const [graphicSettingsId, setGraphicSettingsId] = useState(null);
   const openGraphicDisplaySettings = (tank) => setGraphicSettingsId(tank.id);
   const closeGraphicDisplaySettings = () => setGraphicSettingsId(null);
-
-  // ===============================
-  // ✅ NAVIGATION (persist on refresh)
-  // ===============================
-  const [activePage, setActivePage] = useState(() => {
-    return localStorage.getItem("coreflex_activePage") || "home";
-  });
-  const [activeSubPage, setActiveSubPage] = useState(null);
-  const [subPageColor, setSubPageColor] = useState("");
-
-  // Persist activePage changes
-  useEffect(() => {
-    localStorage.setItem("coreflex_activePage", activePage);
-  }, [activePage]);
 
   // ⭐ DASHBOARD MODE — DEFAULT EDIT
   const [dashboardMode, setDashboardMode] = useState("edit");
