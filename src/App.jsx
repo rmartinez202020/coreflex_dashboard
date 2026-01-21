@@ -914,8 +914,6 @@ const handleDragEnd = (...args) => {
     dragStartedRef.current = false;
   dragStartSnapshotRef.current = "";
 
-    dragStartedRef.current = false;
-
     // ✅ only push if changed
     if (afterSnap !== lastPushedSnapshotRef.current) {
       lastPushedSnapshotRef.current = afterSnap;
