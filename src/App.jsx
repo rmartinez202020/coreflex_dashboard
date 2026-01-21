@@ -2,6 +2,8 @@ import { API_URL } from "./config/api";
 
 import { PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import LaunchedMainDashboard from "./pages/LaunchedMainDashboard";
+import DashboardAdminPage from "./components/DashboardAdminPage";
+import useUndoRedo from "./hooks/useUndoRedo";
 
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
@@ -52,7 +54,6 @@ import SiloPropertiesModal from "./components/SiloPropertiesModal";
 import DisplaySettingsModal from "./components/DisplaySettingsModal";
 
 // HOOKS
-import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 import useCanvasSelection from "./hooks/useCanvasSelection";
 import useObjectDragging from "./hooks/useObjectDragging";
 import useDropHandler from "./hooks/useDropHandler";
@@ -76,13 +77,102 @@ const isLaunchPage = location.pathname === "/launchMainDashboard";
   const [selectedTank, setSelectedTank] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
 
-  // ✅ UNDO / REDO HISTORY (last 6 actions)
-const MAX_HISTORY = 6;
-const [history, setHistory] = useState([]);
-const [historyIndex, setHistoryIndex] = useState(-1);
-const historyIndexRef = useRef(-1);
-const skipHistoryRef = useRef(false);
-const hasHistoryInitRef = useRef(false);
+  // ✅ always keep the latest canvas in a ref (prevents stale Ctrl+Z / Ctrl+Y)
+const droppedRef = useRef([]);
+
+useEffect(() => {
+  droppedRef.current = droppedTanks;
+}, [droppedTanks]);
+
+
+  // ✅ UNDO/REDO (hook-based)
+const { push, undo, redo, reset, canUndo, canRedo } = useUndoRedo(6);
+
+// prevents re-pushing history when applying undo/redo snapshot
+const skipHistoryPushRef = useRef(false);
+
+// avoids pushing the initial empty snapshot twice
+const hasUndoInitRef = useRef(false);
+
+const deepClone = (x) => JSON.parse(JSON.stringify(x || []));
+
+  // ✅ push snapshots when droppedTanks changes (but NOT when applying undo/redo)
+useEffect(() => {
+  if (activePage !== "dashboard") return;
+
+  // init once per "session" (prevents double initial snapshot)
+  if (!hasUndoInitRef.current) {
+    hasUndoInitRef.current = true;
+    reset();
+    push(deepClone(droppedTanks));
+    return;
+  }
+
+  if (skipHistoryPushRef.current) {
+    skipHistoryPushRef.current = false;
+    return;
+  }
+
+  push(deepClone(droppedTanks));
+}, [activePage, droppedTanks]); // ✅ keep this dependency list
+
+const handleUndo = () => {
+  if (activePage !== "dashboard") return;
+
+  const current = deepClone(droppedRef.current);
+  const res = undo(current);
+  if (!res.ok) return;
+
+  skipHistoryPushRef.current = true;
+  setDroppedTanks(deepClone(res.snapshot));
+  setSelectedIds([]);
+  setSelectedTank(null);
+};
+
+const handleRedo = () => {
+  if (activePage !== "dashboard") return;
+
+  const current = deepClone(droppedRef.current);
+  const res = redo(current);
+  if (!res.ok) return;
+
+  skipHistoryPushRef.current = true;
+  setDroppedTanks(deepClone(res.snapshot));
+  setSelectedIds([]);
+  setSelectedTank(null);
+};
+
+// ✅ KEYBOARD LISTENER (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z)
+// Uses the latest droppedTanks via a ref so Ctrl+Z never gets stale.
+useEffect(() => {
+  const onKeyDown = (e) => {
+    if (activePage !== "dashboard") return;
+
+    const key = (e.key || "").toLowerCase();
+    const isMac = navigator.platform.toLowerCase().includes("mac");
+    const mod = isMac ? e.metaKey : e.ctrlKey;
+    if (!mod) return;
+
+    // Ctrl+Z (undo)
+    if (key === "z" && !e.shiftKey) {
+      e.preventDefault();
+      handleUndo(); // make sure handleUndo uses droppedRef.current internally
+      return;
+    }
+
+    // Ctrl+Shift+Z (redo) OR Ctrl+Y (redo)
+    if ((key === "z" && e.shiftKey) || key === "y") {
+      e.preventDefault();
+      handleRedo(); // make sure handleRedo uses droppedRef.current internally
+      return;
+    }
+  };
+
+  window.addEventListener("keydown", onKeyDown);
+  return () => window.removeEventListener("keydown", onKeyDown);
+}, [activePage]); // ✅ only rebind when page changes
+
+
 
   // SIDEBARS
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
@@ -295,128 +385,6 @@ const getDashboardEndpoint = (ctx) => {
   // fallback
   return `${API_URL}/dashboard/main`;
 };
-
-  // ===============================
-// ⏪ UNDO / REDO HELPERS
-// ===============================
-const cloneObjects = (objs) => JSON.parse(JSON.stringify(objs || []));
-
-// ⏪ push snapshot
-const pushToHistory = (nextObjects) => {
-  if (skipHistoryRef.current) {
-    skipHistoryRef.current = false;
-    return;
-  }
-
-  const snap = cloneObjects(nextObjects);
-
-  setHistory((prev) => {
-    const idx = historyIndexRef.current;
-
-    // remove redo steps if user makes a new action
-    const trimmed = prev.slice(0, idx + 1);
-
-    const updated = [...trimmed, snap];
-
-    // keep last MAX_HISTORY states
-    if (updated.length > MAX_HISTORY) updated.shift();
-
-    const newIndex = updated.length - 1;
-    setHistoryIndex(newIndex);
-    historyIndexRef.current = newIndex;
-
-    return updated;
-  });
-};
-
-// ✅ ADD THIS RIGHT HERE ⬇⬇⬇
-useEffect(() => {
-  historyIndexRef.current = historyIndex;
-}, [historyIndex]);
-
-const resetHistory = (objects) => {
-  const snap = cloneObjects(objects);
-  setHistory([snap]);
-  setHistoryIndex(0);
-  historyIndexRef.current = 0;
-  hasHistoryInitRef.current = true;
-};
-
-const handleUndo = () => {
-  const idx = historyIndexRef.current;
-  if (idx <= 0) return;
-
-  skipHistoryRef.current = true;
-  setDroppedTanks(cloneObjects(history[idx - 1]));
-  setHistoryIndex(idx - 1);
-
-  setSelectedIds([]);
-  setSelectedTank(null);
-};
-
-const handleRedo = () => {
-  const idx = historyIndexRef.current;
-  if (idx >= history.length - 1) return;
-
-  skipHistoryRef.current = true;
-  setDroppedTanks(cloneObjects(history[idx + 1]));
-  setHistoryIndex(idx + 1);
-
-  setSelectedIds([]);
-  setSelectedTank(null);
-};
-
-// ✅✅✅ STEP 4 — INITIALIZE HISTORY ONCE
-useEffect(() => {
-  // only on dashboard page
-  if (activePage !== "dashboard") return;
-
-  // only run once
-  if (hasHistoryInitRef.current) return;
-
-  // initialize history with the current objects
-  resetHistory(droppedTanks);
-}, [activePage]);  // <-- IMPORTANT: only activePage (NOT droppedTanks)
-
-// ✅ ADD THIS EFFECT RIGHT AFTER STEP 4
-useEffect(() => {
-  if (activePage !== "dashboard") return;
-  if (!hasHistoryInitRef.current) return;
-
-  // will be skipped automatically during undo/redo because skipHistoryRef is true
-  pushToHistory(droppedTanks);
-}, [droppedTanks]);
-
-// ✅ STEP 6 — KEYBOARD LISTENER (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z)
-useEffect(() => {
-  const onKeyDown = (e) => {
-    if (activePage !== "dashboard") return;
-
-    const key = (e.key || "").toLowerCase();
-    const isMac = navigator.platform.toLowerCase().includes("mac");
-    const mod = isMac ? e.metaKey : e.ctrlKey;
-
-    if (!mod) return;
-
-    // Ctrl+Z (undo)
-    if (key === "z" && !e.shiftKey) {
-      e.preventDefault();
-      handleUndo();
-      return;
-    }
-
-    // Ctrl+Shift+Z (redo) OR Ctrl+Y (redo)
-    if ((key === "z" && e.shiftKey) || key === "y") {
-      e.preventDefault();
-      handleRedo();
-      return;
-    }
-  };
-
-  window.addEventListener("keydown", onKeyDown);
-  return () => window.removeEventListener("keydown", onKeyDown);
-}, [activePage, history, handleUndo, handleRedo]);
-
 
   // ✅ USER AUTH STATE SYNC (critical)
   useEffect(() => {
@@ -669,6 +637,8 @@ const openSymbolLibrary = (key) => {
 };
 
 // 🔁 RESET AUTO-RESTORE WHEN DASHBOARD CONTEXT CHANGES
+
+const autoRestoreRanRef = useRef(false);
 useEffect(() => {
   autoRestoreRanRef.current = false;
 }, [activeDashboard]);
@@ -677,7 +647,7 @@ useEffect(() => {
   // ==========================================
   // ✅ AUTO-RESTORE FROM DB ON REFRESH (FIX)
   // ==========================================
-  const autoRestoreRanRef = useRef(false);
+  
 
   useEffect(() => {
     const autoRestore = async () => {
@@ -725,17 +695,6 @@ useEffect(() => {
 
     autoRestore();
   }, [activePage, currentUserKey, activeDashboard, droppedTanks.length]);
-
-
-  // KEYBOARD SHORTCUTS
-  useKeyboardShortcuts({
-    selectedIds,
-    setSelectedIds,
-    selectedTank,
-    setSelectedTank,
-    droppedTanks,
-    setDroppedTanks,
-  });
 
   // CANVAS SELECTION
   const {
@@ -905,8 +864,6 @@ if (isLaunchPage) {
   return <LaunchedMainDashboard />;
 }
 
-
-
   return (
     <div
       className="flex h-screen bg-white"
@@ -953,9 +910,9 @@ if (isLaunchPage) {
       }
     }}
     onUndo={handleUndo}
-    onRedo={handleRedo}
-    canUndo={historyIndexRef.current > 0}
-    canRedo={historyIndexRef.current < history.length - 1}
+  onRedo={handleRedo}
+  canUndo={canUndo}
+  canRedo={canRedo}
   />
 ) : (
   <h1 className="text-2xl font-bold mb-4 text-gray-800">
@@ -983,15 +940,42 @@ if (isLaunchPage) {
     setActiveSubPage={setActiveSubPage}
   />
 ) : activeSubPage === "dashboardAdmin" ? (
-  <div className="w-full h-full p-6 rounded-lg bg-white border">
-    <h2 className="text-2xl font-bold text-gray-800 mb-2">
-      Admin Dashboard
-    </h2>
-    <p className="text-gray-600">
-      Dashboard Admin is wired correctly ✅
-    </p>
-  </div>
+  <DashboardAdminPage
+    onOpenDashboard={(row) => {
+      // ✅ switch to dashboard editor page
+      setActivePage("dashboard");
+
+      // ✅ set context so header shows customer dashboard title
+      setActiveDashboard({
+        type: "customer",
+        dashboardId: String(row.id),
+        dashboardName: row.dashboard_name || "Customer Dashboard",
+        customerId: null,
+        customerName: row.customer_name || "",
+      });
+
+      // ✅ go to edit mode (important)
+      setDashboardMode("edit");
+
+      // ✅ clear canvas so auto-restore can load the correct one
+      setDroppedTanks([]);
+      setSelectedIds([]);
+      setSelectedTank(null);
+
+      // ✅ reset undo/redo history so it doesn’t mix dashboards
+hasUndoInitRef.current = false;
+reset();
+
+      // ✅ allow auto-restore to run again for this dashboard
+      autoRestoreRanRef.current = false;
+    }}
+    onLaunchDashboard={(row) => {
+      window.open(`/launchDashboard/${row.id}`, "_blank");
+    }}
+  />
 ) : (
+
+
   <HomePage
     setActiveSubPage={setActiveSubPage}
     setSubPageColor={setSubPageColor}
