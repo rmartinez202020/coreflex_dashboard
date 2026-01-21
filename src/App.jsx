@@ -142,18 +142,23 @@ useEffect(() => {
   const snapshot = JSON.stringify(droppedTanks || []);
 
   // init once per dashboard load
-  if (!hasUndoInitRef.current) {
-    hasUndoInitRef.current = true;
-    skipHistoryPushRef.current = true;
+if (!hasUndoInitRef.current) {
+  // ✅ IMPORTANT: do NOT init on empty dashboard (prevents white undo)
+  if (!droppedTanks || droppedTanks.length === 0) return;
 
-    reset();
+  hasUndoInitRef.current = true;
 
-    baselineSnapshotRef.current = snapshot;
-    lastPushedSnapshotRef.current = snapshot;
+  reset();
 
-    push(deepClone(droppedTanks));
-    return;
-  }
+  baselineSnapshotRef.current = snapshot;
+  lastPushedSnapshotRef.current = snapshot;
+
+  // prevent duplicate push on next render
+  skipHistoryPushRef.current = true;
+
+  push(deepClone(droppedTanks));
+  return;
+}
 
   if (skipHistoryPushRef.current) {
     skipHistoryPushRef.current = false;
