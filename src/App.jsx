@@ -124,12 +124,17 @@ const lastPushedSnapshotRef = useRef("");
 // ✅ baseline (starting point) snapshot — you can’t undo before this
 const baselineSnapshotRef = useRef("");
 
+// ✅ blocks snapshot pushes while restoring from DB
+const isRestoringRef = useRef(false);
+
 
 // ✅ push snapshots when droppedTanks changes (SKIP while dragging + dedupe)
 useEffect(() => {
   if (activePage !== "dashboard") return;
   if (dashboardMode !== "edit") return;
 
+  // ✅ DO NOT snapshot while restoring
+  if (isRestoringRef.current) return;
 
   // 🚫 DO NOT snapshot while dragging
   if (isObjectDraggingRef.current) return;
@@ -137,29 +142,25 @@ useEffect(() => {
   const snapshot = JSON.stringify(droppedTanks || []);
 
   // init once per dashboard load
-if (!hasUndoInitRef.current) {
-  hasUndoInitRef.current = true;
-  skipHistoryPushRef.current = true;
+  if (!hasUndoInitRef.current) {
+    hasUndoInitRef.current = true;
+    skipHistoryPushRef.current = true;
 
+    reset();
 
-  reset();
+    baselineSnapshotRef.current = snapshot;
+    lastPushedSnapshotRef.current = snapshot;
 
-  // ✅ BASELINE = the very first state for this dashboard session
-  baselineSnapshotRef.current = snapshot;
+    push(deepClone(droppedTanks));
+    return;
+  }
 
-  lastPushedSnapshotRef.current = snapshot;
-  push(deepClone(droppedTanks));
-  return;
-}
-
-  // skip when undo/redo is applying state
   if (skipHistoryPushRef.current) {
     skipHistoryPushRef.current = false;
     lastPushedSnapshotRef.current = snapshot;
     return;
   }
 
-  // ✅ DEDUPE: don't push the same snapshot twice
   if (snapshot === lastPushedSnapshotRef.current) return;
 
   lastPushedSnapshotRef.current = snapshot;
@@ -684,58 +685,64 @@ const goToMainDashboard = () => {
   };
 
   // ⬆ RESTORE PROJECT (manual button)
-  const handleUploadProject = async () => {
-    try {
-      const token = getToken();
-      console.log("⬆️ RESTORE token start:", token?.slice?.(0, 25));
-      console.log("⬆️ RESTORE userKey:", getUserKeyFromToken(token));
+const handleUploadProject = async () => {
+  try {
+    const token = getToken();
+    if (!token) throw new Error("No auth token found");
 
-      if (!token) throw new Error("No auth token found");
+    // ✅ block history while restoring
+    isRestoringRef.current = true;
 
-      const res = await fetch(getDashboardEndpoint(activeDashboard), {
-  headers: { Authorization: `Bearer ${token}` },
-});
+    // ✅ hard reset undo state BEFORE touching droppedTanks
+    hasUndoInitRef.current = false;
+    reset();
+    lastPushedSnapshotRef.current = "";
+    baselineSnapshotRef.current = "";
+    skipHistoryPushRef.current = true;
 
+    const res = await fetch(getDashboardEndpoint(activeDashboard), {
+      headers: { Authorization: `Bearer ${token}` },
+    });
+    if (!res.ok) throw new Error("Failed to load dashboard from DB");
 
-      if (!res.ok) throw new Error("Failed to load dashboard from DB");
+    const data = await res.json();
 
-      const data = await res.json();
-      console.log("📦 Dashboard payload from DB:", data);
+    const objects =
+      data?.canvas?.objects ||
+      data?.layout?.canvas?.objects ||
+      data?.layout?.objects ||
+      [];
 
-      setDroppedTanks([]);
+    // ✅ set the canvas directly to restored objects (don’t stage empty)
+    setDroppedTanks(objects);
+    setSelectedIds([]);
+    setSelectedTank(null);
 
-      setTimeout(() => {
-        const objects =
-          data?.canvas?.objects ||
-          data?.layout?.canvas?.objects ||
-          data?.layout?.objects ||
-          [];
+    // ✅ set restored baseline + seed history stack
+    const restoredSnapshot = JSON.stringify(objects || []);
+    baselineSnapshotRef.current = restoredSnapshot;
+    lastPushedSnapshotRef.current = restoredSnapshot;
 
-        setDroppedTanks([...objects]);
+    // seed undo stack with restored state as the “start”
+    push(deepClone(objects));
 
-        const restoredSnapshot = JSON.stringify(objects || []);
-baselineSnapshotRef.current = restoredSnapshot;
+    // allow snapshots again
+    isRestoringRef.current = false;
+    skipHistoryPushRef.current = false;
+    hasUndoInitRef.current = true;
 
-// reset undo system so restore becomes "starting point"
-hasUndoInitRef.current = true; // keep init as done
-reset();
-lastPushedSnapshotRef.current = restoredSnapshot;
-push(deepClone(objects));
+    const mode = data?.layout?.meta?.dashboardMode || data?.meta?.dashboardMode;
+    if (mode) setDashboardMode(mode);
 
+    const savedAt = data?.layout?.meta?.savedAt || data?.meta?.savedAt;
+    setLastSavedAt(savedAt ? new Date(savedAt) : null);
 
-        const mode =
-          data?.layout?.meta?.dashboardMode || data?.meta?.dashboardMode;
-        if (mode) setDashboardMode(mode);
-
-        const savedAt = data?.layout?.meta?.savedAt || data?.meta?.savedAt;
-        setLastSavedAt(savedAt ? new Date(savedAt) : null);
-
-        console.log("✅ Main dashboard restored from DB");
-      }, 0);
-    } catch (err) {
-      console.error("❌ Upload failed:", err);
-    }
-  };
+    console.log("✅ Main dashboard restored from DB");
+  } catch (err) {
+    console.error("❌ Upload failed:", err);
+    isRestoringRef.current = false;
+  }
+};
 
 // ===============================
 // ✅ OPEN SYMBOL LIBRARIES (CENTER + SMALL)
