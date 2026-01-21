@@ -121,6 +121,8 @@ const lastPushedSnapshotRef = useRef("");
 // ✅ push snapshots when droppedTanks changes (SKIP while dragging + dedupe)
 useEffect(() => {
   if (activePage !== "dashboard") return;
+  if (dashboardMode !== "edit") return;
+
 
   // 🚫 DO NOT snapshot while dragging
   if (isObjectDraggingRef.current) return;
@@ -150,15 +152,22 @@ useEffect(() => {
   push(deepClone(droppedTanks));
 }, [activePage, droppedTanks, reset, push]);
 
-
-
-
+// ✅ UNDO — single-press undo (skips no-op snapshots safely)
 const handleUndo = () => {
   if (activePage !== "dashboard") return;
 
   const current = deepClone(droppedRef.current);
-  const res = undo(current);
+
+  let res = undo(current);
   if (!res.ok) return;
+
+  const same =
+    JSON.stringify(res.snapshot || []) === JSON.stringify(current || []);
+
+  if (same) {
+    res = undo(deepClone(res.snapshot));
+    if (!res.ok) return;
+  }
 
   skipHistoryPushRef.current = true;
   setDroppedTanks(deepClone(res.snapshot));
@@ -166,12 +175,22 @@ const handleUndo = () => {
   setSelectedTank(null);
 };
 
+// ✅ REDO — single-press redo (skips no-op snapshots safely)
 const handleRedo = () => {
   if (activePage !== "dashboard") return;
 
   const current = deepClone(droppedRef.current);
-  const res = redo(current);
+
+  let res = redo(current);
   if (!res.ok) return;
+
+  const same =
+    JSON.stringify(res.snapshot || []) === JSON.stringify(current || []);
+
+  if (same) {
+    res = redo(deepClone(res.snapshot));
+    if (!res.ok) return;
+  }
 
   skipHistoryPushRef.current = true;
   setDroppedTanks(deepClone(res.snapshot));
@@ -179,8 +198,16 @@ const handleRedo = () => {
   setSelectedTank(null);
 };
 
+// ✅ ADD THESE REFS RIGHT HERE (directly under handleUndo / handleRedo)
+const handleUndoRef = useRef(handleUndo);
+const handleRedoRef = useRef(handleRedo);
+
+useEffect(() => {
+  handleUndoRef.current = handleUndo;
+  handleRedoRef.current = handleRedo;
+}, [handleUndo, handleRedo]);
+
 // ✅ KEYBOARD LISTENER (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z)
-// Uses the latest droppedTanks via a ref so Ctrl+Z never gets stale.
 useEffect(() => {
   const onKeyDown = (e) => {
     if (activePage !== "dashboard") return;
@@ -190,27 +217,22 @@ useEffect(() => {
     const mod = isMac ? e.metaKey : e.ctrlKey;
     if (!mod) return;
 
-    // Ctrl+Z (undo)
     if (key === "z" && !e.shiftKey) {
       e.preventDefault();
-      handleUndo(); // make sure handleUndo uses droppedRef.current internally
+      handleUndoRef.current(); // ✅ use ref
       return;
     }
 
-    // Ctrl+Shift+Z (redo) OR Ctrl+Y (redo)
     if ((key === "z" && e.shiftKey) || key === "y") {
       e.preventDefault();
-      handleRedo(); // make sure handleRedo uses droppedRef.current internally
+      handleRedoRef.current(); // ✅ use ref
       return;
     }
   };
 
   window.addEventListener("keydown", onKeyDown);
   return () => window.removeEventListener("keydown", onKeyDown);
-}, [activePage]); // ✅ only rebind when page changes
-
-
-
+}, [activePage]);
 
 
   // SIDEBARS
