@@ -115,7 +115,9 @@ const hasUndoInitRef = useRef(false);
 
 // ✅ ADD THIS LINE RIGHT HERE ⬇️
 const isObjectDraggingRef = useRef(false);
-
+// ✅ ADD THESE (missing refs)
+const dragStartedRef = useRef(false);
+const dragStartSnapshotRef = useRef("");
 
 const deepClone = (x) => JSON.parse(JSON.stringify(x || []));
 
