@@ -116,9 +116,6 @@ const hasUndoInitRef = useRef(false);
 // ✅ ADD THIS LINE RIGHT HERE ⬇️
 const isObjectDraggingRef = useRef(false);
 
-// ✅ ADD THESE TWO LINES RIGHT HERE
-const dragStartedRef = useRef(false);
-const dragStartSnapshotRef = useRef("");
 
 const deepClone = (x) => JSON.parse(JSON.stringify(x || []));
 
@@ -693,19 +690,16 @@ const goToMainDashboard = () => {
     }
   };
 
-  // ⬆ RESTORE PROJECT (manual button)
+ // ⬆ RESTORE PROJECT (manual button)
 const handleUploadProject = async () => {
+  let restoredObjects = [];
+
   try {
     const token = getToken();
     if (!token) throw new Error("No auth token found");
 
     // ✅ block history while restoring
     isRestoringRef.current = true;
-
-    // ✅ one snapshot per drag action
-const dragStartedRef = useRef(false);
-const dragStartSnapshotRef = useRef("");
-
 
     // ✅ hard reset undo state BEFORE touching droppedTanks
     hasUndoInitRef.current = false;
@@ -721,28 +715,26 @@ const dragStartSnapshotRef = useRef("");
 
     const data = await res.json();
 
-    const objects =
+    restoredObjects =
       data?.canvas?.objects ||
       data?.layout?.canvas?.objects ||
       data?.layout?.objects ||
       [];
 
-    // ✅ set the canvas directly to restored objects (don’t stage empty)
-    setDroppedTanks(objects);
+    // ✅ apply restored canvas
+    setDroppedTanks(restoredObjects);
     setSelectedIds([]);
     setSelectedTank(null);
 
     // ✅ set restored baseline + seed history stack
-    const restoredSnapshot = JSON.stringify(objects || []);
+    const restoredSnapshot = JSON.stringify(restoredObjects || []);
     baselineSnapshotRef.current = restoredSnapshot;
     lastPushedSnapshotRef.current = restoredSnapshot;
 
-    // seed undo stack with restored state as the “start”
-    push(deepClone(objects));
+    // ✅ seed undo stack with restored state as the “start”
+    push(deepClone(restoredObjects));
 
-    // allow snapshots again
-    isRestoringRef.current = false;
-    skipHistoryPushRef.current = false;
+    // ✅ mark undo initialized
     hasUndoInitRef.current = true;
 
     const mode = data?.layout?.meta?.dashboardMode || data?.meta?.dashboardMode;
@@ -754,7 +746,14 @@ const dragStartSnapshotRef = useRef("");
     console.log("✅ Main dashboard restored from DB");
   } catch (err) {
     console.error("❌ Upload failed:", err);
+  } finally {
+    // ✅ always unblock
     isRestoringRef.current = false;
+
+    // let the next real edit push snapshots normally
+    setTimeout(() => {
+      skipHistoryPushRef.current = false;
+    }, 0);
   }
 };
 
@@ -924,8 +923,6 @@ const handleDragEnd = (...args) => {
     }
   }, 0);
 };
-
-
 
   // DROP HANDLER
   const { handleDrop } = useDropHandler({
