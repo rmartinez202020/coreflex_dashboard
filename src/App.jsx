@@ -117,6 +117,9 @@ const deepClone = (x) => JSON.parse(JSON.stringify(x || []));
 // ✅ prevents duplicate undo snapshots (THIS FIXES YOUR ISSUE)
 const lastPushedSnapshotRef = useRef("");
 
+// ✅ baseline (starting point) snapshot — you can’t undo before this
+const baselineSnapshotRef = useRef("");
+
 
 // ✅ push snapshots when droppedTanks changes (SKIP while dragging + dedupe)
 useEffect(() => {
@@ -130,13 +133,20 @@ useEffect(() => {
   const snapshot = JSON.stringify(droppedTanks || []);
 
   // init once per dashboard load
-  if (!hasUndoInitRef.current) {
-    hasUndoInitRef.current = true;
-    reset();
-    lastPushedSnapshotRef.current = snapshot;
-    push(deepClone(droppedTanks));
-    return;
-  }
+if (!hasUndoInitRef.current) {
+  hasUndoInitRef.current = true;
+  skipHistoryPushRef.current = true;
+
+
+  reset();
+
+  // ✅ BASELINE = the very first state for this dashboard session
+  baselineSnapshotRef.current = snapshot;
+
+  lastPushedSnapshotRef.current = snapshot;
+  push(deepClone(droppedTanks));
+  return;
+}
 
   // skip when undo/redo is applying state
   if (skipHistoryPushRef.current) {
@@ -150,13 +160,22 @@ useEffect(() => {
 
   lastPushedSnapshotRef.current = snapshot;
   push(deepClone(droppedTanks));
-}, [activePage, droppedTanks, reset, push]);
+}, [activePage, droppedTanks, dashboardMode, reset, push]);
+
 
 // ✅ UNDO — single-press undo (skips no-op snapshots safely)
 const handleUndo = () => {
   if (activePage !== "dashboard") return;
 
   const current = deepClone(droppedRef.current);
+
+  // ⛔ STOP if we are already at baseline (restore point)
+if (
+  JSON.stringify(current || []) === baselineSnapshotRef.current
+) {
+  return;
+}
+
 
   let res = undo(current);
   if (!res.ok) return;
@@ -691,6 +710,16 @@ const goToMainDashboard = () => {
           [];
 
         setDroppedTanks([...objects]);
+
+        const restoredSnapshot = JSON.stringify(objects || []);
+baselineSnapshotRef.current = restoredSnapshot;
+
+// reset undo system so restore becomes "starting point"
+hasUndoInitRef.current = true; // keep init as done
+reset();
+lastPushedSnapshotRef.current = restoredSnapshot;
+push(deepClone(objects));
+
 
         const mode =
           data?.layout?.meta?.dashboardMode || data?.meta?.dashboardMode;
