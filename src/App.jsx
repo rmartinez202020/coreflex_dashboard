@@ -92,6 +92,10 @@ const isLaunchPage = location.pathname === "/launchMainDashboard";
   const [selectedTank, setSelectedTank] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
 
+  // ⭐ DASHBOARD MODE — DEFAULT EDIT
+  const [dashboardMode, setDashboardMode] = useState("edit");
+
+
   // ✅ always keep the latest canvas in a ref (prevents stale Ctrl+Z / Ctrl+Y)
 const droppedRef = useRef([]);
 
@@ -287,9 +291,7 @@ useEffect(() => {
   const openGraphicDisplaySettings = (tank) => setGraphicSettingsId(tank.id);
   const closeGraphicDisplaySettings = () => setGraphicSettingsId(null);
 
-  // ⭐ DASHBOARD MODE — DEFAULT EDIT
-  const [dashboardMode, setDashboardMode] = useState("edit");
-
+  
   // ✅ DELETE SELECTED OBJECTS (Delete / Backspace)
 const deleteSelected = () => {
   if (activePage !== "dashboard") return;
