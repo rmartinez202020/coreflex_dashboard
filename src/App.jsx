@@ -942,6 +942,11 @@ if (isLaunchPage) {
   />
 ) : activeSubPage === "dashboardAdmin" ? (
   <DashboardAdminPage
+  onGoHome={() => {
+  setActiveSubPage(null);   // ✅ go back to normal HomePage cards
+  setSubPageColor("");      // ✅ optional (cleans color state)
+}}
+
     onOpenDashboard={(row) => {
       // ✅ switch to dashboard editor page
       setActivePage("dashboard");

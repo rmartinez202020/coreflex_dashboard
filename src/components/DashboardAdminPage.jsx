@@ -15,10 +15,12 @@ import { getToken } from "../utils/authToken";
  * - This page must be fed by App.jsx with:
  *    onOpenDashboard(dashboardRow)
  *    onLaunchDashboard(dashboardRow)
+ *    onGoHome()   ✅ (for Back button)
  */
 export default function DashboardAdminPage({
   onOpenDashboard, // (dashboardRow) => void
   onLaunchDashboard, // (dashboardRow) => void
+  onGoHome, // ✅ new
 }) {
   const [customers, setCustomers] = useState([]);
   const [selectedCustomer, setSelectedCustomer] = useState("");
@@ -30,6 +32,7 @@ export default function DashboardAdminPage({
   const [msg, setMsg] = useState("");
 
   // Used only to trigger initial load when token changes (login/logout)
+  // Note: This is "stable" once mounted; page reloads on actual login in your flow.
   const token = useMemo(() => getToken(), []);
 
   // -----------------------------
@@ -182,11 +185,25 @@ export default function DashboardAdminPage({
   // -----------------------------
   return (
     <div className="w-full h-full border rounded-lg bg-white p-6">
-      <div className="mb-4">
-        <h2 className="text-xl font-bold text-gray-900">Admin Dashboard</h2>
-        <p className="text-sm text-gray-600">
-          Pick a customer, create dashboards, then open them in the editor.
-        </p>
+      {/* ✅ HEADER STYLE (matches dark Admin Dashboard card color) */}
+      <div className="mb-6 rounded-lg bg-[#374151] text-white px-5 py-4 flex items-start gap-4">
+        <button
+          type="button"
+          onClick={() => onGoHome?.()}
+          className="px-3 py-1 rounded-md bg-[#4B5563] hover:bg-[#6B7280] text-sm font-medium"
+          title="Back to Home"
+        >
+          ← Back
+        </button>
+
+        <div>
+          <h2 className="text-lg font-semibold leading-tight">
+            Admin Dashboard
+          </h2>
+          <p className="text-sm text-gray-200">
+            Create and manage customer dashboards.
+          </p>
+        </div>
       </div>
 
       {/* CUSTOMER PICKER + CREATE */}
