@@ -22,6 +22,9 @@ export default function SidebarLeft({
   onSaveProject,
   onRequestRestore,
   lastSavedAt,
+
+  // ✅ NEW: lets App.jsx fully switch context back to MAIN dashboard
+  onGoMainDashboard,
 }) {
   /* =========================
      SAVE STATE
@@ -33,7 +36,6 @@ export default function SidebarLeft({
      DEVICE MENUS
   ========================= */
   const [showDeviceControls, setShowDeviceControls] = useState(false);
- 
 
   /* =========================
      HELPERS
@@ -139,7 +141,14 @@ export default function SidebarLeft({
             className={`cursor-pointer mb-4 ${
               activePage === "dashboard" ? "font-bold" : ""
             }`}
-            onClick={() => setActivePage("dashboard")}
+            onClick={() => {
+              // ✅ IMPORTANT: when user clicks "Main Dashboard",
+              // App must switch context back to main + clear canvas + re-restore
+              if (onGoMainDashboard) return onGoMainDashboard();
+
+              // fallback (older behavior)
+              setActivePage("dashboard");
+            }}
           >
             Main Dashboard
           </div>
@@ -163,7 +172,6 @@ export default function SidebarLeft({
               </div>
 
               {showDeviceControls && <DraggableControls />}
-
 
               {/* LEVEL SENSORS */}
               <div

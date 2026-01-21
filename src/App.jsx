@@ -529,6 +529,37 @@ const getDashboardEndpoint = (ctx) => {
     navigate("/");
   };
 
+  // ✅ GO BACK TO MAIN DASHBOARD (from customer dashboards)
+const goToMainDashboard = () => {
+  // switch to dashboard page
+  setActivePage("dashboard");
+
+  // reset dashboard context to MAIN
+  setActiveDashboard({
+    type: "main",
+    dashboardId: null,
+    dashboardName: "Main Dashboard",
+    customerId: null,
+    customerName: "",
+  });
+
+  // ensure edit mode
+  setDashboardMode("edit");
+
+  // clear canvas so main dashboard auto-restores
+  setDroppedTanks([]);
+  setSelectedIds([]);
+  setSelectedTank(null);
+
+  // reset undo/redo history
+  hasUndoInitRef.current = false;
+  reset();
+
+  // allow auto-restore to run again
+  autoRestoreRanRef.current = false;
+};
+
+
   // 💾 SAVE PROJECT
   const handleSaveProject = async () => {
     const dashboardPayload = {
@@ -886,6 +917,7 @@ if (isLaunchPage) {
         onSaveProject={handleSaveProject}
         onRequestRestore={() => setShowRestoreWarning(true)}
         lastSavedAt={lastSavedAt}
+        onGoMainDashboard={goToMainDashboard}
       />
 
       <main className="flex-1 p-6 bg-white overflow-visible relative">
