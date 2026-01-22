@@ -500,6 +500,56 @@ const getDashboardEndpoint = (ctx) => {
   return `${API_URL}/dashboard/main`;
 };
 
+// ==========================================
+// ✅ HARD HOME RESET (ALWAYS GO TO HOME)
+// ==========================================
+const goHomeHard = () => {
+  // go to the main app route (recommended)
+  navigate("/app");
+
+  // navigation state
+  setActivePage("home");
+  setActiveSubPage(null);
+  setSubPageColor("");
+
+  // close modals
+  setShowRestoreWarning(false);
+  setShowSiloProps(false);
+  closeDisplaySettings();
+  closeGraphicDisplaySettings();
+
+  // close floating libraries / windows
+  setShowImageLibrary(false);
+  setShowCoreflexLibrary(false);
+
+  setShowHmiLibrary(false);
+  setShowHvac2DLibrary(false);
+  setShowHvac3DLibrary(false);
+  setShowManufacturing2DLibrary(false);
+  setShowManufacturing3DLibrary(false);
+  setShowTanksPipes2DLibrary(false);
+  setShowTanksPipes3DLibrary(false);
+
+  // close menus
+  setShowDevices(false);
+  setShowLevelSensors(false);
+
+  // reset context menu + selections
+  setContextMenu({ visible: false, x: 0, y: 0, targetId: null });
+  setSelectedIds([]);
+  setSelectedTank(null);
+  setActiveSiloId(null);
+
+  // optional: return to main dashboard context
+  setActiveDashboard({
+    type: "main",
+    dashboardId: null,
+    dashboardName: "Main Dashboard",
+    customerId: null,
+    customerName: "",
+  });
+};
+
   // ✅ USER AUTH STATE SYNC (critical)
   useEffect(() => {
     const syncUserFromToken = () => {
@@ -1126,6 +1176,8 @@ if (isLaunchPage) {
         onRequestRestore={() => setShowRestoreWarning(true)}
         lastSavedAt={lastSavedAt}
         onGoMainDashboard={goToMainDashboard}
+        onGoHome={goHomeHard}
+
       />
 
       <main className="flex-1 p-6 bg-white overflow-visible relative">

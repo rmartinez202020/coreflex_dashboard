@@ -23,8 +23,10 @@ export default function SidebarLeft({
   onRequestRestore,
   lastSavedAt,
 
-  // ✅ NEW: lets App.jsx fully switch context back to MAIN dashboard
+    // ✅ NEW: hard navigation actions controlled by App.jsx
+  onGoHome,
   onGoMainDashboard,
+
 }) {
   /* =========================
      SAVE STATE
@@ -129,13 +131,17 @@ export default function SidebarLeft({
 
           {/* Navigation */}
           <div
-            className={`cursor-pointer mb-4 ${
-              activePage === "home" ? "font-bold" : ""
-            }`}
-            onClick={() => setActivePage("home")}
-          >
-            Home
-          </div>
+  className={`cursor-pointer mb-4 ${
+    activePage === "home" ? "font-bold" : ""
+  }`}
+  onClick={() => {
+    if (onGoHome) return onGoHome();
+    setActivePage("home"); // fallback
+  }}
+>
+  Home
+</div>
+
 
           <div
             className={`cursor-pointer mb-4 ${
