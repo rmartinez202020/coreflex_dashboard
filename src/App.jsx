@@ -723,41 +723,60 @@ const goToMainDashboard = () => {
 };
 
 
-  // 💾 SAVE PROJECT
-  const handleSaveProject = async () => {
-    const dashboardPayload = {
-      version: "1.0",
-      type: "main_dashboard",
-      canvas: { objects: droppedTanks },
-      meta: { dashboardMode, savedAt: new Date().toISOString() },
-    };
+  // 💾 SAVE PROJECT (MAIN or CUSTOMER)
+const handleSaveProject = async () => {
+  // ✅ only allow saving from dashboard editor
+  if (activePage !== "dashboard") {
+    console.warn("⚠️ Save ignored: not on dashboard editor page");
+    return;
+  }
 
-    try {
-      const token = getToken();
-      console.log("✅ SAVE token start:", token?.slice?.(0, 25));
-      console.log("✅ SAVE userKey:", getUserKeyFromToken(token));
+  // ✅ customer dashboard must have an id
+  if (activeDashboard.type === "customer" && !activeDashboard.dashboardId) {
+    console.error("❌ Cannot save customer dashboard: missing dashboardId");
+    return;
+  }
 
-      await saveMainDashboard(dashboardPayload, activeDashboard);
-
-const now = new Date();
-setLastSavedAt(now);
-console.log("✅ Main Dashboard saved");
-
-// ✅ MAKE "SAVE" THE NEW BASELINE (no undo past this point)
-const snap = JSON.stringify(droppedRef.current || []);
-baselineSnapshotRef.current = snap;
-lastPushedSnapshotRef.current = snap;
-
-skipHistoryPushRef.current = true;   // avoid double-push from effects
-hasUndoInitRef.current = true;
-
-reset();                             // wipe history
-push(deepClone(droppedRef.current)); // seed history with the saved state
-
-    } catch (err) {
-      console.error("❌ Save failed:", err);
-    }
+  const dashboardPayload = {
+    version: "1.0",
+    type:
+      activeDashboard.type === "main" ? "main_dashboard" : "customer_dashboard",
+    dashboardId: activeDashboard.dashboardId || null,
+    canvas: { objects: droppedTanks || [] },
+    meta: {
+      dashboardMode,
+      savedAt: new Date().toISOString(),
+      dashboardName: activeDashboard.dashboardName || "",
+      customerName: activeDashboard.customerName || "",
+    },
   };
+
+  try {
+    const token = getToken();
+    if (!token) throw new Error("No auth token found");
+
+    await saveMainDashboard(dashboardPayload, activeDashboard);
+
+    const now = new Date();
+    setLastSavedAt(now);
+    console.log("✅ Dashboard saved:", activeDashboard);
+
+    // ✅ MAKE "SAVE" THE NEW BASELINE (no undo past this point)
+    const snap = JSON.stringify(droppedRef.current || []);
+    baselineSnapshotRef.current = snap;
+    lastPushedSnapshotRef.current = snap;
+
+    skipHistoryPushRef.current = true;
+    hasUndoInitRef.current = true;
+
+    reset();
+    push(deepClone(droppedRef.current));
+  } catch (err) {
+    console.error("❌ Save failed:", err);
+  }
+};
+
+
 
  // ⬆ RESTORE PROJECT (manual button)
 const handleUploadProject = async () => {
