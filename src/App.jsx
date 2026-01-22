@@ -1305,6 +1305,7 @@ reset();
   <HomePage
     setActiveSubPage={setActiveSubPage}
     setSubPageColor={setSubPageColor}
+    currentUserKey={currentUserKey}
   />
 )}
 
