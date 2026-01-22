@@ -10,6 +10,7 @@ import { getToken } from "../utils/authToken";
  * - List Dashboards (ALWAYS shows existing dashboards; filter by customer if selected)
  * - Open/Edit (loads it into your main editor)
  * - Launch (opens play-mode in new tab)
+ * - ✅ Delete Dashboard (with confirm modal)
  *
  * IMPORTANT:
  * - This page must be fed by App.jsx with:
@@ -26,11 +27,15 @@ export default function DashboardAdminPage({
   const [selectedCustomer, setSelectedCustomer] = useState(""); // optional filter
 
   const [dashboards, setDashboards] = useState([]);
-  const [search, setSearch] = useState(""); // ✅ quick search across dashboards
+  const [search, setSearch] = useState(""); // quick search across dashboards
 
   const [newDashboardName, setNewDashboardName] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
+
+  // ✅ Delete modal state
+  const [deleteTarget, setDeleteTarget] = useState(null); // dashboard row
+  const [isDeleting, setIsDeleting] = useState(false);
 
   // Used only to trigger initial load when token changes (login/logout)
   const token = useMemo(() => getToken(), []);
@@ -87,8 +92,6 @@ export default function DashboardAdminPage({
 
   // -----------------------------
   // ✅ Initial Load
-  // - Load customers
-  // - Load ALL dashboards right away
   // -----------------------------
   useEffect(() => {
     (async () => {
@@ -96,7 +99,7 @@ export default function DashboardAdminPage({
         setLoading(true);
         setMsg("");
         await fetchCustomers();
-        await fetchDashboards(""); // ✅ show all dashboards immediately
+        await fetchDashboards(""); // show all dashboards immediately
       } catch (e) {
         console.error(e);
         setMsg(String(e?.message || e));
@@ -107,9 +110,7 @@ export default function DashboardAdminPage({
   }, [token]);
 
   // -----------------------------
-  // ✅ When customer changes:
-  // - If selected: fetch only that customer's dashboards
-  // - If cleared: fetch ALL dashboards again
+  // ✅ When customer changes, refetch
   // -----------------------------
   useEffect(() => {
     (async () => {
@@ -169,9 +170,6 @@ export default function DashboardAdminPage({
 
       setNewDashboardName("");
 
-      // ✅ After create:
-      // - keep current filter if customer selected (it is)
-      // - refresh list
       await fetchDashboards(customer);
       setMsg("✅ Dashboard created");
     } catch (e) {
@@ -179,6 +177,51 @@ export default function DashboardAdminPage({
       setMsg(`❌ ${String(e?.message || e)}`);
     } finally {
       setLoading(false);
+    }
+  };
+
+  // -----------------------------
+  // ✅ Delete Dashboard (API call)
+  // - Assumes your backend supports:
+  //     DELETE /customers-dashboards/{id}
+  // -----------------------------
+  const confirmDelete = async () => {
+    if (!deleteTarget?.id) return;
+
+    try {
+      setIsDeleting(true);
+      setMsg("");
+
+      const t = getToken();
+      if (!t) {
+        setMsg("Not logged in.");
+        return;
+      }
+
+      const res = await fetch(
+        `${API_URL}/customers-dashboards/${deleteTarget.id}`,
+        {
+          method: "DELETE",
+          headers: { Authorization: `Bearer ${t}` },
+        }
+      );
+
+      if (!res.ok) {
+        const text = await res.text();
+        throw new Error(text || "Delete failed");
+      }
+
+      // close modal
+      setDeleteTarget(null);
+
+      // refresh list (keep current filter)
+      await fetchDashboards(selectedCustomer || "");
+      setMsg(`✅ Deleted: ${deleteTarget.dashboard_name}`);
+    } catch (e) {
+      console.error(e);
+      setMsg(`❌ ${String(e?.message || e)}`);
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -210,11 +253,8 @@ export default function DashboardAdminPage({
     a.localeCompare(b)
   );
 
-  // -----------------------------
-  // ✅ UI
-  // -----------------------------
   return (
-    <div className="w-full h-full border rounded-lg bg-white p-6">
+    <div className="w-full h-full border rounded-lg bg-white p-6 relative">
       {/* ✅ HEADER STYLE */}
       <div className="mb-6 rounded-lg bg-[#374151] text-white px-5 py-4 flex items-start gap-4">
         <button
@@ -238,7 +278,7 @@ export default function DashboardAdminPage({
 
       {/* CUSTOMER PICKER + CREATE */}
       <div className="flex flex-col md:flex-row gap-3 md:items-end mb-4">
-        {/* PICK CUSTOMER (NOW OPTIONAL FILTER) */}
+        {/* PICK CUSTOMER (OPTIONAL FILTER) */}
         <div className="flex-1">
           <label className="block text-sm font-semibold text-gray-700 mb-1">
             Filter by Customer{" "}
@@ -383,7 +423,7 @@ export default function DashboardAdminPage({
                     </div>
                   </div>
 
-                  <div className="flex gap-2">
+                  <div className="flex flex-wrap gap-2">
                     <button
                       type="button"
                       className="px-3 py-2 rounded-md text-sm border bg-white hover:bg-gray-100"
@@ -400,6 +440,16 @@ export default function DashboardAdminPage({
                       title="Launch play-mode in a new tab"
                     >
                       🚀 Launch
+                    </button>
+
+                    {/* ✅ DELETE */}
+                    <button
+                      type="button"
+                      className="px-3 py-2 rounded-md text-sm border bg-red-600 text-white hover:bg-red-700"
+                      onClick={() => setDeleteTarget(d)}
+                      title="Delete this dashboard"
+                    >
+                      🗑 Delete
                     </button>
                   </div>
                 </div>
@@ -436,7 +486,7 @@ export default function DashboardAdminPage({
                           {/* ✅ ID REMOVED */}
                         </div>
 
-                        <div className="flex gap-2">
+                        <div className="flex flex-wrap gap-2">
                           <button
                             type="button"
                             className="px-3 py-2 rounded-md text-sm border bg-white hover:bg-gray-100"
@@ -454,6 +504,16 @@ export default function DashboardAdminPage({
                           >
                             🚀 Launch
                           </button>
+
+                          {/* ✅ DELETE */}
+                          <button
+                            type="button"
+                            className="px-3 py-2 rounded-md text-sm border bg-red-600 text-white hover:bg-red-700"
+                            onClick={() => setDeleteTarget(d)}
+                            title="Delete this dashboard"
+                          >
+                            🗑 Delete
+                          </button>
                         </div>
                       </div>
                     ))}
@@ -468,6 +528,61 @@ export default function DashboardAdminPage({
       <div className="mt-6 text-xs text-gray-500">
         Next later: Versions / Permissions.
       </div>
+
+      {/* =========================
+          ✅ DELETE CONFIRM MODAL
+         ========================= */}
+      {deleteTarget ? (
+        <div
+          className="fixed inset-0 z-[99999] flex items-center justify-center"
+          onMouseDown={() => {
+            // click outside closes (optional)
+            if (!isDeleting) setDeleteTarget(null);
+          }}
+          style={{ background: "rgba(0,0,0,0.45)" }}
+        >
+          <div
+            className="w-[92%] max-w-[520px] bg-white rounded-xl shadow-xl border p-5"
+            onMouseDown={(e) => e.stopPropagation()}
+          >
+            <div className="text-lg font-semibold text-gray-900">
+              Delete dashboard?
+            </div>
+
+            <div className="mt-2 text-sm text-gray-700">
+              Are you sure you want to eliminate dashboard{" "}
+              <b>“{deleteTarget.dashboard_name}”</b>?
+              <div className="mt-1 text-xs text-gray-500">
+                This action cannot be undone.
+              </div>
+            </div>
+
+            <div className="mt-5 flex items-center justify-end gap-2">
+              <button
+                type="button"
+                className="px-4 py-2 rounded-md border bg-white hover:bg-gray-100 text-sm"
+                onClick={() => setDeleteTarget(null)}
+                disabled={isDeleting}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                className={`px-4 py-2 rounded-md text-sm text-white ${
+                  isDeleting
+                    ? "bg-red-400 cursor-not-allowed"
+                    : "bg-red-600 hover:bg-red-700"
+                }`}
+                onClick={confirmDelete}
+                disabled={isDeleting}
+              >
+                {isDeleting ? "Deleting..." : "Yes, Delete"}
+              </button>
+            </div>
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }
