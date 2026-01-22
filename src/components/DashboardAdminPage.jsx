@@ -298,10 +298,6 @@ export default function DashboardAdminPage({
               </option>
             ))}
           </select>
-
-          <div className="text-xs text-gray-500 mt-1">
-            Tip: leave it as <b>All customers</b> to always see everything.
-          </div>
         </div>
 
         {/* CREATE DASHBOARD */}
@@ -352,7 +348,7 @@ export default function DashboardAdminPage({
         <div className="flex-1">
           <input
             className="w-full border rounded-md px-3 py-2"
-            placeholder="Search dashboards (name / customer / id)..."
+            placeholder="Search dashboards (name / customer)..."
             value={search}
             onChange={(e) => setSearch(e.target.value)}
             disabled={loading}
@@ -417,7 +413,6 @@ export default function DashboardAdminPage({
                       {d.dashboard_name}
                     </div>
 
-                    {/* ✅ ID REMOVED */}
                     <div className="text-xs text-gray-500">
                       Customer: {d.customer_name}
                     </div>
@@ -483,7 +478,6 @@ export default function DashboardAdminPage({
                           <div className="font-semibold text-gray-900">
                             {d.dashboard_name}
                           </div>
-                          {/* ✅ ID REMOVED */}
                         </div>
 
                         <div className="flex flex-wrap gap-2">
@@ -523,10 +517,6 @@ export default function DashboardAdminPage({
             </div>
           )}
         </div>
-      </div>
-
-      <div className="mt-6 text-xs text-gray-500">
-        Next later: Versions / Permissions.
       </div>
 
       {/* =========================
