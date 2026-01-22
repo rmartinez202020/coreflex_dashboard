@@ -17,16 +17,16 @@ async function readErrorBody(res) {
   }
 }
 
-// ✅ NEW: resolve endpoint based on dashboard context
+// ✅ Resolve endpoint based on dashboard context
 function resolveDashboardEndpoint(activeDashboard) {
-  // default = main
+  // main
   if (!activeDashboard || activeDashboard.type === "main") {
     return `${API_URL}/dashboard/main`;
   }
 
-  // customer dashboard
+  // ✅ customer dashboard (matches your DB table: customers_dashboards)
   if (activeDashboard.type === "customer" && activeDashboard.dashboardId) {
-    return `${API_URL}/dashboards/${activeDashboard.dashboardId}`;
+    return `${API_URL}/customers-dashboards/${activeDashboard.dashboardId}`;
   }
 
   // fallback
@@ -47,9 +47,15 @@ export async function saveMainDashboard(dashboardPayload, activeDashboard) {
   }
 
   const endpoint = resolveDashboardEndpoint(activeDashboard);
+  const isCustomer = activeDashboard?.type === "customer";
+
+  // ✅ Customer dashboards store JSON in `layout` column -> wrap payload
+  const body = isCustomer
+    ? { layout: dashboardPayload }
+    : dashboardPayload;
 
   if (DEBUG_DASHBOARD_API) {
-    console.log("[saveDashboard] POST", endpoint);
+    console.log("[saveDashboard]", isCustomer ? "PUT" : "POST", endpoint);
     console.log("[saveDashboard] userKey:", getUserKeyFromToken(token));
     console.log("[saveDashboard] token start:", token.slice(0, 20));
     console.log("[saveDashboard] payload keys:", Object.keys(dashboardPayload));
@@ -57,12 +63,13 @@ export async function saveMainDashboard(dashboardPayload, activeDashboard) {
   }
 
   const res = await fetch(endpoint, {
-    method: "POST",
+    // ✅ main can stay POST (create/upsert), customer should be PUT (update row)
+    method: isCustomer ? "PUT" : "POST",
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,
     },
-    body: JSON.stringify(dashboardPayload),
+    body: JSON.stringify(body),
   });
 
   if (res.status === 401 || res.status === 403) {
@@ -78,7 +85,13 @@ export async function saveMainDashboard(dashboardPayload, activeDashboard) {
     );
   }
 
-  return await res.json();
+  // sometimes APIs return empty body on PUT
+  const text = await res.text().catch(() => "");
+  try {
+    return text ? JSON.parse(text) : {};
+  } catch {
+    return {};
+  }
 }
 
 /**
