@@ -99,7 +99,7 @@ export default function LoginPage() {
         </h1>
 
         <p className="text-center text-gray-600 mb-6">
-          Login to access your dashboard
+          Login to access your account
         </p>
 
         {error && (
