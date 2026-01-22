@@ -13,8 +13,13 @@ export default function HomePage({ setActiveSubPage, setSubPageColor }) {
             setSubPageColor("bg-blue-600");
           }}
         >
-          <h2 className="text-lg font-semibold mb-2">Profile</h2>
-          <p className="text-sm text-blue-100">View and edit your profile.</p>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-2xl">👤</span>
+            <h2 className="text-lg font-semibold">Profile</h2>
+          </div>
+          <p className="text-sm text-blue-100">
+            View and edit your profile.
+          </p>
         </div>
 
         {/* CUSTOMERS / LOCATIONS CARD */}
@@ -25,7 +30,10 @@ export default function HomePage({ setActiveSubPage, setSubPageColor }) {
             setSubPageColor("bg-teal-500");
           }}
         >
-          <h2 className="text-lg font-semibold mb-2">Customers / Locations</h2>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-2xl">📍</span>
+            <h2 className="text-lg font-semibold">Customers / Locations</h2>
+          </div>
           <p className="text-sm text-teal-100">
             Add customers and real site addresses.
           </p>
@@ -33,7 +41,10 @@ export default function HomePage({ setActiveSubPage, setSubPageColor }) {
 
         {/* DEVICES CARD */}
         <div className="rounded-xl bg-orange-500 text-white p-4 md:p-5 flex flex-col justify-between">
-          <h2 className="text-lg font-semibold mb-2">Registered Devices</h2>
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-2xl">📡</span>
+            <h2 className="text-lg font-semibold">Registered Devices</h2>
+          </div>
           <p className="text-sm text-orange-100">
             Review all sensors and gateways.
           </p>
@@ -45,8 +56,6 @@ export default function HomePage({ setActiveSubPage, setSubPageColor }) {
         <div
           className="rounded-xl bg-gray-700 text-white p-4 md:p-5 flex flex-col justify-between cursor-pointer hover:bg-gray-800 transition"
           onClick={() => {
-            // ✅ IMPORTANT: App.jsx must render this key
-            // Add a renderer for activeSubPage === "dashboardAdmin"
             setActiveSubPage("dashboardAdmin");
             setSubPageColor("bg-gray-700");
           }}
