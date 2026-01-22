@@ -119,6 +119,10 @@ const isObjectDraggingRef = useRef(false);
 const dragStartedRef = useRef(false);
 const dragStartSnapshotRef = useRef("");
 
+// ✅ ADD THIS LINE ⬇️
+const dragStartPushedRef = useRef(false);
+
+
 const deepClone = (x) => JSON.parse(JSON.stringify(x || []));
 
 // ✅ prevents duplicate undo snapshots (THIS FIXES YOUR ISSUE)
@@ -888,22 +892,55 @@ const {
 
 // ✅ WRAPPED HANDLERS (single source of truth: useEffect pushes snapshots)
 
+// ✅ DRAG = one action = one history step
+
 const handleDragMove = (...args) => {
-  // block effect snapshot pushes while dragging
-  isObjectDraggingRef.current = true;
+  // first time we detect dragging in this action
+  if (!dragStartedRef.current) {
+    dragStartedRef.current = true;
+
+    // block snapshot effect during drag
+    isObjectDraggingRef.current = true;
+
+    // ✅ push BEFORE-drag snapshot ONCE
+    if (!dragStartPushedRef.current) {
+      const beforeArr = deepClone(droppedRef.current || []);
+      const beforeSnap = JSON.stringify(beforeArr);
+
+      if (beforeSnap !== lastPushedSnapshotRef.current) {
+        lastPushedSnapshotRef.current = beforeSnap;
+        push(beforeArr);
+      }
+
+      dragStartPushedRef.current = true;
+    }
+  }
+
   rawHandleDragMove(...args);
 };
 
 const handleDragEnd = (...args) => {
-  // ✅ UNLOCK snapshots BEFORE applying final state
-  // so the droppedTanks change from rawHandleDragEnd triggers the useEffect push ONCE
-  isObjectDraggingRef.current = false;
-
-  // clean drag flags
-  dragStartedRef.current = false;
-  dragStartSnapshotRef.current = "";
-
   rawHandleDragEnd(...args);
+
+  // ✅ push AFTER-drag snapshot ONCE (end of action)
+  setTimeout(() => {
+    const afterArr = deepClone(droppedRef.current || []);
+    const afterSnap = JSON.stringify(afterArr);
+
+    // unblock snapshot effect
+    isObjectDraggingRef.current = false;
+
+    // reset drag flags
+    dragStartedRef.current = false;
+    dragStartSnapshotRef.current = "";
+    dragStartPushedRef.current = false;
+
+    // ✅ push only if changed
+    if (afterSnap !== lastPushedSnapshotRef.current) {
+      lastPushedSnapshotRef.current = afterSnap;
+      push(afterArr);
+    }
+  }, 0);
 };
 
 
