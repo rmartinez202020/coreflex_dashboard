@@ -5,9 +5,9 @@ import { getToken } from "../utils/authToken";
 
 /**
  * DashboardAdminPage
- * - Pick Customer (no location for now)
- * - Create Dashboard
- * - List Dashboards
+ * - Pick Customer (optional filter)
+ * - Create Dashboard (requires customer)
+ * - List Dashboards (ALWAYS shows existing dashboards; filter by customer if selected)
  * - Open/Edit (loads it into your main editor)
  * - Launch (opens play-mode in new tab)
  *
@@ -23,16 +23,16 @@ export default function DashboardAdminPage({
   onGoHome, // ✅ new
 }) {
   const [customers, setCustomers] = useState([]);
-  const [selectedCustomer, setSelectedCustomer] = useState("");
+  const [selectedCustomer, setSelectedCustomer] = useState(""); // optional filter
 
   const [dashboards, setDashboards] = useState([]);
+  const [search, setSearch] = useState(""); // ✅ quick search across dashboards
 
   const [newDashboardName, setNewDashboardName] = useState("");
   const [loading, setLoading] = useState(false);
   const [msg, setMsg] = useState("");
 
   // Used only to trigger initial load when token changes (login/logout)
-  // Note: This is "stable" once mounted; page reloads on actual login in your flow.
   const token = useMemo(() => getToken(), []);
 
   // -----------------------------
@@ -50,7 +50,6 @@ export default function DashboardAdminPage({
     const data = await res.json();
     const arr = Array.isArray(data) ? data : [];
 
-    // normalize + unique by customer_name
     const seen = new Set();
     const unique = [];
     for (const row of arr) {
@@ -87,7 +86,9 @@ export default function DashboardAdminPage({
   };
 
   // -----------------------------
-  // ✅ Initial Load
+  // ✅ Initial Load (IMPORTANT CHANGE)
+  // - Load customers
+  // - Load ALL dashboards right away
   // -----------------------------
   useEffect(() => {
     (async () => {
@@ -95,8 +96,7 @@ export default function DashboardAdminPage({
         setLoading(true);
         setMsg("");
         await fetchCustomers();
-        // Default: show nothing until customer is picked (this is your "FIRST STEP")
-        setDashboards([]);
+        await fetchDashboards(""); // ✅ show all dashboards immediately
       } catch (e) {
         console.error(e);
         setMsg(String(e?.message || e));
@@ -107,17 +107,15 @@ export default function DashboardAdminPage({
   }, [token]);
 
   // -----------------------------
-  // ✅ When customer changes, load dashboards for that customer
+  // ✅ When customer changes:
+  // - If selected: fetch only that customer's dashboards
+  // - If cleared: fetch ALL dashboards again
   // -----------------------------
   useEffect(() => {
     (async () => {
       try {
         setMsg("");
-        if (!selectedCustomer) {
-          setDashboards([]);
-          return;
-        }
-        await fetchDashboards(selectedCustomer);
+        await fetchDashboards(selectedCustomer || "");
       } catch (e) {
         console.error(e);
         setMsg(String(e?.message || e));
@@ -170,6 +168,10 @@ export default function DashboardAdminPage({
       }
 
       setNewDashboardName("");
+
+      // ✅ After create:
+      // - keep current filter if customer selected (it is)
+      // - refresh list
       await fetchDashboards(customer);
       setMsg("✅ Dashboard created");
     } catch (e) {
@@ -181,11 +183,39 @@ export default function DashboardAdminPage({
   };
 
   // -----------------------------
+  // ✅ Filtered Dashboards (search + optional customer)
+  // -----------------------------
+  const filteredDashboards = dashboards.filter((d) => {
+    const q = String(search || "").trim().toLowerCase();
+    if (!q) return true;
+
+    const dn = String(d?.dashboard_name || "").toLowerCase();
+    const cn = String(d?.customer_name || "").toLowerCase();
+    const id = String(d?.id || "").toLowerCase();
+
+    return dn.includes(q) || cn.includes(q) || id.includes(q);
+  });
+
+  // -----------------------------
+  // ✅ Group by customer when showing ALL
+  // -----------------------------
+  const groupedByCustomer = filteredDashboards.reduce((acc, d) => {
+    const key = String(d?.customer_name || "Unknown").trim() || "Unknown";
+    if (!acc[key]) acc[key] = [];
+    acc[key].push(d);
+    return acc;
+  }, {});
+
+  const groupKeys = Object.keys(groupedByCustomer).sort((a, b) =>
+    a.localeCompare(b)
+  );
+
+  // -----------------------------
   // ✅ UI
   // -----------------------------
   return (
     <div className="w-full h-full border rounded-lg bg-white p-6">
-      {/* ✅ HEADER STYLE (matches dark Admin Dashboard card color) */}
+      {/* ✅ HEADER STYLE */}
       <div className="mb-6 rounded-lg bg-[#374151] text-white px-5 py-4 flex items-start gap-4">
         <button
           type="button"
@@ -196,7 +226,7 @@ export default function DashboardAdminPage({
           ← Back
         </button>
 
-        <div>
+        <div className="flex-1">
           <h2 className="text-lg font-semibold leading-tight">
             Admin Dashboard
           </h2>
@@ -208,10 +238,11 @@ export default function DashboardAdminPage({
 
       {/* CUSTOMER PICKER + CREATE */}
       <div className="flex flex-col md:flex-row gap-3 md:items-end mb-4">
-        {/* PICK CUSTOMER (FIRST STEP) */}
+        {/* PICK CUSTOMER (NOW OPTIONAL FILTER) */}
         <div className="flex-1">
           <label className="block text-sm font-semibold text-gray-700 mb-1">
-            Pick Customer <span className="text-red-500">*</span>
+            Filter by Customer{" "}
+            <span className="text-xs text-gray-500">(optional)</span>
           </label>
 
           <select
@@ -220,7 +251,7 @@ export default function DashboardAdminPage({
             onChange={(e) => setSelectedCustomer(e.target.value)}
             disabled={loading}
           >
-            <option value="">-- Select customer --</option>
+            <option value="">-- All customers --</option>
             {customers.map((c) => (
               <option key={c.customer_name} value={c.customer_name}>
                 {c.customer_name}
@@ -229,14 +260,15 @@ export default function DashboardAdminPage({
           </select>
 
           <div className="text-xs text-gray-500 mt-1">
-            Customers come from your saved Customer/Locations list.
+            Tip: leave it as <b>All customers</b> to always see everything.
           </div>
         </div>
 
         {/* CREATE DASHBOARD */}
         <div className="flex-[1.2]">
           <label className="block text-sm font-semibold text-gray-700 mb-1">
-            Create Dashboard
+            Create Dashboard{" "}
+            <span className="text-xs text-gray-500">(requires customer)</span>
           </label>
 
           <div className="flex gap-2">
@@ -259,7 +291,7 @@ export default function DashboardAdminPage({
               }`}
               title={
                 !selectedCustomer
-                  ? "Pick a customer first"
+                  ? "Pick a customer first to create"
                   : "Create dashboard"
               }
             >
@@ -269,89 +301,157 @@ export default function DashboardAdminPage({
 
           {!selectedCustomer ? (
             <div className="text-xs text-gray-500 mt-1">
-              Pick a customer first (required).
+              Pick a customer above to enable Create.
             </div>
           ) : null}
         </div>
       </div>
 
-      {msg ? <div className="mb-4 text-sm text-gray-800">{msg}</div> : null}
+      {/* SEARCH + MSG */}
+      <div className="flex flex-col md:flex-row md:items-center gap-3 mb-4">
+        <div className="flex-1">
+          <input
+            className="w-full border rounded-md px-3 py-2"
+            placeholder="Search dashboards (name / customer / id)..."
+            value={search}
+            onChange={(e) => setSearch(e.target.value)}
+            disabled={loading}
+          />
+        </div>
 
-      {/* LIST (only after customer chosen) */}
-      <div className="border rounded-lg overflow-hidden">
-        <div className="bg-gray-50 px-4 py-2 text-sm font-semibold text-gray-700 flex items-center justify-between">
-          <span>
-            List Dashboards{" "}
-            {selectedCustomer ? `— ${selectedCustomer}` : "(pick a customer)"}
-          </span>
-
-          <button
-            type="button"
-            disabled={!selectedCustomer || loading}
-            className={`text-xs px-3 py-1 border rounded-md ${
-              !selectedCustomer || loading
-                ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                : "bg-white hover:bg-gray-100"
-            }`}
-            onClick={() => {
-              if (!selectedCustomer) return;
-              fetchDashboards(selectedCustomer).catch((err) => {
+        <button
+          type="button"
+          disabled={loading}
+          className={`text-sm px-4 py-2 border rounded-md ${
+            loading
+              ? "bg-gray-100 text-gray-400 cursor-not-allowed"
+              : "bg-white hover:bg-gray-100"
+          }`}
+          onClick={() => {
+            fetchDashboards(selectedCustomer || "")
+              .then(() => setMsg(""))
+              .catch((err) => {
                 console.error(err);
                 setMsg(String(err?.message || err));
               });
-            }}
-          >
-            Refresh
-          </button>
+          }}
+          title="Refresh dashboards"
+        >
+          Refresh
+        </button>
+      </div>
+
+      {msg ? <div className="mb-4 text-sm text-gray-800">{msg}</div> : null}
+
+      {/* LIST */}
+      <div className="border rounded-lg overflow-hidden">
+        <div className="bg-gray-50 px-4 py-2 text-sm font-semibold text-gray-700 flex items-center justify-between">
+          <span>
+            {selectedCustomer
+              ? `Dashboards — ${selectedCustomer}`
+              : "Dashboards — All customers"}
+            <span className="ml-2 text-xs text-gray-500">
+              ({filteredDashboards.length})
+            </span>
+          </span>
+
+          {search ? (
+            <span className="text-xs text-gray-500">Search: “{search}”</span>
+          ) : null}
         </div>
 
-        {!selectedCustomer ? (
+        {filteredDashboards.length === 0 ? (
           <div className="p-4 text-sm text-gray-600">
-            Pick a customer to see dashboards.
+            No dashboards found.
           </div>
-        ) : (
+        ) : selectedCustomer ? (
+          // ✅ Flat list when filtering a single customer
           <div className="divide-y">
-            {dashboards.length === 0 ? (
-              <div className="p-4 text-sm text-gray-600">
-                No dashboards yet for <b>{selectedCustomer}</b>.
-              </div>
-            ) : (
-              dashboards.map((d) => (
-                <div
-                  key={d.id}
-                  className="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
-                >
-                  <div>
-                    <div className="font-semibold text-gray-900">
-                      {d.dashboard_name}
-                    </div>
-                    <div className="text-xs text-gray-500">
-                      Customer: {d.customer_name} • ID: {d.id}
-                    </div>
+            {filteredDashboards.map((d) => (
+              <div
+                key={d.id}
+                className="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
+              >
+                <div>
+                  <div className="font-semibold text-gray-900">
+                    {d.dashboard_name}
                   </div>
-
-                  <div className="flex gap-2">
-                    <button
-                      type="button"
-                      className="px-3 py-2 rounded-md text-sm border bg-white hover:bg-gray-100"
-                      onClick={() => onOpenDashboard?.(d)}
-                      title="Open this dashboard in the main editor"
-                    >
-                      ✎ Open / Edit
-                    </button>
-
-                    <button
-                      type="button"
-                      className="px-3 py-2 rounded-md text-sm border bg-green-600 text-white hover:bg-green-700"
-                      onClick={() => onLaunchDashboard?.(d)}
-                      title="Launch play-mode in a new tab"
-                    >
-                      🚀 Launch
-                    </button>
+                  <div className="text-xs text-gray-500">
+                    Customer: {d.customer_name} • ID: {d.id}
                   </div>
                 </div>
-              ))
-            )}
+
+                <div className="flex gap-2">
+                  <button
+                    type="button"
+                    className="px-3 py-2 rounded-md text-sm border bg-white hover:bg-gray-100"
+                    onClick={() => onOpenDashboard?.(d)}
+                    title="Open this dashboard in the main editor"
+                  >
+                    ✎ Open / Edit
+                  </button>
+
+                  <button
+                    type="button"
+                    className="px-3 py-2 rounded-md text-sm border bg-green-600 text-white hover:bg-green-700"
+                    onClick={() => onLaunchDashboard?.(d)}
+                    title="Launch play-mode in a new tab"
+                  >
+                    🚀 Launch
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        ) : (
+          // ✅ Grouped list when showing ALL customers
+          <div className="divide-y">
+            {groupKeys.map((customerName) => (
+              <div key={customerName}>
+                <div className="px-4 py-2 bg-white text-sm font-semibold text-gray-800 flex items-center justify-between">
+                  <span>{customerName}</span>
+                  <span className="text-xs text-gray-500">
+                    {groupedByCustomer[customerName].length} dashboards
+                  </span>
+                </div>
+
+                <div className="divide-y">
+                  {groupedByCustomer[customerName].map((d) => (
+                    <div
+                      key={d.id}
+                      className="px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-gray-50"
+                    >
+                      <div>
+                        <div className="font-semibold text-gray-900">
+                          {d.dashboard_name}
+                        </div>
+                        <div className="text-xs text-gray-500">ID: {d.id}</div>
+                      </div>
+
+                      <div className="flex gap-2">
+                        <button
+                          type="button"
+                          className="px-3 py-2 rounded-md text-sm border bg-white hover:bg-gray-100"
+                          onClick={() => onOpenDashboard?.(d)}
+                          title="Open this dashboard in the main editor"
+                        >
+                          ✎ Open / Edit
+                        </button>
+
+                        <button
+                          type="button"
+                          className="px-3 py-2 rounded-md text-sm border bg-green-600 text-white hover:bg-green-700"
+                          onClick={() => onLaunchDashboard?.(d)}
+                          title="Launch play-mode in a new tab"
+                        >
+                          🚀 Launch
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            ))}
           </div>
         )}
       </div>
