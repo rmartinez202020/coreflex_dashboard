@@ -689,8 +689,21 @@ const goToMainDashboard = () => {
 
       await saveMainDashboard(dashboardPayload, activeDashboard);
 
-      setLastSavedAt(new Date());
-      console.log("✅ Main Dashboard saved");
+const now = new Date();
+setLastSavedAt(now);
+console.log("✅ Main Dashboard saved");
+
+// ✅ MAKE "SAVE" THE NEW BASELINE (no undo past this point)
+const snap = JSON.stringify(droppedRef.current || []);
+baselineSnapshotRef.current = snap;
+lastPushedSnapshotRef.current = snap;
+
+skipHistoryPushRef.current = true;   // avoid double-push from effects
+hasUndoInitRef.current = true;
+
+reset();                             // wipe history
+push(deepClone(droppedRef.current)); // seed history with the saved state
+
     } catch (err) {
       console.error("❌ Save failed:", err);
     }
