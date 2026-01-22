@@ -17,9 +17,7 @@ export default function HomePage({ setActiveSubPage, setSubPageColor }) {
             <span className="text-2xl">👤</span>
             <h2 className="text-lg font-semibold">Profile</h2>
           </div>
-          <p className="text-sm text-blue-100">
-            View and edit your profile.
-          </p>
+          <p className="text-sm text-blue-100">View and edit your profile.</p>
         </div>
 
         {/* CUSTOMERS / LOCATIONS CARD */}
@@ -39,13 +37,13 @@ export default function HomePage({ setActiveSubPage, setSubPageColor }) {
           </p>
         </div>
 
-        {/* DEVICES CARD */}
-        <div className="rounded-xl bg-orange-500 text-white p-4 md:p-5 flex flex-col justify-between">
+        {/* DEVICES CARD (UPDATED COLOR) */}
+        <div className="rounded-xl bg-slate-700 text-white p-4 md:p-5 flex flex-col justify-between hover:bg-slate-800 transition">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-2xl">📡</span>
             <h2 className="text-lg font-semibold">Registered Devices</h2>
           </div>
-          <p className="text-sm text-orange-100">
+          <p className="text-sm text-slate-100">
             Review all sensors and gateways.
           </p>
         </div>
