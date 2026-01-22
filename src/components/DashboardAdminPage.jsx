@@ -191,6 +191,8 @@ export default function DashboardAdminPage({
 
     const dn = String(d?.dashboard_name || "").toLowerCase();
     const cn = String(d?.customer_name || "").toLowerCase();
+
+    // ✅ IDs are no longer shown, but search can still match IDs if user types it
     const id = String(d?.id || "").toLowerCase();
 
     return dn.includes(q) || cn.includes(q) || id.includes(q);
@@ -227,9 +229,7 @@ export default function DashboardAdminPage({
         </button>
 
         <div className="flex-1">
-          <h2 className="text-lg font-semibold leading-tight">
-            Admin Dashboard
-          </h2>
+          <h2 className="text-lg font-semibold leading-tight">Admin Dashboard</h2>
           <p className="text-sm text-gray-200">
             Create and manage customer dashboards.
           </p>
@@ -361,9 +361,7 @@ export default function DashboardAdminPage({
         </div>
 
         {filteredDashboards.length === 0 ? (
-          <div className="p-4 text-sm text-gray-600">
-            No dashboards found.
-          </div>
+          <div className="p-4 text-sm text-gray-600">No dashboards found.</div>
         ) : selectedCustomer ? (
           // ✅ Flat list when filtering a single customer
           <div className="divide-y">
@@ -376,8 +374,10 @@ export default function DashboardAdminPage({
                   <div className="font-semibold text-gray-900">
                     {d.dashboard_name}
                   </div>
+
+                  {/* ✅ ID REMOVED */}
                   <div className="text-xs text-gray-500">
-                    Customer: {d.customer_name} • ID: {d.id}
+                    Customer: {d.customer_name}
                   </div>
                 </div>
 
@@ -407,10 +407,14 @@ export default function DashboardAdminPage({
           // ✅ Grouped list when showing ALL customers
           <div className="divide-y">
             {groupKeys.map((customerName) => (
-              <div key={customerName}>
-                <div className="px-4 py-2 bg-white text-sm font-semibold text-gray-800 flex items-center justify-between">
-                  <span>{customerName}</span>
-                  <span className="text-xs text-gray-500">
+              <div
+                key={customerName}
+                className="border border-blue-200 rounded-md mb-3 overflow-hidden"
+              >
+                {/* ✅ BLUE CUSTOMER HEADER */}
+                <div className="px-4 py-2 bg-blue-50 border-l-4 border-blue-600 text-sm font-semibold text-blue-800 flex items-center justify-between">
+                  <span className="uppercase tracking-wide">{customerName}</span>
+                  <span className="text-xs text-blue-600">
                     {groupedByCustomer[customerName].length} dashboards
                   </span>
                 </div>
@@ -425,7 +429,8 @@ export default function DashboardAdminPage({
                         <div className="font-semibold text-gray-900">
                           {d.dashboard_name}
                         </div>
-                        <div className="text-xs text-gray-500">ID: {d.id}</div>
+
+                        {/* ✅ ID REMOVED */}
                       </div>
 
                       <div className="flex gap-2">
