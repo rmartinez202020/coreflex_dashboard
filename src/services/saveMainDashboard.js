@@ -64,7 +64,8 @@ export async function saveMainDashboard(dashboardPayload, activeDashboard) {
 
   const res = await fetch(endpoint, {
     // ✅ main can stay POST (create/upsert), customer should be PUT (update row)
-    method: isCustomer ? "PUT" : "POST",
+    method: "POST",
+
     headers: {
       "Content-Type": "application/json",
       Authorization: `Bearer ${token}`,

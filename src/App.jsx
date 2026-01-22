@@ -803,11 +803,15 @@ const handleUploadProject = async () => {
 
     const data = await res.json();
 
-    restoredObjects =
-      data?.canvas?.objects ||
-      data?.layout?.canvas?.objects ||
-      data?.layout?.objects ||
-      [];
+    const layout = data?.layout ?? data;
+
+restoredObjects =
+  layout?.canvas?.objects ||
+  layout?.layout?.canvas?.objects ||
+  layout?.layout?.objects ||
+  layout?.objects ||
+  [];
+
 
     // ✅ apply restored canvas
     setDroppedTanks(restoredObjects);
