@@ -60,8 +60,6 @@ export default function HomePage({ setActiveSubPage, setSubPageColor }) {
             <span>• Create Dashboards</span>
             <span>• Assign to Customers</span>
             <span>• Open / Edit / Launch</span>
-            <span>• Permissions</span>
-            <span>• Versions</span>
           </div>
 
           <div className="mt-3 text-xs text-gray-300 opacity-90">
