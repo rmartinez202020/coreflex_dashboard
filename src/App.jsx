@@ -886,43 +886,26 @@ const {
   setDroppedTanks,
 });
 
-// ✅ WRAPPED HANDLERS (prevents double-undo)
+// ✅ WRAPPED HANDLERS (single source of truth: useEffect pushes snapshots)
+
 const handleDragMove = (...args) => {
-  // ✅ first movement of this drag action
-  if (!dragStartedRef.current) {
-    dragStartedRef.current = true;
-    dragStartSnapshotRef.current = JSON.stringify(droppedRef.current || []);
-  }
-
-  // ✅ block effect snapshot pushes while dragging
+  // block effect snapshot pushes while dragging
   isObjectDraggingRef.current = true;
-
   rawHandleDragMove(...args);
 };
 
 const handleDragEnd = (...args) => {
-  // ✅ keep blocking effect pushes during the final state update
-  isObjectDraggingRef.current = true;
+  // ✅ UNLOCK snapshots BEFORE applying final state
+  // so the droppedTanks change from rawHandleDragEnd triggers the useEffect push ONCE
+  isObjectDraggingRef.current = false;
 
-  rawHandleDragEnd(...args);
-
-  // ✅ after React applies final droppedTanks state, push ONE snapshot
-  setTimeout(() => {
-    const afterArr = deepClone(droppedRef.current || []);
-    const afterSnap = JSON.stringify(afterArr);
-
-    // stop “drag mode”
-    isObjectDraggingRef.current = false;
-    dragStartedRef.current = false;
+  // clean drag flags
+  dragStartedRef.current = false;
   dragStartSnapshotRef.current = "";
 
-    // ✅ only push if changed
-    if (afterSnap !== lastPushedSnapshotRef.current) {
-      lastPushedSnapshotRef.current = afterSnap;
-      push(afterArr);
-    }
-  }, 0);
+  rawHandleDragEnd(...args);
 };
+
 
   // DROP HANDLER
   const { handleDrop } = useDropHandler({
@@ -1174,6 +1157,11 @@ if (isLaunchPage) {
       setDroppedTanks([]);
       setSelectedIds([]);
       setSelectedTank(null);
+
+      // ✅ safety reset
+isObjectDraggingRef.current = false;
+dragStartedRef.current = false;
+dragStartSnapshotRef.current = "";
 
       // ✅ reset undo/redo history so it doesn’t mix dashboards
 hasUndoInitRef.current = false;
