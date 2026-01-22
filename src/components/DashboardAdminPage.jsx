@@ -86,7 +86,7 @@ export default function DashboardAdminPage({
   };
 
   // -----------------------------
-  // ✅ Initial Load (IMPORTANT CHANGE)
+  // ✅ Initial Load
   // - Load customers
   // - Load ALL dashboards right away
   // -----------------------------
@@ -191,9 +191,7 @@ export default function DashboardAdminPage({
 
     const dn = String(d?.dashboard_name || "").toLowerCase();
     const cn = String(d?.customer_name || "").toLowerCase();
-
-    // ✅ IDs are no longer shown, but search can still match IDs if user types it
-    const id = String(d?.id || "").toLowerCase();
+    const id = String(d?.id || "").toLowerCase(); // search-only
 
     return dn.includes(q) || cn.includes(q) || id.includes(q);
   });
@@ -229,7 +227,9 @@ export default function DashboardAdminPage({
         </button>
 
         <div className="flex-1">
-          <h2 className="text-lg font-semibold leading-tight">Admin Dashboard</h2>
+          <h2 className="text-lg font-semibold leading-tight">
+            Admin Dashboard
+          </h2>
           <p className="text-sm text-gray-200">
             Create and manage customer dashboards.
           </p>
@@ -360,105 +360,109 @@ export default function DashboardAdminPage({
           ) : null}
         </div>
 
-        {filteredDashboards.length === 0 ? (
-          <div className="p-4 text-sm text-gray-600">No dashboards found.</div>
-        ) : selectedCustomer ? (
-          // ✅ Flat list when filtering a single customer
-          <div className="divide-y">
-            {filteredDashboards.map((d) => (
-              <div
-                key={d.id}
-                className="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
-              >
-                <div>
-                  <div className="font-semibold text-gray-900">
-                    {d.dashboard_name}
+        {/* ✅ SCROLLABLE LIST CONTAINER */}
+        <div className="max-h-[520px] overflow-y-auto">
+          {filteredDashboards.length === 0 ? (
+            <div className="p-4 text-sm text-gray-600">No dashboards found.</div>
+          ) : selectedCustomer ? (
+            // ✅ Flat list when filtering a single customer
+            <div className="divide-y">
+              {filteredDashboards.map((d) => (
+                <div
+                  key={d.id}
+                  className="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-3"
+                >
+                  <div>
+                    <div className="font-semibold text-gray-900">
+                      {d.dashboard_name}
+                    </div>
+
+                    {/* ✅ ID REMOVED */}
+                    <div className="text-xs text-gray-500">
+                      Customer: {d.customer_name}
+                    </div>
                   </div>
 
-                  {/* ✅ ID REMOVED */}
-                  <div className="text-xs text-gray-500">
-                    Customer: {d.customer_name}
-                  </div>
-                </div>
-
-                <div className="flex gap-2">
-                  <button
-                    type="button"
-                    className="px-3 py-2 rounded-md text-sm border bg-white hover:bg-gray-100"
-                    onClick={() => onOpenDashboard?.(d)}
-                    title="Open this dashboard in the main editor"
-                  >
-                    ✎ Open / Edit
-                  </button>
-
-                  <button
-                    type="button"
-                    className="px-3 py-2 rounded-md text-sm border bg-green-600 text-white hover:bg-green-700"
-                    onClick={() => onLaunchDashboard?.(d)}
-                    title="Launch play-mode in a new tab"
-                  >
-                    🚀 Launch
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          // ✅ Grouped list when showing ALL customers
-          <div className="divide-y">
-            {groupKeys.map((customerName) => (
-              <div
-                key={customerName}
-                className="border border-blue-200 rounded-md mb-3 overflow-hidden"
-              >
-                {/* ✅ BLUE CUSTOMER HEADER */}
-                <div className="px-4 py-2 bg-blue-50 border-l-4 border-blue-600 text-sm font-semibold text-blue-800 flex items-center justify-between">
-                  <span className="uppercase tracking-wide">{customerName}</span>
-                  <span className="text-xs text-blue-600">
-                    {groupedByCustomer[customerName].length} dashboards
-                  </span>
-                </div>
-
-                <div className="divide-y">
-                  {groupedByCustomer[customerName].map((d) => (
-                    <div
-                      key={d.id}
-                      className="px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-gray-50"
+                  <div className="flex gap-2">
+                    <button
+                      type="button"
+                      className="px-3 py-2 rounded-md text-sm border bg-white hover:bg-gray-100"
+                      onClick={() => onOpenDashboard?.(d)}
+                      title="Open this dashboard in the main editor"
                     >
-                      <div>
-                        <div className="font-semibold text-gray-900">
-                          {d.dashboard_name}
+                      ✎ Open / Edit
+                    </button>
+
+                    <button
+                      type="button"
+                      className="px-3 py-2 rounded-md text-sm border bg-green-600 text-white hover:bg-green-700"
+                      onClick={() => onLaunchDashboard?.(d)}
+                      title="Launch play-mode in a new tab"
+                    >
+                      🚀 Launch
+                    </button>
+                  </div>
+                </div>
+              ))}
+            </div>
+          ) : (
+            // ✅ Grouped list when showing ALL customers
+            <div className="divide-y">
+              {groupKeys.map((customerName) => (
+                <div
+                  key={customerName}
+                  className="border border-blue-200 rounded-md mb-3 overflow-hidden"
+                >
+                  {/* ✅ BLUE CUSTOMER HEADER */}
+                  <div className="px-4 py-2 bg-blue-50 border-l-4 border-blue-600 text-sm font-semibold text-blue-800 flex items-center justify-between">
+                    <span className="uppercase tracking-wide">
+                      {customerName}
+                    </span>
+                    <span className="text-xs text-blue-600">
+                      {groupedByCustomer[customerName].length} dashboards
+                    </span>
+                  </div>
+
+                  <div className="divide-y">
+                    {groupedByCustomer[customerName].map((d) => (
+                      <div
+                        key={d.id}
+                        className="px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-3 bg-gray-50"
+                      >
+                        <div>
+                          <div className="font-semibold text-gray-900">
+                            {d.dashboard_name}
+                          </div>
+                          {/* ✅ ID REMOVED */}
                         </div>
 
-                        {/* ✅ ID REMOVED */}
-                      </div>
+                        <div className="flex gap-2">
+                          <button
+                            type="button"
+                            className="px-3 py-2 rounded-md text-sm border bg-white hover:bg-gray-100"
+                            onClick={() => onOpenDashboard?.(d)}
+                            title="Open this dashboard in the main editor"
+                          >
+                            ✎ Open / Edit
+                          </button>
 
-                      <div className="flex gap-2">
-                        <button
-                          type="button"
-                          className="px-3 py-2 rounded-md text-sm border bg-white hover:bg-gray-100"
-                          onClick={() => onOpenDashboard?.(d)}
-                          title="Open this dashboard in the main editor"
-                        >
-                          ✎ Open / Edit
-                        </button>
-
-                        <button
-                          type="button"
-                          className="px-3 py-2 rounded-md text-sm border bg-green-600 text-white hover:bg-green-700"
-                          onClick={() => onLaunchDashboard?.(d)}
-                          title="Launch play-mode in a new tab"
-                        >
-                          🚀 Launch
-                        </button>
+                          <button
+                            type="button"
+                            className="px-3 py-2 rounded-md text-sm border bg-green-600 text-white hover:bg-green-700"
+                            onClick={() => onLaunchDashboard?.(d)}
+                            title="Launch play-mode in a new tab"
+                          >
+                            🚀 Launch
+                          </button>
+                        </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}
+                  </div>
                 </div>
-              </div>
-            ))}
-          </div>
-        )}
+              ))}
+            </div>
+          )}
+        </div>
       </div>
 
       <div className="mt-6 text-xs text-gray-500">
