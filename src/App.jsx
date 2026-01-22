@@ -194,7 +194,7 @@ if (
 }
 
 
-  let res = undo(current);
+  let res = undo();
   if (!res.ok) return;
 
   const same =
@@ -217,7 +217,7 @@ const handleRedo = () => {
 
   const current = deepClone(droppedRef.current);
 
-  let res = redo(current);
+  let res = redo();
   if (!res.ok) return;
 
   const same =

@@ -2,87 +2,81 @@
 import { useCallback, useRef, useState } from "react";
 
 /**
- * Simple undo/redo history for an array state (like droppedTanks)
- * - Works with setState-style updates
- * - Stores up to `limit` snapshots
+ * Undo/Redo history (timeline + pointer)
  *
- * IMPORTANT:
- * - We deep-clone snapshots on push/undo/redo to avoid mutations
- *   (because canvas objects are often mutated in-place by drag/resize).
+ * ✅ Each push() is a single undo step.
+ * ✅ Undo always moves back 1 step (no “need 6 moves” behavior).
+ * ✅ Redo always moves forward 1 step.
+ * ✅ Keeps only the last `limit` snapshots.
+ *
+ * Notes:
+ * - Snapshots are deep-cloned to avoid in-place mutations corrupting history.
+ * - This hook is self-contained: undo/redo do NOT need currentSnapshot args.
  */
 export default function useUndoRedo(limit = 6) {
-  const historyRef = useRef({
-    past: [],
-    future: [],
-  });
+  const historyRef = useRef([]);  // array of snapshots
+  const indexRef = useRef(-1);    // pointer to current snapshot
 
-  // just to force UI refresh for canUndo/canRedo
+  // force UI refresh for canUndo/canRedo
   const [, forceTick] = useState(0);
+  const tick = () => forceTick((x) => x + 1);
 
-  const canUndo = historyRef.current.past.length > 0;
-  const canRedo = historyRef.current.future.length > 0;
-
-  const clone = (snapshot) =>
-    JSON.parse(JSON.stringify(snapshot || []));
-
-  const push = useCallback(
-    (currentSnapshot) => {
-      const h = historyRef.current;
-
-      // store a clone so future mutations don't corrupt history
-      h.past.push(clone(currentSnapshot));
-
-      // cap history
-      if (h.past.length > limit) {
-        h.past.shift();
-      }
-
-      // new action invalidates redo
-      h.future = [];
-
-      forceTick((x) => x + 1);
-    },
-    [limit]
-  );
-
-  const undo = useCallback((currentSnapshot) => {
-    const h = historyRef.current;
-    if (h.past.length === 0) return { ok: false };
-
-    const previous = h.past.pop();
-
-    // store a clone of current so redo restores the exact state
-    h.future.push(clone(currentSnapshot));
-
-    forceTick((x) => x + 1);
-    return { ok: true, snapshot: clone(previous) };
-  }, []);
-
-  const redo = useCallback(
-    (currentSnapshot) => {
-      const h = historyRef.current;
-      if (h.future.length === 0) return { ok: false };
-
-      const next = h.future.pop();
-
-      // store a clone of current in past
-      h.past.push(clone(currentSnapshot));
-
-      // cap past again just in case
-      if (h.past.length > limit) {
-        h.past.shift();
-      }
-
-      forceTick((x) => x + 1);
-      return { ok: true, snapshot: clone(next) };
-    },
-    [limit]
-  );
+  const clone = (snapshot) => JSON.parse(JSON.stringify(snapshot || []));
 
   const reset = useCallback(() => {
-    historyRef.current = { past: [], future: [] };
-    forceTick((x) => x + 1);
+    historyRef.current = [];
+    indexRef.current = -1;
+    tick();
   }, []);
+
+  const push = useCallback(
+    (snapshot) => {
+      const next = clone(snapshot);
+
+      // if we undid and then pushed, drop redo states (future)
+      if (indexRef.current < historyRef.current.length - 1) {
+        historyRef.current = historyRef.current.slice(0, indexRef.current + 1);
+      }
+
+      // dedupe exact same snapshot
+      const current = historyRef.current[indexRef.current];
+      if (current && JSON.stringify(current) === JSON.stringify(next)) return;
+
+      historyRef.current.push(next);
+
+      // cap history length
+      if (historyRef.current.length > limit) {
+        const overflow = historyRef.current.length - limit;
+        historyRef.current.splice(0, overflow);
+        indexRef.current -= overflow;
+      }
+
+      indexRef.current = historyRef.current.length - 1;
+      tick();
+    },
+    [limit]
+  );
+
+  const undo = useCallback(() => {
+    // need at least 2 states to move back (current + previous)
+    if (indexRef.current <= 0) return { ok: false };
+
+    indexRef.current -= 1;
+    tick();
+    return { ok: true, snapshot: clone(historyRef.current[indexRef.current]) };
+  }, []);
+
+  const redo = useCallback(() => {
+    if (indexRef.current >= historyRef.current.length - 1) return { ok: false };
+
+    indexRef.current += 1;
+    tick();
+    return { ok: true, snapshot: clone(historyRef.current[indexRef.current]) };
+  }, []);
+
+  const canUndo = indexRef.current > 0;
+  const canRedo =
+    indexRef.current >= 0 && indexRef.current < historyRef.current.length - 1;
 
   return { push, undo, redo, reset, canUndo, canRedo };
 }
