@@ -1,10 +1,18 @@
 import React from "react";
 
-const PLATFORM_OWNER_EMAIL = "roquemartinez_8@hotmail.com";
+// ✅ Owner allowlist (covers your screenshots + future-safe)
+const PLATFORM_OWNER_EMAILS = [
+  "roquemartinez_8@hotmail.com",
+  "roquemartinez_8@hotmailmail.com", // <-- typo variant seen in your UI
+];
 
-export default function HomePage({ setActiveSubPage, setSubPageColor, currentUserKey }) {
-  const isPlatformOwner =
-    (currentUserKey || "").toLowerCase() === PLATFORM_OWNER_EMAIL.toLowerCase();
+export default function HomePage({
+  setActiveSubPage,
+  setSubPageColor,
+  currentUserKey,
+}) {
+  const normalizedUser = (currentUserKey || "").trim().toLowerCase();
+  const isPlatformOwner = PLATFORM_OWNER_EMAILS.includes(normalizedUser);
 
   return (
     <>
@@ -106,7 +114,7 @@ export default function HomePage({ setActiveSubPage, setSubPageColor, currentUse
               Business Reports (Owner Only)
             </h2>
             <span className="text-xs text-gray-500">
-              Visible only to {PLATFORM_OWNER_EMAIL}
+              Owner: {normalizedUser || "unknown"}
             </span>
           </div>
 
