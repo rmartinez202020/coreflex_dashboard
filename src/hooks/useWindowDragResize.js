@@ -1,28 +1,26 @@
 // src/hooks/useWindowDragResize.js
-import { useEffect, useMemo, useRef, useState, useCallback } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 
 /**
  * useWindowDragResize
  * - Centralized drag/resize + open/close for floating windows by key
  *
- * You define defaults once:
- *   useWindowDragResize({
- *     image: { position:{x:260,y:140}, size:{width:720,height:480}, minSize:{width:600,height:400} },
- *     coreflex: { ... },
- *     hmi: { ... },
- *   })
+ * IMPORTANT FIX:
+ * - In App.jsx you pass an object literal to this hook.
+ *   That object is recreated every render, which previously caused this hook
+ *   to re-initialize windows and force visible=false (so windows never appear).
  *
- * Then in components:
- *   <ImageLibrary {...getWindowProps("image")} />
- *   openWindow("image", { center: true })
+ * - This version freezes defaults on first mount and initializes windows ONCE.
  */
 export default function useWindowDragResize(defaultsMap = {}) {
   // force rerender when internal ref changes
   const [, forceTick] = useState(0);
-
   const bump = () => forceTick((t) => t + 1);
 
-  const resolvedDefaults = useMemo(() => {
+  // ✅ Freeze defaults only once (prevents re-init on every App render)
+  const defaultsRef = useRef(null);
+
+  if (!defaultsRef.current) {
     const out = {};
     Object.entries(defaultsMap || {}).forEach(([key, cfg]) => {
       const d = typeof cfg === "function" ? cfg() : cfg || {};
@@ -30,14 +28,14 @@ export default function useWindowDragResize(defaultsMap = {}) {
         position: d.position || { x: 100, y: 100 },
         size: d.size || { width: 600, height: 400 },
         minSize: d.minSize || { width: 600, height: 400 },
-        // optional max size clamp
         maxSize: d.maxSize || null,
-        // open centered by default?
         defaultCenter: Boolean(d.defaultCenter),
       };
     });
-    return out;
-  }, [defaultsMap]);
+    defaultsRef.current = out;
+  }
+
+  const getDefaults = () => defaultsRef.current || {};
 
   const stateRef = useRef({
     windows: {}, // key -> { visible, position, size }
@@ -45,27 +43,30 @@ export default function useWindowDragResize(defaultsMap = {}) {
     resizing: null, // { key }
   });
 
-  // init windows once
+  // ✅ init windows ONCE
   useEffect(() => {
     const s = stateRef.current;
+    const dmap = getDefaults();
     const next = {};
-    Object.keys(resolvedDefaults).forEach((key) => {
-      const d = resolvedDefaults[key];
+
+    Object.keys(dmap).forEach((key) => {
+      const d = dmap[key];
       next[key] = {
         visible: false,
         position: { ...d.position },
         size: { ...d.size },
       };
     });
+
     s.windows = next;
     bump();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resolvedDefaults]);
+  }, []);
 
   const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 
   const clampSize = (key, size) => {
-    const d = resolvedDefaults[key];
+    const d = getDefaults()[key];
     if (!d) return size;
 
     const minW = d.minSize?.width ?? 200;
@@ -74,11 +75,9 @@ export default function useWindowDragResize(defaultsMap = {}) {
     let maxW = Infinity;
     let maxH = Infinity;
 
-    // clamp to optional maxSize
     if (d.maxSize?.width) maxW = Math.min(maxW, d.maxSize.width);
     if (d.maxSize?.height) maxH = Math.min(maxH, d.maxSize.height);
 
-    // clamp to viewport
     maxW = Math.min(maxW, window.innerWidth - 20);
     maxH = Math.min(maxH, window.innerHeight - 20);
 
@@ -89,8 +88,8 @@ export default function useWindowDragResize(defaultsMap = {}) {
   };
 
   const clampPos = (key, pos, sizeOverride = null) => {
-    const s = stateRef.current.windows[key];
-    const size = sizeOverride || s?.size || { width: 600, height: 400 };
+    const w = stateRef.current.windows[key];
+    const size = sizeOverride || w?.size || { width: 600, height: 400 };
 
     const maxX = Math.max(0, window.innerWidth - size.width - 10);
     const maxY = Math.max(0, window.innerHeight - size.height - 10);
@@ -105,36 +104,33 @@ export default function useWindowDragResize(defaultsMap = {}) {
     return Boolean(stateRef.current.windows?.[key]?.visible);
   }, []);
 
-  const openWindow = useCallback(
-    (key, opts = {}) => {
-      const s = stateRef.current;
-      const w = s.windows?.[key];
-      const d = resolvedDefaults[key];
+  const openWindow = useCallback((key, opts = {}) => {
+    const s = stateRef.current;
+    const w = s.windows?.[key];
+    const d = getDefaults()[key];
 
-      if (!w || !d) return;
+    if (!w || !d) return;
 
-      const wantCenter = opts.center ?? d.defaultCenter ?? false;
-      const size = clampSize(key, opts.size || w.size || d.size);
+    const wantCenter = opts.center ?? d.defaultCenter ?? false;
+    const size = clampSize(key, opts.size || w.size || d.size);
 
-      let position = w.position || d.position;
-      if (wantCenter) {
-        position = {
-          x: Math.round((window.innerWidth - size.width) / 2),
-          y: Math.round((window.innerHeight - size.height) / 2),
-        };
-      }
-      position = clampPos(key, position, size);
-
-      s.windows[key] = {
-        visible: true,
-        position,
-        size,
+    let position = w.position || d.position;
+    if (wantCenter) {
+      position = {
+        x: Math.round((window.innerWidth - size.width) / 2),
+        y: Math.round((window.innerHeight - size.height) / 2),
       };
+    }
+    position = clampPos(key, position, size);
 
-      bump();
-    },
-    [resolvedDefaults]
-  );
+    s.windows[key] = {
+      visible: true,
+      position,
+      size,
+    };
+
+    bump();
+  }, []);
 
   const closeWindow = useCallback((key) => {
     const s = stateRef.current;
@@ -165,24 +161,21 @@ export default function useWindowDragResize(defaultsMap = {}) {
     bump();
   }, []);
 
-  const setWindowSize = useCallback(
-    (key, size) => {
-      const s = stateRef.current;
-      const w = s.windows?.[key];
-      if (!w) return;
+  const setWindowSize = useCallback((key, size) => {
+    const s = stateRef.current;
+    const w = s.windows?.[key];
+    if (!w) return;
 
-      const nextSize = clampSize(key, size);
-      const nextPos = clampPos(key, w.position, nextSize);
+    const nextSize = clampSize(key, size);
+    const nextPos = clampPos(key, w.position, nextSize);
 
-      s.windows[key] = {
-        ...w,
-        size: nextSize,
-        position: nextPos,
-      };
-      bump();
-    },
-    [resolvedDefaults]
-  );
+    s.windows[key] = {
+      ...w,
+      size: nextSize,
+      position: nextPos,
+    };
+    bump();
+  }, []);
 
   const onStartDragWindow = useCallback((key, e) => {
     e.stopPropagation();
@@ -254,21 +247,17 @@ export default function useWindowDragResize(defaultsMap = {}) {
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [resolvedDefaults]);
+  }, []);
 
   const getWindowProps = useCallback(
     (key, extra = {}) => {
       const w = stateRef.current.windows?.[key];
 
       if (!w) {
-        // safe fallback
         return {
           visible: false,
-
-          // ✅ aliases for different window components
           open: false,
           isOpen: false,
-
           position: { x: 100, y: 100 },
           size: { width: 600, height: 400 },
           onClose: () => closeWindow(key),
@@ -280,11 +269,8 @@ export default function useWindowDragResize(defaultsMap = {}) {
 
       return {
         visible: w.visible,
-
-        // ✅ aliases for different window components
         open: w.visible,
         isOpen: w.visible,
-
         position: w.position,
         size: w.size,
         onClose: () => closeWindow(key),
