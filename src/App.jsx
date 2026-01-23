@@ -12,6 +12,14 @@ import RestoreWarningModal from "./components/RestoreWarningModal";
 import GraphicDisplaySettingsModal from "./components/GraphicDisplaySettingsModal";
 import CustomersLocationsPage from "./components/CustomersLocationsPage";
 import useWindowDragResize from "./hooks/useWindowDragResize";
+import HmiSymbolsLibrary from "./components/HmiSymbolsLibrary";
+import HvacSymbols2DLibrary from "./components/HvacSymbols2DLibrary";
+import HvacSymbols3DLibrary from "./components/HvacSymbols3DLibrary";
+import ManufacturingSymbols2DLibrary from "./components/ManufacturingSymbols2DLibrary";
+import ManufacturingSymbols3DLibrary from "./components/ManufacturingSymbols3DLibrary";
+import TanksAndPipesSymbols2DLibrary from "./components/TanksAndPipesSymbols2DLibrary";
+import TanksAndPipesSymbols3DLibrary from "./components/TanksAndPipesSymbols3DLibrary";
+
 
 // ✅ UPDATED IMPORTS (use your helpers)
 import {
@@ -184,7 +192,6 @@ const wm = useWindowDragResize({
     defaultCenter: true,
   },
 });
-
 
   // CONTEXT MENU
   const [contextMenu, setContextMenu] = useState({
@@ -931,9 +938,17 @@ if (isLaunchPage) {
   })}
 />
 
-<CoreFlexLibrary
-  {...wm.getWindowProps("coreflex")}
-/>
+<CoreFlexLibrary {...wm.getWindowProps("coreflex")} />
+
+
+{/* ✅ SYMBOL LIBRARIES (REQUIRED so wm.openWindow works) */}
+<HmiSymbolsLibrary {...wm.getWindowProps("hmi")} />
+<HvacSymbols2DLibrary {...wm.getWindowProps("hvac2d")} />
+<HvacSymbols3DLibrary {...wm.getWindowProps("hvac3d")} />
+<ManufacturingSymbols2DLibrary {...wm.getWindowProps("mfg2d")} />
+<ManufacturingSymbols3DLibrary {...wm.getWindowProps("mfg3d")} />
+<TanksAndPipesSymbols2DLibrary {...wm.getWindowProps("tp2d")} />
+<TanksAndPipesSymbols3DLibrary {...wm.getWindowProps("tp3d")} />
       </main>
 
       <RestoreWarningModal
@@ -949,9 +964,15 @@ if (isLaunchPage) {
 <RightSidebar
   isRightCollapsed={isRightCollapsed}
   setIsRightCollapsed={setIsRightCollapsed}
+  setShowImageLibrary={() => wm.openWindow("image")}
+  setShowCoreflexLibrary={() => wm.openWindow("coreflex")}
+
+  // ✅ ADD THIS:
+  openSymbolLibrary={(key) => wm.openWindow(key, { center: true })}
+
   dashboardMode={dashboardMode}
-  onOpenLibrary={(key) => wm.openWindow(key)}
 />
+
 
     </div>
   );

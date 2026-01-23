@@ -2,8 +2,28 @@
 export default function RightSidebar({
   isRightCollapsed,
   setIsRightCollapsed,
-  onOpenLibrary, // ✅ ONE handler for ALL libraries
+
+  // ✅ NEW unified handler (preferred)
+  onOpenLibrary,
+
+  // ✅ BACKWARD COMPAT (App.jsx may be using these)
+  setShowImageLibrary,
+  setShowCoreflexLibrary,
+  openSymbolLibrary,
 }) {
+  // ✅ Single place to open any library
+  const openLibrary = (key) => {
+    // 1) If parent provided the unified handler, use it
+    if (onOpenLibrary) return onOpenLibrary(key);
+
+    // 2) Otherwise fall back to older props
+    if (key === "image") return setShowImageLibrary?.();
+    if (key === "coreflex") return setShowCoreflexLibrary?.();
+
+    // symbol libraries
+    return openSymbolLibrary?.(key);
+  };
+
   return (
     <aside
       className={
@@ -22,6 +42,7 @@ export default function RightSidebar({
             : "self-start px-2 py-1 hover:bg-gray-100")
         }
         onClick={() => setIsRightCollapsed((prev) => !prev)}
+        type="button"
       >
         {isRightCollapsed ? "📁" : "📁▶"}
       </button>
@@ -153,16 +174,19 @@ export default function RightSidebar({
             ["hvac3d", "HVAC Symbols 3D"],
             ["mfg2d", "Manufacturing Symbols 2D"],
             ["mfg3d", "Manufacturing Symbols 3D"],
-            ["tanks2d", "Tanks & Pipes Symbols 2D"],
-            ["tanks3d", "Tanks & Pipes Symbols 3D"],
+
+            // ✅ FIXED KEYS (must match App.jsx wm keys)
+            ["tp2d", "Tanks & Pipes Symbols 2D"],
+            ["tp3d", "Tanks & Pipes Symbols 3D"],
           ].map(([key, label]) => (
-            <div
+            <button
               key={key}
-              className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
-              onClick={() => onOpenLibrary?.(key)}
+              type="button"
+              className="mt-3 w-full text-left text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
+              onClick={() => openLibrary(key)}
             >
               📁 <span>{label}</span>
-            </div>
+            </button>
           ))}
         </div>
       )}
