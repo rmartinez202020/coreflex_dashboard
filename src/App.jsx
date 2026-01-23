@@ -1,10 +1,8 @@
 import { API_URL } from "./config/api";
-
 import { PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import LaunchedMainDashboard from "./pages/LaunchedMainDashboard";
 import DashboardAdminPage from "./components/DashboardAdminPage";
-import useUndoRedo from "./hooks/useUndoRedo";
-
+import useDashboardHistory from "./hooks/useDashboardHistory";
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Header from "./components/Header";
@@ -13,7 +11,6 @@ import { saveMainDashboard } from "./services/saveMainDashboard";
 import RestoreWarningModal from "./components/RestoreWarningModal";
 import GraphicDisplaySettingsModal from "./components/GraphicDisplaySettingsModal";
 import CustomersLocationsPage from "./components/CustomersLocationsPage";
-
 import HmiSymbolsLibrary from "./components/HmiSymbolsLibrary";
 import HvacSymbols2DLibrary from "./components/HvacSymbols2DLibrary";
 import HvacSymbols3DLibrary from "./components/HvacSymbols3DLibrary";
@@ -21,7 +18,6 @@ import ManufacturingSymbols2DLibrary from "./components/ManufacturingSymbols2DLi
 import ManufacturingSymbols3DLibrary from "./components/ManufacturingSymbols3DLibrary";
 import TanksAndPipesSymbols2DLibrary from "./components/TanksAndPipesSymbols2DLibrary";
 import TanksAndPipesSymbols3DLibrary from "./components/TanksAndPipesSymbols3DLibrary";
-
 
 // ✅ UPDATED IMPORTS (use your helpers)
 import {
@@ -63,7 +59,6 @@ export default function App() {
   const location = useLocation();
 const isLaunchPage = location.pathname === "/launchMainDashboard";
 
-
   // ✅ identify which user is currently logged in (from JWT)
   const [currentUserKey, setCurrentUserKey] = useState(() =>
     getUserKeyFromToken()
@@ -83,7 +78,6 @@ const isLaunchPage = location.pathname === "/launchMainDashboard";
     localStorage.setItem("coreflex_activePage", activePage);
   }, [activePage]);
 
-
   // DEVICE DATA
   const [sensorsData, setSensorsData] = useState([]);
 
@@ -91,10 +85,14 @@ const isLaunchPage = location.pathname === "/launchMainDashboard";
   const [droppedTanks, setDroppedTanks] = useState([]);
   const [selectedTank, setSelectedTank] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
+  const clearSelection = () => {
+  setSelectedIds([]);
+  setSelectedTank(null);
+};
+
 
   // ⭐ DASHBOARD MODE — DEFAULT EDIT
   const [dashboardMode, setDashboardMode] = useState("edit");
-
 
   // ✅ always keep the latest canvas in a ref (prevents stale Ctrl+Z / Ctrl+Y)
 const droppedRef = useRef([]);
@@ -103,173 +101,26 @@ useEffect(() => {
   droppedRef.current = droppedTanks;
 }, [droppedTanks]);
 
-
-  // ✅ UNDO/REDO (hook-based)
-const { push, undo, redo, reset, canUndo, canRedo } = useUndoRedo(6);
-
-// prevents re-pushing history when applying undo/redo snapshot
-const skipHistoryPushRef = useRef(false);
-
-// avoids pushing the initial empty snapshot twice
-const hasUndoInitRef = useRef(false);
-
-// ✅ ADD THIS LINE RIGHT HERE ⬇️
-const isObjectDraggingRef = useRef(false);
-// ✅ ADD THESE (missing refs)
-const dragStartedRef = useRef(false);
-const dragStartSnapshotRef = useRef("");
-
-// ✅ ADD THIS LINE ⬇️
-const dragStartPushedRef = useRef(false);
-
-
-const deepClone = (x) => JSON.parse(JSON.stringify(x || []));
-
-// ✅ prevents duplicate undo snapshots (THIS FIXES YOUR ISSUE)
-const lastPushedSnapshotRef = useRef("");
-
-// ✅ baseline (starting point) snapshot — you can’t undo before this
-const baselineSnapshotRef = useRef("");
-
-// ✅ blocks snapshot pushes while restoring from DB
-const isRestoringRef = useRef(false);
-
-
-// ✅ push snapshots when droppedTanks changes (SKIP while dragging + dedupe)
-useEffect(() => {
-  if (activePage !== "dashboard") return;
-  if (dashboardMode !== "edit") return;
-
-  // ✅ DO NOT snapshot while restoring
-  if (isRestoringRef.current) return;
-
-  // 🚫 DO NOT snapshot while dragging
-  if (isObjectDraggingRef.current) return;
-
-  const snapshot = JSON.stringify(droppedTanks || []);
-
-  // init once per dashboard load
-if (!hasUndoInitRef.current) {
-  // ✅ IMPORTANT: do NOT init on empty dashboard (prevents white undo)
-  if (!droppedTanks || droppedTanks.length === 0) return;
-
-  hasUndoInitRef.current = true;
-
-  reset();
-
-  baselineSnapshotRef.current = snapshot;
-  lastPushedSnapshotRef.current = snapshot;
-
-  // prevent duplicate push on next render
-  skipHistoryPushRef.current = true;
-
-  push(deepClone(droppedTanks));
-  return;
-}
-
-  if (skipHistoryPushRef.current) {
-    skipHistoryPushRef.current = false;
-    lastPushedSnapshotRef.current = snapshot;
-    return;
-  }
-
-  if (snapshot === lastPushedSnapshotRef.current) return;
-
-  lastPushedSnapshotRef.current = snapshot;
-  push(deepClone(droppedTanks));
-}, [activePage, droppedTanks, dashboardMode, reset, push]);
-
-
-// ✅ UNDO — single-press undo (skips no-op snapshots safely)
-const handleUndo = () => {
-  if (activePage !== "dashboard") return;
-
-  const current = deepClone(droppedRef.current);
-
-  // ⛔ STOP if we are already at baseline (restore point)
-if (
-  JSON.stringify(current || []) === baselineSnapshotRef.current
-) {
-  return;
-}
-
-
-  let res = undo();
-  if (!res.ok) return;
-
-  const same =
-    JSON.stringify(res.snapshot || []) === JSON.stringify(current || []);
-
-  if (same) {
-    res = undo(deepClone(res.snapshot));
-    if (!res.ok) return;
-  }
-
-  skipHistoryPushRef.current = true;
-  setDroppedTanks(deepClone(res.snapshot));
-  setSelectedIds([]);
-  setSelectedTank(null);
-};
-
-// ✅ REDO — single-press redo (skips no-op snapshots safely)
-const handleRedo = () => {
-  if (activePage !== "dashboard") return;
-
-  const current = deepClone(droppedRef.current);
-
-  let res = redo();
-  if (!res.ok) return;
-
-  const same =
-    JSON.stringify(res.snapshot || []) === JSON.stringify(current || []);
-
-  if (same) {
-    res = redo(deepClone(res.snapshot));
-    if (!res.ok) return;
-  }
-
-  skipHistoryPushRef.current = true;
-  setDroppedTanks(deepClone(res.snapshot));
-  setSelectedIds([]);
-  setSelectedTank(null);
-};
-
-// ✅ ADD THESE REFS RIGHT HERE (directly under handleUndo / handleRedo)
-const handleUndoRef = useRef(handleUndo);
-const handleRedoRef = useRef(handleRedo);
-
-useEffect(() => {
-  handleUndoRef.current = handleUndo;
-  handleRedoRef.current = handleRedo;
-}, [handleUndo, handleRedo]);
-
-// ✅ KEYBOARD LISTENER (Ctrl+Z / Ctrl+Y / Ctrl+Shift+Z)
-useEffect(() => {
-  const onKeyDown = (e) => {
-    if (activePage !== "dashboard") return;
-
-    const key = (e.key || "").toLowerCase();
-    const isMac = navigator.platform.toLowerCase().includes("mac");
-    const mod = isMac ? e.metaKey : e.ctrlKey;
-    if (!mod) return;
-
-    if (key === "z" && !e.shiftKey) {
-      e.preventDefault();
-      handleUndoRef.current(); // ✅ use ref
-      return;
-    }
-
-    if ((key === "z" && e.shiftKey) || key === "y") {
-      e.preventDefault();
-      handleRedoRef.current(); // ✅ use ref
-      return;
-    }
-  };
-
-  window.addEventListener("keydown", onKeyDown);
-  return () => window.removeEventListener("keydown", onKeyDown);
-}, [activePage]);
-
+// ✅ DASHBOARD HISTORY (Undo / Redo / Drag history)
+const {
+  canUndo,
+  canRedo,
+  handleUndo,
+  handleRedo,
+  hardResetHistory,
+  onDragMoveBegin,
+  onDragEndCommit,
+  beginRestore,
+  endRestore,
+} = useDashboardHistory({
+  limit: 6,
+  activePage,
+  dashboardMode,
+  droppedTanks,
+  droppedRef,
+  setDroppedTanks,
+  clearSelection,
+});
 
   // SIDEBARS
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
@@ -304,7 +155,6 @@ useEffect(() => {
   const openGraphicDisplaySettings = (tank) => setGraphicSettingsId(tank.id);
   const closeGraphicDisplaySettings = () => setGraphicSettingsId(null);
 
-  
   // ✅ DELETE SELECTED OBJECTS (Delete / Backspace)
 const deleteSelected = () => {
   if (activePage !== "dashboard") return;
@@ -349,8 +199,6 @@ const [activeDashboard, setActiveDashboard] = useState({
 
   // ⭐ LAST SAVED TIMESTAMP
   const [lastSavedAt, setLastSavedAt] = useState(null);
-
-
 
   // IMAGE LIBRARY WINDOW
   const [showImageLibrary, setShowImageLibrary] = useState(false);
@@ -400,10 +248,6 @@ const [symbolDragOffset, setSymbolDragOffset] = useState({
   x: 0,
   y: 0,
 });
-
-
-
-
 
   // ✅ SYMBOL LIBRARIES WINDOWS
 const [showHmiLibrary, setShowHmiLibrary] = useState(false);
@@ -714,10 +558,6 @@ const goToMainDashboard = () => {
   setSelectedIds([]);
   setSelectedTank(null);
 
-  // reset undo/redo history
-  hasUndoInitRef.current = false;
-  reset();
-
   // allow auto-restore to run again
   autoRestoreRanRef.current = false;
 };
@@ -759,24 +599,13 @@ const handleSaveProject = async () => {
 
     const now = new Date();
     setLastSavedAt(now);
+    // ✅ make SAVE the new undo baseline
+hardResetHistory(droppedRef.current || []);
     console.log("✅ Dashboard saved:", activeDashboard);
-
-    // ✅ MAKE "SAVE" THE NEW BASELINE (no undo past this point)
-    const snap = JSON.stringify(droppedRef.current || []);
-    baselineSnapshotRef.current = snap;
-    lastPushedSnapshotRef.current = snap;
-
-    skipHistoryPushRef.current = true;
-    hasUndoInitRef.current = true;
-
-    reset();
-    push(deepClone(droppedRef.current));
   } catch (err) {
     console.error("❌ Save failed:", err);
   }
 };
-
-
 
  // ⬆ RESTORE PROJECT (manual button)
 const handleUploadProject = async () => {
@@ -785,17 +614,8 @@ const handleUploadProject = async () => {
   try {
     const token = getToken();
     if (!token) throw new Error("No auth token found");
-
-    // ✅ block history while restoring
-    isRestoringRef.current = true;
-
-    // ✅ hard reset undo state BEFORE touching droppedTanks
-    hasUndoInitRef.current = false;
-    reset();
-    lastPushedSnapshotRef.current = "";
-    baselineSnapshotRef.current = "";
-    skipHistoryPushRef.current = true;
-
+// ✅ tell history system we are restoring from DB
+    beginRestore();
     const res = await fetch(getDashboardEndpoint(activeDashboard), {
       headers: { Authorization: `Bearer ${token}` },
     });
@@ -812,22 +632,13 @@ restoredObjects =
   layout?.objects ||
   [];
 
-
     // ✅ apply restored canvas
     setDroppedTanks(restoredObjects);
     setSelectedIds([]);
     setSelectedTank(null);
 
-    // ✅ set restored baseline + seed history stack
-    const restoredSnapshot = JSON.stringify(restoredObjects || []);
-    baselineSnapshotRef.current = restoredSnapshot;
-    lastPushedSnapshotRef.current = restoredSnapshot;
-
-    // ✅ seed undo stack with restored state as the “start”
-    push(deepClone(restoredObjects));
-
-    // ✅ mark undo initialized
-    hasUndoInitRef.current = true;
+    // ✅ make RESTORE the new undo baseline
+hardResetHistory(restoredObjects);
 
     const mode = data?.layout?.meta?.dashboardMode || data?.meta?.dashboardMode;
     if (mode) setDashboardMode(mode);
@@ -839,13 +650,7 @@ restoredObjects =
   } catch (err) {
     console.error("❌ Upload failed:", err);
   } finally {
-    // ✅ always unblock
-    isRestoringRef.current = false;
-
-    // let the next real edit push snapshots normally
-    setTimeout(() => {
-      skipHistoryPushRef.current = false;
-    }, 0);
+   endRestore();
   }
 };
 
@@ -976,57 +781,15 @@ const {
   setDroppedTanks,
 });
 
-// ✅ WRAPPED HANDLERS (single source of truth: useEffect pushes snapshots)
-
-// ✅ DRAG = one action = one history step
-
+// ✅ DASHBOARD HISTORY DRAG WRAPPERS
 const handleDragMove = (...args) => {
-  // first time we detect dragging in this action
-  if (!dragStartedRef.current) {
-    dragStartedRef.current = true;
-
-    // block snapshot effect during drag
-    isObjectDraggingRef.current = true;
-
-    // ✅ push BEFORE-drag snapshot ONCE
-    if (!dragStartPushedRef.current) {
-      const beforeArr = deepClone(droppedRef.current || []);
-      const beforeSnap = JSON.stringify(beforeArr);
-
-      if (beforeSnap !== lastPushedSnapshotRef.current) {
-        lastPushedSnapshotRef.current = beforeSnap;
-        push(beforeArr);
-      }
-
-      dragStartPushedRef.current = true;
-    }
-  }
-
+  onDragMoveBegin();
   rawHandleDragMove(...args);
 };
 
 const handleDragEnd = (...args) => {
   rawHandleDragEnd(...args);
-
-  // ✅ push AFTER-drag snapshot ONCE (end of action)
-  setTimeout(() => {
-    const afterArr = deepClone(droppedRef.current || []);
-    const afterSnap = JSON.stringify(afterArr);
-
-    // unblock snapshot effect
-    isObjectDraggingRef.current = false;
-
-    // reset drag flags
-    dragStartedRef.current = false;
-    dragStartSnapshotRef.current = "";
-    dragStartPushedRef.current = false;
-
-    // ✅ push only if changed
-    if (afterSnap !== lastPushedSnapshotRef.current) {
-      lastPushedSnapshotRef.current = afterSnap;
-      push(afterArr);
-    }
-  }, 0);
+  onDragEndCommit();
 };
 
 
@@ -1205,8 +968,7 @@ if (isLaunchPage) {
 
       <main className="flex-1 p-6 bg-white overflow-visible relative">
         <Header onLogout={handleLogout} />
-
-      {activePage === "dashboard" ? (
+{activePage === "dashboard" ? (
   <DashboardHeader
     title={
       activeDashboard.type === "main"
@@ -1219,18 +981,17 @@ if (isLaunchPage) {
       if (activeDashboard.type === "main") {
         window.open("/launchMainDashboard", "_blank");
       } else {
-        window.open(
-          `/launchDashboard/${activeDashboard.dashboardId}`,
-          "_blank"
-        );
+        window.open(`/launchDashboard/${activeDashboard.dashboardId}`, "_blank");
       }
     }}
     onUndo={handleUndo}
-  onRedo={handleRedo}
-  canUndo={canUndo}
-  canRedo={canRedo}
+    onRedo={handleRedo}
+    canUndo={canUndo}
+    canRedo={canRedo}
   />
 ) : (
+
+
   <h1 className="text-2xl font-bold mb-4 text-gray-800">
     {activePage === "home"
       ? "Home"
@@ -1239,7 +1000,6 @@ if (isLaunchPage) {
       : "Main Dashboard"}
   </h1>
 )}
-
 
         {activePage === "home" ? (
           <div className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg bg-white">
@@ -1283,15 +1043,6 @@ if (isLaunchPage) {
       setSelectedIds([]);
       setSelectedTank(null);
 
-      // ✅ safety reset
-isObjectDraggingRef.current = false;
-dragStartedRef.current = false;
-dragStartSnapshotRef.current = "";
-
-      // ✅ reset undo/redo history so it doesn’t mix dashboards
-hasUndoInitRef.current = false;
-reset();
-
       // ✅ allow auto-restore to run again for this dashboard
       autoRestoreRanRef.current = false;
     }}
@@ -1301,15 +1052,12 @@ reset();
   />
 ) : (
 
-
   <HomePage
     setActiveSubPage={setActiveSubPage}
     setSubPageColor={setSubPageColor}
     currentUserKey={currentUserKey}
   />
 )}
-
-
             </div>
           </div>
         ) : activePage === "dashboard" ? (
@@ -1421,8 +1169,6 @@ reset();
   }}
   onStartResizeWindow={() => setIsResizingLibrary(true)}
 />
-
-
         <CoreFlexLibrary
           visible={showCoreflexLibrary}
           position={coreflexLibraryPos}
@@ -1457,7 +1203,6 @@ reset();
   onStartDragWindow={(e) => startDragSymbolWindow("hvac2d", e)}
   onStartResizeWindow={(e) => startResizeSymbolWindow("hvac2d", e)}
 />
-
 <HvacSymbols3DLibrary
   visible={showHvac3DLibrary}
   position={hvac3DPos}
@@ -1466,7 +1211,6 @@ reset();
   onStartDragWindow={(e) => startDragSymbolWindow("hvac3d", e)}
   onStartResizeWindow={(e) => startResizeSymbolWindow("hvac3d", e)}
 />
-
 <ManufacturingSymbols2DLibrary
   visible={showManufacturing2DLibrary}
   position={mfg2DPos}
@@ -1475,7 +1219,6 @@ reset();
   onStartDragWindow={(e) => startDragSymbolWindow("mfg2d", e)}
   onStartResizeWindow={(e) => startResizeSymbolWindow("mfg2d", e)}
 />
-
 <ManufacturingSymbols3DLibrary
   visible={showManufacturing3DLibrary}
   position={mfg3DPos}
@@ -1484,7 +1227,6 @@ reset();
   onStartDragWindow={(e) => startDragSymbolWindow("mfg3d", e)}
   onStartResizeWindow={(e) => startResizeSymbolWindow("mfg3d", e)}
 />
-
 <TanksAndPipesSymbols2DLibrary
   visible={showTanksPipes2DLibrary}
   position={tp2DPos}
@@ -1493,7 +1235,6 @@ reset();
   onStartDragWindow={(e) => startDragSymbolWindow("tp2d", e)}
   onStartResizeWindow={(e) => startResizeSymbolWindow("tp2d", e)}
 />
-
 <TanksAndPipesSymbols3DLibrary
   visible={showTanksPipes3DLibrary}
   position={tp3DPos}
@@ -1502,8 +1243,6 @@ reset();
   onStartDragWindow={(e) => startDragSymbolWindow("tp3d", e)}
   onStartResizeWindow={(e) => startResizeSymbolWindow("tp3d", e)}
 />
-
-
 {/* ✅ END ADD */}
 
       </main>
