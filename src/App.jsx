@@ -11,6 +11,8 @@ import { saveMainDashboard } from "./services/saveMainDashboard";
 import RestoreWarningModal from "./components/RestoreWarningModal";
 import GraphicDisplaySettingsModal from "./components/GraphicDisplaySettingsModal";
 import CustomersLocationsPage from "./components/CustomersLocationsPage";
+import useWindowDragResize from "./hooks/useWindowDragResize";
+
 
 // ✅ UPDATED IMPORTS (use your helpers)
 import {
@@ -119,29 +121,27 @@ const {
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
   const [isRightCollapsed, setIsRightCollapsed] = useState(false);
 
-  // ✅ IMAGE LIBRARY WINDOW STATE
-const [showImageLibrary, setShowImageLibrary] = useState(false);
-const [imageLibraryPos, setImageLibraryPos] = useState({ x: 80, y: 120 });
-const [imageLibrarySize, setImageLibrarySize] = useState({ width: 520, height: 520 });
-const [isDraggingLibrary, setIsDraggingLibrary] = useState(false);
-const [isResizingLibrary, setIsResizingLibrary] = useState(false);
-const [libraryDragOffset, setLibraryDragOffset] = useState({ x: 0, y: 0 });
-
-// ✅ COREFLEX LIBRARY WINDOW STATE
-const [showCoreflexLibrary, setShowCoreflexLibrary] = useState(false);
-const [coreflexLibraryPos, setCoreflexLibraryPos] = useState({ x: 140, y: 160 });
-const [coreflexLibrarySize, setCoreflexLibrarySize] = useState({ width: 520, height: 520 });
-const [isDraggingCoreflex, setIsDraggingCoreflex] = useState(false);
-const [isResizingCoreflex, setIsResizingCoreflex] = useState(false);
-const [coreflexDragOffset, setCoreflexDragOffset] = useState({ x: 0, y: 0 });
-
-
   // ⚠️ RESTORE WARNING MODAL
   const [showRestoreWarning, setShowRestoreWarning] = useState(false);
 
   // MENUS
   const [showDevices, setShowDevices] = useState(false);
   const [showLevelSensors, setShowLevelSensors] = useState(false);
+
+  // 🪟 WINDOW MANAGER (floating libraries)
+const wm = useWindowDragResize({
+  image: {
+    position: { x: 140, y: 120 },
+    size: { width: 720, height: 520 },
+    minSize: { width: 520, height: 360 },
+  },
+  coreflex: {
+    position: { x: 200, y: 160 },
+    size: { width: 720, height: 520 },
+    minSize: { width: 520, height: 360 },
+  },
+});
+
 
   // CONTEXT MENU
   const [contextMenu, setContextMenu] = useState({
@@ -881,36 +881,16 @@ if (isLaunchPage) {
           />
         )}
 
-        <ImageLibrary
-  visible={showImageLibrary}
-  position={imageLibraryPos}
-  size={imageLibrarySize}
-  onClose={() => setShowImageLibrary(false)}
-  onDragStartImage={(e, img) => e.dataTransfer.setData("imageUrl", img.src)}
-  onStartDragWindow={(e) => {
-    setIsDraggingLibrary(true);
-    setLibraryDragOffset({
-      x: e.clientX - imageLibraryPos.x,
-      y: e.clientY - imageLibraryPos.y,
-    });
-  }}
-  onStartResizeWindow={() => setIsResizingLibrary(true)}
+<ImageLibrary
+  {...wm.getWindowProps("image", {
+    onDragStartImage: (e, img) =>
+      e.dataTransfer.setData("imageUrl", img.src),
+  })}
 />
-        <CoreFlexLibrary
-          visible={showCoreflexLibrary}
-          position={coreflexLibraryPos}
-          size={coreflexLibrarySize}
-          onClose={() => setShowCoreflexLibrary(false)}
-          onStartDragWindow={(e) => {
-            setIsDraggingCoreflex(true);
-            setCoreflexDragOffset({
-              x: e.clientX - coreflexLibraryPos.x,
-              y: e.clientY - coreflexLibraryPos.y,
-            });
-          }}
-          onStartResizeWindow={() => setIsResizingCoreflex(true)}
-        />
 
+<CoreFlexLibrary
+  {...wm.getWindowProps("coreflex")}
+/>
       </main>
 
       <RestoreWarningModal
@@ -923,14 +903,13 @@ if (isLaunchPage) {
         }}
       />
 
-    <RightSidebar
+  <RightSidebar
   isRightCollapsed={isRightCollapsed}
   setIsRightCollapsed={setIsRightCollapsed}
-  setShowImageLibrary={setShowImageLibrary}
-  setShowCoreflexLibrary={setShowCoreflexLibrary}
+  setShowImageLibrary={() => wm.openWindow("image")}
+  setShowCoreflexLibrary={() => wm.openWindow("coreflex")}
   dashboardMode={dashboardMode}
 />
-
     </div>
   );
 }
