@@ -3,24 +3,18 @@ export default function RightSidebar({
   isRightCollapsed,
   setIsRightCollapsed,
 
-  // ✅ NEW unified handler (preferred)
-  onOpenLibrary,
-
-  // ✅ BACKWARD COMPAT (App.jsx may be using these)
+  // ✅ App.jsx passes these:
   setShowImageLibrary,
   setShowCoreflexLibrary,
   openSymbolLibrary,
 }) {
-  // ✅ Single place to open any library
   const openLibrary = (key) => {
-    // 1) If parent provided the unified handler, use it
-    if (onOpenLibrary) return onOpenLibrary(key);
+    console.log("📁 Library click:", key); // ✅ debug (you can remove later)
 
-    // 2) Otherwise fall back to older props
     if (key === "image") return setShowImageLibrary?.();
     if (key === "coreflex") return setShowCoreflexLibrary?.();
 
-    // symbol libraries
+    // ✅ symbol windows: key must match wm keys in App.jsx
     return openSymbolLibrary?.(key);
   };
 
@@ -175,7 +169,7 @@ export default function RightSidebar({
             ["mfg2d", "Manufacturing Symbols 2D"],
             ["mfg3d", "Manufacturing Symbols 3D"],
 
-            // ✅ FIXED KEYS (must match App.jsx wm keys)
+            // ✅ IMPORTANT: these must match App.jsx wm keys
             ["tp2d", "Tanks & Pipes Symbols 2D"],
             ["tp3d", "Tanks & Pipes Symbols 3D"],
           ].map(([key, label]) => (
