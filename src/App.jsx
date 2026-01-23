@@ -13,7 +13,6 @@ import GraphicDisplaySettingsModal from "./components/GraphicDisplaySettingsModa
 import CustomersLocationsPage from "./components/CustomersLocationsPage";
 import useWindowDragResize from "./hooks/useWindowDragResize";
 
-
 // ✅ UPDATED IMPORTS (use your helpers)
 import {
   getUserKeyFromToken,
@@ -139,6 +138,50 @@ const wm = useWindowDragResize({
     position: { x: 200, y: 160 },
     size: { width: 720, height: 520 },
     minSize: { width: 520, height: 360 },
+  },
+
+  // ✅ SYMBOL LIBRARIES
+  hmi: {
+    position: { x: 220, y: 140 },
+    size: { width: 760, height: 540 },
+    minSize: { width: 520, height: 360 },
+    defaultCenter: true,
+  },
+  hvac2d: {
+    position: { x: 220, y: 140 },
+    size: { width: 760, height: 540 },
+    minSize: { width: 520, height: 360 },
+    defaultCenter: true,
+  },
+  hvac3d: {
+    position: { x: 220, y: 140 },
+    size: { width: 760, height: 540 },
+    minSize: { width: 520, height: 360 },
+    defaultCenter: true,
+  },
+  mfg2d: {
+    position: { x: 220, y: 140 },
+    size: { width: 760, height: 540 },
+    minSize: { width: 520, height: 360 },
+    defaultCenter: true,
+  },
+  mfg3d: {
+    position: { x: 220, y: 140 },
+    size: { width: 760, height: 540 },
+    minSize: { width: 520, height: 360 },
+    defaultCenter: true,
+  },
+  tp2d: {
+    position: { x: 220, y: 140 },
+    size: { width: 760, height: 540 },
+    minSize: { width: 520, height: 360 },
+    defaultCenter: true,
+  },
+  tp3d: {
+    position: { x: 220, y: 140 },
+    size: { width: 760, height: 540 },
+    minSize: { width: 520, height: 360 },
+    defaultCenter: true,
   },
 });
 
@@ -903,13 +946,13 @@ if (isLaunchPage) {
         }}
       />
 
-  <RightSidebar
+<RightSidebar
   isRightCollapsed={isRightCollapsed}
   setIsRightCollapsed={setIsRightCollapsed}
-  setShowImageLibrary={() => wm.openWindow("image")}
-  setShowCoreflexLibrary={() => wm.openWindow("coreflex")}
   dashboardMode={dashboardMode}
+  onOpenLibrary={(key) => wm.openWindow(key)}
 />
+
     </div>
   );
 }

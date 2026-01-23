@@ -2,20 +2,7 @@
 export default function RightSidebar({
   isRightCollapsed,
   setIsRightCollapsed,
-  setShowImageLibrary,
-  setShowCoreflexLibrary,
-
-  // ✅ OPEN SYMBOL LIBRARIES (center + small)
-  openSymbolLibrary,
-
-  // ✅ OLD setters (you can remove later, but keep for now)
-  setShowHmiLibrary,
-  setShowHvac2DLibrary,
-  setShowHvac3DLibrary,
-  setShowManufacturing2DLibrary,
-  setShowManufacturing3DLibrary,
-  setShowTanksPipes2DLibrary,
-  setShowTanksPipes3DLibrary,
+  onOpenLibrary, // ✅ ONE handler for ALL libraries
 }) {
   return (
     <aside
@@ -42,8 +29,6 @@ export default function RightSidebar({
       {!isRightCollapsed && (
         <div className="flex-1">
           <h2 className="text-xl font-semibold mb-4 text-gray-800">Entities</h2>
-
-          {/* ✅ REMOVED: "Text Tools" heading (it was doing nothing) */}
 
           <div className="space-y-6 mb-6">
             {/* TEXT BOX */}
@@ -85,10 +70,7 @@ export default function RightSidebar({
                 00000
               </div>
 
-              {/* ✅ RENAMED */}
-              <span className="text-[14px] text-center">
-                Display Input (AI)
-              </span>
+              <span className="text-[14px] text-center">Display Input (AI)</span>
             </div>
 
             {/* GRAPHIC DISPLAY */}
@@ -154,7 +136,6 @@ export default function RightSidebar({
                 </div>
               </div>
 
-              {/* ✅ RENAMED */}
               <span className="text-[14px] text-center">
                 Graphic Display (AI)
               </span>
@@ -164,69 +145,25 @@ export default function RightSidebar({
           {/* LIBRARIES */}
           <h3 className="text-sm font-semibold mb-3 text-gray-600">Libraries</h3>
 
-          <div
-            className="text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
-            onClick={() => setShowImageLibrary(true)}
-          >
-            📁 <span>Image Library</span>
-          </div>
-
-          <div
-            className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
-            onClick={() => setShowCoreflexLibrary(true)}
-          >
-            📁 <span>CoreFlex IOTs Library</span>
-          </div>
-
-          {/* ✅ SYMBOL LIBRARIES → use openSymbolLibrary so they open centered + smaller */}
-          <div
-            className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
-            onClick={() => openSymbolLibrary("hmi")}
-          >
-            📁 <span>HMI Symbols</span>
-          </div>
-
-          <div
-            className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
-            onClick={() => openSymbolLibrary("hvac2d")}
-          >
-            📁 <span>HVAC Symbols 2D</span>
-          </div>
-
-          <div
-            className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
-            onClick={() => openSymbolLibrary("hvac3d")}
-          >
-            📁 <span>HVAC Symbols 3D</span>
-          </div>
-
-          <div
-            className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
-            onClick={() => openSymbolLibrary("mfg2d")}
-          >
-            📁 <span>Manufacturing Symbols 2D</span>
-          </div>
-
-          <div
-            className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
-            onClick={() => openSymbolLibrary("mfg3d")}
-          >
-            📁 <span>Manufacturing Symbols 3D</span>
-          </div>
-
-          <div
-            className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
-            onClick={() => openSymbolLibrary("tp2d")}
-          >
-            📁 <span>Tanks & Pipes Symbols 2D</span>
-          </div>
-
-          <div
-            className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
-            onClick={() => openSymbolLibrary("tp3d")}
-          >
-            📁 <span>Tanks & Pipes Symbols 3D</span>
-          </div>
+          {[
+            ["image", "Image Library"],
+            ["coreflex", "CoreFlex IOTs Library"],
+            ["hmi", "HMI Symbols"],
+            ["hvac2d", "HVAC Symbols 2D"],
+            ["hvac3d", "HVAC Symbols 3D"],
+            ["mfg2d", "Manufacturing Symbols 2D"],
+            ["mfg3d", "Manufacturing Symbols 3D"],
+            ["tanks2d", "Tanks & Pipes Symbols 2D"],
+            ["tanks3d", "Tanks & Pipes Symbols 3D"],
+          ].map(([key, label]) => (
+            <div
+              key={key}
+              className="mt-3 text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
+              onClick={() => onOpenLibrary?.(key)}
+            >
+              📁 <span>{label}</span>
+            </div>
+          ))}
         </div>
       )}
     </aside>
