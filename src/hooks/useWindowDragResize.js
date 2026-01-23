@@ -259,10 +259,16 @@ export default function useWindowDragResize(defaultsMap = {}) {
   const getWindowProps = useCallback(
     (key, extra = {}) => {
       const w = stateRef.current.windows?.[key];
+
       if (!w) {
         // safe fallback
         return {
           visible: false,
+
+          // ✅ aliases for different window components
+          open: false,
+          isOpen: false,
+
           position: { x: 100, y: 100 },
           size: { width: 600, height: 400 },
           onClose: () => closeWindow(key),
@@ -274,6 +280,11 @@ export default function useWindowDragResize(defaultsMap = {}) {
 
       return {
         visible: w.visible,
+
+        // ✅ aliases for different window components
+        open: w.visible,
+        isOpen: w.visible,
+
         position: w.position,
         size: w.size,
         onClose: () => closeWindow(key),
@@ -285,12 +296,15 @@ export default function useWindowDragResize(defaultsMap = {}) {
     [closeWindow, onStartDragWindow, onStartResizeWindow]
   );
 
-  const closeAll = useCallback((keys = null) => {
-    const list = Array.isArray(keys)
-      ? keys
-      : Object.keys(stateRef.current.windows || {});
-    list.forEach((k) => closeWindow(k));
-  }, [closeWindow]);
+  const closeAll = useCallback(
+    (keys = null) => {
+      const list = Array.isArray(keys)
+        ? keys
+        : Object.keys(stateRef.current.windows || {});
+      list.forEach((k) => closeWindow(k));
+    },
+    [closeWindow]
+  );
 
   return {
     isOpen,
