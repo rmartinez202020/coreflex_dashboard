@@ -1,3 +1,4 @@
+
 import { API_URL } from "./config/api";
 import { PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import LaunchedMainDashboard from "./pages/LaunchedMainDashboard";
@@ -7,18 +8,12 @@ import { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Header from "./components/Header";
 import DashboardHeader from "./components/DashboardHeader";
-import { saveMainDashboard } from "./services/saveMainDashboard";
 import RestoreWarningModal from "./components/RestoreWarningModal";
 import GraphicDisplaySettingsModal from "./components/GraphicDisplaySettingsModal";
 import CustomersLocationsPage from "./components/CustomersLocationsPage";
 import RightPanel from "./components/RightPanel";
-
-// ✅ UPDATED IMPORTS (use your helpers)
-import {
-  getUserKeyFromToken,
-  getToken,
-  clearAuth,
-} from "./utils/authToken";
+import useDashboardPersistence from "./hooks/useDashboardPersistence";
+import { getUserKeyFromToken, getToken, clearAuth } from "./utils/authToken";
 
 // PAGES
 import HomePage from "./components/HomePage";
@@ -107,6 +102,30 @@ const {
   clearSelection,
 });
 
+const {
+  activeDashboard,
+  setActiveDashboard,
+  lastSavedAt,
+  goToMainDashboard,
+  handleSaveProject,
+  handleRestoreProject,
+} = useDashboardPersistence({
+  currentUserKey,
+  activePage,
+  setActivePage,
+  dashboardMode,
+  setDashboardMode,
+  droppedTanks,
+  setDroppedTanks,
+  droppedRef,
+  setSelectedIds,
+  setSelectedTank,
+  hardResetHistory,
+  beginRestore,
+  endRestore,
+});
+
+
   // SIDEBARS
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
   const [isRightCollapsed, setIsRightCollapsed] = useState(false);
@@ -172,19 +191,6 @@ useEffect(() => {
   return () => window.removeEventListener("keydown", onKeyDown);
 }, [activePage, dashboardMode, selectedIds]);
 
-
-  // ✅ ACTIVE DASHBOARD CONTEXT (Main vs Customer Dashboard)
-const [activeDashboard, setActiveDashboard] = useState({
-  type: "main",            // "main" | "customer"
-  dashboardId: null,       // string | null
-  dashboardName: "Main Dashboard",
-  customerId: null,        // number | null
-  customerName: "",
-});
-
-  // ⭐ LAST SAVED TIMESTAMP
-  const [lastSavedAt, setLastSavedAt] = useState(null);
-
   // SENSOR SETUP
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 3 } })
@@ -198,21 +204,6 @@ const [activeDashboard, setActiveDashboard] = useState({
     else if (obj.shape === "displayBox") offset = 3;
     return base * 10 + offset;
   };
-// ==========================================
-// ✅ Dashboard API endpoint resolver
-// ==========================================
-const getDashboardEndpoint = (ctx) => {
-  // main dashboard
-  if (!ctx || ctx.type === "main") return `${API_URL}/dashboard/main`;
-
-  // customer dashboard (must have an id)
-  if (ctx.type === "customer" && ctx.dashboardId) {
-    return `${API_URL}/customers-dashboards/${ctx.dashboardId}`;
-  }
-
-  // fallback
-  return `${API_URL}/dashboard/main`;
-};
 
 // ==========================================
 // ✅ HARD HOME RESET (ALWAYS GO TO HOME)
@@ -264,7 +255,6 @@ const goHomeHard = () => {
         setDroppedTanks([]);
         setSelectedTank(null);
         setSelectedIds([]);
-        setLastSavedAt(null);
         setDashboardMode("edit");
         setActivePage("home");
         return;
@@ -282,7 +272,6 @@ const goHomeHard = () => {
         setDroppedTanks([]);
         setSelectedTank(null);
         setSelectedIds([]);
-        setLastSavedAt(null);
         setDashboardMode("edit");
         setActivePage("home");
       }
@@ -337,39 +326,6 @@ const goHomeHard = () => {
       });
   }, []);
 
-  // ⭐ LOAD LAST SAVED TIMESTAMP (per user)
-  useEffect(() => {
-    const loadLastSavedTimestamp = async () => {
-      try {
-        const token = getToken();
-        if (!token) {
-          setLastSavedAt(null);
-          return;
-        }
-
-        const res = await fetch(getDashboardEndpoint(activeDashboard), {
-  headers: { Authorization: `Bearer ${token}` },
-});
-
-
-        if (!res.ok) {
-          setLastSavedAt(null);
-          return;
-        }
-
-        const data = await res.json();
-        const savedAt = data?.layout?.meta?.savedAt || data?.meta?.savedAt;
-
-        setLastSavedAt(savedAt ? new Date(savedAt) : null);
-      } catch (err) {
-        console.error("Failed to load last saved timestamp:", err);
-        setLastSavedAt(null);
-      }
-    };
-
-    loadLastSavedTimestamp();
-  }, [currentUserKey, activeDashboard]);
-
 
   const hideContextMenu = () =>
     setContextMenu((prev) => ({ ...prev, visible: false }));
@@ -386,191 +342,12 @@ const goHomeHard = () => {
     setDroppedTanks([]);
     setSelectedTank(null);
     setSelectedIds([]);
-    setLastSavedAt(null);
     setDashboardMode("edit");
     setActivePage("home");
 
     window.dispatchEvent(new Event("coreflex-auth-changed"));
     navigate("/");
   };
-
-  // ✅ GO BACK TO MAIN DASHBOARD (from customer dashboards)
-const goToMainDashboard = () => {
-  // switch to dashboard page
-  setActivePage("dashboard");
-
-  // reset dashboard context to MAIN
-  setActiveDashboard({
-    type: "main",
-    dashboardId: null,
-    dashboardName: "Main Dashboard",
-    customerId: null,
-    customerName: "",
-  });
-
-  // ensure edit mode
-  setDashboardMode("edit");
-
-  // clear canvas so main dashboard auto-restores
-  setDroppedTanks([]);
-  setSelectedIds([]);
-  setSelectedTank(null);
-
-  // allow auto-restore to run again
-  autoRestoreRanRef.current = false;
-};
-
-
-  // 💾 SAVE PROJECT (MAIN or CUSTOMER)
-const handleSaveProject = async () => {
-  // ✅ only allow saving from dashboard editor
-  if (activePage !== "dashboard") {
-    console.warn("⚠️ Save ignored: not on dashboard editor page");
-    return;
-  }
-
-  // ✅ customer dashboard must have an id
-  if (activeDashboard.type === "customer" && !activeDashboard.dashboardId) {
-    console.error("❌ Cannot save customer dashboard: missing dashboardId");
-    return;
-  }
-
-  const dashboardPayload = {
-    version: "1.0",
-    type:
-      activeDashboard.type === "main" ? "main_dashboard" : "customer_dashboard",
-    dashboardId: activeDashboard.dashboardId || null,
-    canvas: { objects: droppedTanks || [] },
-    meta: {
-      dashboardMode,
-      savedAt: new Date().toISOString(),
-      dashboardName: activeDashboard.dashboardName || "",
-      customerName: activeDashboard.customerName || "",
-    },
-  };
-
-  try {
-    const token = getToken();
-    if (!token) throw new Error("No auth token found");
-
-    await saveMainDashboard(dashboardPayload, activeDashboard);
-
-    const now = new Date();
-    setLastSavedAt(now);
-    // ✅ make SAVE the new undo baseline
-hardResetHistory(droppedRef.current || []);
-    console.log("✅ Dashboard saved:", activeDashboard);
-  } catch (err) {
-    console.error("❌ Save failed:", err);
-  }
-};
-
- // ⬆ RESTORE PROJECT (manual button)
-const handleUploadProject = async () => {
-  let restoredObjects = [];
-
-  try {
-    const token = getToken();
-    if (!token) throw new Error("No auth token found");
-// ✅ tell history system we are restoring from DB
-    beginRestore();
-    const res = await fetch(getDashboardEndpoint(activeDashboard), {
-      headers: { Authorization: `Bearer ${token}` },
-    });
-    if (!res.ok) throw new Error("Failed to load dashboard from DB");
-
-    const data = await res.json();
-
-    const layout = data?.layout ?? data;
-
-restoredObjects =
-  layout?.canvas?.objects ||
-  layout?.layout?.canvas?.objects ||
-  layout?.layout?.objects ||
-  layout?.objects ||
-  [];
-
-    // ✅ apply restored canvas
-    setDroppedTanks(restoredObjects);
-    setSelectedIds([]);
-    setSelectedTank(null);
-
-    // ✅ make RESTORE the new undo baseline
-hardResetHistory(restoredObjects);
-
-    const mode = data?.layout?.meta?.dashboardMode || data?.meta?.dashboardMode;
-    if (mode) setDashboardMode(mode);
-
-    const savedAt = data?.layout?.meta?.savedAt || data?.meta?.savedAt;
-    setLastSavedAt(savedAt ? new Date(savedAt) : null);
-
-    console.log("✅ Main dashboard restored from DB");
-  } catch (err) {
-    console.error("❌ Upload failed:", err);
-  } finally {
-   endRestore();
-  }
-};
-
-// 🔁 RESET AUTO-RESTORE WHEN DASHBOARD CONTEXT CHANGES
-
-const autoRestoreRanRef = useRef(false);
-useEffect(() => {
-  autoRestoreRanRef.current = false;
-}, [activeDashboard]);
-
-
-  // ==========================================
-  // ✅ AUTO-RESTORE FROM DB ON REFRESH (FIX)
-  // ==========================================
-  
-
-  useEffect(() => {
-    const autoRestore = async () => {
-      if (autoRestoreRanRef.current) return;
-
-      // only for dashboard page
-      if (activePage !== "dashboard") return;
-
-      // don't overwrite if already has objects
-      if (droppedTanks.length > 0) return;
-
-      const token = getToken();
-      if (!token) return;
-
-      autoRestoreRanRef.current = true;
-
-      try {
-       const res = await fetch(getDashboardEndpoint(activeDashboard), {
-  headers: { Authorization: `Bearer ${token}` },
-});
-
-        if (!res.ok) return;
-
-        const data = await res.json();
-        const objects =
-          data?.canvas?.objects ||
-          data?.layout?.canvas?.objects ||
-          data?.layout?.objects ||
-          [];
-
-        setDroppedTanks(objects);
-
-        const mode =
-          data?.layout?.meta?.dashboardMode || data?.meta?.dashboardMode;
-        if (mode) setDashboardMode(mode);
-
-        const savedAt = data?.layout?.meta?.savedAt || data?.meta?.savedAt;
-        setLastSavedAt(savedAt ? new Date(savedAt) : null);
-
-        console.log("✅ Auto restored dashboard on refresh");
-      } catch (err) {
-        console.error("❌ Auto restore failed:", err);
-      }
-    };
-
-    autoRestore();
-  }, [activePage, currentUserKey, activeDashboard, droppedTanks.length]);
 
   // CANVAS SELECTION
   const {
@@ -745,8 +522,6 @@ if (isLaunchPage) {
       setSelectedIds([]);
       setSelectedTank(null);
 
-      // ✅ allow auto-restore to run again for this dashboard
-      autoRestoreRanRef.current = false;
     }}
     onLaunchDashboard={(row) => {
       window.open(`/launchDashboard/${row.id}`, "_blank");
@@ -864,7 +639,8 @@ if (isLaunchPage) {
         onCancel={() => setShowRestoreWarning(false)}
         onConfirm={async () => {
           setShowRestoreWarning(false);
-          await handleUploadProject();
+          await handleRestoreProject();
+
         }}
       />
 
