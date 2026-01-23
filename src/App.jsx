@@ -11,15 +11,7 @@ import { saveMainDashboard } from "./services/saveMainDashboard";
 import RestoreWarningModal from "./components/RestoreWarningModal";
 import GraphicDisplaySettingsModal from "./components/GraphicDisplaySettingsModal";
 import CustomersLocationsPage from "./components/CustomersLocationsPage";
-import useWindowDragResize from "./hooks/useWindowDragResize";
-import HmiSymbolsLibrary from "./components/HmiSymbolsLibrary";
-import HvacSymbols2DLibrary from "./components/HvacSymbols2DLibrary";
-import HvacSymbols3DLibrary from "./components/HvacSymbols3DLibrary";
-import ManufacturingSymbols2DLibrary from "./components/ManufacturingSymbols2DLibrary";
-import ManufacturingSymbols3DLibrary from "./components/ManufacturingSymbols3DLibrary";
-import TanksAndPipesSymbols2DLibrary from "./components/TanksAndPipesSymbols2DLibrary";
-import TanksAndPipesSymbols3DLibrary from "./components/TanksAndPipesSymbols3DLibrary";
-
+import RightPanel from "./components/RightPanel";
 
 // ✅ UPDATED IMPORTS (use your helpers)
 import {
@@ -34,15 +26,6 @@ import ProfilePage from "./components/ProfilePage";
 
 // SIDEBAR LEFT
 import SidebarLeft from "./components/SidebarLeft";
-
-// RIGHT SIDEBAR
-import RightSidebar from "./components/RightSidebar";
-
-// IMAGE LIBRARY
-import ImageLibrary from "./components/ImageLibrary";
-
-// COREFLEX LIBRARY
-import CoreFlexLibrary from "./components/CoreFlexLibrary";
 
 // DASHBOARD CANVAS
 import DashboardCanvas from "./components/DashboardCanvas";
@@ -134,64 +117,6 @@ const {
   // MENUS
   const [showDevices, setShowDevices] = useState(false);
   const [showLevelSensors, setShowLevelSensors] = useState(false);
-
-  // 🪟 WINDOW MANAGER (floating libraries)
-const wm = useWindowDragResize({
-  image: {
-    position: { x: 140, y: 120 },
-    size: { width: 720, height: 520 },
-    minSize: { width: 520, height: 360 },
-  },
-  coreflex: {
-    position: { x: 200, y: 160 },
-    size: { width: 720, height: 520 },
-    minSize: { width: 520, height: 360 },
-  },
-
-  // ✅ SYMBOL LIBRARIES
-  hmi: {
-    position: { x: 220, y: 140 },
-    size: { width: 760, height: 540 },
-    minSize: { width: 520, height: 360 },
-    defaultCenter: true,
-  },
-  hvac2d: {
-    position: { x: 220, y: 140 },
-    size: { width: 760, height: 540 },
-    minSize: { width: 520, height: 360 },
-    defaultCenter: true,
-  },
-  hvac3d: {
-    position: { x: 220, y: 140 },
-    size: { width: 760, height: 540 },
-    minSize: { width: 520, height: 360 },
-    defaultCenter: true,
-  },
-  mfg2d: {
-    position: { x: 220, y: 140 },
-    size: { width: 760, height: 540 },
-    minSize: { width: 520, height: 360 },
-    defaultCenter: true,
-  },
-  mfg3d: {
-    position: { x: 220, y: 140 },
-    size: { width: 760, height: 540 },
-    minSize: { width: 520, height: 360 },
-    defaultCenter: true,
-  },
-  tp2d: {
-    position: { x: 220, y: 140 },
-    size: { width: 760, height: 540 },
-    minSize: { width: 520, height: 360 },
-    defaultCenter: true,
-  },
-  tp3d: {
-    position: { x: 220, y: 140 },
-    size: { width: 760, height: 540 },
-    minSize: { width: 520, height: 360 },
-    defaultCenter: true,
-  },
-});
 
   // CONTEXT MENU
   const [contextMenu, setContextMenu] = useState({
@@ -931,24 +856,6 @@ if (isLaunchPage) {
           />
         )}
 
-<ImageLibrary
-  {...wm.getWindowProps("image", {
-    onDragStartImage: (e, img) =>
-      e.dataTransfer.setData("imageUrl", img.src),
-  })}
-/>
-
-<CoreFlexLibrary {...wm.getWindowProps("coreflex")} />
-
-
-{/* ✅ SYMBOL LIBRARIES (REQUIRED so wm.openWindow works) */}
-<HmiSymbolsLibrary {...wm.getWindowProps("hmi")} />
-<HvacSymbols2DLibrary {...wm.getWindowProps("hvac2d")} />
-<HvacSymbols3DLibrary {...wm.getWindowProps("hvac3d")} />
-<ManufacturingSymbols2DLibrary {...wm.getWindowProps("mfg2d")} />
-<ManufacturingSymbols3DLibrary {...wm.getWindowProps("mfg3d")} />
-<TanksAndPipesSymbols2DLibrary {...wm.getWindowProps("tp2d")} />
-<TanksAndPipesSymbols3DLibrary {...wm.getWindowProps("tp3d")} />
       </main>
 
       <RestoreWarningModal
@@ -961,19 +868,11 @@ if (isLaunchPage) {
         }}
       />
 
-<RightSidebar
+<RightPanel
   isRightCollapsed={isRightCollapsed}
   setIsRightCollapsed={setIsRightCollapsed}
-  setShowImageLibrary={() => wm.openWindow("image")}
-  setShowCoreflexLibrary={() => wm.openWindow("coreflex")}
-
-  // ✅ ADD THIS:
-  openSymbolLibrary={(key) => wm.openWindow(key, { center: true })}
-
   dashboardMode={dashboardMode}
 />
-
-
     </div>
   );
 }
