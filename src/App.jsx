@@ -108,7 +108,7 @@ const {
   lastSavedAt,
   goToMainDashboard,
   handleSaveProject,
-  handleRestoreProject,
+  handleUploadProject,
 } = useDashboardPersistence({
   currentUserKey,
   activePage,
@@ -639,8 +639,7 @@ if (isLaunchPage) {
         onCancel={() => setShowRestoreWarning(false)}
         onConfirm={async () => {
           setShowRestoreWarning(false);
-          await handleRestoreProject();
-
+          await handleUploadProject();
         }}
       />
 
