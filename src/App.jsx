@@ -24,28 +24,25 @@ import DisplaySettingsModal from "./components/DisplaySettingsModal";
 import useCanvasSelection from "./hooks/useCanvasSelection";
 import useObjectDragging from "./hooks/useObjectDragging";
 import useDropHandler from "./hooks/useDropHandler";
+import usePageNavigation from "./hooks/usePageNavigation";
 
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
 const isLaunchPage = location.pathname === "/launchMainDashboard";
 
-    // ===============================
-  // ✅ NAVIGATION (persist on refresh)
-  // ===============================
-  const [activePage, setActivePage] = useState(() => {
-    return localStorage.getItem("coreflex_activePage") || "home";
-  });
-  const [activeSubPage, setActiveSubPage] = useState(null);
-  const [subPageColor, setSubPageColor] = useState("");
+// ✅ NAVIGATION (persist on refresh)
+const {
+  activePage,
+  setActivePage,
+  activeSubPage,
+  setActiveSubPage,
+  subPageColor,
+  setSubPageColor,
+} = usePageNavigation("coreflex_activePage");
 
   // DEVICE DATA
 const sensorsData = useDevicesData(API_URL);
-
-  // Persist activePage changes
-  useEffect(() => {
-    localStorage.setItem("coreflex_activePage", activePage);
-  }, [activePage]);
 
   // OBJECTS ON CANVAS
   const [droppedTanks, setDroppedTanks] = useState([]);
@@ -365,7 +362,6 @@ if (isLaunchPage) {
         onGoHome={goHomeHard}
 
       />
-
       <main className="flex-1 p-6 bg-white overflow-visible relative">
         <Header onLogout={handleLogout} />
 {activePage === "dashboard" ? (
