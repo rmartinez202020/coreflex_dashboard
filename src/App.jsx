@@ -7,14 +7,11 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Header from "./components/Header";
 import DashboardHeader from "./components/DashboardHeader";
-import CustomersLocationsPage from "./components/CustomersLocationsPage";
 import RightPanel from "./components/RightPanel";
 import useDashboardPersistence from "./hooks/useDashboardPersistence";
 import useAuthController from "./hooks/useAuthController";
 import useHomeReset from "./hooks/useHomeReset";
 import useDevicesData from "./hooks/useDevicesData";
-import HomePage from "./components/HomePage";
-import ProfilePage from "./components/ProfilePage";
 import SidebarLeft from "./components/SidebarLeft";
 import DashboardCanvas from "./components/DashboardCanvas";
 import useCanvasSelection from "./hooks/useCanvasSelection";
@@ -23,6 +20,7 @@ import useDropHandler from "./hooks/useDropHandler";
 import usePageNavigation from "./hooks/usePageNavigation";
 import AppModals from "./components/AppModals";
 import useDeleteSelected from "./hooks/useDeleteSelected";
+import HomeSubPageRouter from "./components/HomeSubPageRouter";
 
 
 export default function App() {
@@ -55,7 +53,6 @@ const sensorsData = useDevicesData(API_URL);
 
 // ⭐ DASHBOARD MODE — DEFAULT EDIT
 const [dashboardMode, setDashboardMode] = useState("edit");
-
 
 // ✅ DELETE / BACKSPACE HANDLER (extracted)
 useDeleteSelected({
@@ -323,7 +320,6 @@ if (isLaunchPage) {
         lastSavedAt={lastSavedAt}
         onGoMainDashboard={goToMainDashboard}
         onGoHome={goHomeHard}
-
       />
       <main className="flex-1 p-6 bg-white overflow-visible relative">
         <Header onLogout={handleLogout} />
@@ -358,62 +354,23 @@ if (isLaunchPage) {
       : "Main Dashboard"}
   </h1>
 )}
-
         {activePage === "home" ? (
           <div className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg bg-white">
             <div className="w-full h-full p-6">
 
-           {activeSubPage === "profile" ? (
-  <ProfilePage
-    subPageColor={subPageColor}
-    setActiveSubPage={setActiveSubPage}
-  />
-) : activeSubPage === "customers" ? (
-  <CustomersLocationsPage
-    subPageColor={subPageColor}
-    setActiveSubPage={setActiveSubPage}
-  />
-) : activeSubPage === "dashboardAdmin" ? (
-  <DashboardAdminPage
-  onGoHome={() => {
-  setActiveSubPage(null);   // ✅ go back to normal HomePage cards
-  setSubPageColor("");      // ✅ optional (cleans color state)
-}}
-
-    onOpenDashboard={(row) => {
-      // ✅ switch to dashboard editor page
-      setActivePage("dashboard");
-
-      // ✅ set context so header shows customer dashboard title
-      setActiveDashboard({
-        type: "customer",
-        dashboardId: String(row.id),
-        dashboardName: row.dashboard_name || "Customer Dashboard",
-        customerId: null,
-        customerName: row.customer_name || "",
-      });
-
-      // ✅ go to edit mode (important)
-      setDashboardMode("edit");
-
-      // ✅ clear canvas so auto-restore can load the correct one
-      setDroppedTanks([]);
-      setSelectedIds([]);
-      setSelectedTank(null);
-
-    }}
-    onLaunchDashboard={(row) => {
-      window.open(`/launchDashboard/${row.id}`, "_blank");
-    }}
-  />
-) : (
-
-  <HomePage
-    setActiveSubPage={setActiveSubPage}
-    setSubPageColor={setSubPageColor}
-    currentUserKey={currentUserKey}
-  />
-)}
+<HomeSubPageRouter
+  activeSubPage={activeSubPage}
+  subPageColor={subPageColor}
+  setActiveSubPage={setActiveSubPage}
+  setSubPageColor={setSubPageColor}
+  currentUserKey={currentUserKey}
+  setActivePage={setActivePage}
+  setActiveDashboard={setActiveDashboard}
+  setDashboardMode={setDashboardMode}
+  setDroppedTanks={setDroppedTanks}
+  setSelectedIds={setSelectedIds}
+  setSelectedTank={setSelectedTank}
+/>
             </div>
           </div>
         ) : activePage === "dashboard" ? (
