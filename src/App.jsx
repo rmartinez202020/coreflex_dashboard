@@ -23,7 +23,6 @@ import useDropHandler from "./hooks/useDropHandler";
 import usePageNavigation from "./hooks/usePageNavigation";
 import AppModals from "./components/AppModals";
 
-
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
