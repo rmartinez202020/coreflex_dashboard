@@ -22,6 +22,8 @@ import useObjectDragging from "./hooks/useObjectDragging";
 import useDropHandler from "./hooks/useDropHandler";
 import usePageNavigation from "./hooks/usePageNavigation";
 import AppModals from "./components/AppModals";
+import useDeleteSelected from "./hooks/useDeleteSelected";
+
 
 export default function App() {
   const navigate = useNavigate();
@@ -50,6 +52,14 @@ const sensorsData = useDevicesData(API_URL);
   setSelectedTank(null);
 };
 
+// ✅ DELETE / BACKSPACE HANDLER (extracted)
+useDeleteSelected({
+  activePage,
+  dashboardMode,
+  selectedIds,
+  setDroppedTanks,
+  clearSelection,
+});
   // ⭐ DASHBOARD MODE — DEFAULT EDIT
   const [dashboardMode, setDashboardMode] = useState("edit");
 
@@ -183,39 +193,6 @@ useEffect(() => {
   const [graphicSettingsId, setGraphicSettingsId] = useState(null);
   const openGraphicDisplaySettings = (tank) => setGraphicSettingsId(tank.id);
   const closeGraphicDisplaySettings = () => setGraphicSettingsId(null);
-
-  // ✅ DELETE SELECTED OBJECTS (Delete / Backspace)
-const deleteSelected = useCallback(() => {
-  if (activePage !== "dashboard") return;
-  if (dashboardMode !== "edit") return;
-  if (!selectedIds || selectedIds.length === 0) return;
-
-  setDroppedTanks((prev) =>
-    prev.filter((obj) => !selectedIds.includes(obj.id))
-  );
-
-  clearSelection();
-}, [activePage, dashboardMode, selectedIds, setDroppedTanks, clearSelection]);
-
-useEffect(() => {
-  const onKeyDown = (e) => {
-    if (activePage !== "dashboard") return;
-    if (dashboardMode !== "edit") return;
-
-    // ⛔ Don't delete while typing
-    const el = document.activeElement;
-    const tag = (el?.tagName || "").toLowerCase();
-    if (tag === "input" || tag === "textarea" || el?.isContentEditable) return;
-
-    if (e.key === "Delete" || e.key === "Backspace") {
-      e.preventDefault();
-      deleteSelected();
-    }
-  };
-
-  window.addEventListener("keydown", onKeyDown);
-  return () => window.removeEventListener("keydown", onKeyDown);
-  }, [activePage, dashboardMode, deleteSelected]);
 
   // SENSOR SETUP
   const sensors = useSensors(
