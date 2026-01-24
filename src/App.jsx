@@ -14,22 +14,13 @@ import RightPanel from "./components/RightPanel";
 import useDashboardPersistence from "./hooks/useDashboardPersistence";
 import useAuthController from "./hooks/useAuthController";
 import useHomeReset from "./hooks/useHomeReset";
-
-// PAGES
+import useDevicesData from "./hooks/useDevicesData";
 import HomePage from "./components/HomePage";
 import ProfilePage from "./components/ProfilePage";
-
-// SIDEBAR LEFT
 import SidebarLeft from "./components/SidebarLeft";
-
-// DASHBOARD CANVAS
 import DashboardCanvas from "./components/DashboardCanvas";
-
-// MODALS
 import SiloPropertiesModal from "./components/SiloPropertiesModal";
 import DisplaySettingsModal from "./components/DisplaySettingsModal";
-
-// HOOKS
 import useCanvasSelection from "./hooks/useCanvasSelection";
 import useObjectDragging from "./hooks/useObjectDragging";
 import useDropHandler from "./hooks/useDropHandler";
@@ -52,9 +43,6 @@ const isLaunchPage = location.pathname === "/launchMainDashboard";
   useEffect(() => {
     localStorage.setItem("coreflex_activePage", activePage);
   }, [activePage]);
-
-  // DEVICE DATA
-  const [sensorsData, setSensorsData] = useState([]);
 
   // OBJECTS ON CANVAS
   const [droppedTanks, setDroppedTanks] = useState([]);
@@ -273,36 +261,6 @@ const { goHomeHard } = useHomeReset({
       setIsRightCollapsed(false);
     }
   }, [dashboardMode]);
-
-  // ================================
-  // 📡 FETCH LIVE SENSOR DATA FROM API
-  // ================================
-  useEffect(() => {
-    fetch(`${API_URL}/devices`)
-      .then((res) => {
-        if (!res.ok) throw new Error("Failed to load devices");
-        return res.json();
-      })
-      .then((data) =>
-        setSensorsData(
-          data.map((s) => ({
-            ...s,
-            level_percent: Math.min(100, Math.round((s.level / 55) * 100)),
-            date_received: s.last_update?.split("T")[0] || "",
-            time_received: s.last_update
-              ? new Date(s.last_update).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "",
-          }))
-        )
-      )
-      .catch((err) => {
-        console.error("Sensor API error:", err);
-        setSensorsData([]);
-      });
-  }, []);
 
   const hideContextMenu = () =>
     setContextMenu((prev) => ({ ...prev, visible: false }));
@@ -576,7 +534,6 @@ if (isLaunchPage) {
             }}
           />
         )}
-
         {showSiloProps && activeSilo && (
           <SiloPropertiesModal
             open={showSiloProps}
@@ -589,9 +546,7 @@ if (isLaunchPage) {
             }
           />
         )}
-
       </main>
-
       <RestoreWarningModal
         open={showRestoreWarning}
         lastSavedAt={lastSavedAt}
@@ -601,7 +556,6 @@ if (isLaunchPage) {
           await handleUploadProject();
         }}
       />
-
 <RightPanel
   isRightCollapsed={isRightCollapsed}
   setIsRightCollapsed={setIsRightCollapsed}
