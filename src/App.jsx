@@ -47,10 +47,15 @@ const sensorsData = useDevicesData(API_URL);
   const [droppedTanks, setDroppedTanks] = useState([]);
   const [selectedTank, setSelectedTank] = useState(null);
   const [selectedIds, setSelectedIds] = useState([]);
+
   const clearSelection = () => {
   setSelectedIds([]);
   setSelectedTank(null);
 };
+
+// ⭐ DASHBOARD MODE — DEFAULT EDIT
+const [dashboardMode, setDashboardMode] = useState("edit");
+
 
 // ✅ DELETE / BACKSPACE HANDLER (extracted)
 useDeleteSelected({
@@ -60,8 +65,6 @@ useDeleteSelected({
   setDroppedTanks,
   clearSelection,
 });
-  // ⭐ DASHBOARD MODE — DEFAULT EDIT
-  const [dashboardMode, setDashboardMode] = useState("edit");
 
   const resetToGuestState = () => {
   setDroppedTanks([]);
