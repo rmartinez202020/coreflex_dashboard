@@ -5,7 +5,7 @@ import useDashboardHistory from "./hooks/useDashboardHistory";
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Header from "./components/Header";
-import DashboardHeader from "./components/DashboardHeader";
+import AppTopBar from "./components/AppTopBar";
 import RightPanel from "./components/RightPanel";
 import useDashboardPersistence from "./hooks/useDashboardPersistence";
 import useAuthController from "./hooks/useAuthController";
@@ -21,7 +21,6 @@ import AppModals from "./components/AppModals";
 import useDeleteSelected from "./hooks/useDeleteSelected";
 import HomeSubPageRouter from "./components/HomeSubPageRouter";
 import useContextMenu from "./hooks/useContextMenu";
-
 
 export default function App() {
   const navigate = useNavigate();
@@ -69,8 +68,6 @@ useDeleteSelected({
   setSelectedIds([]);
   setDashboardMode("edit");
   setActivePage("home");
-
-  // optional: if you want subpage cleared too:
   setActiveSubPage(null);
   setSubPageColor("");
 };
@@ -83,8 +80,6 @@ const resetForUserChange = (newUserKey, oldUserKey) => {
   setSelectedIds([]);
   setDashboardMode("edit");
   setActivePage("home");
-
-  // optional: clear subpage too
   setActiveSubPage(null);
   setSubPageColor("");
 };
@@ -316,37 +311,24 @@ if (isLaunchPage) {
       />
       <main className="flex-1 p-6 bg-white overflow-visible relative">
         <Header onLogout={handleLogout} />
-{activePage === "dashboard" ? (
-  <DashboardHeader
-    title={
-      activeDashboard.type === "main"
-        ? "Main Dashboard"
-        : `${activeDashboard.customerName} — ${activeDashboard.dashboardName}`
-    }
-    dashboardMode={dashboardMode}
-    setDashboardMode={setDashboardMode}
-    onLaunch={() => {
-      if (activeDashboard.type === "main") {
-        window.open("/launchMainDashboard", "_blank");
-      } else {
-        window.open(`/launchDashboard/${activeDashboard.dashboardId}`, "_blank");
-      }
-    }}
-    onUndo={handleUndo}
-    onRedo={handleRedo}
-    canUndo={canUndo}
-    canRedo={canRedo}
-  />
-) : (
 
-  <h1 className="text-2xl font-bold mb-4 text-gray-800">
-    {activePage === "home"
-      ? "Home"
-      : activePage === "deviceControls"
-      ? "Device Controls"
-      : "Main Dashboard"}
-  </h1>
-)}
+<AppTopBar
+  activePage={activePage}
+  activeDashboard={activeDashboard}
+  dashboardMode={dashboardMode}
+  setDashboardMode={setDashboardMode}
+  onLaunch={() => {
+    if (activeDashboard?.type === "main") {
+      window.open("/launchMainDashboard", "_blank");
+    } else {
+      window.open(`/launchDashboard/${activeDashboard?.dashboardId}`, "_blank");
+    }
+  }}
+  onUndo={handleUndo}
+  onRedo={handleRedo}
+  canUndo={canUndo}
+  canRedo={canRedo}
+/>
         {activePage === "home" ? (
           <div className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg bg-white">
             <div className="w-full h-full p-6">
