@@ -1,10 +1,9 @@
-
 import { API_URL } from "./config/api";
 import { PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import LaunchedMainDashboard from "./pages/LaunchedMainDashboard";
 import DashboardAdminPage from "./components/DashboardAdminPage";
 import useDashboardHistory from "./hooks/useDashboardHistory";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Header from "./components/Header";
 import DashboardHeader from "./components/DashboardHeader";
@@ -13,7 +12,7 @@ import GraphicDisplaySettingsModal from "./components/GraphicDisplaySettingsModa
 import CustomersLocationsPage from "./components/CustomersLocationsPage";
 import RightPanel from "./components/RightPanel";
 import useDashboardPersistence from "./hooks/useDashboardPersistence";
-import { getUserKeyFromToken, getToken, clearAuth } from "./utils/authToken";
+import useAuthController from "./hooks/useAuthController";
 
 // PAGES
 import HomePage from "./components/HomePage";
@@ -38,11 +37,6 @@ export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
 const isLaunchPage = location.pathname === "/launchMainDashboard";
-
-  // ✅ identify which user is currently logged in (from JWT)
-  const [currentUserKey, setCurrentUserKey] = useState(() =>
-    getUserKeyFromToken()
-  );
 
     // ===============================
   // ✅ NAVIGATION (persist on refresh)
@@ -73,6 +67,41 @@ const isLaunchPage = location.pathname === "/launchMainDashboard";
 
   // ⭐ DASHBOARD MODE — DEFAULT EDIT
   const [dashboardMode, setDashboardMode] = useState("edit");
+
+  const resetToGuestState = () => {
+  setDroppedTanks([]);
+  setSelectedTank(null);
+  setSelectedIds([]);
+  setDashboardMode("edit");
+  setActivePage("home");
+
+  // optional: if you want subpage cleared too:
+  setActiveSubPage(null);
+  setSubPageColor("");
+};
+
+const resetForUserChange = (newUserKey, oldUserKey) => {
+  console.log("🔄 User changed → resetting dashboard state", oldUserKey, "→", newUserKey);
+
+  setDroppedTanks([]);
+  setSelectedTank(null);
+  setSelectedIds([]);
+  setDashboardMode("edit");
+  setActivePage("home");
+
+  // optional: clear subpage too
+  setActiveSubPage(null);
+  setSubPageColor("");
+};
+
+const { currentUserKey, handleLogout } = useAuthController({
+  onNoAuthReset: resetToGuestState,
+  onUserChangedReset: resetForUserChange,
+  onLogoutReset: resetToGuestState,
+  navigate,
+  logoutRoute: "/",
+});
+
 
   // ✅ always keep the latest canvas in a ref (prevents stale Ctrl+Z / Ctrl+Y)
 const droppedRef = useRef([]);
@@ -125,6 +154,18 @@ const {
   endRestore,
 });
 
+// ✅ Reset dashboard context when user logs out / token disappears
+useEffect(() => {
+  if (!currentUserKey) {
+    setActiveDashboard({
+      type: "main",
+      dashboardId: null,
+      dashboardName: "Main Dashboard",
+      customerId: null,
+      customerName: "",
+    });
+  }
+}, [currentUserKey, setActiveDashboard]);
 
   // SIDEBARS
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
@@ -160,16 +201,17 @@ const {
   const closeGraphicDisplaySettings = () => setGraphicSettingsId(null);
 
   // ✅ DELETE SELECTED OBJECTS (Delete / Backspace)
-const deleteSelected = () => {
+const deleteSelected = useCallback(() => {
   if (activePage !== "dashboard") return;
   if (dashboardMode !== "edit") return;
   if (!selectedIds || selectedIds.length === 0) return;
 
-  setDroppedTanks((prev) => prev.filter((obj) => !selectedIds.includes(obj.id)));
+  setDroppedTanks((prev) =>
+    prev.filter((obj) => !selectedIds.includes(obj.id))
+  );
 
-  setSelectedIds([]);
-  setSelectedTank(null);
-};
+  clearSelection();
+}, [activePage, dashboardMode, selectedIds, setDroppedTanks, clearSelection]);
 
 useEffect(() => {
   const onKeyDown = (e) => {
@@ -189,7 +231,7 @@ useEffect(() => {
 
   window.addEventListener("keydown", onKeyDown);
   return () => window.removeEventListener("keydown", onKeyDown);
-}, [activePage, dashboardMode, selectedIds]);
+  }, [activePage, dashboardMode, deleteSelected]);
 
   // SENSOR SETUP
   const sensors = useSensors(
@@ -243,48 +285,6 @@ const goHomeHard = () => {
   });
 };
 
-  // ✅ USER AUTH STATE SYNC (critical)
-  useEffect(() => {
-    const syncUserFromToken = () => {
-      const newUserKey = getUserKeyFromToken();
-      const token = getToken();
-
-      // if token missing -> full reset
-      if (!token || !newUserKey) {
-        setCurrentUserKey(null);
-        setDroppedTanks([]);
-        setSelectedTank(null);
-        setSelectedIds([]);
-        setDashboardMode("edit");
-        setActivePage("home");
-        return;
-      }
-
-      if (newUserKey !== currentUserKey) {
-        console.log(
-          "🔄 User changed → resetting dashboard state",
-          currentUserKey,
-          "→",
-          newUserKey
-        );
-
-        setCurrentUserKey(newUserKey);
-        setDroppedTanks([]);
-        setSelectedTank(null);
-        setSelectedIds([]);
-        setDashboardMode("edit");
-        setActivePage("home");
-      }
-    };
-
-    syncUserFromToken();
-    window.addEventListener("coreflex-auth-changed", syncUserFromToken);
-
-    return () => {
-      window.removeEventListener("coreflex-auth-changed", syncUserFromToken);
-    };
-  }, [currentUserKey]);
-
   // ⭐ COLLAPSE BOTH SIDEBARS WHEN IN PLAY
   useEffect(() => {
     if (dashboardMode === "play") {
@@ -334,21 +334,6 @@ const goHomeHard = () => {
     setContextMenu({ visible: true, x, y, targetId: id });
   };
 
-  // ✅ LOGOUT (single source of truth)
-  const handleLogout = () => {
-    clearAuth();
-
-    setCurrentUserKey(null);
-    setDroppedTanks([]);
-    setSelectedTank(null);
-    setSelectedIds([]);
-    setDashboardMode("edit");
-    setActivePage("home");
-
-    window.dispatchEvent(new Event("coreflex-auth-changed"));
-    navigate("/");
-  };
-
   // CANVAS SELECTION
   const {
     selectionBox,
@@ -386,7 +371,6 @@ const handleDragEnd = (...args) => {
   onDragEndCommit();
 };
 
-
   // DROP HANDLER
   const { handleDrop } = useDropHandler({
   
@@ -408,7 +392,6 @@ const handleDragEnd = (...args) => {
     t.id === displaySettingsId &&
     (t.shape === "displayBox" || t.shape === "displayOutput")
 );
-
 
   const graphicTarget = droppedTanks.find(
     (t) => t.id === graphicSettingsId && t.shape === "graphicDisplay"
