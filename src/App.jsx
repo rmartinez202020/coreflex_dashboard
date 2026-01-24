@@ -1,9 +1,8 @@
 import { API_URL } from "./config/api";
 import { PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import LaunchedMainDashboard from "./pages/LaunchedMainDashboard";
-import DashboardAdminPage from "./components/DashboardAdminPage";
 import useDashboardHistory from "./hooks/useDashboardHistory";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Header from "./components/Header";
 import DashboardHeader from "./components/DashboardHeader";
@@ -21,6 +20,7 @@ import usePageNavigation from "./hooks/usePageNavigation";
 import AppModals from "./components/AppModals";
 import useDeleteSelected from "./hooks/useDeleteSelected";
 import HomeSubPageRouter from "./components/HomeSubPageRouter";
+import useContextMenu from "./hooks/useContextMenu";
 
 
 export default function App() {
@@ -172,13 +172,13 @@ useEffect(() => {
   const [showDevices, setShowDevices] = useState(false);
   const [showLevelSensors, setShowLevelSensors] = useState(false);
 
-  // CONTEXT MENU
-  const [contextMenu, setContextMenu] = useState({
-    visible: false,
-    x: 0,
-    y: 0,
-    targetId: null,
-  });
+  // ✅ CONTEXT MENU (extracted)
+const {
+  contextMenu,
+  setContextMenu,
+  hideContextMenu,
+  handleRightClick,
+} = useContextMenu();
 
   // ACTIVE SILO
   const [activeSiloId, setActiveSiloId] = useState(null);
@@ -235,13 +235,6 @@ const { goHomeHard } = useHomeReset({
       setIsRightCollapsed(false);
     }
   }, [dashboardMode]);
-
-  const hideContextMenu = () =>
-    setContextMenu((prev) => ({ ...prev, visible: false }));
-
-  const handleRightClick = (id, x, y) => {
-    setContextMenu({ visible: true, x, y, targetId: id });
-  };
 
   // CANVAS SELECTION
   const {
