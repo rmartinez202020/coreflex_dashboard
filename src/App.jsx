@@ -38,7 +38,7 @@ const isLaunchPage = location.pathname === "/launchMainDashboard";
   });
   const [activeSubPage, setActiveSubPage] = useState(null);
   const [subPageColor, setSubPageColor] = useState("");
-  
+
   // DEVICE DATA
 const sensorsData = useDevicesData(API_URL);
 
