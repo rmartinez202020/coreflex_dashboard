@@ -7,8 +7,6 @@ import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Header from "./components/Header";
 import DashboardHeader from "./components/DashboardHeader";
-import RestoreWarningModal from "./components/RestoreWarningModal";
-import GraphicDisplaySettingsModal from "./components/GraphicDisplaySettingsModal";
 import CustomersLocationsPage from "./components/CustomersLocationsPage";
 import RightPanel from "./components/RightPanel";
 import useDashboardPersistence from "./hooks/useDashboardPersistence";
@@ -19,12 +17,12 @@ import HomePage from "./components/HomePage";
 import ProfilePage from "./components/ProfilePage";
 import SidebarLeft from "./components/SidebarLeft";
 import DashboardCanvas from "./components/DashboardCanvas";
-import SiloPropertiesModal from "./components/SiloPropertiesModal";
-import DisplaySettingsModal from "./components/DisplaySettingsModal";
 import useCanvasSelection from "./hooks/useCanvasSelection";
 import useObjectDragging from "./hooks/useObjectDragging";
 import useDropHandler from "./hooks/useDropHandler";
 import usePageNavigation from "./hooks/usePageNavigation";
+import AppModals from "./components/AppModals";
+
 
 export default function App() {
   const navigate = useNavigate();
@@ -318,20 +316,6 @@ const handleDragEnd = (...args) => {
     hideContextMenu();
   };
 
-  const activeSilo = droppedTanks.find(
-    (t) => t.id === activeSiloId && t.shape === "siloTank"
-  );
-
- const displayTarget = droppedTanks.find(
-  (t) =>
-    t.id === displaySettingsId &&
-    (t.shape === "displayBox" || t.shape === "displayOutput")
-);
-
-  const graphicTarget = droppedTanks.find(
-    (t) => t.id === graphicSettingsId && t.shape === "graphicDisplay"
-  );
-
 // ✅ LAUNCH PAGE — RENDER ONLY PLAY MODE DASHBOARD
 if (isLaunchPage) {
   return <LaunchedMainDashboard />;
@@ -498,63 +482,24 @@ if (isLaunchPage) {
           </div>
         ) : null}
 
-        {displayTarget && (
-          <DisplaySettingsModal
-            tank={displayTarget}
-            onClose={closeDisplaySettings}
-            onSave={(updatedProps) => {
-              setDroppedTanks((prev) =>
-                prev.map((t) =>
-                  t.id === displayTarget.id
-                    ? {
-                        ...t,
-                        properties: {
-                          ...(t.properties || {}),
-                          ...updatedProps,
-                        },
-                      }
-                    : t
-                )
-              );
-            }}
-          />
-        )}
+                <AppModals
+          droppedTanks={droppedTanks}
+          setDroppedTanks={setDroppedTanks}
+          showRestoreWarning={showRestoreWarning}
+          setShowRestoreWarning={setShowRestoreWarning}
+          lastSavedAt={lastSavedAt}
+          handleUploadProject={handleUploadProject}
+          displaySettingsId={displaySettingsId}
+          closeDisplaySettings={closeDisplaySettings}
+          graphicSettingsId={graphicSettingsId}
+          closeGraphicDisplaySettings={closeGraphicDisplaySettings}
+          showSiloProps={showSiloProps}
+          setShowSiloProps={setShowSiloProps}
+          activeSiloId={activeSiloId}
+        />
 
-        {graphicTarget && (
-          <GraphicDisplaySettingsModal
-            open={true}
-            tank={graphicTarget}
-            onClose={closeGraphicDisplaySettings}
-            onSave={(updatedTank) => {
-              setDroppedTanks((prev) =>
-                prev.map((t) => (t.id === updatedTank.id ? updatedTank : t))
-              );
-              closeGraphicDisplaySettings();
-            }}
-          />
-        )}
-        {showSiloProps && activeSilo && (
-          <SiloPropertiesModal
-            open={showSiloProps}
-            silo={activeSilo}
-            onClose={() => setShowSiloProps(false)}
-            onSave={(updatedSilo) =>
-              setDroppedTanks((prev) =>
-                prev.map((t) => (t.id === updatedSilo.id ? updatedSilo : t))
-              )
-            }
-          />
-        )}
       </main>
-      <RestoreWarningModal
-        open={showRestoreWarning}
-        lastSavedAt={lastSavedAt}
-        onCancel={() => setShowRestoreWarning(false)}
-        onConfirm={async () => {
-          setShowRestoreWarning(false);
-          await handleUploadProject();
-        }}
-      />
+
 <RightPanel
   isRightCollapsed={isRightCollapsed}
   setIsRightCollapsed={setIsRightCollapsed}
