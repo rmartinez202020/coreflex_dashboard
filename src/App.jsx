@@ -13,6 +13,7 @@ import CustomersLocationsPage from "./components/CustomersLocationsPage";
 import RightPanel from "./components/RightPanel";
 import useDashboardPersistence from "./hooks/useDashboardPersistence";
 import useAuthController from "./hooks/useAuthController";
+import useHomeReset from "./hooks/useHomeReset";
 
 // PAGES
 import HomePage from "./components/HomePage";
@@ -64,7 +65,6 @@ const isLaunchPage = location.pathname === "/launchMainDashboard";
   setSelectedTank(null);
 };
 
-
   // ⭐ DASHBOARD MODE — DEFAULT EDIT
   const [dashboardMode, setDashboardMode] = useState("edit");
 
@@ -101,7 +101,6 @@ const { currentUserKey, handleLogout } = useAuthController({
   navigate,
   logoutRoute: "/",
 });
-
 
   // ✅ always keep the latest canvas in a ref (prevents stale Ctrl+Z / Ctrl+Y)
 const droppedRef = useRef([]);
@@ -246,44 +245,23 @@ useEffect(() => {
     else if (obj.shape === "displayBox") offset = 3;
     return base * 10 + offset;
   };
-
-// ==========================================
-// ✅ HARD HOME RESET (ALWAYS GO TO HOME)
-// ==========================================
-const goHomeHard = () => {
-  // go to the main app route (recommended)
-  navigate("/app");
-
-  // navigation state
-  setActivePage("home");
-  setActiveSubPage(null);
-  setSubPageColor("");
-
-  // close modals
-  setShowRestoreWarning(false);
-  setShowSiloProps(false);
-  closeDisplaySettings();
-  closeGraphicDisplaySettings();
-
-  // close menus
-  setShowDevices(false);
-  setShowLevelSensors(false);
-
-  // reset context menu + selections
-  setContextMenu({ visible: false, x: 0, y: 0, targetId: null });
-  setSelectedIds([]);
-  setSelectedTank(null);
-  setActiveSiloId(null);
-
-  // optional: return to main dashboard context
-  setActiveDashboard({
-    type: "main",
-    dashboardId: null,
-    dashboardName: "Main Dashboard",
-    customerId: null,
-    customerName: "",
-  });
-};
+const { goHomeHard } = useHomeReset({
+  navigate,
+  setActivePage,
+  setActiveSubPage,
+  setSubPageColor,
+  setShowRestoreWarning,
+  setShowSiloProps,
+  closeDisplaySettings,
+  closeGraphicDisplaySettings,
+  setShowDevices,
+  setShowLevelSensors,
+  setContextMenu,
+  setSelectedIds,
+  setSelectedTank,
+  setActiveSiloId,
+  setActiveDashboard,
+});
 
   // ⭐ COLLAPSE BOTH SIDEBARS WHEN IN PLAY
   useEffect(() => {
@@ -325,7 +303,6 @@ const goHomeHard = () => {
         setSensorsData([]);
       });
   }, []);
-
 
   const hideContextMenu = () =>
     setContextMenu((prev) => ({ ...prev, visible: false }));
@@ -452,7 +429,6 @@ if (isLaunchPage) {
     canRedo={canRedo}
   />
 ) : (
-
 
   <h1 className="text-2xl font-bold mb-4 text-gray-800">
     {activePage === "home"
