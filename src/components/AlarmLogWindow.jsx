@@ -37,7 +37,6 @@ export default function AlarmLogWindow({
   const getRowStyle = (a) => {
     const isSelected = selectedId === a.id;
 
-    // VTScada-like: selected row = yellow
     if (isSelected) {
       return {
         background: "#fbbf24", // yellow
@@ -236,7 +235,7 @@ function TabButton({ label, active, onClick }) {
   );
 }
 
-/* ✅ Updated palette to match VTScada-style */
+/* ✅ Updated palette + ✅ NEW strong black frame */
 const wrap = {
   width: "100%",
   height: "100%",
@@ -245,6 +244,10 @@ const wrap = {
   display: "flex",
   flexDirection: "column",
   position: "relative",
+
+  // ✅ NEW: visible border/frame (matches VTScada feel)
+  border: "3px solid #000000",
+  boxShadow: "0 0 0 1px #374151 inset, 0 8px 24px rgba(0,0,0,0.45)",
 };
 
 const topBar = {
@@ -254,7 +257,9 @@ const topBar = {
   alignItems: "center",
   justifyContent: "space-between",
   padding: "0 10px",
-  borderBottom: "1px solid #0b1220",
+
+  // ✅ stronger separation
+  borderBottom: "2px solid #000000",
   color: "#f9fafb",
 };
 
@@ -330,6 +335,10 @@ const table = {
   flex: 1,
   overflow: "auto",
   background: "#e5e7eb",
+
+  // ✅ NEW: helps the grid feel contained
+  borderTop: "1px solid #000000",
+  borderBottom: "2px solid #000000",
 };
 
 const header = {
