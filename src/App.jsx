@@ -197,9 +197,10 @@ export default function App() {
   const [alarmLogMinimized, setAlarmLogMinimized] = useState(false);
 
   const openAlarmLog = () => {
-    setAlarmLogMinimized(false);
-    setAlarmLogOpen(true);
-  };
+  if (alarmLogOpen) return; // ✅ prevents double-open
+  setAlarmLogMinimized(false);
+  setAlarmLogOpen(true);
+};
 
   const closeAlarmLog = () => {
     setAlarmLogMinimized(false);
@@ -425,7 +426,7 @@ export default function App() {
             guides={guides}
             onOpenDisplaySettings={openDisplaySettings}
             onOpenGraphicDisplaySettings={openGraphicDisplaySettings}
-            onOpenAlarmLog={openAlarmLog}
+            onOpenAlarmLog={() => {}}
             onLaunchAlarmLog={launchAlarmLog}
           />
         ) : activePage === "deviceControls" ? (
