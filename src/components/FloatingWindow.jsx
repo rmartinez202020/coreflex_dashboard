@@ -6,9 +6,17 @@ export default function FloatingWindow({
   title,
   position,
   size,
+
+  // actions
   onClose,
+  onMinimize, // ✅ NEW (optional)
+  onLaunch, // ✅ NEW (optional)
+  onOpenSettings, // ✅ NEW (optional)
+
+  // drag/resize
   onStartDragWindow,
   onStartResizeWindow,
+
   children,
 }) {
   if (!visible) return null;
@@ -25,11 +33,9 @@ export default function FloatingWindow({
         left: position.x,
         top: position.y,
 
-        // ✅ Use clamped size
         width: safeWidth,
         height: safeHeight,
 
-        // ✅ Hard max constraints (extra safety)
         maxWidth: "calc(100vw - 80px)",
         maxHeight: "calc(100vh - 120px)",
 
@@ -42,10 +48,17 @@ export default function FloatingWindow({
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
+        userSelect: "none",
       }}
+      // ✅ stop clicks from reaching canvas
       onMouseDown={(e) => e.stopPropagation()}
+      // ✅ avoid weird double-click behaviors
+      onDoubleClick={(e) => {
+        e.stopPropagation();
+        e.preventDefault();
+      }}
     >
-      {/* HEADER (DRAG BAR) */}
+      {/* HEADER (DRAG BAR ONLY) */}
       <div
         style={{
           height: 40,
@@ -56,31 +69,83 @@ export default function FloatingWindow({
           justifyContent: "space-between",
           padding: "0 12px",
           fontWeight: "bold",
-          cursor: "grab",
+          cursor: "move", // ✅ clearer than grab
           userSelect: "none",
+          borderBottom: "2px solid #000",
         }}
         onMouseDown={(e) => {
           e.stopPropagation();
-          onStartDragWindow(e);
+          onStartDragWindow?.(e); // ✅ safe optional
+        }}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
         }}
       >
-        {title}
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+          <span>{title}</span>
+        </div>
 
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onClose();
-          }}
-          style={{
-            background: "transparent",
-            border: "none",
-            color: "white",
-            fontSize: 20,
-            cursor: "pointer",
-          }}
-        >
-          ✕
-        </button>
+        {/* ✅ WINDOW BUTTONS */}
+        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
+          {onOpenSettings && (
+            <button
+              type="button"
+              title="Settings"
+              style={iconBtn}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onOpenSettings?.();
+              }}
+            >
+              ⚙
+            </button>
+          )}
+
+          {onLaunch && (
+            <button
+              type="button"
+              title="Launch"
+              style={iconBtn}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onLaunch?.();
+              }}
+            >
+              ↗
+            </button>
+          )}
+
+          {onMinimize && (
+            <button
+              type="button"
+              title="Minimize"
+              style={iconBtn}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => {
+                e.stopPropagation();
+                onMinimize?.();
+              }}
+            >
+              —
+            </button>
+          )}
+
+          <button
+            type="button"
+            title="Close"
+            style={{ ...iconBtn, borderColor: "#7f1d1d" }}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose?.();
+            }}
+          >
+            ✕
+          </button>
+        </div>
       </div>
 
       {/* CONTENT */}
@@ -88,13 +153,14 @@ export default function FloatingWindow({
         style={{
           flex: 1,
           padding: "10px",
-
-          // ✅ Allow horizontal scroll instead of forcing the window wider
           overflow: "auto",
-
           background: "white",
         }}
         onMouseDown={(e) => e.stopPropagation()}
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          e.preventDefault();
+        }}
       >
         {children}
       </div>
@@ -113,9 +179,21 @@ export default function FloatingWindow({
         }}
         onMouseDown={(e) => {
           e.stopPropagation();
-          onStartResizeWindow(e);
+          onStartResizeWindow?.(e);
         }}
       />
     </div>
   );
 }
+
+const iconBtn = {
+  width: 28,
+  height: 24,
+  background: "#000",
+  color: "#fff",
+  borderRadius: 6,
+  border: "1px solid #111",
+  cursor: "pointer",
+  fontWeight: 900,
+  lineHeight: "22px",
+};

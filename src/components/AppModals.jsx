@@ -8,40 +8,31 @@ import SiloPropertiesModal from "./SiloPropertiesModal";
 import AlarmLogModal from "./AlarmLogModal";
 
 export default function AppModals({
-  // --- shared state ---
   droppedTanks,
   setDroppedTanks,
 
-  // --- Restore modal ---
   showRestoreWarning,
   setShowRestoreWarning,
   lastSavedAt,
   handleUploadProject,
 
-  // --- Display settings modal ---
   displaySettingsId,
   closeDisplaySettings,
 
-  // --- Graphic display modal ---
   graphicSettingsId,
   closeGraphicDisplaySettings,
 
-  // --- Silo props modal ---
   showSiloProps,
   setShowSiloProps,
   activeSiloId,
 
-  // --- ✅ Alarms Log (DI-AI) modal ---
   alarmLogOpen,
   closeAlarmLog,
 
-  // ✅ NEW: minimize handler from App.jsx
+  // ✅ NEW
   onMinimizeAlarmLog,
-
-  // optional
   onLaunchAlarmLog,
 }) {
-  // ✅ helpers to avoid silent mismatches (number vs string ids)
   const isSameId = (a, b) => String(a) === String(b);
 
   const displayTarget = useMemo(() => {
@@ -62,14 +53,11 @@ export default function AppModals({
 
   const activeSilo = useMemo(() => {
     if (activeSiloId == null) return null;
-    return droppedTanks.find(
-      (t) => isSameId(t.id, activeSiloId) && t.shape === "siloTank"
-    );
+    return droppedTanks.find((t) => isSameId(t.id, activeSiloId) && t.shape === "siloTank");
   }, [droppedTanks, activeSiloId]);
 
   return (
     <>
-      {/* ✅ Display Settings */}
       {displayTarget && (
         <DisplaySettingsModal
           tank={displayTarget}
@@ -78,13 +66,7 @@ export default function AppModals({
             setDroppedTanks((prev) =>
               prev.map((t) =>
                 isSameId(t.id, displayTarget.id)
-                  ? {
-                      ...t,
-                      properties: {
-                        ...(t.properties || {}),
-                        ...updatedProps,
-                      },
-                    }
+                  ? { ...t, properties: { ...(t.properties || {}), ...updatedProps } }
                   : t
               )
             );
@@ -92,7 +74,6 @@ export default function AppModals({
         />
       )}
 
-      {/* ✅ Graphic Display Settings */}
       {graphicTarget && (
         <GraphicDisplaySettingsModal
           open={true}
@@ -107,7 +88,6 @@ export default function AppModals({
         />
       )}
 
-      {/* ✅ Silo Properties */}
       {showSiloProps && activeSilo && (
         <SiloPropertiesModal
           open={showSiloProps}
@@ -121,7 +101,7 @@ export default function AppModals({
         />
       )}
 
-      {/* 🚨 Alarms Log (DI-AI) */}
+      {/* 🚨 Alarms Log */}
       <AlarmLogModal
         open={!!alarmLogOpen}
         onClose={closeAlarmLog}
@@ -129,7 +109,6 @@ export default function AppModals({
         onMinimize={onMinimizeAlarmLog}
       />
 
-      {/* ✅ Restore Warning */}
       <RestoreWarningModal
         open={showRestoreWarning}
         lastSavedAt={lastSavedAt}

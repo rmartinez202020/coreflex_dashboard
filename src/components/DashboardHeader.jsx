@@ -20,18 +20,16 @@ export default function DashboardHeader({
   canUndo = false,
   canRedo = false,
 
-  // ✅ NEW: minimized windows tray
-  minimizedWindows = [], // [{ key: "alarmLog", title: "Alarms Log (DI-AI)" }, ...]
-  onRestoreWindow, // (key) => void
-  onCloseWindow,   // (key) => void (optional)
+  // ✅ Minimized windows tray
+  minimizedWindows = [], // [{ key, title }]
+  onRestoreWindow,
+  onCloseWindow,
 }) {
   return (
     <div className="flex items-center gap-3 mb-6 flex-wrap">
       <h1 className="text-2xl font-bold text-gray-800 mr-2">{title}</h1>
 
-      {/* ========================= */}
       {/* UNDO / REDO */}
-      {/* ========================= */}
       <button
         type="button"
         onClick={onUndo}
@@ -60,9 +58,7 @@ export default function DashboardHeader({
         ↷
       </button>
 
-      {/* ========================= */}
-      {/* PLAY MODE */}
-      {/* ========================= */}
+      {/* PLAY */}
       <button
         type="button"
         onClick={() => setDashboardMode("play")}
@@ -75,9 +71,7 @@ export default function DashboardHeader({
         ▶ Play
       </button>
 
-      {/* ========================= */}
-      {/* EDIT MODE */}
-      {/* ========================= */}
+      {/* EDIT */}
       <button
         type="button"
         onClick={() => setDashboardMode("edit")}
@@ -90,31 +84,23 @@ export default function DashboardHeader({
         ✎ Edit
       </button>
 
-      {/* ========================= */}
-      {/* LAUNCH (PLAY-ONLY VIEW) */}
-      {/* ========================= */}
-      <button
-        type="button"
-        onClick={() => {
-          setDashboardMode("play");
-          onLaunch?.();
-        }}
-        className="px-3 py-1 rounded-md text-sm bg-green-600 text-white hover:bg-green-700"
-        title="Launch dashboard in play mode"
-      >
-        🚀 Launch
-      </button>
+      {/* ✅ LAUNCH + MINIMIZED TRAY GROUP (keeps them together) */}
+      <div className="flex items-center gap-2 flex-nowrap">
+        <button
+          type="button"
+          onClick={() => {
+            setDashboardMode("play");
+            onLaunch?.();
+          }}
+          className="px-3 py-1 rounded-md text-sm bg-green-600 text-white hover:bg-green-700"
+          title="Launch dashboard in play mode"
+        >
+          🚀 Launch
+        </button>
 
-      {/* ========================= */}
-      {/* ✅ MINIMIZED WINDOWS TRAY */}
-      {/* ========================= */}
-      {minimizedWindows?.length > 0 && (
-        <div className="flex items-center gap-2 ml-2">
-          <span className="text-xs text-gray-500 font-semibold">
-            Minimized:
-          </span>
-
-          <div className="flex items-center gap-2 flex-wrap">
+        {/* ✅ Minimized windows immediately to the right of Launch */}
+        {minimizedWindows?.length > 0 && (
+          <div className="flex items-center gap-2 flex-nowrap">
             {minimizedWindows.map((w) => (
               <div
                 key={w.key}
@@ -124,7 +110,7 @@ export default function DashboardHeader({
                 <button
                   type="button"
                   onClick={() => onRestoreWindow?.(w.key)}
-                  className="text-sm font-bold text-gray-900 hover:underline"
+                  className="text-sm font-bold text-gray-900 hover:underline whitespace-nowrap"
                 >
                   ▣ {w.title || w.key}
                 </button>
@@ -142,8 +128,8 @@ export default function DashboardHeader({
               </div>
             ))}
           </div>
-        </div>
-      )}
+        )}
+      </div>
     </div>
   );
 }

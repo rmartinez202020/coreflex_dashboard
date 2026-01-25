@@ -1,4 +1,3 @@
-// src/components/AlarmLogModal.jsx
 import React from "react";
 import FloatingWindow from "./FloatingWindow";
 import AlarmLogWindow from "./AlarmLogWindow";
@@ -7,8 +6,7 @@ export default function AlarmLogModal({
   open,
   onClose,
   onLaunch,
-  onMinimize,
-  onOpenSettings,
+  onMinimize, // ✅ add this
 }) {
   if (!open) return null;
 
@@ -19,13 +17,13 @@ export default function AlarmLogModal({
       position={{ x: 120, y: 120 }}
       size={{ width: 900, height: 420 }}
       onClose={onClose}
+      onLaunch={onLaunch}
+      onMinimize={onMinimize} // ✅ important
     >
       <AlarmLogWindow
         onLaunch={onLaunch}
-        onMinimize={onMinimize}
         onClose={onClose}
-        onOpenSettings={onOpenSettings}
-        title="Alarms Log (DI-AI)"
+        onMinimize={onMinimize} // ✅ important
       />
     </FloatingWindow>
   );
