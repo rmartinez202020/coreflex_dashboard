@@ -155,6 +155,40 @@ export default function RightSidebar({
                 Graphic Display (AI)
               </span>
             </div>
+
+            {/* ✅ NEW: ALARMS LOG (AI) */}
+            <div
+              className="cursor-pointer flex flex-col items-center gap-1"
+              draggable
+              onDragStart={(e) => e.dataTransfer.setData("shape", "alarmLog")}
+              title="Drag to canvas"
+            >
+              <div
+                style={{
+                  width: "120px",
+                  height: "55px",
+                  borderRadius: 10,
+                  border: "2px solid #334155",
+                  background: "#0b1220",
+                  boxShadow: "0 8px 18px rgba(0,0,0,0.25)",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  gap: 8,
+                  color: "#e5e7eb",
+                  fontWeight: 900,
+                }}
+              >
+                <span style={{ fontSize: 18 }}>⚠️</span>
+                <span style={{ fontSize: 11, lineHeight: "12px" }}>
+                  ALARMS
+                  <br />
+                  LOG
+                </span>
+              </div>
+
+              <span className="text-[14px] text-center">Alarms Log (AI)</span>
+            </div>
           </div>
 
           {/* LIBRARIES */}
