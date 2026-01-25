@@ -193,14 +193,14 @@ export default function App() {
   // 🚨 ALARMS LOG MODAL (AI)
   const [alarmLogOpen, setAlarmLogOpen] = useState(false);
 
-  // ✅ NEW: minimized state for alarm log (shows in AppTopBar header tray)
+  // ✅ minimized state for alarm log (shows in AppTopBar header tray)
   const [alarmLogMinimized, setAlarmLogMinimized] = useState(false);
 
   const openAlarmLog = () => {
-  if (alarmLogOpen) return; // ✅ prevents double-open
-  setAlarmLogMinimized(false);
-  setAlarmLogOpen(true);
-};
+    if (alarmLogOpen) return; // ✅ prevents double-open
+    setAlarmLogMinimized(false);
+    setAlarmLogOpen(true);
+  };
 
   const closeAlarmLog = () => {
     setAlarmLogMinimized(false);
@@ -209,6 +209,7 @@ export default function App() {
 
   // ✅ MINIMIZE: hide modal + show minimized tab in AppTopBar
   const minimizeAlarmLog = () => {
+    // keep this log only while testing
     console.log("✅ MINIMIZE FIRED");
     setAlarmLogOpen(false);
     setAlarmLogMinimized(true);
@@ -267,13 +268,17 @@ export default function App() {
   }, [dashboardMode]);
 
   // CANVAS SELECTION
-  const { selectionBox, handleCanvasMouseDown, handleCanvasMouseMove, handleCanvasMouseUp } =
-    useCanvasSelection({
-      droppedTanks,
-      setSelectedIds,
-      setSelectedTank,
-      hideContextMenu,
-    });
+  const {
+    selectionBox,
+    handleCanvasMouseDown,
+    handleCanvasMouseMove,
+    handleCanvasMouseUp,
+  } = useCanvasSelection({
+    droppedTanks,
+    setSelectedIds,
+    setSelectedTank,
+    hideContextMenu,
+  });
 
   // OBJECT DRAGGING
   const {
@@ -299,9 +304,11 @@ export default function App() {
     onDragEndCommit();
   };
 
-  // DROP HANDLER
+  // ✅ DROP HANDLER
+  // IMPORTANT: pass openAlarmLog so the drop handler can prevent the "fake alarm log window"
   const { handleDrop } = useDropHandler({
     setDroppedTanks,
+    onOpenAlarmLog: openAlarmLog, // ✅ NEW
   });
 
   const handleSelect = (id) => {
@@ -362,8 +369,6 @@ export default function App() {
           onRedo={handleRedo}
           canUndo={canUndo}
           canRedo={canRedo}
-
-          // ✅ NEW: minimized alarm log tray item shown in header
           minimizedWindows={
             alarmLogMinimized
               ? [{ key: "alarmLog", title: "Alarms Log (DI-AI)" }]
@@ -456,15 +461,9 @@ export default function App() {
           showSiloProps={showSiloProps}
           setShowSiloProps={setShowSiloProps}
           activeSiloId={activeSiloId}
-
-          // ✅ Alarm log open state
           alarmLogOpen={alarmLogOpen}
           closeAlarmLog={closeAlarmLog}
-
-          // ✅ NEW: Minimize handler (AlarmLogWindow calls this)
           onMinimizeAlarmLog={minimizeAlarmLog}
-
-          // (optional convenience)
           onLaunchAlarmLog={launchAlarmLog}
         />
       </main>

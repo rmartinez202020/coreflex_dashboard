@@ -1,5 +1,5 @@
 // src/hooks/useDropHandler.js
-export default function useDropHandler({ setDroppedTanks }) {
+export default function useDropHandler({ setDroppedTanks, onOpenAlarmLog }) {
   const makeId = () => {
     try {
       return crypto.randomUUID();
@@ -13,7 +13,6 @@ export default function useDropHandler({ setDroppedTanks }) {
     const v = String(s || "").trim();
     if (!v) return false;
 
-    // allow: https, http, data:image, blob
     if (
       v.startsWith("http://") ||
       v.startsWith("https://") ||
@@ -22,7 +21,6 @@ export default function useDropHandler({ setDroppedTanks }) {
     )
       return true;
 
-    // allow common file extensions
     return /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(v);
   };
 
@@ -34,7 +32,7 @@ export default function useDropHandler({ setDroppedTanks }) {
     const y = e.clientY - rect.top;
 
     // ===============================
-    // ✅ 1) IMAGE DROP (ONLY real urls)
+    // ✅ 1) IMAGE DROP
     // ===============================
     const imageUrl = e.dataTransfer.getData("imageUrl");
     const coreflexImg = e.dataTransfer.getData("coreflex-image");
@@ -62,7 +60,7 @@ export default function useDropHandler({ setDroppedTanks }) {
     }
 
     // ===============================
-    // ✅ 2) DEVICE CONTROLS DROP
+    // ✅ 2) DEVICE CONTROLS
     // ===============================
     const control = e.dataTransfer.getData("control");
     if (control) {
@@ -93,8 +91,8 @@ export default function useDropHandler({ setDroppedTanks }) {
             y,
             w: 110,
             h: 110,
-            zIndex: 1,
             pressed: false,
+            zIndex: 1,
           },
         ]);
         return;
@@ -110,8 +108,8 @@ export default function useDropHandler({ setDroppedTanks }) {
             y,
             w: 110,
             h: 110,
-            zIndex: 1,
             pressed: false,
+            zIndex: 1,
           },
         ]);
         return;
@@ -160,12 +158,12 @@ export default function useDropHandler({ setDroppedTanks }) {
     }
 
     // ===============================
-    // ✅ 3) SHAPES (RightSidebar)
+    // ✅ 3) SHAPES (RightPanel)
     // ===============================
     const shape = e.dataTransfer.getData("shape");
     if (!shape) return;
 
-    // ✅ GRAPHIC DISPLAY
+    // ✅ GRAPHIC DISPLAY (canvas object)
     if (shape === "graphicDisplay") {
       setDroppedTanks((prev) => [
         ...prev,
@@ -188,9 +186,6 @@ export default function useDropHandler({ setDroppedTanks }) {
           yUnits: "",
           graphStyle: "line",
 
-          sampleEveryMs: 1000,
-          windowCount: 60,
-
           series: [
             {
               name: "Level %",
@@ -206,22 +201,10 @@ export default function useDropHandler({ setDroppedTanks }) {
       return;
     }
 
-    // ✅✅✅ ALARMS LOG (DI-AI)
+    // 🚨🚨🚨 ALARMS LOG (SYSTEM WINDOW — NOT A CANVAS OBJECT)
     if (shape === "alarmLog") {
-      setDroppedTanks((prev) => [
-        ...prev,
-        {
-          id: makeId(),
-          shape: "alarmLog",
-          x,
-          y,
-          w: 780,
-          h: 360,
-          zIndex: 1,
-          title: "Alarms Log (DI-AI)",
-        },
-      ]);
-      return;
+      onOpenAlarmLog?.(); // ✅ open real alarm log window
+      return;             // ❌ do NOT add to droppedTanks
     }
 
     // TEXT BOX
@@ -244,7 +227,9 @@ export default function useDropHandler({ setDroppedTanks }) {
       return;
     }
 
-    // 4) OTHER MODELS
+    // ===============================
+    // ✅ 4) OTHER MODELS
+    // ===============================
     setDroppedTanks((prev) => [
       ...prev,
       {
