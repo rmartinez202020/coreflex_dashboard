@@ -14,10 +14,10 @@ export default function FloatingWindow({
   const [pos, setPos] = useState(position);
   const [sz, setSz] = useState(size);
 
-  const dragRef = useRef(null);
-  const resizeRef = useRef(null);
+  const dragStartRef = useRef(null);
+  const resizeStartRef = useRef(null);
 
-  // Reset to given defaults when opened (optional but nice)
+  // Optional: reset default position/size each time it becomes visible
   useEffect(() => {
     if (visible) {
       setPos(position);
@@ -28,24 +28,36 @@ export default function FloatingWindow({
 
   if (!visible) return null;
 
+  const clamp = (n, min) => Math.max(min, n);
+
+  // -------------------------
+  // DRAG
+  // -------------------------
   const startDrag = (e) => {
     e.stopPropagation();
     e.preventDefault();
 
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const startPos = { ...pos };
+    dragStartRef.current = {
+      startX: e.clientX,
+      startY: e.clientY,
+      startPos: { ...pos },
+    };
 
     const onMove = (ev) => {
-      const dx = ev.clientX - startX;
-      const dy = ev.clientY - startY;
+      const s = dragStartRef.current;
+      if (!s) return;
+
+      const dx = ev.clientX - s.startX;
+      const dy = ev.clientY - s.startY;
+
       setPos({
-        x: startPos.x + dx,
-        y: startPos.y + dy,
+        x: s.startPos.x + dx,
+        y: s.startPos.y + dy,
       });
     };
 
     const onUp = () => {
+      dragStartRef.current = null;
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
@@ -54,28 +66,45 @@ export default function FloatingWindow({
     window.addEventListener("mouseup", onUp);
   };
 
-  const startResize = (e) => {
+  // -------------------------
+  // RESIZE (right / bottom / corner)
+  // -------------------------
+  const startResize = (edge) => (e) => {
     e.stopPropagation();
     e.preventDefault();
 
-    const startX = e.clientX;
-    const startY = e.clientY;
-    const startSize = { ...sz };
+    resizeStartRef.current = {
+      edge, // "right" | "bottom" | "corner"
+      startX: e.clientX,
+      startY: e.clientY,
+      startSize: { ...sz },
+    };
 
     const minW = 520;
     const minH = 260;
 
     const onMove = (ev) => {
-      const dx = ev.clientX - startX;
-      const dy = ev.clientY - startY;
+      const s = resizeStartRef.current;
+      if (!s) return;
 
-      setSz({
-        width: Math.max(minW, startSize.width + dx),
-        height: Math.max(minH, startSize.height + dy),
-      });
+      const dx = ev.clientX - s.startX;
+      const dy = ev.clientY - s.startY;
+
+      let nextW = s.startSize.width;
+      let nextH = s.startSize.height;
+
+      if (s.edge === "right" || s.edge === "corner") {
+        nextW = clamp(s.startSize.width + dx, minW);
+      }
+      if (s.edge === "bottom" || s.edge === "corner") {
+        nextH = clamp(s.startSize.height + dy, minH);
+      }
+
+      setSz({ width: nextW, height: nextH });
     };
 
     const onUp = () => {
+      resizeStartRef.current = null;
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
@@ -107,7 +136,6 @@ export default function FloatingWindow({
     >
       {/* HEADER BAR (DRAG HANDLE) */}
       <div
-        ref={dragRef}
         onMouseDown={startDrag}
         style={{
           height: 40,
@@ -169,19 +197,49 @@ export default function FloatingWindow({
       {/* BODY */}
       <div style={{ flex: 1, overflow: "auto" }}>{children}</div>
 
-      {/* RESIZE HANDLE (BOTTOM-RIGHT) */}
+      {/* ✅ RESIZE ZONES */}
+      {/* Right edge */}
       <div
-        ref={resizeRef}
-        onMouseDown={startResize}
+        onMouseDown={startResize("right")}
         title="Resize"
         style={{
           position: "absolute",
-          right: 2,
-          bottom: 2,
-          width: 18,
-          height: 18,
+          top: 40, // below header
+          right: 0,
+          width: 10,
+          height: "calc(100% - 40px)",
+          cursor: "ew-resize",
+          zIndex: 10,
+        }}
+      />
+
+      {/* Bottom edge */}
+      <div
+        onMouseDown={startResize("bottom")}
+        title="Resize"
+        style={{
+          position: "absolute",
+          left: 0,
+          bottom: 0,
+          width: "100%",
+          height: 10,
+          cursor: "ns-resize",
+          zIndex: 10,
+        }}
+      />
+
+      {/* Bottom-right corner */}
+      <div
+        onMouseDown={startResize("corner")}
+        title="Resize"
+        style={{
+          position: "absolute",
+          right: 0,
+          bottom: 0,
+          width: 16,
+          height: 16,
           cursor: "nwse-resize",
-          background: "transparent",
+          zIndex: 11,
         }}
       />
     </div>
