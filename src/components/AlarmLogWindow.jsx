@@ -11,6 +11,9 @@ export default function AlarmLogWindow({
 }) {
   const alarms = useAlarmsMockData();
 
+  // ✅ NEW: top-left tabs like VTScada
+  const [alarmView, setAlarmView] = React.useState("alarms"); // alarms | history | active | disabled
+
   const [showCloseConfirm, setShowCloseConfirm] = React.useState(false);
 
   const requestClose = (e) => {
@@ -25,13 +28,23 @@ export default function AlarmLogWindow({
 
   const cancelClose = () => setShowCloseConfirm(false);
 
+  // ✅ Simple view behavior (safe placeholders)
+  const visibleAlarms = React.useMemo(() => {
+    if (alarmView === "active") return alarms.filter((a) => !a.acknowledged);
+    if (alarmView === "disabled") return [];
+    // "alarms" and "history" show all for now
+    return alarms;
+  }, [alarmView, alarms]);
+
   return (
     <div style={wrap}>
       {/* TOP BAR */}
       <div style={topBar}>
-        <div style={titleWrap}>
-          <span style={{ fontWeight: 900 }}>{title}</span>
-          <span style={countPill}>{alarms.length}</span>
+        <div style={leftTop}>
+          <div style={titleWrap}>
+            <span style={{ fontWeight: 900 }}>{title}</span>
+            <span style={countPill}>{visibleAlarms.length}</span>
+          </div>
         </div>
 
         {/* ✅ 4 Buttons on top-right */}
@@ -87,6 +100,30 @@ export default function AlarmLogWindow({
         </div>
       </div>
 
+      {/* ✅ NEW: Tabs row (top-left like screenshot) */}
+      <div style={tabsBar}>
+        <TabButton
+          label="Alarms"
+          active={alarmView === "alarms"}
+          onClick={() => setAlarmView("alarms")}
+        />
+        <TabButton
+          label="History"
+          active={alarmView === "history"}
+          onClick={() => setAlarmView("history")}
+        />
+        <TabButton
+          label="Active"
+          active={alarmView === "active"}
+          onClick={() => setAlarmView("active")}
+        />
+        <TabButton
+          label="Disabled"
+          active={alarmView === "disabled"}
+          onClick={() => setAlarmView("disabled")}
+        />
+      </div>
+
       {/* TABLE */}
       <div style={table}>
         <div style={header}>
@@ -99,7 +136,7 @@ export default function AlarmLogWindow({
           )}
         </div>
 
-        {alarms.map((a) => (
+        {visibleAlarms.map((a) => (
           <div
             key={a.id}
             style={{
@@ -116,6 +153,13 @@ export default function AlarmLogWindow({
             <div style={cell}>{a.controller}</div>
           </div>
         ))}
+
+        {/* Optional empty state for Disabled (or if no rows) */}
+        {visibleAlarms.length === 0 && (
+          <div style={emptyState}>
+            No alarms to display in <b>{alarmView}</b>.
+          </div>
+        )}
       </div>
 
       {/* ✅ CLOSE CONFIRM MODAL */}
@@ -142,6 +186,26 @@ export default function AlarmLogWindow({
   );
 }
 
+/** ✅ Small local component for the tab buttons */
+function TabButton({ label, active, onClick }) {
+  return (
+    <button
+      type="button"
+      onClick={(e) => {
+        e.stopPropagation();
+        onClick?.();
+      }}
+      style={{
+        ...tabBtn,
+        ...(active ? tabBtnActive : null),
+      }}
+      title={label}
+    >
+      {label}
+    </button>
+  );
+}
+
 const wrap = {
   width: "100%",
   height: "100%",
@@ -149,6 +213,7 @@ const wrap = {
   color: "#e5e7eb",
   display: "flex",
   flexDirection: "column",
+  position: "relative", // ✅ helps confirmOverlay (absolute) behave correctly
 };
 
 const topBar = {
@@ -159,6 +224,12 @@ const topBar = {
   justifyContent: "space-between",
   padding: "0 10px",
   borderBottom: "1px solid #111827",
+};
+
+const leftTop = {
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
 };
 
 const titleWrap = {
@@ -195,6 +266,35 @@ const iconBtn = {
   lineHeight: "24px",
 };
 
+/* ✅ Tabs row */
+const tabsBar = {
+  height: 34,
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  padding: "0 10px",
+  background: "#0b1220",
+  borderBottom: "1px solid #1f2937",
+};
+
+const tabBtn = {
+  height: 26,
+  padding: "0 10px",
+  borderRadius: 8,
+  border: "1px solid #334155",
+  background: "#0b1220",
+  color: "#e5e7eb",
+  cursor: "pointer",
+  fontWeight: 900,
+  fontSize: 12,
+};
+
+const tabBtnActive = {
+  background: "#111827",
+  borderColor: "#60a5fa",
+  boxShadow: "0 0 0 2px rgba(96,165,250,0.12) inset",
+};
+
 const table = {
   flex: 1,
   overflow: "auto",
@@ -224,6 +324,13 @@ const cell = {
   padding: 8,
   fontSize: 12,
   color: "#e5e7eb",
+};
+
+const emptyState = {
+  padding: 14,
+  fontSize: 13,
+  color: "#cbd5e1",
+  borderBottom: "1px solid #1f2937",
 };
 
 /* Confirm modal */
