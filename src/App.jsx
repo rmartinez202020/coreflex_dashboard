@@ -189,6 +189,17 @@ const {
   const openGraphicDisplaySettings = (tank) => setGraphicSettingsId(tank.id);
   const closeGraphicDisplaySettings = () => setGraphicSettingsId(null);
 
+    // 🚨 ALARMS LOG MODAL (AI)
+  const [alarmLogOpen, setAlarmLogOpen] = useState(false);
+
+  const openAlarmLog = () => setAlarmLogOpen(true);
+  const closeAlarmLog = () => setAlarmLogOpen(false);
+
+  // Launch = separate window (always tracking alarms)
+  const launchAlarmLog = () =>
+    window.open("/launchAlarmLog", "_blank");
+
+
   // SENSOR SETUP
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 3 } })
@@ -380,6 +391,8 @@ if (isLaunchPage) {
             guides={guides}
             onOpenDisplaySettings={openDisplaySettings}
             onOpenGraphicDisplaySettings={openGraphicDisplaySettings}
+            onOpenAlarmLog={openAlarmLog}
+            onLaunchAlarmLog={launchAlarmLog}
           />
         ) : activePage === "deviceControls" ? (
           <div className="w-full h-full border rounded-lg bg-white p-6">
@@ -407,6 +420,8 @@ if (isLaunchPage) {
           showSiloProps={showSiloProps}
           setShowSiloProps={setShowSiloProps}
           activeSiloId={activeSiloId}
+          alarmLogOpen={alarmLogOpen}
+          closeAlarmLog={closeAlarmLog}
         />
 
       </main>

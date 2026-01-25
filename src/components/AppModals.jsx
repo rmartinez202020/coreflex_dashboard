@@ -6,6 +6,9 @@ import DisplaySettingsModal from "./DisplaySettingsModal";
 import GraphicDisplaySettingsModal from "./GraphicDisplaySettingsModal";
 import SiloPropertiesModal from "./SiloPropertiesModal";
 
+// ✅ NEW: Alarms Log (AI)
+import AlarmLogModal from "./AlarmLogModal";
+
 export default function AppModals({
   // --- shared state ---
   droppedTanks,
@@ -29,6 +32,10 @@ export default function AppModals({
   showSiloProps,
   setShowSiloProps,
   activeSiloId,
+
+  // --- ✅ Alarms Log (AI) modal ---
+  alarmLogOpen,
+  closeAlarmLog,
 }) {
   // ✅ helpers to avoid silent mismatches (number vs string ids)
   const isSameId = (a, b) => String(a) === String(b);
@@ -109,6 +116,9 @@ export default function AppModals({
           }
         />
       )}
+
+      {/* 🚨 Alarms Log (AI) */}
+      <AlarmLogModal open={!!alarmLogOpen} onClose={closeAlarmLog} />
 
       {/* ✅ Restore Warning */}
       <RestoreWarningModal

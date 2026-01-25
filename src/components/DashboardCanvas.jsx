@@ -10,6 +10,9 @@ import DraggableDisplayBox from "./DraggableDisplayBox";
 // ✅ NEW
 import DraggableGraphicDisplay from "./DraggableGraphicDisplay";
 
+// ✅ NEW (Alarm Log widget)
+import DraggableAlarmLog from "./DraggableAlarmLog";
+
 // ✅ Toggle switch visual
 import ToggleSwitchControl from "./controls/ToggleSwitchControl";
 
@@ -183,130 +186,128 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
   const setBtnH = 26;
 
   return (
-  // ✅ wrapper: label sits ABOVE the display box
-  <div style={{ width: w, userSelect: "none" }}>
-    {/* ✅ LABEL ABOVE (NOT inside) */}
-    {label ? (
-  <div
-    style={{
-      marginBottom: 6,
-      fontSize: 18,        // ✅ bigger like display input
-      fontWeight: 900,     // ✅ bold
-      color: "#111",
-      textAlign: "center", // ✅ centered
-      letterSpacing: 0.5,  // ✅ panel look
-    }}
-  >
-    {label}
-  </div>
-) : null}
+    // ✅ wrapper: label sits ABOVE the display box
+    <div style={{ width: w, userSelect: "none" }}>
+      {/* ✅ LABEL ABOVE (NOT inside) */}
+      {label ? (
+        <div
+          style={{
+            marginBottom: 6,
+            fontSize: 18, // ✅ bigger like display input
+            fontWeight: 900, // ✅ bold
+            color: "#111",
+            textAlign: "center", // ✅ centered
+            letterSpacing: 0.5, // ✅ panel look
+          }}
+        >
+          {label}
+        </div>
+      ) : null}
 
-
-    {/* ✅ display box */}
-    <div
-      style={{
-        width: w,
-        height: h,
-        background: "white",
-        border: "2px solid black",
-        borderRadius: 0,
-        position: "relative",
-        boxSizing: "border-box",
-      }}
-    >
-      {/* ✅ value centered */}
+      {/* ✅ display box */}
       <div
         style={{
-          position: "absolute",
-          left: 0,
-          top: 0,
-          right: 0,
-          bottom: setBtnH,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
+          width: w,
+          height: h,
+          background: "white",
+          border: "2px solid black",
+          borderRadius: 0,
+          position: "relative",
           boxSizing: "border-box",
         }}
       >
-        {isPlay ? (
-          <input
-            value={displayed}
-            inputMode="numeric"
-            autoComplete="off"
-            spellCheck={false}
-            onMouseDown={(e) => e.stopPropagation()}
-            onPointerDown={(e) => e.stopPropagation()}
-            onFocus={(e) => {
-              e.stopPropagation();
-              setEditing(true);
+        {/* ✅ value centered */}
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            right: 0,
+            bottom: setBtnH,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxSizing: "border-box",
+          }}
+        >
+          {isPlay ? (
+            <input
+              value={displayed}
+              inputMode="numeric"
+              autoComplete="off"
+              spellCheck={false}
+              onMouseDown={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
+              onFocus={(e) => {
+                e.stopPropagation();
+                setEditing(true);
 
-              requestAnimationFrame(() => {
-                try {
-                  const len = e.target.value.length;
-                  e.target.setSelectionRange(len, len);
-                } catch {}
-              });
-            }}
-            onChange={(e) => {
-              const next = onlyDigits(e.target.value).slice(0, maxDigits);
-              setDraft(next);
-            }}
-            onKeyDown={(e) => {
-              if (e.key === "Enter") e.currentTarget.blur();
-            }}
-            onBlur={() => {
-              setEditing(false);
-              commitFormattedValue();
-            }}
-            style={{
-              width: "100%",
-              height: "100%",
-              border: "none",
-              outline: "none",
-              background: "transparent",
-              textAlign: "center",
-              fontFamily: "monospace",
-              fontWeight: 900,
-              fontSize: 22,
-              color: "#111",
-              letterSpacing: 1.5,
-            }}
-          />
-        ) : (
-          <div
-            style={{
-              fontFamily: "monospace",
-              fontWeight: 900,
-              fontSize: 22,
-              color: "#111",
-              letterSpacing: 1.5,
-              lineHeight: "22px",
-            }}
-          >
-            {displayed}
-          </div>
-        )}
-      </div>
+                requestAnimationFrame(() => {
+                  try {
+                    const len = e.target.value.length;
+                    e.target.setSelectionRange(len, len);
+                  } catch {}
+                });
+              }}
+              onChange={(e) => {
+                const next = onlyDigits(e.target.value).slice(0, maxDigits);
+                setDraft(next);
+              }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter") e.currentTarget.blur();
+              }}
+              onBlur={() => {
+                setEditing(false);
+                commitFormattedValue();
+              }}
+              style={{
+                width: "100%",
+                height: "100%",
+                border: "none",
+                outline: "none",
+                background: "transparent",
+                textAlign: "center",
+                fontFamily: "monospace",
+                fontWeight: 900,
+                fontSize: 22,
+                color: "#111",
+                letterSpacing: 1.5,
+              }}
+            />
+          ) : (
+            <div
+              style={{
+                fontFamily: "monospace",
+                fontWeight: 900,
+                fontSize: 22,
+                color: "#111",
+                letterSpacing: 1.5,
+                lineHeight: "22px",
+              }}
+            >
+              {displayed}
+            </div>
+          )}
+        </div>
 
-      {/* ✅ SET button ALWAYS visible */}
-      <div
-        style={{
-          position: "absolute",
-          left: 0,
-          right: 0,
-          bottom: 0,
-          height: setBtnH,
-          borderTop: "2px solid black",
-        }}
-        onMouseDown={(e) => e.stopPropagation()}
-        onPointerDown={(e) => e.stopPropagation()}
-      >
-        <SetButton isPlay={isPlay} onSet={handleSet} />
+        {/* ✅ SET button ALWAYS visible */}
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            height: setBtnH,
+            borderTop: "2px solid black",
+          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
+        >
+          <SetButton isPlay={isPlay} onSet={handleSet} />
+        </div>
       </div>
     </div>
-  </div>
-);
-
+  );
 }
 
 export default function DashboardCanvas({
@@ -340,6 +341,10 @@ export default function DashboardCanvas({
   guides,
   onOpenDisplaySettings,
   onOpenGraphicDisplaySettings,
+
+  // ✅ NEW (Alarm Log)
+  onOpenAlarmLog,
+  onLaunchAlarmLog,
 }) {
   const isPlay = dashboardMode === "play";
 
@@ -378,6 +383,21 @@ export default function DashboardCanvas({
                   prev.map((t) => (t.id === updated.id ? updated : t))
                 ),
             };
+
+            // ✅ ALARMS LOG (AI) widget
+            // Shape name: "alarmLogAI"
+            if (tank.shape === "alarmLogAI") {
+              return (
+                <DraggableAlarmLog
+                  key={tank.id}
+                  obj={tank}
+                  selected={isSelected && !isPlay}
+                  onSelect={(id) => handleSelect(id)}
+                  onOpen={() => onOpenAlarmLog?.(tank)}
+                  onLaunch={() => onLaunchAlarmLog?.(tank)}
+                />
+              );
+            }
 
             // IMAGE
             if (tank.shape === "img") {
