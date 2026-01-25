@@ -1,44 +1,98 @@
-// components/FloatingWindow.jsx
-import React from "react";
+// src/components/FloatingWindow.jsx
+import React, { useEffect, useRef, useState } from "react";
 
 export default function FloatingWindow({
   visible,
   title,
-  position,
-  size,
-
-  // actions
+  position = { x: 120, y: 120 },
+  size = { width: 900, height: 420 },
   onClose,
-  onMinimize, // ✅ NEW (optional)
-  onLaunch, // ✅ NEW (optional)
-  onOpenSettings, // ✅ NEW (optional)
-
-  // drag/resize
-  onStartDragWindow,
-  onStartResizeWindow,
-
+  onMinimize,
+  onLaunch,
   children,
 }) {
+  const [pos, setPos] = useState(position);
+  const [sz, setSz] = useState(size);
+
+  const dragRef = useRef(null);
+  const resizeRef = useRef(null);
+
+  // Reset to given defaults when opened (optional but nice)
+  useEffect(() => {
+    if (visible) {
+      setPos(position);
+      setSz(size);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible]);
+
   if (!visible) return null;
 
-  // ✅ Clamp window size so it NEVER opens larger than the viewport
-  const safeWidth = Math.min(size?.width ?? 820, window.innerWidth - 80);
-  const safeHeight = Math.min(size?.height ?? 560, window.innerHeight - 120);
+  const startDrag = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startPos = { ...pos };
+
+    const onMove = (ev) => {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+      setPos({
+        x: startPos.x + dx,
+        y: startPos.y + dy,
+      });
+    };
+
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
+
+  const startResize = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+    const startSize = { ...sz };
+
+    const minW = 520;
+    const minH = 260;
+
+    const onMove = (ev) => {
+      const dx = ev.clientX - startX;
+      const dy = ev.clientY - startY;
+
+      setSz({
+        width: Math.max(minW, startSize.width + dx),
+        height: Math.max(minH, startSize.height + dy),
+      });
+    };
+
+    const onUp = () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+  };
 
   return (
     <div
       className="floating-window"
       style={{
         position: "absolute",
-        left: position.x,
-        top: position.y,
-
-        width: safeWidth,
-        height: safeHeight,
-
-        maxWidth: "calc(100vw - 80px)",
-        maxHeight: "calc(100vh - 120px)",
-
+        left: pos.x,
+        top: pos.y,
+        width: sz.width,
+        height: sz.height,
         background: "white",
         color: "black",
         border: "2px solid #1e293b",
@@ -48,18 +102,13 @@ export default function FloatingWindow({
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
-        userSelect: "none",
       }}
-      // ✅ stop clicks from reaching canvas
       onMouseDown={(e) => e.stopPropagation()}
-      // ✅ avoid weird double-click behaviors
-      onDoubleClick={(e) => {
-        e.stopPropagation();
-        e.preventDefault();
-      }}
     >
-      {/* HEADER (DRAG BAR ONLY) */}
+      {/* HEADER BAR (DRAG HANDLE) */}
       <div
+        ref={dragRef}
+        onMouseDown={startDrag}
         style={{
           height: 40,
           background: "#0f172a",
@@ -67,52 +116,23 @@ export default function FloatingWindow({
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "0 12px",
-          fontWeight: "bold",
-          cursor: "move", // ✅ clearer than grab
+          padding: "0 10px",
+          cursor: "move",
           userSelect: "none",
-          borderBottom: "2px solid #000",
-        }}
-        onMouseDown={(e) => {
-          e.stopPropagation();
-          onStartDragWindow?.(e); // ✅ safe optional
-        }}
-        onDoubleClick={(e) => {
-          e.stopPropagation();
-          e.preventDefault();
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <span>{title}</span>
-        </div>
+        <div style={{ fontWeight: 800, fontSize: 14 }}>{title}</div>
 
-        {/* ✅ WINDOW BUTTONS */}
-        <div style={{ display: "flex", gap: 6, alignItems: "center" }}>
-          {onOpenSettings && (
-            <button
-              type="button"
-              title="Settings"
-              style={iconBtn}
-              onMouseDown={(e) => e.stopPropagation()}
-              onClick={(e) => {
-                e.stopPropagation();
-                onOpenSettings?.();
-              }}
-            >
-              ⚙
-            </button>
-          )}
-
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {onLaunch && (
             <button
               type="button"
-              title="Launch"
-              style={iconBtn}
-              onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
-                onLaunch?.();
+                onLaunch();
               }}
+              title="Launch"
+              style={iconBtn}
             >
               ↗
             </button>
@@ -121,13 +141,12 @@ export default function FloatingWindow({
           {onMinimize && (
             <button
               type="button"
-              title="Minimize"
-              style={iconBtn}
-              onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => {
                 e.stopPropagation();
-                onMinimize?.();
+                onMinimize();
               }}
+              title="Minimize"
+              style={iconBtn}
             >
               —
             </button>
@@ -135,51 +154,34 @@ export default function FloatingWindow({
 
           <button
             type="button"
-            title="Close"
-            style={{ ...iconBtn, borderColor: "#7f1d1d" }}
-            onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               onClose?.();
             }}
+            title="Close"
+            style={{ ...iconBtn, background: "#ef4444", borderColor: "#b91c1c" }}
           >
             ✕
           </button>
         </div>
       </div>
 
-      {/* CONTENT */}
-      <div
-        style={{
-          flex: 1,
-          padding: "10px",
-          overflow: "auto",
-          background: "white",
-        }}
-        onMouseDown={(e) => e.stopPropagation()}
-        onDoubleClick={(e) => {
-          e.stopPropagation();
-          e.preventDefault();
-        }}
-      >
-        {children}
-      </div>
+      {/* BODY */}
+      <div style={{ flex: 1, overflow: "auto" }}>{children}</div>
 
-      {/* RESIZE HANDLE */}
+      {/* RESIZE HANDLE (BOTTOM-RIGHT) */}
       <div
+        ref={resizeRef}
+        onMouseDown={startResize}
+        title="Resize"
         style={{
-          width: 16,
-          height: 16,
           position: "absolute",
-          right: 0,
-          bottom: 0,
-          background: "#2563eb",
+          right: 2,
+          bottom: 2,
+          width: 18,
+          height: 18,
           cursor: "nwse-resize",
-          borderTopLeftRadius: 6,
-        }}
-        onMouseDown={(e) => {
-          e.stopPropagation();
-          onStartResizeWindow?.(e);
+          background: "transparent",
         }}
       />
     </div>
@@ -189,11 +191,14 @@ export default function FloatingWindow({
 const iconBtn = {
   width: 28,
   height: 24,
-  background: "#000",
-  color: "#fff",
   borderRadius: 6,
-  border: "1px solid #111",
-  cursor: "pointer",
+  border: "1px solid #334155",
+  background: "#111827",
+  color: "white",
   fontWeight: 900,
-  lineHeight: "22px",
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  lineHeight: "1",
 };
