@@ -11,7 +11,7 @@ import DraggableDisplayBox from "./DraggableDisplayBox";
 // ✅ NEW
 import DraggableGraphicDisplay from "./DraggableGraphicDisplay";
 
-// ✅ NEW: Alarm Log widget
+// ✅ NEW: Alarm Log widget (minimized icon)
 import DraggableAlarmLog from "./DraggableAlarmLog";
 
 // ✅ Toggle switch visual
@@ -136,12 +136,7 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
 
   const commitFormattedValue = () => {
     const formatted = padToFormat(draft, numberFormat);
-
-    onUpdate?.({
-      ...tank,
-      value: formatted,
-    });
-
+    onUpdate?.({ ...tank, value: formatted });
     return formatted;
   };
 
@@ -149,8 +144,8 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
     if (!isPlay) return;
 
     const formatted = commitFormattedValue();
-
     const now = new Date().toISOString();
+
     onUpdate?.({
       ...tank,
       value: formatted,
@@ -160,13 +155,7 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
 
     window.dispatchEvent(
       new CustomEvent("coreflex-displayOutput-set", {
-        detail: {
-          id: tank.id,
-          value: formatted,
-          label,
-          numberFormat,
-          at: now,
-        },
+        detail: { id: tank.id, value: formatted, label, numberFormat, at: now },
       })
     );
   };
@@ -366,6 +355,22 @@ export default function DashboardCanvas({
                 ),
             };
 
+            // ✅ MINIMIZED ALARM LOG (show small icon on canvas)
+            if (tank.shape === "alarmLog" && tank.minimized) {
+              return (
+                <DraggableAlarmLog
+                  key={tank.id}
+                  obj={tank}
+                  selected={isSelected && !isPlay}
+                  onSelect={() => handleSelect(tank.id)}
+                  onOpen={() =>
+                    commonProps.onUpdate?.({ ...tank, minimized: false })
+                  }
+                  onLaunch={() => onLaunchAlarmLog?.(tank)}
+                />
+              );
+            }
+
             // IMAGE
             if (tank.shape === "img") {
               return (
@@ -425,9 +430,8 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅✅✅ ALARMS LOG (DI-AI)
-            // NOTE: we render the full widget directly, NOT the small icon.
-            // This matches your request: "drop the icon → the window appears on the dashboard".
+            // ✅✅✅ HERE IS WHERE IT GOES:
+            // (RIGHT AFTER graphicDisplay and BEFORE interlock/toggle/etc)
             if (tank.shape === "alarmLog") {
               const w = tank.w ?? tank.width ?? 780;
               const h = tank.h ?? tank.height ?? 360;
@@ -445,7 +449,16 @@ export default function DashboardCanvas({
                     onPointerDown={(e) => e.stopPropagation()}
                   >
                     <AlarmLogWindow
+                      onOpenSettings={() => onOpenAlarmLog?.(tank)}
                       onLaunch={() => onLaunchAlarmLog?.(tank)}
+                      onMinimize={() =>
+                        commonProps.onUpdate?.({ ...tank, minimized: true })
+                      }
+                      onClose={() =>
+                        setDroppedTanks((prev) =>
+                          prev.filter((t) => t.id !== tank.id)
+                        )
+                      }
                     />
                   </div>
                 </DraggableDroppedTank>
@@ -453,10 +466,7 @@ export default function DashboardCanvas({
             }
 
             // INTERLOCK
-            if (
-              tank.shape === "interlock" ||
-              tank.shape === "interlockControl"
-            ) {
+            if (tank.shape === "interlock" || tank.shape === "interlockControl") {
               const w = tank.w ?? tank.width ?? 190;
               const h = tank.h ?? tank.height ?? 80;
               const locked = tank.locked ?? true;
@@ -469,10 +479,7 @@ export default function DashboardCanvas({
             }
 
             // TOGGLE
-            if (
-              tank.shape === "toggleSwitch" ||
-              tank.shape === "toggleControl"
-            ) {
+            if (tank.shape === "toggleSwitch" || tank.shape === "toggleControl") {
               const w = tank.w ?? tank.width ?? 180;
               const h = tank.h ?? tank.height ?? 70;
               const isOn = tank.isOn ?? true;
