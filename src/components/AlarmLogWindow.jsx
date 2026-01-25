@@ -94,8 +94,9 @@ export default function AlarmLogWindow({
             —
           </button>
 
+          {/* ✅ UPDATED: RED CLOSE BUTTON */}
           <button
-            style={{ ...iconBtn, borderColor: "#7f1d1d" }}
+            style={closeBtnRed}
             title="Close"
             onClick={(e) => {
               e.stopPropagation();
@@ -302,6 +303,7 @@ const countPill = {
 };
 
 const btnRow = { display: "flex", gap: 6, alignItems: "center" };
+
 const iconBtn = {
   width: 28,
   height: 26,
@@ -309,6 +311,18 @@ const iconBtn = {
   color: "#fff",
   borderRadius: 6,
   border: "1px solid #111",
+  cursor: "pointer",
+  fontWeight: 900,
+};
+
+// ✅ NEW: red close icon style (matches the old top bar red X vibe)
+const closeBtnRed = {
+  width: 28,
+  height: 26,
+  background: "#ef4444",
+  color: "#fff",
+  borderRadius: 6,
+  border: "1px solid #b91c1c",
   cursor: "pointer",
   fontWeight: 900,
 };

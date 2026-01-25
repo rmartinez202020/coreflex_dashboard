@@ -10,6 +10,9 @@ export default function FloatingWindow({
   onMinimize,
   onLaunch,
   children,
+
+  // ✅ NEW
+  hideHeader = false,
 }) {
   const [pos, setPos] = useState(position);
   const [sz, setSz] = useState(size);
@@ -17,7 +20,6 @@ export default function FloatingWindow({
   const dragStartRef = useRef(null);
   const resizeStartRef = useRef(null);
 
-  // Optional: reset default position/size each time it becomes visible
   useEffect(() => {
     if (visible) {
       setPos(position);
@@ -30,9 +32,6 @@ export default function FloatingWindow({
 
   const clamp = (n, min) => Math.max(min, n);
 
-  // -------------------------
-  // DRAG
-  // -------------------------
   const startDrag = (e) => {
     e.stopPropagation();
     e.preventDefault();
@@ -66,15 +65,12 @@ export default function FloatingWindow({
     window.addEventListener("mouseup", onUp);
   };
 
-  // -------------------------
-  // RESIZE (right / bottom / corner)
-  // -------------------------
   const startResize = (edge) => (e) => {
     e.stopPropagation();
     e.preventDefault();
 
     resizeStartRef.current = {
-      edge, // "right" | "bottom" | "corner"
+      edge,
       startX: e.clientX,
       startY: e.clientY,
       startSize: { ...sz },
@@ -93,12 +89,8 @@ export default function FloatingWindow({
       let nextW = s.startSize.width;
       let nextH = s.startSize.height;
 
-      if (s.edge === "right" || s.edge === "corner") {
-        nextW = clamp(s.startSize.width + dx, minW);
-      }
-      if (s.edge === "bottom" || s.edge === "corner") {
-        nextH = clamp(s.startSize.height + dy, minH);
-      }
+      if (s.edge === "right" || s.edge === "corner") nextW = clamp(nextW + dx, minW);
+      if (s.edge === "bottom" || s.edge === "corner") nextH = clamp(nextH + dy, minH);
 
       setSz({ width: nextW, height: nextH });
     };
@@ -112,6 +104,8 @@ export default function FloatingWindow({
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   };
+
+  const headerH = hideHeader ? 0 : 40;
 
   return (
     <div
@@ -134,86 +128,103 @@ export default function FloatingWindow({
       }}
       onMouseDown={(e) => e.stopPropagation()}
     >
-      {/* HEADER BAR (DRAG HANDLE) */}
-      <div
-        onMouseDown={startDrag}
-        style={{
-          height: 40,
-          background: "#0f172a",
-          color: "white",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          padding: "0 10px",
-          cursor: "move",
-          userSelect: "none",
-        }}
-      >
-        <div style={{ fontWeight: 800, fontSize: 14 }}>{title}</div>
+      {/* ✅ HEADER (optional) */}
+      {!hideHeader && (
+        <div
+          onMouseDown={startDrag}
+          style={{
+            height: 40,
+            background: "#0f172a",
+            color: "white",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 10px",
+            cursor: "move",
+            userSelect: "none",
+          }}
+        >
+          <div style={{ fontWeight: 800, fontSize: 14 }}>{title}</div>
 
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {onLaunch && (
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {onLaunch && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onLaunch();
+                }}
+                title="Launch"
+                style={iconBtn}
+              >
+                ↗
+              </button>
+            )}
+
+            {onMinimize && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMinimize();
+                }}
+                title="Minimize"
+                style={iconBtn}
+              >
+                —
+              </button>
+            )}
+
             <button
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
-                onLaunch();
+                onClose?.();
               }}
-              title="Launch"
-              style={iconBtn}
+              title="Close"
+              style={{ ...iconBtn, background: "#ef4444", borderColor: "#b91c1c" }}
             >
-              ↗
+              ✕
             </button>
-          )}
-
-          {onMinimize && (
-            <button
-              type="button"
-              onClick={(e) => {
-                e.stopPropagation();
-                onMinimize();
-              }}
-              title="Minimize"
-              style={iconBtn}
-            >
-              —
-            </button>
-          )}
-
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose?.();
-            }}
-            title="Close"
-            style={{ ...iconBtn, background: "#ef4444", borderColor: "#b91c1c" }}
-          >
-            ✕
-          </button>
+          </div>
         </div>
-      </div>
+      )}
 
-      {/* BODY */}
+      {/* ✅ BODY */}
       <div style={{ flex: 1, overflow: "auto" }}>{children}</div>
 
+      {/* ✅ If header is hidden, allow dragging by grabbing the very top area of the window */}
+      {hideHeader && (
+        <div
+          onMouseDown={startDrag}
+          title="Drag"
+          style={{
+            position: "absolute",
+            left: 0,
+            top: 0,
+            width: "100%",
+            height: 10,
+            cursor: "move",
+            zIndex: 12,
+          }}
+        />
+      )}
+
       {/* ✅ RESIZE ZONES */}
-      {/* Right edge */}
       <div
         onMouseDown={startResize("right")}
         title="Resize"
         style={{
           position: "absolute",
-          top: 40, // below header
+          top: headerH,
           right: 0,
           width: 10,
-          height: "calc(100% - 40px)",
+          height: `calc(100% - ${headerH}px)`,
           cursor: "ew-resize",
           zIndex: 10,
         }}
       />
 
-      {/* Bottom edge */}
       <div
         onMouseDown={startResize("bottom")}
         title="Resize"
@@ -228,7 +239,6 @@ export default function FloatingWindow({
         }}
       />
 
-      {/* Bottom-right corner */}
       <div
         onMouseDown={startResize("corner")}
         title="Resize"
