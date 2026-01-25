@@ -1,6 +1,7 @@
 // src/components/AlarmLogWindow.jsx
 import React from "react";
-import useAlarmsMockData from "../hooks/useAlarmsMockData";
+// ✅ Disable mock alarms for now (no alarm system wired yet)
+// import useAlarmsMockData from "../hooks/useAlarmsMockData";
 
 export default function AlarmLogWindow({
   onLaunch,
@@ -9,24 +10,22 @@ export default function AlarmLogWindow({
   onOpenSettings,
   title = "Alarms Log (AI)",
 }) {
-  // ✅ Keep mock data for now (we'll wire real alarms later)
-  const alarms = useAlarmsMockData();
+  // ✅ NO ALARMS YET: keep this empty until real alarm engine exists
+  const alarms = [];
 
   const [alarmView, setAlarmView] = React.useState("alarms");
   const [selectedId, setSelectedId] = React.useState(null);
   const [checkedIds, setCheckedIds] = React.useState(() => new Set());
   const [showCloseConfirm, setShowCloseConfirm] = React.useState(false);
 
-  // ✅ For now: all tabs show same list (until real alarm rules exist)
   const visibleAlarms = React.useMemo(() => {
     if (alarmView === "disabled") return [];
     return alarms;
   }, [alarmView, alarms]);
 
-  // ✅ No alarm logic yet: only selected row gets yellow
   const getRowStyle = (a) => {
     if (selectedId === a.id) {
-      return { background: "#fbbf24", color: "#111827" }; // selected = yellow
+      return { background: "#fbbf24", color: "#111827" };
     }
     return { background: "#ffffff", color: "#111827" };
   };
@@ -43,25 +42,19 @@ export default function AlarmLogWindow({
   const toggleAllVisible = () => {
     setCheckedIds((prev) => {
       const next = new Set(prev);
-      const allSelected = visibleAlarms.every((a) => next.has(a.id));
-      if (allSelected) {
-        visibleAlarms.forEach((a) => next.delete(a.id));
-      } else {
-        visibleAlarms.forEach((a) => next.add(a.id));
-      }
+      const allSelected =
+        visibleAlarms.length > 0 && visibleAlarms.every((a) => next.has(a.id));
+
+      if (allSelected) visibleAlarms.forEach((a) => next.delete(a.id));
+      else visibleAlarms.forEach((a) => next.add(a.id));
+
       return next;
     });
   };
 
-  // ✅ UI-only acknowledge (until backend exists)
   const onAcknowledgeSelected = () => {
     if (checkedIds.size === 0) return;
-
-    // Here we only show a console log to prove the wiring is correct.
-    // Later we will call the real API / write to DB.
-    console.log("✅ Acknowledge these alarm IDs:", Array.from(checkedIds));
-
-    // Optional: clear selection after ack
+    console.log("✅ Acknowledge IDs:", Array.from(checkedIds));
     setCheckedIds(new Set());
   };
 
@@ -132,9 +125,8 @@ export default function AlarmLogWindow({
 
       {/* TABLE */}
       <div style={table}>
-        {/* HEADER */}
         <div style={headerRow}>
-          {/* ✅ NEW: checkbox column (left squares) */}
+          {/* checkbox col */}
           <div style={{ ...cellHead, width: COL.sel, textAlign: "center" }}>
             <input
               type="checkbox"
@@ -148,10 +140,10 @@ export default function AlarmLogWindow({
               }}
               style={checkbox}
               title="Select all"
+              disabled={visibleAlarms.length === 0}
             />
           </div>
 
-          {/* ✅ Time is FIRST left-to-right */}
           <div style={{ ...cellHead, width: COL.time, textAlign: "left" }}>
             Time
           </div>
@@ -166,7 +158,7 @@ export default function AlarmLogWindow({
           <div style={{ ...cellHead, width: COL.controller }}>Controller</div>
         </div>
 
-        {/* ROWS */}
+        {/* Rows (none for now) */}
         {visibleAlarms.map((a) => {
           const style = getRowStyle(a);
           const isChecked = checkedIds.has(a.id);
@@ -174,18 +166,12 @@ export default function AlarmLogWindow({
           return (
             <div
               key={a.id}
-              style={{
-                ...row,
-                background: style.background,
-                color: style.color,
-              }}
+              style={{ ...row, background: style.background, color: style.color }}
               onMouseDown={(e) => {
                 e.stopPropagation();
                 setSelectedId(a.id);
               }}
-              title={a.text}
             >
-              {/* ✅ NEW: left checkbox per row */}
               <div style={{ ...cell, width: COL.sel, textAlign: "center" }}>
                 <input
                   type="checkbox"
@@ -195,21 +181,16 @@ export default function AlarmLogWindow({
                     toggleChecked(a.id);
                   }}
                   style={checkbox}
-                  title="Select"
                 />
               </div>
 
               <div style={{ ...cell, width: COL.time }}>{a.time}</div>
-
-              {/* Ack column stays as display-only for now */}
               <div style={{ ...cell, width: COL.ack, textAlign: "center" }}>
                 {a.acknowledged ? "✔" : ""}
               </div>
-
               <div style={{ ...cell, width: COL.sev, textAlign: "center" }}>
                 {a.severity}
               </div>
-
               <div style={{ ...cell, flex: 1, minWidth: 260 }}>{a.text}</div>
               <div style={{ ...cell, width: COL.group }}>{a.groupName}</div>
               <div style={{ ...cell, width: COL.controller }}>{a.controller}</div>
@@ -217,14 +198,19 @@ export default function AlarmLogWindow({
           );
         })}
 
+        {/* Empty state */}
         {visibleAlarms.length === 0 && (
           <div style={emptyState}>
-            <b>No items to display in {alarmView}.</b>
+            <b>No alarms yet.</b>
+            <div style={{ marginTop: 6, color: "#374151" }}>
+              The alarm engine is not configured — this log window is ready and will
+              show events once we wire the alarm rules.
+            </div>
           </div>
         )}
       </div>
 
-      {/* ✅ NEW: bottom action bar with Acknowledge button */}
+      {/* Bottom bar */}
       <div style={bottomBar}>
         <button
           type="button"
@@ -238,7 +224,6 @@ export default function AlarmLogWindow({
             e.stopPropagation();
             onAcknowledgeSelected();
           }}
-          title="Acknowledge selected alarms"
         >
           Acknowledge
         </button>
@@ -250,28 +235,16 @@ export default function AlarmLogWindow({
 
       {/* CLOSE CONFIRM */}
       {showCloseConfirm && (
-        <div
-          style={confirmOverlay}
-          onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => e.stopPropagation()}
-        >
+        <div style={confirmOverlay} onMouseDown={(e) => e.stopPropagation()}>
           <div style={confirmCard}>
             <div style={confirmTitle}>Close Alarm Log?</div>
-
             <div style={confirmActions}>
-              <button
-                style={cancelBtn}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  setShowCloseConfirm(false);
-                }}
-              >
+              <button style={cancelBtn} onClick={() => setShowCloseConfirm(false)}>
                 Cancel
               </button>
               <button
                 style={dangerBtn}
-                onClick={(e) => {
-                  e.stopPropagation();
+                onClick={() => {
                   setShowCloseConfirm(false);
                   onClose?.();
                 }}
@@ -285,8 +258,6 @@ export default function AlarmLogWindow({
     </div>
   );
 }
-
-/* ---------------- UI HELPERS ---------------- */
 
 function TabButton({ label, active, onClick }) {
   return (
@@ -303,17 +274,7 @@ function TabButton({ label, active, onClick }) {
   );
 }
 
-// ✅ Fixed column widths = perfect alignment (SCADA-style)
-const COL = {
-  sel: 34, // ✅ NEW checkbox column
-  time: 170,
-  ack: 48,
-  sev: 48,
-  group: 120,
-  controller: 120,
-};
-
-/* ---------------- STYLES ---------------- */
+const COL = { sel: 34, time: 170, ack: 48, sev: 48, group: 120, controller: 120 };
 
 const wrap = {
   width: "100%",
@@ -338,168 +299,33 @@ const topBar = {
 };
 
 const titleWrap = { display: "flex", gap: 8, alignItems: "center" };
-const countPill = {
-  background: "#000",
-  padding: "2px 8px",
-  borderRadius: 999,
-  fontWeight: 900,
-  fontSize: 12,
-};
+const countPill = { background: "#000", padding: "2px 8px", borderRadius: 999, fontWeight: 900, fontSize: 12 };
 
 const btnRow = { display: "flex", gap: 6, alignItems: "center" };
-const iconBtn = {
-  width: 28,
-  height: 26,
-  background: "#000",
-  color: "#fff",
-  borderRadius: 6,
-  border: "1px solid #111",
-  cursor: "pointer",
-  fontWeight: 900,
-  lineHeight: "26px",
-};
+const iconBtn = { width: 28, height: 26, background: "#000", color: "#fff", borderRadius: 6, border: "1px solid #111", cursor: "pointer", fontWeight: 900 };
 
-const tabsBar = {
-  height: 34,
-  display: "flex",
-  gap: 6,
-  padding: "0 10px",
-  background: "#d1d5db",
-  alignItems: "center",
-  borderBottom: "1px solid #9ca3af",
-};
+const tabsBar = { height: 34, display: "flex", gap: 6, padding: "0 10px", background: "#d1d5db", alignItems: "center", borderBottom: "1px solid #9ca3af" };
+const tabBtn = { padding: "4px 10px", fontWeight: 900, borderRadius: 6, border: "1px solid #9ca3af", background: "#f3f4f6", cursor: "pointer", fontSize: 12 };
+const tabBtnActive = { background: "#fff", border: "1px solid #000" };
 
-const tabBtn = {
-  padding: "4px 10px",
-  fontWeight: 900,
-  borderRadius: 6,
-  border: "1px solid #9ca3af",
-  background: "#f3f4f6",
-  cursor: "pointer",
-  fontSize: 12,
-};
+const table = { flex: 1, overflow: "auto", background: "#e5e7eb" };
+const headerRow = { display: "flex", background: "#111827", color: "#fff", borderBottom: "1px solid #000" };
+const cellHead = { padding: 8, fontWeight: 900, fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
 
-const tabBtnActive = {
-  background: "#fff",
-  border: "1px solid #000",
-};
+const row = { display: "flex", borderBottom: "1px solid #9ca3af", cursor: "default" };
+const cell = { padding: 8, fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
 
-const table = {
-  flex: 1,
-  overflow: "auto",
-  background: "#e5e7eb",
-};
+const checkbox = { width: 14, height: 14, cursor: "pointer", accentColor: "#111827" };
 
-const headerRow = {
-  display: "flex",
-  background: "#111827",
-  color: "#fff",
-  borderBottom: "1px solid #000",
-};
+const emptyState = { padding: 16, fontSize: 13, color: "#111827" };
 
-const cellHead = {
-  padding: 8,
-  fontWeight: 900,
-  fontSize: 12,
-  whiteSpace: "nowrap",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-};
+const bottomBar = { height: 44, display: "flex", alignItems: "center", gap: 10, padding: "0 10px", background: "#d1d5db", borderTop: "2px solid #000" };
+const ackBtn = { padding: "8px 12px", borderRadius: 8, border: "2px solid #000", background: "#f3f4f6", fontWeight: 900 };
+const bottomInfo = { fontSize: 12, color: "#111827" };
 
-const row = {
-  display: "flex",
-  borderBottom: "1px solid #9ca3af",
-  cursor: "default",
-};
-
-const cell = {
-  padding: 8,
-  fontSize: 12,
-  whiteSpace: "nowrap",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-};
-
-const checkbox = {
-  width: 14,
-  height: 14,
-  cursor: "pointer",
-  accentColor: "#111827",
-};
-
-const emptyState = {
-  padding: 16,
-  fontSize: 13,
-  color: "#111827",
-};
-
-const bottomBar = {
-  height: 44,
-  display: "flex",
-  alignItems: "center",
-  gap: 10,
-  padding: "0 10px",
-  background: "#d1d5db",
-  borderTop: "2px solid #000",
-};
-
-const ackBtn = {
-  padding: "8px 12px",
-  borderRadius: 8,
-  border: "2px solid #000",
-  background: "#f3f4f6",
-  fontWeight: 900,
-};
-
-const bottomInfo = {
-  fontSize: 12,
-  color: "#111827",
-};
-
-const confirmOverlay = {
-  position: "absolute",
-  inset: 0,
-  background: "rgba(0,0,0,.55)",
-  display: "flex",
-  justifyContent: "center",
-  alignItems: "center",
-  zIndex: 999999,
-};
-
-const confirmCard = {
-  background: "#fff",
-  padding: 16,
-  borderRadius: 12,
-  border: "2px solid #000",
-  minWidth: 320,
-};
-
-const confirmTitle = {
-  fontWeight: 900,
-  marginBottom: 12,
-};
-
-const confirmActions = {
-  display: "flex",
-  justifyContent: "flex-end",
-  gap: 10,
-};
-
-const cancelBtn = {
-  padding: "6px 12px",
-  cursor: "pointer",
-  border: "1px solid #9ca3af",
-  background: "#f3f4f6",
-  borderRadius: 8,
-  fontWeight: 900,
-};
-
-const dangerBtn = {
-  padding: "6px 12px",
-  background: "#7f1d1d",
-  color: "#fff",
-  cursor: "pointer",
-  border: "1px solid #ef4444",
-  borderRadius: 8,
-  fontWeight: 900,
-};
+const confirmOverlay = { position: "absolute", inset: 0, background: "rgba(0,0,0,.55)", display: "flex", justifyContent: "center", alignItems: "center", zIndex: 999999 };
+const confirmCard = { background: "#fff", padding: 16, borderRadius: 12, border: "2px solid #000", minWidth: 320 };
+const confirmTitle = { fontWeight: 900, marginBottom: 12 };
+const confirmActions = { display: "flex", justifyContent: "flex-end", gap: 10 };
+const cancelBtn = { padding: "6px 12px", cursor: "pointer", border: "1px solid #9ca3af", background: "#f3f4f6", borderRadius: 8, fontWeight: 900 };
+const dangerBtn = { padding: "6px 12px", background: "#7f1d1d", color: "#fff", cursor: "pointer", border: "1px solid #ef4444", borderRadius: 8, fontWeight: 900 };
