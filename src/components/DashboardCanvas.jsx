@@ -1,4 +1,4 @@
-// DashboardCanvas.jsx
+// src/components/DashboardCanvas.jsx
 import React from "react";
 import { DndContext } from "@dnd-kit/core";
 
@@ -10,7 +10,7 @@ import DraggableDisplayBox from "./DraggableDisplayBox";
 // ✅ NEW
 import DraggableGraphicDisplay from "./DraggableGraphicDisplay";
 
-// ✅ NEW (Alarm Log widget)
+// ✅ NEW: Alarm Log widget
 import DraggableAlarmLog from "./DraggableAlarmLog";
 
 // ✅ Toggle switch visual
@@ -53,21 +53,17 @@ function padToFormat(rawDigits, numberFormat) {
 }
 
 // ✅ Green "PushButton NO" style SET button (always visible)
-// - In EDIT: looks the same but does nothing (disabled behavior)
-// - In PLAY: clickable + press animation
 function SetButton({ isPlay, onSet }) {
   const [pressed, setPressed] = React.useState(false);
 
-  const baseBg = "#22c55e"; // green
-  const darkBg = "#16a34a"; // darker green
+  const baseBg = "#22c55e";
+  const darkBg = "#16a34a";
 
   return (
     <button
       type="button"
-      // ✅ don't let canvas/drag steal click
       onMouseDown={(e) => {
         e.stopPropagation();
-        // only animate/act in play
         if (!isPlay) return;
         setPressed(true);
       }}
@@ -83,7 +79,7 @@ function SetButton({ isPlay, onSet }) {
       }}
       onClick={(e) => {
         e.stopPropagation();
-        if (!isPlay) return; // ✅ do nothing in edit
+        if (!isPlay) return;
         onSet?.();
       }}
       style={{
@@ -94,9 +90,7 @@ function SetButton({ isPlay, onSet }) {
         userSelect: "none",
         fontWeight: 900,
         letterSpacing: 1,
-
-        // ✅ 3D pushbutton look
-        background: isPlay ? (pressed ? darkBg : baseBg) : "#cbd5e1", // grey in edit
+        background: isPlay ? (pressed ? darkBg : baseBg) : "#cbd5e1",
         color: isPlay ? "white" : "#334155",
         boxShadow: isPlay
           ? pressed
@@ -128,14 +122,10 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(onlyDigits(rawValue));
 
-  // Sync draft from tank when not editing (restore/load/etc)
   React.useEffect(() => {
     if (!editing) setDraft(onlyDigits(rawValue));
   }, [rawValue, editing]);
 
-  // In PLAY:
-  // - while editing -> show draft digits (no padding)
-  // - when not editing -> show padded value
   const displayed = isPlay
     ? editing
       ? draft
@@ -154,12 +144,10 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
   };
 
   const handleSet = () => {
-    if (!isPlay) return; // ✅ only actuate in play
+    if (!isPlay) return;
 
-    // 1) commit/pad the current draft
     const formatted = commitFormattedValue();
 
-    // 2) store "sent" metadata
     const now = new Date().toISOString();
     onUpdate?.({
       ...tank,
@@ -168,7 +156,6 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
       lastSetAt: now,
     });
 
-    // 3) fire event for future integration
     window.dispatchEvent(
       new CustomEvent("coreflex-displayOutput-set", {
         detail: {
@@ -182,29 +169,25 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
     );
   };
 
-  // ✅ SET always visible (edit + play)
   const setBtnH = 26;
 
   return (
-    // ✅ wrapper: label sits ABOVE the display box
     <div style={{ width: w, userSelect: "none" }}>
-      {/* ✅ LABEL ABOVE (NOT inside) */}
       {label ? (
         <div
           style={{
             marginBottom: 6,
-            fontSize: 18, // ✅ bigger like display input
-            fontWeight: 900, // ✅ bold
+            fontSize: 18,
+            fontWeight: 900,
             color: "#111",
-            textAlign: "center", // ✅ centered
-            letterSpacing: 0.5, // ✅ panel look
+            textAlign: "center",
+            letterSpacing: 0.5,
           }}
         >
           {label}
         </div>
       ) : null}
 
-      {/* ✅ display box */}
       <div
         style={{
           width: w,
@@ -216,7 +199,6 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
           boxSizing: "border-box",
         }}
       >
-        {/* ✅ value centered */}
         <div
           style={{
             position: "absolute",
@@ -241,7 +223,6 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
               onFocus={(e) => {
                 e.stopPropagation();
                 setEditing(true);
-
                 requestAnimationFrame(() => {
                   try {
                     const len = e.target.value.length;
@@ -290,7 +271,6 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
           )}
         </div>
 
-        {/* ✅ SET button ALWAYS visible */}
         <div
           style={{
             position: "absolute",
@@ -342,7 +322,7 @@ export default function DashboardCanvas({
   onOpenDisplaySettings,
   onOpenGraphicDisplaySettings,
 
-  // ✅ NEW (Alarm Log)
+  // ✅ NEW
   onOpenAlarmLog,
   onLaunchAlarmLog,
 }) {
@@ -384,21 +364,6 @@ export default function DashboardCanvas({
                 ),
             };
 
-            // ✅ ALARMS LOG (AI) widget
-            // Shape name: "alarmLogAI"
-            if (tank.shape === "alarmLogAI") {
-              return (
-                <DraggableAlarmLog
-                  key={tank.id}
-                  obj={tank}
-                  selected={isSelected && !isPlay}
-                  onSelect={(id) => handleSelect(id)}
-                  onOpen={() => onOpenAlarmLog?.(tank)}
-                  onLaunch={() => onLaunchAlarmLog?.(tank)}
-                />
-              );
-            }
-
             // IMAGE
             if (tank.shape === "img") {
               return (
@@ -408,7 +373,7 @@ export default function DashboardCanvas({
               );
             }
 
-            // DISPLAY INPUT (existing)
+            // DISPLAY INPUT
             if (tank.shape === "displayBox") {
               return (
                 <DraggableDroppedTank
@@ -422,7 +387,7 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅ DISPLAY OUTPUT (textbox style + SET always visible)
+            // DISPLAY OUTPUT
             if (tank.shape === "displayOutput") {
               return (
                 <DraggableDroppedTank
@@ -454,6 +419,22 @@ export default function DashboardCanvas({
                   onDoubleClick={() => {
                     if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
                   }}
+                />
+              );
+            }
+
+            // ✅ ALARMS LOG (AI)
+            if (tank.shape === "alarmLog") {
+              return (
+                <DraggableAlarmLog
+                  key={tank.id}
+                  obj={tank}
+                  selected={isSelected && !isPlay}
+                  onSelect={handleSelect}
+                  onOpen={() => {
+                    if (!isPlay) onOpenAlarmLog?.(tank);
+                  }}
+                  onLaunch={() => onLaunchAlarmLog?.(tank)}
                 />
               );
             }

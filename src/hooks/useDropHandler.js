@@ -1,4 +1,4 @@
-// useDropHandler.js
+// src/hooks/useDropHandler.js
 export default function useDropHandler({ setDroppedTanks }) {
   const makeId = () => {
     try {
@@ -193,6 +193,26 @@ export default function useDropHandler({ setDroppedTanks }) {
 
           recording: false,
           samples: [],
+        },
+      ]);
+      return;
+    }
+
+    // ✅ ALARMS LOG (AI)
+    if (shape === "alarmLog") {
+      setDroppedTanks((prev) => [
+        ...prev,
+        {
+          id: makeId(),
+          shape: "alarmLog",
+          x,
+          y,
+          w: 260,
+          h: 90,
+          zIndex: 1,
+          properties: {
+            title: "Alarms Log (AI)",
+          },
         },
       ]);
       return;

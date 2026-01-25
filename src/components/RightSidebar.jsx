@@ -187,7 +187,7 @@ export default function RightSidebar({
                 </span>
               </div>
 
-              <span className="text-[14px] text-center">Alarms Log (AI)</span>
+              <span className="text-[14px] text-center">Alarms Log (DI-AI)</span>
             </div>
           </div>
 
