@@ -1,7 +1,5 @@
 // src/components/AlarmLogWindow.jsx
 import React from "react";
-// ✅ Disable mock alarms for now (no alarm system wired yet)
-// import useAlarmsMockData from "../hooks/useAlarmsMockData";
 
 export default function AlarmLogWindow({
   onLaunch,
@@ -18,18 +16,10 @@ export default function AlarmLogWindow({
   const [checkedIds, setCheckedIds] = React.useState(() => new Set());
   const [showCloseConfirm, setShowCloseConfirm] = React.useState(false);
 
-  // ✅ NEW: internal minimize behavior
-  const [isMinimized, setIsMinimized] = React.useState(false);
-
   const visibleAlarms = React.useMemo(() => {
     if (alarmView === "disabled") return [];
     return alarms;
   }, [alarmView, alarms]);
-
-  const getRowStyle = (a) => {
-    if (selectedId === a.id) return { background: "#fbbf24", color: "#111827" };
-    return { background: "#ffffff", color: "#111827" };
-  };
 
   const toggleChecked = (id) => {
     setCheckedIds((prev) => {
@@ -59,26 +49,8 @@ export default function AlarmLogWindow({
     setCheckedIds(new Set());
   };
 
-  const handleMinimize = (e) => {
-    e?.stopPropagation?.();
-
-    setIsMinimized((prev) => {
-      const next = !prev;
-
-      // ✅ Only call parent onMinimize when we are minimizing (not restoring)
-      if (next) onMinimize?.();
-
-      return next;
-    });
-  };
-
-  const handleRestore = (e) => {
-    e?.stopPropagation?.();
-    setIsMinimized(false);
-  };
-
   return (
-    <div style={{ ...wrap, height: isMinimized ? 42 : "100%" }}>
+    <div style={wrap}>
       {/* TOP BAR */}
       <div style={topBar}>
         <div style={titleWrap}>
@@ -109,28 +81,19 @@ export default function AlarmLogWindow({
             ↗
           </button>
 
-          {/* ✅ NEW: minimized tab appears EXACTLY to the right of Launch icon */}
-          {isMinimized && (
-            <button
-              type="button"
-              style={minimizedChip}
-              title="Restore Alarm Log"
-              onClick={handleRestore}
-            >
-              ▣ {title}
-            </button>
-          )}
-
-          {/* Minimize / Restore */}
+          {/* ✅ IMPORTANT: this MUST call parent minimizer */}
           <button
             style={iconBtn}
-            title={isMinimized ? "Restore" : "Minimize"}
-            onClick={isMinimized ? handleRestore : handleMinimize}
+            title="Minimize"
+            onClick={(e) => {
+              e.stopPropagation();
+              console.log("🟡 AlarmLogWindow minimize clicked");
+              onMinimize?.();
+            }}
           >
-            {isMinimized ? "▢" : "—"}
+            —
           </button>
 
-          {/* Close */}
           <button
             style={{ ...iconBtn, borderColor: "#7f1d1d" }}
             title="Close"
@@ -144,136 +107,125 @@ export default function AlarmLogWindow({
         </div>
       </div>
 
-      {/* ✅ When minimized, hide everything below (SCADA-style) */}
-      {!isMinimized && (
-        <>
-          {/* TABS */}
-          <div style={tabsBar}>
-            {["alarms", "history", "active", "disabled"].map((v) => (
-              <TabButton
-                key={v}
-                label={v.charAt(0).toUpperCase() + v.slice(1)}
-                active={alarmView === v}
-                onClick={() => setAlarmView(v)}
-              />
-            ))}
+      {/* TABS */}
+      <div style={tabsBar}>
+        {["alarms", "history", "active", "disabled"].map((v) => (
+          <TabButton
+            key={v}
+            label={v.charAt(0).toUpperCase() + v.slice(1)}
+            active={alarmView === v}
+            onClick={() => setAlarmView(v)}
+          />
+        ))}
+      </div>
+
+      {/* TABLE */}
+      <div style={table}>
+        <div style={headerRow}>
+          <div style={{ ...cellHead, width: COL.sel, textAlign: "center" }}>
+            <input
+              type="checkbox"
+              checked={
+                visibleAlarms.length > 0 &&
+                visibleAlarms.every((a) => checkedIds.has(a.id))
+              }
+              onChange={(e) => {
+                e.stopPropagation();
+                toggleAllVisible();
+              }}
+              style={checkbox}
+              title="Select all"
+              disabled={visibleAlarms.length === 0}
+            />
           </div>
 
-          {/* TABLE */}
-          <div style={table}>
-            <div style={headerRow}>
-              {/* checkbox col */}
-              <div style={{ ...cellHead, width: COL.sel, textAlign: "center" }}>
+          <div style={{ ...cellHead, width: COL.time, textAlign: "left" }}>
+            Time
+          </div>
+          <div style={{ ...cellHead, width: COL.ack, textAlign: "center" }}>
+            Ack
+          </div>
+          <div style={{ ...cellHead, width: COL.sev, textAlign: "center" }}>
+            Sev
+          </div>
+          <div style={{ ...cellHead, flex: 1, minWidth: 260 }}>Alarm Text</div>
+          <div style={{ ...cellHead, width: COL.group }}>Group</div>
+          <div style={{ ...cellHead, width: COL.controller }}>Controller</div>
+        </div>
+
+        {/* Rows (none for now) */}
+        {visibleAlarms.map((a) => {
+          const isChecked = checkedIds.has(a.id);
+
+          return (
+            <div
+              key={a.id}
+              style={{ ...row, background: "#fff", color: "#111827" }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                setSelectedId(a.id);
+              }}
+            >
+              <div style={{ ...cell, width: COL.sel, textAlign: "center" }}>
                 <input
                   type="checkbox"
-                  checked={
-                    visibleAlarms.length > 0 &&
-                    visibleAlarms.every((a) => checkedIds.has(a.id))
-                  }
+                  checked={isChecked}
                   onChange={(e) => {
                     e.stopPropagation();
-                    toggleAllVisible();
+                    toggleChecked(a.id);
                   }}
                   style={checkbox}
-                  title="Select all"
-                  disabled={visibleAlarms.length === 0}
                 />
               </div>
 
-              <div style={{ ...cellHead, width: COL.time, textAlign: "left" }}>
-                Time
+              <div style={{ ...cell, width: COL.time }}>{a.time}</div>
+              <div style={{ ...cell, width: COL.ack, textAlign: "center" }}>
+                {a.acknowledged ? "✔" : ""}
               </div>
-              <div style={{ ...cellHead, width: COL.ack, textAlign: "center" }}>
-                Ack
+              <div style={{ ...cell, width: COL.sev, textAlign: "center" }}>
+                {a.severity}
               </div>
-              <div style={{ ...cellHead, width: COL.sev, textAlign: "center" }}>
-                Sev
-              </div>
-              <div style={{ ...cellHead, flex: 1, minWidth: 260 }}>
-                Alarm Text
-              </div>
-              <div style={{ ...cellHead, width: COL.group }}>Group</div>
-              <div style={{ ...cellHead, width: COL.controller }}>
-                Controller
-              </div>
+              <div style={{ ...cell, flex: 1, minWidth: 260 }}>{a.text}</div>
+              <div style={{ ...cell, width: COL.group }}>{a.groupName}</div>
+              <div style={{ ...cell, width: COL.controller }}>{a.controller}</div>
             </div>
+          );
+        })}
 
-            {/* Rows (none for now) */}
-            {visibleAlarms.map((a) => {
-              const style = getRowStyle(a);
-              const isChecked = checkedIds.has(a.id);
-
-              return (
-                <div
-                  key={a.id}
-                  style={{ ...row, background: style.background, color: style.color }}
-                  onMouseDown={(e) => {
-                    e.stopPropagation();
-                    setSelectedId(a.id);
-                  }}
-                >
-                  <div style={{ ...cell, width: COL.sel, textAlign: "center" }}>
-                    <input
-                      type="checkbox"
-                      checked={isChecked}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        toggleChecked(a.id);
-                      }}
-                      style={checkbox}
-                    />
-                  </div>
-
-                  <div style={{ ...cell, width: COL.time }}>{a.time}</div>
-                  <div style={{ ...cell, width: COL.ack, textAlign: "center" }}>
-                    {a.acknowledged ? "✔" : ""}
-                  </div>
-                  <div style={{ ...cell, width: COL.sev, textAlign: "center" }}>
-                    {a.severity}
-                  </div>
-                  <div style={{ ...cell, flex: 1, minWidth: 260 }}>{a.text}</div>
-                  <div style={{ ...cell, width: COL.group }}>{a.groupName}</div>
-                  <div style={{ ...cell, width: COL.controller }}>{a.controller}</div>
-                </div>
-              );
-            })}
-
-            {/* Empty state */}
-            {visibleAlarms.length === 0 && (
-              <div style={emptyState}>
-                <b>No alarms yet.</b>
-                <div style={{ marginTop: 6, color: "#374151" }}>
-                  The alarm engine is not configured — this log window is ready
-                  and will show events once we wire the alarm rules.
-                </div>
-              </div>
-            )}
-          </div>
-
-          {/* Bottom bar */}
-          <div style={bottomBar}>
-            <button
-              type="button"
-              style={{
-                ...ackBtn,
-                opacity: checkedIds.size === 0 ? 0.5 : 1,
-                cursor: checkedIds.size === 0 ? "not-allowed" : "pointer",
-              }}
-              disabled={checkedIds.size === 0}
-              onClick={(e) => {
-                e.stopPropagation();
-                onAcknowledgeSelected();
-              }}
-            >
-              Acknowledge
-            </button>
-
-            <div style={bottomInfo}>
-              Selected: <b>{checkedIds.size}</b>
+        {/* Empty state */}
+        {visibleAlarms.length === 0 && (
+          <div style={emptyState}>
+            <b>No alarms yet.</b>
+            <div style={{ marginTop: 6, color: "#374151" }}>
+              The alarm engine is not configured — this log window is ready and will
+              show events once we wire the alarm rules.
             </div>
           </div>
-        </>
-      )}
+        )}
+      </div>
+
+      {/* Bottom bar */}
+      <div style={bottomBar}>
+        <button
+          type="button"
+          style={{
+            ...ackBtn,
+            opacity: checkedIds.size === 0 ? 0.5 : 1,
+            cursor: checkedIds.size === 0 ? "not-allowed" : "pointer",
+          }}
+          disabled={checkedIds.size === 0}
+          onClick={(e) => {
+            e.stopPropagation();
+            onAcknowledgeSelected();
+          }}
+        >
+          Acknowledge
+        </button>
+
+        <div style={bottomInfo}>
+          Selected: <b>{checkedIds.size}</b>
+        </div>
+      </div>
 
       {/* CLOSE CONFIRM */}
       {showCloseConfirm && (
@@ -320,6 +272,7 @@ const COL = { sel: 34, time: 170, ack: 48, sev: 48, group: 120, controller: 120 
 
 const wrap = {
   width: "100%",
+  height: "100%",
   background: "#e5e7eb",
   border: "3px solid #000",
   boxShadow: "0 0 0 1px #374151 inset, 0 8px 24px rgba(0,0,0,.45)",
@@ -358,23 +311,6 @@ const iconBtn = {
   border: "1px solid #111",
   cursor: "pointer",
   fontWeight: 900,
-};
-
-// ✅ NEW minimized “tab” right of Launch
-const minimizedChip = {
-  height: 26,
-  maxWidth: 220,
-  padding: "0 10px",
-  background: "#d1d5db",
-  border: "2px solid #000",
-  borderRadius: 8,
-  fontWeight: 900,
-  fontSize: 12,
-  color: "#111827",
-  cursor: "pointer",
-  whiteSpace: "nowrap",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
 };
 
 const tabsBar = {
@@ -459,8 +395,32 @@ const confirmOverlay = {
   zIndex: 999999,
 };
 
-const confirmCard = { background: "#fff", padding: 16, borderRadius: 12, border: "2px solid #000", minWidth: 320 };
+const confirmCard = {
+  background: "#fff",
+  padding: 16,
+  borderRadius: 12,
+  border: "2px solid #000",
+  minWidth: 320,
+};
+
 const confirmTitle = { fontWeight: 900, marginBottom: 12 };
 const confirmActions = { display: "flex", justifyContent: "flex-end", gap: 10 };
-const cancelBtn = { padding: "6px 12px", cursor: "pointer", border: "1px solid #9ca3af", background: "#f3f4f6", borderRadius: 8, fontWeight: 900 };
-const dangerBtn = { padding: "6px 12px", background: "#7f1d1d", color: "#fff", cursor: "pointer", border: "1px solid #ef4444", borderRadius: 8, fontWeight: 900 };
+
+const cancelBtn = {
+  padding: "6px 12px",
+  cursor: "pointer",
+  border: "1px solid #9ca3af",
+  background: "#f3f4f6",
+  borderRadius: 8,
+  fontWeight: 900,
+};
+
+const dangerBtn = {
+  padding: "6px 12px",
+  background: "#7f1d1d",
+  color: "#fff",
+  cursor: "pointer",
+  border: "1px solid #ef4444",
+  borderRadius: 8,
+  fontWeight: 900,
+};
