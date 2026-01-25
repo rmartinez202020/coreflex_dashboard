@@ -281,6 +281,107 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
   );
 }
 
+/**
+ * ✅ Alarm Log edge resize (right edge = wider, bottom edge = taller)
+ * - Works in EDIT mode only (same pattern as your canvas: no drag/resize in PLAY)
+ * - Updates tank.w and tank.h live
+ */
+function AlarmLogResizeEdges({ tank, onUpdate, minW = 420, minH = 220 }) {
+  const dragRef = React.useRef(null);
+
+  const startDrag = (mode) => (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+
+    const startW = tank.w ?? tank.width ?? 780;
+    const startH = tank.h ?? tank.height ?? 360;
+
+    dragRef.current = { mode, startX, startY, startW, startH };
+
+    const onMove = (ev) => {
+      const cur = dragRef.current;
+      if (!cur) return;
+
+      const dx = ev.clientX - cur.startX;
+      const dy = ev.clientY - cur.startY;
+
+      let nextW = cur.startW;
+      let nextH = cur.startH;
+
+      if (cur.mode === "right") nextW = Math.max(minW, cur.startW + dx);
+      if (cur.mode === "bottom") nextH = Math.max(minH, cur.startH + dy);
+      if (cur.mode === "corner") {
+        nextW = Math.max(minW, cur.startW + dx);
+        nextH = Math.max(minH, cur.startH + dy);
+      }
+
+      onUpdate?.({
+        ...tank,
+        w: nextW,
+        h: nextH,
+      });
+    };
+
+    const onUp = () => {
+      dragRef.current = null;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
+
+  return (
+    <>
+      {/* RIGHT EDGE RESIZE */}
+      <div
+        onPointerDown={startDrag("right")}
+        style={{
+          position: "absolute",
+          top: 0,
+          right: -2,
+          width: 10,
+          height: "100%",
+          cursor: "ew-resize",
+          zIndex: 999999,
+        }}
+      />
+
+      {/* BOTTOM EDGE RESIZE */}
+      <div
+        onPointerDown={startDrag("bottom")}
+        style={{
+          position: "absolute",
+          left: 0,
+          bottom: -2,
+          width: "100%",
+          height: 10,
+          cursor: "ns-resize",
+          zIndex: 999999,
+        }}
+      />
+
+      {/* OPTIONAL CORNER */}
+      <div
+        onPointerDown={startDrag("corner")}
+        style={{
+          position: "absolute",
+          right: -2,
+          bottom: -2,
+          width: 14,
+          height: 14,
+          cursor: "nwse-resize",
+          zIndex: 999999,
+        }}
+      />
+    </>
+  );
+}
+
 export default function DashboardCanvas({
   dashboardMode,
   sensors,
@@ -430,8 +531,8 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅✅✅ HERE IS WHERE IT GOES:
-            // (RIGHT AFTER graphicDisplay and BEFORE interlock/toggle/etc)
+            // ✅✅✅ ALARM LOG (FULL WINDOW)
+            // ✅ Added: edge-resize (right/bottom) so it resizes like your text boxes.
             if (tank.shape === "alarmLog") {
               const w = tank.w ?? tank.width ?? 780;
               const h = tank.h ?? tank.height ?? 360;
@@ -444,22 +545,38 @@ export default function DashboardCanvas({
                   }}
                 >
                   <div
-                    style={{ width: w, height: h }}
+                    style={{
+                      width: w,
+                      height: h,
+                      position: "relative",
+                    }}
                     onMouseDown={(e) => e.stopPropagation()}
                     onPointerDown={(e) => e.stopPropagation()}
                   >
-                    <AlarmLogWindow
-                      onOpenSettings={() => onOpenAlarmLog?.(tank)}
-                      onLaunch={() => onLaunchAlarmLog?.(tank)}
-                      onMinimize={() =>
-                        commonProps.onUpdate?.({ ...tank, minimized: true })
-                      }
-                      onClose={() =>
-                        setDroppedTanks((prev) =>
-                          prev.filter((t) => t.id !== tank.id)
-                        )
-                      }
-                    />
+                    {/* ✅ resize bars (edit mode only) */}
+                    {!isPlay && (
+                      <AlarmLogResizeEdges
+                        tank={tank}
+                        onUpdate={commonProps.onUpdate}
+                        minW={520}
+                        minH={240}
+                      />
+                    )}
+
+                    <div style={{ width: "100%", height: "100%" }}>
+                      <AlarmLogWindow
+                        onOpenSettings={() => onOpenAlarmLog?.(tank)}
+                        onLaunch={() => onLaunchAlarmLog?.(tank)}
+                        onMinimize={() =>
+                          commonProps.onUpdate?.({ ...tank, minimized: true })
+                        }
+                        onClose={() =>
+                          setDroppedTanks((prev) =>
+                            prev.filter((t) => t.id !== tank.id)
+                          )
+                        }
+                      />
+                    </div>
                   </div>
                 </DraggableDroppedTank>
               );
