@@ -209,6 +209,7 @@ export default function App() {
 
   // ✅ MINIMIZE: hide modal + show minimized tab in AppTopBar
   const minimizeAlarmLog = () => {
+    console.log("✅ MINIMIZE FIRED");
     setAlarmLogOpen(false);
     setAlarmLogMinimized(true);
   };
@@ -426,7 +427,7 @@ export default function App() {
             guides={guides}
             onOpenDisplaySettings={openDisplaySettings}
             onOpenGraphicDisplaySettings={openGraphicDisplaySettings}
-            onOpenAlarmLog={() => {}}
+            onOpenAlarmLog={openAlarmLog}
             onLaunchAlarmLog={launchAlarmLog}
           />
         ) : activePage === "deviceControls" ? (

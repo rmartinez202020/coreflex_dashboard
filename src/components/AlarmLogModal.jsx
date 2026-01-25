@@ -1,29 +1,30 @@
+// src/components/AlarmLogModal.jsx
 import React from "react";
 import FloatingWindow from "./FloatingWindow";
 import AlarmLogWindow from "./AlarmLogWindow";
 
 export default function AlarmLogModal({
-  open,
+  open = false,
   onClose,
   onLaunch,
-  onMinimize, // ✅ add this
+  onMinimize,
 }) {
   if (!open) return null;
 
   return (
     <FloatingWindow
-      visible={open}
+      visible={!!open}
       title="Alarms Log (DI-AI)"
       position={{ x: 120, y: 120 }}
       size={{ width: 900, height: 420 }}
       onClose={onClose}
       onLaunch={onLaunch}
-      onMinimize={onMinimize} // ✅ important
+      onMinimize={onMinimize}
     >
       <AlarmLogWindow
+        // Keep content actions; header controls are handled by FloatingWindow
         onLaunch={onLaunch}
-        onClose={onClose}
-        onMinimize={onMinimize} // ✅ important
+        onMinimize={onMinimize}
       />
     </FloatingWindow>
   );
