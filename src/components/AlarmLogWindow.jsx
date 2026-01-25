@@ -9,25 +9,60 @@ export default function AlarmLogWindow({
   onOpenSettings,
   title = "Alarms Log (AI)",
 }) {
-  // ✅ NOTE: no real alarm setup yet — keep UI, but don’t show “alarm red” logic
+  // ✅ Keep mock data for now (we'll wire real alarms later)
   const alarms = useAlarmsMockData();
 
   const [alarmView, setAlarmView] = React.useState("alarms");
   const [selectedId, setSelectedId] = React.useState(null);
+  const [checkedIds, setCheckedIds] = React.useState(() => new Set());
   const [showCloseConfirm, setShowCloseConfirm] = React.useState(false);
 
-  // ✅ For now, ALL tabs show the same mock data (until real alarm logic exists)
+  // ✅ For now: all tabs show same list (until real alarm rules exist)
   const visibleAlarms = React.useMemo(() => {
-    if (alarmView === "disabled") return []; // keep this as empty placeholder tab
+    if (alarmView === "disabled") return [];
     return alarms;
   }, [alarmView, alarms]);
 
-  // ✅ No alarm logic yet → remove red background rule
+  // ✅ No alarm logic yet: only selected row gets yellow
   const getRowStyle = (a) => {
     if (selectedId === a.id) {
       return { background: "#fbbf24", color: "#111827" }; // selected = yellow
     }
-    return { background: "#ffffff", color: "#111827" }; // default rows = white
+    return { background: "#ffffff", color: "#111827" };
+  };
+
+  const toggleChecked = (id) => {
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+  };
+
+  const toggleAllVisible = () => {
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      const allSelected = visibleAlarms.every((a) => next.has(a.id));
+      if (allSelected) {
+        visibleAlarms.forEach((a) => next.delete(a.id));
+      } else {
+        visibleAlarms.forEach((a) => next.add(a.id));
+      }
+      return next;
+    });
+  };
+
+  // ✅ UI-only acknowledge (until backend exists)
+  const onAcknowledgeSelected = () => {
+    if (checkedIds.size === 0) return;
+
+    // Here we only show a console log to prove the wiring is correct.
+    // Later we will call the real API / write to DB.
+    console.log("✅ Acknowledge these alarm IDs:", Array.from(checkedIds));
+
+    // Optional: clear selection after ack
+    setCheckedIds(new Set());
   };
 
   return (
@@ -99,6 +134,23 @@ export default function AlarmLogWindow({
       <div style={table}>
         {/* HEADER */}
         <div style={headerRow}>
+          {/* ✅ NEW: checkbox column (left squares) */}
+          <div style={{ ...cellHead, width: COL.sel, textAlign: "center" }}>
+            <input
+              type="checkbox"
+              checked={
+                visibleAlarms.length > 0 &&
+                visibleAlarms.every((a) => checkedIds.has(a.id))
+              }
+              onChange={(e) => {
+                e.stopPropagation();
+                toggleAllVisible();
+              }}
+              style={checkbox}
+              title="Select all"
+            />
+          </div>
+
           {/* ✅ Time is FIRST left-to-right */}
           <div style={{ ...cellHead, width: COL.time, textAlign: "left" }}>
             Time
@@ -117,6 +169,7 @@ export default function AlarmLogWindow({
         {/* ROWS */}
         {visibleAlarms.map((a) => {
           const style = getRowStyle(a);
+          const isChecked = checkedIds.has(a.id);
 
           return (
             <div
@@ -132,13 +185,31 @@ export default function AlarmLogWindow({
               }}
               title={a.text}
             >
+              {/* ✅ NEW: left checkbox per row */}
+              <div style={{ ...cell, width: COL.sel, textAlign: "center" }}>
+                <input
+                  type="checkbox"
+                  checked={isChecked}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    toggleChecked(a.id);
+                  }}
+                  style={checkbox}
+                  title="Select"
+                />
+              </div>
+
               <div style={{ ...cell, width: COL.time }}>{a.time}</div>
+
+              {/* Ack column stays as display-only for now */}
               <div style={{ ...cell, width: COL.ack, textAlign: "center" }}>
                 {a.acknowledged ? "✔" : ""}
               </div>
+
               <div style={{ ...cell, width: COL.sev, textAlign: "center" }}>
                 {a.severity}
               </div>
+
               <div style={{ ...cell, flex: 1, minWidth: 260 }}>{a.text}</div>
               <div style={{ ...cell, width: COL.group }}>{a.groupName}</div>
               <div style={{ ...cell, width: COL.controller }}>{a.controller}</div>
@@ -148,9 +219,33 @@ export default function AlarmLogWindow({
 
         {visibleAlarms.length === 0 && (
           <div style={emptyState}>
-            No items to display in <b>{alarmView}</b>.
+            <b>No items to display in {alarmView}.</b>
           </div>
         )}
+      </div>
+
+      {/* ✅ NEW: bottom action bar with Acknowledge button */}
+      <div style={bottomBar}>
+        <button
+          type="button"
+          style={{
+            ...ackBtn,
+            opacity: checkedIds.size === 0 ? 0.5 : 1,
+            cursor: checkedIds.size === 0 ? "not-allowed" : "pointer",
+          }}
+          disabled={checkedIds.size === 0}
+          onClick={(e) => {
+            e.stopPropagation();
+            onAcknowledgeSelected();
+          }}
+          title="Acknowledge selected alarms"
+        >
+          Acknowledge
+        </button>
+
+        <div style={bottomInfo}>
+          Selected: <b>{checkedIds.size}</b>
+        </div>
       </div>
 
       {/* CLOSE CONFIRM */}
@@ -210,6 +305,7 @@ function TabButton({ label, active, onClick }) {
 
 // ✅ Fixed column widths = perfect alignment (SCADA-style)
 const COL = {
+  sel: 34, // ✅ NEW checkbox column
   time: 170,
   ack: 48,
   sev: 48,
@@ -227,7 +323,7 @@ const wrap = {
   boxShadow: "0 0 0 1px #374151 inset, 0 8px 24px rgba(0,0,0,.45)",
   display: "flex",
   flexDirection: "column",
-  position: "relative", // ✅ required for confirmOverlay
+  position: "relative",
 };
 
 const topBar = {
@@ -324,11 +420,40 @@ const cell = {
   textOverflow: "ellipsis",
 };
 
+const checkbox = {
+  width: 14,
+  height: 14,
+  cursor: "pointer",
+  accentColor: "#111827",
+};
+
 const emptyState = {
-  padding: 14,
+  padding: 16,
   fontSize: 13,
   color: "#111827",
-  borderBottom: "1px solid #9ca3af",
+};
+
+const bottomBar = {
+  height: 44,
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  padding: "0 10px",
+  background: "#d1d5db",
+  borderTop: "2px solid #000",
+};
+
+const ackBtn = {
+  padding: "8px 12px",
+  borderRadius: 8,
+  border: "2px solid #000",
+  background: "#f3f4f6",
+  fontWeight: 900,
+};
+
+const bottomInfo = {
+  fontSize: 12,
+  color: "#111827",
 };
 
 const confirmOverlay = {
