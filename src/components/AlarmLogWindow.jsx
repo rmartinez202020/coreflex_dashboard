@@ -11,8 +11,8 @@ export default function AlarmLogWindow({
 }) {
   const alarms = useAlarmsMockData();
 
-  // ✅ NEW: top-left tabs like VTScada
   const [alarmView, setAlarmView] = React.useState("alarms"); // alarms | history | active | disabled
+  const [selectedId, setSelectedId] = React.useState(null);
 
   const [showCloseConfirm, setShowCloseConfirm] = React.useState(false);
 
@@ -28,13 +28,37 @@ export default function AlarmLogWindow({
 
   const cancelClose = () => setShowCloseConfirm(false);
 
-  // ✅ Simple view behavior (safe placeholders)
   const visibleAlarms = React.useMemo(() => {
     if (alarmView === "active") return alarms.filter((a) => !a.acknowledged);
     if (alarmView === "disabled") return [];
-    // "alarms" and "history" show all for now
-    return alarms;
+    return alarms; // alarms + history for now
   }, [alarmView, alarms]);
+
+  const getRowStyle = (a) => {
+    const isSelected = selectedId === a.id;
+
+    // VTScada-like: selected row = yellow
+    if (isSelected) {
+      return {
+        background: "#fbbf24", // yellow
+        color: "#111827",
+      };
+    }
+
+    // Unacked alarms: red rows
+    if (!a.acknowledged) {
+      return {
+        background: "#dc2626", // red
+        color: "#ffffff",
+      };
+    }
+
+    // Normal/ack rows: white
+    return {
+      background: "#ffffff",
+      color: "#111827",
+    };
+  };
 
   return (
     <div style={wrap}>
@@ -49,7 +73,6 @@ export default function AlarmLogWindow({
 
         {/* ✅ 4 Buttons on top-right */}
         <div style={btnRow}>
-          {/* Settings */}
           <button
             type="button"
             style={iconBtn}
@@ -62,7 +85,6 @@ export default function AlarmLogWindow({
             ⚙
           </button>
 
-          {/* Launch */}
           <button
             type="button"
             style={iconBtn}
@@ -75,7 +97,6 @@ export default function AlarmLogWindow({
             ↗
           </button>
 
-          {/* Minimize */}
           <button
             type="button"
             style={iconBtn}
@@ -88,7 +109,6 @@ export default function AlarmLogWindow({
             —
           </button>
 
-          {/* Close */}
           <button
             type="button"
             style={{ ...iconBtn, borderColor: "#7f1d1d" }}
@@ -100,7 +120,7 @@ export default function AlarmLogWindow({
         </div>
       </div>
 
-      {/* ✅ NEW: Tabs row (top-left like screenshot) */}
+      {/* TABS ROW */}
       <div style={tabsBar}>
         <TabButton
           label="Alarms"
@@ -136,25 +156,36 @@ export default function AlarmLogWindow({
           )}
         </div>
 
-        {visibleAlarms.map((a) => (
-          <div
-            key={a.id}
-            style={{
-              ...row,
-              background:
-                a.severity >= 4 ? "rgba(245,158,11,0.12)" : "transparent",
-            }}
-          >
-            <div style={cell}>{a.acknowledged ? "✔" : ""}</div>
-            <div style={cell}>{a.severity}</div>
-            <div style={{ ...cell, flex: 2 }}>{a.text}</div>
-            <div style={cell}>{a.time}</div>
-            <div style={cell}>{a.groupName}</div>
-            <div style={cell}>{a.controller}</div>
-          </div>
-        ))}
+        {visibleAlarms.map((a) => {
+          const rowColors = getRowStyle(a);
 
-        {/* Optional empty state for Disabled (or if no rows) */}
+          return (
+            <div
+              key={a.id}
+              style={{
+                ...row,
+                background: rowColors.background,
+                color: rowColors.color,
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                setSelectedId(a.id);
+              }}
+            >
+              <div style={{ ...cell, color: rowColors.color }}>
+                {a.acknowledged ? "✔" : ""}
+              </div>
+              <div style={{ ...cell, color: rowColors.color }}>{a.severity}</div>
+              <div style={{ ...cell, flex: 2, color: rowColors.color }}>
+                {a.text}
+              </div>
+              <div style={{ ...cell, color: rowColors.color }}>{a.time}</div>
+              <div style={{ ...cell, color: rowColors.color }}>{a.groupName}</div>
+              <div style={{ ...cell, color: rowColors.color }}>{a.controller}</div>
+            </div>
+          );
+        })}
+
         {visibleAlarms.length === 0 && (
           <div style={emptyState}>
             No alarms to display in <b>{alarmView}</b>.
@@ -186,7 +217,6 @@ export default function AlarmLogWindow({
   );
 }
 
-/** ✅ Small local component for the tab buttons */
 function TabButton({ label, active, onClick }) {
   return (
     <button
@@ -206,24 +236,26 @@ function TabButton({ label, active, onClick }) {
   );
 }
 
+/* ✅ Updated palette to match VTScada-style */
 const wrap = {
   width: "100%",
   height: "100%",
-  background: "#0b1220",
-  color: "#e5e7eb",
+  background: "#e5e7eb", // ✅ light gray (instead of black)
+  color: "#111827",
   display: "flex",
   flexDirection: "column",
-  position: "relative", // ✅ helps confirmOverlay (absolute) behave correctly
+  position: "relative",
 };
 
 const topBar = {
   height: 42,
-  background: "#0f172a",
+  background: "#111827", // dark bar
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
   padding: "0 10px",
-  borderBottom: "1px solid #111827",
+  borderBottom: "1px solid #0b1220",
+  color: "#f9fafb",
 };
 
 const leftTop = {
@@ -243,9 +275,9 @@ const countPill = {
   fontWeight: 900,
   padding: "2px 8px",
   borderRadius: 999,
-  background: "#111827",
-  border: "1px solid #334155",
-  color: "#e5e7eb",
+  background: "#0b1220",
+  border: "1px solid #374151",
+  color: "#f9fafb",
 };
 
 const btnRow = {
@@ -257,53 +289,53 @@ const btnRow = {
 const iconBtn = {
   width: 28,
   height: 26,
-  background: "#111827",
+  background: "#0b1220",
   border: "1px solid #374151",
   borderRadius: 8,
-  color: "#e5e7eb",
+  color: "#f9fafb",
   cursor: "pointer",
   fontWeight: 900,
   lineHeight: "24px",
 };
 
-/* ✅ Tabs row */
 const tabsBar = {
   height: 34,
   display: "flex",
   alignItems: "center",
   gap: 8,
   padding: "0 10px",
-  background: "#0b1220",
-  borderBottom: "1px solid #1f2937",
+  background: "#d1d5db", // slightly darker gray
+  borderBottom: "1px solid #9ca3af",
 };
 
 const tabBtn = {
   height: 26,
   padding: "0 10px",
   borderRadius: 8,
-  border: "1px solid #334155",
-  background: "#0b1220",
-  color: "#e5e7eb",
+  border: "1px solid #9ca3af",
+  background: "#f3f4f6",
+  color: "#111827",
   cursor: "pointer",
   fontWeight: 900,
   fontSize: 12,
 };
 
 const tabBtnActive = {
-  background: "#111827",
-  borderColor: "#60a5fa",
-  boxShadow: "0 0 0 2px rgba(96,165,250,0.12) inset",
+  background: "#ffffff",
+  borderColor: "#111827",
+  boxShadow: "0 0 0 2px rgba(17,24,39,0.12) inset",
 };
 
 const table = {
   flex: 1,
   overflow: "auto",
+  background: "#e5e7eb",
 };
 
 const header = {
   display: "flex",
-  background: "#020617",
-  borderBottom: "1px solid #374151",
+  background: "#111827", // dark column header
+  borderBottom: "1px solid #0b1220",
 };
 
 const cellHead = {
@@ -311,26 +343,26 @@ const cellHead = {
   padding: 8,
   fontSize: 12,
   fontWeight: 900,
-  color: "#e5e7eb",
+  color: "#f9fafb",
 };
 
 const row = {
   display: "flex",
-  borderBottom: "1px solid #1f2937",
+  borderBottom: "1px solid #9ca3af",
+  cursor: "default",
 };
 
 const cell = {
   flex: 1,
   padding: 8,
   fontSize: 12,
-  color: "#e5e7eb",
 };
 
 const emptyState = {
   padding: 14,
   fontSize: 13,
-  color: "#cbd5e1",
-  borderBottom: "1px solid #1f2937",
+  color: "#111827",
+  borderBottom: "1px solid #9ca3af",
 };
 
 /* Confirm modal */
@@ -346,8 +378,8 @@ const confirmOverlay = {
 
 const confirmCard = {
   width: 420,
-  background: "#0b1220",
-  border: "1px solid #334155",
+  background: "#ffffff",
+  border: "1px solid #9ca3af",
   borderRadius: 14,
   boxShadow: "0 18px 60px rgba(0,0,0,.6)",
   padding: 16,
@@ -357,11 +389,12 @@ const confirmTitle = {
   fontSize: 16,
   fontWeight: 900,
   marginBottom: 8,
+  color: "#111827",
 };
 
 const confirmText = {
   fontSize: 13,
-  color: "#cbd5e1",
+  color: "#374151",
   lineHeight: "18px",
 };
 
@@ -373,9 +406,9 @@ const confirmActions = {
 };
 
 const cancelBtn = {
-  background: "#111827",
-  border: "1px solid #374151",
-  color: "#e5e7eb",
+  background: "#f3f4f6",
+  border: "1px solid #9ca3af",
+  color: "#111827",
   padding: "8px 12px",
   borderRadius: 10,
   cursor: "pointer",
