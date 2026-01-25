@@ -11,203 +11,95 @@ export default function AlarmLogWindow({
 }) {
   const alarms = useAlarmsMockData();
 
-  const [alarmView, setAlarmView] = React.useState("alarms"); // alarms | history | active | disabled
+  const [alarmView, setAlarmView] = React.useState("alarms");
   const [selectedId, setSelectedId] = React.useState(null);
-
   const [showCloseConfirm, setShowCloseConfirm] = React.useState(false);
 
-  const requestClose = (e) => {
-    e?.stopPropagation?.();
-    setShowCloseConfirm(true);
-  };
-
-  const confirmClose = () => {
-    setShowCloseConfirm(false);
-    onClose?.();
-  };
-
-  const cancelClose = () => setShowCloseConfirm(false);
-
   const visibleAlarms = React.useMemo(() => {
-    if (alarmView === "active") return alarms.filter((a) => !a.acknowledged);
+    if (alarmView === "active") return alarms.filter(a => !a.acknowledged);
     if (alarmView === "disabled") return [];
-    return alarms; // alarms + history for now
+    return alarms;
   }, [alarmView, alarms]);
 
   const getRowStyle = (a) => {
-    const isSelected = selectedId === a.id;
-
-    if (isSelected) {
-      return {
-        background: "#fbbf24", // yellow
-        color: "#111827",
-      };
+    if (selectedId === a.id) {
+      return { background: "#fbbf24", color: "#111827" };
     }
-
-    // Unacked alarms: red rows
     if (!a.acknowledged) {
-      return {
-        background: "#dc2626", // red
-        color: "#ffffff",
-      };
+      return { background: "#dc2626", color: "#ffffff" };
     }
-
-    // Normal/ack rows: white
-    return {
-      background: "#ffffff",
-      color: "#111827",
-    };
+    return { background: "#ffffff", color: "#111827" };
   };
 
   return (
     <div style={wrap}>
       {/* TOP BAR */}
       <div style={topBar}>
-        <div style={leftTop}>
-          <div style={titleWrap}>
-            <span style={{ fontWeight: 900 }}>{title}</span>
-            <span style={countPill}>{visibleAlarms.length}</span>
-          </div>
+        <div style={titleWrap}>
+          <span style={{ fontWeight: 900 }}>{title}</span>
+          <span style={countPill}>{visibleAlarms.length}</span>
         </div>
 
-        {/* ✅ 4 Buttons on top-right */}
         <div style={btnRow}>
-          <button
-            type="button"
-            style={iconBtn}
-            title="Settings"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenSettings?.();
-            }}
-          >
-            ⚙
-          </button>
-
-          <button
-            type="button"
-            style={iconBtn}
-            title="Launch"
-            onClick={(e) => {
-              e.stopPropagation();
-              onLaunch?.();
-            }}
-          >
-            ↗
-          </button>
-
-          <button
-            type="button"
-            style={iconBtn}
-            title="Minimize"
-            onClick={(e) => {
-              e.stopPropagation();
-              onMinimize?.();
-            }}
-          >
-            —
-          </button>
-
-          <button
-            type="button"
-            style={{ ...iconBtn, borderColor: "#7f1d1d" }}
-            title="Close"
-            onClick={requestClose}
-          >
-            ✕
-          </button>
+          <button style={iconBtn} onClick={onOpenSettings}>⚙</button>
+          <button style={iconBtn} onClick={onLaunch}>↗</button>
+          <button style={iconBtn} onClick={onMinimize}>—</button>
+          <button style={{ ...iconBtn, borderColor: "#7f1d1d" }} onClick={() => setShowCloseConfirm(true)}>✕</button>
         </div>
       </div>
 
-      {/* TABS ROW */}
+      {/* TABS */}
       <div style={tabsBar}>
-        <TabButton
-          label="Alarms"
-          active={alarmView === "alarms"}
-          onClick={() => setAlarmView("alarms")}
-        />
-        <TabButton
-          label="History"
-          active={alarmView === "history"}
-          onClick={() => setAlarmView("history")}
-        />
-        <TabButton
-          label="Active"
-          active={alarmView === "active"}
-          onClick={() => setAlarmView("active")}
-        />
-        <TabButton
-          label="Disabled"
-          active={alarmView === "disabled"}
-          onClick={() => setAlarmView("disabled")}
-        />
+        {["alarms", "history", "active", "disabled"].map(v => (
+          <TabButton
+            key={v}
+            label={v.charAt(0).toUpperCase() + v.slice(1)}
+            active={alarmView === v}
+            onClick={() => setAlarmView(v)}
+          />
+        ))}
       </div>
 
       {/* TABLE */}
       <div style={table}>
-        <div style={header}>
-          {["Ack", "Sev", "Alarm Text", "Time", "Group", "Controller"].map(
-            (h) => (
-              <div key={h} style={cellHead}>
-                {h}
-              </div>
-            )
-          )}
+        {/* HEADER */}
+        <div style={headerRow}>
+          <div style={{ ...cellHead, width: 170 }}>Time</div>
+          <div style={{ ...cellHead, width: 48, textAlign: "center" }}>Ack</div>
+          <div style={{ ...cellHead, width: 48, textAlign: "center" }}>Sev</div>
+          <div style={{ ...cellHead, flex: 1 }}>Alarm Text</div>
+          <div style={{ ...cellHead, width: 120 }}>Group</div>
+          <div style={{ ...cellHead, width: 120 }}>Controller</div>
         </div>
 
-        {visibleAlarms.map((a) => {
-          const rowColors = getRowStyle(a);
-
+        {/* ROWS */}
+        {visibleAlarms.map(a => {
+          const style = getRowStyle(a);
           return (
             <div
               key={a.id}
-              style={{
-                ...row,
-                background: rowColors.background,
-                color: rowColors.color,
-              }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                setSelectedId(a.id);
-              }}
+              style={{ ...row, background: style.background, color: style.color }}
+              onMouseDown={() => setSelectedId(a.id)}
             >
-              <div style={{ ...cell, color: rowColors.color }}>
-                {a.acknowledged ? "✔" : ""}
-              </div>
-              <div style={{ ...cell, color: rowColors.color }}>{a.severity}</div>
-              <div style={{ ...cell, flex: 2, color: rowColors.color }}>
-                {a.text}
-              </div>
-              <div style={{ ...cell, color: rowColors.color }}>{a.time}</div>
-              <div style={{ ...cell, color: rowColors.color }}>{a.groupName}</div>
-              <div style={{ ...cell, color: rowColors.color }}>{a.controller}</div>
+              <div style={{ ...cell, width: 170 }}>{a.time}</div>
+              <div style={{ ...cell, width: 48, textAlign: "center" }}>{a.acknowledged ? "✔" : ""}</div>
+              <div style={{ ...cell, width: 48, textAlign: "center" }}>{a.severity}</div>
+              <div style={{ ...cell, flex: 1 }}>{a.text}</div>
+              <div style={{ ...cell, width: 120 }}>{a.groupName}</div>
+              <div style={{ ...cell, width: 120 }}>{a.controller}</div>
             </div>
           );
         })}
-
-        {visibleAlarms.length === 0 && (
-          <div style={emptyState}>
-            No alarms to display in <b>{alarmView}</b>.
-          </div>
-        )}
       </div>
 
-      {/* ✅ CLOSE CONFIRM MODAL */}
+      {/* CLOSE CONFIRM */}
       {showCloseConfirm && (
-        <div style={confirmOverlay} onMouseDown={(e) => e.stopPropagation()}>
+        <div style={confirmOverlay}>
           <div style={confirmCard}>
             <div style={confirmTitle}>Close Alarm Log?</div>
-            <div style={confirmText}>
-              All settings will be lost. This action cannot be undone.
-            </div>
-
             <div style={confirmActions}>
-              <button type="button" style={cancelBtn} onClick={cancelClose}>
-                Cancel
-              </button>
-              <button type="button" style={dangerBtn} onClick={confirmClose}>
-                Close
-              </button>
+              <button style={cancelBtn} onClick={() => setShowCloseConfirm(false)}>Cancel</button>
+              <button style={dangerBtn} onClick={onClose}>Close</button>
             </div>
           </div>
         </div>
@@ -216,220 +108,60 @@ export default function AlarmLogWindow({
   );
 }
 
+/* ---------------- STYLES ---------------- */
+
 function TabButton({ label, active, onClick }) {
   return (
     <button
-      type="button"
-      onClick={(e) => {
-        e.stopPropagation();
-        onClick?.();
-      }}
-      style={{
-        ...tabBtn,
-        ...(active ? tabBtnActive : null),
-      }}
-      title={label}
+      onClick={onClick}
+      style={{ ...tabBtn, ...(active ? tabBtnActive : {}) }}
     >
       {label}
     </button>
   );
 }
 
-/* ✅ Updated palette + ✅ NEW strong black frame */
 const wrap = {
   width: "100%",
   height: "100%",
-  background: "#e5e7eb", // ✅ light gray (instead of black)
-  color: "#111827",
+  background: "#e5e7eb",
+  border: "3px solid #000",
+  boxShadow: "0 0 0 1px #374151 inset, 0 8px 24px rgba(0,0,0,.45)",
   display: "flex",
   flexDirection: "column",
-  position: "relative",
-
-  // ✅ NEW: visible border/frame (matches VTScada feel)
-  border: "3px solid #000000",
-  boxShadow: "0 0 0 1px #374151 inset, 0 8px 24px rgba(0,0,0,0.45)",
 };
 
 const topBar = {
   height: 42,
-  background: "#111827", // dark bar
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  padding: "0 10px",
-
-  // ✅ stronger separation
-  borderBottom: "2px solid #000000",
-  color: "#f9fafb",
-};
-
-const leftTop = {
-  display: "flex",
-  alignItems: "center",
-  gap: 10,
-};
-
-const titleWrap = {
-  display: "flex",
-  alignItems: "center",
-  gap: 8,
-};
-
-const countPill = {
-  fontSize: 12,
-  fontWeight: 900,
-  padding: "2px 8px",
-  borderRadius: 999,
-  background: "#0b1220",
-  border: "1px solid #374151",
-  color: "#f9fafb",
-};
-
-const btnRow = {
-  display: "flex",
-  alignItems: "center",
-  gap: 6,
-};
-
-const iconBtn = {
-  width: 28,
-  height: 26,
-  background: "#0b1220",
-  border: "1px solid #374151",
-  borderRadius: 8,
-  color: "#f9fafb",
-  cursor: "pointer",
-  fontWeight: 900,
-  lineHeight: "24px",
-};
-
-const tabsBar = {
-  height: 34,
-  display: "flex",
-  alignItems: "center",
-  gap: 8,
-  padding: "0 10px",
-  background: "#d1d5db", // slightly darker gray
-  borderBottom: "1px solid #9ca3af",
-};
-
-const tabBtn = {
-  height: 26,
-  padding: "0 10px",
-  borderRadius: 8,
-  border: "1px solid #9ca3af",
-  background: "#f3f4f6",
-  color: "#111827",
-  cursor: "pointer",
-  fontWeight: 900,
-  fontSize: 12,
-};
-
-const tabBtnActive = {
-  background: "#ffffff",
-  borderColor: "#111827",
-  boxShadow: "0 0 0 2px rgba(17,24,39,0.12) inset",
-};
-
-const table = {
-  flex: 1,
-  overflow: "auto",
-  background: "#e5e7eb",
-
-  // ✅ NEW: helps the grid feel contained
-  borderTop: "1px solid #000000",
-  borderBottom: "2px solid #000000",
-};
-
-const header = {
-  display: "flex",
-  background: "#111827", // dark column header
-  borderBottom: "1px solid #0b1220",
-};
-
-const cellHead = {
-  flex: 1,
-  padding: 8,
-  fontSize: 12,
-  fontWeight: 900,
-  color: "#f9fafb",
-};
-
-const row = {
-  display: "flex",
-  borderBottom: "1px solid #9ca3af",
-  cursor: "default",
-};
-
-const cell = {
-  flex: 1,
-  padding: 8,
-  fontSize: 12,
-};
-
-const emptyState = {
-  padding: 14,
-  fontSize: 13,
-  color: "#111827",
-  borderBottom: "1px solid #9ca3af",
-};
-
-/* Confirm modal */
-const confirmOverlay = {
-  position: "absolute",
-  inset: 0,
-  background: "rgba(0,0,0,0.55)",
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "center",
-  zIndex: 999999,
-};
-
-const confirmCard = {
-  width: 420,
-  background: "#ffffff",
-  border: "1px solid #9ca3af",
-  borderRadius: 14,
-  boxShadow: "0 18px 60px rgba(0,0,0,.6)",
-  padding: 16,
-};
-
-const confirmTitle = {
-  fontSize: 16,
-  fontWeight: 900,
-  marginBottom: 8,
-  color: "#111827",
-};
-
-const confirmText = {
-  fontSize: 13,
-  color: "#374151",
-  lineHeight: "18px",
-};
-
-const confirmActions = {
-  marginTop: 14,
-  display: "flex",
-  justifyContent: "flex-end",
-  gap: 10,
-};
-
-const cancelBtn = {
-  background: "#f3f4f6",
-  border: "1px solid #9ca3af",
-  color: "#111827",
-  padding: "8px 12px",
-  borderRadius: 10,
-  cursor: "pointer",
-  fontWeight: 900,
-};
-
-const dangerBtn = {
-  background: "#7f1d1d",
-  border: "1px solid #ef4444",
+  background: "#111827",
   color: "#fff",
-  padding: "8px 12px",
-  borderRadius: 10,
-  cursor: "pointer",
-  fontWeight: 900,
+  display: "flex",
+  justifyContent: "space-between",
+  alignItems: "center",
+  padding: "0 10px",
+  borderBottom: "2px solid #000",
 };
+
+const titleWrap = { display: "flex", gap: 8, alignItems: "center" };
+const countPill = { background: "#000", padding: "2px 8px", borderRadius: 999 };
+
+const btnRow = { display: "flex", gap: 6 };
+const iconBtn = { width: 28, height: 26, background: "#000", color: "#fff", borderRadius: 6 };
+
+const tabsBar = { height: 34, display: "flex", gap: 6, padding: "0 10px", background: "#d1d5db" };
+const tabBtn = { padding: "4px 10px", fontWeight: 900, borderRadius: 6 };
+const tabBtnActive = { background: "#fff", border: "1px solid #000" };
+
+const table = { flex: 1, overflow: "auto" };
+const headerRow = { display: "flex", background: "#111827", color: "#fff" };
+const cellHead = { padding: 8, fontWeight: 900, fontSize: 12 };
+
+const row = { display: "flex", borderBottom: "1px solid #9ca3af", cursor: "default" };
+const cell = { padding: 8, fontSize: 12, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" };
+
+const confirmOverlay = { position: "absolute", inset: 0, background: "rgba(0,0,0,.55)", display: "flex", justifyContent: "center", alignItems: "center" };
+const confirmCard = { background: "#fff", padding: 16, borderRadius: 12 };
+const confirmTitle = { fontWeight: 900 };
+const confirmActions = { display: "flex", justifyContent: "flex-end", gap: 10 };
+const cancelBtn = { padding: "6px 12px" };
+const dangerBtn = { padding: "6px 12px", background: "#7f1d1d", color: "#fff" };
