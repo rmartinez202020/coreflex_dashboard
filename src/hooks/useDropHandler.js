@@ -8,6 +8,24 @@ export default function useDropHandler({ setDroppedTanks }) {
     }
   };
 
+  // ✅ Only accept actual image URLs / data URLs as "image drops"
+  const isLikelyImageUrl = (s) => {
+    const v = String(s || "").trim();
+    if (!v) return false;
+
+    // allow: https, http, data:image, blob
+    if (
+      v.startsWith("http://") ||
+      v.startsWith("https://") ||
+      v.startsWith("data:image/") ||
+      v.startsWith("blob:")
+    )
+      return true;
+
+    // allow common file extensions
+    return /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(v);
+  };
+
   const handleDrop = (e) => {
     e.preventDefault();
 
@@ -16,12 +34,16 @@ export default function useDropHandler({ setDroppedTanks }) {
     const y = e.clientY - rect.top;
 
     // ===============================
-    // ✅ 1) IMAGE DROP (ALL SOURCES)
+    // ✅ 1) IMAGE DROP (ONLY real urls)
     // ===============================
+    const imageUrl = e.dataTransfer.getData("imageUrl");
+    const coreflexImg = e.dataTransfer.getData("coreflex-image");
+    const plain = e.dataTransfer.getData("text/plain");
+
     const imgSrc =
-      e.dataTransfer.getData("imageUrl") ||
-      e.dataTransfer.getData("coreflex-image") ||
-      e.dataTransfer.getData("text/plain");
+      (isLikelyImageUrl(imageUrl) && imageUrl) ||
+      (isLikelyImageUrl(coreflexImg) && coreflexImg) ||
+      (isLikelyImageUrl(plain) && plain);
 
     if (imgSrc) {
       setDroppedTanks((prev) => [
@@ -39,7 +61,9 @@ export default function useDropHandler({ setDroppedTanks }) {
       return;
     }
 
+    // ===============================
     // ✅ 2) DEVICE CONTROLS DROP
+    // ===============================
     const control = e.dataTransfer.getData("control");
     if (control) {
       if (control === "toggleControl") {
@@ -135,30 +159,13 @@ export default function useDropHandler({ setDroppedTanks }) {
       return;
     }
 
-    // 3) DRAGGING A SHAPE / ENTITY
+    // ===============================
+    // ✅ 3) SHAPES (RightSidebar)
+    // ===============================
     const shape = e.dataTransfer.getData("shape");
     if (!shape) return;
 
-    // ✅ NEW: ALARMS LOG (AI)
-    // Dropping the sidebar icon should create the FULL window object (not the small tile)
-    if (shape === "alarmLog") {
-      setDroppedTanks((prev) => [
-        ...prev,
-        {
-          id: makeId(),
-          shape: "alarmLogWindow",
-          x,
-          y,
-          w: 720,
-          h: 320,
-          zIndex: 1,
-          title: "Alarms Log (AI)",
-        },
-      ]);
-      return;
-    }
-
-    // ✅ GRAPHIC DISPLAY (Trend)
+    // ✅ GRAPHIC DISPLAY
     if (shape === "graphicDisplay") {
       setDroppedTanks((prev) => [
         ...prev,
@@ -170,16 +177,20 @@ export default function useDropHandler({ setDroppedTanks }) {
           w: 520,
           h: 260,
           zIndex: 1,
+
           title: "Graphic Display",
           timeUnit: "seconds",
           sampleMs: 1000,
           window: 60,
+
           yMin: 0,
           yMax: 100,
           yUnits: "",
           graphStyle: "line",
+
           sampleEveryMs: 1000,
           windowCount: 60,
+
           series: [
             {
               name: "Level %",
@@ -187,8 +198,27 @@ export default function useDropHandler({ setDroppedTanks }) {
               field: "level_percent",
             },
           ],
+
           recording: false,
           samples: [],
+        },
+      ]);
+      return;
+    }
+
+    // ✅✅✅ ALARMS LOG (DI-AI)
+    if (shape === "alarmLog") {
+      setDroppedTanks((prev) => [
+        ...prev,
+        {
+          id: makeId(),
+          shape: "alarmLog",
+          x,
+          y,
+          w: 780,
+          h: 360,
+          zIndex: 1,
+          title: "Alarms Log (DI-AI)",
         },
       ]);
       return;
@@ -214,7 +244,7 @@ export default function useDropHandler({ setDroppedTanks }) {
       return;
     }
 
-    // 4) TANK MODELS (default)
+    // 4) OTHER MODELS
     setDroppedTanks((prev) => [
       ...prev,
       {
