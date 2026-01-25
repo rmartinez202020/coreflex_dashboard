@@ -5,8 +5,6 @@ import RestoreWarningModal from "./RestoreWarningModal";
 import DisplaySettingsModal from "./DisplaySettingsModal";
 import GraphicDisplaySettingsModal from "./GraphicDisplaySettingsModal";
 import SiloPropertiesModal from "./SiloPropertiesModal";
-
-// ✅ Alarms Log (AI)
 import AlarmLogModal from "./AlarmLogModal";
 
 export default function AppModals({
@@ -33,12 +31,14 @@ export default function AppModals({
   setShowSiloProps,
   activeSiloId,
 
-  // --- ✅ Alarms Log (AI) modal ---
+  // --- ✅ Alarms Log (DI-AI) modal ---
   alarmLogOpen,
   closeAlarmLog,
 
-  // ✅ NEW: minimize + launch handlers (optional but recommended)
+  // ✅ NEW: minimize handler from App.jsx
   onMinimizeAlarmLog,
+
+  // optional
   onLaunchAlarmLog,
 }) {
   // ✅ helpers to avoid silent mismatches (number vs string ids)
@@ -121,14 +121,12 @@ export default function AppModals({
         />
       )}
 
-      {/* 🚨 Alarms Log (AI) */}
+      {/* 🚨 Alarms Log (DI-AI) */}
       <AlarmLogModal
         open={!!alarmLogOpen}
         onClose={closeAlarmLog}
-        // ✅ NEW: allow modal to minimize into AppTopBar tray
-        onMinimize={onMinimizeAlarmLog}
-        // ✅ optional: allow modal to "launch" into separate tab (if you support this inside AlarmLogModal)
         onLaunch={onLaunchAlarmLog}
+        onMinimize={onMinimizeAlarmLog}
       />
 
       {/* ✅ Restore Warning */}

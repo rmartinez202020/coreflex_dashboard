@@ -7,7 +7,8 @@ export default function AlarmLogModal({
   open,
   onClose,
   onLaunch,
-  onMinimize, // ✅ NEW
+  onMinimize,
+  onOpenSettings,
 }) {
   if (!open) return null;
 
@@ -20,11 +21,11 @@ export default function AlarmLogModal({
       onClose={onClose}
     >
       <AlarmLogWindow
-        title="Alarms Log (DI-AI)"
         onLaunch={onLaunch}
-        onClose={onClose}
-        // ✅ this is the missing wire that makes the minimize button work
         onMinimize={onMinimize}
+        onClose={onClose}
+        onOpenSettings={onOpenSettings}
+        title="Alarms Log (DI-AI)"
       />
     </FloatingWindow>
   );
