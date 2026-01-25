@@ -6,7 +6,7 @@ import DisplaySettingsModal from "./DisplaySettingsModal";
 import GraphicDisplaySettingsModal from "./GraphicDisplaySettingsModal";
 import SiloPropertiesModal from "./SiloPropertiesModal";
 
-// ✅ NEW: Alarms Log (AI)
+// ✅ Alarms Log (AI)
 import AlarmLogModal from "./AlarmLogModal";
 
 export default function AppModals({
@@ -36,6 +36,10 @@ export default function AppModals({
   // --- ✅ Alarms Log (AI) modal ---
   alarmLogOpen,
   closeAlarmLog,
+
+  // ✅ NEW: minimize + launch handlers (optional but recommended)
+  onMinimizeAlarmLog,
+  onLaunchAlarmLog,
 }) {
   // ✅ helpers to avoid silent mismatches (number vs string ids)
   const isSameId = (a, b) => String(a) === String(b);
@@ -118,7 +122,14 @@ export default function AppModals({
       )}
 
       {/* 🚨 Alarms Log (AI) */}
-      <AlarmLogModal open={!!alarmLogOpen} onClose={closeAlarmLog} />
+      <AlarmLogModal
+        open={!!alarmLogOpen}
+        onClose={closeAlarmLog}
+        // ✅ NEW: allow modal to minimize into AppTopBar tray
+        onMinimize={onMinimizeAlarmLog}
+        // ✅ optional: allow modal to "launch" into separate tab (if you support this inside AlarmLogModal)
+        onLaunch={onLaunchAlarmLog}
+      />
 
       {/* ✅ Restore Warning */}
       <RestoreWarningModal

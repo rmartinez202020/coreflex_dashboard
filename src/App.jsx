@@ -25,20 +25,20 @@ import useContextMenu from "./hooks/useContextMenu";
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
-const isLaunchPage = location.pathname === "/launchMainDashboard";
+  const isLaunchPage = location.pathname === "/launchMainDashboard";
 
-// ✅ NAVIGATION (persist on refresh)
-const {
-  activePage,
-  setActivePage,
-  activeSubPage,
-  setActiveSubPage,
-  subPageColor,
-  setSubPageColor,
-} = usePageNavigation("coreflex_activePage");
+  // ✅ NAVIGATION (persist on refresh)
+  const {
+    activePage,
+    setActivePage,
+    activeSubPage,
+    setActiveSubPage,
+    subPageColor,
+    setSubPageColor,
+  } = usePageNavigation("coreflex_activePage");
 
   // DEVICE DATA
-const sensorsData = useDevicesData(API_URL);
+  const sensorsData = useDevicesData(API_URL);
 
   // OBJECTS ON CANVAS
   const [droppedTanks, setDroppedTanks] = useState([]);
@@ -46,115 +46,120 @@ const sensorsData = useDevicesData(API_URL);
   const [selectedIds, setSelectedIds] = useState([]);
 
   const clearSelection = () => {
-  setSelectedIds([]);
-  setSelectedTank(null);
-};
+    setSelectedIds([]);
+    setSelectedTank(null);
+  };
 
-// ⭐ DASHBOARD MODE — DEFAULT EDIT
-const [dashboardMode, setDashboardMode] = useState("edit");
+  // ⭐ DASHBOARD MODE — DEFAULT EDIT
+  const [dashboardMode, setDashboardMode] = useState("edit");
 
-// ✅ DELETE / BACKSPACE HANDLER (extracted)
-useDeleteSelected({
-  activePage,
-  dashboardMode,
-  selectedIds,
-  setDroppedTanks,
-  clearSelection,
-});
+  // ✅ DELETE / BACKSPACE HANDLER (extracted)
+  useDeleteSelected({
+    activePage,
+    dashboardMode,
+    selectedIds,
+    setDroppedTanks,
+    clearSelection,
+  });
 
   const resetToGuestState = () => {
-  setDroppedTanks([]);
-  setSelectedTank(null);
-  setSelectedIds([]);
-  setDashboardMode("edit");
-  setActivePage("home");
-  setActiveSubPage(null);
-  setSubPageColor("");
-};
+    setDroppedTanks([]);
+    setSelectedTank(null);
+    setSelectedIds([]);
+    setDashboardMode("edit");
+    setActivePage("home");
+    setActiveSubPage(null);
+    setSubPageColor("");
+  };
 
-const resetForUserChange = (newUserKey, oldUserKey) => {
-  console.log("🔄 User changed → resetting dashboard state", oldUserKey, "→", newUserKey);
+  const resetForUserChange = (newUserKey, oldUserKey) => {
+    console.log(
+      "🔄 User changed → resetting dashboard state",
+      oldUserKey,
+      "→",
+      newUserKey
+    );
 
-  setDroppedTanks([]);
-  setSelectedTank(null);
-  setSelectedIds([]);
-  setDashboardMode("edit");
-  setActivePage("home");
-  setActiveSubPage(null);
-  setSubPageColor("");
-};
+    setDroppedTanks([]);
+    setSelectedTank(null);
+    setSelectedIds([]);
+    setDashboardMode("edit");
+    setActivePage("home");
+    setActiveSubPage(null);
+    setSubPageColor("");
+  };
 
-const { currentUserKey, handleLogout } = useAuthController({
-  onNoAuthReset: resetToGuestState,
-  onUserChangedReset: resetForUserChange,
-  onLogoutReset: resetToGuestState,
-  navigate,
-  logoutRoute: "/",
-});
+  const { currentUserKey, handleLogout } = useAuthController({
+    onNoAuthReset: resetToGuestState,
+    onUserChangedReset: resetForUserChange,
+    onLogoutReset: resetToGuestState,
+    navigate,
+    logoutRoute: "/",
+  });
 
   // ✅ always keep the latest canvas in a ref (prevents stale Ctrl+Z / Ctrl+Y)
-const droppedRef = useRef([]);
+  const droppedRef = useRef([]);
 
-useEffect(() => {
-  droppedRef.current = droppedTanks;
-}, [droppedTanks]);
+  useEffect(() => {
+    droppedRef.current = droppedTanks;
+  }, [droppedTanks]);
 
-// ✅ DASHBOARD HISTORY (Undo / Redo / Drag history)
-const {
-  canUndo,
-  canRedo,
-  handleUndo,
-  handleRedo,
-  hardResetHistory,
-  onDragMoveBegin,
-  onDragEndCommit,
-  beginRestore,
-  endRestore,
-} = useDashboardHistory({
-  limit: 6,
-  activePage,
-  dashboardMode,
-  droppedTanks,
-  droppedRef,
-  setDroppedTanks,
-  clearSelection,
-});
+  // ✅ DASHBOARD HISTORY (Undo / Redo / Drag history)
+  const {
+    canUndo,
+    canRedo,
+    handleUndo,
+    handleRedo,
+    hardResetHistory,
+    onDragMoveBegin,
+    onDragEndCommit,
+    beginRestore,
+    endRestore,
+  } = useDashboardHistory({
+    limit: 6,
+    activePage,
+    dashboardMode,
+    droppedTanks,
+    droppedRef,
+    setDroppedTanks,
+    clearSelection,
+  });
 
-const {
-  activeDashboard,
-  setActiveDashboard,
-  lastSavedAt,
-  goToMainDashboard,
-  handleSaveProject,
-  handleUploadProject,
-} = useDashboardPersistence({
-  currentUserKey,
-  activePage,
-  setActivePage,
-  dashboardMode,
-  setDashboardMode,
-  droppedTanks,
-  setDroppedTanks,
-  droppedRef,
-  setSelectedIds,
-  setSelectedTank,
-  hardResetHistory,
-  beginRestore,
-  endRestore,
-});
+  const {
+    activeDashboard,
+    setActiveDashboard,
+    lastSavedAt,
+    goToMainDashboard,
+    handleSaveProject,
+    handleUploadProject,
+  } = useDashboardPersistence({
+    currentUserKey,
+    activePage,
+    setActivePage,
+    dashboardMode,
+    setDashboardMode,
+    droppedTanks,
+    setDroppedTanks,
+    droppedRef,
+    setSelectedIds,
+    setSelectedTank,
+    hardResetHistory,
+    beginRestore,
+    endRestore,
+  });
 
-// ✅ Reset dashboard context when user logs out / token disappears
-useEffect(() => {
-  if (!currentUserKey) {
-    setActiveDashboard({
-      type: "main",
-      dashboardId: null,
-      dashboardName: "Main Dashboard",
-      customerId: null,
-      customerName: "",
-    });
-  }
-}, [currentUserKey, setActiveDashboard]);
+  // ✅ Reset dashboard context when user logs out / token disappears
+  useEffect(() => {
+    if (!currentUserKey) {
+      setActiveDashboard({
+        type: "main",
+        dashboardId: null,
+        dashboardName: "Main Dashboard",
+        customerId: null,
+        customerName: "",
+      });
+    }
+  }, [currentUserKey, setActiveDashboard]);
 
   // SIDEBARS
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
@@ -168,12 +173,8 @@ useEffect(() => {
   const [showLevelSensors, setShowLevelSensors] = useState(false);
 
   // ✅ CONTEXT MENU (extracted)
-const {
-  contextMenu,
-  setContextMenu,
-  hideContextMenu,
-  handleRightClick,
-} = useContextMenu();
+  const { contextMenu, setContextMenu, hideContextMenu, handleRightClick } =
+    useContextMenu();
 
   // ACTIVE SILO
   const [activeSiloId, setActiveSiloId] = useState(null);
@@ -189,16 +190,36 @@ const {
   const openGraphicDisplaySettings = (tank) => setGraphicSettingsId(tank.id);
   const closeGraphicDisplaySettings = () => setGraphicSettingsId(null);
 
-    // 🚨 ALARMS LOG MODAL (AI)
+  // 🚨 ALARMS LOG MODAL (AI)
   const [alarmLogOpen, setAlarmLogOpen] = useState(false);
 
-  const openAlarmLog = () => setAlarmLogOpen(true);
-  const closeAlarmLog = () => setAlarmLogOpen(false);
+  // ✅ NEW: minimized state for alarm log (shows in AppTopBar header tray)
+  const [alarmLogMinimized, setAlarmLogMinimized] = useState(false);
+
+  const openAlarmLog = () => {
+    setAlarmLogMinimized(false);
+    setAlarmLogOpen(true);
+  };
+
+  const closeAlarmLog = () => {
+    setAlarmLogMinimized(false);
+    setAlarmLogOpen(false);
+  };
+
+  // ✅ MINIMIZE: hide modal + show minimized tab in AppTopBar
+  const minimizeAlarmLog = () => {
+    setAlarmLogOpen(false);
+    setAlarmLogMinimized(true);
+  };
+
+  // ✅ RESTORE: show modal again + remove minimized tab
+  const restoreAlarmLog = () => {
+    setAlarmLogMinimized(false);
+    setAlarmLogOpen(true);
+  };
 
   // Launch = separate window (always tracking alarms)
-  const launchAlarmLog = () =>
-    window.open("/launchAlarmLog", "_blank");
-
+  const launchAlarmLog = () => window.open("/launchAlarmLog", "_blank");
 
   // SENSOR SETUP
   const sensors = useSensors(
@@ -213,23 +234,24 @@ const {
     else if (obj.shape === "displayBox") offset = 3;
     return base * 10 + offset;
   };
-const { goHomeHard } = useHomeReset({
-  navigate,
-  setActivePage,
-  setActiveSubPage,
-  setSubPageColor,
-  setShowRestoreWarning,
-  setShowSiloProps,
-  closeDisplaySettings,
-  closeGraphicDisplaySettings,
-  setShowDevices,
-  setShowLevelSensors,
-  setContextMenu,
-  setSelectedIds,
-  setSelectedTank,
-  setActiveSiloId,
-  setActiveDashboard,
-});
+
+  const { goHomeHard } = useHomeReset({
+    navigate,
+    setActivePage,
+    setActiveSubPage,
+    setSubPageColor,
+    setShowRestoreWarning,
+    setShowSiloProps,
+    closeDisplaySettings,
+    closeGraphicDisplaySettings,
+    setShowDevices,
+    setShowLevelSensors,
+    setContextMenu,
+    setSelectedIds,
+    setSelectedTank,
+    setActiveSiloId,
+    setActiveDashboard,
+  });
 
   // ⭐ COLLAPSE BOTH SIDEBARS WHEN IN PLAY
   useEffect(() => {
@@ -243,45 +265,40 @@ const { goHomeHard } = useHomeReset({
   }, [dashboardMode]);
 
   // CANVAS SELECTION
-  const {
-    selectionBox,
-    handleCanvasMouseDown,
-    handleCanvasMouseMove,
-    handleCanvasMouseUp,
-  } = useCanvasSelection({
-    droppedTanks,
-    setSelectedIds,
-    setSelectedTank,
-    hideContextMenu,
-  });
+  const { selectionBox, handleCanvasMouseDown, handleCanvasMouseMove, handleCanvasMouseUp } =
+    useCanvasSelection({
+      droppedTanks,
+      setSelectedIds,
+      setSelectedTank,
+      hideContextMenu,
+    });
 
   // OBJECT DRAGGING
-const {
-  dragDelta,
-  setDragDelta,
-  handleDragMove: rawHandleDragMove,
-  handleDragEnd: rawHandleDragEnd,
-  guides,
-} = useObjectDragging({
-  selectedIds,
-  droppedTanks,
-  setDroppedTanks,
-});
+  const {
+    dragDelta,
+    setDragDelta,
+    handleDragMove: rawHandleDragMove,
+    handleDragEnd: rawHandleDragEnd,
+    guides,
+  } = useObjectDragging({
+    selectedIds,
+    droppedTanks,
+    setDroppedTanks,
+  });
 
-// ✅ DASHBOARD HISTORY DRAG WRAPPERS
-const handleDragMove = (...args) => {
-  onDragMoveBegin();
-  rawHandleDragMove(...args);
-};
+  // ✅ DASHBOARD HISTORY DRAG WRAPPERS
+  const handleDragMove = (...args) => {
+    onDragMoveBegin();
+    rawHandleDragMove(...args);
+  };
 
-const handleDragEnd = (...args) => {
-  rawHandleDragEnd(...args);
-  onDragEndCommit();
-};
+  const handleDragEnd = (...args) => {
+    rawHandleDragEnd(...args);
+    onDragEndCommit();
+  };
 
   // DROP HANDLER
   const { handleDrop } = useDropHandler({
-  
     setDroppedTanks,
   });
 
@@ -291,10 +308,10 @@ const handleDragEnd = (...args) => {
     hideContextMenu();
   };
 
-// ✅ LAUNCH PAGE — RENDER ONLY PLAY MODE DASHBOARD
-if (isLaunchPage) {
-  return <LaunchedMainDashboard />;
-}
+  // ✅ LAUNCH PAGE — RENDER ONLY PLAY MODE DASHBOARD
+  if (isLaunchPage) {
+    return <LaunchedMainDashboard />;
+  }
 
   return (
     <div
@@ -320,43 +337,60 @@ if (isLaunchPage) {
         onGoMainDashboard={goToMainDashboard}
         onGoHome={goHomeHard}
       />
+
       <main className="flex-1 p-6 bg-white overflow-visible relative">
         <Header onLogout={handleLogout} />
 
-<AppTopBar
-  activePage={activePage}
-  activeDashboard={activeDashboard}
-  dashboardMode={dashboardMode}
-  setDashboardMode={setDashboardMode}
-  onLaunch={() => {
-    if (activeDashboard?.type === "main") {
-      window.open("/launchMainDashboard", "_blank");
-    } else {
-      window.open(`/launchDashboard/${activeDashboard?.dashboardId}`, "_blank");
-    }
-  }}
-  onUndo={handleUndo}
-  onRedo={handleRedo}
-  canUndo={canUndo}
-  canRedo={canRedo}
-/>
+        <AppTopBar
+          activePage={activePage}
+          activeDashboard={activeDashboard}
+          dashboardMode={dashboardMode}
+          setDashboardMode={setDashboardMode}
+          onLaunch={() => {
+            if (activeDashboard?.type === "main") {
+              window.open("/launchMainDashboard", "_blank");
+            } else {
+              window.open(
+                `/launchDashboard/${activeDashboard?.dashboardId}`,
+                "_blank"
+              );
+            }
+          }}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+          canUndo={canUndo}
+          canRedo={canRedo}
+
+          // ✅ NEW: minimized alarm log tray item shown in header
+          minimizedWindows={
+            alarmLogMinimized
+              ? [{ key: "alarmLog", title: "Alarms Log (DI-AI)" }]
+              : []
+          }
+          onRestoreWindow={(key) => {
+            if (key === "alarmLog") restoreAlarmLog();
+          }}
+          onCloseWindow={(key) => {
+            if (key === "alarmLog") closeAlarmLog();
+          }}
+        />
+
         {activePage === "home" ? (
           <div className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg bg-white">
             <div className="w-full h-full p-6">
-
-<HomeSubPageRouter
-  activeSubPage={activeSubPage}
-  subPageColor={subPageColor}
-  setActiveSubPage={setActiveSubPage}
-  setSubPageColor={setSubPageColor}
-  currentUserKey={currentUserKey}
-  setActivePage={setActivePage}
-  setActiveDashboard={setActiveDashboard}
-  setDashboardMode={setDashboardMode}
-  setDroppedTanks={setDroppedTanks}
-  setSelectedIds={setSelectedIds}
-  setSelectedTank={setSelectedTank}
-/>
+              <HomeSubPageRouter
+                activeSubPage={activeSubPage}
+                subPageColor={subPageColor}
+                setActiveSubPage={setActiveSubPage}
+                setSubPageColor={setSubPageColor}
+                currentUserKey={currentUserKey}
+                setActivePage={setActivePage}
+                setActiveDashboard={setActiveDashboard}
+                setDashboardMode={setDashboardMode}
+                setDroppedTanks={setDroppedTanks}
+                setSelectedIds={setSelectedIds}
+                setSelectedTank={setSelectedTank}
+              />
             </div>
           </div>
         ) : activePage === "dashboard" ? (
@@ -406,7 +440,7 @@ if (isLaunchPage) {
           </div>
         ) : null}
 
-                <AppModals
+        <AppModals
           droppedTanks={droppedTanks}
           setDroppedTanks={setDroppedTanks}
           showRestoreWarning={showRestoreWarning}
@@ -420,17 +454,24 @@ if (isLaunchPage) {
           showSiloProps={showSiloProps}
           setShowSiloProps={setShowSiloProps}
           activeSiloId={activeSiloId}
+
+          // ✅ Alarm log open state
           alarmLogOpen={alarmLogOpen}
           closeAlarmLog={closeAlarmLog}
-        />
 
+          // ✅ NEW: Minimize handler (AlarmLogWindow calls this)
+          onMinimizeAlarmLog={minimizeAlarmLog}
+
+          // (optional convenience)
+          onLaunchAlarmLog={launchAlarmLog}
+        />
       </main>
 
-<RightPanel
-  isRightCollapsed={isRightCollapsed}
-  setIsRightCollapsed={setIsRightCollapsed}
-  dashboardMode={dashboardMode}
-/>
+      <RightPanel
+        isRightCollapsed={isRightCollapsed}
+        setIsRightCollapsed={setIsRightCollapsed}
+        dashboardMode={dashboardMode}
+      />
     </div>
   );
 }

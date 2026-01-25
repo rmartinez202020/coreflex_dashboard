@@ -7,6 +7,8 @@ import DashboardHeader from "./DashboardHeader";
  * - Renders DashboardHeader when activePage === "dashboard"
  * - Otherwise renders the page title (Home / Device Controls / Main Dashboard)
  *
+ * ✅ Now supports "minimized windows tray" (Alarm Log minimize/restore)
+ *
  * Pure render component (no side effects).
  */
 export default function AppTopBar({
@@ -19,6 +21,11 @@ export default function AppTopBar({
   onRedo,
   canUndo,
   canRedo,
+
+  // ✅ NEW (optional) minimized windows tray props
+  minimizedWindows = [], // [{ key, title }]
+  onRestoreWindow,
+  onCloseWindow,
 }) {
   if (activePage === "dashboard") {
     return (
@@ -37,6 +44,10 @@ export default function AppTopBar({
         onRedo={onRedo}
         canUndo={canUndo}
         canRedo={canRedo}
+        // ✅ pass through minimized tray
+        minimizedWindows={minimizedWindows}
+        onRestoreWindow={onRestoreWindow}
+        onCloseWindow={onCloseWindow}
       />
     );
   }

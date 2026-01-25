@@ -4,28 +4,30 @@
  * - Play / Edit toggle
  * - Launch button (opens clean PLAY mode in new tab)
  * - Undo / Redo buttons
+ * - ✅ Minimized windows tray (SCADA-style)
  * - Pure UI component
  */
 
 export default function DashboardHeader({
-  // ✅ NEW: dynamic title (Main Dashboard or "Customer — Dashboard")
   title = "Main Dashboard",
 
   dashboardMode,
   setDashboardMode,
   onLaunch,
 
-  // Undo / Redo
   onUndo,
   onRedo,
   canUndo = false,
   canRedo = false,
+
+  // ✅ NEW: minimized windows tray
+  minimizedWindows = [], // [{ key: "alarmLog", title: "Alarms Log (DI-AI)" }, ...]
+  onRestoreWindow, // (key) => void
+  onCloseWindow,   // (key) => void (optional)
 }) {
   return (
-    <div className="flex items-center gap-3 mb-6">
-      <h1 className="text-2xl font-bold text-gray-800 mr-2">
-        {title}
-      </h1>
+    <div className="flex items-center gap-3 mb-6 flex-wrap">
+      <h1 className="text-2xl font-bold text-gray-800 mr-2">{title}</h1>
 
       {/* ========================= */}
       {/* UNDO / REDO */}
@@ -94,7 +96,6 @@ export default function DashboardHeader({
       <button
         type="button"
         onClick={() => {
-          // Always force PLAY before launch
           setDashboardMode("play");
           onLaunch?.();
         }}
@@ -103,6 +104,46 @@ export default function DashboardHeader({
       >
         🚀 Launch
       </button>
+
+      {/* ========================= */}
+      {/* ✅ MINIMIZED WINDOWS TRAY */}
+      {/* ========================= */}
+      {minimizedWindows?.length > 0 && (
+        <div className="flex items-center gap-2 ml-2">
+          <span className="text-xs text-gray-500 font-semibold">
+            Minimized:
+          </span>
+
+          <div className="flex items-center gap-2 flex-wrap">
+            {minimizedWindows.map((w) => (
+              <div
+                key={w.key}
+                className="flex items-center gap-2 px-2 py-1 rounded-md border border-black bg-gray-100 shadow-sm"
+                title="Click to restore"
+              >
+                <button
+                  type="button"
+                  onClick={() => onRestoreWindow?.(w.key)}
+                  className="text-sm font-bold text-gray-900 hover:underline"
+                >
+                  ▣ {w.title || w.key}
+                </button>
+
+                {onCloseWindow && (
+                  <button
+                    type="button"
+                    onClick={() => onCloseWindow(w.key)}
+                    className="text-xs font-bold px-2 py-0.5 rounded border border-black bg-white hover:bg-gray-200"
+                    title="Close"
+                  >
+                    ✕
+                  </button>
+                )}
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 }
