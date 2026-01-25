@@ -8,7 +8,7 @@ export default function AlarmLogWindow({
   onMinimize,
   onClose,
   onOpenSettings,
-  title = "Alarms Log (AI)",
+  title = "Alarms Log (DI-AI)",
 }) {
   // ✅ NO ALARMS YET: keep this empty until real alarm engine exists
   const alarms = [];
