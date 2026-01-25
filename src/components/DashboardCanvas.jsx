@@ -1,6 +1,7 @@
 // src/components/DashboardCanvas.jsx
 import React from "react";
 import { DndContext } from "@dnd-kit/core";
+import AlarmLogWindow from "./AlarmLogWindow";
 
 import DraggableDroppedTank from "./DraggableDroppedTank";
 import DraggableTextBox from "./DraggableTextBox";
@@ -98,7 +99,8 @@ function SetButton({ isPlay, onSet }) {
             : "0 3px 0 rgba(0,0,0,0.35)"
           : "none",
         transform: isPlay ? (pressed ? "translateY(1px)" : "translateY(0)") : "none",
-        transition: "transform 80ms ease, box-shadow 80ms ease, background 120ms ease",
+        transition:
+          "transform 80ms ease, box-shadow 80ms ease, background 120ms ease",
       }}
       title={isPlay ? "Send/commit this setpoint" : "SET works in Play mode"}
     >
@@ -423,24 +425,38 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅ ALARMS LOG (AI)
+            // ✅✅✅ ALARMS LOG (DI-AI)
+            // NOTE: we render the full widget directly, NOT the small icon.
+            // This matches your request: "drop the icon → the window appears on the dashboard".
             if (tank.shape === "alarmLog") {
+              const w = tank.w ?? tank.width ?? 780;
+              const h = tank.h ?? tank.height ?? 360;
+
               return (
-                <DraggableAlarmLog
-                  key={tank.id}
-                  obj={tank}
-                  selected={isSelected && !isPlay}
-                  onSelect={handleSelect}
-                  onOpen={() => {
+                <DraggableDroppedTank
+                  {...commonProps}
+                  onDoubleClick={() => {
                     if (!isPlay) onOpenAlarmLog?.(tank);
                   }}
-                  onLaunch={() => onLaunchAlarmLog?.(tank)}
-                />
+                >
+                  <div
+                    style={{ width: w, height: h }}
+                    onMouseDown={(e) => e.stopPropagation()}
+                    onPointerDown={(e) => e.stopPropagation()}
+                  >
+                    <AlarmLogWindow
+                      onLaunch={() => onLaunchAlarmLog?.(tank)}
+                    />
+                  </div>
+                </DraggableDroppedTank>
               );
             }
 
             // INTERLOCK
-            if (tank.shape === "interlock" || tank.shape === "interlockControl") {
+            if (
+              tank.shape === "interlock" ||
+              tank.shape === "interlockControl"
+            ) {
               const w = tank.w ?? tank.width ?? 190;
               const h = tank.h ?? tank.height ?? 80;
               const locked = tank.locked ?? true;
@@ -453,7 +469,10 @@ export default function DashboardCanvas({
             }
 
             // TOGGLE
-            if (tank.shape === "toggleSwitch" || tank.shape === "toggleControl") {
+            if (
+              tank.shape === "toggleSwitch" ||
+              tank.shape === "toggleControl"
+            ) {
               const w = tank.w ?? tank.width ?? 180;
               const h = tank.h ?? tank.height ?? 70;
               const isOn = tank.isOn ?? true;

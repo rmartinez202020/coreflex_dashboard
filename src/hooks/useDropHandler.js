@@ -18,10 +18,6 @@ export default function useDropHandler({ setDroppedTanks }) {
     // ===============================
     // ✅ 1) IMAGE DROP (ALL SOURCES)
     // ===============================
-    // Supports:
-    // - User Image Library (Cloudinary) -> "imageUrl"
-    // - CoreFlex static libraries -> "coreflex-image"
-    // - Fallback -> "text/plain"
     const imgSrc =
       e.dataTransfer.getData("imageUrl") ||
       e.dataTransfer.getData("coreflex-image") ||
@@ -43,11 +39,9 @@ export default function useDropHandler({ setDroppedTanks }) {
       return;
     }
 
-    // ✅ 2) DEVICE CONTROLS DROP (Toggle / Push Buttons / Interlock / Display Output)
-    // from DraggableControls.jsx -> e.dataTransfer.setData("control", ctrl.type)
+    // ✅ 2) DEVICE CONTROLS DROP
     const control = e.dataTransfer.getData("control");
     if (control) {
-      // Toggle Switch
       if (control === "toggleControl") {
         setDroppedTanks((prev) => [
           ...prev,
@@ -65,7 +59,6 @@ export default function useDropHandler({ setDroppedTanks }) {
         return;
       }
 
-      // ✅ Push Button (NO) -> Green
       if (control === "pushButtonNO") {
         setDroppedTanks((prev) => [
           ...prev,
@@ -83,7 +76,6 @@ export default function useDropHandler({ setDroppedTanks }) {
         return;
       }
 
-      // ✅ Push Button (NC) -> Red
       if (control === "pushButtonNC") {
         setDroppedTanks((prev) => [
           ...prev,
@@ -101,7 +93,6 @@ export default function useDropHandler({ setDroppedTanks }) {
         return;
       }
 
-      // ✅ Interlock (NEW) — match DashboardCanvas defaults
       if (control === "interlockControl" || control === "interlock") {
         setDroppedTanks((prev) => [
           ...prev,
@@ -119,8 +110,6 @@ export default function useDropHandler({ setDroppedTanks }) {
         return;
       }
 
-      // ✅ Display Output (textbox style)
-      // dragged as control="displayOutput"
       if (control === "displayOutput") {
         setDroppedTanks((prev) => [
           ...prev,
@@ -131,10 +120,7 @@ export default function useDropHandler({ setDroppedTanks }) {
             y,
             w: 160,
             h: 60,
-
-            // ✅ DO NOT force "0" (this was causing the unwanted 0)
             value: "",
-
             zIndex: 1,
             properties: {
               label: "",
@@ -149,9 +135,28 @@ export default function useDropHandler({ setDroppedTanks }) {
       return;
     }
 
-    // 3) DRAGGING A SHAPE / TEXT BOX
+    // 3) DRAGGING A SHAPE / ENTITY
     const shape = e.dataTransfer.getData("shape");
     if (!shape) return;
+
+    // ✅ NEW: ALARMS LOG (AI)
+    // Dropping the sidebar icon should create the FULL window object (not the small tile)
+    if (shape === "alarmLog") {
+      setDroppedTanks((prev) => [
+        ...prev,
+        {
+          id: makeId(),
+          shape: "alarmLogWindow",
+          x,
+          y,
+          w: 720,
+          h: 320,
+          zIndex: 1,
+          title: "Alarms Log (AI)",
+        },
+      ]);
+      return;
+    }
 
     // ✅ GRAPHIC DISPLAY (Trend)
     if (shape === "graphicDisplay") {
@@ -165,24 +170,16 @@ export default function useDropHandler({ setDroppedTanks }) {
           w: 520,
           h: 260,
           zIndex: 1,
-
-          // ✅ defaults (align with your modal naming)
           title: "Graphic Display",
           timeUnit: "seconds",
           sampleMs: 1000,
           window: 60,
-
-          // ✅ defaults for vertical axis + style (matches modal)
           yMin: 0,
           yMax: 100,
           yUnits: "",
           graphStyle: "line",
-
-          // keep old fields too (backward compatible if other code uses them)
           sampleEveryMs: 1000,
           windowCount: 60,
-
-          // series config
           series: [
             {
               name: "Level %",
@@ -190,29 +187,8 @@ export default function useDropHandler({ setDroppedTanks }) {
               field: "level_percent",
             },
           ],
-
           recording: false,
           samples: [],
-        },
-      ]);
-      return;
-    }
-
-    // ✅ ALARMS LOG (AI)
-    if (shape === "alarmLog") {
-      setDroppedTanks((prev) => [
-        ...prev,
-        {
-          id: makeId(),
-          shape: "alarmLog",
-          x,
-          y,
-          w: 260,
-          h: 90,
-          zIndex: 1,
-          properties: {
-            title: "Alarms Log (AI)",
-          },
         },
       ]);
       return;
@@ -238,7 +214,7 @@ export default function useDropHandler({ setDroppedTanks }) {
       return;
     }
 
-    // 4) TANK MODELS (standard/horizontal/vertical/silo)
+    // 4) TANK MODELS (default)
     setDroppedTanks((prev) => [
       ...prev,
       {
