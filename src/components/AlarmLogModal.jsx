@@ -1,15 +1,12 @@
 // src/components/AlarmLogModal.jsx
 import React from "react";
-import { createPortal } from "react-dom";
 import FloatingWindow from "./FloatingWindow";
 import AlarmLogWindow from "./AlarmLogWindow";
 
 export default function AlarmLogModal({ open, onClose, onLaunch, onMinimize }) {
   if (!open) return null;
 
-  const host = document.getElementById("coreflex-canvas-root");
-
-  const content = (
+  return (
     <FloatingWindow
       visible={open}
       title="Alarms Log (DI-AI)"
@@ -27,7 +24,4 @@ export default function AlarmLogModal({ open, onClose, onLaunch, onMinimize }) {
       />
     </FloatingWindow>
   );
-
-  // If canvas not found (edge-case), fallback to normal render
-  return host ? createPortal(content, host) : content;
 }
