@@ -51,8 +51,19 @@ export default function AlarmLogWindow({
 
   return (
     <div style={wrap}>
-      {/* TOP BAR */}
-      <div style={topBar}>
+      {/* TOP BAR (✅ drag handle) */}
+      <div
+        className="alarm-log-titlebar"
+        style={topBar}
+        onMouseDown={(e) => {
+          // ✅ Let FloatingWindow capture drag on this bar
+          // BUT keep buttons / inputs clickable without dragging
+          const isInteractive = e.target.closest?.(
+            "button, a, input, select, textarea, [role='button']"
+          );
+          if (isInteractive) e.stopPropagation();
+        }}
+      >
         <div style={titleWrap}>
           <span style={{ fontWeight: 900 }}>{title}</span>
           <span style={countPill}>{visibleAlarms.length}</span>
@@ -62,6 +73,8 @@ export default function AlarmLogWindow({
           <button
             style={iconBtn}
             title="Settings"
+            onMouseDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               onOpenSettings?.();
@@ -73,6 +86,8 @@ export default function AlarmLogWindow({
           <button
             style={iconBtn}
             title="Launch"
+            onMouseDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               onLaunch?.();
@@ -85,6 +100,8 @@ export default function AlarmLogWindow({
           <button
             style={iconBtn}
             title="Minimize"
+            onMouseDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               console.log("🟡 AlarmLogWindow minimize clicked");
@@ -98,6 +115,8 @@ export default function AlarmLogWindow({
           <button
             style={closeBtnRed}
             title="Close"
+            onMouseDown={(e) => e.stopPropagation()}
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               setShowCloseConfirm(true);
@@ -134,6 +153,8 @@ export default function AlarmLogWindow({
                 e.stopPropagation();
                 toggleAllVisible();
               }}
+              onMouseDown={(e) => e.stopPropagation()}
+              onPointerDown={(e) => e.stopPropagation()}
               style={checkbox}
               title="Select all"
               disabled={visibleAlarms.length === 0}
@@ -175,6 +196,8 @@ export default function AlarmLogWindow({
                     e.stopPropagation();
                     toggleChecked(a.id);
                   }}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
                   style={checkbox}
                 />
               </div>
@@ -198,8 +221,8 @@ export default function AlarmLogWindow({
           <div style={emptyState}>
             <b>No alarms yet.</b>
             <div style={{ marginTop: 6, color: "#374151" }}>
-              The alarm engine is not configured — this log window is ready and will
-              show events once we wire the alarm rules.
+              The alarm engine is not configured — this log window is ready and
+              will show events once we wire the alarm rules.
             </div>
           </div>
         )}
@@ -215,6 +238,8 @@ export default function AlarmLogWindow({
             cursor: checkedIds.size === 0 ? "not-allowed" : "pointer",
           }}
           disabled={checkedIds.size === 0}
+          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
           onClick={(e) => {
             e.stopPropagation();
             onAcknowledgeSelected();
@@ -262,6 +287,8 @@ function TabButton({ label, active, onClick }) {
         e.stopPropagation();
         onClick?.();
       }}
+      onMouseDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
       style={{ ...tabBtn, ...(active ? tabBtnActive : {}) }}
     >
       {label}
@@ -291,6 +318,8 @@ const topBar = {
   alignItems: "center",
   padding: "0 10px",
   borderBottom: "2px solid #000",
+  cursor: "move", // ✅ makes it obvious you can drag
+  userSelect: "none",
 };
 
 const titleWrap = { display: "flex", gap: 8, alignItems: "center" };
