@@ -1,5 +1,6 @@
 // src/components/AlarmLogModal.jsx
 import React from "react";
+import { createPortal } from "react-dom";
 import FloatingWindow from "./FloatingWindow";
 import AlarmLogWindow from "./AlarmLogWindow";
 
@@ -9,13 +10,13 @@ export default function AlarmLogModal({
   onLaunch,
   onMinimize,
 
-  // ✅ NEW (from AppModals)
+  // from AppModals
   position,
   onPositionChange,
 }) {
   if (!open) return null;
 
-  return (
+  const content = (
     <FloatingWindow
       visible={open}
       title="Alarms Log (DI-AI)"
@@ -25,11 +26,17 @@ export default function AlarmLogModal({
       onLaunch={onLaunch}
       onMinimize={onMinimize}
       hideHeader={true}
-
-      // ✅ forward
       onPositionChange={onPositionChange}
+      boundsMode="viewport"   // ✅ important: clamp to screen
     >
-      <AlarmLogWindow onLaunch={onLaunch} onMinimize={onMinimize} onClose={onClose} />
+      <AlarmLogWindow
+        onLaunch={onLaunch}
+        onMinimize={onMinimize}
+        onClose={onClose}
+      />
     </FloatingWindow>
   );
+
+  // ✅ render outside canvas so it cannot be clipped by canvas/layout
+  return createPortal(content, document.body);
 }

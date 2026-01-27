@@ -433,7 +433,7 @@ export default function DashboardCanvas({
       <div
       id="coreflex-canvas-root"
         className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg bg-white"
-        style={{ position: "relative", overflow: "hidden" }}
+        style={{ position: "relative", overflow: "visible" }}
         onDragOver={(e) => !isPlay && e.preventDefault()}
 
 

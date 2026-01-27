@@ -14,6 +14,11 @@ export default function FloatingWindow({
 
   // ✅ NEW: allow parent (AppModals) to keep position in sync
   onPositionChange,
+
+  // ✅ NEW:
+  // - "workspace" (default): clamp inside dashed workspace / main
+  // - "viewport": clamp inside visible browser viewport (for portals to body)
+  boundsMode = "workspace",
 }) {
   const [pos, setPos] = useState(position);
   const [sz, setSz] = useState(size);
@@ -21,7 +26,6 @@ export default function FloatingWindow({
   const dragStartRef = useRef(null);
   const resizeStartRef = useRef(null);
 
-  // ✅ Sync local pos/sz when opened AND when parent updates position/size
   useEffect(() => {
     if (!visible) return;
     setPos(position);
@@ -52,102 +56,56 @@ export default function FloatingWindow({
   };
 
   // ----------------------------------------------------
-  // Detect the REAL scroll container:
-  // - If <main> is scrollable, use it
-  // - Otherwise, use window/document scrolling
+  // Compute bounds
   // ----------------------------------------------------
-  const isMainScrollable = (mainEl) => {
-    if (!mainEl) return false;
-    if (mainEl.scrollHeight > mainEl.clientHeight + 2) return true;
-    const cs = window.getComputedStyle(mainEl);
-    const oy = cs?.overflowY;
-    return oy === "auto" || oy === "scroll";
-  };
+  const getBounds = (sizeOverride) => {
+    const curSize = sizeOverride || sz;
 
-  const getScrollContext = () => {
+    // ✅ Viewport mode: pure screen clamp (best for createPortal(document.body))
+    if (boundsMode === "viewport") {
+      return {
+        minX: 0,
+        minY: 0,
+        maxX: Math.max(0, window.innerWidth - curSize.width),
+        maxY: Math.max(0, window.innerHeight - curSize.height),
+        ctx: { mode: "viewport" },
+      };
+    }
+
+    // ✅ Workspace mode (default): clamp inside dashed workspace in <main>
     const mainEl = document.querySelector("main");
     const mainRect = mainEl?.getBoundingClientRect?.();
-    const useMain = mainEl && mainRect && isMainScrollable(mainEl);
 
-    if (useMain) {
+    // fallback: viewport
+    if (!mainEl || !mainRect) {
       return {
-        mode: "main",
-        mainEl,
-        mainRect,
-        scrollLeft: mainEl.scrollLeft || 0,
-        scrollTop: mainEl.scrollTop || 0,
+        minX: 0,
+        minY: 0,
+        maxX: Math.max(0, window.innerWidth - curSize.width),
+        maxY: Math.max(0, window.innerHeight - curSize.height),
+        ctx: { mode: "viewport" },
       };
     }
 
-    // window scrolling
-    return {
-      mode: "window",
-      mainEl: null,
-      mainRect: { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight },
-      scrollLeft: window.scrollX || 0,
-      scrollTop: window.scrollY || 0,
-    };
-  };
+    const workspaceEl = findWorkspaceEl(mainEl) || mainEl;
+    const wsRect = workspaceEl.getBoundingClientRect();
 
-  // ----------------------------------------------------
-  // Convert viewport mouse coords → root scroll coords
-  // (root = main scroll coords OR window scroll coords)
-  // ----------------------------------------------------
-  const toRootCoords = (clientX, clientY, ctx) => {
-    return {
-      x: clientX - ctx.mainRect.left + ctx.scrollLeft,
-      y: clientY - ctx.mainRect.top + ctx.scrollTop,
-    };
-  };
+    // translate workspace rect to main-relative coordinates
+    const wsLeftInMain = wsRect.left - mainRect.left;
+    const wsTopInMain = wsRect.top - mainRect.top;
 
-  // ----------------------------------------------------
-  // Compute bounds using FULL scrollable workspace
-  // - In main mode: use workspace inside main
-  // - In window mode: clamp to document size (full page)
-  // ----------------------------------------------------
-  const getWorkspaceBounds = (sizeOverride) => {
-    const curSize = sizeOverride || sz;
-    const ctx = getScrollContext();
+    const minX = Math.max(0, wsLeftInMain);
+    const minY = Math.max(0, wsTopInMain);
 
-    // If main is scroll container, clamp inside workspace
-    if (ctx.mode === "main") {
-      const workspaceEl = findWorkspaceEl(ctx.mainEl) || ctx.mainEl;
-
-      const wsLeft = workspaceEl.offsetLeft || 0;
-      const wsTop = workspaceEl.offsetTop || 0;
-      const wsWidth =
-        workspaceEl.scrollWidth || workspaceEl.offsetWidth || ctx.mainRect.width;
-      const wsHeight =
-        workspaceEl.scrollHeight || workspaceEl.offsetHeight || ctx.mainRect.height;
-
-      return {
-        minX: wsLeft,
-        minY: wsTop,
-        maxX: Math.max(wsLeft, wsLeft + wsWidth - curSize.width),
-        maxY: Math.max(wsTop, wsTop + wsHeight - curSize.height),
-        ctx,
-        wsLeft,
-        wsTop,
-        wsWidth,
-        wsHeight,
-      };
-    }
-
-    // Window mode: clamp inside full document size
-    const docEl = document.documentElement;
-    const docWidth = Math.max(docEl.scrollWidth, docEl.clientWidth, window.innerWidth);
-    const docHeight = Math.max(docEl.scrollHeight, docEl.clientHeight, window.innerHeight);
+    const maxX = Math.max(minX, wsLeftInMain + wsRect.width - curSize.width);
+    const maxY = Math.max(minY, wsTopInMain + wsRect.height - curSize.height);
 
     return {
-      minX: 0,
-      minY: 0,
-      maxX: Math.max(0, docWidth - curSize.width),
-      maxY: Math.max(0, docHeight - curSize.height),
-      ctx,
-      wsLeft: 0,
-      wsTop: 0,
-      wsWidth: docWidth,
-      wsHeight: docHeight,
+      minX,
+      minY,
+      maxX,
+      maxY,
+      ctx: { mode: "main" },
     };
   };
 
@@ -158,24 +116,23 @@ export default function FloatingWindow({
     e.stopPropagation();
     e.preventDefault();
 
-    const bounds = getWorkspaceBounds(sz);
-    const p0 = toRootCoords(e.clientX, e.clientY, bounds.ctx);
+    const bounds = getBounds(sz);
 
     dragStartRef.current = {
-      startX: p0.x,
-      startY: p0.y,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
       startPos: { ...pos },
+      bounds,
     };
 
     const onMove = (ev) => {
       const s = dragStartRef.current;
       if (!s) return;
 
-      const boundsNow = getWorkspaceBounds(sz);
-      const p = toRootCoords(ev.clientX, ev.clientY, boundsNow.ctx);
+      const dx = ev.clientX - s.startClientX;
+      const dy = ev.clientY - s.startClientY;
 
-      const dx = p.x - s.startX;
-      const dy = p.y - s.startY;
+      const boundsNow = getBounds(sz);
 
       const next = {
         x: clamp(s.startPos.x + dx, boundsNow.minX, boundsNow.maxX),
@@ -203,13 +160,10 @@ export default function FloatingWindow({
     e.stopPropagation();
     e.preventDefault();
 
-    const bounds = getWorkspaceBounds(sz);
-    const p0 = toRootCoords(e.clientX, e.clientY, bounds.ctx);
-
     resizeStartRef.current = {
       edge,
-      startX: p0.x,
-      startY: p0.y,
+      startClientX: e.clientX,
+      startClientY: e.clientY,
       startSize: { ...sz },
       startPos: { ...pos },
     };
@@ -221,32 +175,37 @@ export default function FloatingWindow({
       const s = resizeStartRef.current;
       if (!s) return;
 
-      const boundsNow = getWorkspaceBounds(sz);
-      const p = toRootCoords(ev.clientX, ev.clientY, boundsNow.ctx);
-
-      const dx = p.x - s.startX;
-      const dy = p.y - s.startY;
+      const dx = ev.clientX - s.startClientX;
+      const dy = ev.clientY - s.startClientY;
 
       let nextW = s.startSize.width;
       let nextH = s.startSize.height;
 
-      if (s.edge === "right" || s.edge === "corner")
-        nextW = clampMin(nextW + dx, minW);
-      if (s.edge === "bottom" || s.edge === "corner")
-        nextH = clampMin(nextH + dy, minH);
+      if (s.edge === "right" || s.edge === "corner") nextW = clampMin(nextW + dx, minW);
+      if (s.edge === "bottom" || s.edge === "corner") nextH = clampMin(nextH + dy, minH);
 
-      const wsBounds = getWorkspaceBounds({ width: nextW, height: nextH });
+      // clamp size so window stays within bounds from its current position
+      const bounds = getBounds({ width: nextW, height: nextH });
 
-      // Prevent resizing outside workspace bounds from current position
-      nextW = Math.min(nextW, wsBounds.wsLeft + wsBounds.wsWidth - s.startPos.x);
-      nextH = Math.min(nextH, wsBounds.wsTop + wsBounds.wsHeight - s.startPos.y);
+      // max allowed width/height based on current position
+      const maxAllowedW = Math.max(minW, bounds.maxX - pos.x + nextW); // safe
+      const maxAllowedH = Math.max(minH, bounds.maxY - pos.y + nextH); // safe
+
+      // in viewport mode the bounds are exact; in workspace mode, also exact
+      // so enforce: pos.x + w <= bounds.maxX + w? better to compute directly:
+      const hardMaxW = Math.max(minW, (bounds.maxX - pos.x) + nextW);
+      const hardMaxH = Math.max(minH, (bounds.maxY - pos.y) + nextH);
+
+      nextW = Math.min(nextW, hardMaxW, maxAllowedW);
+      nextH = Math.min(nextH, hardMaxH, maxAllowedH);
 
       setSz({ width: nextW, height: nextH });
 
-      // After resize, clamp position again
+      // clamp position after resize
+      const boundsNow = getBounds({ width: nextW, height: nextH });
       const clampedPos = {
-        x: clamp(pos.x, wsBounds.minX, wsBounds.maxX),
-        y: clamp(pos.y, wsBounds.minY, wsBounds.maxY),
+        x: clamp(pos.x, boundsNow.minX, boundsNow.maxX),
+        y: clamp(pos.y, boundsNow.minY, boundsNow.maxY),
       };
       setPos(clampedPos);
       onPositionChange?.(clampedPos);
@@ -349,6 +308,7 @@ export default function FloatingWindow({
             height: 10,
             width: "100%",
             cursor: "move",
+            zIndex: 20,
           }}
         />
       )}
@@ -360,8 +320,9 @@ export default function FloatingWindow({
           right: 0,
           top: headerH,
           width: 10,
-          height: "100%",
+          height: `calc(100% - ${headerH}px)`,
           cursor: "ew-resize",
+          zIndex: 10,
         }}
       />
       <div
@@ -373,6 +334,7 @@ export default function FloatingWindow({
           width: "100%",
           height: 10,
           cursor: "ns-resize",
+          zIndex: 10,
         }}
       />
       <div
@@ -384,6 +346,7 @@ export default function FloatingWindow({
           width: 16,
           height: 16,
           cursor: "nwse-resize",
+          zIndex: 11,
         }}
       />
     </div>
