@@ -25,6 +25,7 @@ export default function useDropHandler({ setDroppedTanks, onOpenAlarmLog }) {
   };
 
   // ✅ helper: notify modal layer where to open Alarm Log
+  // IMPORTANT: AlarmLogModal is usually position:fixed, so we want SCREEN coords (clientX/clientY)
   const emitAlarmLogOpenAt = ({ x, y }) => {
     try {
       window.dispatchEvent(
@@ -216,8 +217,8 @@ export default function useDropHandler({ setDroppedTanks, onOpenAlarmLog }) {
 
     // 🚨🚨🚨 ALARMS LOG (SYSTEM WINDOW — NOT A CANVAS OBJECT)
     if (shape === "alarmLog") {
-      // ✅ Tell modal layer where to open
-      emitAlarmLogOpenAt({ x, y });
+      // ✅ IMPORTANT: send SCREEN coords so a fixed-position modal opens where you dropped
+      emitAlarmLogOpenAt({ x: e.clientX, y: e.clientY });
 
       // ✅ open real alarm log window
       onOpenAlarmLog?.();
