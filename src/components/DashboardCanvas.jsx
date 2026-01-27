@@ -431,7 +431,7 @@ export default function DashboardCanvas({
       onDragEnd={isPlay ? undefined : handleDragEnd}
     >
       <div
-      data-coreflex-workspace="1"
+      id="coreflex-canvas-root"
         className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg bg-white"
         style={{ position: "relative", overflow: "hidden" }}
         onDragOver={(e) => !isPlay && e.preventDefault()}
