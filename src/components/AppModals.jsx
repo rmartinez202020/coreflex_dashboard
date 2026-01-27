@@ -1,5 +1,5 @@
 // src/components/AppModals.jsx
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 
 import RestoreWarningModal from "./RestoreWarningModal";
 import DisplaySettingsModal from "./DisplaySettingsModal";
@@ -35,6 +35,30 @@ export default function AppModals({
 }) {
   const isSameId = (a, b) => String(a) === String(b);
 
+  // ✅ Alarm Log position stored HERE (NOT in App.jsx)
+  const [alarmLogPos, setAlarmLogPos] = useState({ x: 140, y: 90 });
+
+  // ✅ Listen for drop position events (sent by useDropHandler)
+  useEffect(() => {
+    const onOpenAt = (ev) => {
+      const x = ev?.detail?.x;
+      const y = ev?.detail?.y;
+
+      if (typeof x !== "number" || typeof y !== "number") return;
+
+      // small offset so the cursor isn't on the title bar buttons
+      const next = {
+        x: Math.max(x - 40, 10),
+        y: Math.max(y - 20, 10),
+      };
+
+      setAlarmLogPos(next);
+    };
+
+    window.addEventListener("coreflex-alarm-log-open-at", onOpenAt);
+    return () => window.removeEventListener("coreflex-alarm-log-open-at", onOpenAt);
+  }, []);
+
   const displayTarget = useMemo(() => {
     if (displaySettingsId == null) return null;
     return droppedTanks.find(
@@ -53,7 +77,9 @@ export default function AppModals({
 
   const activeSilo = useMemo(() => {
     if (activeSiloId == null) return null;
-    return droppedTanks.find((t) => isSameId(t.id, activeSiloId) && t.shape === "siloTank");
+    return droppedTanks.find(
+      (t) => isSameId(t.id, activeSiloId) && t.shape === "siloTank"
+    );
   }, [droppedTanks, activeSiloId]);
 
   return (
@@ -66,7 +92,10 @@ export default function AppModals({
             setDroppedTanks((prev) =>
               prev.map((t) =>
                 isSameId(t.id, displayTarget.id)
-                  ? { ...t, properties: { ...(t.properties || {}), ...updatedProps } }
+                  ? {
+                      ...t,
+                      properties: { ...(t.properties || {}), ...updatedProps },
+                    }
                   : t
               )
             );
@@ -107,6 +136,8 @@ export default function AppModals({
         onClose={closeAlarmLog}
         onLaunch={onLaunchAlarmLog}
         onMinimize={onMinimizeAlarmLog}
+        position={alarmLogPos}                 // ✅ NEW
+        onPositionChange={setAlarmLogPos}      // ✅ NEW (optional: if modal supports dragging)
       />
 
       <RestoreWarningModal

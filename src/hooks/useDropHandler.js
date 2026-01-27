@@ -24,6 +24,19 @@ export default function useDropHandler({ setDroppedTanks, onOpenAlarmLog }) {
     return /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(v);
   };
 
+  // ✅ helper: notify modal layer where to open Alarm Log
+  const emitAlarmLogOpenAt = ({ x, y }) => {
+    try {
+      window.dispatchEvent(
+        new CustomEvent("coreflex-alarm-log-open-at", {
+          detail: { x, y },
+        })
+      );
+    } catch (err) {
+      console.warn("Failed to dispatch coreflex-alarm-log-open-at", err);
+    }
+  };
+
   const handleDrop = (e) => {
     e.preventDefault();
 
@@ -203,8 +216,14 @@ export default function useDropHandler({ setDroppedTanks, onOpenAlarmLog }) {
 
     // 🚨🚨🚨 ALARMS LOG (SYSTEM WINDOW — NOT A CANVAS OBJECT)
     if (shape === "alarmLog") {
-      onOpenAlarmLog?.(); // ✅ open real alarm log window
-      return;             // ❌ do NOT add to droppedTanks
+      // ✅ Tell modal layer where to open
+      emitAlarmLogOpenAt({ x, y });
+
+      // ✅ open real alarm log window
+      onOpenAlarmLog?.();
+
+      // ❌ do NOT add to droppedTanks
+      return;
     }
 
     // TEXT BOX
