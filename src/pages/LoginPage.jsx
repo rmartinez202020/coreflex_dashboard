@@ -1,6 +1,6 @@
 // src/pages/LoginPage.jsx
-import { useState } from "react";
-import { useNavigate, Link } from "react-router-dom";
+import { useRef, useState } from "react";
+import { Link } from "react-router-dom";
 import bgImage from "../assets/login_photo/satellite.jpg";
 import { API_URL } from "../config/api";
 
@@ -9,7 +9,8 @@ import { setToken, clearAuth } from "../utils/authToken";
 const MIN_LOADING_TIME = 2000;
 
 export default function LoginPage() {
-  const navigate = useNavigate();
+  const formRef = useRef(null);
+
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
@@ -25,6 +26,7 @@ export default function LoginPage() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+    if (loading) return; // ✅ prevent double-submit
     setError("");
     setLoading(true);
 
@@ -81,6 +83,14 @@ export default function LoginPage() {
     setCapsLockOn(caps);
   };
 
+  // ✅ FORCE ENTER to submit (works even if browser doesn't trigger default submit)
+  const handleEnterToSubmit = (e) => {
+    if (e.key === "Enter" && !loading) {
+      e.preventDefault(); // avoid weird double behavior
+      formRef.current?.requestSubmit?.(); // triggers onSubmit safely
+    }
+  };
+
   return (
     <div
       className="min-h-screen flex items-center justify-center relative"
@@ -108,13 +118,14 @@ export default function LoginPage() {
           </div>
         )}
 
-        <form onSubmit={handleLogin} className="space-y-4">
+        <form ref={formRef} onSubmit={handleLogin} className="space-y-4">
           <div>
             <label className="block text-sm mb-1 text-gray-700">Email</label>
             <input
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
+              onKeyDown={handleEnterToSubmit} // ✅ ENTER submits
               required
               disabled={loading}
               className="w-full border rounded px-3 py-2 text-gray-800 disabled:bg-gray-100"
@@ -130,7 +141,10 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyUp={handlePasswordKeyEvent}
-              onKeyDown={handlePasswordKeyEvent}
+              onKeyDown={(e) => {
+                handlePasswordKeyEvent(e);
+                handleEnterToSubmit(e); // ✅ ENTER submits
+              }}
               required
               disabled={loading}
               className="w-full border rounded px-3 py-2 text-gray-800 disabled:bg-gray-100"
@@ -186,10 +200,7 @@ export default function LoginPage() {
 
         <p className="text-center text-gray-600 text-sm mt-4">
           Don’t have an account?{" "}
-          <Link
-            to="/register"
-            className="text-blue-600 font-semibold hover:underline"
-          >
+          <Link to="/register" className="text-blue-600 font-semibold hover:underline">
             Create one
           </Link>
         </p>
