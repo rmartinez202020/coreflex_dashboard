@@ -1,5 +1,5 @@
 // src/pages/LoginPage.jsx
-import { useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import bgImage from "../assets/login_photo/satellite.jpg";
 import { API_URL } from "../config/api";
@@ -83,13 +83,42 @@ export default function LoginPage() {
     setCapsLockOn(caps);
   };
 
-  // ✅ FORCE ENTER to submit (works even if browser doesn't trigger default submit)
-  const handleEnterToSubmit = (e) => {
-    if (e.key === "Enter" && !loading) {
-      e.preventDefault(); // avoid weird double behavior
-      formRef.current?.requestSubmit?.(); // triggers onSubmit safely
-    }
+  // ✅ Submit helper (one place)
+  const submitLogin = () => {
+    if (loading) return;
+    formRef.current?.requestSubmit?.();
   };
+
+  // ✅ ENTER key should login even if user didn't click anywhere
+  useEffect(() => {
+    const onKeyDown = (e) => {
+      if (e.key !== "Enter") return;
+      if (loading) return;
+
+      // Avoid interfering with special cases
+      if (e.isComposing) return; // IME composition
+      if (e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return;
+
+      const t = e.target;
+      const tag = t?.tagName?.toLowerCase?.() || "";
+
+      // If user is in a textarea, Enter should not submit
+      if (tag === "textarea") return;
+
+      // If user is clicking buttons/links etc., let default happen
+      if (tag === "button" || tag === "a") return;
+
+      // If a modal/dialog is open in the future, this is safer:
+      // only submit when this page's form exists
+      if (!formRef.current) return;
+
+      e.preventDefault();
+      submitLogin();
+    };
+
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [loading]);
 
   return (
     <div
@@ -125,7 +154,6 @@ export default function LoginPage() {
               type="email"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
-              onKeyDown={handleEnterToSubmit} // ✅ ENTER submits
               required
               disabled={loading}
               className="w-full border rounded px-3 py-2 text-gray-800 disabled:bg-gray-100"
@@ -141,10 +169,7 @@ export default function LoginPage() {
               value={password}
               onChange={(e) => setPassword(e.target.value)}
               onKeyUp={handlePasswordKeyEvent}
-              onKeyDown={(e) => {
-                handlePasswordKeyEvent(e);
-                handleEnterToSubmit(e); // ✅ ENTER submits
-              }}
+              onKeyDown={handlePasswordKeyEvent}
               required
               disabled={loading}
               className="w-full border rounded px-3 py-2 text-gray-800 disabled:bg-gray-100"
