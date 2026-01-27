@@ -11,6 +11,9 @@ export default function FloatingWindow({
   onLaunch,
   children,
   hideHeader = false,
+
+  // ✅ NEW: allow parent (AppModals) to keep position in sync
+  onPositionChange,
 }) {
   const [pos, setPos] = useState(position);
   const [sz, setSz] = useState(size);
@@ -18,13 +21,13 @@ export default function FloatingWindow({
   const dragStartRef = useRef(null);
   const resizeStartRef = useRef(null);
 
+  // ✅ Sync local pos/sz when opened AND when parent updates position/size
   useEffect(() => {
-    if (visible) {
-      setPos(position);
-      setSz(size);
-    }
+    if (!visible) return;
+    setPos(position);
+    setSz(size);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible]);
+  }, [visible, position?.x, position?.y, size?.width, size?.height]);
 
   if (!visible) return null;
 
@@ -49,60 +52,102 @@ export default function FloatingWindow({
   };
 
   // ----------------------------------------------------
-  // Convert viewport mouse coords → main scroll coords
+  // Detect the REAL scroll container:
+  // - If <main> is scrollable, use it
+  // - Otherwise, use window/document scrolling
   // ----------------------------------------------------
-  const toMainCoords = (clientX, clientY, bounds) => {
-    if (!bounds?.mainRect) return { x: clientX, y: clientY };
+  const isMainScrollable = (mainEl) => {
+    if (!mainEl) return false;
+    if (mainEl.scrollHeight > mainEl.clientHeight + 2) return true;
+    const cs = window.getComputedStyle(mainEl);
+    const oy = cs?.overflowY;
+    return oy === "auto" || oy === "scroll";
+  };
+
+  const getScrollContext = () => {
+    const mainEl = document.querySelector("main");
+    const mainRect = mainEl?.getBoundingClientRect?.();
+    const useMain = mainEl && mainRect && isMainScrollable(mainEl);
+
+    if (useMain) {
+      return {
+        mode: "main",
+        mainEl,
+        mainRect,
+        scrollLeft: mainEl.scrollLeft || 0,
+        scrollTop: mainEl.scrollTop || 0,
+      };
+    }
+
+    // window scrolling
     return {
-      x: clientX - bounds.mainRect.left + bounds.mainScrollLeft,
-      y: clientY - bounds.mainRect.top + bounds.mainScrollTop,
+      mode: "window",
+      mainEl: null,
+      mainRect: { left: 0, top: 0, width: window.innerWidth, height: window.innerHeight },
+      scrollLeft: window.scrollX || 0,
+      scrollTop: window.scrollY || 0,
+    };
+  };
+
+  // ----------------------------------------------------
+  // Convert viewport mouse coords → root scroll coords
+  // (root = main scroll coords OR window scroll coords)
+  // ----------------------------------------------------
+  const toRootCoords = (clientX, clientY, ctx) => {
+    return {
+      x: clientX - ctx.mainRect.left + ctx.scrollLeft,
+      y: clientY - ctx.mainRect.top + ctx.scrollTop,
     };
   };
 
   // ----------------------------------------------------
   // Compute bounds using FULL scrollable workspace
+  // - In main mode: use workspace inside main
+  // - In window mode: clamp to document size (full page)
   // ----------------------------------------------------
   const getWorkspaceBounds = (sizeOverride) => {
     const curSize = sizeOverride || sz;
-    const mainEl = document.querySelector("main");
-    const mainRect = mainEl?.getBoundingClientRect?.();
+    const ctx = getScrollContext();
 
-    if (!mainEl || !mainRect) {
+    // If main is scroll container, clamp inside workspace
+    if (ctx.mode === "main") {
+      const workspaceEl = findWorkspaceEl(ctx.mainEl) || ctx.mainEl;
+
+      const wsLeft = workspaceEl.offsetLeft || 0;
+      const wsTop = workspaceEl.offsetTop || 0;
+      const wsWidth =
+        workspaceEl.scrollWidth || workspaceEl.offsetWidth || ctx.mainRect.width;
+      const wsHeight =
+        workspaceEl.scrollHeight || workspaceEl.offsetHeight || ctx.mainRect.height;
+
       return {
-        minX: 0,
-        minY: 0,
-        maxX: window.innerWidth - curSize.width,
-        maxY: window.innerHeight - curSize.height,
-        mainRect: null,
-        mainScrollLeft: 0,
-        mainScrollTop: 0,
+        minX: wsLeft,
+        minY: wsTop,
+        maxX: Math.max(wsLeft, wsLeft + wsWidth - curSize.width),
+        maxY: Math.max(wsTop, wsTop + wsHeight - curSize.height),
+        ctx,
+        wsLeft,
+        wsTop,
+        wsWidth,
+        wsHeight,
       };
     }
 
-    const mainScrollLeft = mainEl.scrollLeft || 0;
-    const mainScrollTop = mainEl.scrollTop || 0;
-
-    const workspaceEl = findWorkspaceEl(mainEl) || mainEl;
-
-    const wsLeft = workspaceEl.offsetLeft || 0;
-    const wsTop = workspaceEl.offsetTop || 0;
-    const wsWidth =
-      workspaceEl.scrollWidth || workspaceEl.offsetWidth || mainRect.width;
-    const wsHeight =
-      workspaceEl.scrollHeight || workspaceEl.offsetHeight || mainRect.height;
+    // Window mode: clamp inside full document size
+    const docEl = document.documentElement;
+    const docWidth = Math.max(docEl.scrollWidth, docEl.clientWidth, window.innerWidth);
+    const docHeight = Math.max(docEl.scrollHeight, docEl.clientHeight, window.innerHeight);
 
     return {
-      minX: wsLeft,
-      minY: wsTop,
-      maxX: wsLeft + wsWidth - curSize.width,
-      maxY: wsTop + wsHeight - curSize.height,
-      mainRect,
-      mainScrollLeft,
-      mainScrollTop,
-      wsLeft,
-      wsTop,
-      wsWidth,
-      wsHeight,
+      minX: 0,
+      minY: 0,
+      maxX: Math.max(0, docWidth - curSize.width),
+      maxY: Math.max(0, docHeight - curSize.height),
+      ctx,
+      wsLeft: 0,
+      wsTop: 0,
+      wsWidth: docWidth,
+      wsHeight: docHeight,
     };
   };
 
@@ -114,7 +159,7 @@ export default function FloatingWindow({
     e.preventDefault();
 
     const bounds = getWorkspaceBounds(sz);
-    const p0 = toMainCoords(e.clientX, e.clientY, bounds);
+    const p0 = toRootCoords(e.clientX, e.clientY, bounds.ctx);
 
     dragStartRef.current = {
       startX: p0.x,
@@ -127,15 +172,18 @@ export default function FloatingWindow({
       if (!s) return;
 
       const boundsNow = getWorkspaceBounds(sz);
-      const p = toMainCoords(ev.clientX, ev.clientY, boundsNow);
+      const p = toRootCoords(ev.clientX, ev.clientY, boundsNow.ctx);
 
       const dx = p.x - s.startX;
       const dy = p.y - s.startY;
 
-      setPos({
+      const next = {
         x: clamp(s.startPos.x + dx, boundsNow.minX, boundsNow.maxX),
         y: clamp(s.startPos.y + dy, boundsNow.minY, boundsNow.maxY),
-      });
+      };
+
+      setPos(next);
+      onPositionChange?.(next);
     };
 
     const onUp = () => {
@@ -156,7 +204,7 @@ export default function FloatingWindow({
     e.preventDefault();
 
     const bounds = getWorkspaceBounds(sz);
-    const p0 = toMainCoords(e.clientX, e.clientY, bounds);
+    const p0 = toRootCoords(e.clientX, e.clientY, bounds.ctx);
 
     resizeStartRef.current = {
       edge,
@@ -174,7 +222,7 @@ export default function FloatingWindow({
       if (!s) return;
 
       const boundsNow = getWorkspaceBounds(sz);
-      const p = toMainCoords(ev.clientX, ev.clientY, boundsNow);
+      const p = toRootCoords(ev.clientX, ev.clientY, boundsNow.ctx);
 
       const dx = p.x - s.startX;
       const dy = p.y - s.startY;
@@ -189,21 +237,19 @@ export default function FloatingWindow({
 
       const wsBounds = getWorkspaceBounds({ width: nextW, height: nextH });
 
-      nextW = Math.min(
-        nextW,
-        wsBounds.wsLeft + wsBounds.wsWidth - s.startPos.x
-      );
-      nextH = Math.min(
-        nextH,
-        wsBounds.wsTop + wsBounds.wsHeight - s.startPos.y
-      );
+      // Prevent resizing outside workspace bounds from current position
+      nextW = Math.min(nextW, wsBounds.wsLeft + wsBounds.wsWidth - s.startPos.x);
+      nextH = Math.min(nextH, wsBounds.wsTop + wsBounds.wsHeight - s.startPos.y);
 
       setSz({ width: nextW, height: nextH });
 
-      setPos((pcur) => ({
-        x: clamp(pcur.x, wsBounds.minX, wsBounds.maxX),
-        y: clamp(pcur.y, wsBounds.minY, wsBounds.maxY),
-      }));
+      // After resize, clamp position again
+      const clampedPos = {
+        x: clamp(pos.x, wsBounds.minX, wsBounds.maxX),
+        y: clamp(pos.y, wsBounds.minY, wsBounds.maxY),
+      };
+      setPos(clampedPos);
+      onPositionChange?.(clampedPos);
     };
 
     const onUp = () => {
@@ -254,9 +300,40 @@ export default function FloatingWindow({
         >
           <div style={{ fontWeight: 800 }}>{title}</div>
           <div style={{ display: "flex", gap: 8 }}>
-            {onLaunch && <button onClick={onLaunch} style={iconBtn}>↗</button>}
-            {onMinimize && <button onClick={onMinimize} style={iconBtn}>—</button>}
-            <button onClick={onClose} style={{ ...iconBtn, background: "#ef4444" }}>✕</button>
+            {onLaunch && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onLaunch();
+                }}
+                style={iconBtn}
+              >
+                ↗
+              </button>
+            )}
+            {onMinimize && (
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onMinimize();
+                }}
+                style={iconBtn}
+              >
+                —
+              </button>
+            )}
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onClose?.();
+              }}
+              style={{ ...iconBtn, background: "#ef4444" }}
+            >
+              ✕
+            </button>
           </div>
         </div>
       )}
@@ -266,13 +343,49 @@ export default function FloatingWindow({
       {hideHeader && (
         <div
           onMouseDown={startDrag}
-          style={{ position: "absolute", top: 0, height: 10, width: "100%", cursor: "move" }}
+          style={{
+            position: "absolute",
+            top: 0,
+            height: 10,
+            width: "100%",
+            cursor: "move",
+          }}
         />
       )}
 
-      <div onMouseDown={startResize("right")} style={{ position: "absolute", right: 0, top: headerH, width: 10, height: "100%", cursor: "ew-resize" }} />
-      <div onMouseDown={startResize("bottom")} style={{ position: "absolute", bottom: 0, left: 0, width: "100%", height: 10, cursor: "ns-resize" }} />
-      <div onMouseDown={startResize("corner")} style={{ position: "absolute", right: 0, bottom: 0, width: 16, height: 16, cursor: "nwse-resize" }} />
+      <div
+        onMouseDown={startResize("right")}
+        style={{
+          position: "absolute",
+          right: 0,
+          top: headerH,
+          width: 10,
+          height: "100%",
+          cursor: "ew-resize",
+        }}
+      />
+      <div
+        onMouseDown={startResize("bottom")}
+        style={{
+          position: "absolute",
+          bottom: 0,
+          left: 0,
+          width: "100%",
+          height: 10,
+          cursor: "ns-resize",
+        }}
+      />
+      <div
+        onMouseDown={startResize("corner")}
+        style={{
+          position: "absolute",
+          right: 0,
+          bottom: 0,
+          width: 16,
+          height: 16,
+          cursor: "nwse-resize",
+        }}
+      />
     </div>
   );
 }
