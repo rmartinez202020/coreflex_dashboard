@@ -10,6 +10,8 @@ export default function FloatingWindow({
   onMinimize,
   onLaunch,
   children,
+
+  // ✅ NEW
   hideHeader = false,
 }) {
   const [pos, setPos] = useState(position);
@@ -28,65 +30,83 @@ export default function FloatingWindow({
 
   if (!visible) return null;
 
-  const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
   const clampMin = (n, min) => Math.max(min, n);
+  const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 
-  // ✅ Convert workspace bounds into MAIN-relative coordinates
-  const getWorkspaceBounds = (curSize = sz) => {
+  // ✅ Find the "real" workspace: the dashed border canvas box (NOT the whole <main>)
+  const findWorkspaceEl = (mainEl) => {
+    if (!mainEl) return null;
+
+    // Try a few selectors to be robust:
+    // 1) dashed border container in DashboardCanvas
+    const candidates = [
+      // exact common tailwind combos you use
+      ".border-dashed.border-gray-300",
+      ".border-2.border-dashed",
+      // fallback: any element inside main that looks like the big canvas
+      "[data-coreflex-workspace]",
+    ];
+
+    for (const sel of candidates) {
+      const el = mainEl.querySelector(sel);
+      if (el) return el;
+    }
+
+    return null;
+  };
+
+  // ✅ workspace bounds in MAIN-relative coordinates
+  const getWorkspaceBounds = () => {
     const mainEl = document.querySelector("main");
     const mainRect = mainEl?.getBoundingClientRect?.();
 
-    // hard fallback: viewport-like clamp
+    // fallback if <main> not found
     if (!mainRect) {
       return {
         minX: 0,
         minY: 0,
-        maxX: Math.max(0, window.innerWidth - curSize.width),
-        maxY: Math.max(0, window.innerHeight - curSize.height),
-        wsRightInMain: window.innerWidth,
-        wsBottomInMain: window.innerHeight,
+        maxX: Math.max(0, window.innerWidth - sz.width),
+        maxY: Math.max(0, window.innerHeight - sz.height),
       };
     }
 
-    // ✅ The ONLY correct target: the canvas/workspace div
-    const wsEl = mainEl.querySelector('[data-coreflex-workspace="1"]');
-    const wsRect = wsEl?.getBoundingClientRect?.();
+    const workspaceEl = findWorkspaceEl(mainEl);
+    const wsRect = workspaceEl?.getBoundingClientRect?.();
 
-    // fallback to main only if workspace missing (but you should add the attribute)
+    // fallback: clamp to <main> if workspace not found
     if (!wsRect) {
       return {
         minX: 0,
         minY: 0,
-        maxX: Math.max(0, mainRect.width - curSize.width),
-        maxY: Math.max(0, mainRect.height - curSize.height),
-        wsRightInMain: mainRect.width,
-        wsBottomInMain: mainRect.height,
+        maxX: Math.max(0, mainRect.width - sz.width),
+        maxY: Math.max(0, mainRect.height - sz.height),
       };
     }
 
+    // Convert workspace rect (viewport coords) -> main-relative coords
     const wsLeftInMain = wsRect.left - mainRect.left;
     const wsTopInMain = wsRect.top - mainRect.top;
 
-    const wsRightInMain = wsLeftInMain + wsRect.width;
-    const wsBottomInMain = wsTopInMain + wsRect.height;
+    const minX = Math.max(0, wsLeftInMain);
+    const minY = Math.max(0, wsTopInMain);
 
-    const minX = wsLeftInMain;
-    const minY = wsTopInMain;
+    const maxX = Math.max(minX, wsLeftInMain + wsRect.width - sz.width);
+    const maxY = Math.max(minY, wsTopInMain + wsRect.height - sz.height);
 
-    const maxX = Math.max(minX, wsRightInMain - curSize.width);
-    const maxY = Math.max(minY, wsBottomInMain - curSize.height);
-
-    return { minX, minY, maxX, maxY, wsRightInMain, wsBottomInMain };
+    return { minX, minY, maxX, maxY, wsRect, mainRect };
   };
 
   const startDrag = (e) => {
     e.stopPropagation();
     e.preventDefault();
 
+    const bounds = getWorkspaceBounds();
+
     dragStartRef.current = {
       startX: e.clientX,
       startY: e.clientY,
       startPos: { ...pos },
+      bounds,
     };
 
     const onMove = (ev) => {
@@ -96,11 +116,8 @@ export default function FloatingWindow({
       const dx = ev.clientX - s.startX;
       const dy = ev.clientY - s.startY;
 
-      // ✅ bounds recalculated each move (always correct)
-      const b = getWorkspaceBounds(sz);
-
-      const nextX = clamp(s.startPos.x + dx, b.minX, b.maxX);
-      const nextY = clamp(s.startPos.y + dy, b.minY, b.maxY);
+      const nextX = clamp(s.startPos.x + dx, s.bounds.minX, s.bounds.maxX);
+      const nextY = clamp(s.startPos.y + dy, s.bounds.minY, s.bounds.maxY);
 
       setPos({ x: nextX, y: nextY });
     };
@@ -119,12 +136,15 @@ export default function FloatingWindow({
     e.stopPropagation();
     e.preventDefault();
 
+    const bounds = getWorkspaceBounds();
+
     resizeStartRef.current = {
       edge,
       startX: e.clientX,
       startY: e.clientY,
       startSize: { ...sz },
       startPos: { ...pos },
+      bounds,
     };
 
     const minW = 520;
@@ -145,22 +165,41 @@ export default function FloatingWindow({
       if (s.edge === "bottom" || s.edge === "corner")
         nextH = clampMin(nextH + dy, minH);
 
-      // ✅ clamp size so right/bottom edges can't pass workspace bounds
-      const b = getWorkspaceBounds({ width: nextW, height: nextH });
+      // ✅ Prevent resizing outside the WORKSPACE (not main)
+      // maxW = workspaceRight - currentX
+      // maxH = workspaceBottom - currentY
+      const maxW = Math.max(minW, (s.bounds.maxX + nextW) - s.startPos.x); // placeholder safe
+      const maxH = Math.max(minH, (s.bounds.maxY + nextH) - s.startPos.y); // placeholder safe
 
-      const maxAllowedW = Math.max(minW, b.wsRightInMain - s.startPos.x);
-      const maxAllowedH = Math.max(minH, b.wsBottomInMain - s.startPos.y);
+      // Better: compute using workspace rect width/height if available
+      if (s.bounds.wsRect && s.bounds.mainRect) {
+        const wsRect = s.bounds.wsRect;
+        const mainRect = s.bounds.mainRect;
 
-      nextW = Math.min(nextW, maxAllowedW);
-      nextH = Math.min(nextH, maxAllowedH);
+        const wsLeftInMain = wsRect.left - mainRect.left;
+        const wsTopInMain = wsRect.top - mainRect.top;
+
+        const wsRightInMain = wsLeftInMain + wsRect.width;
+        const wsBottomInMain = wsTopInMain + wsRect.height;
+
+        const maxAllowedW = Math.max(minW, wsRightInMain - s.startPos.x);
+        const maxAllowedH = Math.max(minH, wsBottomInMain - s.startPos.y);
+
+        nextW = Math.min(nextW, maxAllowedW);
+        nextH = Math.min(nextH, maxAllowedH);
+      } else {
+        // fallback safety
+        nextW = Math.min(nextW, maxW);
+        nextH = Math.min(nextH, maxH);
+      }
 
       setSz({ width: nextW, height: nextH });
 
-      // ✅ after resize, also clamp position (in case size change forces it)
-      const b2 = getWorkspaceBounds({ width: nextW, height: nextH });
+      // ✅ After resize, clamp position again (in case size grew)
+      const boundsNow = getWorkspaceBounds();
       setPos((p) => ({
-        x: clamp(p.x, b2.minX, b2.maxX),
-        y: clamp(p.y, b2.minY, b2.maxY),
+        x: clamp(p.x, boundsNow.minX, boundsNow.maxX),
+        y: clamp(p.y, boundsNow.minY, boundsNow.maxY),
       }));
     };
 
@@ -173,17 +212,6 @@ export default function FloatingWindow({
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   };
-
-  // ✅ also clamp immediately on render (safety)
-  useEffect(() => {
-    if (!visible) return;
-    const b = getWorkspaceBounds(sz);
-    setPos((p) => ({
-      x: clamp(p.x, b.minX, b.maxX),
-      y: clamp(p.y, b.minY, b.maxY),
-    }));
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, sz.width, sz.height]);
 
   const headerH = hideHeader ? 0 : 40;
 
@@ -208,6 +236,7 @@ export default function FloatingWindow({
       }}
       onMouseDown={(e) => e.stopPropagation()}
     >
+      {/* ✅ HEADER (optional) */}
       {!hideHeader && (
         <div
           onMouseDown={startDrag}
@@ -269,8 +298,10 @@ export default function FloatingWindow({
         </div>
       )}
 
+      {/* ✅ BODY */}
       <div style={{ flex: 1, overflow: "auto" }}>{children}</div>
 
+      {/* ✅ If header is hidden, allow dragging by grabbing the very top area of the window */}
       {hideHeader && (
         <div
           onMouseDown={startDrag}
@@ -287,6 +318,7 @@ export default function FloatingWindow({
         />
       )}
 
+      {/* ✅ RESIZE ZONES */}
       <div
         onMouseDown={startResize("right")}
         title="Resize"
