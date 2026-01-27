@@ -1,5 +1,5 @@
 // src/hooks/useAuthController.js
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { getUserKeyFromToken, getToken, clearAuth } from "../utils/authToken";
 
 /**
@@ -26,6 +26,12 @@ export default function useAuthController({
     getUserKeyFromToken()
   );
 
+  // ✅ prevent stale closure issues in event listener
+  const currentUserKeyRef = useRef(currentUserKey);
+  useEffect(() => {
+    currentUserKeyRef.current = currentUserKey;
+  }, [currentUserKey]);
+
   const syncUserFromToken = useCallback(() => {
     const newUserKey = getUserKeyFromToken();
     const token = getToken();
@@ -38,12 +44,12 @@ export default function useAuthController({
     }
 
     // User changed -> reset app state for new tenant
-    if (newUserKey !== currentUserKey) {
-      const old = currentUserKey;
+    if (newUserKey !== currentUserKeyRef.current) {
+      const old = currentUserKeyRef.current;
       setCurrentUserKey(newUserKey);
       onUserChangedReset?.(newUserKey, old);
     }
-  }, [currentUserKey, onNoAuthReset, onUserChangedReset]);
+  }, [onNoAuthReset, onUserChangedReset]);
 
   useEffect(() => {
     // Initial sync
@@ -57,15 +63,25 @@ export default function useAuthController({
   }, [syncUserFromToken]);
 
   const handleLogout = useCallback(() => {
-    clearAuth(); // clears token
+    // 1) clear token
+    clearAuth();
     setCurrentUserKey(null);
 
+    // 2) reset app UI state
     onLogoutReset?.();
 
-    // keep other listeners in sync
+    // 3) notify listeners
     window.dispatchEvent(new Event("coreflex-auth-changed"));
 
-    if (navigate) navigate(logoutRoute);
+    // 4) try soft navigation (nice)
+    try {
+      if (navigate) navigate(logoutRoute, { replace: true });
+    } catch {
+      // ignore
+    }
+
+    // 5) ✅ HARD redirect (guaranteed to leave /app and go to login)
+    window.location.assign(logoutRoute);
   }, [navigate, logoutRoute, onLogoutReset]);
 
   return {
