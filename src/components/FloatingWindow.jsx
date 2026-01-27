@@ -33,13 +33,35 @@ export default function FloatingWindow({
   const clampMin = (n, min) => Math.max(min, n);
   const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 
-  // ✅ workspace bounds = <main> area (between sidebars)
+  // ✅ Find the "real" workspace: the dashed border canvas box (NOT the whole <main>)
+  const findWorkspaceEl = (mainEl) => {
+    if (!mainEl) return null;
+
+    // Try a few selectors to be robust:
+    // 1) dashed border container in DashboardCanvas
+    const candidates = [
+      // exact common tailwind combos you use
+      ".border-dashed.border-gray-300",
+      ".border-2.border-dashed",
+      // fallback: any element inside main that looks like the big canvas
+      "[data-coreflex-workspace]",
+    ];
+
+    for (const sel of candidates) {
+      const el = mainEl.querySelector(sel);
+      if (el) return el;
+    }
+
+    return null;
+  };
+
+  // ✅ workspace bounds in MAIN-relative coordinates
   const getWorkspaceBounds = () => {
     const mainEl = document.querySelector("main");
-    const r = mainEl?.getBoundingClientRect?.();
+    const mainRect = mainEl?.getBoundingClientRect?.();
 
     // fallback if <main> not found
-    if (!r) {
+    if (!mainRect) {
       return {
         minX: 0,
         minY: 0,
@@ -48,14 +70,30 @@ export default function FloatingWindow({
       };
     }
 
-    // because FloatingWindow is positioned ABSOLUTE inside <main>,
-    // its coordinates are relative to <main>, so bounds are:
-    return {
-      minX: 0,
-      minY: 0,
-      maxX: Math.max(0, r.width - sz.width),
-      maxY: Math.max(0, r.height - sz.height),
-    };
+    const workspaceEl = findWorkspaceEl(mainEl);
+    const wsRect = workspaceEl?.getBoundingClientRect?.();
+
+    // fallback: clamp to <main> if workspace not found
+    if (!wsRect) {
+      return {
+        minX: 0,
+        minY: 0,
+        maxX: Math.max(0, mainRect.width - sz.width),
+        maxY: Math.max(0, mainRect.height - sz.height),
+      };
+    }
+
+    // Convert workspace rect (viewport coords) -> main-relative coords
+    const wsLeftInMain = wsRect.left - mainRect.left;
+    const wsTopInMain = wsRect.top - mainRect.top;
+
+    const minX = Math.max(0, wsLeftInMain);
+    const minY = Math.max(0, wsTopInMain);
+
+    const maxX = Math.max(minX, wsLeftInMain + wsRect.width - sz.width);
+    const maxY = Math.max(minY, wsTopInMain + wsRect.height - sz.height);
+
+    return { minX, minY, maxX, maxY, wsRect, mainRect };
   };
 
   const startDrag = (e) => {
@@ -78,7 +116,6 @@ export default function FloatingWindow({
       const dx = ev.clientX - s.startX;
       const dy = ev.clientY - s.startY;
 
-      // ✅ clamp position within workspace
       const nextX = clamp(s.startPos.x + dx, s.bounds.minX, s.bounds.maxX);
       const nextY = clamp(s.startPos.y + dy, s.bounds.minY, s.bounds.maxY);
 
@@ -99,12 +136,15 @@ export default function FloatingWindow({
     e.stopPropagation();
     e.preventDefault();
 
+    const bounds = getWorkspaceBounds();
+
     resizeStartRef.current = {
       edge,
       startX: e.clientX,
       startY: e.clientY,
       startSize: { ...sz },
       startPos: { ...pos },
+      bounds,
     };
 
     const minW = 520;
@@ -125,19 +165,37 @@ export default function FloatingWindow({
       if (s.edge === "bottom" || s.edge === "corner")
         nextH = clampMin(nextH + dy, minH);
 
-      // ✅ OPTIONAL: also prevent resize from extending outside workspace
-      const mainEl = document.querySelector("main");
-      const r = mainEl?.getBoundingClientRect?.();
-      if (r) {
-        const maxW = Math.max(minW, r.width - s.startPos.x);
-        const maxH = Math.max(minH, r.height - s.startPos.y);
+      // ✅ Prevent resizing outside the WORKSPACE (not main)
+      // maxW = workspaceRight - currentX
+      // maxH = workspaceBottom - currentY
+      const maxW = Math.max(minW, (s.bounds.maxX + nextW) - s.startPos.x); // placeholder safe
+      const maxH = Math.max(minH, (s.bounds.maxY + nextH) - s.startPos.y); // placeholder safe
+
+      // Better: compute using workspace rect width/height if available
+      if (s.bounds.wsRect && s.bounds.mainRect) {
+        const wsRect = s.bounds.wsRect;
+        const mainRect = s.bounds.mainRect;
+
+        const wsLeftInMain = wsRect.left - mainRect.left;
+        const wsTopInMain = wsRect.top - mainRect.top;
+
+        const wsRightInMain = wsLeftInMain + wsRect.width;
+        const wsBottomInMain = wsTopInMain + wsRect.height;
+
+        const maxAllowedW = Math.max(minW, wsRightInMain - s.startPos.x);
+        const maxAllowedH = Math.max(minH, wsBottomInMain - s.startPos.y);
+
+        nextW = Math.min(nextW, maxAllowedW);
+        nextH = Math.min(nextH, maxAllowedH);
+      } else {
+        // fallback safety
         nextW = Math.min(nextW, maxW);
         nextH = Math.min(nextH, maxH);
       }
 
       setSz({ width: nextW, height: nextH });
 
-      // ✅ after resize, also clamp current position (in case size grew)
+      // ✅ After resize, clamp position again (in case size grew)
       const boundsNow = getWorkspaceBounds();
       setPos((p) => ({
         x: clamp(p.x, boundsNow.minX, boundsNow.maxX),
