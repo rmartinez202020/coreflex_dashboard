@@ -1,12 +1,22 @@
 // src/components/AlarmLogModal.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import FloatingWindow from "./FloatingWindow";
 import AlarmLogWindow from "./AlarmLogWindow";
 
 const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 
 export default function AlarmLogModal({ open, onClose, onLaunch, onMinimize }) {
-  // ✅ default open position
+  // Match your window size
+  const WIN_W = 900;
+  const WIN_H = 420;
+
+  // Find the MAIN workspace (between left/right sidebars)
+  const getMainRect = () => {
+    const mainEl = document.querySelector("main");
+    if (!mainEl) return null;
+    return mainEl.getBoundingClientRect();
+  };
+
   const [pos, setPos] = useState(() => {
     // optional: remember last position
     try {
@@ -25,22 +35,57 @@ export default function AlarmLogModal({ open, onClose, onLaunch, onMinimize }) {
     return { x: 120, y: 120 };
   });
 
-  // ✅ listen for "open at drop point" events
+  // ✅ Clamp current position whenever modal opens (handles resize, etc.)
+  useEffect(() => {
+    if (!open) return;
+
+    const rect = getMainRect();
+    if (!rect) return;
+
+    const maxX = Math.max(0, rect.width - WIN_W);
+    const maxY = Math.max(0, rect.height - WIN_H);
+
+    const clamped = {
+      x: clamp(pos.x, 0, maxX),
+      y: clamp(pos.y, 0, maxY),
+    };
+
+    if (clamped.x !== pos.x || clamped.y !== pos.y) {
+      setPos(clamped);
+      try {
+        localStorage.setItem("coreflex_alarmLog_pos", JSON.stringify(clamped));
+      } catch {}
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  // ✅ Listen for "open at drop point" event
   useEffect(() => {
     const handler = (ev) => {
-      const x = ev?.detail?.x;
-      const y = ev?.detail?.y;
-      if (typeof x !== "number" || typeof y !== "number") return;
+      const clientX = ev?.detail?.x;
+      const clientY = ev?.detail?.y;
+      if (typeof clientX !== "number" || typeof clientY !== "number") return;
 
-      // offset so cursor isn't on close/minimize buttons
-      const nextX = x - 60;
-      const nextY = y - 30;
+      const rect = getMainRect();
+      if (!rect) return;
 
-      // clamp a bit so it doesn't appear off-screen
-      const safeX = clamp(nextX, 8, window.innerWidth - 220);
-      const safeY = clamp(nextY, 8, window.innerHeight - 140);
+      // Convert SCREEN coords -> MAIN-relative coords
+      // (because FloatingWindow is inside <main> and uses absolute)
+      let x = clientX - rect.left;
+      let y = clientY - rect.top;
 
-      const next = { x: safeX, y: safeY };
+      // Small offset so cursor isn't on the top buttons
+      x -= 60;
+      y -= 30;
+
+      // Clamp to main workspace bounds
+      const maxX = Math.max(0, rect.width - WIN_W);
+      const maxY = Math.max(0, rect.height - WIN_H);
+
+      const next = {
+        x: clamp(x, 0, maxX),
+        y: clamp(y, 0, maxY),
+      };
 
       setPos(next);
       try {
@@ -49,18 +94,9 @@ export default function AlarmLogModal({ open, onClose, onLaunch, onMinimize }) {
     };
 
     window.addEventListener("coreflex-alarm-log-open-at", handler);
-    return () => window.removeEventListener("coreflex-alarm-log-open-at", handler);
+    return () =>
+      window.removeEventListener("coreflex-alarm-log-open-at", handler);
   }, []);
-
-  // ✅ keep saved position up to date if FloatingWindow moves it
-  const handleWindowMove = (nextPos) => {
-    if (!nextPos) return;
-
-    setPos(nextPos);
-    try {
-      localStorage.setItem("coreflex_alarmLog_pos", JSON.stringify(nextPos));
-    } catch {}
-  };
 
   if (!open) return null;
 
@@ -68,17 +104,12 @@ export default function AlarmLogModal({ open, onClose, onLaunch, onMinimize }) {
     <FloatingWindow
       visible={open}
       title="Alarms Log (DI-AI)"
-      position={pos} // ✅ now dynamic
-      size={{ width: 900, height: 420 }}
+      position={pos} // ✅ now constrained to the main area
+      size={{ width: WIN_W, height: WIN_H }}
       onClose={onClose}
       onLaunch={onLaunch}
       onMinimize={onMinimize}
       hideHeader={true} // ✅ remove the first top bar
-
-      // ✅ IMPORTANT:
-      // your FloatingWindow must call this when dragging updates position
-      // (if your prop name differs, tell me the actual one and I’ll adjust)
-      onPositionChange={handleWindowMove}
     >
       <AlarmLogWindow
         onLaunch={onLaunch}
