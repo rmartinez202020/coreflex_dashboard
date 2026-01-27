@@ -11,20 +11,20 @@ export default function FloatingWindow({
   onLaunch,
   children,
   hideHeader = false,
-  onPositionChange,
-  boundsMode = "workspace",
 
-  // ✅ NEW: allow drag by a child element (ex: AlarmLogWindow titlebar)
-  dragHandleSelector,
+  // ✅ NEW: allow parent (AppModals) to keep position in sync
+  onPositionChange,
+
+  // ✅ NEW:
+  // - "workspace" (default): clamp inside dashed workspace / main
+  // - "viewport": clamp inside visible browser viewport (for portals to body)
+  boundsMode = "workspace",
 }) {
   const [pos, setPos] = useState(position);
   const [sz, setSz] = useState(size);
 
   const dragStartRef = useRef(null);
   const resizeStartRef = useRef(null);
-
-  // ✅ reference to the FloatingWindow DOM
-  const rootRef = useRef(null);
 
   useEffect(() => {
     if (!visible) return;
@@ -38,6 +38,9 @@ export default function FloatingWindow({
   const clampMin = (n, min) => Math.max(min, n);
   const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
 
+  // ----------------------------------------------------
+  // Workspace detection
+  // ----------------------------------------------------
   const findWorkspaceEl = (mainEl) => {
     if (!mainEl) return null;
     const candidates = [
@@ -52,33 +55,42 @@ export default function FloatingWindow({
     return null;
   };
 
+  // ----------------------------------------------------
+  // Compute bounds
+  // ----------------------------------------------------
   const getBounds = (sizeOverride) => {
     const curSize = sizeOverride || sz;
 
+    // ✅ Viewport mode: pure screen clamp (best for createPortal(document.body))
     if (boundsMode === "viewport") {
       return {
         minX: 0,
         minY: 0,
         maxX: Math.max(0, window.innerWidth - curSize.width),
         maxY: Math.max(0, window.innerHeight - curSize.height),
+        ctx: { mode: "viewport" },
       };
     }
 
+    // ✅ Workspace mode (default): clamp inside dashed workspace in <main>
     const mainEl = document.querySelector("main");
     const mainRect = mainEl?.getBoundingClientRect?.();
 
+    // fallback: viewport
     if (!mainEl || !mainRect) {
       return {
         minX: 0,
         minY: 0,
         maxX: Math.max(0, window.innerWidth - curSize.width),
         maxY: Math.max(0, window.innerHeight - curSize.height),
+        ctx: { mode: "viewport" },
       };
     }
 
     const workspaceEl = findWorkspaceEl(mainEl) || mainEl;
     const wsRect = workspaceEl.getBoundingClientRect();
 
+    // translate workspace rect to main-relative coordinates
     const wsLeftInMain = wsRect.left - mainRect.left;
     const wsTopInMain = wsRect.top - mainRect.top;
 
@@ -88,24 +100,29 @@ export default function FloatingWindow({
     const maxX = Math.max(minX, wsLeftInMain + wsRect.width - curSize.width);
     const maxY = Math.max(minY, wsTopInMain + wsRect.height - curSize.height);
 
-    return { minX, minY, maxX, maxY };
+    return {
+      minX,
+      minY,
+      maxX,
+      maxY,
+      ctx: { mode: "main" },
+    };
   };
 
   // ----------------------------------------------------
   // Drag
   // ----------------------------------------------------
   const startDrag = (e) => {
-    // ✅ if the user clicks on a button inside the handle, don't drag
-    const tag = e.target?.tagName?.toLowerCase?.();
-    if (tag === "button" || tag === "svg" || tag === "path" || tag === "input") return;
-
     e.stopPropagation();
     e.preventDefault();
+
+    const bounds = getBounds(sz);
 
     dragStartRef.current = {
       startClientX: e.clientX,
       startClientY: e.clientY,
       startPos: { ...pos },
+      bounds,
     };
 
     const onMove = (ev) => {
@@ -135,24 +152,6 @@ export default function FloatingWindow({
     window.addEventListener("mousemove", onMove);
     window.addEventListener("mouseup", onUp);
   };
-
-  // ✅ Attach drag listener to a child handle (when provided)
-  useEffect(() => {
-    if (!visible) return;
-    if (!dragHandleSelector) return;
-    const root = rootRef.current;
-    if (!root) return;
-
-    const handle = root.querySelector(dragHandleSelector);
-    if (!handle) return;
-
-    handle.style.cursor = "move";
-    handle.style.userSelect = "none";
-
-    handle.addEventListener("mousedown", startDrag);
-    return () => handle.removeEventListener("mousedown", startDrag);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, dragHandleSelector, pos.x, pos.y, sz.width, sz.height]);
 
   // ----------------------------------------------------
   // Resize
@@ -185,14 +184,25 @@ export default function FloatingWindow({
       if (s.edge === "right" || s.edge === "corner") nextW = clampMin(nextW + dx, minW);
       if (s.edge === "bottom" || s.edge === "corner") nextH = clampMin(nextH + dy, minH);
 
-      // clamp size so it stays within bounds
-      const boundsNow = getBounds({ width: nextW, height: nextH });
+      // clamp size so window stays within bounds from its current position
+      const bounds = getBounds({ width: nextW, height: nextH });
 
-      nextW = Math.min(nextW, boundsNow.maxX - pos.x + nextW);
-      nextH = Math.min(nextH, boundsNow.maxY - pos.y + nextH);
+      // max allowed width/height based on current position
+      const maxAllowedW = Math.max(minW, bounds.maxX - pos.x + nextW); // safe
+      const maxAllowedH = Math.max(minH, bounds.maxY - pos.y + nextH); // safe
+
+      // in viewport mode the bounds are exact; in workspace mode, also exact
+      // so enforce: pos.x + w <= bounds.maxX + w? better to compute directly:
+      const hardMaxW = Math.max(minW, (bounds.maxX - pos.x) + nextW);
+      const hardMaxH = Math.max(minH, (bounds.maxY - pos.y) + nextH);
+
+      nextW = Math.min(nextW, hardMaxW, maxAllowedW);
+      nextH = Math.min(nextH, hardMaxH, maxAllowedH);
 
       setSz({ width: nextW, height: nextH });
 
+      // clamp position after resize
+      const boundsNow = getBounds({ width: nextW, height: nextH });
       const clampedPos = {
         x: clamp(pos.x, boundsNow.minX, boundsNow.maxX),
         y: clamp(pos.y, boundsNow.minY, boundsNow.maxY),
@@ -215,7 +225,6 @@ export default function FloatingWindow({
 
   return (
     <div
-      ref={rootRef}
       className="floating-window"
       style={{
         position: "absolute",
@@ -290,8 +299,7 @@ export default function FloatingWindow({
 
       <div style={{ flex: 1, overflow: "auto" }}>{children}</div>
 
-      {/* keep the tiny strip as fallback only */}
-      {hideHeader && !dragHandleSelector && (
+      {hideHeader && (
         <div
           onMouseDown={startDrag}
           style={{

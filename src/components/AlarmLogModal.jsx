@@ -27,11 +27,7 @@ export default function AlarmLogModal({
       onMinimize={onMinimize}
       hideHeader={true}
       onPositionChange={onPositionChange}
-      boundsMode="viewport" // ✅ important: clamp to screen
-
-      // ✅ NEW: drag using the big top bar inside AlarmLogWindow
-      // NOTE: make sure AlarmLogWindow top bar has className="alarm-log-titlebar"
-      dragHandleSelector=".alarm-log-titlebar"
+      boundsMode="viewport"   // ✅ important: clamp to screen
     >
       <AlarmLogWindow
         onLaunch={onLaunch}
@@ -44,4 +40,3 @@ export default function AlarmLogModal({
   // ✅ render outside canvas so it cannot be clipped by canvas/layout
   return createPortal(content, document.body);
 }
-s
