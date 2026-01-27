@@ -25,7 +25,10 @@ export default function useDropHandler({ setDroppedTanks, onOpenAlarmLog }) {
   };
 
   // ✅ helper: notify modal layer where to open Alarm Log
-  // IMPORTANT: AlarmLogModal is usually position:fixed, so we want SCREEN coords (clientX/clientY)
+  // IMPORTANT:
+  // FloatingWindow is position:absolute inside the canvas/workspace,
+  // so we must send CANVAS coords (x/y relative to the drop target),
+  // NOT screen coords (clientX/clientY).
   const emitAlarmLogOpenAt = ({ x, y }) => {
     try {
       window.dispatchEvent(
@@ -42,8 +45,8 @@ export default function useDropHandler({ setDroppedTanks, onOpenAlarmLog }) {
     e.preventDefault();
 
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
+    const x = e.clientX - rect.left; // ✅ canvas coords
+    const y = e.clientY - rect.top;  // ✅ canvas coords
 
     // ===============================
     // ✅ 1) IMAGE DROP
@@ -189,17 +192,14 @@ export default function useDropHandler({ setDroppedTanks, onOpenAlarmLog }) {
           w: 520,
           h: 260,
           zIndex: 1,
-
           title: "Graphic Display",
           timeUnit: "seconds",
           sampleMs: 1000,
           window: 60,
-
           yMin: 0,
           yMax: 100,
           yUnits: "",
           graphStyle: "line",
-
           series: [
             {
               name: "Level %",
@@ -207,7 +207,6 @@ export default function useDropHandler({ setDroppedTanks, onOpenAlarmLog }) {
               field: "level_percent",
             },
           ],
-
           recording: false,
           samples: [],
         },
@@ -217,8 +216,8 @@ export default function useDropHandler({ setDroppedTanks, onOpenAlarmLog }) {
 
     // 🚨🚨🚨 ALARMS LOG (SYSTEM WINDOW — NOT A CANVAS OBJECT)
     if (shape === "alarmLog") {
-      // ✅ IMPORTANT: send SCREEN coords so a fixed-position modal opens where you dropped
-      emitAlarmLogOpenAt({ x: e.clientX, y: e.clientY });
+      // ✅ send CANVAS coords so FloatingWindow opens correctly in workspace space
+      emitAlarmLogOpenAt({ x, y });
 
       // ✅ open real alarm log window
       onOpenAlarmLog?.();
