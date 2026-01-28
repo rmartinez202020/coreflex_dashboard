@@ -29,7 +29,7 @@ export default function RightPanel({
   setIsRightCollapsed,
   dashboardMode,
 
-  // ✅ NEW: Alarm Log opener (system window lives in AppModals / App layer)
+  // ✅ Alarm Log opener (system window lives in AppModals / App layer)
   onOpenAlarmLog,
 }) {
   // 🪟 WINDOW MANAGER (floating libraries)
@@ -46,11 +46,9 @@ export default function RightPanel({
     },
 
     // ✅ SYMBOL LIBRARIES
-    // IMPORTANT CHANGE:
-    // - remove defaultCenter: true
-    // - we will NOT pass {center:true} on open
-    // This prevents the "open at X then jump to center" behavior.
-    // Cascading/spacing should be handled inside useWindowDragResize.openWindow().
+    // IMPORTANT:
+    // - Do NOT default-center these.
+    // - Let window manager cascade/space them so they don't overlap.
     hmi: {
       position: { x: 220, y: 140 },
       size: { width: 760, height: 540 },
@@ -96,19 +94,16 @@ export default function RightPanel({
         setIsRightCollapsed={setIsRightCollapsed}
         setShowImageLibrary={() => wm.openWindow("image", { cascade: true })}
         setShowCoreflexLibrary={() => wm.openWindow("coreflex", { cascade: true })}
-
-        // ✅ IMPORTANT CHANGE:
-        // Remove { center: true } to avoid the "jump" and let wm handle spacing.
+        // ✅ No center-jump; let wm cascade + space
         openSymbolLibrary={(key) => wm.openWindow(key, { cascade: true })}
         dashboardMode={dashboardMode}
-        onOpenAlarmLog={onOpenAlarmLog} // ✅ PASS THROUGH
+        onOpenAlarmLog={onOpenAlarmLog}
       />
 
-      {/* ✅ FLOATING WINDOWS (must be mounted so wm.openWindow works) */}
+      {/* ✅ FLOATING WINDOWS */}
       <ImageLibrary
         {...wm.getWindowProps("image", {
-          onDragStartImage: (e, img) =>
-            e.dataTransfer.setData("imageUrl", img.src),
+          onDragStartImage: (e, img) => e.dataTransfer.setData("imageUrl", img.src),
         })}
       />
 

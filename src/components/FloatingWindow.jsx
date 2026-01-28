@@ -1,6 +1,17 @@
 // src/components/FloatingWindow.jsx
-import React, { useEffect, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 
+/**
+ * FloatingWindow
+ *
+ * ✅ Fix for “window flashes near the X then moves”:
+ * - Remove any animation on left/top/width/height by setting transition: "none"
+ * - Also, we sync internal pos/sz ONLY when:
+ *    1) the window becomes visible, OR
+ *    2) parent position/size truly changed (while not dragging/resizing)
+ *
+ * This prevents the brief “default position” render that then animates/moves.
+ */
 export default function FloatingWindow({
   visible,
   title,
@@ -12,12 +23,12 @@ export default function FloatingWindow({
   children,
   hideHeader = false,
 
-  // ✅ NEW: allow parent (AppModals) to keep position in sync
+  // ✅ allow parent (window manager) to keep position in sync
   onPositionChange,
 
-  // ✅ NEW:
-  // - "workspace" (default): clamp inside dashed workspace / main
-  // - "viewport": clamp inside visible browser viewport (for portals to body)
+  // ✅ bounds clamp mode
+  // - "workspace": clamp inside dashed workspace / main
+  // - "viewport": clamp inside visible browser viewport
   boundsMode = "workspace",
 }) {
   const [pos, setPos] = useState(position);
@@ -26,12 +37,43 @@ export default function FloatingWindow({
   const dragStartRef = useRef(null);
   const resizeStartRef = useRef(null);
 
+  // Track if user is actively manipulating this window (prevents parent sync jitter)
+  const isDraggingRef = useRef(false);
+  const isResizingRef = useRef(false);
+
+  // Compare keys to avoid unnecessary state updates
+  const posKey = `${position?.x ?? 0},${position?.y ?? 0}`;
+  const sizeKey = `${size?.width ?? 0},${size?.height ?? 0}`;
+
+  // ✅ When opened, sync once with parent position/size
   useEffect(() => {
     if (!visible) return;
     setPos(position);
     setSz(size);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, position?.x, position?.y, size?.width, size?.height]);
+  }, [visible]);
+
+  // ✅ If parent changes position/size while we're NOT dragging/resizing, sync safely
+  useEffect(() => {
+    if (!visible) return;
+    if (isDraggingRef.current || isResizingRef.current) return;
+
+    setPos((prev) => {
+      if ((prev?.x ?? 0) === (position?.x ?? 0) && (prev?.y ?? 0) === (position?.y ?? 0))
+        return prev;
+      return position;
+    });
+
+    setSz((prev) => {
+      if (
+        (prev?.width ?? 0) === (size?.width ?? 0) &&
+        (prev?.height ?? 0) === (size?.height ?? 0)
+      )
+        return prev;
+      return size;
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [visible, posKey, sizeKey]);
 
   if (!visible) return null;
 
@@ -61,7 +103,6 @@ export default function FloatingWindow({
   const getBounds = (sizeOverride) => {
     const curSize = sizeOverride || sz;
 
-    // ✅ Viewport mode: pure screen clamp (best for createPortal(document.body))
     if (boundsMode === "viewport") {
       return {
         minX: 0,
@@ -72,7 +113,6 @@ export default function FloatingWindow({
       };
     }
 
-    // ✅ Workspace mode (default): clamp inside dashed workspace in <main>
     const mainEl = document.querySelector("main");
     const mainRect = mainEl?.getBoundingClientRect?.();
 
@@ -90,7 +130,6 @@ export default function FloatingWindow({
     const workspaceEl = findWorkspaceEl(mainEl) || mainEl;
     const wsRect = workspaceEl.getBoundingClientRect();
 
-    // translate workspace rect to main-relative coordinates
     const wsLeftInMain = wsRect.left - mainRect.left;
     const wsTopInMain = wsRect.top - mainRect.top;
 
@@ -116,13 +155,12 @@ export default function FloatingWindow({
     e.stopPropagation();
     e.preventDefault();
 
-    const bounds = getBounds(sz);
+    isDraggingRef.current = true;
 
     dragStartRef.current = {
       startClientX: e.clientX,
       startClientY: e.clientY,
       startPos: { ...pos },
-      bounds,
     };
 
     const onMove = (ev) => {
@@ -145,6 +183,7 @@ export default function FloatingWindow({
 
     const onUp = () => {
       dragStartRef.current = null;
+      isDraggingRef.current = false;
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
@@ -159,6 +198,8 @@ export default function FloatingWindow({
   const startResize = (edge) => (e) => {
     e.stopPropagation();
     e.preventDefault();
+
+    isResizingRef.current = true;
 
     resizeStartRef.current = {
       edge,
@@ -187,17 +228,12 @@ export default function FloatingWindow({
       // clamp size so window stays within bounds from its current position
       const bounds = getBounds({ width: nextW, height: nextH });
 
-      // max allowed width/height based on current position
-      const maxAllowedW = Math.max(minW, bounds.maxX - pos.x + nextW); // safe
-      const maxAllowedH = Math.max(minH, bounds.maxY - pos.y + nextH); // safe
+      // maximum size allowed based on current position (so window doesn't overflow)
+      const maxW = Math.max(minW, bounds.maxX - pos.x + nextW);
+      const maxH = Math.max(minH, bounds.maxY - pos.y + nextH);
 
-      // in viewport mode the bounds are exact; in workspace mode, also exact
-      // so enforce: pos.x + w <= bounds.maxX + w? better to compute directly:
-      const hardMaxW = Math.max(minW, (bounds.maxX - pos.x) + nextW);
-      const hardMaxH = Math.max(minH, (bounds.maxY - pos.y) + nextH);
-
-      nextW = Math.min(nextW, hardMaxW, maxAllowedW);
-      nextH = Math.min(nextH, hardMaxH, maxAllowedH);
+      nextW = Math.min(nextW, maxW);
+      nextH = Math.min(nextH, maxH);
 
       setSz({ width: nextW, height: nextH });
 
@@ -213,6 +249,7 @@ export default function FloatingWindow({
 
     const onUp = () => {
       resizeStartRef.current = null;
+      isResizingRef.current = false;
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
@@ -232,6 +269,11 @@ export default function FloatingWindow({
         top: pos.y,
         width: sz.width,
         height: sz.height,
+
+        // ✅ CRITICAL: stop the “animate from X button” effect
+        // If you had transition-all in CSS/Tailwind, this defeats it.
+        transition: "none",
+
         background: "white",
         border: "2px solid #1e293b",
         borderRadius: "12px",
@@ -255,6 +297,7 @@ export default function FloatingWindow({
             justifyContent: "space-between",
             padding: "0 10px",
             cursor: "move",
+            userSelect: "none",
           }}
         >
           <div style={{ fontWeight: 800 }}>{title}</div>
@@ -313,6 +356,7 @@ export default function FloatingWindow({
         />
       )}
 
+      {/* Resize edges */}
       <div
         onMouseDown={startResize("right")}
         style={{
