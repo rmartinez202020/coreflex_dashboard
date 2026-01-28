@@ -305,11 +305,11 @@ export default function App() {
   };
 
   // ✅ DROP HANDLER
-  // IMPORTANT: pass openAlarmLog so the drop handler can prevent the "fake alarm log window"
-  const { handleDrop } = useDropHandler({
-    setDroppedTanks,
-    onOpenAlarmLog: openAlarmLog, // ✅ NEW
-  });
+  
+ const { handleDrop } = useDropHandler({
+  setDroppedTanks,
+});
+
 
   const handleSelect = (id) => {
     setSelectedTank(id);
@@ -472,6 +472,7 @@ export default function App() {
         isRightCollapsed={isRightCollapsed}
         setIsRightCollapsed={setIsRightCollapsed}
         dashboardMode={dashboardMode}
+        onOpenAlarmLog={openAlarmLog} 
       />
     </div>
   );

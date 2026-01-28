@@ -7,6 +7,9 @@ export default function RightSidebar({
   setShowImageLibrary,
   setShowCoreflexLibrary,
   openSymbolLibrary,
+
+  // ✅ NEW: open Alarm Log window (system FloatingWindow)
+  onOpenAlarmLog,
 }) {
   const openLibrary = (key) => {
     console.log("📁 Library click:", key); // ✅ debug (you can remove later)
@@ -16,6 +19,24 @@ export default function RightSidebar({
 
     // ✅ symbol windows: key must match wm keys in App.jsx
     return openSymbolLibrary?.(key);
+  };
+
+  // ✅ Click-to-open Alarm Log (opens like CoreFlex library behavior)
+  // NOTE: We also emit a default open position in CANVAS coords.
+  const openAlarmLog = (e) => {
+    e?.stopPropagation?.();
+
+    try {
+      window.dispatchEvent(
+        new CustomEvent("coreflex-alarm-log-open-at", {
+          detail: { x: 260, y: 120 }, // ✅ safe default inside workspace
+        })
+      );
+    } catch (err) {
+      console.warn("Failed to dispatch coreflex-alarm-log-open-at", err);
+    }
+
+    onOpenAlarmLog?.();
   };
 
   return (
@@ -156,12 +177,21 @@ export default function RightSidebar({
               </span>
             </div>
 
-            {/* ✅ NEW: ALARMS LOG (AI) */}
+            {/* ✅ NEW: ALARMS LOG (DI/AI) */}
+            {/* Behavior:
+                - ✅ CLICK: open system window immediately
+                - ✅ DRAG: (optional) still supports drag-to-canvas open if you keep drop handler
+            */}
             <div
               className="cursor-pointer flex flex-col items-center gap-1"
               draggable
-              onDragStart={(e) => e.dataTransfer.setData("shape", "alarmLog")}
-              title="Drag to canvas"
+              onClick={openAlarmLog} // ✅ CLICK OPEN (what you want)
+              onMouseDown={(e) => e.stopPropagation()} // ✅ prevent canvas hijack
+              onDragStart={(e) => {
+                e.stopPropagation();
+                e.dataTransfer.setData("shape", "alarmLog");
+              }}
+              title="Click to open • Drag to open at drop position"
             >
               <div
                 style={{

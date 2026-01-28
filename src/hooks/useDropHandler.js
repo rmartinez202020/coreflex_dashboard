@@ -1,5 +1,5 @@
 // src/hooks/useDropHandler.js
-export default function useDropHandler({ setDroppedTanks, onOpenAlarmLog }) {
+export default function useDropHandler({ setDroppedTanks }) {
   const makeId = () => {
     try {
       return crypto.randomUUID();
@@ -24,29 +24,12 @@ export default function useDropHandler({ setDroppedTanks, onOpenAlarmLog }) {
     return /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(v);
   };
 
-  // ✅ helper: notify modal layer where to open Alarm Log
-  // IMPORTANT:
-  // FloatingWindow is position:absolute inside the canvas/workspace,
-  // so we must send CANVAS coords (x/y relative to the drop target),
-  // NOT screen coords (clientX/clientY).
-  const emitAlarmLogOpenAt = ({ x, y }) => {
-    try {
-      window.dispatchEvent(
-        new CustomEvent("coreflex-alarm-log-open-at", {
-          detail: { x, y },
-        })
-      );
-    } catch (err) {
-      console.warn("Failed to dispatch coreflex-alarm-log-open-at", err);
-    }
-  };
-
   const handleDrop = (e) => {
     e.preventDefault();
 
     const rect = e.currentTarget.getBoundingClientRect();
     const x = e.clientX - rect.left; // ✅ canvas coords
-    const y = e.clientY - rect.top;  // ✅ canvas coords
+    const y = e.clientY - rect.top; // ✅ canvas coords
 
     // ===============================
     // ✅ 1) IMAGE DROP
@@ -214,15 +197,10 @@ export default function useDropHandler({ setDroppedTanks, onOpenAlarmLog }) {
       return;
     }
 
-    // 🚨🚨🚨 ALARMS LOG (SYSTEM WINDOW — NOT A CANVAS OBJECT)
+    // 🚫 ALARMS LOG DROP-TO-OPEN REMOVED
+    // Alarm Log is now opened ONLY via click from the RightPanel/RightSidebar.
+    // If someone drags it onto the canvas, we simply ignore it.
     if (shape === "alarmLog") {
-      // ✅ send CANVAS coords so FloatingWindow opens correctly in workspace space
-      emitAlarmLogOpenAt({ x, y });
-
-      // ✅ open real alarm log window
-      onOpenAlarmLog?.();
-
-      // ❌ do NOT add to droppedTanks
       return;
     }
 
