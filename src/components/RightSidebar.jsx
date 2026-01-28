@@ -216,7 +216,8 @@ export default function RightSidebar({
             onClick={openAlarmLog}
             title="Open Alarm Log"
           >
-            ⚠️ <span>Alarms Log (DI-AI)</span>
+            <span style={{ fontSize: "18px", lineHeight: 1 }}>⚠️</span>
+            <span>Alarms Log (DI-AI)</span>
           </button>
         </div>
       )}
