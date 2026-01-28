@@ -8,7 +8,7 @@ export default function RightSidebar({
   setShowCoreflexLibrary,
   openSymbolLibrary,
 
-  // ✅ NEW: open Alarm Log window (system FloatingWindow)
+  // ✅ open Alarm Log window (system FloatingWindow)
   onOpenAlarmLog,
 }) {
   const openLibrary = (key) => {
@@ -22,9 +22,11 @@ export default function RightSidebar({
   };
 
   // ✅ Click-to-open Alarm Log (opens like CoreFlex library behavior)
-  // NOTE: We also emit a default open position in CANVAS coords.
+  // NOTE: emits a default open position in CANVAS coords.
   const openAlarmLog = (e) => {
     e?.stopPropagation?.();
+
+    console.log("✅ Alarm Log tile clicked"); // ✅ debug
 
     try {
       window.dispatchEvent(
@@ -36,7 +38,14 @@ export default function RightSidebar({
       console.warn("Failed to dispatch coreflex-alarm-log-open-at", err);
     }
 
-    onOpenAlarmLog?.();
+    if (!onOpenAlarmLog) {
+      console.warn(
+        "⚠️ onOpenAlarmLog is missing. Pass it App.jsx -> RightPanel -> RightSidebar."
+      );
+      return;
+    }
+
+    onOpenAlarmLog();
   };
 
   return (
@@ -177,21 +186,19 @@ export default function RightSidebar({
               </span>
             </div>
 
-            {/* ✅ NEW: ALARMS LOG (DI/AI) */}
-            {/* Behavior:
-                - ✅ CLICK: open system window immediately
-                - ✅ DRAG: (optional) still supports drag-to-canvas open if you keep drop handler
-            */}
+            {/* ✅ ALARMS LOG (DI/AI) */}
             <div
               className="cursor-pointer flex flex-col items-center gap-1"
+              // ✅ keep draggable if you want to drag the tile around the sidebar,
+              // but it no longer opens on drop (we removed that from useDropHandler)
               draggable
-              onClick={openAlarmLog} // ✅ CLICK OPEN (what you want)
+              onClick={openAlarmLog} // ✅ CLICK OPEN
               onMouseDown={(e) => e.stopPropagation()} // ✅ prevent canvas hijack
               onDragStart={(e) => {
                 e.stopPropagation();
                 e.dataTransfer.setData("shape", "alarmLog");
               }}
-              title="Click to open • Drag to open at drop position"
+              title="Click to open"
             >
               <div
                 style={{

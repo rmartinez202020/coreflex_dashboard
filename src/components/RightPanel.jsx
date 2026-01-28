@@ -28,6 +28,9 @@ export default function RightPanel({
   isRightCollapsed,
   setIsRightCollapsed,
   dashboardMode,
+
+  // ✅ NEW: Alarm Log opener (system window lives in AppModals / App layer)
+  onOpenAlarmLog,
 }) {
   // 🪟 WINDOW MANAGER (floating libraries)
   const wm = useWindowDragResize({
@@ -97,6 +100,7 @@ export default function RightPanel({
         setShowCoreflexLibrary={() => wm.openWindow("coreflex")}
         openSymbolLibrary={(key) => wm.openWindow(key, { center: true })}
         dashboardMode={dashboardMode}
+        onOpenAlarmLog={onOpenAlarmLog} // ✅ PASS THROUGH
       />
 
       {/* ✅ FLOATING WINDOWS (must be mounted so wm.openWindow works) */}
