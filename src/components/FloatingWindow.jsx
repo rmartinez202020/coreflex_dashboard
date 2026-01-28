@@ -1,213 +1,30 @@
 // src/components/FloatingWindow.jsx
-import React, { useLayoutEffect, useRef, useState } from "react";
+import React from "react";
 
+/**
+ * FloatingWindow (CONTROLLED)
+ * - Position/size come ONLY from parent (useWindowDragResize)
+ * - Drag/resize handled ONLY by onStartDragWindow/onStartResizeWindow
+ * - This prevents the "open then jump" flicker completely
+ */
 export default function FloatingWindow({
   visible,
   title,
   position = { x: 120, y: 120 },
   size = { width: 900, height: 420 },
+
   onClose,
   onMinimize,
   onLaunch,
+
+  // ✅ these MUST be provided by useWindowDragResize.getWindowProps(key)
+  onStartDragWindow,
+  onStartResizeWindow,
+
   children,
   hideHeader = false,
-
-  // ✅ allow parent to keep position in sync
-  onPositionChange,
-
-  // ✅ "workspace" (default) or "viewport"
-  boundsMode = "workspace",
 }) {
-  const [pos, setPos] = useState(position);
-  const [sz, setSz] = useState(size);
-
-  // ✅ prevents the “open then move” 1-frame flicker
-  const [ready, setReady] = useState(false);
-
-  const dragStartRef = useRef(null);
-  const resizeStartRef = useRef(null);
-
-  // ✅ IMPORTANT:
-  // useLayoutEffect runs BEFORE the browser paints
-  // so the window never renders at an old position for 1 frame.
-  useLayoutEffect(() => {
-    if (!visible) {
-      setReady(false);
-      return;
-    }
-    setPos(position);
-    setSz(size);
-    setReady(true);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [visible, position?.x, position?.y, size?.width, size?.height]);
-
-  if (!visible || !ready) return null;
-
-  const clampMin = (n, min) => Math.max(min, n);
-  const clamp = (n, min, max) => Math.max(min, Math.min(max, n));
-
-  // ----------------------------------------------------
-  // Workspace detection
-  // ----------------------------------------------------
-  const findWorkspaceEl = (mainEl) => {
-    if (!mainEl) return null;
-    const candidates = [
-      ".border-dashed.border-gray-300",
-      ".border-2.border-dashed",
-      "[data-coreflex-workspace]",
-    ];
-    for (const sel of candidates) {
-      const el = mainEl.querySelector(sel);
-      if (el) return el;
-    }
-    return null;
-  };
-
-  // ----------------------------------------------------
-  // Compute bounds
-  // ----------------------------------------------------
-  const getBounds = (sizeOverride) => {
-    const curSize = sizeOverride || sz;
-
-    // ✅ Viewport mode
-    if (boundsMode === "viewport") {
-      return {
-        minX: 0,
-        minY: 0,
-        maxX: Math.max(0, window.innerWidth - curSize.width),
-        maxY: Math.max(0, window.innerHeight - curSize.height),
-        ctx: { mode: "viewport" },
-      };
-    }
-
-    // ✅ Workspace mode
-    const mainEl = document.querySelector("main");
-    const mainRect = mainEl?.getBoundingClientRect?.();
-
-    if (!mainEl || !mainRect) {
-      return {
-        minX: 0,
-        minY: 0,
-        maxX: Math.max(0, window.innerWidth - curSize.width),
-        maxY: Math.max(0, window.innerHeight - curSize.height),
-        ctx: { mode: "viewport" },
-      };
-    }
-
-    const workspaceEl = findWorkspaceEl(mainEl) || mainEl;
-    const wsRect = workspaceEl.getBoundingClientRect();
-
-    const wsLeftInMain = wsRect.left - mainRect.left;
-    const wsTopInMain = wsRect.top - mainRect.top;
-
-    const minX = Math.max(0, wsLeftInMain);
-    const minY = Math.max(0, wsTopInMain);
-
-    const maxX = Math.max(minX, wsLeftInMain + wsRect.width - curSize.width);
-    const maxY = Math.max(minY, wsTopInMain + wsRect.height - curSize.height);
-
-    return { minX, minY, maxX, maxY, ctx: { mode: "main" } };
-  };
-
-  // ----------------------------------------------------
-  // Drag
-  // ----------------------------------------------------
-  const startDrag = (e) => {
-    e.stopPropagation();
-    e.preventDefault();
-
-    dragStartRef.current = {
-      startClientX: e.clientX,
-      startClientY: e.clientY,
-      startPos: { ...pos },
-    };
-
-    const onMove = (ev) => {
-      const s = dragStartRef.current;
-      if (!s) return;
-
-      const dx = ev.clientX - s.startClientX;
-      const dy = ev.clientY - s.startClientY;
-
-      const boundsNow = getBounds(sz);
-
-      const next = {
-        x: clamp(s.startPos.x + dx, boundsNow.minX, boundsNow.maxX),
-        y: clamp(s.startPos.y + dy, boundsNow.minY, boundsNow.maxY),
-      };
-
-      setPos(next);
-      onPositionChange?.(next);
-    };
-
-    const onUp = () => {
-      dragStartRef.current = null;
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-  };
-
-  // ----------------------------------------------------
-  // Resize
-  // ----------------------------------------------------
-  const startResize = (edge) => (e) => {
-    e.stopPropagation();
-    e.preventDefault();
-
-    resizeStartRef.current = {
-      edge,
-      startClientX: e.clientX,
-      startClientY: e.clientY,
-      startSize: { ...sz },
-    };
-
-    const minW = 520;
-    const minH = 260;
-
-    const onMove = (ev) => {
-      const s = resizeStartRef.current;
-      if (!s) return;
-
-      const dx = ev.clientX - s.startClientX;
-      const dy = ev.clientY - s.startClientY;
-
-      let nextW = s.startSize.width;
-      let nextH = s.startSize.height;
-
-      if (s.edge === "right" || s.edge === "corner") nextW = clampMin(nextW + dx, minW);
-      if (s.edge === "bottom" || s.edge === "corner") nextH = clampMin(nextH + dy, minH);
-
-      // clamp size so window stays within bounds from its current position
-      const bounds = getBounds({ width: nextW, height: nextH });
-
-      // enforce within bounds
-      nextW = Math.min(nextW, Math.max(minW, bounds.maxX - pos.x + nextW));
-      nextH = Math.min(nextH, Math.max(minH, bounds.maxY - pos.y + nextH));
-
-      setSz({ width: nextW, height: nextH });
-
-      // clamp position after resize
-      const boundsNow = getBounds({ width: nextW, height: nextH });
-      const clampedPos = {
-        x: clamp(pos.x, boundsNow.minX, boundsNow.maxX),
-        y: clamp(pos.y, boundsNow.minY, boundsNow.maxY),
-      };
-      setPos(clampedPos);
-      onPositionChange?.(clampedPos);
-    };
-
-    const onUp = () => {
-      resizeStartRef.current = null;
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-  };
+  if (!visible) return null;
 
   const headerH = hideHeader ? 0 : 40;
 
@@ -216,10 +33,10 @@ export default function FloatingWindow({
       className="floating-window"
       style={{
         position: "absolute",
-        left: pos.x,
-        top: pos.y,
-        width: sz.width,
-        height: sz.height,
+        left: position.x,
+        top: position.y,
+        width: size.width,
+        height: size.height,
         background: "white",
         border: "2px solid #1e293b",
         borderRadius: "12px",
@@ -233,7 +50,10 @@ export default function FloatingWindow({
     >
       {!hideHeader && (
         <div
-          onMouseDown={startDrag}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            onStartDragWindow?.(e);
+          }}
           style={{
             height: 40,
             background: "#0f172a",
@@ -243,9 +63,11 @@ export default function FloatingWindow({
             justifyContent: "space-between",
             padding: "0 10px",
             cursor: "move",
+            userSelect: "none",
           }}
         >
           <div style={{ fontWeight: 800 }}>{title}</div>
+
           <div style={{ display: "flex", gap: 8 }}>
             {onLaunch && (
               <button
@@ -259,6 +81,7 @@ export default function FloatingWindow({
                 ↗
               </button>
             )}
+
             {onMinimize && (
               <button
                 type="button"
@@ -271,6 +94,7 @@ export default function FloatingWindow({
                 —
               </button>
             )}
+
             <button
               type="button"
               onClick={(e) => {
@@ -287,9 +111,13 @@ export default function FloatingWindow({
 
       <div style={{ flex: 1, overflow: "auto" }}>{children}</div>
 
+      {/* ✅ allow drag even with hidden header */}
       {hideHeader && (
         <div
-          onMouseDown={startDrag}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            onStartDragWindow?.(e);
+          }}
           style={{
             position: "absolute",
             top: 0,
@@ -301,8 +129,12 @@ export default function FloatingWindow({
         />
       )}
 
+      {/* ✅ resize handles (owned by window manager) */}
       <div
-        onMouseDown={startResize("right")}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          onStartResizeWindow?.(e);
+        }}
         style={{
           position: "absolute",
           right: 0,
@@ -313,8 +145,12 @@ export default function FloatingWindow({
           zIndex: 10,
         }}
       />
+
       <div
-        onMouseDown={startResize("bottom")}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          onStartResizeWindow?.(e);
+        }}
         style={{
           position: "absolute",
           bottom: 0,
@@ -325,8 +161,12 @@ export default function FloatingWindow({
           zIndex: 10,
         }}
       />
+
       <div
-        onMouseDown={startResize("corner")}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          onStartResizeWindow?.(e);
+        }}
         style={{
           position: "absolute",
           right: 0,
