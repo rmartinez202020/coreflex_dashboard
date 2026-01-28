@@ -9,8 +9,7 @@ import { useEffect, useRef, useState, useCallback } from "react";
  * 1) Pointer Events drag/resize
  * 2) Disable text selection while dragging/resizing
  * 3) Freeze defaults on first mount (prevents re-init on re-render)
- * 4) Cascade positioning when opening windows (prevents all opening same spot)
- * 5) ✅ NEW: Edge-aware resizing ("right" | "bottom" | "corner")
+ * 4) ✅ NEW: Cascade positioning when opening windows (prevents all opening same spot)
  */
 export default function useWindowDragResize(defaultsMap = {}) {
   const [, forceTick] = useState(0);
@@ -38,14 +37,10 @@ export default function useWindowDragResize(defaultsMap = {}) {
   const stateRef = useRef({
     windows: {}, // key -> { visible, position, size }
     dragging: null, // { key, pointerId, offsetX, offsetY }
-
-    // ✅ NEW: edge-aware resize
-    // { key, pointerId, edge: "right"|"bottom"|"corner", startX, startY, startW, startH }
-    resizing: null,
-
+    resizing: null, // { key, pointerId, startX, startY, startW, startH }
     bodyLock: null,
 
-    // ✅ cascade counter (global)
+    // ✅ NEW: cascade counter (global)
     cascadeIndex: 0,
   });
 
@@ -136,31 +131,35 @@ export default function useWindowDragResize(defaultsMap = {}) {
     return Boolean(stateRef.current.windows?.[key]?.visible);
   }, []);
 
-  // ✅ compute a cascade position
+  // ✅ NEW: compute a cascade position
   const getCascadePosition = (key, basePos, size) => {
     const s = stateRef.current;
 
+    // Count open windows to decide offset
     const openCount = Object.values(s.windows || {}).filter((w) => w?.visible)
       .length;
 
-    const step = 34;
-    const idx = (s.cascadeIndex + openCount) % 12;
+    // Each new open nudges diagonally
+    const step = 34; // feels good (like OS)
+    const idx = (s.cascadeIndex + openCount) % 12; // prevents drifting forever
 
     const next = {
       x: (basePos?.x ?? 120) + idx * step,
       y: (basePos?.y ?? 120) + idx * step,
     };
 
+    // if it starts going out of screen, wrap back near base
     const clamped = clampPos(key, next, size);
 
+    // if clamped got pinned hard, reset cascade index
     if (
       Math.abs(clamped.x - next.x) > 10 ||
       Math.abs(clamped.y - next.y) > 10
     ) {
       s.cascadeIndex = 0;
       const retry = {
-        x: basePos?.x ?? 120,
-        y: basePos?.y ?? 120,
+        x: (basePos?.x ?? 120) + 0 * step,
+        y: (basePos?.y ?? 120) + 0 * step,
       };
       return clampPos(key, retry, size);
     }
@@ -175,7 +174,7 @@ export default function useWindowDragResize(defaultsMap = {}) {
     const d = getDefaults()[key];
     if (!w || !d) return;
 
-    // ✅ if already open, do not reposition
+    // ✅ if already open, do not reposition (prevents jumping)
     if (w.visible) {
       bump();
       return;
@@ -264,9 +263,7 @@ export default function useWindowDragResize(defaultsMap = {}) {
     };
   }, []);
 
-  // ✅ edge-aware resize start: (key, edge, e)
-  const onStartResizeWindow = useCallback((key, edge, e) => {
-    if (!e) return;
+  const onStartResizeWindow = useCallback((key, e) => {
     e.stopPropagation();
     e.preventDefault();
 
@@ -278,18 +275,10 @@ export default function useWindowDragResize(defaultsMap = {}) {
       e.currentTarget?.setPointerCapture?.(e.pointerId);
     } catch {}
 
-    const cursor =
-      edge === "right"
-        ? "ew-resize"
-        : edge === "bottom"
-        ? "ns-resize"
-        : "nwse-resize";
-
-    lockBodySelection(cursor);
+    lockBodySelection("nwse-resize");
 
     s.resizing = {
       key,
-      edge: edge || "corner",
       pointerId: e.pointerId,
       startX: e.clientX,
       startY: e.clientY,
@@ -318,21 +307,18 @@ export default function useWindowDragResize(defaultsMap = {}) {
       }
 
       if (s.resizing?.key) {
-        const { key, edge, startX, startY, startW, startH } = s.resizing;
+        const key = s.resizing.key;
         const w = s.windows[key];
         if (!w) return;
 
-        const dx = e.clientX - startX;
-        const dy = e.clientY - startY;
+        const dx = e.clientX - s.resizing.startX;
+        const dy = e.clientY - s.resizing.startY;
 
-        let nextW = startW;
-        let nextH = startH;
+        const nextSize = clampSize(key, {
+          width: s.resizing.startW + dx,
+          height: s.resizing.startH + dy,
+        });
 
-        // ✅ only resize the dimension for the edge used
-        if (edge === "right" || edge === "corner") nextW = startW + dx;
-        if (edge === "bottom" || edge === "corner") nextH = startH + dy;
-
-        const nextSize = clampSize(key, { width: nextW, height: nextH });
         const nextPos = clampPos(key, w.position, nextSize);
 
         s.windows[key] = { ...w, size: nextSize, position: nextPos };
@@ -372,10 +358,7 @@ export default function useWindowDragResize(defaultsMap = {}) {
         size: w?.size || { width: 600, height: 400 },
         onClose: () => closeWindow(key),
         onStartDragWindow: (e) => onStartDragWindow(key, e),
-
-        // ✅ IMPORTANT: expose (edge, e)
-        onStartResizeWindow: (edge, e) => onStartResizeWindow(key, edge, e),
-
+        onStartResizeWindow: (e) => onStartResizeWindow(key, e),
         ...extra,
       };
     },
