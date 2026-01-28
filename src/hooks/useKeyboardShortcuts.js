@@ -1,4 +1,5 @@
-import { useEffect } from "react";
+// src/hooks/useKeyboardShortcuts.js
+import { useEffect, useRef } from "react";
 
 export default function useKeyboardShortcuts({
   selectedIds,
@@ -8,101 +9,155 @@ export default function useKeyboardShortcuts({
   droppedTanks,
   setDroppedTanks,
 }) {
-  // DELETE selected objects
+  // keep latest selectedIds in a ref so keydown always sees current selection
+  const selectedIdsRef = useRef(selectedIds);
   useEffect(() => {
-    const handleDelete = (e) => {
-      if (e.key !== "Delete") return;
-      if (!selectedIds.length) return;
+    selectedIdsRef.current = selectedIds;
+  }, [selectedIds]);
 
-      setDroppedTanks((prev) =>
-        prev.filter((t) => !selectedIds.includes(t.id))
-      );
+  // helper: don't steal arrows/copy/paste when user is typing
+  const isTypingTarget = (el) => {
+    if (!el) return false;
+    const tag = (el.tagName || "").toLowerCase();
+    return (
+      tag === "input" ||
+      tag === "textarea" ||
+      tag === "select" ||
+      el.isContentEditable ||
+      el.closest?.('[contenteditable="true"]')
+    );
+  };
 
-      setSelectedIds([]);
-      setSelectedTank(null);
-    };
+  // helper: clamp movement inside the canvas
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
 
-    window.addEventListener("keydown", handleDelete);
-    return () => window.removeEventListener("keydown", handleDelete);
-  }, [selectedIds, setSelectedIds, setSelectedTank, setDroppedTanks]);
+  // helper: rough size for clamping (best-effort)
+  const getObjSize = (obj) => {
+    const scale = typeof obj.scale === "number" ? obj.scale : 1;
 
-  // COPY + PASTE
+    // for most objects you use either w/h OR width/height
+    const baseW = obj.measuredW ?? obj.w ?? obj.width ?? 80;
+    const baseH = obj.measuredH ?? obj.h ?? obj.height ?? 60;
+
+    return { w: (baseW || 0) * scale, h: (baseH || 0) * scale };
+  };
+
   useEffect(() => {
-    const handleCopyPaste = (e) => {
-      if (!droppedTanks.length) return;
-      if (e.ctrlKey && ["c", "v"].includes(e.key)) e.preventDefault();
+    const onKeyDown = (e) => {
+      // ✅ do nothing while typing in inputs (displayOutput, text boxes, etc.)
+      if (isTypingTarget(document.activeElement)) return;
 
-      const activeObj =
-        droppedTanks.find((t) => t.id === selectedTank) ||
-        droppedTanks[droppedTanks.length - 1];
+      const selected = selectedIdsRef.current || [];
 
-      const selectedObjects = selectedIds.length
-        ? droppedTanks.filter((t) => selectedIds.includes(t.id))
-        : [];
+      // =========================
+      // DELETE (supports Backspace too)
+      // =========================
+      if ((e.key === "Delete" || e.key === "Backspace") && selected.length) {
+        e.preventDefault();
 
-      // CTRL + C
-      if (e.ctrlKey && e.key === "c") {
-        const list = selectedObjects.length ? selectedObjects : [activeObj];
-        window._copiedTank = list.map((o) =>
-          JSON.parse(JSON.stringify(o))
-        );
+        setDroppedTanks((prev) => prev.filter((t) => !selected.includes(t.id)));
+        setSelectedIds([]);
+        setSelectedTank(null);
+        return;
       }
 
-      // CTRL + V
-      if (e.ctrlKey && e.key === "v" && window._copiedTank) {
-        const ts = Date.now();
+      // =========================
+      // COPY + PASTE
+      // =========================
+      if (!droppedTanks?.length) {
+        // still allow arrow movement even if droppedTanks empty
+      } else {
+        if (e.ctrlKey && ["c", "v"].includes(e.key)) e.preventDefault();
 
-        const clones = window._copiedTank.map((base, idx) => ({
-          ...JSON.parse(JSON.stringify(base)),
-          id: (ts + idx).toString(),
-          x: base.x + 40 + idx * 10,
-          y: base.y + 40 + idx * 10,
-        }));
+        const activeObj =
+          droppedTanks.find((t) => t.id === selectedTank) ||
+          droppedTanks[droppedTanks.length - 1];
 
-        setDroppedTanks((prev) => [...prev, ...clones]);
-        setSelectedIds(clones.map((c) => c.id));
-        setSelectedTank(clones[0].id);
+        const selectedObjects = selected.length
+          ? droppedTanks.filter((t) => selected.includes(t.id))
+          : [];
+
+        // CTRL + C
+        if (e.ctrlKey && e.key === "c") {
+          const list = selectedObjects.length ? selectedObjects : [activeObj];
+          window._copiedTank = list.map((o) => JSON.parse(JSON.stringify(o)));
+          return;
+        }
+
+        // CTRL + V
+        if (e.ctrlKey && e.key === "v" && window._copiedTank) {
+          const ts = Date.now();
+
+          const clones = window._copiedTank.map((base, idx) => ({
+            ...JSON.parse(JSON.stringify(base)),
+            id: (ts + idx).toString(),
+            x: (base.x || 0) + 40 + idx * 10,
+            y: (base.y || 0) + 40 + idx * 10,
+          }));
+
+          setDroppedTanks((prev) => [...prev, ...clones]);
+          setSelectedIds(clones.map((c) => c.id));
+          setSelectedTank(clones[0].id);
+          return;
+        }
       }
-    };
 
-    window.addEventListener("keydown", handleCopyPaste);
-    return () =>
-      window.removeEventListener("keydown", handleCopyPaste);
-  }, [
-    selectedIds,
-    selectedTank,
-    droppedTanks,
-    setSelectedIds,
-    setSelectedTank,
-    setDroppedTanks,
-  ]);
+      // =========================
+      // ARROW KEY MOVEMENT (nudging)
+      // =========================
+      const key = e.key;
+      const isArrow =
+        key === "ArrowUp" ||
+        key === "ArrowDown" ||
+        key === "ArrowLeft" ||
+        key === "ArrowRight";
 
-  // ARROW KEY MOVEMENT
-  useEffect(() => {
-    const handleArrows = (e) => {
-      if (!selectedIds.length) return;
+      if (!isArrow) return;
+      if (!selected.length) return;
 
-      const step = e.shiftKey ? 10 : 1;
-      let dx = 0, dy = 0;
-
-      if (e.key === "ArrowUp") dy = -step;
-      if (e.key === "ArrowDown") dy = step;
-      if (e.key === "ArrowLeft") dx = -step;
-      if (e.key === "ArrowRight") dx = step;
-
-      if (dx === 0 && dy === 0) return;
       e.preventDefault();
 
+      const step = e.shiftKey ? 10 : 1;
+      let dx = 0,
+        dy = 0;
+
+      if (key === "ArrowUp") dy = -step;
+      if (key === "ArrowDown") dy = step;
+      if (key === "ArrowLeft") dx = -step;
+      if (key === "ArrowRight") dx = step;
+
+      // get canvas bounds (your DashboardCanvas has this id)
+      const canvas = document.getElementById("coreflex-canvas-root");
+      const rect = canvas?.getBoundingClientRect?.();
+      const bw = rect?.width ?? null;
+      const bh = rect?.height ?? null;
+
       setDroppedTanks((prev) =>
-        prev.map((obj) =>
-          selectedIds.includes(obj.id)
-            ? { ...obj, x: obj.x + dx, y: obj.y + dy }
-            : obj
-        )
+        prev.map((obj) => {
+          if (!selected.includes(obj.id)) return obj;
+
+          let nx = (obj.x || 0) + dx;
+          let ny = (obj.y || 0) + dy;
+
+          // clamp only when we know the bounds
+          if (bw != null && bh != null) {
+            const { w, h } = getObjSize(obj);
+            nx = clamp(nx, 0, Math.max(0, bw - w));
+            ny = clamp(ny, 0, Math.max(0, bh - h));
+          }
+
+          return { ...obj, x: nx, y: ny };
+        })
       );
     };
 
-    window.addEventListener("keydown", handleArrows);
-    return () => window.removeEventListener("keydown", handleArrows);
-  }, [selectedIds, setDroppedTanks]);
+    window.addEventListener("keydown", onKeyDown);
+    return () => window.removeEventListener("keydown", onKeyDown);
+  }, [
+    droppedTanks,
+    selectedTank,
+    setDroppedTanks,
+    setSelectedIds,
+    setSelectedTank,
+  ]);
 }
