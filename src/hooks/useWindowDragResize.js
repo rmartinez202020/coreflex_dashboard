@@ -5,10 +5,11 @@ import { useEffect, useRef, useState, useCallback } from "react";
  * useWindowDragResize
  * - Centralized drag/resize + open/close for floating windows by key
  *
- * ✅ FIXES:
- * 1) Uses Pointer Events (more reliable)
- * 2) Disables text selection while dragging/resizing (prevents selecting sidebar/canvas/title)
- * 3) Keeps defaults frozen on first mount (prevents re-init)
+ * ✅ FIXES INCLUDED:
+ * 1) Pointer Events drag/resize
+ * 2) Disable text selection while dragging/resizing
+ * 3) Freeze defaults on first mount (prevents re-init on re-render)
+ * 4) ✅ NEW: Cascade positioning when opening windows (prevents all opening same spot)
  */
 export default function useWindowDragResize(defaultsMap = {}) {
   const [, forceTick] = useState(0);
@@ -37,8 +38,10 @@ export default function useWindowDragResize(defaultsMap = {}) {
     windows: {}, // key -> { visible, position, size }
     dragging: null, // { key, pointerId, offsetX, offsetY }
     resizing: null, // { key, pointerId, startX, startY, startW, startH }
-    // track original body styles to restore
     bodyLock: null,
+
+    // ✅ NEW: cascade counter (global)
+    cascadeIndex: 0,
   });
 
   // ✅ init windows ONCE
@@ -76,7 +79,6 @@ export default function useWindowDragResize(defaultsMap = {}) {
     if (d.maxSize?.width) maxW = Math.min(maxW, d.maxSize.width);
     if (d.maxSize?.height) maxH = Math.min(maxH, d.maxSize.height);
 
-    // keep on-screen
     maxW = Math.min(maxW, window.innerWidth - 20);
     maxH = Math.min(maxH, window.innerHeight - 20);
 
@@ -129,23 +131,73 @@ export default function useWindowDragResize(defaultsMap = {}) {
     return Boolean(stateRef.current.windows?.[key]?.visible);
   }, []);
 
+  // ✅ NEW: compute a cascade position
+  const getCascadePosition = (key, basePos, size) => {
+    const s = stateRef.current;
+
+    // Count open windows to decide offset
+    const openCount = Object.values(s.windows || {}).filter((w) => w?.visible)
+      .length;
+
+    // Each new open nudges diagonally
+    const step = 34; // feels good (like OS)
+    const idx = (s.cascadeIndex + openCount) % 12; // prevents drifting forever
+
+    const next = {
+      x: (basePos?.x ?? 120) + idx * step,
+      y: (basePos?.y ?? 120) + idx * step,
+    };
+
+    // if it starts going out of screen, wrap back near base
+    const clamped = clampPos(key, next, size);
+
+    // if clamped got pinned hard, reset cascade index
+    if (
+      Math.abs(clamped.x - next.x) > 10 ||
+      Math.abs(clamped.y - next.y) > 10
+    ) {
+      s.cascadeIndex = 0;
+      const retry = {
+        x: (basePos?.x ?? 120) + 0 * step,
+        y: (basePos?.y ?? 120) + 0 * step,
+      };
+      return clampPos(key, retry, size);
+    }
+
+    s.cascadeIndex += 1;
+    return clamped;
+  };
+
   const openWindow = useCallback((key, opts = {}) => {
     const s = stateRef.current;
     const w = s.windows?.[key];
     const d = getDefaults()[key];
     if (!w || !d) return;
 
+    // ✅ if already open, do not reposition (prevents jumping)
+    if (w.visible) {
+      bump();
+      return;
+    }
+
     const wantCenter = opts.center ?? d.defaultCenter ?? false;
+    const wantCascade = Boolean(opts.cascade);
+
     const size = clampSize(key, opts.size || w.size || d.size);
 
-    let position = w.position || d.position;
+    let position = opts.position || d.position || w.position;
+
     if (wantCenter) {
       position = {
         x: Math.round((window.innerWidth - size.width) / 2),
         y: Math.round((window.innerHeight - size.height) / 2),
       };
+      position = clampPos(key, position, size);
+    } else if (wantCascade) {
+      position = getCascadePosition(key, position, size);
+    } else {
+      position = clampPos(key, position, size);
     }
-    position = clampPos(key, position, size);
 
     s.windows[key] = { visible: true, position, size };
     bump();
@@ -197,7 +249,6 @@ export default function useWindowDragResize(defaultsMap = {}) {
     const w = s.windows?.[key];
     if (!w) return;
 
-    // pointer capture prevents weirdness when cursor leaves the header
     try {
       e.currentTarget?.setPointerCapture?.(e.pointerId);
     } catch {}
@@ -236,7 +287,7 @@ export default function useWindowDragResize(defaultsMap = {}) {
     };
   }, []);
 
-  // ✅ global POINTER handlers
+  // global pointer handlers
   useEffect(() => {
     const onMove = (e) => {
       const s = stateRef.current;
@@ -299,22 +350,17 @@ export default function useWindowDragResize(defaultsMap = {}) {
     (key, extra = {}) => {
       const w = stateRef.current.windows?.[key];
 
-      const base = {
+      return {
         visible: Boolean(w?.visible),
         open: Boolean(w?.visible),
         isOpen: Boolean(w?.visible),
         position: w?.position || { x: 100, y: 100 },
         size: w?.size || { width: 600, height: 400 },
         onClose: () => closeWindow(key),
-
-        // ✅ send controlled handlers down
         onStartDragWindow: (e) => onStartDragWindow(key, e),
         onStartResizeWindow: (e) => onStartResizeWindow(key, e),
-
         ...extra,
       };
-
-      return base;
     },
     [closeWindow, onStartDragWindow, onStartResizeWindow]
   );
