@@ -56,9 +56,16 @@ function padToFormat(rawDigits, numberFormat) {
 // ===============================
 // ✅ ALARM LOG RESIZE HANDLES (ONLY ONE VERSION)
 // - INSIDE the box, thicker, always on top
+// ✅ NEW: clamps resize so it cannot exceed canvas bounds
 // ===============================
 function AlarmLogResizeEdges({ tank, onUpdate, minW = 520, minH = 240 }) {
   const dragRef = React.useRef(null);
+
+  const getCanvasWH = () => {
+    const el = document.getElementById("coreflex-canvas-root");
+    if (!el) return { w: null, h: null };
+    return { w: el.clientWidth, h: el.clientHeight };
+  };
 
   const startDrag = (mode) => (e) => {
     e.preventDefault();
@@ -87,6 +94,21 @@ function AlarmLogResizeEdges({ tank, onUpdate, minW = 520, minH = 240 }) {
       if (cur.mode === "corner") {
         nextW = Math.max(minW, cur.startW + dx);
         nextH = Math.max(minH, cur.startH + dy);
+      }
+
+      // ✅ Clamp to canvas bounds (so resize cannot exceed dashboard area)
+      const { w: canvasW, h: canvasH } = getCanvasWH();
+      const objX = tank.x ?? 0;
+      const objY = tank.y ?? 0;
+
+      if (canvasW != null) {
+        const maxW = Math.max(minW, canvasW - objX);
+        nextW = Math.min(nextW, maxW);
+      }
+
+      if (canvasH != null) {
+        const maxH = Math.max(minH, canvasH - objY);
+        nextH = Math.min(nextH, maxH);
       }
 
       onUpdate?.({ ...tank, w: nextW, h: nextH });
@@ -431,12 +453,12 @@ export default function DashboardCanvas({
       onDragEnd={isPlay ? undefined : handleDragEnd}
     >
       <div
-      id="coreflex-canvas-root"
+        id="coreflex-canvas-root"
         className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg bg-white"
-        style={{ position: "relative", overflow: "visible" }}
+        // ✅ CRITICAL: keep canvas objects inside the dashed dashboard visually
+        // (does NOT affect FloatingWindow libraries, those are outside this div)
+        style={{ position: "relative", overflow: "hidden" }}
         onDragOver={(e) => !isPlay && e.preventDefault()}
-
-
         onDrop={(e) => !isPlay && handleDrop(e)}
         onMouseDown={(e) => !isPlay && handleCanvasMouseDown(e)}
         onMouseMove={(e) => !isPlay && handleCanvasMouseMove(e)}
@@ -572,7 +594,6 @@ export default function DashboardCanvas({
                       }
                     />
 
-                    {/* ✅ handles must be LAST so they sit ON TOP */}
                     {!isPlay && (
                       <AlarmLogResizeEdges
                         tank={tank}

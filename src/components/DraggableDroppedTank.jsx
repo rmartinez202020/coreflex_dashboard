@@ -1,5 +1,5 @@
 import { useDraggable } from "@dnd-kit/core";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 
 export default function DraggableDroppedTank({
   tank,
@@ -18,6 +18,18 @@ export default function DraggableDroppedTank({
 
   const isPlay = dashboardMode === "play";
   const [resizing, setResizing] = useState(false);
+
+  // ✅ measure actual rendered size (for perfect dashboard clamping)
+  const elRef = useRef(null);
+
+  // ✅ combine refs: dnd-kit ref + our measuring ref
+  const setRefs = useCallback(
+    (node) => {
+      elRef.current = node;
+      setNodeRef(node);
+    },
+    [setNodeRef]
+  );
 
   const startResize = (e) => {
     e.stopPropagation();
@@ -84,7 +96,7 @@ export default function DraggableDroppedTank({
 
   const isGraphicDisplay = tank.shape === "graphicDisplay";
 
-  // ✅ NEW: display output textbox
+  // ✅ display output textbox
   const isDisplayOutput = tank.shape === "displayOutput";
 
   // ✅ IMPORTANT:
@@ -135,12 +147,67 @@ export default function DraggableDroppedTank({
   // ✅ KEY FIX:
   // If it's a "typing widget" in PLAY mode, do NOT attach dnd-kit listeners,
   // otherwise pointerdown will start drag and the input won't focus reliably.
-  const dragListeners =
-    isPlay && isDisplayOutput ? undefined : listeners;
+  const dragListeners = isPlay && isDisplayOutput ? undefined : listeners;
+
+  // ===============================
+  // ✅ AUTO-MEASURE REAL SIZE (stores measuredW/H on tank)
+  // - Saves unscaled size (divide by scale) so clamp stays accurate.
+  // ===============================
+  useEffect(() => {
+    const el = elRef.current;
+    if (!el) return;
+
+    let raf = 0;
+
+    const writeSize = () => {
+      // getBoundingClientRect includes current scale; normalize it out
+      const scale = typeof tank.scale === "number" ? tank.scale : 1;
+
+      const r = el.getBoundingClientRect();
+      const unscaledW = Math.max(1, Math.round(r.width / (scale || 1)));
+      const unscaledH = Math.max(1, Math.round(r.height / (scale || 1)));
+
+      // Avoid update spam (only update if changed)
+      const prevW = tank.measuredW ?? 0;
+      const prevH = tank.measuredH ?? 0;
+
+      if (Math.abs(unscaledW - prevW) >= 2 || Math.abs(unscaledH - prevH) >= 2) {
+        onUpdate?.({
+          ...tank,
+          measuredW: unscaledW,
+          measuredH: unscaledH,
+        });
+      }
+    };
+
+    // initial
+    raf = window.requestAnimationFrame(writeSize);
+
+    // observe changes (images loading, font changes, etc.)
+    const ro = new ResizeObserver(() => {
+      window.cancelAnimationFrame(raf);
+      raf = window.requestAnimationFrame(writeSize);
+    });
+
+    ro.observe(el);
+
+    // Also measure again shortly after mount (image decode, etc.)
+    const t = setTimeout(() => {
+      window.cancelAnimationFrame(raf);
+      raf = window.requestAnimationFrame(writeSize);
+    }, 120);
+
+    return () => {
+      clearTimeout(t);
+      window.cancelAnimationFrame(raf);
+      ro.disconnect();
+    };
+    // NOTE: include only tank.id + tank.scale so we don't loop on measuredW/H updates
+  }, [tank.id, tank.scale, onUpdate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
     <div
-      ref={setNodeRef}
+      ref={setRefs}
       className="draggable-item"
       style={outerStyle}
       {...attributes}
