@@ -21,12 +21,9 @@ export default function RightSidebar({
     return openSymbolLibrary?.(key);
   };
 
-  // ✅ Click-to-open Alarm Log (opens like CoreFlex library behavior)
-  // NOTE: emits a default open position in CANVAS coords.
+  // ✅ Click-to-open Alarm Log (small item under Libraries)
   const openAlarmLog = (e) => {
     e?.stopPropagation?.();
-
-    console.log("✅ Alarm Log tile clicked"); // ✅ debug
 
     try {
       window.dispatchEvent(
@@ -38,14 +35,7 @@ export default function RightSidebar({
       console.warn("Failed to dispatch coreflex-alarm-log-open-at", err);
     }
 
-    if (!onOpenAlarmLog) {
-      console.warn(
-        "⚠️ onOpenAlarmLog is missing. Pass it App.jsx -> RightPanel -> RightSidebar."
-      );
-      return;
-    }
-
-    onOpenAlarmLog();
+    onOpenAlarmLog?.();
   };
 
   return (
@@ -186,46 +176,7 @@ export default function RightSidebar({
               </span>
             </div>
 
-            {/* ✅ ALARMS LOG (DI/AI) */}
-            <div
-              className="cursor-pointer flex flex-col items-center gap-1"
-              // ✅ keep draggable if you want to drag the tile around the sidebar,
-              // but it no longer opens on drop (we removed that from useDropHandler)
-              draggable
-              onClick={openAlarmLog} // ✅ CLICK OPEN
-              onMouseDown={(e) => e.stopPropagation()} // ✅ prevent canvas hijack
-              onDragStart={(e) => {
-                e.stopPropagation();
-                e.dataTransfer.setData("shape", "alarmLog");
-              }}
-              title="Click to open"
-            >
-              <div
-                style={{
-                  width: "120px",
-                  height: "55px",
-                  borderRadius: 10,
-                  border: "2px solid #334155",
-                  background: "#0b1220",
-                  boxShadow: "0 8px 18px rgba(0,0,0,0.25)",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 8,
-                  color: "#e5e7eb",
-                  fontWeight: 900,
-                }}
-              >
-                <span style={{ fontSize: 18 }}>⚠️</span>
-                <span style={{ fontSize: 11, lineHeight: "12px" }}>
-                  ALARMS
-                  <br />
-                  LOG
-                </span>
-              </div>
-
-              <span className="text-[14px] text-center">Alarms Log (DI-AI)</span>
-            </div>
+            {/* 🚫 REMOVED: big Alarm Log entity tile */}
           </div>
 
           {/* LIBRARIES */}
@@ -253,6 +204,20 @@ export default function RightSidebar({
               📁 <span>{label}</span>
             </button>
           ))}
+
+          {/* ✅ NEW: ALARM LOGS SECTION (small, under Libraries) */}
+          <h3 className="text-sm font-semibold mt-8 mb-3 text-gray-600">
+            Alarm Logs
+          </h3>
+
+          <button
+            type="button"
+            className="w-full text-left text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
+            onClick={openAlarmLog}
+            title="Open Alarm Log"
+          >
+            ⚠️ <span>Alarms Log (DI-AI)</span>
+          </button>
         </div>
       )}
     </aside>
