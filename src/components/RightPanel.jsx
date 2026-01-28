@@ -46,47 +46,45 @@ export default function RightPanel({
     },
 
     // ✅ SYMBOL LIBRARIES
+    // IMPORTANT CHANGE:
+    // - remove defaultCenter: true
+    // - we will NOT pass {center:true} on open
+    // This prevents the "open at X then jump to center" behavior.
+    // Cascading/spacing should be handled inside useWindowDragResize.openWindow().
     hmi: {
       position: { x: 220, y: 140 },
       size: { width: 760, height: 540 },
       minSize: { width: 520, height: 360 },
-      defaultCenter: true,
     },
     hvac2d: {
       position: { x: 220, y: 140 },
       size: { width: 760, height: 540 },
       minSize: { width: 520, height: 360 },
-      defaultCenter: true,
     },
     hvac3d: {
       position: { x: 220, y: 140 },
       size: { width: 760, height: 540 },
       minSize: { width: 520, height: 360 },
-      defaultCenter: true,
     },
     mfg2d: {
       position: { x: 220, y: 140 },
       size: { width: 760, height: 540 },
       minSize: { width: 520, height: 360 },
-      defaultCenter: true,
     },
     mfg3d: {
       position: { x: 220, y: 140 },
       size: { width: 760, height: 540 },
       minSize: { width: 520, height: 360 },
-      defaultCenter: true,
     },
     tp2d: {
       position: { x: 220, y: 140 },
       size: { width: 760, height: 540 },
       minSize: { width: 520, height: 360 },
-      defaultCenter: true,
     },
     tp3d: {
       position: { x: 220, y: 140 },
       size: { width: 760, height: 540 },
       minSize: { width: 520, height: 360 },
-      defaultCenter: true,
     },
   });
 
@@ -96,9 +94,12 @@ export default function RightPanel({
       <RightSidebar
         isRightCollapsed={isRightCollapsed}
         setIsRightCollapsed={setIsRightCollapsed}
-        setShowImageLibrary={() => wm.openWindow("image")}
-        setShowCoreflexLibrary={() => wm.openWindow("coreflex")}
-        openSymbolLibrary={(key) => wm.openWindow(key, { center: true })}
+        setShowImageLibrary={() => wm.openWindow("image", { cascade: true })}
+        setShowCoreflexLibrary={() => wm.openWindow("coreflex", { cascade: true })}
+
+        // ✅ IMPORTANT CHANGE:
+        // Remove { center: true } to avoid the "jump" and let wm handle spacing.
+        openSymbolLibrary={(key) => wm.openWindow(key, { cascade: true })}
         dashboardMode={dashboardMode}
         onOpenAlarmLog={onOpenAlarmLog} // ✅ PASS THROUGH
       />

@@ -11,6 +11,11 @@ import { useEffect, useRef, useState, useCallback } from "react";
  *   to re-initialize windows and force visible=false (so windows never appear).
  *
  * - This version freezes defaults on first mount and initializes windows ONCE.
+ *
+ * ✅ NEW (this patch):
+ * - Adds "cascade" positioning so new windows don't overlap and don't "jump"
+ * - Centers ONLY when explicitly requested (opts.center === true)
+ * - Fixes the "open at X then move to center" by computing final position BEFORE visible=true
  */
 export default function useWindowDragResize(defaultsMap = {}) {
   // force rerender when internal ref changes
@@ -29,6 +34,8 @@ export default function useWindowDragResize(defaultsMap = {}) {
         size: d.size || { width: 600, height: 400 },
         minSize: d.minSize || { width: 600, height: 400 },
         maxSize: d.maxSize || null,
+
+        // keep it, but we will NOT auto-center unless explicitly requested
         defaultCenter: Boolean(d.defaultCenter),
       };
     });
@@ -104,25 +111,62 @@ export default function useWindowDragResize(defaultsMap = {}) {
     return Boolean(stateRef.current.windows?.[key]?.visible);
   }, []);
 
+  // ✅ helpers for cascade layout
+  const getOpenKeys = () =>
+    Object.entries(stateRef.current.windows || {})
+      .filter(([, w]) => w?.visible)
+      .map(([k]) => k);
+
+  const computeCascadePos = (key, basePos, size) => {
+    // Offset each additional open window so they "stack" nicely
+    const openCount = getOpenKeys().length;
+
+    const STEP_X = 28;
+    const STEP_Y = 22;
+
+    const pos = {
+      x: (basePos?.x ?? 120) + openCount * STEP_X,
+      y: (basePos?.y ?? 100) + openCount * STEP_Y,
+    };
+
+    return clampPos(key, pos, size);
+  };
+
   const openWindow = useCallback((key, opts = {}) => {
     const s = stateRef.current;
     const w = s.windows?.[key];
     const d = getDefaults()[key];
-
     if (!w || !d) return;
 
-    const wantCenter = opts.center ?? d.defaultCenter ?? false;
+    // Size first
     const size = clampSize(key, opts.size || w.size || d.size);
 
-    let position = w.position || d.position;
+    // IMPORTANT:
+    // - Only center if explicitly requested (opts.center === true)
+    // - Otherwise cascade by default (opts.cascade defaults to true)
+    const wantCenter = opts.center === true;
+    const wantCascade = opts.cascade !== false; // default true
+
+    let position;
+
     if (wantCenter) {
       position = {
         x: Math.round((window.innerWidth - size.width) / 2),
         y: Math.round((window.innerHeight - size.height) / 2),
       };
+      position = clampPos(key, position, size);
+    } else if (opts.position) {
+      position = clampPos(key, opts.position, size);
+    } else if (wantCascade) {
+      // cascade from default position (or last position if already known)
+      const basePos = d.position || w.position;
+      position = computeCascadePos(key, basePos, size);
+    } else {
+      // fallback to last known / default
+      position = clampPos(key, w.position || d.position, size);
     }
-    position = clampPos(key, position, size);
 
+    // ✅ Set everything in one shot BEFORE visible=true to prevent "jump"
     s.windows[key] = {
       visible: true,
       position,
