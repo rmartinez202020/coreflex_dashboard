@@ -28,6 +28,24 @@ export default function FloatingWindow({
 
   const headerH = hideHeader ? 0 : 40;
 
+  // ✅ prevent text-selection while resizing (fixes “highlighting sidebar/dashboard/title”)
+  const onResizeMouseDown = (e) => {
+    e.stopPropagation();
+    e.preventDefault();
+
+    // lock selection during resize drag
+    const prevUserSelect = document.body.style.userSelect;
+    document.body.style.userSelect = "none";
+
+    onStartResizeWindow?.(e);
+
+    const restore = () => {
+      document.body.style.userSelect = prevUserSelect || "";
+      window.removeEventListener("mouseup", restore);
+    };
+    window.addEventListener("mouseup", restore);
+  };
+
   return (
     <div
       className="floating-window"
@@ -129,52 +147,50 @@ export default function FloatingWindow({
         />
       )}
 
-      {/* ✅ resize handles (owned by window manager) */}
+      {/* ✅ resize handles (owned by window manager)
+          Fixes:
+          - right/bottom resize not working on some windows (content was covering thin handles)
+          - selection highlight while resizing (preventDefault + userSelect none)
+      */}
       <div
-        onMouseDown={(e) => {
-          e.stopPropagation();
-          onStartResizeWindow?.(e);
-        }}
+        onMouseDown={onResizeMouseDown}
         style={{
           position: "absolute",
           right: 0,
           top: headerH,
-          width: 10,
+          width: 12,
           height: `calc(100% - ${headerH}px)`,
           cursor: "ew-resize",
-          zIndex: 10,
+          zIndex: 999999999 + 5,
+          background: "transparent",
         }}
       />
 
       <div
-        onMouseDown={(e) => {
-          e.stopPropagation();
-          onStartResizeWindow?.(e);
-        }}
+        onMouseDown={onResizeMouseDown}
         style={{
           position: "absolute",
           bottom: 0,
           left: 0,
           width: "100%",
-          height: 10,
+          height: 12,
           cursor: "ns-resize",
-          zIndex: 10,
+          zIndex: 999999999 + 5,
+          background: "transparent",
         }}
       />
 
       <div
-        onMouseDown={(e) => {
-          e.stopPropagation();
-          onStartResizeWindow?.(e);
-        }}
+        onMouseDown={onResizeMouseDown}
         style={{
           position: "absolute",
           right: 0,
           bottom: 0,
-          width: 16,
-          height: 16,
+          width: 18,
+          height: 18,
           cursor: "nwse-resize",
-          zIndex: 11,
+          zIndex: 999999999 + 6,
+          background: "transparent",
         }}
       />
     </div>
