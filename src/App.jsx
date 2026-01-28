@@ -18,9 +18,9 @@ import useObjectDragging from "./hooks/useObjectDragging";
 import useDropHandler from "./hooks/useDropHandler";
 import usePageNavigation from "./hooks/usePageNavigation";
 import AppModals from "./components/AppModals";
-import useDeleteSelected from "./hooks/useDeleteSelected";
 import HomeSubPageRouter from "./components/HomeSubPageRouter";
 import useContextMenu from "./hooks/useContextMenu";
+import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 
 export default function App() {
   const navigate = useNavigate();
@@ -53,14 +53,16 @@ export default function App() {
   // ⭐ DASHBOARD MODE — DEFAULT EDIT
   const [dashboardMode, setDashboardMode] = useState("edit");
 
-  // ✅ DELETE / BACKSPACE HANDLER (extracted)
-  useDeleteSelected({
-    activePage,
-    dashboardMode,
-    selectedIds,
-    setDroppedTanks,
-    clearSelection,
-  });
+// ⌨️ KEYBOARD SHORTCUTS (arrows + copy/paste)
+useKeyboardShortcuts({
+  selectedIds,
+  setSelectedIds,
+  selectedTank,
+  setSelectedTank,
+  droppedTanks,
+  setDroppedTanks,
+});
+
 
   const resetToGuestState = () => {
     setDroppedTanks([]);

@@ -9,13 +9,24 @@ export default function useKeyboardShortcuts({
   droppedTanks,
   setDroppedTanks,
 }) {
-  // keep latest selectedIds in a ref so keydown always sees current selection
+  // ✅ keep latest selectedIds in a ref so keydown always sees current selection
   const selectedIdsRef = useRef(selectedIds);
   useEffect(() => {
     selectedIdsRef.current = selectedIds;
   }, [selectedIds]);
 
-  // helper: don't steal arrows/copy/paste when user is typing
+  // ✅ keep latest droppedTanks + selectedTank in refs (prevents stale closures)
+  const droppedRef = useRef(droppedTanks);
+  useEffect(() => {
+    droppedRef.current = droppedTanks;
+  }, [droppedTanks]);
+
+  const selectedTankRef = useRef(selectedTank);
+  useEffect(() => {
+    selectedTankRef.current = selectedTank;
+  }, [selectedTank]);
+
+  // helper: don't steal keys when user is typing
   const isTypingTarget = (el) => {
     if (!el) return false;
     const tag = (el.tagName || "").toLowerCase();
@@ -48,6 +59,8 @@ export default function useKeyboardShortcuts({
       if (isTypingTarget(document.activeElement)) return;
 
       const selected = selectedIdsRef.current || [];
+      const tanks = droppedRef.current || [];
+      const activeId = selectedTankRef.current;
 
       // =========================
       // DELETE (supports Backspace too)
@@ -64,28 +77,29 @@ export default function useKeyboardShortcuts({
       // =========================
       // COPY + PASTE
       // =========================
-      if (!droppedTanks?.length) {
-        // still allow arrow movement even if droppedTanks empty
-      } else {
-        if (e.ctrlKey && ["c", "v"].includes(e.key)) e.preventDefault();
-
-        const activeObj =
-          droppedTanks.find((t) => t.id === selectedTank) ||
-          droppedTanks[droppedTanks.length - 1];
-
-        const selectedObjects = selected.length
-          ? droppedTanks.filter((t) => selected.includes(t.id))
-          : [];
+      if (e.ctrlKey && (e.key === "c" || e.key === "v")) {
+        e.preventDefault();
 
         // CTRL + C
-        if (e.ctrlKey && e.key === "c") {
+        if (e.key === "c") {
+          if (!tanks.length) return;
+
+          const activeObj =
+            tanks.find((t) => t.id === activeId) || tanks[tanks.length - 1];
+
+          const selectedObjects = selected.length
+            ? tanks.filter((t) => selected.includes(t.id))
+            : [];
+
           const list = selectedObjects.length ? selectedObjects : [activeObj];
-          window._copiedTank = list.map((o) => JSON.parse(JSON.stringify(o)));
+          window._copiedTank = list
+            .filter(Boolean)
+            .map((o) => JSON.parse(JSON.stringify(o)));
           return;
         }
 
         // CTRL + V
-        if (e.ctrlKey && e.key === "v" && window._copiedTank) {
+        if (e.key === "v" && window._copiedTank?.length) {
           const ts = Date.now();
 
           const clones = window._copiedTank.map((base, idx) => ({
@@ -97,7 +111,7 @@ export default function useKeyboardShortcuts({
 
           setDroppedTanks((prev) => [...prev, ...clones]);
           setSelectedIds(clones.map((c) => c.id));
-          setSelectedTank(clones[0].id);
+          setSelectedTank(clones[0]?.id ?? null);
           return;
         }
       }
@@ -153,11 +167,5 @@ export default function useKeyboardShortcuts({
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [
-    droppedTanks,
-    selectedTank,
-    setDroppedTanks,
-    setSelectedIds,
-    setSelectedTank,
-  ]);
+  }, [setDroppedTanks, setSelectedIds, setSelectedTank]);
 }
