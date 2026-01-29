@@ -195,19 +195,17 @@ export default function SidebarLeft({
           {/* DEVICES */}
           <div
             className="cursor-pointer mb-2 flex items-center gap-2"
-            onClick={() => {
+            onClick={() =>
               setShowDevices((prev) => {
                 const next = !prev;
-
-                // ✅ optional: when closing Devices, close all subsections too
                 if (!next) {
                   setShowIndicators(false);
                   setShowLevelSensors(false);
                   setShowDeviceControls(false);
                 }
                 return next;
-              });
-            }}
+              })
+            }
           >
             Devices <span>{showDevices ? "▾" : "▸"}</span>
           </div>
@@ -224,12 +222,17 @@ export default function SidebarLeft({
 
               {showIndicators && (
                 <div className="ml-4">
-                  <div className="cursor-pointer mb-2 text-sm">• Led Circle</div>
+                  <div className="cursor-pointer mb-2 text-sm">
+                    • Led Circle
+                  </div>
                   <div className="cursor-pointer mb-2 text-sm">
                     • Status Text Box
                   </div>
                   <div className="cursor-pointer mb-2 text-sm">
                     • Blinking Alarm
+                  </div>
+                  <div className="cursor-pointer mb-2 text-sm">
+                    • Stage Image
                   </div>
                 </div>
               )}
