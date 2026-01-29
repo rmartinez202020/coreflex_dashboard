@@ -10,6 +10,14 @@ import React from "react";
  * - HMI / HVAC / Manufacturing / Tanks
  *
  * ❌ NOT used by Alarm Log (Alarm Log stays custom)
+ *
+ * ✅ Resizable from:
+ * - Right edge (E)
+ * - Bottom edge (S)
+ * - Bottom-right corner (SE)
+ *
+ * IMPORTANT:
+ * - Uses Pointer Events (onPointerDown) to match useWindowDragResize hook
  */
 export default function ShapeOfFloatingWindows({
   visible,
@@ -23,15 +31,22 @@ export default function ShapeOfFloatingWindows({
 }) {
   if (!visible) return null;
 
+  const posX = position?.x ?? 120;
+  const posY = position?.y ?? 120;
+  const w = size?.width ?? 900;
+  const h = size?.height ?? 600;
+
+  const EDGE = 8; // grab thickness for right/bottom resize
+
   return (
     <div
       className="floating-window"
       style={{
         position: "absolute",
-        left: position?.x ?? 120,
-        top: position?.y ?? 120,
-        width: size?.width ?? 900,
-        height: size?.height ?? 600,
+        left: posX,
+        top: posY,
+        width: w,
+        height: h,
         background: "white",
         color: "black",
         border: "2px solid #1e293b",
@@ -41,8 +56,11 @@ export default function ShapeOfFloatingWindows({
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
+
+        // ✅ helps pointer events behave nicely on touch/trackpad
+        touchAction: "none",
       }}
-      onMouseDown={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
     >
       {/* HEADER (DRAG BAR) */}
       <div
@@ -58,7 +76,7 @@ export default function ShapeOfFloatingWindows({
           cursor: "grab",
           userSelect: "none",
         }}
-        onMouseDown={(e) => {
+        onPointerDown={(e) => {
           e.stopPropagation();
           onStartDragWindow?.(e);
         }}
@@ -92,12 +110,46 @@ export default function ShapeOfFloatingWindows({
           overflowY: "auto",
           background: "white",
         }}
-        onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
       >
         {children}
       </div>
 
-      {/* RESIZE HANDLE */}
+      {/* ✅ RIGHT EDGE RESIZE (E) */}
+      <div
+        style={{
+          position: "absolute",
+          right: 0,
+          top: 40, // below header
+          width: EDGE,
+          height: `calc(100% - 40px)`,
+          cursor: "ew-resize",
+          background: "transparent",
+        }}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          onStartResizeWindow?.(e, "e");
+        }}
+      />
+
+      {/* ✅ BOTTOM EDGE RESIZE (S) */}
+      <div
+        style={{
+          position: "absolute",
+          left: 0,
+          bottom: 0,
+          width: "100%",
+          height: EDGE,
+          cursor: "ns-resize",
+          background: "transparent",
+        }}
+        onPointerDown={(e) => {
+          e.stopPropagation();
+          onStartResizeWindow?.(e, "s");
+        }}
+      />
+
+      {/* ✅ CORNER RESIZE (SE) */}
       <div
         style={{
           width: 16,
@@ -109,9 +161,9 @@ export default function ShapeOfFloatingWindows({
           cursor: "nwse-resize",
           borderTopLeftRadius: 6,
         }}
-        onMouseDown={(e) => {
+        onPointerDown={(e) => {
           e.stopPropagation();
-          onStartResizeWindow?.(e);
+          onStartResizeWindow?.(e, "se"); // optional; hook defaults to "se" anyway
         }}
       />
     </div>
