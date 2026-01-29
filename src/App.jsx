@@ -64,17 +64,6 @@ export default function App() {
   // ⭐ DASHBOARD MODE — DEFAULT EDIT
   const [dashboardMode, setDashboardMode] = useState("edit");
 
-// ⌨️ KEYBOARD SHORTCUTS (arrows + copy/paste)
-useKeyboardShortcuts({
-  selectedIds,
-  setSelectedIds,
-  selectedTank,
-  setSelectedTank,
-  droppedTanks,
-  setDroppedTanks,
-});
-
-
   const resetToGuestState = () => {
     setDroppedTanks([]);
     setSelectedTank(null);
@@ -137,6 +126,16 @@ useKeyboardShortcuts({
     setDroppedTanks,
     clearSelection,
   });
+
+  // ⌨️ KEYBOARD SHORTCUTS (arrows + copy/paste)
+useKeyboardShortcuts({
+  selectedIds,
+  setSelectedIds,
+  selectedTank,
+  setSelectedTank,
+  droppedTanks,
+  setDroppedTanks,
+});
 
   const {
     activeDashboard,

@@ -8,6 +8,16 @@ export default function useKeyboardShortcuts({
   setSelectedTank,
   droppedTanks,
   setDroppedTanks,
+
+  // ✅ NEW (optional): wire undo/redo handlers from useDashboardHistory
+  onUndo,
+  onRedo,
+  canUndo,
+  canRedo,
+
+  // ✅ optional: gate shortcuts by page/mode (recommended)
+  activePage,
+  dashboardMode,
 }) {
   // ✅ keep latest selectedIds in a ref so keydown always sees current selection
   const selectedIdsRef = useRef(selectedIds);
@@ -58,9 +68,40 @@ export default function useKeyboardShortcuts({
       // ✅ do nothing while typing in inputs (displayOutput, text boxes, etc.)
       if (isTypingTarget(document.activeElement)) return;
 
+      // ✅ Optional gating (prevents shortcuts firing on Home page etc.)
+      if (activePage && activePage !== "dashboard") return;
+      if (dashboardMode && dashboardMode !== "edit") return;
+
       const selected = selectedIdsRef.current || [];
       const tanks = droppedRef.current || [];
       const activeId = selectedTankRef.current;
+
+      const keyLower = (e.key || "").toLowerCase();
+      const mod = e.ctrlKey || e.metaKey; // ctrl (win) or cmd (mac)
+
+      // =========================
+      // ✅ UNDO / REDO (Ctrl/Cmd+Z, Ctrl+Y, Cmd+Shift+Z)
+      // =========================
+      if (mod && (keyLower === "z" || keyLower === "y")) {
+        // Ctrl/Cmd + Z
+        if (keyLower === "z" && !e.shiftKey) {
+          if (!onUndo || canUndo === false) return;
+          e.preventDefault();
+          e.stopPropagation();
+          onUndo();
+          return;
+        }
+
+        // Ctrl+Y OR Cmd/Ctrl+Shift+Z
+        const isRedo = keyLower === "y" || (keyLower === "z" && e.shiftKey);
+        if (isRedo) {
+          if (!onRedo || canRedo === false) return;
+          e.preventDefault();
+          e.stopPropagation();
+          onRedo();
+          return;
+        }
+      }
 
       // =========================
       // DELETE (supports Backspace too)
@@ -77,11 +118,11 @@ export default function useKeyboardShortcuts({
       // =========================
       // COPY + PASTE
       // =========================
-      if (e.ctrlKey && (e.key === "c" || e.key === "v")) {
+      if (mod && (keyLower === "c" || keyLower === "v")) {
         e.preventDefault();
 
-        // CTRL + C
-        if (e.key === "c") {
+        // CTRL/CMD + C
+        if (keyLower === "c") {
           if (!tanks.length) return;
 
           const activeObj =
@@ -98,8 +139,8 @@ export default function useKeyboardShortcuts({
           return;
         }
 
-        // CTRL + V
-        if (e.key === "v" && window._copiedTank?.length) {
+        // CTRL/CMD + V
+        if (keyLower === "v" && window._copiedTank?.length) {
           const ts = Date.now();
 
           const clones = window._copiedTank.map((base, idx) => ({
@@ -165,7 +206,19 @@ export default function useKeyboardShortcuts({
       );
     };
 
-    window.addEventListener("keydown", onKeyDown);
-    return () => window.removeEventListener("keydown", onKeyDown);
-  }, [setDroppedTanks, setSelectedIds, setSelectedTank]);
+    // ✅ capture true helps override browser default Ctrl+Z behavior
+    window.addEventListener("keydown", onKeyDown, { capture: true });
+    return () =>
+      window.removeEventListener("keydown", onKeyDown, { capture: true });
+  }, [
+    setDroppedTanks,
+    setSelectedIds,
+    setSelectedTank,
+    onUndo,
+    onRedo,
+    canUndo,
+    canRedo,
+    activePage,
+    dashboardMode,
+  ]);
 }
