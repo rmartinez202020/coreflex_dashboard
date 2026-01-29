@@ -23,10 +23,9 @@ export default function SidebarLeft({
   onRequestRestore,
   lastSavedAt,
 
-    // ✅ NEW: hard navigation actions controlled by App.jsx
+  // ✅ NEW: hard navigation actions controlled by App.jsx
   onGoHome,
   onGoMainDashboard,
-
 }) {
   /* =========================
      SAVE STATE
@@ -37,6 +36,7 @@ export default function SidebarLeft({
   /* =========================
      DEVICE MENUS
   ========================= */
+  const [showIndicators, setShowIndicators] = useState(false); // ✅ NEW
   const [showDeviceControls, setShowDeviceControls] = useState(false);
 
   /* =========================
@@ -131,17 +131,16 @@ export default function SidebarLeft({
 
           {/* Navigation */}
           <div
-  className={`cursor-pointer mb-4 ${
-    activePage === "home" ? "font-bold" : ""
-  }`}
-  onClick={() => {
-    if (onGoHome) return onGoHome();
-    setActivePage("home"); // fallback
-  }}
->
-  Home
-</div>
-
+            className={`cursor-pointer mb-4 ${
+              activePage === "home" ? "font-bold" : ""
+            }`}
+            onClick={() => {
+              if (onGoHome) return onGoHome();
+              setActivePage("home"); // fallback
+            }}
+          >
+            Home
+          </div>
 
           <div
             className={`cursor-pointer mb-4 ${
@@ -169,17 +168,29 @@ export default function SidebarLeft({
 
           {showDevices && (
             <div className="ml-4">
-              {/* DEVICE CONTROLS */}
+              {/* ✅ INDICATORS (TOP) */}
               <div
                 className="cursor-pointer mb-2 flex items-center gap-2"
-                onClick={() => setShowDeviceControls((prev) => !prev)}
+                onClick={() => setShowIndicators((prev) => !prev)}
               >
-                Device Controls <span>{showDeviceControls ? "▾" : "▸"}</span>
+                Indicators <span>{showIndicators ? "▾" : "▸"}</span>
               </div>
 
-              {showDeviceControls && <DraggableControls />}
+              {showIndicators && (
+                <div className="ml-4">
+                  <div className="cursor-pointer mb-2 text-sm">
+                    • Led Circle
+                  </div>
+                  <div className="cursor-pointer mb-2 text-sm">
+                    • Status text box
+                  </div>
+                  <div className="cursor-pointer mb-2 text-sm">
+                    • Blinking alarm
+                  </div>
+                </div>
+              )}
 
-              {/* LEVEL SENSORS */}
+              {/* ✅ LEVEL SENSORS (MIDDLE) */}
               <div
                 className="cursor-pointer mb-2 flex items-center gap-2"
                 onClick={() => setShowLevelSensors((prev) => !prev)}
@@ -209,6 +220,16 @@ export default function SidebarLeft({
                   ))}
                 </div>
               )}
+
+              {/* ✅ DEVICE CONTROLS (BOTTOM) */}
+              <div
+                className="cursor-pointer mb-2 flex items-center gap-2"
+                onClick={() => setShowDeviceControls((prev) => !prev)}
+              >
+                Device Controls <span>{showDeviceControls ? "▾" : "▸"}</span>
+              </div>
+
+              {showDeviceControls && <DraggableControls />}
             </div>
           )}
         </div>
