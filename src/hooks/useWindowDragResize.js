@@ -10,6 +10,13 @@ import { useEffect, useRef, useState, useCallback } from "react";
  * 2) Disable text selection while dragging/resizing
  * 3) Freeze defaults on first mount (prevents re-init on re-render)
  * 4) ✅ NEW: Cascade positioning when opening windows (prevents all opening same spot)
+ *
+ * ✅ UPDATED (this change):
+ * - Supports resize directions:
+ *   "e"  = right edge
+ *   "s"  = bottom edge
+ *   "se" = bottom-right corner
+ * - Backwards compatible: if no direction is passed, defaults to "se"
  */
 export default function useWindowDragResize(defaultsMap = {}) {
   const [, forceTick] = useState(0);
@@ -37,7 +44,7 @@ export default function useWindowDragResize(defaultsMap = {}) {
   const stateRef = useRef({
     windows: {}, // key -> { visible, position, size }
     dragging: null, // { key, pointerId, offsetX, offsetY }
-    resizing: null, // { key, pointerId, startX, startY, startW, startH }
+    resizing: null, // { key, pointerId, startX, startY, startW, startH, dir }
     bodyLock: null,
 
     // ✅ NEW: cascade counter (global)
@@ -263,7 +270,9 @@ export default function useWindowDragResize(defaultsMap = {}) {
     };
   }, []);
 
-  const onStartResizeWindow = useCallback((key, e) => {
+  // ✅ UPDATED: accepts optional direction
+  // dir: "e" | "s" | "se"
+  const onStartResizeWindow = useCallback((key, e, dir = "se") => {
     e.stopPropagation();
     e.preventDefault();
 
@@ -275,7 +284,9 @@ export default function useWindowDragResize(defaultsMap = {}) {
       e.currentTarget?.setPointerCapture?.(e.pointerId);
     } catch {}
 
-    lockBodySelection("nwse-resize");
+    const cursor =
+      dir === "e" ? "ew-resize" : dir === "s" ? "ns-resize" : "nwse-resize";
+    lockBodySelection(cursor);
 
     s.resizing = {
       key,
@@ -284,6 +295,7 @@ export default function useWindowDragResize(defaultsMap = {}) {
       startY: e.clientY,
       startW: w.size.width,
       startH: w.size.height,
+      dir,
     };
   }, []);
 
@@ -314,11 +326,17 @@ export default function useWindowDragResize(defaultsMap = {}) {
         const dx = e.clientX - s.resizing.startX;
         const dy = e.clientY - s.resizing.startY;
 
-        const nextSize = clampSize(key, {
-          width: s.resizing.startW + dx,
-          height: s.resizing.startH + dy,
-        });
+        const dir = s.resizing.dir || "se";
 
+        // ✅ apply only the axis we want
+        const rawNext = {
+          width:
+            dir === "e" || dir === "se" ? s.resizing.startW + dx : w.size.width,
+          height:
+            dir === "s" || dir === "se" ? s.resizing.startH + dy : w.size.height,
+        };
+
+        const nextSize = clampSize(key, rawNext);
         const nextPos = clampPos(key, w.position, nextSize);
 
         s.windows[key] = { ...w, size: nextSize, position: nextPos };
@@ -358,7 +376,10 @@ export default function useWindowDragResize(defaultsMap = {}) {
         size: w?.size || { width: 600, height: 400 },
         onClose: () => closeWindow(key),
         onStartDragWindow: (e) => onStartDragWindow(key, e),
-        onStartResizeWindow: (e) => onStartResizeWindow(key, e),
+
+        // ✅ UPDATED: supports (e, dir) but still works with (e)
+        onStartResizeWindow: (e, dir) => onStartResizeWindow(key, e, dir),
+
         ...extra,
       };
     },
