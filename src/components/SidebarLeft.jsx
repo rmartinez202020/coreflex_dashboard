@@ -1,3 +1,4 @@
+// SidebarLeft.jsx
 import React, { useState } from "react";
 import {
   StandardTankIcon,
@@ -7,6 +8,9 @@ import {
 } from "./ProTankIcon";
 
 import DraggableControls from "./DraggableControls";
+
+// ✅ NEW: professional icons
+import { Cpu, CircleDot, Text, AlarmTriangle, Layers } from "lucide-react";
 
 export default function SidebarLeft({
   isLeftCollapsed,
@@ -217,22 +221,30 @@ export default function SidebarLeft({
                 className="cursor-pointer mb-2 flex items-center gap-2"
                 onClick={() => openOnly("indicators")}
               >
+                <Cpu size={16} className="text-gray-300" />
                 Indicators <span>{showIndicators ? "▾" : "▸"}</span>
               </div>
 
               {showIndicators && (
                 <div className="ml-4">
-                  <div className="cursor-pointer mb-2 text-sm">
-                    • Led Circle
+                  <div className="cursor-pointer mb-2 text-sm flex items-center gap-2">
+                    <CircleDot size={16} className="text-green-400" />
+                    Led Circle
                   </div>
-                  <div className="cursor-pointer mb-2 text-sm">
-                    • Status Text Box
+
+                  <div className="cursor-pointer mb-2 text-sm flex items-center gap-2">
+                    <Text size={16} className="text-gray-200" />
+                    Status Text Box
                   </div>
-                  <div className="cursor-pointer mb-2 text-sm">
-                    • Blinking Alarm
+
+                  <div className="cursor-pointer mb-2 text-sm flex items-center gap-2">
+                    <AlarmTriangle size={16} className="text-red-500" />
+                    Blinking Alarm
                   </div>
-                  <div className="cursor-pointer mb-2 text-sm">
-                    • Stage Image
+
+                  <div className="cursor-pointer mb-2 text-sm flex items-center gap-2">
+                    <Layers size={16} className="text-blue-400" />
+                    State Image
                   </div>
                 </div>
               )}
@@ -258,9 +270,7 @@ export default function SidebarLeft({
                     <div
                       key={name}
                       draggable
-                      onDragStart={(e) =>
-                        e.dataTransfer.setData("shape", name)
-                      }
+                      onDragStart={(e) => e.dataTransfer.setData("shape", name)}
                       className="cursor-pointer flex flex-col items-center mb-4"
                     >
                       <Icon size={45} />
@@ -275,8 +285,7 @@ export default function SidebarLeft({
                 className="cursor-pointer mb-2 flex items-center gap-2"
                 onClick={() => openOnly("devicecontrols")}
               >
-                Device Controls{" "}
-                <span>{showDeviceControls ? "▾" : "▸"}</span>
+                Device Controls <span>{showDeviceControls ? "▾" : "▸"}</span>
               </div>
 
               {showDeviceControls && <DraggableControls />}
