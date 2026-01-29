@@ -6,6 +6,10 @@ export default function AlarmLogWindow({
   onMinimize,
   onClose,
   onOpenSettings,
+
+  // ✅ NEW: provided by FloatingWindow wrapper (useWindowDragResize.getWindowProps)
+  onStartDragWindow,
+
   title = "Alarms Log (DI-AI)",
 }) {
   // ✅ NO ALARMS YET
@@ -51,8 +55,15 @@ export default function AlarmLogWindow({
 
   return (
     <div style={wrap}>
-      {/* TOP BAR */}
-      <div style={topBar}>
+      {/* TOP BAR (✅ NOW DRAGS THE OUTER FloatingWindow) */}
+      <div
+        style={topBar}
+        onMouseDown={(e) => {
+          // Drag the floating window when grabbing this bar
+          e.stopPropagation();
+          onStartDragWindow?.(e);
+        }}
+      >
         <div style={titleWrap}>
           <span style={{ fontWeight: 900 }}>{title}</span>
           <span style={countPill}>{visibleAlarms.length}</span>
@@ -198,8 +209,8 @@ export default function AlarmLogWindow({
           <div style={emptyState}>
             <b>No alarms yet.</b>
             <div style={{ marginTop: 6, color: "#374151" }}>
-              The alarm engine is not configured — this log window is ready and will
-              show events once we wire the alarm rules.
+              The alarm engine is not configured — this log window is ready and
+              will show events once we wire the alarm rules.
             </div>
           </div>
         )}
@@ -291,6 +302,8 @@ const topBar = {
   alignItems: "center",
   padding: "0 10px",
   borderBottom: "2px solid #000",
+  cursor: "move", // ✅ visual hint
+  userSelect: "none", // ✅ prevents text selection while dragging
 };
 
 const titleWrap = { display: "flex", gap: 8, alignItems: "center" };

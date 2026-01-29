@@ -467,6 +467,7 @@ useKeyboardShortcuts({
           closeAlarmLog={closeAlarmLog}
           onMinimizeAlarmLog={minimizeAlarmLog}
           onLaunchAlarmLog={launchAlarmLog}
+          windowDrag={windowDrag}  
         />
       </main>
 

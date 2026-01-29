@@ -10,9 +10,8 @@ export default function AlarmLogModal({
   onLaunch,
   onMinimize,
 
-  // from AppModals
-  position,
-  onPositionChange,
+  // ✅ NEW: pass this from parent: useWindowDragResize.getWindowProps("alarmLog")
+  windowProps,
 }) {
   if (!open) return null;
 
@@ -20,23 +19,25 @@ export default function AlarmLogModal({
     <FloatingWindow
       visible={open}
       title="Alarms Log (DI-AI)"
-      position={position || { x: 120, y: 120 }}
-      size={{ width: 900, height: 420 }}
+      position={windowProps?.position}
+      size={windowProps?.size}
       onClose={onClose}
       onLaunch={onLaunch}
       onMinimize={onMinimize}
       hideHeader={true}
-      onPositionChange={onPositionChange}
-      boundsMode="viewport"   // ✅ important: clamp to screen
+      // ✅ THE IMPORTANT PART
+      onStartDragWindow={windowProps?.onStartDragWindow}
+      onStartResizeWindow={windowProps?.onStartResizeWindow}
     >
       <AlarmLogWindow
         onLaunch={onLaunch}
         onMinimize={onMinimize}
         onClose={onClose}
+        // ✅ THIS MAKES YOUR TOP BAR DRAG THE OUTER WINDOW
+        onStartDragWindow={windowProps?.onStartDragWindow}
       />
     </FloatingWindow>
   );
 
-  // ✅ render outside canvas so it cannot be clipped by canvas/layout
   return createPortal(content, document.body);
 }

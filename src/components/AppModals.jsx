@@ -29,13 +29,18 @@ export default function AppModals({
   alarmLogOpen,
   closeAlarmLog,
 
-  // ✅ NEW
+  // ✅ Alarm Log actions
   onMinimizeAlarmLog,
   onLaunchAlarmLog,
+
+  // ✅ NEW: pass the window system in (from useWindowDragResize in App.jsx)
+  // Example: const windowDrag = useWindowDragResize(defaultsMap)
+  windowDrag,
 }) {
   const isSameId = (a, b) => String(a) === String(b);
 
-  // ✅ Alarm Log position stored HERE (NOT in App.jsx)
+  // ✅ Keep this for now: open-at positioning still useful
+  // NOTE: if you're fully on windowDrag positions, you can delete this later.
   const [alarmLogPos, setAlarmLogPos] = useState({ x: 140, y: 90 });
 
   // ✅ Listen for drop position events (sent by useDropHandler)
@@ -56,7 +61,8 @@ export default function AppModals({
     };
 
     window.addEventListener("coreflex-alarm-log-open-at", onOpenAt);
-    return () => window.removeEventListener("coreflex-alarm-log-open-at", onOpenAt);
+    return () =>
+      window.removeEventListener("coreflex-alarm-log-open-at", onOpenAt);
   }, []);
 
   const displayTarget = useMemo(() => {
@@ -81,6 +87,9 @@ export default function AppModals({
       (t) => isSameId(t.id, activeSiloId) && t.shape === "siloTank"
     );
   }, [droppedTanks, activeSiloId]);
+
+  // ✅ NEW: pull the correct window handlers from the window system
+  const alarmLogWindowProps = windowDrag?.getWindowProps?.("alarmLog");
 
   return (
     <>
@@ -136,8 +145,14 @@ export default function AppModals({
         onClose={closeAlarmLog}
         onLaunch={onLaunchAlarmLog}
         onMinimize={onMinimizeAlarmLog}
-        position={alarmLogPos}                 // ✅ NEW
-        onPositionChange={setAlarmLogPos}      // ✅ NEW (optional: if modal supports dragging)
+        // ✅ NEW: this enables dragging/resizing like the other windows
+        windowProps={
+          alarmLogWindowProps || {
+            // fallback: still opens where you clicked until windowDrag is wired everywhere
+            position: alarmLogPos,
+            size: { width: 900, height: 420 },
+          }
+        }
       />
 
       <RestoreWarningModal
