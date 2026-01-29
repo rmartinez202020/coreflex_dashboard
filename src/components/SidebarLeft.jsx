@@ -9,8 +9,31 @@ import {
 
 import DraggableControls from "./DraggableControls";
 
-// ✅ Option B icons (lucide-react)
-import { Cpu, CircleDot, Text, AlertTriangle, Layers } from "lucide-react";
+/**
+ * ✅ Option B (NO lucide-react)
+ * We use small "badge" icons to match the look/weight of Device Controls icons.
+ */
+
+const IconBadge = ({ children }) => (
+  <span
+    style={{
+      width: 18,
+      height: 18,
+      minWidth: 18,
+      borderRadius: 4,
+      background: "#1e293b",
+      display: "inline-flex",
+      alignItems: "center",
+      justifyContent: "center",
+      fontSize: 12,
+      lineHeight: 1,
+      marginRight: 8,
+      opacity: 0.95,
+    }}
+  >
+    {children}
+  </span>
+);
 
 export default function SidebarLeft({
   isLeftCollapsed,
@@ -120,17 +143,15 @@ export default function SidebarLeft({
     onRequestRestore();
   };
 
-  // ✅ small helper for consistent menu rows (and for future drag)
+  // ✅ small helper for consistent menu rows (same layout as Device Controls list)
   const MenuRow = ({ icon, text, className = "" }) => {
     return (
       <div
         className={
-          "cursor-pointer mb-2 text-sm flex items-center gap-2 " + className
+          "cursor-pointer mb-2 text-sm flex items-center " + className
         }
       >
-        <span className="w-[16px] flex items-center justify-center opacity-90">
-          {icon}
-        </span>
+        {icon}
         <span>{text}</span>
       </div>
     );
@@ -227,7 +248,7 @@ export default function SidebarLeft({
               })
             }
           >
-            <Cpu size={16} />
+            <IconBadge>⚙</IconBadge>
             Devices <span>{showDevices ? "▾" : "▸"}</span>
           </div>
 
@@ -243,14 +264,11 @@ export default function SidebarLeft({
 
               {showIndicators && (
                 <div className="ml-4">
-                  {/* ✅ icons requested */}
-                  <MenuRow icon={<CircleDot size={14} />} text="Led Circle" />
-                  <MenuRow icon={<Text size={14} />} text="Status Text Box" />
-                  <MenuRow
-                    icon={<AlertTriangle size={14} />}
-                    text="Blinking Alarm"
-                  />
-                  <MenuRow icon={<Layers size={14} />} text="State Image" />
+                  {/* ✅ icons requested: 🟢 📝 🚨 🔄 but styled to match Device Controls */}
+                  <MenuRow icon={<IconBadge>🟢</IconBadge>} text="Led Circle" />
+                  <MenuRow icon={<IconBadge>📝</IconBadge>} text="Status Text Box" />
+                  <MenuRow icon={<IconBadge>🚨</IconBadge>} text="Blinking Alarm" />
+                  <MenuRow icon={<IconBadge>🔄</IconBadge>} text="State Image" />
                 </div>
               )}
 
