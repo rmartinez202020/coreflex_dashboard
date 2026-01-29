@@ -9,6 +9,14 @@ import {
 
 import DraggableControls from "./DraggableControls";
 
+// ✅ NEW: Indicators (each one in its own file)
+import {
+  DraggableLedCircle,
+  DraggableStatusTextBox,
+  DraggableBlinkingAlarm,
+  DraggableStateImage,
+} from "./indicators";
+
 /**
  * ✅ Option B (NO lucide-react)
  * We use small "badge" icons to match the look/weight of Device Controls icons.
@@ -144,15 +152,11 @@ export default function SidebarLeft({
   };
 
   // ✅ small helper for consistent menu rows (same layout as Device Controls list)
-  const MenuRow = ({ icon, text, className = "" }) => {
+  const MenuRow = ({ icon, children, className = "" }) => {
     return (
-      <div
-        className={
-          "cursor-pointer mb-2 text-sm flex items-center " + className
-        }
-      >
+      <div className={"mb-2 text-sm flex items-center " + className}>
         {icon}
-        <span>{text}</span>
+        <div className="flex-1">{children}</div>
       </div>
     );
   };
@@ -264,11 +268,21 @@ export default function SidebarLeft({
 
               {showIndicators && (
                 <div className="ml-4">
-                  {/* ✅ icons requested: 🟢 📝 🚨 🔄 but styled to match Device Controls */}
-                  <MenuRow icon={<IconBadge>🟢</IconBadge>} text="Led Circle" />
-                  <MenuRow icon={<IconBadge>📝</IconBadge>} text="Status Text Box" />
-                  <MenuRow icon={<IconBadge>🚨</IconBadge>} text="Blinking Alarm" />
-                  <MenuRow icon={<IconBadge>🔄</IconBadge>} text="State Image" />
+                  <MenuRow icon={<IconBadge>🟢</IconBadge>}>
+                    <DraggableLedCircle />
+                  </MenuRow>
+
+                  <MenuRow icon={<IconBadge>📝</IconBadge>}>
+                    <DraggableStatusTextBox />
+                  </MenuRow>
+
+                  <MenuRow icon={<IconBadge>🚨</IconBadge>}>
+                    <DraggableBlinkingAlarm />
+                  </MenuRow>
+
+                  <MenuRow icon={<IconBadge>🔄</IconBadge>}>
+                    <DraggableStateImage />
+                  </MenuRow>
                 </div>
               )}
 
