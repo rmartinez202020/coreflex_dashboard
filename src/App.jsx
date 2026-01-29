@@ -127,7 +127,7 @@ export default function App() {
     clearSelection,
   });
 
-  // ⌨️ KEYBOARD SHORTCUTS (arrows + copy/paste)
+// ⌨️ KEYBOARD SHORTCUTS (arrows + copy/paste + ✅ undo/redo)
 useKeyboardShortcuts({
   selectedIds,
   setSelectedIds,
@@ -135,7 +135,18 @@ useKeyboardShortcuts({
   setSelectedTank,
   droppedTanks,
   setDroppedTanks,
+
+  // ✅ add these
+  onUndo: handleUndo,
+  onRedo: handleRedo,
+  canUndo,
+  canRedo,
+
+  // ✅ recommended gating
+  activePage,
+  dashboardMode,
 });
+
 
   const {
     activeDashboard,
