@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function DraggableStatusTextBox({ onDragStart, onClick }) {
+export default function DraggableStatusTextBox({ onDragStart, onClick, label = "Status Text Box" }) {
   const payload = {
     shape: "statusTextBox",
     w: 220,
@@ -12,8 +12,8 @@ export default function DraggableStatusTextBox({ onDragStart, onClick }) {
   };
 
   return (
-    <button
-      className="w-full flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-100 text-left"
+    <div
+      className="cursor-pointer text-sm"
       draggable
       onDragStart={(e) => {
         e.dataTransfer.setData("coreflex/palette", JSON.stringify(payload));
@@ -21,10 +21,9 @@ export default function DraggableStatusTextBox({ onDragStart, onClick }) {
       }}
       onClick={() => onClick?.(payload)}
       title="Drag Status Text Box"
-      type="button"
+      role="button"
     >
-      <span className="inline-flex w-3 h-3 rounded bg-blue-500" />
-      <span className="text-sm">Status Text Box</span>
-    </button>
+      {label}
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 import React from "react";
 
-export default function DraggableBlinkingAlarm({ onDragStart, onClick }) {
+export default function DraggableBlinkingAlarm({ onDragStart, onClick, label = "Blinking Alarm" }) {
   const payload = {
     shape: "blinkingAlarm",
     w: 140,
@@ -13,8 +13,8 @@ export default function DraggableBlinkingAlarm({ onDragStart, onClick }) {
   };
 
   return (
-    <button
-      className="w-full flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-100 text-left"
+    <div
+      className="cursor-pointer text-sm"
       draggable
       onDragStart={(e) => {
         e.dataTransfer.setData("coreflex/palette", JSON.stringify(payload));
@@ -22,10 +22,9 @@ export default function DraggableBlinkingAlarm({ onDragStart, onClick }) {
       }}
       onClick={() => onClick?.(payload)}
       title="Drag Blinking Alarm"
-      type="button"
+      role="button"
     >
-      <span className="inline-flex w-3 h-3 rounded bg-red-500" />
-      <span className="text-sm">Blinking Alarm</span>
-    </button>
+      {label}
+    </div>
   );
 }

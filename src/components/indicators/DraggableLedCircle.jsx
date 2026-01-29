@@ -1,30 +1,29 @@
 import React from "react";
 
-export default function DraggableLedCircle({ onDragStart, onClick }) {
+export default function DraggableLedCircle({ onDragStart, onClick, label = "Led Circle" }) {
   const payload = {
     shape: "ledCircle",
     w: 80,
     h: 80,
-    status: "off", // default
+    status: "off",
     colorOn: "#22c55e",
     colorOff: "#9ca3af",
     label: "LED",
   };
 
   return (
-    <button
-      className="w-full flex items-center gap-2 px-2 py-1 rounded hover:bg-gray-100 text-left"
+    <div
+      className="cursor-pointer text-sm"
       draggable
       onDragStart={(e) => {
         e.dataTransfer.setData("coreflex/palette", JSON.stringify(payload));
         onDragStart?.(payload, e);
       }}
       onClick={() => onClick?.(payload)}
-      title="Drag LED Circle"
-      type="button"
+      title="Drag Led Circle"
+      role="button"
     >
-      <span className="inline-flex w-3 h-3 rounded-full bg-green-500" />
-      <span className="text-sm">Led Circle</span>
-    </button>
+      {label}
+    </div>
   );
 }
