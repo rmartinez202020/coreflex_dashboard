@@ -1,10 +1,10 @@
-import FloatingWindow from "./FloatingWindow";
-import TanksAndPipesSymbols2DLibraryContent from "./TanksAndPipesSymbols2DLibraryContent.jsx";
+import ShapeOfFloatingWindows from "./ShapeOfFloatingWindows";
+import TanksAndPipesSymbols2DLibraryContent from "./TanksAndPipesSymbols2DLibraryContent";
 
 export default function TanksAndPipesSymbols2DLibrary(props) {
   return (
-    <FloatingWindow {...props} title="Tanks & Pipes Symbols 2D">
+    <ShapeOfFloatingWindows {...props} title="Tanks & Pipes Symbols 2D">
       <TanksAndPipesSymbols2DLibraryContent />
-    </FloatingWindow>
+    </ShapeOfFloatingWindows>
   );
 }
