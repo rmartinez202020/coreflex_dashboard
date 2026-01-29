@@ -1,4 +1,3 @@
-// SidebarLeft.jsx
 import React, { useState } from "react";
 import {
   StandardTankIcon,
@@ -23,7 +22,7 @@ export default function SidebarLeft({
   onRequestRestore,
   lastSavedAt,
 
-  // ✅ NEW: hard navigation actions controlled by App.jsx
+  // ✅ hard navigation actions controlled by App.jsx
   onGoHome,
   onGoMainDashboard,
 }) {
@@ -34,10 +33,49 @@ export default function SidebarLeft({
   const [saved, setSaved] = useState(false);
 
   /* =========================
-     DEVICE MENUS
+     DEVICE MENUS (ACCORDION)
   ========================= */
-  const [showIndicators, setShowIndicators] = useState(false); // ✅ NEW
+  const [showIndicators, setShowIndicators] = useState(false);
   const [showDeviceControls, setShowDeviceControls] = useState(false);
+
+  // ✅ helper: open ONLY one section at a time
+  const openOnly = (section) => {
+    if (section === "indicators") {
+      setShowIndicators((prev) => {
+        const next = !prev;
+        if (next) {
+          setShowLevelSensors(false);
+          setShowDeviceControls(false);
+        }
+        return next;
+      });
+      return;
+    }
+
+    if (section === "levelsensors") {
+      setShowLevelSensors((prev) => {
+        const next = !prev;
+        if (next) {
+          setShowIndicators(false);
+          setShowDeviceControls(false);
+        }
+        return next;
+      });
+      return;
+    }
+
+    if (section === "devicecontrols") {
+      setShowDeviceControls((prev) => {
+        const next = !prev;
+        if (next) {
+          setShowIndicators(false);
+          setShowLevelSensors(false);
+        }
+        return next;
+      });
+      return;
+    }
+  };
 
   /* =========================
      HELPERS
@@ -136,7 +174,7 @@ export default function SidebarLeft({
             }`}
             onClick={() => {
               if (onGoHome) return onGoHome();
-              setActivePage("home"); // fallback
+              setActivePage("home");
             }}
           >
             Home
@@ -147,11 +185,7 @@ export default function SidebarLeft({
               activePage === "dashboard" ? "font-bold" : ""
             }`}
             onClick={() => {
-              // ✅ IMPORTANT: when user clicks "Main Dashboard",
-              // App must switch context back to main + clear canvas + re-restore
               if (onGoMainDashboard) return onGoMainDashboard();
-
-              // fallback (older behavior)
               setActivePage("dashboard");
             }}
           >
@@ -161,39 +195,49 @@ export default function SidebarLeft({
           {/* DEVICES */}
           <div
             className="cursor-pointer mb-2 flex items-center gap-2"
-            onClick={() => setShowDevices((prev) => !prev)}
+            onClick={() => {
+              setShowDevices((prev) => {
+                const next = !prev;
+
+                // ✅ optional: when closing Devices, close all subsections too
+                if (!next) {
+                  setShowIndicators(false);
+                  setShowLevelSensors(false);
+                  setShowDeviceControls(false);
+                }
+                return next;
+              });
+            }}
           >
             Devices <span>{showDevices ? "▾" : "▸"}</span>
           </div>
 
           {showDevices && (
             <div className="ml-4">
-              {/* ✅ INDICATORS (TOP) */}
+              {/* INDICATORS */}
               <div
                 className="cursor-pointer mb-2 flex items-center gap-2"
-                onClick={() => setShowIndicators((prev) => !prev)}
+                onClick={() => openOnly("indicators")}
               >
                 Indicators <span>{showIndicators ? "▾" : "▸"}</span>
               </div>
 
               {showIndicators && (
                 <div className="ml-4">
+                  <div className="cursor-pointer mb-2 text-sm">• Led Circle</div>
                   <div className="cursor-pointer mb-2 text-sm">
-                    • Led Circle
+                    • Status Text Box
                   </div>
                   <div className="cursor-pointer mb-2 text-sm">
-                    • Status text box
-                  </div>
-                  <div className="cursor-pointer mb-2 text-sm">
-                    • Blinking alarm
+                    • Blinking Alarm
                   </div>
                 </div>
               )}
 
-              {/* ✅ LEVEL SENSORS (MIDDLE) */}
+              {/* LEVEL SENSORS */}
               <div
                 className="cursor-pointer mb-2 flex items-center gap-2"
-                onClick={() => setShowLevelSensors((prev) => !prev)}
+                onClick={() => openOnly("levelsensors")}
               >
                 Level Sensors <span>{showLevelSensors ? "▾" : "▸"}</span>
               </div>
@@ -211,7 +255,9 @@ export default function SidebarLeft({
                     <div
                       key={name}
                       draggable
-                      onDragStart={(e) => e.dataTransfer.setData("shape", name)}
+                      onDragStart={(e) =>
+                        e.dataTransfer.setData("shape", name)
+                      }
                       className="cursor-pointer flex flex-col items-center mb-4"
                     >
                       <Icon size={45} />
@@ -221,12 +267,13 @@ export default function SidebarLeft({
                 </div>
               )}
 
-              {/* ✅ DEVICE CONTROLS (BOTTOM) */}
+              {/* DEVICE CONTROLS */}
               <div
                 className="cursor-pointer mb-2 flex items-center gap-2"
-                onClick={() => setShowDeviceControls((prev) => !prev)}
+                onClick={() => openOnly("devicecontrols")}
               >
-                Device Controls <span>{showDeviceControls ? "▾" : "▸"}</span>
+                Device Controls{" "}
+                <span>{showDeviceControls ? "▾" : "▸"}</span>
               </div>
 
               {showDeviceControls && <DraggableControls />}
