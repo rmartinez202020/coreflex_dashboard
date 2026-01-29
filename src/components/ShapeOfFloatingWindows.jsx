@@ -18,6 +18,7 @@ import React from "react";
  *
  * IMPORTANT:
  * - Uses Pointer Events (onPointerDown) to match useWindowDragResize hook
+ * - Close button must stop propagation so it doesn't trigger drag
  */
 export default function ShapeOfFloatingWindows({
   visible,
@@ -37,6 +38,7 @@ export default function ShapeOfFloatingWindows({
   const h = size?.height ?? 600;
 
   const EDGE = 8; // grab thickness for right/bottom resize
+  const HEADER_H = 40;
 
   return (
     <div
@@ -56,8 +58,6 @@ export default function ShapeOfFloatingWindows({
         display: "flex",
         flexDirection: "column",
         overflow: "hidden",
-
-        // ✅ helps pointer events behave nicely on touch/trackpad
         touchAction: "none",
       }}
       onPointerDown={(e) => e.stopPropagation()}
@@ -65,7 +65,7 @@ export default function ShapeOfFloatingWindows({
       {/* HEADER (DRAG BAR) */}
       <div
         style={{
-          height: 40,
+          height: HEADER_H,
           background: "#0f172a",
           color: "white",
           display: "flex",
@@ -85,6 +85,10 @@ export default function ShapeOfFloatingWindows({
 
         <button
           type="button"
+          // ✅ CRITICAL: stop the header drag from stealing the click
+          onPointerDown={(e) => {
+            e.stopPropagation();
+          }}
           onClick={(e) => {
             e.stopPropagation();
             onClose?.();
@@ -95,6 +99,7 @@ export default function ShapeOfFloatingWindows({
             color: "white",
             fontSize: 20,
             cursor: "pointer",
+            lineHeight: 1,
           }}
           aria-label="Close window"
         >
@@ -120,9 +125,9 @@ export default function ShapeOfFloatingWindows({
         style={{
           position: "absolute",
           right: 0,
-          top: 40, // below header
+          top: HEADER_H,
           width: EDGE,
-          height: `calc(100% - 40px)`,
+          height: `calc(100% - ${HEADER_H}px)`,
           cursor: "ew-resize",
           background: "transparent",
         }}
@@ -163,7 +168,7 @@ export default function ShapeOfFloatingWindows({
         }}
         onPointerDown={(e) => {
           e.stopPropagation();
-          onStartResizeWindow?.(e, "se"); // optional; hook defaults to "se" anyway
+          onStartResizeWindow?.(e, "se");
         }}
       />
     </div>
