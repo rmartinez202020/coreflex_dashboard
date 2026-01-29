@@ -1,3 +1,4 @@
+// SidebarLeft.jsx
 import React, { useState } from "react";
 import {
   StandardTankIcon,
@@ -7,6 +8,9 @@ import {
 } from "./ProTankIcon";
 
 import DraggableControls from "./DraggableControls";
+
+// ✅ Option B icons (lucide-react)
+import { Cpu, CircleDot, Text, AlertTriangle, Layers } from "lucide-react";
 
 export default function SidebarLeft({
   isLeftCollapsed,
@@ -116,6 +120,22 @@ export default function SidebarLeft({
     onRequestRestore();
   };
 
+  // ✅ small helper for consistent menu rows (and for future drag)
+  const MenuRow = ({ icon, text, className = "" }) => {
+    return (
+      <div
+        className={
+          "cursor-pointer mb-2 text-sm flex items-center gap-2 " + className
+        }
+      >
+        <span className="w-[16px] flex items-center justify-center opacity-90">
+          {icon}
+        </span>
+        <span>{text}</span>
+      </div>
+    );
+  };
+
   return (
     <aside
       className={
@@ -207,6 +227,7 @@ export default function SidebarLeft({
               })
             }
           >
+            <Cpu size={16} />
             Devices <span>{showDevices ? "▾" : "▸"}</span>
           </div>
 
@@ -222,18 +243,14 @@ export default function SidebarLeft({
 
               {showIndicators && (
                 <div className="ml-4">
-                  <div className="cursor-pointer mb-2 text-sm">
-                    • Led Circle
-                  </div>
-                  <div className="cursor-pointer mb-2 text-sm">
-                    • Status Text Box
-                  </div>
-                  <div className="cursor-pointer mb-2 text-sm">
-                    • Blinking Alarm
-                  </div>
-                  <div className="cursor-pointer mb-2 text-sm">
-                    • State Image
-                  </div>
+                  {/* ✅ icons requested */}
+                  <MenuRow icon={<CircleDot size={14} />} text="Led Circle" />
+                  <MenuRow icon={<Text size={14} />} text="Status Text Box" />
+                  <MenuRow
+                    icon={<AlertTriangle size={14} />}
+                    text="Blinking Alarm"
+                  />
+                  <MenuRow icon={<Layers size={14} />} text="State Image" />
                 </div>
               )}
 
@@ -258,9 +275,7 @@ export default function SidebarLeft({
                     <div
                       key={name}
                       draggable
-                      onDragStart={(e) =>
-                        e.dataTransfer.setData("shape", name)
-                      }
+                      onDragStart={(e) => e.dataTransfer.setData("shape", name)}
                       className="cursor-pointer flex flex-col items-center mb-4"
                     >
                       <Icon size={45} />
@@ -275,8 +290,7 @@ export default function SidebarLeft({
                 className="cursor-pointer mb-2 flex items-center gap-2"
                 onClick={() => openOnly("devicecontrols")}
               >
-                Device Controls{" "}
-                <span>{showDeviceControls ? "▾" : "▸"}</span>
+                Device Controls <span>{showDeviceControls ? "▾" : "▸"}</span>
               </div>
 
               {showDeviceControls && <DraggableControls />}
