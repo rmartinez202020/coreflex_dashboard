@@ -1,19 +1,24 @@
+// src/components/ShapeOfFloatingWindows.jsx
 import React from "react";
 
+/**
+ * ShapeOfFloatingWindows
+ * -----------------------------------
+ * Shared window shell for ALL libraries:
+ * - Image Library
+ * - CoreFlex IOTs Library
+ * - HMI / HVAC / Manufacturing / Tanks
+ *
+ * ❌ NOT used by Alarm Log (Alarm Log stays custom)
+ */
 export default function ShapeOfFloatingWindows({
   visible,
   title,
-  position = { x: 120, y: 120 },
-  size = { width: 900, height: 420 },
-
+  position,
+  size,
   onClose,
-  onMinimize,
-  onLaunch,
-
-  // provided by useWindowDragResize.getWindowProps(key)
   onStartDragWindow,
   onStartResizeWindow,
-
   children,
 }) {
   if (!visible) return null;
@@ -23,10 +28,10 @@ export default function ShapeOfFloatingWindows({
       className="floating-window"
       style={{
         position: "absolute",
-        left: position.x,
-        top: position.y,
-        width: size.width,
-        height: size.height,
+        left: position?.x ?? 120,
+        top: position?.y ?? 120,
+        width: size?.width ?? 900,
+        height: size?.height ?? 600,
         background: "white",
         color: "black",
         border: "2px solid #1e293b",
@@ -49,7 +54,7 @@ export default function ShapeOfFloatingWindows({
           alignItems: "center",
           justifyContent: "space-between",
           padding: "0 12px",
-          fontWeight: 900,
+          fontWeight: "bold",
           cursor: "grab",
           userSelect: "none",
         }}
@@ -58,101 +63,42 @@ export default function ShapeOfFloatingWindows({
           onStartDragWindow?.(e);
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-          <span>{title}</span>
-        </div>
+        {title}
 
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          {onLaunch && (
-            <button
-              type="button"
-              title="Launch"
-              onClick={(e) => {
-                e.stopPropagation();
-                onLaunch();
-              }}
-              style={iconBtn}
-            >
-              ↗
-            </button>
-          )}
-
-          {onMinimize && (
-            <button
-              type="button"
-              title="Minimize"
-              onClick={(e) => {
-                e.stopPropagation();
-                onMinimize();
-              }}
-              style={iconBtn}
-            >
-              —
-            </button>
-          )}
-
-          <button
-            type="button"
-            title="Close"
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose?.();
-            }}
-            style={{ ...iconBtn, background: "#ef4444", border: "1px solid #b91c1c" }}
-          >
-            ✕
-          </button>
-        </div>
+        <button
+          type="button"
+          onClick={(e) => {
+            e.stopPropagation();
+            onClose?.();
+          }}
+          style={{
+            background: "transparent",
+            border: "none",
+            color: "white",
+            fontSize: 20,
+            cursor: "pointer",
+          }}
+          aria-label="Close window"
+        >
+          ✕
+        </button>
       </div>
 
       {/* CONTENT */}
       <div
-        style={{ flex: 1, overflow: "auto", background: "white" }}
+        style={{
+          flex: 1,
+          padding: "10px",
+          overflowY: "auto",
+          background: "white",
+        }}
         onMouseDown={(e) => e.stopPropagation()}
       >
         {children}
       </div>
 
-      {/* ✅ RIGHT RESIZE HANDLE */}
+      {/* RESIZE HANDLE */}
       <div
-        onMouseDown={(e) => {
-          e.stopPropagation();
-          onStartResizeWindow?.(e, "e"); // "e" = east
-        }}
-        style={{
-          position: "absolute",
-          top: 40,
-          right: 0,
-          width: 10,
-          height: "calc(100% - 40px)",
-          cursor: "ew-resize",
-          zIndex: 20,
-        }}
-      />
-
-      {/* ✅ BOTTOM RESIZE HANDLE */}
-      <div
-        onMouseDown={(e) => {
-          e.stopPropagation();
-          onStartResizeWindow?.(e, "s"); // "s" = south
-        }}
-        style={{
-          position: "absolute",
-          left: 0,
-          bottom: 0,
-          width: "100%",
-          height: 10,
-          cursor: "ns-resize",
-          zIndex: 20,
-        }}
-      />
-
-      {/* ✅ CORNER RESIZE HANDLE */}
-      <div
-        onMouseDown={(e) => {
-          e.stopPropagation();
-          onStartResizeWindow?.(e, "se"); // "se" = south-east
-        }}
         style={{
           width: 16,
           height: 16,
@@ -162,20 +108,12 @@ export default function ShapeOfFloatingWindows({
           background: "#2563eb",
           cursor: "nwse-resize",
           borderTopLeftRadius: 6,
-          zIndex: 21,
+        }}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          onStartResizeWindow?.(e);
         }}
       />
     </div>
   );
 }
-
-const iconBtn = {
-  width: 28,
-  height: 24,
-  borderRadius: 6,
-  background: "#111827",
-  color: "white",
-  border: "1px solid #334155",
-  cursor: "pointer",
-  fontWeight: 900,
-};
