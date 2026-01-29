@@ -29,18 +29,15 @@ export default function AppModals({
   alarmLogOpen,
   closeAlarmLog,
 
-  // ✅ Alarm Log actions
   onMinimizeAlarmLog,
   onLaunchAlarmLog,
 
-  // ✅ NEW: pass the window system in (from useWindowDragResize in App.jsx)
-  // Example: const windowDrag = useWindowDragResize(defaultsMap)
+  // ✅ NEW: passed from App.jsx (useWindowDragResize result)
   windowDrag,
 }) {
   const isSameId = (a, b) => String(a) === String(b);
 
-  // ✅ Keep this for now: open-at positioning still useful
-  // NOTE: if you're fully on windowDrag positions, you can delete this later.
+  // ✅ Fallback position (only used if windowDrag isn't provided yet)
   const [alarmLogPos, setAlarmLogPos] = useState({ x: 140, y: 90 });
 
   // ✅ Listen for drop position events (sent by useDropHandler)
@@ -48,21 +45,14 @@ export default function AppModals({
     const onOpenAt = (ev) => {
       const x = ev?.detail?.x;
       const y = ev?.detail?.y;
-
       if (typeof x !== "number" || typeof y !== "number") return;
 
-      // small offset so the cursor isn't on the title bar buttons
-      const next = {
-        x: Math.max(x - 40, 10),
-        y: Math.max(y - 20, 10),
-      };
-
+      const next = { x: Math.max(x - 40, 10), y: Math.max(y - 20, 10) };
       setAlarmLogPos(next);
     };
 
     window.addEventListener("coreflex-alarm-log-open-at", onOpenAt);
-    return () =>
-      window.removeEventListener("coreflex-alarm-log-open-at", onOpenAt);
+    return () => window.removeEventListener("coreflex-alarm-log-open-at", onOpenAt);
   }, []);
 
   const displayTarget = useMemo(() => {
@@ -88,8 +78,10 @@ export default function AppModals({
     );
   }, [droppedTanks, activeSiloId]);
 
-  // ✅ NEW: pull the correct window handlers from the window system
-  const alarmLogWindowProps = windowDrag?.getWindowProps?.("alarmLog");
+  // ✅ Safe: only call if provided
+  const alarmLogWindowProps = windowDrag?.getWindowProps
+    ? windowDrag.getWindowProps("alarmLog")
+    : null;
 
   return (
     <>
@@ -101,10 +93,7 @@ export default function AppModals({
             setDroppedTanks((prev) =>
               prev.map((t) =>
                 isSameId(t.id, displayTarget.id)
-                  ? {
-                      ...t,
-                      properties: { ...(t.properties || {}), ...updatedProps },
-                    }
+                  ? { ...t, properties: { ...(t.properties || {}), ...updatedProps } }
                   : t
               )
             );
@@ -139,16 +128,14 @@ export default function AppModals({
         />
       )}
 
-      {/* 🚨 Alarms Log */}
+      {/* 🚨 Alarm Log */}
       <AlarmLogModal
         open={!!alarmLogOpen}
         onClose={closeAlarmLog}
         onLaunch={onLaunchAlarmLog}
         onMinimize={onMinimizeAlarmLog}
-        // ✅ NEW: this enables dragging/resizing like the other windows
         windowProps={
           alarmLogWindowProps || {
-            // fallback: still opens where you clicked until windowDrag is wired everywhere
             position: alarmLogPos,
             size: { width: 900, height: 420 },
           }

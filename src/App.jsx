@@ -21,6 +21,8 @@ import AppModals from "./components/AppModals";
 import HomeSubPageRouter from "./components/HomeSubPageRouter";
 import useContextMenu from "./hooks/useContextMenu";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
+import useWindowDragResize from "./hooks/useWindowDragResize";
+
 
 export default function App() {
   const navigate = useNavigate();
@@ -49,6 +51,15 @@ export default function App() {
     setSelectedIds([]);
     setSelectedTank(null);
   };
+
+    // 🪟 FLOATING WINDOWS (Alarm Log, Libraries, etc.)
+  const windowDrag = useWindowDragResize({
+    alarmLog: {
+      position: { x: 140, y: 90 },
+      size: { width: 900, height: 420 },
+    },
+  });
+
 
   // ⭐ DASHBOARD MODE — DEFAULT EDIT
   const [dashboardMode, setDashboardMode] = useState("edit");
