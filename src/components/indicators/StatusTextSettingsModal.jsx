@@ -16,12 +16,12 @@ export default function StatusTextSettingsModal({
   const initialDeviceId = p?.tag?.deviceId ?? "";
   const initialField = p?.tag?.field ?? "";
 
-  // ✅ NEW: ON/OFF texts (fallback to old single "text" if present)
+  // ✅ OFF/ON texts (fallback to old single "text" if present)
   const legacyText = p?.text ?? "STATUS";
   const initialOffText = p?.offText ?? legacyText ?? "OFF";
   const initialOnText = p?.onText ?? legacyText ?? "ON";
 
-  // Text style (shared)
+  // Shared style
   const initialFontSize = p?.fontSize ?? 18;
   const initialFontWeight = p?.fontWeight ?? 800;
   const initialTextColor = p?.textColor ?? "#0f172a";
@@ -32,21 +32,16 @@ export default function StatusTextSettingsModal({
   const initialPaddingY = p?.paddingY ?? 10;
   const initialPaddingX = p?.paddingX ?? 14;
   const initialTextAlign = p?.textAlign ?? "center";
-  const initialTransform = p?.textTransform ?? "none"; // none | uppercase | lowercase
+  const initialTransform = p?.textTransform ?? "none";
   const initialLetterSpacing = p?.letterSpacing ?? 0;
 
   const [deviceId, setDeviceId] = React.useState(initialDeviceId);
   const [field, setField] = React.useState(initialField);
   const [tagSearch, setTagSearch] = React.useState("");
 
-  // ✅ NEW: separate state texts
   const [offText, setOffText] = React.useState(initialOffText);
   const [onText, setOnText] = React.useState(initialOnText);
 
-  // ✅ NEW: preview toggle
-  const [previewState, setPreviewState] = React.useState("off"); // off | on
-
-  // shared style state
   const [fontSize, setFontSize] = React.useState(initialFontSize);
   const [fontWeight, setFontWeight] = React.useState(initialFontWeight);
   const [textColor, setTextColor] = React.useState(initialTextColor);
@@ -60,6 +55,88 @@ export default function StatusTextSettingsModal({
   const [textTransform, setTextTransform] = React.useState(initialTransform);
   const [letterSpacing, setLetterSpacing] = React.useState(initialLetterSpacing);
 
+  // =========================
+  // ✅ DRAGGABLE WINDOW
+  // =========================
+  const modalRef = React.useRef(null);
+  const dragRef = React.useRef({
+    dragging: false,
+    startX: 0,
+    startY: 0,
+    startLeft: 0,
+    startTop: 0,
+  });
+
+  const [pos, setPos] = React.useState(() => {
+    // Start centered-ish
+    const w = 760;
+    const h = 640;
+    const left = Math.max(20, Math.round((window.innerWidth - w) / 2));
+    const top = Math.max(20, Math.round((window.innerHeight - h) / 2));
+    return { left, top };
+  });
+
+  React.useEffect(() => {
+    const onMove = (e) => {
+      if (!dragRef.current.dragging) return;
+      e.preventDefault();
+
+      const dx = e.clientX - dragRef.current.startX;
+      const dy = e.clientY - dragRef.current.startY;
+
+      const nextLeft = dragRef.current.startLeft + dx;
+      const nextTop = dragRef.current.startTop + dy;
+
+      // Clamp inside viewport a bit
+      const rect = modalRef.current?.getBoundingClientRect();
+      const mw = rect?.width ?? 760;
+      const mh = rect?.height ?? 640;
+
+      const clampedLeft = Math.min(
+        window.innerWidth - 20,
+        Math.max(20 - (mw - 60), nextLeft)
+      );
+      const clampedTop = Math.min(
+        window.innerHeight - 20,
+        Math.max(20, nextTop)
+      );
+
+      setPos({ left: clampedLeft, top: clampedTop });
+    };
+
+    const onUp = () => {
+      if (!dragRef.current.dragging) return;
+      dragRef.current.dragging = false;
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
+
+  const startDrag = (e) => {
+    // Only left-click
+    if (e.button !== 0) return;
+
+    dragRef.current.dragging = true;
+    dragRef.current.startX = e.clientX;
+    dragRef.current.startY = e.clientY;
+    dragRef.current.startLeft = pos.left;
+    dragRef.current.startTop = pos.top;
+
+    // Prevent text select while dragging
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "grabbing";
+  };
+
+  // =========================
+  // ✅ DEVICES / FIELDS
+  // =========================
   const devices = React.useMemo(() => {
     const d = sensorsData?.devices;
     return Array.isArray(d) ? d : [];
@@ -101,12 +178,10 @@ export default function StatusTextSettingsModal({
       id: tank.id,
       properties: {
         ...(tank.properties || {}),
-
-        // ✅ NEW: store OFF/ON texts
         offText,
         onText,
 
-        // ✅ keep legacy "text" for backwards compatibility (use ON as default)
+        // keep legacy field for compatibility
         text: onText || legacyText || "STATUS",
 
         fontSize: Number(fontSize) || 18,
@@ -165,41 +240,40 @@ export default function StatusTextSettingsModal({
     />
   );
 
-  // ✅ NEW: preview text depends on selected previewState
-  const previewText =
-    previewState === "on" ? (onText || "ON") : (offText || "OFF");
-
-  // small button style helper
-  const StateBtn = ({ active, children, onClick }) => (
-    <button
-      onClick={onClick}
+  const MiniState = ({ label, dotColor, text }) => (
+    <div
       style={{
         flex: 1,
-        padding: "10px 12px",
-        borderRadius: 10,
-        border: active ? "2px solid #16a34a" : "1px solid #cbd5e1",
-        background: active ? "#dcfce7" : "#ffffff",
-        cursor: "pointer",
-        fontWeight: 900,
-        fontSize: 13,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
-        gap: 10,
+        border: "1px solid #e5e7eb",
+        borderRadius: 12,
+        padding: 10,
+        background: "#ffffff",
       }}
-      type="button"
     >
-      <span
+      <div
         style={{
-          width: 18,
-          height: 18,
-          borderRadius: 999,
-          border: "1px solid #94a3b8",
-          background: active ? "#22c55e" : "#e5e7eb",
+          display: "flex",
+          alignItems: "center",
+          gap: 10,
+          fontWeight: 900,
+          fontSize: 12,
+          marginBottom: 8,
+          color: "#0f172a",
         }}
-      />
-      {children}
-    </button>
+      >
+        <span
+          style={{
+            width: 10,
+            height: 10,
+            borderRadius: 999,
+            background: dotColor,
+            border: "1px solid #94a3b8",
+          }}
+        />
+        {label}
+      </div>
+      <div style={basePreviewStyle}>{text}</div>
+    </div>
   );
 
   return (
@@ -208,15 +282,16 @@ export default function StatusTextSettingsModal({
         position: "fixed",
         inset: 0,
         background: "rgba(0,0,0,0.35)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
         zIndex: 999999,
       }}
       onMouseDown={onClose}
     >
       <div
+        ref={modalRef}
         style={{
+          position: "fixed",
+          left: pos.left,
+          top: pos.top,
           width: 760,
           background: "#fff",
           borderRadius: 12,
@@ -225,8 +300,9 @@ export default function StatusTextSettingsModal({
         }}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* Header */}
+        {/* Header (✅ draggable) */}
         <div
+          onMouseDown={startDrag}
           style={{
             background: "#0f172a",
             color: "#fff",
@@ -237,7 +313,9 @@ export default function StatusTextSettingsModal({
             fontWeight: 900,
             fontSize: 16,
             letterSpacing: 0.2,
+            cursor: "grab",
           }}
+          title="Drag to move"
         >
           <span>Status Text Box</span>
           <button
@@ -258,7 +336,7 @@ export default function StatusTextSettingsModal({
 
         {/* Body */}
         <div style={{ padding: 18, fontSize: 14 }}>
-          {/* ✅ NEW: Indicator-like preview */}
+          {/* ✅ Static preview (no ON/OFF toggle buttons) */}
           <div
             style={{
               border: "1px solid #e5e7eb",
@@ -269,25 +347,21 @@ export default function StatusTextSettingsModal({
             }}
           >
             <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 10 }}>
-              Preview State
+              Preview
             </div>
 
-            <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
-              <StateBtn
-                active={previewState === "off"}
-                onClick={() => setPreviewState("off")}
-              >
-                OFF
-              </StateBtn>
-              <StateBtn
-                active={previewState === "on"}
-                onClick={() => setPreviewState("on")}
-              >
-                ON
-              </StateBtn>
+            <div style={{ display: "flex", gap: 10 }}>
+              <MiniState
+                label="OFF"
+                dotColor="#94a3b8"
+                text={offText || "OFF"}
+              />
+              <MiniState
+                label="ON"
+                dotColor="#22c55e"
+                text={onText || "ON"}
+              />
             </div>
-
-            <div style={basePreviewStyle}>{previewText}</div>
 
             <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
               Tip: <b>ON</b> means “truthy”. If your tag is numeric, any value{" "}
@@ -585,7 +659,8 @@ export default function StatusTextSettingsModal({
 
               <div style={{ fontSize: 12, color: "#64748b" }}>
                 Tip: When the tag value is <b>truthy</b> (or numeric <b>&gt; 0</b>),
-                this widget will display <b>ON Text</b>. Otherwise it displays <b>OFF Text</b>.
+                this widget will display <b>ON Text</b>. Otherwise it displays{" "}
+                <b>OFF Text</b>.
               </div>
             </div>
           </div>
