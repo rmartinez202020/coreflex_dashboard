@@ -16,8 +16,12 @@ export default function StatusTextSettingsModal({
   const initialDeviceId = p?.tag?.deviceId ?? "";
   const initialField = p?.tag?.field ?? "";
 
-  // Text style
-  const initialText = p?.text ?? "STATUS";
+  // ✅ NEW: ON/OFF texts (fallback to old single "text" if present)
+  const legacyText = p?.text ?? "STATUS";
+  const initialOffText = p?.offText ?? legacyText ?? "OFF";
+  const initialOnText = p?.onText ?? legacyText ?? "ON";
+
+  // Text style (shared)
   const initialFontSize = p?.fontSize ?? 18;
   const initialFontWeight = p?.fontWeight ?? 800;
   const initialTextColor = p?.textColor ?? "#0f172a";
@@ -35,7 +39,14 @@ export default function StatusTextSettingsModal({
   const [field, setField] = React.useState(initialField);
   const [tagSearch, setTagSearch] = React.useState("");
 
-  const [text, setText] = React.useState(initialText);
+  // ✅ NEW: separate state texts
+  const [offText, setOffText] = React.useState(initialOffText);
+  const [onText, setOnText] = React.useState(initialOnText);
+
+  // ✅ NEW: preview toggle
+  const [previewState, setPreviewState] = React.useState("off"); // off | on
+
+  // shared style state
   const [fontSize, setFontSize] = React.useState(initialFontSize);
   const [fontWeight, setFontWeight] = React.useState(initialFontWeight);
   const [textColor, setTextColor] = React.useState(initialTextColor);
@@ -90,7 +101,14 @@ export default function StatusTextSettingsModal({
       id: tank.id,
       properties: {
         ...(tank.properties || {}),
-        text,
+
+        // ✅ NEW: store OFF/ON texts
+        offText,
+        onText,
+
+        // ✅ keep legacy "text" for backwards compatibility (use ON as default)
+        text: onText || legacyText || "STATUS",
+
         fontSize: Number(fontSize) || 18,
         fontWeight: Number(fontWeight) || 800,
         textColor,
@@ -108,7 +126,7 @@ export default function StatusTextSettingsModal({
     });
   };
 
-  const previewStyle = {
+  const basePreviewStyle = {
     width: "100%",
     background: bgColor,
     color: textColor,
@@ -147,6 +165,43 @@ export default function StatusTextSettingsModal({
     />
   );
 
+  // ✅ NEW: preview text depends on selected previewState
+  const previewText =
+    previewState === "on" ? (onText || "ON") : (offText || "OFF");
+
+  // small button style helper
+  const StateBtn = ({ active, children, onClick }) => (
+    <button
+      onClick={onClick}
+      style={{
+        flex: 1,
+        padding: "10px 12px",
+        borderRadius: 10,
+        border: active ? "2px solid #16a34a" : "1px solid #cbd5e1",
+        background: active ? "#dcfce7" : "#ffffff",
+        cursor: "pointer",
+        fontWeight: 900,
+        fontSize: 13,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        gap: 10,
+      }}
+      type="button"
+    >
+      <span
+        style={{
+          width: 18,
+          height: 18,
+          borderRadius: 999,
+          border: "1px solid #94a3b8",
+          background: active ? "#22c55e" : "#e5e7eb",
+        }}
+      />
+      {children}
+    </button>
+  );
+
   return (
     <div
       style={{
@@ -162,7 +217,7 @@ export default function StatusTextSettingsModal({
     >
       <div
         style={{
-          width: 720,
+          width: 760,
           background: "#fff",
           borderRadius: 12,
           boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
@@ -195,6 +250,7 @@ export default function StatusTextSettingsModal({
               cursor: "pointer",
             }}
             title="Close"
+            type="button"
           >
             ✕
           </button>
@@ -202,7 +258,7 @@ export default function StatusTextSettingsModal({
 
         {/* Body */}
         <div style={{ padding: 18, fontSize: 14 }}>
-          {/* Preview */}
+          {/* ✅ NEW: Indicator-like preview */}
           <div
             style={{
               border: "1px solid #e5e7eb",
@@ -213,13 +269,40 @@ export default function StatusTextSettingsModal({
             }}
           >
             <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 10 }}>
-              Preview
+              Preview State
             </div>
-            <div style={previewStyle}>{text || "STATUS"}</div>
+
+            <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+              <StateBtn
+                active={previewState === "off"}
+                onClick={() => setPreviewState("off")}
+              >
+                OFF
+              </StateBtn>
+              <StateBtn
+                active={previewState === "on"}
+                onClick={() => setPreviewState("on")}
+              >
+                ON
+              </StateBtn>
+            </div>
+
+            <div style={basePreviewStyle}>{previewText}</div>
+
+            <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
+              Tip: <b>ON</b> means “truthy”. If your tag is numeric, any value{" "}
+              <b>&gt; 0</b> will be read as ON.
+            </div>
           </div>
 
           {/* Layout: left style, right tag */}
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "1fr 1fr",
+              gap: 14,
+            }}
+          >
             {/* STYLE */}
             <div
               style={{
@@ -229,23 +312,45 @@ export default function StatusTextSettingsModal({
               }}
             >
               <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 12 }}>
-                Text Style
+                State Text (OFF / ON)
               </div>
 
-              <div style={{ marginBottom: 12 }}>
-                <Label>Text</Label>
-                <input
-                  value={text}
-                  onChange={(e) => setText(e.target.value)}
-                  placeholder="ex: RUNNING / STOPPED / ALARM"
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: 10,
-                    border: "1px solid #cbd5e1",
-                    fontSize: 14,
-                  }}
-                />
+              <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <Label>OFF Text</Label>
+                  <input
+                    value={offText}
+                    onChange={(e) => setOffText(e.target.value)}
+                    placeholder="ex: STOPPED / OFF / IDLE"
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #cbd5e1",
+                      fontSize: 14,
+                    }}
+                  />
+                </div>
+
+                <div style={{ flex: 1 }}>
+                  <Label>ON Text</Label>
+                  <input
+                    value={onText}
+                    onChange={(e) => setOnText(e.target.value)}
+                    placeholder="ex: RUNNING / ON / ACTIVE"
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #cbd5e1",
+                      fontSize: 14,
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 12 }}>
+                Shared Style
               </div>
 
               <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
@@ -255,7 +360,13 @@ export default function StatusTextSettingsModal({
                 </div>
                 <div style={{ flex: 1 }}>
                   <Label>Font Weight</Label>
-                  <Num value={fontWeight} onChange={setFontWeight} min={100} max={900} step={100} />
+                  <Num
+                    value={fontWeight}
+                    onChange={setFontWeight}
+                    min={100}
+                    max={900}
+                    step={100}
+                  />
                 </div>
               </div>
 
@@ -292,18 +403,34 @@ export default function StatusTextSettingsModal({
                 </div>
                 <div style={{ flex: 1 }}>
                   <Label>Border Width</Label>
-                  <Num value={borderWidth} onChange={setBorderWidth} min={0} max={12} />
+                  <Num
+                    value={borderWidth}
+                    onChange={setBorderWidth}
+                    min={0}
+                    max={12}
+                  />
                 </div>
               </div>
 
               <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
                 <div style={{ flex: 1 }}>
                   <Label>Radius</Label>
-                  <Num value={borderRadius} onChange={setBorderRadius} min={0} max={40} />
+                  <Num
+                    value={borderRadius}
+                    onChange={setBorderRadius}
+                    min={0}
+                    max={40}
+                  />
                 </div>
                 <div style={{ flex: 1 }}>
                   <Label>Letter Spacing</Label>
-                  <Num value={letterSpacing} onChange={setLetterSpacing} min={0} max={8} step={0.5} />
+                  <Num
+                    value={letterSpacing}
+                    onChange={setLetterSpacing}
+                    min={0}
+                    max={8}
+                    step={0.5}
+                  />
                 </div>
               </div>
 
@@ -370,7 +497,7 @@ export default function StatusTextSettingsModal({
               }}
             >
               <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 12 }}>
-                Tag Binding
+                Tag that drives status (ON / OFF)
               </div>
 
               <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
@@ -457,7 +584,8 @@ export default function StatusTextSettingsModal({
               </div>
 
               <div style={{ fontSize: 12, color: "#64748b" }}>
-                Tip: This textbox will later display the value from your selected tag.
+                Tip: When the tag value is <b>truthy</b> (or numeric <b>&gt; 0</b>),
+                this widget will display <b>ON Text</b>. Otherwise it displays <b>OFF Text</b>.
               </div>
             </div>
           </div>
@@ -484,6 +612,7 @@ export default function StatusTextSettingsModal({
               fontWeight: 900,
               fontSize: 14,
             }}
+            type="button"
           >
             Cancel
           </button>
@@ -500,6 +629,7 @@ export default function StatusTextSettingsModal({
               fontWeight: 900,
               fontSize: 14,
             }}
+            type="button"
           >
             Apply
           </button>
