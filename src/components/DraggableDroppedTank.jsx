@@ -99,16 +99,9 @@ export default function DraggableDroppedTank({
   // ✅ display output textbox
   const isDisplayOutput = tank.shape === "displayOutput";
 
-  // ✅ NEW: indicators (so double-click can work + prevent DnD from eating dblclick)
-  const isIndicator =
-    tank.shape === "ledCircle" ||
-    tank.shape === "statusTextBox" ||
-    tank.shape === "blinkingAlarm" ||
-    tank.shape === "stateImage";
-
   // ✅ IMPORTANT:
   // - In PLAY: allow pointer events for toggle + pushbuttons + displayOutput
-  // - In EDIT: allow pointer events for graphic display + indicators so double-click works
+  // - In EDIT: allow pointer events for graphic display so double-click works
   // - Otherwise: keep "none" to avoid fighting DnD
   const contentStyle = {
     display: "inline-block",
@@ -120,7 +113,7 @@ export default function DraggableDroppedTank({
       ? isToggle || isPushButton || isDisplayOutput
         ? "auto"
         : "none"
-      : isGraphicDisplay || isIndicator
+      : isGraphicDisplay
       ? "auto"
       : "none",
   };
@@ -154,10 +147,7 @@ export default function DraggableDroppedTank({
   // ✅ KEY FIX:
   // If it's a "typing widget" in PLAY mode, do NOT attach dnd-kit listeners,
   // otherwise pointerdown will start drag and the input won't focus reliably.
-  //
-  // ✅ ALSO: indicators should not attach DnD listeners in EDIT (so dblclick is reliable)
-  const dragListeners =
-    (isPlay && isDisplayOutput) || (!isPlay && isIndicator) ? undefined : listeners;
+  const dragListeners = isPlay && isDisplayOutput ? undefined : listeners;
 
   // ===============================
   // ✅ AUTO-MEASURE REAL SIZE (stores measuredW/H on tank)
@@ -237,9 +227,9 @@ export default function DraggableDroppedTank({
       <div style={visualWrapperStyle}>
         <div
           style={contentStyle}
-          // ✅ Stop canvas selection box in edit for graphic display + indicators
+          // ✅ Stop canvas selection box in edit for graphic display
           onMouseDownCapture={(e) => {
-            if (!isPlay && (isGraphicDisplay || isIndicator)) {
+            if (!isPlay && isGraphicDisplay) {
               e.stopPropagation();
             }
           }}
