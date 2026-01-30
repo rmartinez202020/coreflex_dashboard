@@ -1,0 +1,510 @@
+import React from "react";
+
+export default function StatusTextSettingsModal({
+  open,
+  tank,
+  onClose,
+  onSave,
+  sensorsData,
+}) {
+  if (!open || !tank) return null;
+
+  // ✅ ALWAYS read/write from tank.properties
+  const p = tank.properties || {};
+
+  // Tag binding
+  const initialDeviceId = p?.tag?.deviceId ?? "";
+  const initialField = p?.tag?.field ?? "";
+
+  // Text style
+  const initialText = p?.text ?? "STATUS";
+  const initialFontSize = p?.fontSize ?? 18;
+  const initialFontWeight = p?.fontWeight ?? 800;
+  const initialTextColor = p?.textColor ?? "#0f172a";
+  const initialBg = p?.bgColor ?? "#ffffff";
+  const initialBorderColor = p?.borderColor ?? "#cbd5e1";
+  const initialBorderWidth = p?.borderWidth ?? 1;
+  const initialBorderRadius = p?.borderRadius ?? 10;
+  const initialPaddingY = p?.paddingY ?? 10;
+  const initialPaddingX = p?.paddingX ?? 14;
+  const initialTextAlign = p?.textAlign ?? "center";
+  const initialTransform = p?.textTransform ?? "none"; // none | uppercase | lowercase
+  const initialLetterSpacing = p?.letterSpacing ?? 0;
+
+  const [deviceId, setDeviceId] = React.useState(initialDeviceId);
+  const [field, setField] = React.useState(initialField);
+  const [tagSearch, setTagSearch] = React.useState("");
+
+  const [text, setText] = React.useState(initialText);
+  const [fontSize, setFontSize] = React.useState(initialFontSize);
+  const [fontWeight, setFontWeight] = React.useState(initialFontWeight);
+  const [textColor, setTextColor] = React.useState(initialTextColor);
+  const [bgColor, setBgColor] = React.useState(initialBg);
+  const [borderColor, setBorderColor] = React.useState(initialBorderColor);
+  const [borderWidth, setBorderWidth] = React.useState(initialBorderWidth);
+  const [borderRadius, setBorderRadius] = React.useState(initialBorderRadius);
+  const [paddingY, setPaddingY] = React.useState(initialPaddingY);
+  const [paddingX, setPaddingX] = React.useState(initialPaddingX);
+  const [textAlign, setTextAlign] = React.useState(initialTextAlign);
+  const [textTransform, setTextTransform] = React.useState(initialTransform);
+  const [letterSpacing, setLetterSpacing] = React.useState(initialLetterSpacing);
+
+  const devices = React.useMemo(() => {
+    const d = sensorsData?.devices;
+    return Array.isArray(d) ? d : [];
+  }, [sensorsData]);
+
+  const selectedDevice = React.useMemo(() => {
+    return devices.find((d) => String(d.id) === String(deviceId)) || null;
+  }, [devices, deviceId]);
+
+  const availableFields = React.useMemo(() => {
+    const raw = selectedDevice?.fields;
+    if (!raw) return [];
+
+    if (Array.isArray(raw) && typeof raw[0] === "string") {
+      return raw.map((k) => ({ key: k, label: k }));
+    }
+    if (Array.isArray(raw) && typeof raw[0] === "object") {
+      return raw
+        .map((x) => ({
+          key: x.key ?? x.field ?? x.name ?? "",
+          label: x.label ?? x.name ?? x.field ?? x.key ?? "",
+        }))
+        .filter((x) => x.key);
+    }
+    return [];
+  }, [selectedDevice]);
+
+  const filteredFields = React.useMemo(() => {
+    const q = tagSearch.trim().toLowerCase();
+    if (!q) return availableFields;
+    return availableFields.filter(
+      (f) =>
+        f.key.toLowerCase().includes(q) || f.label.toLowerCase().includes(q)
+    );
+  }, [availableFields, tagSearch]);
+
+  const apply = () => {
+    onSave?.({
+      id: tank.id,
+      properties: {
+        ...(tank.properties || {}),
+        text,
+        fontSize: Number(fontSize) || 18,
+        fontWeight: Number(fontWeight) || 800,
+        textColor,
+        bgColor,
+        borderColor,
+        borderWidth: Number(borderWidth) || 1,
+        borderRadius: Number(borderRadius) || 10,
+        paddingY: Number(paddingY) || 10,
+        paddingX: Number(paddingX) || 14,
+        textAlign,
+        textTransform,
+        letterSpacing: Number(letterSpacing) || 0,
+        tag: { deviceId, field },
+      },
+    });
+  };
+
+  const previewStyle = {
+    width: "100%",
+    background: bgColor,
+    color: textColor,
+    border: `${borderWidth}px solid ${borderColor}`,
+    borderRadius,
+    padding: `${paddingY}px ${paddingX}px`,
+    fontSize,
+    fontWeight,
+    textAlign,
+    textTransform,
+    letterSpacing,
+    boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
+  };
+
+  const Label = ({ children }) => (
+    <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
+      {children}
+    </div>
+  );
+
+  const Num = ({ value, onChange, min = 0, max = 200, step = 1 }) => (
+    <input
+      type="number"
+      value={value}
+      min={min}
+      max={max}
+      step={step}
+      onChange={(e) => onChange(e.target.value)}
+      style={{
+        width: "100%",
+        padding: "10px 12px",
+        borderRadius: 10,
+        border: "1px solid #cbd5e1",
+        fontSize: 14,
+      }}
+    />
+  );
+
+  return (
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.35)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        zIndex: 999999,
+      }}
+      onMouseDown={onClose}
+    >
+      <div
+        style={{
+          width: 720,
+          background: "#fff",
+          borderRadius: 12,
+          boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
+          overflow: "hidden",
+        }}
+        onMouseDown={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div
+          style={{
+            background: "#0f172a",
+            color: "#fff",
+            padding: "12px 14px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            fontWeight: 900,
+            fontSize: 16,
+            letterSpacing: 0.2,
+          }}
+        >
+          <span>Status Text Box</span>
+          <button
+            onClick={onClose}
+            style={{
+              border: "none",
+              background: "transparent",
+              color: "white",
+              fontSize: 22,
+              cursor: "pointer",
+            }}
+            title="Close"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: 18, fontSize: 14 }}>
+          {/* Preview */}
+          <div
+            style={{
+              border: "1px solid #e5e7eb",
+              borderRadius: 12,
+              padding: 14,
+              background: "#f8fafc",
+              marginBottom: 14,
+            }}
+          >
+            <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 10 }}>
+              Preview
+            </div>
+            <div style={previewStyle}>{text || "STATUS"}</div>
+          </div>
+
+          {/* Layout: left style, right tag */}
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
+            {/* STYLE */}
+            <div
+              style={{
+                border: "1px solid #e5e7eb",
+                borderRadius: 12,
+                padding: 14,
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 12 }}>
+                Text Style
+              </div>
+
+              <div style={{ marginBottom: 12 }}>
+                <Label>Text</Label>
+                <input
+                  value={text}
+                  onChange={(e) => setText(e.target.value)}
+                  placeholder="ex: RUNNING / STOPPED / ALARM"
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5e1",
+                    fontSize: 14,
+                  }}
+                />
+              </div>
+
+              <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <Label>Font Size</Label>
+                  <Num value={fontSize} onChange={setFontSize} min={8} max={60} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <Label>Font Weight</Label>
+                  <Num value={fontWeight} onChange={setFontWeight} min={100} max={900} step={100} />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <Label>Text Color</Label>
+                  <input
+                    type="color"
+                    value={textColor}
+                    onChange={(e) => setTextColor(e.target.value)}
+                    style={{ width: "100%", height: 42, border: "none" }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <Label>Background</Label>
+                  <input
+                    type="color"
+                    value={bgColor}
+                    onChange={(e) => setBgColor(e.target.value)}
+                    style={{ width: "100%", height: 42, border: "none" }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <Label>Border Color</Label>
+                  <input
+                    type="color"
+                    value={borderColor}
+                    onChange={(e) => setBorderColor(e.target.value)}
+                    style={{ width: "100%", height: 42, border: "none" }}
+                  />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <Label>Border Width</Label>
+                  <Num value={borderWidth} onChange={setBorderWidth} min={0} max={12} />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <Label>Radius</Label>
+                  <Num value={borderRadius} onChange={setBorderRadius} min={0} max={40} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <Label>Letter Spacing</Label>
+                  <Num value={letterSpacing} onChange={setLetterSpacing} min={0} max={8} step={0.5} />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <Label>Padding Y</Label>
+                  <Num value={paddingY} onChange={setPaddingY} min={0} max={60} />
+                </div>
+                <div style={{ flex: 1 }}>
+                  <Label>Padding X</Label>
+                  <Num value={paddingX} onChange={setPaddingX} min={0} max={80} />
+                </div>
+              </div>
+
+              <div style={{ display: "flex", gap: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <Label>Align</Label>
+                  <select
+                    value={textAlign}
+                    onChange={(e) => setTextAlign(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #cbd5e1",
+                      fontSize: 14,
+                      background: "white",
+                    }}
+                  >
+                    <option value="left">Left</option>
+                    <option value="center">Center</option>
+                    <option value="right">Right</option>
+                  </select>
+                </div>
+
+                <div style={{ flex: 1 }}>
+                  <Label>Transform</Label>
+                  <select
+                    value={textTransform}
+                    onChange={(e) => setTextTransform(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #cbd5e1",
+                      fontSize: 14,
+                      background: "white",
+                    }}
+                  >
+                    <option value="none">None</option>
+                    <option value="uppercase">UPPERCASE</option>
+                    <option value="lowercase">lowercase</option>
+                  </select>
+                </div>
+              </div>
+            </div>
+
+            {/* TAG */}
+            <div
+              style={{
+                border: "1px solid #e5e7eb",
+                borderRadius: 12,
+                padding: 14,
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 12 }}>
+                Tag Binding
+              </div>
+
+              <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <Label>Device</Label>
+                  <select
+                    value={deviceId}
+                    onChange={(e) => {
+                      setDeviceId(e.target.value);
+                      setField("");
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #cbd5e1",
+                      fontSize: 14,
+                      background: "white",
+                    }}
+                  >
+                    <option value="">— Select device —</option>
+                    {devices.map((d) => (
+                      <option key={String(d.id)} value={String(d.id)}>
+                        {d.name || d.label || d.id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ flex: 1 }}>
+                  <Label>Search Tag</Label>
+                  <input
+                    value={tagSearch}
+                    onChange={(e) => setTagSearch(e.target.value)}
+                    placeholder="ex: DI0, level, run..."
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #cbd5e1",
+                      fontSize: 14,
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div style={{ marginBottom: 10 }}>
+                <Label>Tag / Field</Label>
+
+                {filteredFields.length > 0 ? (
+                  <select
+                    value={field}
+                    onChange={(e) => setField(e.target.value)}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #cbd5e1",
+                      fontSize: 14,
+                      background: "white",
+                    }}
+                  >
+                    <option value="">— Select tag —</option>
+                    {filteredFields.map((f) => (
+                      <option key={f.key} value={f.key}>
+                        {f.label}
+                      </option>
+                    ))}
+                  </select>
+                ) : (
+                  <input
+                    value={field}
+                    onChange={(e) => setField(e.target.value)}
+                    placeholder="Type tag field (ex: di0, run_status, level_percent)"
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #cbd5e1",
+                      fontSize: 14,
+                    }}
+                  />
+                )}
+              </div>
+
+              <div style={{ fontSize: 12, color: "#64748b" }}>
+                Tip: This textbox will later display the value from your selected tag.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        {/* Footer */}
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 10,
+            padding: 14,
+            borderTop: "1px solid #e5e7eb",
+          }}
+        >
+          <button
+            onClick={onClose}
+            style={{
+              padding: "9px 14px",
+              borderRadius: 10,
+              border: "1px solid #cbd5e1",
+              background: "white",
+              cursor: "pointer",
+              fontWeight: 900,
+              fontSize: 14,
+            }}
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={apply}
+            style={{
+              padding: "9px 14px",
+              borderRadius: 10,
+              border: "1px solid #16a34a",
+              background: "#22c55e",
+              color: "white",
+              cursor: "pointer",
+              fontWeight: 900,
+              fontSize: 14,
+            }}
+          >
+            Apply
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}

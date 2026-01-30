@@ -454,6 +454,7 @@ export default function DashboardCanvas({
 
 // ✅ NEW: indicator settings
   onOpenIndicatorSettings,
+  onOpenStatusTextSettings,
 
 
 }) {
@@ -755,11 +756,17 @@ export default function DashboardCanvas({
 
 if (tank.shape === "statusTextBox") {
   return (
-    <DraggableDroppedTank {...commonProps}>
+    <DraggableDroppedTank
+      {...commonProps}
+      onDoubleClick={() => {
+        if (!isPlay) onOpenStatusTextSettings?.(tank);
+      }}
+    >
       <DraggableStatusTextBox tank={tank} />
     </DraggableDroppedTank>
   );
 }
+
 
 if (tank.shape === "blinkingAlarm") {
   return (

@@ -1,6 +1,8 @@
 // src/components/AppModals.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import IndicatorLightSettingsModal from "./indicators/IndicatorLightSettingsModal";
+import StatusTextSettingsModal from "./indicators/StatusTextSettingsModal";
+
 import RestoreWarningModal from "./RestoreWarningModal";
 import DisplaySettingsModal from "./DisplaySettingsModal";
 import GraphicDisplaySettingsModal from "./GraphicDisplaySettingsModal";
@@ -36,6 +38,10 @@ export default function AppModals({
   indicatorSettingsId,
   closeIndicatorSettings,
 
+  // ✅ Status Text settings
+  statusTextSettingsId,
+  closeStatusTextSettings,
+
   // ✅ give indicator modal access to available devices/tags
   sensorsData,
 
@@ -47,7 +53,6 @@ export default function AppModals({
   // ✅ Fallback position (only used if windowDrag isn't provided yet)
   const [alarmLogPos, setAlarmLogPos] = useState({ x: 140, y: 90 });
 
-  // ✅ Listen for drop position events (sent by useDropHandler)
   useEffect(() => {
     const onOpenAt = (ev) => {
       const x = ev?.detail?.x;
@@ -59,8 +64,7 @@ export default function AppModals({
     };
 
     window.addEventListener("coreflex-alarm-log-open-at", onOpenAt);
-    return () =>
-      window.removeEventListener("coreflex-alarm-log-open-at", onOpenAt);
+    return () => window.removeEventListener("coreflex-alarm-log-open-at", onOpenAt);
   }, []);
 
   const displayTarget = useMemo(() => {
@@ -86,7 +90,7 @@ export default function AppModals({
     );
   }, [droppedTanks, activeSiloId]);
 
-  // ✅ LED Indicator target (ONLY ledCircle for now)
+  // ✅ LED Indicator target
   const indicatorTarget = useMemo(() => {
     if (indicatorSettingsId == null) return null;
     return droppedTanks.find(
@@ -94,10 +98,32 @@ export default function AppModals({
     );
   }, [droppedTanks, indicatorSettingsId]);
 
-  // ✅ Safe: only call if provided
+  // ✅ Status Text target
+  const statusTextTarget = useMemo(() => {
+    if (statusTextSettingsId == null) return null;
+    return droppedTanks.find(
+      (t) => isSameId(t.id, statusTextSettingsId) && t.shape === "statusTextBox"
+    );
+  }, [droppedTanks, statusTextSettingsId]);
+
   const alarmLogWindowProps = windowDrag?.getWindowProps
     ? windowDrag.getWindowProps("alarmLog")
     : null;
+
+  const patchTankProperties = (targetId, updated) => {
+    setDroppedTanks((prev) =>
+      prev.map((t) => {
+        if (!isSameId(t.id, targetId)) return t;
+
+        const nextProps =
+          updated?.properties && typeof updated.properties === "object"
+            ? { ...(t.properties || {}), ...updated.properties }
+            : { ...(t.properties || {}) };
+
+        return { ...t, properties: nextProps };
+      })
+    );
+  };
 
   return (
     <>
@@ -109,38 +135,22 @@ export default function AppModals({
           sensorsData={sensorsData}
           onClose={closeIndicatorSettings}
           onSave={(updated) => {
-            // ✅ EXPECTED:
-            // updated = { id, properties: { ... } }
-            // We merge into tank.properties so DraggableLedCircle sees it.
-            setDroppedTanks((prev) =>
-              prev.map((t) => {
-                if (!isSameId(t.id, indicatorTarget.id)) return t;
-
-                // If modal sends properties patch (recommended)
-                if (updated?.properties && typeof updated.properties === "object") {
-                  return {
-                    ...t,
-                    properties: { ...(t.properties || {}), ...updated.properties },
-                  };
-                }
-
-                // Fallback: if someday you send a full tank object
-                if (updated && typeof updated === "object") {
-                  return {
-                    ...t,
-                    ...updated,
-                    properties: {
-                      ...(t.properties || {}),
-                      ...(updated.properties || {}),
-                    },
-                  };
-                }
-
-                return t;
-              })
-            );
-
+            patchTankProperties(indicatorTarget.id, updated);
             closeIndicatorSettings?.();
+          }}
+        />
+      )}
+
+      {/* ✅ Status Text Settings */}
+      {statusTextTarget && (
+        <StatusTextSettingsModal
+          open={true}
+          tank={statusTextTarget}
+          sensorsData={sensorsData}
+          onClose={closeStatusTextSettings}
+          onSave={(updated) => {
+            patchTankProperties(statusTextTarget.id, updated);
+            closeStatusTextSettings?.();
           }}
         />
       )}
@@ -153,10 +163,7 @@ export default function AppModals({
             setDroppedTanks((prev) =>
               prev.map((t) =>
                 isSameId(t.id, displayTarget.id)
-                  ? {
-                      ...t,
-                      properties: { ...(t.properties || {}), ...updatedProps },
-                    }
+                  ? { ...t, properties: { ...(t.properties || {}), ...updatedProps } }
                   : t
               )
             );

@@ -23,8 +23,6 @@ import useContextMenu from "./hooks/useContextMenu";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 import useWindowDragResize from "./hooks/useWindowDragResize";
 
-
-
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -53,14 +51,13 @@ export default function App() {
     setSelectedTank(null);
   };
 
-    // 🪟 FLOATING WINDOWS (Alarm Log, Libraries, etc.)
+  // 🪟 FLOATING WINDOWS (Alarm Log, Libraries, etc.)
   const windowDrag = useWindowDragResize({
     alarmLog: {
       position: { x: 140, y: 90 },
       size: { width: 900, height: 420 },
     },
   });
-
 
   // ⭐ DASHBOARD MODE — DEFAULT EDIT
   const [dashboardMode, setDashboardMode] = useState("edit");
@@ -128,26 +125,25 @@ export default function App() {
     clearSelection,
   });
 
-// ⌨️ KEYBOARD SHORTCUTS (arrows + copy/paste + ✅ undo/redo)
-useKeyboardShortcuts({
-  selectedIds,
-  setSelectedIds,
-  selectedTank,
-  setSelectedTank,
-  droppedTanks,
-  setDroppedTanks,
+  // ⌨️ KEYBOARD SHORTCUTS (arrows + copy/paste + ✅ undo/redo)
+  useKeyboardShortcuts({
+    selectedIds,
+    setSelectedIds,
+    selectedTank,
+    setSelectedTank,
+    droppedTanks,
+    setDroppedTanks,
 
-  // ✅ add these
-  onUndo: handleUndo,
-  onRedo: handleRedo,
-  canUndo,
-  canRedo,
+    // ✅ add these
+    onUndo: handleUndo,
+    onRedo: handleRedo,
+    canUndo,
+    canRedo,
 
-  // ✅ recommended gating
-  activePage,
-  dashboardMode,
-});
-
+    // ✅ recommended gating
+    activePage,
+    dashboardMode,
+  });
 
   const {
     activeDashboard,
@@ -210,14 +206,17 @@ useKeyboardShortcuts({
   const closeDisplaySettings = () => setDisplaySettingsId(null);
 
   // ✅ INDICATOR (LED) SETTINGS MODAL
-const [indicatorSettingsId, setIndicatorSettingsId] = useState(null);
+  const [indicatorSettingsId, setIndicatorSettingsId] = useState(null);
+  const openIndicatorSettings = (tank) => setIndicatorSettingsId(tank.id);
+  const closeIndicatorSettings = () => setIndicatorSettingsId(null);
 
-const openIndicatorSettings = (tank) => setIndicatorSettingsId(tank.id);
-const closeIndicatorSettings = () => setIndicatorSettingsId(null);
+  const indicatorTank =
+    droppedTanks.find((t) => t.id === indicatorSettingsId) || null;
 
-const indicatorTank =
-  droppedTanks.find((t) => t.id === indicatorSettingsId) || null;
-
+  // ✅ STATUS TEXT SETTINGS MODAL (NEW)
+  const [statusTextSettingsId, setStatusTextSettingsId] = useState(null);
+  const openStatusTextSettings = (tank) => setStatusTextSettingsId(tank.id);
+  const closeStatusTextSettings = () => setStatusTextSettingsId(null);
 
   // ✅ GRAPHIC DISPLAY SETTINGS MODAL
   const [graphicSettingsId, setGraphicSettingsId] = useState(null);
@@ -243,7 +242,6 @@ const indicatorTank =
 
   // ✅ MINIMIZE: hide modal + show minimized tab in AppTopBar
   const minimizeAlarmLog = () => {
-    // keep this log only while testing
     console.log("✅ MINIMIZE FIRED");
     setAlarmLogOpen(false);
     setAlarmLogMinimized(true);
@@ -339,11 +337,9 @@ const indicatorTank =
   };
 
   // ✅ DROP HANDLER
-  
- const { handleDrop } = useDropHandler({
-  setDroppedTanks,
-});
-
+  const { handleDrop } = useDropHandler({
+    setDroppedTanks,
+  });
 
   const handleSelect = (id) => {
     setSelectedTank(id);
@@ -469,6 +465,7 @@ const indicatorTank =
             onOpenAlarmLog={openAlarmLog}
             onLaunchAlarmLog={launchAlarmLog}
             onOpenIndicatorSettings={openIndicatorSettings}
+            onOpenStatusTextSettings={openStatusTextSettings} // ✅ NEW
           />
         ) : activePage === "deviceControls" ? (
           <div className="w-full h-full border rounded-lg bg-white p-6">
@@ -500,10 +497,14 @@ const indicatorTank =
           closeAlarmLog={closeAlarmLog}
           onMinimizeAlarmLog={minimizeAlarmLog}
           onLaunchAlarmLog={launchAlarmLog}
-          windowDrag={windowDrag}  
+          windowDrag={windowDrag}
           indicatorSettingsId={indicatorSettingsId}
           closeIndicatorSettings={closeIndicatorSettings}
-          
+          sensorsData={sensorsData} // ✅ IMPORTANT (for device/tag dropdown)
+
+          // ✅ NEW: Status Text Modal wiring
+          statusTextSettingsId={statusTextSettingsId}
+          closeStatusTextSettings={closeStatusTextSettings}
         />
       </main>
 
@@ -511,7 +512,7 @@ const indicatorTank =
         isRightCollapsed={isRightCollapsed}
         setIsRightCollapsed={setIsRightCollapsed}
         dashboardMode={dashboardMode}
-        onOpenAlarmLog={openAlarmLog} 
+        onOpenAlarmLog={openAlarmLog}
       />
     </div>
   );
