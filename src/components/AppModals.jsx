@@ -109,28 +109,34 @@ export default function AppModals({
           sensorsData={sensorsData}
           onClose={closeIndicatorSettings}
           onSave={(updated) => {
-            // ✅ EXPECTED SHAPE:
+            // ✅ EXPECTED:
             // updated = { id, properties: { ... } }
-            // (so we update tank.properties, not top-level)
+            // We merge into tank.properties so DraggableLedCircle sees it.
             setDroppedTanks((prev) =>
               prev.map((t) => {
                 if (!isSameId(t.id, indicatorTarget.id)) return t;
 
-                const nextProps =
-                  updated?.properties && typeof updated.properties === "object"
-                    ? { ...(t.properties || {}), ...updated.properties }
-                    : { ...(t.properties || {}) };
+                // If modal sends properties patch (recommended)
+                if (updated?.properties && typeof updated.properties === "object") {
+                  return {
+                    ...t,
+                    properties: { ...(t.properties || {}), ...updated.properties },
+                  };
+                }
 
-                // (Optional) allow top-level patch only for safe keys if you ever send them
-                const { properties, ...rest } = updated || {};
-                const safeTopLevel = {};
-                // If later you want to allow w/h/x/y updates, whitelist here.
+                // Fallback: if someday you send a full tank object
+                if (updated && typeof updated === "object") {
+                  return {
+                    ...t,
+                    ...updated,
+                    properties: {
+                      ...(t.properties || {}),
+                      ...(updated.properties || {}),
+                    },
+                  };
+                }
 
-                return {
-                  ...t,
-                  ...safeTopLevel,
-                  properties: nextProps,
-                };
+                return t;
               })
             );
 

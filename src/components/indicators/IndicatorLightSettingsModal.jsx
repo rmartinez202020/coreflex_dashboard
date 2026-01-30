@@ -12,17 +12,18 @@ export default function IndicatorLightSettingsModal({
 }) {
   if (!open || !tank) return null;
 
-  const initialStyle = tank.style || "circle";
-  const initialOff = tank.colorOff || "#9ca3af";
-  const initialOn = tank.colorOn || "#22c55e";
+  // ✅ ALWAYS READ/WRITE FROM tank.properties
+  const initialShapeStyle = tank?.properties?.shapeStyle ?? "circle";
+  const initialOff = tank?.properties?.colorOff ?? "#9ca3af";
+  const initialOn = tank?.properties?.colorOn ?? "#22c55e";
 
-  const initialOffText = tank.offText ?? "OFF";
-  const initialOnText = tank.onText ?? "ON";
+  const initialOffText = tank?.properties?.offText ?? "OFF";
+  const initialOnText = tank?.properties?.onText ?? "ON";
 
-  const initialDeviceId = tank?.tag?.deviceId ?? "";
-  const initialField = tank?.tag?.field ?? "";
+  const initialDeviceId = tank?.properties?.tag?.deviceId ?? "";
+  const initialField = tank?.properties?.tag?.field ?? "";
 
-  const [style, setStyle] = React.useState(initialStyle);
+  const [shapeStyle, setShapeStyle] = React.useState(initialShapeStyle);
   const [offColor, setOffColor] = React.useState(initialOff);
   const [onColor, setOnColor] = React.useState(initialOn);
 
@@ -35,79 +36,9 @@ export default function IndicatorLightSettingsModal({
   // ✅ optional: search/filter tags
   const [tagSearch, setTagSearch] = React.useState("");
 
-  // =========================
-  // ✅ DRAGGABLE WINDOW STATE
-  // =========================
-  const PANEL_W = 560;
-  const PANEL_H = 520; // approximate, used for centering/clamp
-  const dragRef = React.useRef(null);
-
-  const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
-
-  const getCenteredPos = React.useCallback(() => {
-    const vw = window.innerWidth;
-    const vh = window.innerHeight;
-    const x = Math.round((vw - PANEL_W) / 2);
-    const y = Math.round((vh - PANEL_H) / 2);
-    return { x: Math.max(10, x), y: Math.max(10, y) };
-  }, []);
-
-  const [pos, setPos] = React.useState(() => getCenteredPos());
-
-  // ✅ when opening a NEW tank, re-center once
-  React.useEffect(() => {
-    setPos(getCenteredPos());
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tank?.id, open]);
-
-  const startDragHeader = (e) => {
-    e.preventDefault();
-    e.stopPropagation();
-
-    const startX = e.clientX;
-    const startY = e.clientY;
-
-    dragRef.current = {
-      startX,
-      startY,
-      startLeft: pos.x,
-      startTop: pos.y,
-    };
-
-    // ✅ prevent selecting text while dragging
-    const prevUserSelect = document.body.style.userSelect;
-    document.body.style.userSelect = "none";
-
-    const onMove = (ev) => {
-      const cur = dragRef.current;
-      if (!cur) return;
-
-      const dx = ev.clientX - cur.startX;
-      const dy = ev.clientY - cur.startY;
-
-      const vw = window.innerWidth;
-      const vh = window.innerHeight;
-
-      const nextX = clamp(cur.startLeft + dx, 10, vw - PANEL_W - 10);
-      const nextY = clamp(cur.startTop + dy, 10, vh - 120); // leave some bottom space
-
-      setPos({ x: nextX, y: nextY });
-    };
-
-    const onUp = () => {
-      dragRef.current = null;
-      window.removeEventListener("pointermove", onMove);
-      window.removeEventListener("pointerup", onUp);
-      document.body.style.userSelect = prevUserSelect;
-    };
-
-    window.addEventListener("pointermove", onMove);
-    window.addEventListener("pointerup", onUp);
-  };
-
   // --- helpers for UI preview
-  const previewSize = 56;
-  const borderRadius = style === "square" ? 10 : 999;
+  const previewSize = 56; // ✅ bigger
+  const borderRadius = shapeStyle === "square" ? 12 : 999;
 
   const devices = React.useMemo(() => {
     const d = sensorsData?.devices;
@@ -140,44 +71,25 @@ export default function IndicatorLightSettingsModal({
     const q = tagSearch.trim().toLowerCase();
     if (!q) return availableFields;
     return availableFields.filter(
-      (f) => f.key.toLowerCase().includes(q) || f.label.toLowerCase().includes(q)
+      (f) =>
+        f.key.toLowerCase().includes(q) || f.label.toLowerCase().includes(q)
     );
   }, [availableFields, tagSearch]);
 
-const apply = () => {
-  onSave?.({
-    id: tank.id,
-    properties: {
-      ...(tank.properties || {}),
-      style,
-      colorOff: offColor,
-      colorOn: onColor,
-      offText,
-      onText,
-      tag: { deviceId, field },
-    },
-  });
-};
-
-  const sectionTitleStyle = {
-    fontSize: 14,
-    fontWeight: 900,
-    marginBottom: 8,
-    color: "#0f172a",
-  };
-
-  const inputStyle = {
-    width: "100%",
-    padding: "10px 12px",
-    borderRadius: 8,
-    border: "1px solid #cbd5e1",
-    fontSize: 14,
-    outline: "none",
-  };
-
-  const selectStyle = {
-    ...inputStyle,
-    background: "white",
+  const apply = () => {
+    // ✅ SAVE INTO tank.properties (what DraggableLedCircle reads)
+    onSave?.({
+      id: tank.id,
+      properties: {
+        ...(tank.properties || {}),
+        shapeStyle,
+        colorOff: offColor,
+        colorOn: onColor,
+        offText,
+        onText,
+        tag: { deviceId, field },
+      },
+    });
   };
 
   return (
@@ -186,27 +98,25 @@ const apply = () => {
         position: "fixed",
         inset: 0,
         background: "rgba(0,0,0,0.35)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
         zIndex: 999999,
       }}
       onMouseDown={onClose}
     >
-      {/* ✅ DRAGGABLE PANEL */}
       <div
         style={{
-          position: "absolute",
-          left: pos.x,
-          top: pos.y,
-          width: PANEL_W,
+          width: 620, // ✅ bigger window
           background: "#fff",
           borderRadius: 12,
-          boxShadow: "0 18px 50px rgba(0,0,0,0.3)",
+          boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
           overflow: "hidden",
         }}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* Header (DRAG HERE) */}
+        {/* Header */}
         <div
-          onPointerDown={startDragHeader}
           style={{
             background: "#0f172a",
             color: "#fff",
@@ -215,23 +125,19 @@ const apply = () => {
             alignItems: "center",
             justifyContent: "space-between",
             fontWeight: 900,
-            cursor: "move",
+            fontSize: 16, // ✅ bigger
+            letterSpacing: 0.2,
           }}
-          title="Drag to move"
         >
-          <span style={{ fontSize: 18, letterSpacing: 0.4 }}>
-            Indicator Light
-          </span>
-
+          <span>Indicator Light</span>
           <button
             onClick={onClose}
             style={{
               border: "none",
               background: "transparent",
               color: "white",
-              fontSize: 20,
+              fontSize: 22,
               cursor: "pointer",
-              lineHeight: 1,
             }}
             title="Close"
           >
@@ -240,14 +146,7 @@ const apply = () => {
         </div>
 
         {/* Body */}
-        <div
-          style={{
-            padding: 18,
-            fontSize: 14,
-            lineHeight: 1.4,
-            fontFamily: "Inter, system-ui, sans-serif",
-          }}
-        >
+        <div style={{ padding: 18, fontSize: 14 }}>
           {/* Preview */}
           <div
             style={{
@@ -272,7 +171,7 @@ const apply = () => {
                   margin: "0 auto",
                 }}
               />
-              <div style={{ fontSize: 12, marginTop: 8, color: "#334155" }}>
+              <div style={{ fontSize: 12, marginTop: 8, color: "#334155", fontWeight: 800 }}>
                 OFF
               </div>
             </div>
@@ -288,7 +187,7 @@ const apply = () => {
                   margin: "0 auto",
                 }}
               />
-              <div style={{ fontSize: 12, marginTop: 8, color: "#334155" }}>
+              <div style={{ fontSize: 12, marginTop: 8, color: "#334155", fontWeight: 800 }}>
                 ON
               </div>
             </div>
@@ -300,23 +199,23 @@ const apply = () => {
 
           {/* Shape */}
           <div style={{ marginBottom: 14 }}>
-            <div style={sectionTitleStyle}>Shape</div>
-            <label style={{ marginRight: 16, fontSize: 14 }}>
+            <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
+              Shape
+            </div>
+            <label style={{ marginRight: 18, fontSize: 14 }}>
               <input
                 type="radio"
-                checked={style === "circle"}
-                onChange={() => setStyle("circle")}
-                style={{ marginRight: 6 }}
-              />
+                checked={shapeStyle === "circle"}
+                onChange={() => setShapeStyle("circle")}
+              />{" "}
               Circle
             </label>
             <label style={{ fontSize: 14 }}>
               <input
                 type="radio"
-                checked={style === "square"}
-                onChange={() => setStyle("square")}
-                style={{ marginRight: 6 }}
-              />
+                checked={shapeStyle === "square"}
+                onChange={() => setShapeStyle("square")}
+              />{" "}
               Square
             </label>
           </div>
@@ -324,20 +223,36 @@ const apply = () => {
           {/* Text ON/OFF */}
           <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
             <div style={{ flex: 1 }}>
-              <div style={sectionTitleStyle}>OFF Text</div>
+              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
+                OFF Text
+              </div>
               <input
                 value={offText}
                 onChange={(e) => setOffText(e.target.value)}
-                style={inputStyle}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: "1px solid #cbd5e1",
+                  fontSize: 14,
+                }}
               />
             </div>
 
             <div style={{ flex: 1 }}>
-              <div style={sectionTitleStyle}>ON Text</div>
+              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
+                ON Text
+              </div>
               <input
                 value={onText}
                 onChange={(e) => setOnText(e.target.value)}
-                style={inputStyle}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: "1px solid #cbd5e1",
+                  fontSize: 14,
+                }}
               />
             </div>
           </div>
@@ -345,36 +260,26 @@ const apply = () => {
           {/* Colors */}
           <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
             <div style={{ flex: 1 }}>
-              <div style={sectionTitleStyle}>OFF Color</div>
+              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
+                OFF Color
+              </div>
               <input
                 type="color"
                 value={offColor}
                 onChange={(e) => setOffColor(e.target.value)}
-                style={{
-                  width: "100%",
-                  height: 44,
-                  border: "1px solid #cbd5e1",
-                  borderRadius: 8,
-                  cursor: "pointer",
-                  background: "white",
-                }}
+                style={{ width: "100%", height: 42, border: "none" }}
               />
             </div>
 
             <div style={{ flex: 1 }}>
-              <div style={sectionTitleStyle}>ON Color</div>
+              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
+                ON Color
+              </div>
               <input
                 type="color"
                 value={onColor}
                 onChange={(e) => setOnColor(e.target.value)}
-                style={{
-                  width: "100%",
-                  height: 44,
-                  border: "1px solid #cbd5e1",
-                  borderRadius: 8,
-                  cursor: "pointer",
-                  background: "white",
-                }}
+                style={{ width: "100%", height: 42, border: "none" }}
               />
             </div>
           </div>
@@ -384,23 +289,32 @@ const apply = () => {
             style={{
               borderTop: "1px solid #e5e7eb",
               paddingTop: 14,
-              marginTop: 6,
+              marginTop: 8,
             }}
           >
-            <div style={{ ...sectionTitleStyle, marginBottom: 10 }}>
+            <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 10 }}>
               Tag that drives the LED (ON/OFF)
             </div>
 
             <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
               <div style={{ flex: 1 }}>
-                <div style={sectionTitleStyle}>Device</div>
+                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
+                  Device
+                </div>
                 <select
                   value={deviceId}
                   onChange={(e) => {
                     setDeviceId(e.target.value);
                     setField("");
                   }}
-                  style={selectStyle}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5e1",
+                    fontSize: 14,
+                    background: "white",
+                  }}
                 >
                   <option value="">— Select device —</option>
                   {devices.map((d) => (
@@ -412,24 +326,41 @@ const apply = () => {
               </div>
 
               <div style={{ flex: 1 }}>
-                <div style={sectionTitleStyle}>Search Tag</div>
+                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
+                  Search Tag
+                </div>
                 <input
                   value={tagSearch}
                   onChange={(e) => setTagSearch(e.target.value)}
                   placeholder="ex: DI0, level, run..."
-                  style={inputStyle}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5e1",
+                    fontSize: 14,
+                  }}
                 />
               </div>
             </div>
 
             <div>
-              <div style={sectionTitleStyle}>Tag / Field</div>
+              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
+                Tag / Field
+              </div>
 
               {filteredFields.length > 0 ? (
                 <select
                   value={field}
                   onChange={(e) => setField(e.target.value)}
-                  style={selectStyle}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5e1",
+                    fontSize: 14,
+                    background: "white",
+                  }}
                 >
                   <option value="">— Select tag —</option>
                   {filteredFields.map((f) => (
@@ -443,7 +374,13 @@ const apply = () => {
                   value={field}
                   onChange={(e) => setField(e.target.value)}
                   placeholder="Type tag field (ex: di0, run_status, level_percent)"
-                  style={inputStyle}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5e1",
+                    fontSize: 14,
+                  }}
                 />
               )}
 
@@ -468,7 +405,7 @@ const apply = () => {
           <button
             onClick={onClose}
             style={{
-              padding: "10px 16px",
+              padding: "9px 14px",
               borderRadius: 10,
               border: "1px solid #cbd5e1",
               background: "white",
@@ -483,7 +420,7 @@ const apply = () => {
           <button
             onClick={apply}
             style={{
-              padding: "10px 16px",
+              padding: "9px 14px",
               borderRadius: 10,
               border: "1px solid #16a34a",
               background: "#22c55e",
