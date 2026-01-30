@@ -36,6 +36,9 @@ export default function AppModals({
   indicatorSettingsId,
   closeIndicatorSettings,
 
+  // ✅ give indicator modal access to available devices/tags
+  sensorsData,
+
   // ✅ NEW: passed from App.jsx (useWindowDragResize result)
   windowDrag,
 }) {
@@ -103,16 +106,34 @@ export default function AppModals({
         <IndicatorLightSettingsModal
           open={true}
           tank={indicatorTarget}
+          sensorsData={sensorsData}
           onClose={closeIndicatorSettings}
           onSave={(updated) => {
-            // updated can be full tank OR partial props — support both
+            // ✅ EXPECTED SHAPE:
+            // updated = { id, properties: { ... } }
+            // (so we update tank.properties, not top-level)
             setDroppedTanks((prev) =>
-              prev.map((t) =>
-                isSameId(t.id, indicatorTarget.id)
-                  ? { ...t, ...(updated || {}) }
-                  : t
-              )
+              prev.map((t) => {
+                if (!isSameId(t.id, indicatorTarget.id)) return t;
+
+                const nextProps =
+                  updated?.properties && typeof updated.properties === "object"
+                    ? { ...(t.properties || {}), ...updated.properties }
+                    : { ...(t.properties || {}) };
+
+                // (Optional) allow top-level patch only for safe keys if you ever send them
+                const { properties, ...rest } = updated || {};
+                const safeTopLevel = {};
+                // If later you want to allow w/h/x/y updates, whitelist here.
+
+                return {
+                  ...t,
+                  ...safeTopLevel,
+                  properties: nextProps,
+                };
+              })
             );
+
             closeIndicatorSettings?.();
           }}
         />

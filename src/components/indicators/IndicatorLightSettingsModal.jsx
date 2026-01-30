@@ -144,17 +144,20 @@ export default function IndicatorLightSettingsModal({
     );
   }, [availableFields, tagSearch]);
 
-  const apply = () => {
-    onSave?.({
-      id: tank.id,
+const apply = () => {
+  onSave?.({
+    id: tank.id,
+    properties: {
+      ...(tank.properties || {}),
       style,
       colorOff: offColor,
       colorOn: onColor,
       offText,
       onText,
       tag: { deviceId, field },
-    });
-  };
+    },
+  });
+};
 
   const sectionTitleStyle = {
     fontSize: 14,
