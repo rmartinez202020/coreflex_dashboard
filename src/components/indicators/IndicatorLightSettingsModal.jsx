@@ -36,8 +36,8 @@ export default function IndicatorLightSettingsModal({
   const [tagSearch, setTagSearch] = React.useState("");
 
   // --- helpers for UI preview
-  const previewSize = 44;
-  const borderRadius = style === "square" ? 8 : 999;
+  const previewSize = 56; // ✅ bigger preview
+  const borderRadius = style === "square" ? 10 : 999;
 
   const devices = React.useMemo(() => {
     // sensorsData can be whatever your hook returns; keep this defensive
@@ -75,8 +75,7 @@ export default function IndicatorLightSettingsModal({
     const q = tagSearch.trim().toLowerCase();
     if (!q) return availableFields;
     return availableFields.filter(
-      (f) =>
-        f.key.toLowerCase().includes(q) || f.label.toLowerCase().includes(q)
+      (f) => f.key.toLowerCase().includes(q) || f.label.toLowerCase().includes(q)
     );
   }, [availableFields, tagSearch]);
 
@@ -90,6 +89,28 @@ export default function IndicatorLightSettingsModal({
       onText,
       tag: { deviceId, field },
     });
+  };
+
+  // ✅ consistent UI sizing
+  const sectionTitleStyle = {
+    fontSize: 14,
+    fontWeight: 900,
+    marginBottom: 8,
+    color: "#0f172a",
+  };
+
+  const inputStyle = {
+    width: "100%",
+    padding: "10px 12px",
+    borderRadius: 8,
+    border: "1px solid #cbd5e1",
+    fontSize: 14,
+    outline: "none",
+  };
+
+  const selectStyle = {
+    ...inputStyle,
+    background: "white",
   };
 
   return (
@@ -107,10 +128,10 @@ export default function IndicatorLightSettingsModal({
     >
       <div
         style={{
-          width: 420,
+          width: 560, // ✅ bigger window
           background: "#fff",
-          borderRadius: 10,
-          boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
+          borderRadius: 12,
+          boxShadow: "0 18px 50px rgba(0,0,0,0.3)",
           overflow: "hidden",
         }}
         onMouseDown={(e) => e.stopPropagation()}
@@ -120,22 +141,25 @@ export default function IndicatorLightSettingsModal({
           style={{
             background: "#0f172a",
             color: "#fff",
-            padding: "10px 12px",
+            padding: "12px 14px",
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
-            fontWeight: 800,
+            fontWeight: 900,
           }}
         >
-          <span>Indicator Light</span>
+          <span style={{ fontSize: 18, letterSpacing: 0.4 }}>
+            Indicator Light
+          </span>
           <button
             onClick={onClose}
             style={{
               border: "none",
               background: "transparent",
               color: "white",
-              fontSize: 18,
+              fontSize: 20,
               cursor: "pointer",
+              lineHeight: 1,
             }}
             title="Close"
           >
@@ -144,18 +168,25 @@ export default function IndicatorLightSettingsModal({
         </div>
 
         {/* Body */}
-        <div style={{ padding: 14 }}>
+        <div
+          style={{
+            padding: 18,
+            fontSize: 14,
+            lineHeight: 1.4,
+            fontFamily: "Inter, system-ui, sans-serif",
+          }}
+        >
           {/* Preview */}
           <div
             style={{
               display: "flex",
-              gap: 14,
+              gap: 16,
               alignItems: "center",
               border: "1px solid #e5e7eb",
-              borderRadius: 10,
-              padding: 12,
+              borderRadius: 12,
+              padding: 14,
               background: "#f8fafc",
-              marginBottom: 12,
+              marginBottom: 14,
             }}
           >
             <div style={{ textAlign: "center" }}>
@@ -169,7 +200,7 @@ export default function IndicatorLightSettingsModal({
                   margin: "0 auto",
                 }}
               />
-              <div style={{ fontSize: 11, marginTop: 6, color: "#334155" }}>
+              <div style={{ fontSize: 12, marginTop: 8, color: "#334155" }}>
                 OFF
               </div>
             </div>
@@ -185,99 +216,93 @@ export default function IndicatorLightSettingsModal({
                   margin: "0 auto",
                 }}
               />
-              <div style={{ fontSize: 11, marginTop: 6, color: "#334155" }}>
+              <div style={{ fontSize: 12, marginTop: 8, color: "#334155" }}>
                 ON
               </div>
             </div>
 
-            <div style={{ flex: 1, fontSize: 12, color: "#64748b" }}>
+            <div style={{ flex: 1, fontSize: 13, color: "#475569" }}>
               Configure shape, colors, text, and the tag that drives the state.
             </div>
           </div>
 
           {/* Shape */}
-          <div style={{ marginBottom: 12 }}>
-            <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 6 }}>
-              Shape
-            </div>
-            <label style={{ marginRight: 12, fontSize: 13 }}>
+          <div style={{ marginBottom: 14 }}>
+            <div style={sectionTitleStyle}>Shape</div>
+            <label style={{ marginRight: 16, fontSize: 14 }}>
               <input
                 type="radio"
                 checked={style === "circle"}
                 onChange={() => setStyle("circle")}
-              />{" "}
+                style={{ marginRight: 6 }}
+              />
               Circle
             </label>
-            <label style={{ fontSize: 13 }}>
+            <label style={{ fontSize: 14 }}>
               <input
                 type="radio"
                 checked={style === "square"}
                 onChange={() => setStyle("square")}
-              />{" "}
+                style={{ marginRight: 6 }}
+              />
               Square
             </label>
           </div>
 
           {/* Text ON/OFF */}
-          <div style={{ display: "flex", gap: 10, marginBottom: 12 }}>
+          <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 6 }}>
-                OFF Text
-              </div>
+              <div style={sectionTitleStyle}>OFF Text</div>
               <input
                 value={offText}
                 onChange={(e) => setOffText(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "8px 10px",
-                  borderRadius: 8,
-                  border: "1px solid #cbd5e1",
-                  fontSize: 13,
-                }}
+                style={inputStyle}
               />
             </div>
 
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 6 }}>
-                ON Text
-              </div>
+              <div style={sectionTitleStyle}>ON Text</div>
               <input
                 value={onText}
                 onChange={(e) => setOnText(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "8px 10px",
-                  borderRadius: 8,
-                  border: "1px solid #cbd5e1",
-                  fontSize: 13,
-                }}
+                style={inputStyle}
               />
             </div>
           </div>
 
           {/* Colors */}
-          <div style={{ display: "flex", gap: 10, marginBottom: 14 }}>
+          <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 6 }}>
-                OFF Color
-              </div>
+              <div style={sectionTitleStyle}>OFF Color</div>
               <input
                 type="color"
                 value={offColor}
                 onChange={(e) => setOffColor(e.target.value)}
-                style={{ width: "100%", height: 36, border: "none" }}
+                style={{
+                  width: "100%",
+                  height: 44,
+                  border: "1px solid #cbd5e1",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  background: "white",
+                }}
               />
             </div>
 
             <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 6 }}>
-                ON Color
-              </div>
+              <div style={sectionTitleStyle}>ON Color</div>
               <input
                 type="color"
                 value={onColor}
                 onChange={(e) => setOnColor(e.target.value)}
-                style={{ width: "100%", height: 36, border: "none" }}
+                style={{
+                  width: "100%",
+                  height: 44,
+                  border: "1px solid #cbd5e1",
+                  borderRadius: 8,
+                  cursor: "pointer",
+                  background: "white",
+                }}
               />
             </div>
           </div>
@@ -286,34 +311,25 @@ export default function IndicatorLightSettingsModal({
           <div
             style={{
               borderTop: "1px solid #e5e7eb",
-              paddingTop: 12,
+              paddingTop: 14,
               marginTop: 6,
             }}
           >
-            <div style={{ fontSize: 12, fontWeight: 900, marginBottom: 8 }}>
+            <div style={{ ...sectionTitleStyle, marginBottom: 10 }}>
               Tag that drives the LED (ON/OFF)
             </div>
 
-            <div style={{ display: "flex", gap: 10, marginBottom: 10 }}>
+            <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
               {/* device */}
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 6 }}>
-                  Device
-                </div>
+                <div style={sectionTitleStyle}>Device</div>
                 <select
                   value={deviceId}
                   onChange={(e) => {
                     setDeviceId(e.target.value);
                     setField(""); // reset field when device changes
                   }}
-                  style={{
-                    width: "100%",
-                    padding: "8px 10px",
-                    borderRadius: 8,
-                    border: "1px solid #cbd5e1",
-                    fontSize: 13,
-                    background: "white",
-                  }}
+                  style={selectStyle}
                 >
                   <option value="">— Select device —</option>
                   {devices.map((d) => (
@@ -326,29 +342,19 @@ export default function IndicatorLightSettingsModal({
 
               {/* tag search */}
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 6 }}>
-                  Search Tag
-                </div>
+                <div style={sectionTitleStyle}>Search Tag</div>
                 <input
                   value={tagSearch}
                   onChange={(e) => setTagSearch(e.target.value)}
                   placeholder="ex: DI0, level, run..."
-                  style={{
-                    width: "100%",
-                    padding: "8px 10px",
-                    borderRadius: 8,
-                    border: "1px solid #cbd5e1",
-                    fontSize: 13,
-                  }}
+                  style={inputStyle}
                 />
               </div>
             </div>
 
             {/* field */}
             <div>
-              <div style={{ fontSize: 12, fontWeight: 800, marginBottom: 6 }}>
-                Tag / Field
-              </div>
+              <div style={sectionTitleStyle}>Tag / Field</div>
 
               {/* If you don’t have device.fields yet, this still works:
                   it shows empty list and user can type manually. */}
@@ -356,14 +362,7 @@ export default function IndicatorLightSettingsModal({
                 <select
                   value={field}
                   onChange={(e) => setField(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "8px 10px",
-                    borderRadius: 8,
-                    border: "1px solid #cbd5e1",
-                    fontSize: 13,
-                    background: "white",
-                  }}
+                  style={selectStyle}
                 >
                   <option value="">— Select tag —</option>
                   {filteredFields.map((f) => (
@@ -377,17 +376,11 @@ export default function IndicatorLightSettingsModal({
                   value={field}
                   onChange={(e) => setField(e.target.value)}
                   placeholder="Type tag field (ex: di0, run_status, level_percent)"
-                  style={{
-                    width: "100%",
-                    padding: "8px 10px",
-                    borderRadius: 8,
-                    border: "1px solid #cbd5e1",
-                    fontSize: 13,
-                  }}
+                  style={inputStyle}
                 />
               )}
 
-              <div style={{ fontSize: 11, color: "#64748b", marginTop: 6 }}>
+              <div style={{ fontSize: 12, color: "#64748b", marginTop: 8 }}>
                 Tip: ON means “truthy”. If your tag is numeric, anything &gt; 0
                 will read as ON.
               </div>
@@ -401,19 +394,20 @@ export default function IndicatorLightSettingsModal({
             display: "flex",
             justifyContent: "flex-end",
             gap: 10,
-            padding: 12,
+            padding: 14,
             borderTop: "1px solid #e5e7eb",
           }}
         >
           <button
             onClick={onClose}
             style={{
-              padding: "7px 12px",
-              borderRadius: 8,
+              padding: "10px 16px",
+              borderRadius: 10,
               border: "1px solid #cbd5e1",
               background: "white",
               cursor: "pointer",
-              fontWeight: 800,
+              fontWeight: 900,
+              fontSize: 14,
             }}
           >
             Cancel
@@ -422,13 +416,14 @@ export default function IndicatorLightSettingsModal({
           <button
             onClick={apply}
             style={{
-              padding: "7px 12px",
-              borderRadius: 8,
+              padding: "10px 16px",
+              borderRadius: 10,
               border: "1px solid #16a34a",
               background: "#22c55e",
               color: "white",
               cursor: "pointer",
               fontWeight: 900,
+              fontSize: 14,
             }}
           >
             Apply
