@@ -5,6 +5,10 @@ import React from "react";
  * ✅ Dual mode:
  * 1) Palette mode (Sidebar): small preview + label, sets dataTransfer "shape"
  * 2) Canvas mode (Dashboard): renders professional status text box using `tank`
+ *
+ * ✅ FIX (Platform Creation 49):
+ * - Remove the "OK" text on the right side (keep the green dot only)
+ * - Also remove the default payload value "OK" so new drops don't show it anywhere
  */
 export default function DraggableStatusTextBox({
   // Canvas mode
@@ -20,7 +24,10 @@ export default function DraggableStatusTextBox({
     w: 220,
     h: 60,
     text: "STATUS",
-    value: "OK",
+
+    // ✅ was "OK" — remove default label
+    value: "",
+
     bg: "#ffffff",
     border: "#d1d5db",
   };
@@ -32,16 +39,43 @@ export default function DraggableStatusTextBox({
     const w = tank.w ?? tank.width ?? payload.w;
     const h = tank.h ?? tank.height ?? payload.h;
 
-    const text =
-      tank.text ?? tank.properties?.text ?? tank.properties?.label ?? payload.text;
+    // ✅ Prefer OFF/ON config coming from StatusTextSettingsModal
+    const offText =
+      tank.properties?.offText ??
+      tank.offText ??
+      ""; // optional
+    const onText =
+      tank.properties?.onText ??
+      tank.onText ??
+      ""; // optional
 
+    // ✅ Legacy fallback
+    const legacyText =
+      tank.text ??
+      tank.properties?.text ??
+      tank.properties?.label ??
+      payload.text;
+
+    // ✅ Decide what to display:
+    // - If renderer later supports tag-driven truthy/falsey, it can swap between on/off.
+    // - For now, default to OFF text if present, else legacyText.
+    const displayText = (offText || legacyText || "").toString();
+
+    // NOTE: we intentionally do NOT render the "value" string anymore.
     const value =
-      tank.value ?? tank.properties?.value ?? tank.properties?.status ?? payload.value;
+      tank.value ??
+      tank.properties?.value ??
+      tank.properties?.status ??
+      payload.value;
 
-    const bg = tank.bg ?? tank.properties?.bg ?? payload.bg;
-    const border = tank.border ?? tank.properties?.border ?? payload.border;
+    const bg = tank.bg ?? tank.properties?.bg ?? tank.properties?.bgColor ?? payload.bg;
+    const border =
+      tank.border ??
+      tank.properties?.border ??
+      tank.properties?.borderColor ??
+      payload.border;
 
-    // Optional: color code common statuses
+    // Optional: color code common statuses (dot only)
     const valStr = String(value ?? "").toUpperCase();
     const accent =
       valStr === "OK" || valStr === "RUN" || valStr === "ON"
@@ -50,7 +84,17 @@ export default function DraggableStatusTextBox({
         ? "#f59e0b"
         : valStr === "ALARM" || valStr === "FAULT" || valStr === "TRIP"
         ? "#ef4444"
-        : "#0f172a";
+        : "#22c55e"; // ✅ default green dot (since we removed OK text)
+
+    // ✅ Styling from modal if present
+    const fontSize = tank.properties?.fontSize ?? 18;
+    const fontWeight = tank.properties?.fontWeight ?? 800;
+    const textColor = tank.properties?.textColor ?? "#0f172a";
+    const borderWidth = tank.properties?.borderWidth ?? 1;
+    const paddingY = tank.properties?.paddingY ?? 10;
+    const paddingX = tank.properties?.paddingX ?? 14;
+    const textAlign = tank.properties?.textAlign ?? "center";
+    const textTransform = tank.properties?.textTransform ?? "none";
 
     return (
       <div
@@ -58,33 +102,39 @@ export default function DraggableStatusTextBox({
           width: w,
           height: h,
           background: bg,
-          border: `2px solid ${border}`,
+          border: `${borderWidth}px solid ${border}`,
+          borderRadius: 10,
           boxSizing: "border-box",
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          padding: "10px 12px",
+          padding: `${paddingY}px ${paddingX}px`,
           userSelect: "none",
         }}
-        title={`${text}: ${value}`}
+        title={displayText}
       >
         <div
           style={{
-            fontSize: 14,
-            fontWeight: 900,
-            letterSpacing: 1.2,
-            color: "#111",
-            textTransform: "uppercase",
+            fontSize,
+            fontWeight,
+            color: textColor,
+            textAlign,
+            textTransform,
+            width: "100%",
+            overflow: "hidden",
+            whiteSpace: "nowrap",
+            textOverflow: "ellipsis",
           }}
         >
-          {text}
+          {displayText}
         </div>
 
+        {/* ✅ Right side: keep DOT only, remove "OK" text */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 10,
+            marginLeft: 12,
           }}
         >
           <span
@@ -94,20 +144,9 @@ export default function DraggableStatusTextBox({
               borderRadius: "50%",
               background: accent,
               boxShadow: `0 0 10px ${accent}55`,
+              flex: "0 0 10px",
             }}
           />
-          <div
-            style={{
-              fontFamily: "monospace",
-              fontSize: 16,
-              fontWeight: 900,
-              letterSpacing: 1,
-              color: accent,
-              textTransform: "uppercase",
-            }}
-          >
-            {String(value ?? "")}
-          </div>
         </div>
       </div>
     );
