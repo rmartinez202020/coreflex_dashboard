@@ -165,16 +165,21 @@ export default function StatusTextSettingsModal({
   }, [availableFields, tagSearch]);
 
   const apply = () => {
+    const safeOff = (offText ?? "").trim() || legacyText || "OFF";
+    const safeOn = (onText ?? "").trim() || legacyText || "ON";
+
     onSave?.({
       id: tank.id,
       properties: {
         ...(tank.properties || {}),
 
-        offText,
-        onText,
+        offText: safeOff,
+        onText: safeOn,
 
-        // keep legacy field for compatibility
-        text: onText || legacyText || "STATUS",
+        // ✅ IMPORTANT FIX:
+        // Legacy "text" should match DEFAULT state = OFF
+        // so the canvas widget (if reading p.text) shows OFF.
+        text: safeOff,
 
         fontSize: Number(fontSize) || 18,
         fontWeight: Number(fontWeight) || 800,
@@ -331,7 +336,7 @@ export default function StatusTextSettingsModal({
 
         {/* Body */}
         <div style={{ padding: 18, fontSize: 14 }}>
-          {/* Preview (✅ DEFAULT = OFF ALWAYS) */}
+          {/* Preview (OFF default visual) */}
           <div
             style={{
               border: "1px solid #e5e7eb",
@@ -346,14 +351,12 @@ export default function StatusTextSettingsModal({
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
-              {/* ✅ OFF active always */}
               <MiniState
                 label="OFF"
                 dotColor="#94a3b8"
                 text={offText || "OFF"}
                 active={true}
               />
-              {/* ✅ ON never active */}
               <MiniState
                 label="ON"
                 dotColor="#22c55e"
