@@ -50,6 +50,12 @@ export default function StatusTextSettingsModal({
   const [textAlign, setTextAlign] = React.useState(initialTextAlign);
   const [textTransform, setTextTransform] = React.useState(initialTransform);
 
+  // ✅ NEW: default preview state should be OFF when window opens
+  const [previewState, setPreviewState] = React.useState("off");
+  React.useEffect(() => {
+    if (open) setPreviewState("off");
+  }, [open]);
+
   // =========================
   // DRAGGABLE WINDOW
   // =========================
@@ -169,7 +175,6 @@ export default function StatusTextSettingsModal({
       id: tank.id,
       properties: {
         ...(tank.properties || {}),
-
         offText,
         onText,
 
@@ -235,15 +240,20 @@ export default function StatusTextSettingsModal({
     />
   );
 
-  const MiniState = ({ label, dotColor, text }) => (
-    <div
+  const MiniState = ({ label, dotColor, text, active, onClick }) => (
+    <button
+      type="button"
+      onClick={onClick}
       style={{
         flex: 1,
-        border: "1px solid #e5e7eb",
         borderRadius: 12,
         padding: 10,
-        background: "#ffffff",
+        background: active ? "#ecfdf5" : "#ffffff",
+        border: active ? "2px solid #22c55e" : "1px solid #e5e7eb",
+        cursor: "pointer",
+        textAlign: "left",
       }}
+      title="Preview only"
     >
       <div
         style={{
@@ -268,8 +278,10 @@ export default function StatusTextSettingsModal({
         {label}
       </div>
       <div style={basePreviewStyle}>{text}</div>
-    </div>
+    </button>
   );
+
+  const previewText = previewState === "on" ? onText || "ON" : offText || "OFF";
 
   return (
     <div
@@ -331,7 +343,7 @@ export default function StatusTextSettingsModal({
 
         {/* Body */}
         <div style={{ padding: 18, fontSize: 14 }}>
-          {/* Static preview */}
+          {/* Preview */}
           <div
             style={{
               border: "1px solid #e5e7eb",
@@ -346,8 +358,20 @@ export default function StatusTextSettingsModal({
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
-              <MiniState label="OFF" dotColor="#94a3b8" text={offText || "OFF"} />
-              <MiniState label="ON" dotColor="#22c55e" text={onText || "ON"} />
+              <MiniState
+                label="OFF"
+                dotColor="#94a3b8"
+                text={offText || "OFF"}
+                active={previewState === "off"}
+                onClick={() => setPreviewState("off")}
+              />
+              <MiniState
+                label="ON"
+                dotColor="#22c55e"
+                text={onText || "ON"}
+                active={previewState === "on"}
+                onClick={() => setPreviewState("on")}
+              />
             </div>
 
             <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
@@ -461,7 +485,12 @@ export default function StatusTextSettingsModal({
                 </div>
                 <div style={{ flex: 1 }}>
                   <Label>Border Width</Label>
-                  <Num value={borderWidth} onChange={setBorderWidth} min={0} max={12} />
+                  <Num
+                    value={borderWidth}
+                    onChange={setBorderWidth}
+                    min={0}
+                    max={12}
+                  />
                 </div>
               </div>
 
