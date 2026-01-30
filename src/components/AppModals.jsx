@@ -56,7 +56,8 @@ export default function AppModals({
     };
 
     window.addEventListener("coreflex-alarm-log-open-at", onOpenAt);
-    return () => window.removeEventListener("coreflex-alarm-log-open-at", onOpenAt);
+    return () =>
+      window.removeEventListener("coreflex-alarm-log-open-at", onOpenAt);
   }, []);
 
   const displayTarget = useMemo(() => {
@@ -82,6 +83,14 @@ export default function AppModals({
     );
   }, [droppedTanks, activeSiloId]);
 
+  // ✅ LED Indicator target (ONLY ledCircle for now)
+  const indicatorTarget = useMemo(() => {
+    if (indicatorSettingsId == null) return null;
+    return droppedTanks.find(
+      (t) => isSameId(t.id, indicatorSettingsId) && t.shape === "ledCircle"
+    );
+  }, [droppedTanks, indicatorSettingsId]);
+
   // ✅ Safe: only call if provided
   const alarmLogWindowProps = windowDrag?.getWindowProps
     ? windowDrag.getWindowProps("alarmLog")
@@ -89,6 +98,26 @@ export default function AppModals({
 
   return (
     <>
+      {/* ✅ LED Indicator Settings */}
+      {indicatorTarget && (
+        <IndicatorLightSettingsModal
+          open={true}
+          tank={indicatorTarget}
+          onClose={closeIndicatorSettings}
+          onSave={(updated) => {
+            // updated can be full tank OR partial props — support both
+            setDroppedTanks((prev) =>
+              prev.map((t) =>
+                isSameId(t.id, indicatorTarget.id)
+                  ? { ...t, ...(updated || {}) }
+                  : t
+              )
+            );
+            closeIndicatorSettings?.();
+          }}
+        />
+      )}
+
       {displayTarget && (
         <DisplaySettingsModal
           tank={displayTarget}
@@ -97,7 +126,10 @@ export default function AppModals({
             setDroppedTanks((prev) =>
               prev.map((t) =>
                 isSameId(t.id, displayTarget.id)
-                  ? { ...t, properties: { ...(t.properties || {}), ...updatedProps } }
+                  ? {
+                      ...t,
+                      properties: { ...(t.properties || {}), ...updatedProps },
+                    }
                   : t
               )
             );
