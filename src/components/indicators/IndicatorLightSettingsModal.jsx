@@ -35,13 +35,81 @@ export default function IndicatorLightSettingsModal({
   // ✅ optional: search/filter tags
   const [tagSearch, setTagSearch] = React.useState("");
 
+  // =========================
+  // ✅ DRAGGABLE WINDOW STATE
+  // =========================
+  const PANEL_W = 560;
+  const PANEL_H = 520; // approximate, used for centering/clamp
+  const dragRef = React.useRef(null);
+
+  const clamp = (v, min, max) => Math.max(min, Math.min(max, v));
+
+  const getCenteredPos = React.useCallback(() => {
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const x = Math.round((vw - PANEL_W) / 2);
+    const y = Math.round((vh - PANEL_H) / 2);
+    return { x: Math.max(10, x), y: Math.max(10, y) };
+  }, []);
+
+  const [pos, setPos] = React.useState(() => getCenteredPos());
+
+  // ✅ when opening a NEW tank, re-center once
+  React.useEffect(() => {
+    setPos(getCenteredPos());
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tank?.id, open]);
+
+  const startDragHeader = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+
+    const startX = e.clientX;
+    const startY = e.clientY;
+
+    dragRef.current = {
+      startX,
+      startY,
+      startLeft: pos.x,
+      startTop: pos.y,
+    };
+
+    // ✅ prevent selecting text while dragging
+    const prevUserSelect = document.body.style.userSelect;
+    document.body.style.userSelect = "none";
+
+    const onMove = (ev) => {
+      const cur = dragRef.current;
+      if (!cur) return;
+
+      const dx = ev.clientX - cur.startX;
+      const dy = ev.clientY - cur.startY;
+
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+
+      const nextX = clamp(cur.startLeft + dx, 10, vw - PANEL_W - 10);
+      const nextY = clamp(cur.startTop + dy, 10, vh - 120); // leave some bottom space
+
+      setPos({ x: nextX, y: nextY });
+    };
+
+    const onUp = () => {
+      dragRef.current = null;
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
+      document.body.style.userSelect = prevUserSelect;
+    };
+
+    window.addEventListener("pointermove", onMove);
+    window.addEventListener("pointerup", onUp);
+  };
+
   // --- helpers for UI preview
-  const previewSize = 56; // ✅ bigger preview
+  const previewSize = 56;
   const borderRadius = style === "square" ? 10 : 999;
 
   const devices = React.useMemo(() => {
-    // sensorsData can be whatever your hook returns; keep this defensive
-    // Prefer: sensorsData.devices = [{ id, name, fields:[...] }]
     const d = sensorsData?.devices;
     return Array.isArray(d) ? d : [];
   }, [sensorsData]);
@@ -51,9 +119,6 @@ export default function IndicatorLightSettingsModal({
   }, [devices, deviceId]);
 
   const availableFields = React.useMemo(() => {
-    // Support multiple possible shapes:
-    // 1) device.fields = ["di0","ai1"]
-    // 2) device.fields = [{ key:"di0", label:"DI0" }]
     const raw = selectedDevice?.fields;
     if (!raw) return [];
 
@@ -91,7 +156,6 @@ export default function IndicatorLightSettingsModal({
     });
   };
 
-  // ✅ consistent UI sizing
   const sectionTitleStyle = {
     fontSize: 14,
     fontWeight: 900,
@@ -119,16 +183,17 @@ export default function IndicatorLightSettingsModal({
         position: "fixed",
         inset: 0,
         background: "rgba(0,0,0,0.35)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
         zIndex: 999999,
       }}
       onMouseDown={onClose}
     >
+      {/* ✅ DRAGGABLE PANEL */}
       <div
         style={{
-          width: 560, // ✅ bigger window
+          position: "absolute",
+          left: pos.x,
+          top: pos.y,
+          width: PANEL_W,
           background: "#fff",
           borderRadius: 12,
           boxShadow: "0 18px 50px rgba(0,0,0,0.3)",
@@ -136,8 +201,9 @@ export default function IndicatorLightSettingsModal({
         }}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* Header */}
+        {/* Header (DRAG HERE) */}
         <div
+          onPointerDown={startDragHeader}
           style={{
             background: "#0f172a",
             color: "#fff",
@@ -146,11 +212,14 @@ export default function IndicatorLightSettingsModal({
             alignItems: "center",
             justifyContent: "space-between",
             fontWeight: 900,
+            cursor: "move",
           }}
+          title="Drag to move"
         >
           <span style={{ fontSize: 18, letterSpacing: 0.4 }}>
             Indicator Light
           </span>
+
           <button
             onClick={onClose}
             style={{
@@ -307,7 +376,7 @@ export default function IndicatorLightSettingsModal({
             </div>
           </div>
 
-          {/* TAG SELECTOR (the must important part) */}
+          {/* TAG SELECTOR */}
           <div
             style={{
               borderTop: "1px solid #e5e7eb",
@@ -320,14 +389,13 @@ export default function IndicatorLightSettingsModal({
             </div>
 
             <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-              {/* device */}
               <div style={{ flex: 1 }}>
                 <div style={sectionTitleStyle}>Device</div>
                 <select
                   value={deviceId}
                   onChange={(e) => {
                     setDeviceId(e.target.value);
-                    setField(""); // reset field when device changes
+                    setField("");
                   }}
                   style={selectStyle}
                 >
@@ -340,7 +408,6 @@ export default function IndicatorLightSettingsModal({
                 </select>
               </div>
 
-              {/* tag search */}
               <div style={{ flex: 1 }}>
                 <div style={sectionTitleStyle}>Search Tag</div>
                 <input
@@ -352,12 +419,9 @@ export default function IndicatorLightSettingsModal({
               </div>
             </div>
 
-            {/* field */}
             <div>
               <div style={sectionTitleStyle}>Tag / Field</div>
 
-              {/* If you don’t have device.fields yet, this still works:
-                  it shows empty list and user can type manually. */}
               {filteredFields.length > 0 ? (
                 <select
                   value={field}
