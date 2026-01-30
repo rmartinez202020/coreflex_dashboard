@@ -22,6 +22,8 @@ import HomeSubPageRouter from "./components/HomeSubPageRouter";
 import useContextMenu from "./hooks/useContextMenu";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 import useWindowDragResize from "./hooks/useWindowDragResize";
+import { IndicatorLightSettingsModal } from "./components/indicators";
+
 
 
 export default function App() {
@@ -207,6 +209,16 @@ useKeyboardShortcuts({
   const [displaySettingsId, setDisplaySettingsId] = useState(null);
   const openDisplaySettings = (tank) => setDisplaySettingsId(tank.id);
   const closeDisplaySettings = () => setDisplaySettingsId(null);
+
+  // ✅ INDICATOR (LED) SETTINGS MODAL
+const [indicatorSettingsId, setIndicatorSettingsId] = useState(null);
+
+const openIndicatorSettings = (tank) => setIndicatorSettingsId(tank.id);
+const closeIndicatorSettings = () => setIndicatorSettingsId(null);
+
+const indicatorTank =
+  droppedTanks.find((t) => t.id === indicatorSettingsId) || null;
+
 
   // ✅ GRAPHIC DISPLAY SETTINGS MODAL
   const [graphicSettingsId, setGraphicSettingsId] = useState(null);

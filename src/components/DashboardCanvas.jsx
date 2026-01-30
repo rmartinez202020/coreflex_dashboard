@@ -451,6 +451,11 @@ export default function DashboardCanvas({
   // ✅ NEW
   onOpenAlarmLog,
   onLaunchAlarmLog,
+
+// ✅ NEW: indicator settings
+  onOpenIndicatorSettings,
+
+
 }) {
   const isPlay = dashboardMode === "play";
 
