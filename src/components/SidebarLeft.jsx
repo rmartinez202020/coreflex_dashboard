@@ -9,14 +9,6 @@ import {
 
 import DraggableControls from "./DraggableControls";
 
-// ✅ NEW: Indicators (each one in its own file)
-import {
-  DraggableLedCircle,
-  DraggableStatusTextBox,
-  DraggableBlinkingAlarm,
-  DraggableStateImage,
-} from "./indicators";
-
 /**
  * ✅ Option B (NO lucide-react)
  * We use small "badge" icons to match the look/weight of Device Controls icons.
@@ -161,6 +153,22 @@ export default function SidebarLeft({
     );
   };
 
+  // ✅ Helper: draggable menu item that spawns a canvas object via "shape"
+  const DraggableMenuItem = ({ shape, icon, label }) => (
+    <div
+      draggable
+      onDragStart={(e) => {
+        e.dataTransfer.setData("shape", shape);
+        // some browsers behave nicer when text/plain is also set
+        e.dataTransfer.setData("text/plain", shape);
+      }}
+      className="cursor-grab active:cursor-grabbing"
+      style={{ userSelect: "none" }}
+    >
+      <MenuRow icon={icon}>{label}</MenuRow>
+    </div>
+  );
+
   return (
     <aside
       className={
@@ -268,21 +276,29 @@ export default function SidebarLeft({
 
               {showIndicators && (
                 <div className="ml-4">
-                  <MenuRow icon={<IconBadge>🟢</IconBadge>}>
-                    <DraggableLedCircle />
-                  </MenuRow>
+                  <DraggableMenuItem
+                    shape="ledCircle"
+                    icon={<IconBadge>🟢</IconBadge>}
+                    label="Led Circle"
+                  />
 
-                  <MenuRow icon={<IconBadge>📝</IconBadge>}>
-                    <DraggableStatusTextBox />
-                  </MenuRow>
+                  <DraggableMenuItem
+                    shape="statusTextBox"
+                    icon={<IconBadge>📝</IconBadge>}
+                    label="Status Text Box"
+                  />
 
-                  <MenuRow icon={<IconBadge>🚨</IconBadge>}>
-                    <DraggableBlinkingAlarm />
-                  </MenuRow>
+                  <DraggableMenuItem
+                    shape="blinkingAlarm"
+                    icon={<IconBadge>🚨</IconBadge>}
+                    label="Blinking Alarm"
+                  />
 
-                  <MenuRow icon={<IconBadge>🔄</IconBadge>}>
-                    <DraggableStateImage />
-                  </MenuRow>
+                  <DraggableMenuItem
+                    shape="stateImage"
+                    icon={<IconBadge>🔄</IconBadge>}
+                    label="State Image"
+                  />
                 </div>
               )}
 
@@ -307,8 +323,12 @@ export default function SidebarLeft({
                     <div
                       key={name}
                       draggable
-                      onDragStart={(e) => e.dataTransfer.setData("shape", name)}
-                      className="cursor-pointer flex flex-col items-center mb-4"
+                      onDragStart={(e) => {
+                        e.dataTransfer.setData("shape", name);
+                        e.dataTransfer.setData("text/plain", name);
+                      }}
+                      className="cursor-pointer flex flex-col items-center mb-4 cursor-grab active:cursor-grabbing"
+                      style={{ userSelect: "none" }}
                     >
                       <Icon size={45} />
                       <span className="text-xs mt-1">{name}</span>
