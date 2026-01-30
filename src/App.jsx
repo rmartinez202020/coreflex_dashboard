@@ -22,7 +22,6 @@ import HomeSubPageRouter from "./components/HomeSubPageRouter";
 import useContextMenu from "./hooks/useContextMenu";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 import useWindowDragResize from "./hooks/useWindowDragResize";
-import { IndicatorLightSettingsModal } from "./components/indicators";
 
 
 
@@ -469,6 +468,7 @@ const indicatorTank =
             onOpenGraphicDisplaySettings={openGraphicDisplaySettings}
             onOpenAlarmLog={openAlarmLog}
             onLaunchAlarmLog={launchAlarmLog}
+            onOpenIndicatorSettings={openIndicatorSettings}
           />
         ) : activePage === "deviceControls" ? (
           <div className="w-full h-full border rounded-lg bg-white p-6">
@@ -501,6 +501,9 @@ const indicatorTank =
           onMinimizeAlarmLog={minimizeAlarmLog}
           onLaunchAlarmLog={launchAlarmLog}
           windowDrag={windowDrag}  
+          indicatorSettingsId={indicatorSettingsId}
+          closeIndicatorSettings={closeIndicatorSettings}
+          
         />
       </main>
 

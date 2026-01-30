@@ -1,6 +1,6 @@
 // src/components/AppModals.jsx
 import React, { useEffect, useMemo, useState } from "react";
-
+import IndicatorLightSettingsModal from "./indicators/IndicatorLightSettingsModal";
 import RestoreWarningModal from "./RestoreWarningModal";
 import DisplaySettingsModal from "./DisplaySettingsModal";
 import GraphicDisplaySettingsModal from "./GraphicDisplaySettingsModal";
@@ -31,6 +31,10 @@ export default function AppModals({
 
   onMinimizeAlarmLog,
   onLaunchAlarmLog,
+
+  // ✅ LED Indicator settings
+  indicatorSettingsId,
+  closeIndicatorSettings,
 
   // ✅ NEW: passed from App.jsx (useWindowDragResize result)
   windowDrag,
