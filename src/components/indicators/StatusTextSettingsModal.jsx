@@ -9,31 +9,28 @@ export default function StatusTextSettingsModal({
 }) {
   if (!open || !tank) return null;
 
-  // ✅ ALWAYS read/write from tank.properties
   const p = tank.properties || {};
 
   // Tag binding
   const initialDeviceId = p?.tag?.deviceId ?? "";
   const initialField = p?.tag?.field ?? "";
 
-  // ✅ OFF/ON texts (fallback to old single "text" if present)
+  // OFF/ON texts
   const legacyText = p?.text ?? "STATUS";
   const initialOffText = p?.offText ?? legacyText ?? "OFF";
   const initialOnText = p?.onText ?? legacyText ?? "ON";
 
-  // Shared style
+  // Shared style (✅ Radius + LetterSpacing removed)
   const initialFontSize = p?.fontSize ?? 18;
   const initialFontWeight = p?.fontWeight ?? 800;
   const initialTextColor = p?.textColor ?? "#0f172a";
   const initialBg = p?.bgColor ?? "#ffffff";
   const initialBorderColor = p?.borderColor ?? "#cbd5e1";
   const initialBorderWidth = p?.borderWidth ?? 1;
-  const initialBorderRadius = p?.borderRadius ?? 10;
   const initialPaddingY = p?.paddingY ?? 10;
   const initialPaddingX = p?.paddingX ?? 14;
   const initialTextAlign = p?.textAlign ?? "center";
   const initialTransform = p?.textTransform ?? "none";
-  const initialLetterSpacing = p?.letterSpacing ?? 0;
 
   const [deviceId, setDeviceId] = React.useState(initialDeviceId);
   const [field, setField] = React.useState(initialField);
@@ -48,15 +45,13 @@ export default function StatusTextSettingsModal({
   const [bgColor, setBgColor] = React.useState(initialBg);
   const [borderColor, setBorderColor] = React.useState(initialBorderColor);
   const [borderWidth, setBorderWidth] = React.useState(initialBorderWidth);
-  const [borderRadius, setBorderRadius] = React.useState(initialBorderRadius);
   const [paddingY, setPaddingY] = React.useState(initialPaddingY);
   const [paddingX, setPaddingX] = React.useState(initialPaddingX);
   const [textAlign, setTextAlign] = React.useState(initialTextAlign);
   const [textTransform, setTextTransform] = React.useState(initialTransform);
-  const [letterSpacing, setLetterSpacing] = React.useState(initialLetterSpacing);
 
   // =========================
-  // ✅ DRAGGABLE WINDOW
+  // DRAGGABLE WINDOW
   // =========================
   const modalRef = React.useRef(null);
   const dragRef = React.useRef({
@@ -68,7 +63,6 @@ export default function StatusTextSettingsModal({
   });
 
   const [pos, setPos] = React.useState(() => {
-    // Start centered-ish
     const w = 760;
     const h = 640;
     const left = Math.max(20, Math.round((window.innerWidth - w) / 2));
@@ -87,7 +81,6 @@ export default function StatusTextSettingsModal({
       const nextLeft = dragRef.current.startLeft + dx;
       const nextTop = dragRef.current.startTop + dy;
 
-      // Clamp inside viewport a bit
       const rect = modalRef.current?.getBoundingClientRect();
       const mw = rect?.width ?? 760;
       const mh = rect?.height ?? 640;
@@ -120,7 +113,6 @@ export default function StatusTextSettingsModal({
   }, []);
 
   const startDrag = (e) => {
-    // Only left-click
     if (e.button !== 0) return;
 
     dragRef.current.dragging = true;
@@ -129,13 +121,12 @@ export default function StatusTextSettingsModal({
     dragRef.current.startLeft = pos.left;
     dragRef.current.startTop = pos.top;
 
-    // Prevent text select while dragging
     document.body.style.userSelect = "none";
     document.body.style.cursor = "grabbing";
   };
 
   // =========================
-  // ✅ DEVICES / FIELDS
+  // DEVICES / FIELDS
   // =========================
   const devices = React.useMemo(() => {
     const d = sensorsData?.devices;
@@ -178,6 +169,7 @@ export default function StatusTextSettingsModal({
       id: tank.id,
       properties: {
         ...(tank.properties || {}),
+
         offText,
         onText,
 
@@ -190,29 +182,32 @@ export default function StatusTextSettingsModal({
         bgColor,
         borderColor,
         borderWidth: Number(borderWidth) || 1,
-        borderRadius: Number(borderRadius) || 10,
         paddingY: Number(paddingY) || 10,
         paddingX: Number(paddingX) || 14,
         textAlign,
         textTransform,
-        letterSpacing: Number(letterSpacing) || 0,
+
+        // ✅ Also remove old saved keys if they exist
+        borderRadius: undefined,
+        letterSpacing: undefined,
+
         tag: { deviceId, field },
       },
     });
   };
 
+  // ✅ fixed safe radius for preview (since we removed user control)
   const basePreviewStyle = {
     width: "100%",
     background: bgColor,
     color: textColor,
     border: `${borderWidth}px solid ${borderColor}`,
-    borderRadius,
+    borderRadius: 10,
     padding: `${paddingY}px ${paddingX}px`,
     fontSize,
     fontWeight,
     textAlign,
     textTransform,
-    letterSpacing,
     boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
   };
 
@@ -300,7 +295,7 @@ export default function StatusTextSettingsModal({
         }}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* Header (✅ draggable) */}
+        {/* Header (draggable) */}
         <div
           onMouseDown={startDrag}
           style={{
@@ -336,7 +331,7 @@ export default function StatusTextSettingsModal({
 
         {/* Body */}
         <div style={{ padding: 18, fontSize: 14 }}>
-          {/* ✅ Static preview (no ON/OFF toggle buttons) */}
+          {/* Static preview */}
           <div
             style={{
               border: "1px solid #e5e7eb",
@@ -351,16 +346,8 @@ export default function StatusTextSettingsModal({
             </div>
 
             <div style={{ display: "flex", gap: 10 }}>
-              <MiniState
-                label="OFF"
-                dotColor="#94a3b8"
-                text={offText || "OFF"}
-              />
-              <MiniState
-                label="ON"
-                dotColor="#22c55e"
-                text={onText || "ON"}
-              />
+              <MiniState label="OFF" dotColor="#94a3b8" text={offText || "OFF"} />
+              <MiniState label="ON" dotColor="#22c55e" text={onText || "ON"} />
             </div>
 
             <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
@@ -369,7 +356,6 @@ export default function StatusTextSettingsModal({
             </div>
           </div>
 
-          {/* Layout: left style, right tag */}
           <div
             style={{
               display: "grid",
@@ -395,7 +381,6 @@ export default function StatusTextSettingsModal({
                   <input
                     value={offText}
                     onChange={(e) => setOffText(e.target.value)}
-                    placeholder="ex: STOPPED / OFF / IDLE"
                     style={{
                       width: "100%",
                       padding: "10px 12px",
@@ -411,7 +396,6 @@ export default function StatusTextSettingsModal({
                   <input
                     value={onText}
                     onChange={(e) => setOnText(e.target.value)}
-                    placeholder="ex: RUNNING / ON / ACTIVE"
                     style={{
                       width: "100%",
                       padding: "10px 12px",
@@ -477,34 +461,7 @@ export default function StatusTextSettingsModal({
                 </div>
                 <div style={{ flex: 1 }}>
                   <Label>Border Width</Label>
-                  <Num
-                    value={borderWidth}
-                    onChange={setBorderWidth}
-                    min={0}
-                    max={12}
-                  />
-                </div>
-              </div>
-
-              <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <Label>Radius</Label>
-                  <Num
-                    value={borderRadius}
-                    onChange={setBorderRadius}
-                    min={0}
-                    max={40}
-                  />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <Label>Letter Spacing</Label>
-                  <Num
-                    value={letterSpacing}
-                    onChange={setLetterSpacing}
-                    min={0}
-                    max={8}
-                    step={0.5}
-                  />
+                  <Num value={borderWidth} onChange={setBorderWidth} min={0} max={12} />
                 </div>
               </div>
 
