@@ -158,7 +158,7 @@ export default function useDropHandler({ setDroppedTanks }) {
     }
 
     // ===============================
-    // ✅ 3) SHAPES (RightPanel)
+    // ✅ 3) SHAPES (RightPanel + SidebarLeft)
     // ===============================
     const shape = e.dataTransfer.getData("shape");
     if (!shape) return;
@@ -197,10 +197,95 @@ export default function useDropHandler({ setDroppedTanks }) {
       return;
     }
 
-    // 🚫 ALARMS LOG DROP-TO-OPEN REMOVED
-    // Alarm Log is now opened ONLY via click from the RightPanel/RightSidebar.
-    // If someone drags it onto the canvas, we simply ignore it.
+    // 🚫 Alarm Log drop ignored
     if (shape === "alarmLog") {
+      return;
+    }
+
+    // ✅ INDICATORS (NEW)
+    if (shape === "ledCircle") {
+      setDroppedTanks((prev) => [
+        ...prev,
+        {
+          id: makeId(),
+          shape: "ledCircle",
+          x,
+          y,
+          w: 70,
+          h: 70,
+          zIndex: 1,
+          // optional default props
+          properties: {
+            label: "",
+            onColor: "#22c55e",
+            offColor: "#94a3b8",
+            blink: false,
+          },
+        },
+      ]);
+      return;
+    }
+
+    if (shape === "statusTextBox") {
+      setDroppedTanks((prev) => [
+        ...prev,
+        {
+          id: makeId(),
+          shape: "statusTextBox",
+          x,
+          y,
+          w: 220,
+          h: 70,
+          zIndex: 1,
+          properties: {
+            label: "Status",
+            value: "OK",
+          },
+        },
+      ]);
+      return;
+    }
+
+    if (shape === "blinkingAlarm") {
+      setDroppedTanks((prev) => [
+        ...prev,
+        {
+          id: makeId(),
+          shape: "blinkingAlarm",
+          x,
+          y,
+          w: 220,
+          h: 70,
+          zIndex: 1,
+          properties: {
+            label: "ALARM",
+            active: true,
+            blinkMs: 500,
+          },
+        },
+      ]);
+      return;
+    }
+
+    if (shape === "stateImage") {
+      setDroppedTanks((prev) => [
+        ...prev,
+        {
+          id: makeId(),
+          shape: "stateImage",
+          x,
+          y,
+          w: 140,
+          h: 140,
+          zIndex: 1,
+          properties: {
+            state: "OFF",
+            // you can later store image urls per state here
+            // offSrc: "",
+            // onSrc: "",
+          },
+        },
+      ]);
       return;
     }
 

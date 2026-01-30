@@ -30,6 +30,14 @@ import {
   SiloTank,
 } from "./ProTankIcon";
 
+import {
+  DraggableLedCircle,
+  DraggableStatusTextBox,
+  DraggableBlinkingAlarm,
+  DraggableStateImage,
+} from "./indicators";
+
+
 // ===============================
 // ✅ helpers for Display Output input formatting
 // ===============================
@@ -725,6 +733,39 @@ export default function DashboardCanvas({
                 />
               );
             }
+
+            if (tank.shape === "ledCircle") {
+  return (
+    <DraggableDroppedTank {...commonProps}>
+      <DraggableLedCircle tank={tank} />
+    </DraggableDroppedTank>
+  );
+}
+
+if (tank.shape === "statusTextBox") {
+  return (
+    <DraggableDroppedTank {...commonProps}>
+      <DraggableStatusTextBox tank={tank} />
+    </DraggableDroppedTank>
+  );
+}
+
+if (tank.shape === "blinkingAlarm") {
+  return (
+    <DraggableDroppedTank {...commonProps}>
+      <DraggableBlinkingAlarm tank={tank} />
+    </DraggableDroppedTank>
+  );
+}
+
+if (tank.shape === "stateImage") {
+  return (
+    <DraggableDroppedTank {...commonProps}>
+      <DraggableStateImage tank={tank} />
+    </DraggableDroppedTank>
+  );
+}
+
 
             return null;
           })}
