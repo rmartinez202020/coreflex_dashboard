@@ -44,15 +44,10 @@ export default function IndicatorLightSettingsModal({
   // ✅ DRAGGABLE MODAL WINDOW
   // =========================
   const MODAL_W = 620;
-  const MODAL_H = 650; // used for initial centering/clamping estimate
+  const MODAL_H = 650; // estimate for initial clamping
 
-  const [pos, setPos] = React.useState({ x: 0, y: 0 });
-  const didInitPosRef = React.useRef(false);
-
-  const draggingRef = React.useRef(false);
-  const dragOffsetRef = React.useRef({ dx: 0, dy: 0 });
-
-  const clamp = React.useCallback((x, y) => {
+  // ✅ clamp helper (raw, stable, usable in initial state)
+  const clampRaw = (x, y) => {
     const pad = 10;
     const maxX = Math.max(pad, window.innerWidth - MODAL_W - pad);
     const maxY = Math.max(pad, window.innerHeight - MODAL_H - pad);
@@ -60,22 +55,25 @@ export default function IndicatorLightSettingsModal({
       x: Math.min(Math.max(x, pad), maxX),
       y: Math.min(Math.max(y, pad), maxY),
     };
-  }, []);
+  };
 
-  React.useEffect(() => {
-    // center on first open only
-    if (!open) return;
-    if (didInitPosRef.current) return;
-
-    didInitPosRef.current = true;
+  // ✅ IMPORTANT FIX:
+  // Set initial position centered BEFORE first paint (no render at 0,0)
+  const [pos, setPos] = React.useState(() => {
     const cx = Math.round((window.innerWidth - MODAL_W) / 2);
     const cy = Math.round((window.innerHeight - MODAL_H) / 2);
-    setPos(clamp(cx, cy));
-  }, [open, clamp]);
+    return clampRaw(cx, cy);
+  });
+
+  const clamp = React.useCallback((x, y) => clampRaw(x, y), []);
+
+  const draggingRef = React.useRef(false);
+  const dragOffsetRef = React.useRef({ dx: 0, dy: 0 });
 
   React.useEffect(() => {
     const onMove = (e) => {
       if (!draggingRef.current) return;
+
       const clientX = e.clientX ?? (e.touches?.[0]?.clientX ?? 0);
       const clientY = e.clientY ?? (e.touches?.[0]?.clientY ?? 0);
 
@@ -107,6 +105,7 @@ export default function IndicatorLightSettingsModal({
     e.stopPropagation();
 
     draggingRef.current = true;
+
     const clientX = e.clientX ?? 0;
     const clientY = e.clientY ?? 0;
 
@@ -183,16 +182,14 @@ export default function IndicatorLightSettingsModal({
         background: "rgba(0,0,0,0.35)",
         zIndex: 999999,
       }}
-      onMouseDown={(e) => {
+      onMouseDown={() => {
         // click outside closes (but not while dragging)
         if (draggingRef.current) return;
         onClose?.();
       }}
-      onPointerDown={(e) => {
-        // same behavior for pointer events
+      onPointerDown={() => {
+        // only close if backdrop is clicked (window stops propagation)
         if (draggingRef.current) return;
-        // only close if user clicked backdrop (not the window)
-        // window stops propagation, so if we're here it’s backdrop
         onClose?.();
       }}
     >
@@ -202,7 +199,7 @@ export default function IndicatorLightSettingsModal({
           left: pos.x,
           top: pos.y,
 
-          width: MODAL_W, // ✅ bigger window
+          width: MODAL_W,
           background: "#fff",
           borderRadius: 12,
           boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
@@ -215,7 +212,6 @@ export default function IndicatorLightSettingsModal({
         <div
           onPointerDown={startDrag}
           onDoubleClick={(e) => {
-            // optional: quick re-center on double click header
             e.stopPropagation();
             const cx = Math.round((window.innerWidth - MODAL_W) / 2);
             const cy = Math.round((window.innerHeight - MODAL_H) / 2);
@@ -423,9 +419,7 @@ export default function IndicatorLightSettingsModal({
 
             <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
               <div style={{ flex: 1 }}>
-                <div
-                  style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}
-                >
+                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
                   Device
                 </div>
                 <select
@@ -453,9 +447,7 @@ export default function IndicatorLightSettingsModal({
               </div>
 
               <div style={{ flex: 1 }}>
-                <div
-                  style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}
-                >
+                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
                   Search Tag
                 </div>
                 <input
