@@ -739,13 +739,19 @@ export default function DashboardCanvas({
               );
             }
 
-            if (tank.shape === "ledCircle") {
+        if (tank.shape === "ledCircle") {
   return (
-    <DraggableDroppedTank {...commonProps}>
+    <DraggableDroppedTank
+      {...commonProps}
+      onDoubleClick={() => {
+        if (!isPlay) onOpenIndicatorSettings?.(tank);
+      }}
+    >
       <DraggableLedCircle tank={tank} />
     </DraggableDroppedTank>
   );
 }
+
 
 if (tank.shape === "statusTextBox") {
   return (
