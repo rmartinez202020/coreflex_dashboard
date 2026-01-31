@@ -11,6 +11,10 @@ export default function StatusTextSettingsModal({
 
   const p = tank.properties || {};
 
+  // ✅ Responsive modal size (wider + clamped to viewport)
+  const MODAL_W = Math.min(1080, window.innerWidth - 80);
+  const MODAL_H = Math.min(680, window.innerHeight - 120);
+
   // Tag binding
   const initialDeviceId = p?.tag?.deviceId ?? "";
   const initialField = p?.tag?.field ?? "";
@@ -63,10 +67,8 @@ export default function StatusTextSettingsModal({
   });
 
   const [pos, setPos] = React.useState(() => {
-    const w = 760;
-    const h = 640;
-    const left = Math.max(20, Math.round((window.innerWidth - w) / 2));
-    const top = Math.max(20, Math.round((window.innerHeight - h) / 2));
+    const left = Math.max(20, Math.round((window.innerWidth - MODAL_W) / 2));
+    const top = Math.max(20, Math.round((window.innerHeight - MODAL_H) / 2));
     return { left, top };
   });
 
@@ -82,8 +84,8 @@ export default function StatusTextSettingsModal({
       const nextTop = dragRef.current.startTop + dy;
 
       const rect = modalRef.current?.getBoundingClientRect();
-      const mw = rect?.width ?? 760;
-      const mh = rect?.height ?? 640;
+      const mw = rect?.width ?? MODAL_W;
+      const mh = rect?.height ?? MODAL_H;
 
       const clampedLeft = Math.min(
         window.innerWidth - 20,
@@ -110,7 +112,7 @@ export default function StatusTextSettingsModal({
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, []);
+  }, [MODAL_W, MODAL_H]);
 
   const startDrag = (e) => {
     if (e.button !== 0) return;
@@ -292,11 +294,19 @@ export default function StatusTextSettingsModal({
           position: "fixed",
           left: pos.left,
           top: pos.top,
-          width: 760,
+
+          // ✅ Wider + clamped + height clamped
+          width: MODAL_W,
+          maxWidth: "calc(100vw - 80px)",
+          height: MODAL_H,
+          maxHeight: "calc(100vh - 120px)",
+
           background: "#fff",
           borderRadius: 12,
           boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
           overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
         }}
         onMouseDown={(e) => e.stopPropagation()}
       >
@@ -314,6 +324,7 @@ export default function StatusTextSettingsModal({
             fontSize: 16,
             letterSpacing: 0.2,
             cursor: "grab",
+            flex: "0 0 auto",
           }}
           title="Drag to move"
         >
@@ -335,7 +346,7 @@ export default function StatusTextSettingsModal({
         </div>
 
         {/* Body */}
-        <div style={{ padding: 18, fontSize: 14 }}>
+        <div style={{ padding: 18, fontSize: 14, overflow: "auto", flex: "1 1 auto" }}>
           {/* Preview (OFF default visual) */}
           <div
             style={{
@@ -646,6 +657,7 @@ export default function StatusTextSettingsModal({
             gap: 10,
             padding: 14,
             borderTop: "1px solid #e5e7eb",
+            flex: "0 0 auto",
           }}
         >
           <button
