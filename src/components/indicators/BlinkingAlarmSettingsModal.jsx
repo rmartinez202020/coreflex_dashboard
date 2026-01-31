@@ -19,13 +19,17 @@ export default function BlinkingAlarmSettingsModal({
   const initialDeviceId = p?.tag?.deviceId ?? "";
   const initialField = p?.tag?.field ?? "";
 
-  // ✅ Style selection
-  const initialStyle = p?.alarmStyle ?? "style1";
+  // ✅ NEW professional style selection
+  const initialStyle = p?.alarmStyle ?? "annunciator";
+
+  // ✅ NEW: tone (optional but pro)
+  const initialTone = p?.alarmTone ?? "critical";
 
   const [deviceId, setDeviceId] = React.useState(initialDeviceId);
   const [field, setField] = React.useState(initialField);
   const [tagSearch, setTagSearch] = React.useState("");
   const [alarmStyle, setAlarmStyle] = React.useState(initialStyle);
+  const [alarmTone, setAlarmTone] = React.useState(initialTone);
 
   // =========================
   // DRAGGABLE WINDOW
@@ -144,7 +148,8 @@ export default function BlinkingAlarmSettingsModal({
       id: tank.id,
       properties: {
         ...(tank.properties || {}),
-        alarmStyle, // ✅ selected style
+        alarmStyle, // ✅ NEW IDs: annunciator|banner|stackLight|minimal
+        alarmTone,  // ✅ critical|warning|info
         tag: { deviceId, field }, // ✅ binding
       },
     });
@@ -157,151 +162,136 @@ export default function BlinkingAlarmSettingsModal({
   );
 
   // =========================
-  // STYLE PREVIEWS (OFF/ON)
+  // PROFESSIONAL STYLE PREVIEWS
   // =========================
+  const toneMap = {
+    critical: { on: "#ef4444", glow: "rgba(239,68,68,0.55)" },
+    warning: { on: "#f59e0b", glow: "rgba(245,158,11,0.55)" },
+    info: { on: "#3b82f6", glow: "rgba(59,130,246,0.45)" },
+  };
+
+  const tone = toneMap[alarmTone] || toneMap.critical;
+
   const styles = [
-    { id: "style1", name: "Classic Pill Alarm" },
-    { id: "style2", name: "Triangle Warning" },
-    { id: "style3", name: "Beacon Light" },
-    { id: "style4", name: "Siren Badge" },
+    { id: "annunciator", name: "Annunciator Tile (Industrial)" },
+    { id: "banner", name: "Banner Strip (Modern)" },
+    { id: "stackLight", name: "Stack Light (Lens + Label)" },
+    { id: "minimal", name: "Minimal Outline (Clean)" },
   ];
 
-  const ShapePreview = ({ styleId, isOn }) => {
-    const onBg = "#ef4444";
-    const offBg = "#0f172a";
-    const onGlow = "0 0 18px rgba(239,68,68,0.75)";
-    const offGlow = "none";
+  const ProPreview = ({ styleId, isOn }) => {
+    const onBg = tone.on;
+    const offBg = "#0b1220";
+
     const bg = isOn ? onBg : offBg;
 
-    const commonBox = {
+    const card = {
       width: "100%",
-      height: 56,
+      height: 58,
+      borderRadius: 12,
+      border: "1px solid rgba(148,163,184,0.22)",
+      background: "#0b1220",
+      boxShadow: isOn
+        ? `0 10px 26px rgba(0,0,0,0.28), 0 0 18px ${tone.glow}`
+        : "0 10px 26px rgba(0,0,0,0.22)",
       display: "flex",
       alignItems: "center",
       justifyContent: "center",
       color: "white",
       fontWeight: 900,
-      boxShadow: isOn ? onGlow : offGlow,
-      border: "1px solid rgba(255,255,255,0.15)",
       userSelect: "none",
+      overflow: "hidden",
     };
 
-    // STYLE 1: rounded pill with ALARM
-    if (styleId === "style1") {
+    if (styleId === "annunciator") {
       return (
-        <div
-          style={{
-            ...commonBox,
-            borderRadius: 14,
-            background: bg,
-            letterSpacing: 1,
-          }}
-        >
-          {isOn ? "ALARM" : "OFF"}
-        </div>
-      );
-    }
-
-    // STYLE 2: triangle warning with !
-    if (styleId === "style2") {
-      return (
-        <div style={{ width: "100%", height: 56, position: "relative" }}>
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-            }}
-          >
-            <div
-              style={{
-                width: 0,
-                height: 0,
-                borderLeft: "28px solid transparent",
-                borderRight: "28px solid transparent",
-                borderBottom: `56px solid ${bg}`,
-                filter: isOn ? "drop-shadow(0 0 10px rgba(239,68,68,0.7))" : "none",
-              }}
-            />
+        <div style={{ ...card, justifyContent: "space-between", padding: "0 14px" }}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            <div style={{ fontSize: 11, opacity: 0.65, letterSpacing: 1 }}>
+              ALARM
+            </div>
+            <div style={{ fontSize: 14 }}>
+              {isOn ? "ACTIVE" : "NORMAL"}
+            </div>
           </div>
           <div
             style={{
-              position: "absolute",
-              inset: 0,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 1000,
-              fontSize: 22,
-              color: "white",
-              transform: "translateY(6px)",
-            }}
-          >
-            !
-          </div>
-        </div>
-      );
-    }
-
-    // STYLE 3: beacon light (circle on a base)
-    if (styleId === "style3") {
-      return (
-        <div
-          style={{
-            width: "100%",
-            height: 56,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            gap: 12,
-          }}
-        >
-          <div
-            style={{
-              width: 34,
-              height: 34,
-              borderRadius: 999,
-              background: bg,
-              boxShadow: isOn ? "0 0 18px rgba(239,68,68,0.85)" : "none",
-              border: "2px solid rgba(255,255,255,0.15)",
-            }}
-          />
-          <div
-            style={{
-              width: 46,
+              width: 14,
               height: 14,
               borderRadius: 999,
-              background: "#111827",
-              border: "1px solid rgba(255,255,255,0.15)",
+              background: isOn ? bg : "rgba(148,163,184,0.35)",
+              boxShadow: isOn ? `0 0 0 4px ${tone.glow}` : "none",
+              transition: "all 150ms ease",
             }}
           />
         </div>
       );
     }
 
-    // STYLE 4: siren badge with waves
+    if (styleId === "banner") {
+      const stripeColor = isOn ? bg : "rgba(148,163,184,0.18)";
+      const stripe = isOn
+        ? `repeating-linear-gradient(45deg, ${stripeColor}, ${stripeColor} 10px, rgba(0,0,0,0.25) 10px, rgba(0,0,0,0.25) 20px)`
+        : stripeColor;
+
+      return (
+        <div style={card}>
+          <div style={{ width: "100%", height: "100%" }}>
+            <div style={{ height: 12, background: stripe, opacity: isOn ? 1 : 0.7 }} />
+            <div
+              style={{
+                height: "calc(100% - 12px)",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                padding: "0 12px",
+                fontSize: 13,
+                opacity: isOn ? 1 : 0.85,
+              }}
+            >
+              <span>{isOn ? "ALARM" : "OFF"}</span>
+              <span style={{ fontSize: 11, opacity: 0.7 }}>
+                {isOn ? "ACTIVE" : "NORMAL"}
+              </span>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    if (styleId === "stackLight") {
+      return (
+        <div style={{ ...card, justifyContent: "flex-start", gap: 12, padding: "0 14px" }}>
+          <div
+            style={{
+              width: 22,
+              height: 22,
+              borderRadius: 999,
+              background: isOn ? bg : "rgba(148,163,184,0.25)",
+              border: "2px solid rgba(255,255,255,0.10)",
+              boxShadow: isOn ? `0 0 14px ${tone.glow}` : "none",
+            }}
+          />
+          <div style={{ fontSize: 13, opacity: isOn ? 1 : 0.8 }}>
+            {isOn ? "ALARM ACTIVE" : "NORMAL"}
+          </div>
+        </div>
+      );
+    }
+
+    // minimal
     return (
       <div
         style={{
-          ...commonBox,
-          borderRadius: 12,
-          background: bg,
-          position: "relative",
-          overflow: "hidden",
+          ...card,
+          background: "rgba(2,6,23,0.92)",
+          border: `1px solid ${isOn ? tone.glow : "rgba(148,163,184,0.22)"}`,
+          boxShadow: isOn ? `0 0 18px ${tone.glow}` : "0 10px 25px rgba(0,0,0,0.18)",
         }}
       >
-        <span style={{ zIndex: 2 }}>{isOn ? "SIREN" : "OFF"}</span>
-        <div
-          style={{
-            position: "absolute",
-            inset: 0,
-            opacity: isOn ? 0.25 : 0.12,
-            background:
-              "radial-gradient(circle at 20% 50%, rgba(255,255,255,0.9) 0, transparent 55%), radial-gradient(circle at 80% 50%, rgba(255,255,255,0.9) 0, transparent 55%)",
-          }}
-        />
+        <span style={{ color: isOn ? bg : "rgba(226,232,240,0.75)" }}>
+          {isOn ? "ALARM" : "OFF"}
+        </span>
       </div>
     );
   };
@@ -328,16 +318,30 @@ export default function BlinkingAlarmSettingsModal({
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 900, color: "#64748b", marginBottom: 6 }}>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 900,
+                color: "#64748b",
+                marginBottom: 6,
+              }}
+            >
               OFF
             </div>
-            <ShapePreview styleId={s.id} isOn={false} />
+            <ProPreview styleId={s.id} isOn={false} />
           </div>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 900, color: "#64748b", marginBottom: 6 }}>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 900,
+                color: "#64748b",
+                marginBottom: 6,
+              }}
+            >
               ON
             </div>
-            <ShapePreview styleId={s.id} isOn={true} />
+            <ProPreview styleId={s.id} isOn={true} />
           </div>
         </div>
       </button>
@@ -410,6 +414,45 @@ export default function BlinkingAlarmSettingsModal({
 
         {/* Body */}
         <div style={{ padding: 16, overflow: "auto", flex: "1 1 auto" }}>
+          {/* TONE PICKER */}
+          <div style={{ marginBottom: 14 }}>
+            <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 10 }}>
+              Alarm Tone
+            </div>
+
+            <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+              {[
+                { id: "critical", name: "Critical (Red)" },
+                { id: "warning", name: "Warning (Amber)" },
+                { id: "info", name: "Info (Blue)" },
+              ].map((t) => {
+                const sel = alarmTone === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    onClick={() => setAlarmTone(t.id)}
+                    style={{
+                      padding: "9px 12px",
+                      borderRadius: 12,
+                      border: sel ? "2px solid #22c55e" : "1px solid #e5e7eb",
+                      background: sel ? "#ecfdf5" : "white",
+                      cursor: "pointer",
+                      fontWeight: 900,
+                      fontSize: 13,
+                    }}
+                  >
+                    {t.name}
+                  </button>
+                );
+              })}
+            </div>
+
+            <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
+              This affects the <b>ON</b> color/glow in previews (and your widget if you use tone defaults).
+            </div>
+          </div>
+
           {/* STYLE PICKER */}
           <div style={{ marginBottom: 14 }}>
             <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 10 }}>
@@ -423,7 +466,7 @@ export default function BlinkingAlarmSettingsModal({
             </div>
 
             <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
-              Pick <b>one</b> style. The alarm will show OFF/ON automatically based on your tag.
+              Pick <b>one</b> professional style. The alarm will show ON/OFF automatically based on your tag.
             </div>
           </div>
 

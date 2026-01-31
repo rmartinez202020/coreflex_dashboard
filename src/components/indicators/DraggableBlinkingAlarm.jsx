@@ -6,8 +6,11 @@ import React from "react";
  * 1) Palette mode (Sidebar): small preview + label, sets dataTransfer "shape"
  * 2) Canvas mode (Dashboard): renders blinking alarm widget using `tank`
  *
- * ✅ NEW (Platform Creation 50):
- * - Supports 4 selectable styles (saved as tank.properties.alarmStyle)
+ * ✅ NEW:
+ * - Professional HMI styles via tank.properties.alarmStyle:
+ *   "annunciator" | "banner" | "stackLight" | "minimal"
+ * - Alarm tone via tank.properties.alarmTone:
+ *   "critical" | "warning" | "info"
  * - Supports onDoubleClick to open settings modal (props.onOpenSettings)
  */
 export default function DraggableBlinkingAlarm({
@@ -19,21 +22,22 @@ export default function DraggableBlinkingAlarm({
   onDragStart,
   onClick,
 
-  // ✅ NEW: open settings modal on double click
+  // ✅ open settings modal on double click
   onOpenSettings,
 }) {
   const payload = {
     shape: "blinkingAlarm",
-    w: 220,
-    h: 70,
+    w: 240,
+    h: 74,
     text: "ALARM",
     isActive: false,
     blinkMs: 500,
     colorOn: "#ef4444",
-    colorOff: "#111827",
+    colorOff: "#0b1220",
 
-    // ✅ NEW
-    alarmStyle: "style1",
+    // ✅ professional defaults
+    alarmStyle: "annunciator", // annunciator|banner|stackLight|minimal
+    alarmTone: "critical", // critical|warning|info
   };
 
   // =========================
@@ -44,7 +48,10 @@ export default function DraggableBlinkingAlarm({
     const h = tank.h ?? tank.height ?? payload.h;
 
     const text =
-      tank.text ?? tank.properties?.text ?? tank.properties?.label ?? payload.text;
+      tank.text ??
+      tank.properties?.text ??
+      tank.properties?.label ??
+      payload.text;
 
     const isActive =
       tank.isActive ??
@@ -56,14 +63,24 @@ export default function DraggableBlinkingAlarm({
     const blinkMs = tank.blinkMs ?? tank.properties?.blinkMs ?? payload.blinkMs;
 
     const colorOn = tank.colorOn ?? tank.properties?.colorOn ?? payload.colorOn;
+    const colorOff =
+      tank.colorOff ?? tank.properties?.colorOff ?? payload.colorOff;
 
-    const colorOff = tank.colorOff ?? tank.properties?.colorOff ?? payload.colorOff;
-
-    // ✅ NEW: style selector (from modal)
+    // ✅ professional selectors (from modal)
     const alarmStyle =
-      tank.properties?.alarmStyle ??
-      tank.alarmStyle ??
-      payload.alarmStyle;
+      tank.properties?.alarmStyle ?? tank.alarmStyle ?? payload.alarmStyle;
+
+    const alarmTone =
+      tank.properties?.alarmTone ?? tank.alarmTone ?? payload.alarmTone;
+
+    // Tone defaults (only used if you want tone-based colors)
+    const toneMap = {
+      critical: { on: "#ef4444", glow: "rgba(239,68,68,0.55)" },
+      warning: { on: "#f59e0b", glow: "rgba(245,158,11,0.55)" },
+      info: { on: "#3b82f6", glow: "rgba(59,130,246,0.45)" },
+    };
+
+    const tone = toneMap[alarmTone] || toneMap.critical;
 
     // Blink animation (only when active)
     const [blinkOn, setBlinkOn] = React.useState(true);
@@ -78,7 +95,12 @@ export default function DraggableBlinkingAlarm({
       return () => clearInterval(t);
     }, [isActive, blinkMs]);
 
-    const bg = isActive ? (blinkOn ? colorOn : colorOff) : colorOff;
+    // If user provided colorOn/colorOff, honor it.
+    // Otherwise tone.on is a nicer default.
+    const effectiveOn = colorOn || tone.on;
+    const effectiveOff = colorOff;
+
+    const bg = isActive ? (blinkOn ? effectiveOn : effectiveOff) : effectiveOff;
 
     const commonWrap = {
       width: w,
@@ -89,19 +111,7 @@ export default function DraggableBlinkingAlarm({
       userSelect: "none",
     };
 
-    const commonTitle = isActive ? "Alarm ACTIVE" : "Alarm inactive";
-
-    const commonText = {
-      fontWeight: 1000,
-      letterSpacing: 2,
-      fontSize: 18,
-      color: isActive ? "#fff" : "#9ca3af",
-      textTransform: "uppercase",
-    };
-
-    const glow = isActive
-      ? "0 0 14px rgba(239,68,68,0.55)"
-      : "inset 0 2px 6px rgba(0,0,0,0.35)";
+    const commonTitle = isActive ? "Alarm ACTIVE" : "Alarm NORMAL";
 
     const handleDoubleClick = (e) => {
       e.stopPropagation();
@@ -109,146 +119,200 @@ export default function DraggableBlinkingAlarm({
     };
 
     // =========================
-    // ✅ STYLE RENDERERS (4 styles)
+    // ✅ PROFESSIONAL STYLES
     // =========================
-    const Style1 = () => (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          border: "2px solid rgba(0,0,0,0.75)",
-          background: bg,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          borderRadius: 10,
-          boxShadow: glow,
-        }}
-        title={commonTitle}
-      >
-        <div style={commonText}>{text}</div>
-      </div>
-    );
 
-    const Style2 = () => (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-        }}
-        title={commonTitle}
-      >
+    // 1) Industrial Annunciator tile (best overall)
+    const Annunciator = () => {
+      const glow = isActive ? tone.glow : "rgba(0,0,0,0)";
+      return (
         <div
           style={{
-            width: 0,
-            height: 0,
-            borderLeft: `${Math.max(22, Math.round(w * 0.18))}px solid transparent`,
-            borderRight: `${Math.max(22, Math.round(w * 0.18))}px solid transparent`,
-            borderBottom: `${Math.max(44, Math.round(h * 0.9))}px solid ${bg}`,
-            filter: isActive ? "drop-shadow(0 0 10px rgba(239,68,68,0.7))" : "none",
-            position: "relative",
+            width: "100%",
+            height: "100%",
+            borderRadius: 12,
+            background: "#0b1220",
+            border: "1px solid rgba(148,163,184,0.22)",
+            boxShadow: isActive
+              ? `0 10px 30px rgba(0,0,0,0.35), 0 0 0 1px rgba(255,255,255,0.04), 0 0 22px ${glow}`
+              : "0 10px 30px rgba(0,0,0,0.28), 0 0 0 1px rgba(255,255,255,0.04)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            padding: "0 16px",
+            color: "white",
+            boxSizing: "border-box",
           }}
+          title={commonTitle}
+        >
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            <div
+              style={{
+                fontSize: 11,
+                opacity: 0.65,
+                letterSpacing: 1,
+                fontWeight: 800,
+              }}
+            >
+              ALARM
+            </div>
+            <div style={{ fontSize: 16, fontWeight: 900, letterSpacing: 0.6 }}>
+              {text}
+            </div>
+          </div>
+
+          <div
+            style={{
+              width: 14,
+              height: 14,
+              borderRadius: 999,
+              background: isActive ? bg : "rgba(148,163,184,0.35)",
+              boxShadow: isActive ? `0 0 0 4px ${tone.glow}` : "none",
+              transition: "all 150ms ease",
+            }}
+            title={isActive ? "Active" : "Normal"}
+          />
+        </div>
+      );
+    };
+
+    // 2) Top Banner strip (modern)
+    const Banner = () => {
+      const stripeColor = isActive ? bg : "rgba(148,163,184,0.18)";
+      const stripe = isActive
+        ? `repeating-linear-gradient(45deg, ${stripeColor}, ${stripeColor} 10px, rgba(0,0,0,0.25) 10px, rgba(0,0,0,0.25) 20px)`
+        : stripeColor;
+
+      return (
+        <div
+          style={{
+            width: "100%",
+            height: "100%",
+            borderRadius: 12,
+            overflow: "hidden",
+            border: "1px solid rgba(148,163,184,0.22)",
+            background: "#0b1220",
+            color: "white",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.28)",
+          }}
+          title={commonTitle}
         >
           <div
             style={{
-              position: "absolute",
-              left: "50%",
-              top: "62%",
-              transform: "translate(-50%, -50%)",
-              color: "white",
-              fontWeight: 1000,
-              fontSize: 22,
-              lineHeight: 1,
-              userSelect: "none",
+              height: 12,
+              background: stripe,
+              opacity: isActive ? 1 : 0.7,
+            }}
+          />
+          <div
+            style={{
+              height: "calc(100% - 12px)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "space-between",
+              padding: "0 14px",
+              fontWeight: 900,
+              letterSpacing: 0.7,
+              boxSizing: "border-box",
             }}
           >
-            !
+            <div style={{ fontSize: 14 }}>{text}</div>
+            <div style={{ fontSize: 12, opacity: 0.7 }}>
+              {isActive ? "ACTIVE" : "NORMAL"}
+            </div>
           </div>
         </div>
-      </div>
-    );
+      );
+    };
 
-    const Style3 = () => (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          border: "2px solid rgba(0,0,0,0.75)",
-          background: "#0b1220",
-          borderRadius: 12,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          gap: 12,
-          boxShadow: "inset 0 2px 10px rgba(0,0,0,0.45)",
-        }}
-        title={commonTitle}
-      >
+    // 3) Stack light (industrial lens + label)
+    const StackLight = () => {
+      const lensSize = Math.max(18, Math.round(Math.min(w, h) * 0.28));
+      return (
         <div
           style={{
-            width: Math.max(26, Math.round(Math.min(w, h) * 0.35)),
-            height: Math.max(26, Math.round(Math.min(w, h) * 0.35)),
-            borderRadius: 999,
-            background: bg,
-            boxShadow: isActive ? "0 0 18px rgba(239,68,68,0.85)" : "none",
-            border: "2px solid rgba(255,255,255,0.12)",
+            width: "100%",
+            height: "100%",
+            borderRadius: 12,
+            background: "#0b1220",
+            border: "1px solid rgba(148,163,184,0.22)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            gap: 12,
+            padding: 12,
+            boxSizing: "border-box",
+            boxShadow: "0 10px 30px rgba(0,0,0,0.28)",
           }}
-        />
-        <div
-          style={{
-            ...commonText,
-            fontSize: 16,
-            letterSpacing: 1.5,
-            color: isActive ? "#fff" : "#94a3b8",
-          }}
+          title={commonTitle}
         >
-          {text}
+          <div
+            style={{
+              width: lensSize,
+              height: lensSize,
+              borderRadius: 999,
+              background: isActive ? bg : "rgba(148,163,184,0.25)",
+              border: "2px solid rgba(255,255,255,0.10)",
+              boxShadow: isActive
+                ? `0 0 18px ${tone.glow}, inset 0 -2px 6px rgba(0,0,0,0.35)`
+                : "inset 0 -2px 6px rgba(0,0,0,0.35)",
+            }}
+          />
+          <div
+            style={{
+              color: "white",
+              fontWeight: 900,
+              letterSpacing: 0.6,
+              fontSize: 14,
+              opacity: isActive ? 1 : 0.78,
+              whiteSpace: "nowrap",
+            }}
+          >
+            {text}
+          </div>
         </div>
-      </div>
-    );
+      );
+    };
 
-    const Style4 = () => (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          border: "2px solid rgba(0,0,0,0.75)",
-          background: bg,
-          borderRadius: 12,
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          overflow: "hidden",
-          boxShadow: glow,
-          position: "relative",
-        }}
-        title={commonTitle}
-      >
-        <div style={{ ...commonText, zIndex: 2 }}>
-          {isActive ? "SIREN" : "OFF"}
-        </div>
-
-        {/* subtle wave overlay */}
+    // 4) Minimal outline + glow (super clean)
+    const Minimal = () => {
+      const border = isActive
+        ? "rgba(239,68,68,0.55)"
+        : "rgba(148,163,184,0.22)";
+      return (
         <div
           style={{
-            position: "absolute",
-            inset: 0,
-            opacity: isActive ? 0.25 : 0.12,
-            background:
-              "radial-gradient(circle at 20% 50%, rgba(255,255,255,0.9) 0, transparent 55%), radial-gradient(circle at 80% 50%, rgba(255,255,255,0.9) 0, transparent 55%)",
+            width: "100%",
+            height: "100%",
+            borderRadius: 12,
+            border: `1px solid ${border}`,
+            background: "rgba(2,6,23,0.92)",
+            color: "white",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontWeight: 950,
+            letterSpacing: 1,
+            boxShadow: isActive
+              ? `0 0 18px ${tone.glow}`
+              : "0 10px 25px rgba(0,0,0,0.25)",
+            transition: "all 140ms ease",
+            boxSizing: "border-box",
           }}
-        />
-      </div>
-    );
+          title={commonTitle}
+        >
+          <span style={{ color: isActive ? bg : "rgba(226,232,240,0.75)" }}>
+            {text}
+          </span>
+        </div>
+      );
+    };
 
     const renderByStyle = () => {
-      if (alarmStyle === "style2") return <Style2 />;
-      if (alarmStyle === "style3") return <Style3 />;
-      if (alarmStyle === "style4") return <Style4 />;
-      return <Style1 />; // default
+      if (alarmStyle === "banner") return <Banner />;
+      if (alarmStyle === "stackLight") return <StackLight />;
+      if (alarmStyle === "minimal") return <Minimal />;
+      return <Annunciator />; // default
     };
 
     return (
@@ -286,10 +350,10 @@ export default function DraggableBlinkingAlarm({
         style={{
           width: 14,
           height: 14,
-          borderRadius: 3,
+          borderRadius: 4,
           background: payload.colorOn,
-          border: "1px solid rgba(255,255,255,0.35)",
-          boxShadow: "0 0 10px rgba(239,68,68,0.55)",
+          border: "1px solid rgba(255,255,255,0.25)",
+          boxShadow: "0 0 10px rgba(239,68,68,0.45)",
           flex: "0 0 14px",
         }}
       />
