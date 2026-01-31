@@ -508,10 +508,12 @@ const closeBlinkingAlarmSettings = () => setBlinkingAlarmSettingsId(null);
           indicatorSettingsId={indicatorSettingsId}
           closeIndicatorSettings={closeIndicatorSettings}
           sensorsData={sensorsData} // ✅ IMPORTANT (for device/tag dropdown)
-
-          // ✅ NEW: Status Text Modal wiring
           statusTextSettingsId={statusTextSettingsId}
           closeStatusTextSettings={closeStatusTextSettings}
+          blinkingAlarmSettingsId={blinkingAlarmSettingsId}
+          closeBlinkingAlarmSettings={closeBlinkingAlarmSettings}
+
+          
         />
       </main>
 
