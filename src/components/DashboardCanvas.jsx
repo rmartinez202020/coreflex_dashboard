@@ -769,19 +769,19 @@ if (tank.shape === "statusTextBox") {
   );
 }
 
-
 if (tank.shape === "blinkingAlarm") {
   return (
-    <DraggableDroppedTank {...commonProps}>
-      <DraggableBlinkingAlarm
-        tank={tank}
-        onOpenSettings={() => {
-          if (!isPlay) onOpenBlinkingAlarmSettings?.(tank);
-        }}
-      />
+    <DraggableDroppedTank
+      {...commonProps}
+      onDoubleClick={() => {
+        if (!isPlay) onOpenBlinkingAlarmSettings?.(tank);
+      }}
+    >
+      <DraggableBlinkingAlarm tank={tank} />
     </DraggableDroppedTank>
   );
 }
+
 
 
 if (tank.shape === "stateImage") {
