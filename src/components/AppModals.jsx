@@ -118,7 +118,9 @@ export default function AppModals({
   const blinkingAlarmTarget = useMemo(() => {
     if (blinkingAlarmSettingsId == null) return null;
     return droppedTanks.find(
-      (t) => isSameId(t.id, blinkingAlarmSettingsId) && t.shape === "blinkingAlarm"
+      (t) =>
+        isSameId(t.id, blinkingAlarmSettingsId) &&
+        t.shape === "blinkingAlarm"
     );
   }, [droppedTanks, blinkingAlarmSettingsId]);
 

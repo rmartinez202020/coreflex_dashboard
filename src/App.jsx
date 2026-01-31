@@ -218,6 +218,12 @@ export default function App() {
   const openStatusTextSettings = (tank) => setStatusTextSettingsId(tank.id);
   const closeStatusTextSettings = () => setStatusTextSettingsId(null);
 
+  // ✅ BLINKING ALARM SETTINGS MODAL (NEW)
+const [blinkingAlarmSettingsId, setBlinkingAlarmSettingsId] = useState(null);
+const openBlinkingAlarmSettings = (tank) => setBlinkingAlarmSettingsId(tank.id);
+const closeBlinkingAlarmSettings = () => setBlinkingAlarmSettingsId(null);
+
+
   // ✅ GRAPHIC DISPLAY SETTINGS MODAL
   const [graphicSettingsId, setGraphicSettingsId] = useState(null);
   const openGraphicDisplaySettings = (tank) => setGraphicSettingsId(tank.id);
@@ -465,7 +471,8 @@ export default function App() {
             onOpenAlarmLog={openAlarmLog}
             onLaunchAlarmLog={launchAlarmLog}
             onOpenIndicatorSettings={openIndicatorSettings}
-            onOpenStatusTextSettings={openStatusTextSettings} // ✅ NEW
+            onOpenStatusTextSettings={openStatusTextSettings} 
+            onOpenBlinkingAlarmSettings={openBlinkingAlarmSettings}
           />
         ) : activePage === "deviceControls" ? (
           <div className="w-full h-full border rounded-lg bg-white p-6">
