@@ -143,14 +143,31 @@ export default function BlinkingAlarmSettingsModal({
     );
   }, [availableFields, tagSearch]);
 
+  // =========================
+  // ✅ TONE → COLORS (THIS IS THE FIX)
+  // =========================
+  const toneMap = {
+    critical: { on: "#ef4444", glow: "rgba(239,68,68,0.55)" },
+    warning: { on: "#f59e0b", glow: "rgba(245,158,11,0.55)" },
+    info: { on: "#3b82f6", glow: "rgba(59,130,246,0.45)" },
+  };
+
+  const tone = toneMap[alarmTone] || toneMap.critical;
+
+  // Choose a consistent "OFF" base that looks pro in all tones
+  const OFF_COLOR = "#0b1220";
+
   const apply = () => {
+    // ✅ Save BOTH tone + actual colors, so widget updates instantly
     onSave?.({
       id: tank.id,
       properties: {
         ...(tank.properties || {}),
-        alarmStyle, // ✅ NEW IDs: annunciator|banner|stackLight|minimal
-        alarmTone,  // ✅ critical|warning|info
-        tag: { deviceId, field }, // ✅ binding
+        alarmStyle, // annunciator|banner|stackLight|minimal
+        alarmTone, // critical|warning|info
+        colorOn: tone.on, // ✅ important
+        colorOff: OFF_COLOR, // ✅ important
+        tag: { deviceId, field },
       },
     });
   };
@@ -164,14 +181,6 @@ export default function BlinkingAlarmSettingsModal({
   // =========================
   // PROFESSIONAL STYLE PREVIEWS
   // =========================
-  const toneMap = {
-    critical: { on: "#ef4444", glow: "rgba(239,68,68,0.55)" },
-    warning: { on: "#f59e0b", glow: "rgba(245,158,11,0.55)" },
-    info: { on: "#3b82f6", glow: "rgba(59,130,246,0.45)" },
-  };
-
-  const tone = toneMap[alarmTone] || toneMap.critical;
-
   const styles = [
     { id: "annunciator", name: "Annunciator Tile (Industrial)" },
     { id: "banner", name: "Banner Strip (Modern)" },
@@ -181,7 +190,7 @@ export default function BlinkingAlarmSettingsModal({
 
   const ProPreview = ({ styleId, isOn }) => {
     const onBg = tone.on;
-    const offBg = "#0b1220";
+    const offBg = OFF_COLOR;
 
     const bg = isOn ? onBg : offBg;
 
@@ -210,9 +219,7 @@ export default function BlinkingAlarmSettingsModal({
             <div style={{ fontSize: 11, opacity: 0.65, letterSpacing: 1 }}>
               ALARM
             </div>
-            <div style={{ fontSize: 14 }}>
-              {isOn ? "ACTIVE" : "NORMAL"}
-            </div>
+            <div style={{ fontSize: 14 }}>{isOn ? "ACTIVE" : "NORMAL"}</div>
           </div>
           <div
             style={{
@@ -318,27 +325,13 @@ export default function BlinkingAlarmSettingsModal({
 
         <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <div>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 900,
-                color: "#64748b",
-                marginBottom: 6,
-              }}
-            >
+            <div style={{ fontSize: 11, fontWeight: 900, color: "#64748b", marginBottom: 6 }}>
               OFF
             </div>
             <ProPreview styleId={s.id} isOn={false} />
           </div>
           <div>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 900,
-                color: "#64748b",
-                marginBottom: 6,
-              }}
-            >
+            <div style={{ fontSize: 11, fontWeight: 900, color: "#64748b", marginBottom: 6 }}>
               ON
             </div>
             <ProPreview styleId={s.id} isOn={true} />
@@ -449,7 +442,7 @@ export default function BlinkingAlarmSettingsModal({
             </div>
 
             <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
-              This affects the <b>ON</b> color/glow in previews (and your widget if you use tone defaults).
+              This affects the <b>ON</b> color/glow and will be saved into the widget.
             </div>
           </div>
 
