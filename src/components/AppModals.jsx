@@ -3,6 +3,9 @@ import React, { useEffect, useMemo, useState } from "react";
 import IndicatorLightSettingsModal from "./indicators/IndicatorLightSettingsModal";
 import StatusTextSettingsModal from "./indicators/StatusTextSettingsModal";
 
+// ✅ NEW
+import BlinkingAlarmSettingsModal from "./indicators/BlinkingAlarmSettingsModal";
+
 import RestoreWarningModal from "./RestoreWarningModal";
 import DisplaySettingsModal from "./DisplaySettingsModal";
 import GraphicDisplaySettingsModal from "./GraphicDisplaySettingsModal";
@@ -42,6 +45,10 @@ export default function AppModals({
   statusTextSettingsId,
   closeStatusTextSettings,
 
+  // ✅ NEW: Blinking Alarm settings
+  blinkingAlarmSettingsId,
+  closeBlinkingAlarmSettings,
+
   // ✅ give indicator modal access to available devices/tags
   sensorsData,
 
@@ -64,7 +71,8 @@ export default function AppModals({
     };
 
     window.addEventListener("coreflex-alarm-log-open-at", onOpenAt);
-    return () => window.removeEventListener("coreflex-alarm-log-open-at", onOpenAt);
+    return () =>
+      window.removeEventListener("coreflex-alarm-log-open-at", onOpenAt);
   }, []);
 
   const displayTarget = useMemo(() => {
@@ -105,6 +113,14 @@ export default function AppModals({
       (t) => isSameId(t.id, statusTextSettingsId) && t.shape === "statusTextBox"
     );
   }, [droppedTanks, statusTextSettingsId]);
+
+  // ✅ NEW: Blinking Alarm target
+  const blinkingAlarmTarget = useMemo(() => {
+    if (blinkingAlarmSettingsId == null) return null;
+    return droppedTanks.find(
+      (t) => isSameId(t.id, blinkingAlarmSettingsId) && t.shape === "blinkingAlarm"
+    );
+  }, [droppedTanks, blinkingAlarmSettingsId]);
 
   const alarmLogWindowProps = windowDrag?.getWindowProps
     ? windowDrag.getWindowProps("alarmLog")
@@ -155,6 +171,20 @@ export default function AppModals({
         />
       )}
 
+      {/* ✅ NEW: Blinking Alarm Settings */}
+      {blinkingAlarmTarget && (
+        <BlinkingAlarmSettingsModal
+          open={true}
+          tank={blinkingAlarmTarget}
+          sensorsData={sensorsData}
+          onClose={closeBlinkingAlarmSettings}
+          onSave={(updated) => {
+            patchTankProperties(blinkingAlarmTarget.id, updated);
+            closeBlinkingAlarmSettings?.();
+          }}
+        />
+      )}
+
       {displayTarget && (
         <DisplaySettingsModal
           tank={displayTarget}
@@ -163,7 +193,10 @@ export default function AppModals({
             setDroppedTanks((prev) =>
               prev.map((t) =>
                 isSameId(t.id, displayTarget.id)
-                  ? { ...t, properties: { ...(t.properties || {}), ...updatedProps } }
+                  ? {
+                      ...t,
+                      properties: { ...(t.properties || {}), ...updatedProps },
+                    }
                   : t
               )
             );
