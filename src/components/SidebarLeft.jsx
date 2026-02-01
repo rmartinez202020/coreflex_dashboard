@@ -63,13 +63,17 @@ export default function SidebarLeft({
      DEVICE MENUS (ACCORDION)
   ========================= */
   const [showIndicators, setShowIndicators] = useState(false);
+  const [showDeviceControls, setShowDeviceControls] = useState(false);
 
   // ✅ helper: open ONLY one section at a time
   const openOnly = (section) => {
     if (section === "indicators") {
       setShowIndicators((prev) => {
         const next = !prev;
-        if (next) setShowLevelSensors(false);
+        if (next) {
+          setShowLevelSensors(false);
+          setShowDeviceControls(false);
+        }
         return next;
       });
       return;
@@ -78,7 +82,22 @@ export default function SidebarLeft({
     if (section === "levelsensors") {
       setShowLevelSensors((prev) => {
         const next = !prev;
-        if (next) setShowIndicators(false);
+        if (next) {
+          setShowIndicators(false);
+          setShowDeviceControls(false);
+        }
+        return next;
+      });
+      return;
+    }
+
+    if (section === "devicecontrols") {
+      setShowDeviceControls((prev) => {
+        const next = !prev;
+        if (next) {
+          setShowIndicators(false);
+          setShowLevelSensors(false);
+        }
         return next;
       });
       return;
@@ -124,20 +143,23 @@ export default function SidebarLeft({
     onRequestRestore();
   };
 
-  // ✅ small helper for consistent menu rows
-  const MenuRow = ({ icon, children }) => (
-    <div className="mb-2 text-sm flex items-center">
-      {icon}
-      <div className="flex-1">{children}</div>
-    </div>
-  );
+  // ✅ small helper for consistent menu rows (same layout as Device Controls list)
+  const MenuRow = ({ icon, children, className = "" }) => {
+    return (
+      <div className={"mb-2 text-sm flex items-center " + className}>
+        {icon}
+        <div className="flex-1">{children}</div>
+      </div>
+    );
+  };
 
-  // ✅ Helper: draggable menu item
+  // ✅ Helper: draggable menu item that spawns a canvas object via "shape"
   const DraggableMenuItem = ({ shape, icon, label }) => (
     <div
       draggable
       onDragStart={(e) => {
         e.dataTransfer.setData("shape", shape);
+        // some browsers behave nicer when text/plain is also set
         e.dataTransfer.setData("text/plain", shape);
       }}
       className="cursor-grab active:cursor-grabbing"
@@ -232,6 +254,7 @@ export default function SidebarLeft({
                 if (!next) {
                   setShowIndicators(false);
                   setShowLevelSensors(false);
+                  setShowDeviceControls(false);
                 }
                 return next;
               })
@@ -256,27 +279,28 @@ export default function SidebarLeft({
                   <DraggableMenuItem
                     shape="ledCircle"
                     icon={<IconBadge>🟢</IconBadge>}
-                    label="Led Circle (DI)"
+                    label="Led Circle"
                   />
 
                   <DraggableMenuItem
                     shape="statusTextBox"
                     icon={<IconBadge>📝</IconBadge>}
-                    label="Status Text Box (DI)"
+                    label="Status Text Box"
                   />
 
                   <DraggableMenuItem
                     shape="blinkingAlarm"
                     icon={<IconBadge>🚨</IconBadge>}
-                    label="Blinking Alarm (DI)"
+                    label="Blinking Alarm"
                   />
 
                   <DraggableMenuItem
                     shape="stateImage"
                     icon={<IconBadge>🔄</IconBadge>}
-                    label="State Image (DI)"
+                    label="State Image"
                   />
 
+                  {/* ✅ Interlock moved to Indicators */}
                   <DraggableMenuItem
                     shape="interlock"
                     icon={<IconBadge>🔒</IconBadge>}
@@ -320,10 +344,19 @@ export default function SidebarLeft({
                 </div>
               )}
 
-              {/* ✅ DEVICE CONTROLS (NO TITLE ROW ANYMORE) */}
-              <div className="ml-2 mt-2">
-                <DraggableControls />
+              {/* ✅ DEVICE CONTROLS (independent + has title again) */}
+              <div
+                className="cursor-pointer mb-2 flex items-center gap-2"
+                onClick={() => openOnly("devicecontrols")}
+              >
+                Device Controls <span>{showDeviceControls ? "▾" : "▸"}</span>
               </div>
+
+              {showDeviceControls && (
+                <div className="ml-4">
+                  <DraggableControls />
+                </div>
+              )}
             </div>
           )}
         </div>
