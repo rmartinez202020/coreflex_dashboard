@@ -379,7 +379,7 @@ export default function IndicatorLightSettingsModal({
           </div>
 
           {/* Colors */}
-          <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+          <div style={{ display: "flex", gap: 12, marginBottom: 6 }}>
             <div style={{ flex: 1 }}>
               <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
                 OFF Color
@@ -403,6 +403,19 @@ export default function IndicatorLightSettingsModal({
                 style={{ width: "100%", height: 42, border: "none" }}
               />
             </div>
+          </div>
+
+          {/* ✅ NEW helper text under color pickers */}
+          <div
+            style={{
+              fontSize: 12,
+              color: "#64748b",
+              textAlign: "center",
+              marginBottom: 16,
+              userSelect: "none",
+            }}
+          >
+            Click to select the color
           </div>
 
           {/* TAG SELECTOR */}
