@@ -1,3 +1,4 @@
+// StateImageSettingsModal.jsx
 import React from "react";
 
 export default function StateImageSettingsModal({
@@ -35,7 +36,7 @@ export default function StateImageSettingsModal({
   const [imageFit, setImageFit] = React.useState(initialFit);
 
   // =========================
-  // DRAGGABLE WINDOW (same style as your other modals)
+  // DRAGGABLE WINDOW
   // =========================
   const modalRef = React.useRef(null);
   const dragRef = React.useRef({
@@ -71,10 +72,7 @@ export default function StateImageSettingsModal({
         window.innerWidth - 20,
         Math.max(20 - (mw - 60), nextLeft)
       );
-      const clampedTop = Math.min(
-        window.innerHeight - 20,
-        Math.max(20, nextTop)
-      );
+      const clampedTop = Math.min(window.innerHeight - 20, Math.max(20, nextTop));
 
       setPos({ left: clampedLeft, top: clampedTop });
     };
@@ -139,8 +137,7 @@ export default function StateImageSettingsModal({
     const q = tagSearch.trim().toLowerCase();
     if (!q) return availableFields;
     return availableFields.filter(
-      (f) =>
-        f.key.toLowerCase().includes(q) || f.label.toLowerCase().includes(q)
+      (f) => f.key.toLowerCase().includes(q) || f.label.toLowerCase().includes(q)
     );
   }, [availableFields, tagSearch]);
 
@@ -155,14 +152,16 @@ export default function StateImageSettingsModal({
   };
 
   const apply = () => {
+    // ✅ Keep OFF default even if user didn't pick ON
+    // ✅ Save tag only if user picked something (still ok if empty)
     onSave?.({
       id: tank.id,
       properties: {
         ...(tank.properties || {}),
-        offImage, // ✅ default image (OFF)
-        onImage,  // ✅ image when ON
-        imageFit, // contain|cover
-        tag: { deviceId, field }, // ✅ binding
+        offImage: offImage || "", // ✅ default image (OFF)
+        onImage: onImage || "", // ✅ image when ON
+        imageFit: imageFit || "contain",
+        tag: { deviceId: deviceId || "", field: field || "" },
       },
     });
   };
@@ -198,6 +197,7 @@ export default function StateImageSettingsModal({
             height: "100%",
             objectFit: imageFit,
           }}
+          draggable={false}
         />
       ) : (
         <div style={{ textAlign: "center", color: "#64748b" }}>
@@ -216,7 +216,10 @@ export default function StateImageSettingsModal({
         background: "rgba(0,0,0,0.35)",
         zIndex: 999999,
       }}
-      onMouseDown={onClose}
+      // ✅ ONLY close when clicking the backdrop itself
+      onMouseDown={(e) => {
+        if (e.target === e.currentTarget) onClose?.();
+      }}
     >
       <div
         ref={modalRef}
@@ -256,7 +259,11 @@ export default function StateImageSettingsModal({
         >
           <span>State Image</span>
           <button
-            onClick={onClose}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose?.();
+            }}
             style={{
               border: "none",
               background: "transparent",
@@ -281,7 +288,7 @@ export default function StateImageSettingsModal({
               alignItems: "start",
             }}
           >
-            {/* LEFT: OFF/ON image setup (this is the section you circled) */}
+            {/* LEFT: OFF/ON image setup */}
             <div
               style={{
                 border: "1px solid #e5e7eb",
@@ -293,7 +300,13 @@ export default function StateImageSettingsModal({
                 State Images (OFF / ON)
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 12,
+                }}
+              >
                 {/* OFF */}
                 <div>
                   <div style={{ fontSize: 12, fontWeight: 1000, marginBottom: 8 }}>
@@ -304,6 +317,7 @@ export default function StateImageSettingsModal({
 
                   <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
                     <label
+                      onMouseDown={(e) => e.stopPropagation()}
                       style={{
                         flex: 1,
                         padding: "9px 12px",
@@ -331,6 +345,7 @@ export default function StateImageSettingsModal({
 
                     <button
                       type="button"
+                      onMouseDown={(e) => e.stopPropagation()}
                       onClick={() => setOffImage("")}
                       style={{
                         padding: "9px 12px",
@@ -358,6 +373,7 @@ export default function StateImageSettingsModal({
 
                   <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
                     <label
+                      onMouseDown={(e) => e.stopPropagation()}
                       style={{
                         flex: 1,
                         padding: "9px 12px",
@@ -385,6 +401,7 @@ export default function StateImageSettingsModal({
 
                     <button
                       type="button"
+                      onMouseDown={(e) => e.stopPropagation()}
                       onClick={() => setOnImage("")}
                       style={{
                         padding: "9px 12px",
@@ -415,6 +432,7 @@ export default function StateImageSettingsModal({
                       <button
                         key={x.id}
                         type="button"
+                        onMouseDown={(e) => e.stopPropagation()}
                         onClick={() => setImageFit(x.id)}
                         style={{
                           padding: "9px 12px",
@@ -434,11 +452,12 @@ export default function StateImageSettingsModal({
               </div>
 
               <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
-                Default state is <b>OFF</b>. If your tag becomes ON (truthy / &gt; 0), the ON image will display.
+                Default state is <b>OFF</b>. If your tag becomes ON (truthy / &gt; 0),
+                the ON image will display.
               </div>
             </div>
 
-            {/* RIGHT: Tag binding (same as Status Text Box) */}
+            {/* RIGHT: Tag binding */}
             <div
               style={{
                 border: "1px solid #e5e7eb",
@@ -534,7 +553,8 @@ export default function StateImageSettingsModal({
               </div>
 
               <div style={{ fontSize: 12, color: "#64748b" }}>
-                Tip: ON means <b>truthy</b> (or numeric <b>&gt; 0</b>). Otherwise it displays OFF image.
+                Tip: ON means <b>truthy</b> (or numeric <b>&gt; 0</b>). Otherwise it
+                displays OFF image.
               </div>
             </div>
           </div>
@@ -552,7 +572,11 @@ export default function StateImageSettingsModal({
           }}
         >
           <button
-            onClick={onClose}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose?.();
+            }}
             style={{
               padding: "9px 14px",
               borderRadius: 10,
@@ -568,7 +592,11 @@ export default function StateImageSettingsModal({
           </button>
 
           <button
-            onClick={apply}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => {
+              e.stopPropagation();
+              apply();
+            }}
             style={{
               padding: "9px 14px",
               borderRadius: 10,
