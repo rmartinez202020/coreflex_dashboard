@@ -443,20 +443,6 @@ export default function IndicatorLightSettingsModal({
   </div>
 </div>
 
-
-          {/* ✅ NEW helper text under color pickers */}
-          <div
-            style={{
-              fontSize: 12,
-              color: "#64748b",
-              textAlign: "center",
-              marginBottom: 16,
-              userSelect: "none",
-            }}
-          >
-            Click to select the color
-          </div>
-
           {/* TAG SELECTOR */}
           <div
             style={{
