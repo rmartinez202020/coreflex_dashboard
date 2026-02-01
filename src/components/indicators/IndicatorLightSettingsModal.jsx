@@ -7,7 +7,7 @@ export default function IndicatorLightSettingsModal({
   onClose,
   onSave,
 
-  // ✅ give the modal access to available devices/tags
+  // ✅ give the modal access to available devices/tags + live values (if provided)
   sensorsData,
 }) {
   if (!open || !tank) return null;
@@ -157,6 +157,68 @@ export default function IndicatorLightSettingsModal({
         f.key.toLowerCase().includes(q) || f.label.toLowerCase().includes(q)
     );
   }, [availableFields, tagSearch]);
+
+  // =========================
+  // ✅ LIVE VALUE / STATUS (Offline vs Online + 0/1)
+  // =========================
+  const liveRawValue = React.useMemo(() => {
+    if (!deviceId || !field) return undefined;
+
+    // Try common shapes safely:
+    // 1) sensorsData.latest[deviceId][field]
+    const v1 = sensorsData?.latest?.[deviceId]?.[field];
+    if (v1 !== undefined) return v1;
+
+    // 2) sensorsData.values[deviceId][field]
+    const v2 = sensorsData?.values?.[deviceId]?.[field];
+    if (v2 !== undefined) return v2;
+
+    // 3) sensorsData.tags[deviceId][field]
+    const v3 = sensorsData?.tags?.[deviceId]?.[field];
+    if (v3 !== undefined) return v3;
+
+    // 4) selectedDevice.values[field]
+    const v4 = selectedDevice?.values?.[field];
+    if (v4 !== undefined) return v4;
+
+    // 5) selectedDevice.tags[field]
+    const v5 = selectedDevice?.tags?.[field];
+    if (v5 !== undefined) return v5;
+
+    // 6) selectedDevice.last?.[field]
+    const v6 = selectedDevice?.last?.[field];
+    if (v6 !== undefined) return v6;
+
+    return undefined;
+  }, [sensorsData, selectedDevice, deviceId, field]);
+
+  const isOnline = liveRawValue !== undefined && liveRawValue !== null;
+
+  const bool01 = React.useMemo(() => {
+    if (!isOnline) return null;
+
+    // Normalize to 0/1:
+    // - numbers: >0 => 1
+    // - booleans: true => 1
+    // - strings: "1"/"true"/"on" => 1
+    const v = liveRawValue;
+
+    if (typeof v === "number") return v > 0 ? 1 : 0;
+    if (typeof v === "boolean") return v ? 1 : 0;
+
+    if (typeof v === "string") {
+      const s = v.trim().toLowerCase();
+      if (s === "1" || s === "true" || s === "on" || s === "yes") return 1;
+      if (s === "0" || s === "false" || s === "off" || s === "no") return 0;
+
+      // numeric string fallback
+      const n = Number(s);
+      if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
+    }
+
+    // unknown type => truthy fallback
+    return v ? 1 : 0;
+  }, [isOnline, liveRawValue]);
 
   const apply = () => {
     // ✅ SAVE INTO tank.properties (what DraggableLedCircle reads)
@@ -378,70 +440,70 @@ export default function IndicatorLightSettingsModal({
             </div>
           </div>
 
-        {/* Colors */}
-<div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-  {/* OFF COLOR */}
-  <div style={{ flex: 1, textAlign: "center" }}>
-    <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-      OFF Color
-    </div>
+          {/* Colors */}
+          <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+            {/* OFF COLOR */}
+            <div style={{ flex: 1, textAlign: "center" }}>
+              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
+                OFF Color
+              </div>
 
-    <input
-      type="color"
-      value={offColor}
-      onChange={(e) => setOffColor(e.target.value)}
-      style={{
-        width: "100%",
-        height: 44,
-        border: "none",
-        cursor: "pointer",
-      }}
-    />
+              <input
+                type="color"
+                value={offColor}
+                onChange={(e) => setOffColor(e.target.value)}
+                style={{
+                  width: "100%",
+                  height: 44,
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              />
 
-    <div
-      style={{
-        marginTop: 6,
-        fontSize: 13,            // ⬅️ bigger
-        fontWeight: 600,
-        color: "#475569",        // slate-600
-        userSelect: "none",
-      }}
-    >
-      Click to select the color
-    </div>
-  </div>
+              <div
+                style={{
+                  marginTop: 6,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#475569",
+                  userSelect: "none",
+                }}
+              >
+                Click to select the color
+              </div>
+            </div>
 
-  {/* ON COLOR */}
-  <div style={{ flex: 1, textAlign: "center" }}>
-    <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-      ON Color
-    </div>
+            {/* ON COLOR */}
+            <div style={{ flex: 1, textAlign: "center" }}>
+              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
+                ON Color
+              </div>
 
-    <input
-      type="color"
-      value={onColor}
-      onChange={(e) => setOnColor(e.target.value)}
-      style={{
-        width: "100%",
-        height: 44,
-        border: "none",
-        cursor: "pointer",
-      }}
-    />
+              <input
+                type="color"
+                value={onColor}
+                onChange={(e) => setOnColor(e.target.value)}
+                style={{
+                  width: "100%",
+                  height: 44,
+                  border: "none",
+                  cursor: "pointer",
+                }}
+              />
 
-    <div
-      style={{
-        marginTop: 6,
-        fontSize: 13,            // ⬅️ bigger
-        fontWeight: 600,
-        color: "#475569",
-        userSelect: "none",
-      }}
-    >
-      Click to select the color
-    </div>
-  </div>
-</div>
+              <div
+                style={{
+                  marginTop: 6,
+                  fontSize: 13,
+                  fontWeight: 600,
+                  color: "#475569",
+                  userSelect: "none",
+                }}
+              >
+                Click to select the color
+              </div>
+            </div>
+          </div>
 
           {/* TAG SELECTOR */}
           <div
@@ -503,49 +565,96 @@ export default function IndicatorLightSettingsModal({
               </div>
             </div>
 
-            <div>
+            {/* ✅ Keep ONLY dropdown for Tag selection */}
+            <div style={{ marginBottom: 10 }}>
               <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
                 Tag / Field
               </div>
 
-              {filteredFields.length > 0 ? (
-                <select
-                  value={field}
-                  onChange={(e) => setField(e.target.value)}
+              <select
+                value={field}
+                onChange={(e) => setField(e.target.value)}
+                disabled={!deviceId || filteredFields.length === 0}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: "1px solid #cbd5e1",
+                  fontSize: 14,
+                  background: "white",
+                  opacity: !deviceId || filteredFields.length === 0 ? 0.7 : 1,
+                  cursor:
+                    !deviceId || filteredFields.length === 0
+                      ? "not-allowed"
+                      : "pointer",
+                }}
+              >
+                <option value="">
+                  {!deviceId
+                    ? "— Select device first —"
+                    : filteredFields.length === 0
+                    ? "— No tags available —"
+                    : "— Select tag —"}
+                </option>
+
+                {filteredFields.map((f) => (
+                  <option key={f.key} value={f.key}>
+                    {f.label}
+                  </option>
+                ))}
+              </select>
+            </div>
+
+            {/* ✅ NEW: Status panel replaces the old big input + tip */}
+            <div
+              style={{
+                border: "1px solid #e5e7eb",
+                borderRadius: 12,
+                padding: 12,
+                background: "#f8fafc",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "space-between",
+                gap: 12,
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>
+                  Status
+                </div>
+                <div style={{ fontSize: 13, marginTop: 4, color: "#334155" }}>
+                  {deviceId && field ? (
+                    isOnline ? (
+                      <span style={{ fontWeight: 900, color: "#16a34a" }}>
+                        Online
+                      </span>
+                    ) : (
+                      <span style={{ fontWeight: 900, color: "#dc2626" }}>
+                        Offline
+                      </span>
+                    )
+                  ) : (
+                    <span style={{ color: "#64748b" }}>
+                      Select a device and tag
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>
+                  Value
+                </div>
+                <div
                   style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: 10,
-                    border: "1px solid #cbd5e1",
-                    fontSize: 14,
-                    background: "white",
+                    fontSize: 16,
+                    fontWeight: 900,
+                    marginTop: 4,
+                    color: isOnline ? "#0f172a" : "#94a3b8",
                   }}
                 >
-                  <option value="">— Select tag —</option>
-                  {filteredFields.map((f) => (
-                    <option key={f.key} value={f.key}>
-                      {f.label}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  value={field}
-                  onChange={(e) => setField(e.target.value)}
-                  placeholder="Type tag field (ex: di0, run_status, level_percent)"
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: 10,
-                    border: "1px solid #cbd5e1",
-                    fontSize: 14,
-                  }}
-                />
-              )}
-
-              <div style={{ fontSize: 12, color: "#64748b", marginTop: 8 }}>
-                Tip: ON means “truthy”. If your tag is numeric, anything &gt; 0
-                will read as ON.
+                  {deviceId && field ? (isOnline ? String(bool01) : "—") : "—"}
+                </div>
               </div>
             </div>
           </div>
