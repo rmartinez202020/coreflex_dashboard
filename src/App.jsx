@@ -388,7 +388,8 @@ const closeStateImageSettings = () => setStateImageSettingsId(null);
         onGoHome={goHomeHard}
       />
 
-        <main className="flex-1 pt-6 pr-6 pb-6 pl-2 bg-white overflow-visible relative">
+          <main className="flex-1 pt-6 pr-0 pb-6 pl-2 bg-white overflow-visible relative">
+
 
         <Header onLogout={handleLogout} />
 

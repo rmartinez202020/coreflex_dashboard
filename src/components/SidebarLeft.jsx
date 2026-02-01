@@ -265,7 +265,7 @@ export default function SidebarLeft({
           </div>
 
           {showDevices && (
-            <div className="ml-1">
+            <div className="ml-0">
               {/* INDICATORS */}
               <div
                 className="cursor-pointer mb-2 flex items-center gap-2"
