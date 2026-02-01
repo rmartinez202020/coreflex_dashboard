@@ -32,8 +32,10 @@ export default function StateImageSettingsModal({
   const [onImage, setOnImage] = React.useState(initialOnImage);
 
   // ✅ Track which slot we are choosing ("off" | "on")
-  // (NO UI for this — just internal routing)
   const pickSlotRef = React.useRef(null);
+
+  // ✅ Track the active request so we only accept the matching selection event
+  const pickRequestIdRef = React.useRef(null);
 
   // =========================
   // DRAGGABLE WINDOW
@@ -196,7 +198,7 @@ export default function StateImageSettingsModal({
           style={{
             width: "100%",
             height: "100%",
-            objectFit: "contain", // ✅ fixed (Image Fit menu removed)
+            objectFit: "contain", // fixed
           }}
         />
       ) : (
@@ -209,11 +211,19 @@ export default function StateImageSettingsModal({
   );
 
   // =========================
-  // ✅ IOTs LIBRARY PICKER (EVENT-BASED) — NO UI LABELS
+  // ✅ IOTs LIBRARY PICKER (EVENT-BASED) — FIXED ROUTING
   // =========================
   const openIOTsLibrary = (which) => {
     const safeWhich = which === "on" ? "on" : "off";
+
+    // ✅ save last clicked slot
     pickSlotRef.current = safeWhich;
+
+    // ✅ create a requestId so we only accept the matching selection event
+    const requestId = `${tank.id}-${Date.now()}-${Math.random()
+      .toString(16)
+      .slice(2)}`;
+    pickRequestIdRef.current = requestId;
 
     window.dispatchEvent(
       new CustomEvent("coreflex-open-iots-library", {
@@ -221,6 +231,7 @@ export default function StateImageSettingsModal({
           mode: "pickImage",
           which: safeWhich, // off | on
           tankId: tank.id,
+          requestId,
           from: "StateImageSettingsModal",
         },
       })
@@ -232,22 +243,45 @@ export default function StateImageSettingsModal({
       const url = ev?.detail?.url;
       if (!url) return;
 
-      // prefer event "which", fallback to last requested slot
+      // ✅ If the event includes tankId, it must match
+      if (
+        ev?.detail?.tankId != null &&
+        String(ev.detail.tankId) !== String(tank.id)
+      ) {
+        return;
+      }
+
+      // ✅ If the event includes requestId, it must match
+      if (
+        ev?.detail?.requestId &&
+        pickRequestIdRef.current &&
+        ev.detail.requestId !== pickRequestIdRef.current
+      ) {
+        return;
+      }
+
+      // ✅ Determine which slot to set
+      // Prefer event.which if valid, otherwise use the last clicked slot ref.
       const which =
         ev?.detail?.which === "on" || ev?.detail?.which === "off"
           ? ev.detail.which
-          : pickSlotRef.current || "off";
+          : pickSlotRef.current;
+
+      // If still unknown, DO NOTHING (prevents defaulting to OFF wrongly)
+      if (which !== "on" && which !== "off") return;
 
       if (which === "off") setOffImage(url);
       if (which === "on") setOnImage(url);
 
+      // ✅ clear refs after successful selection
       pickSlotRef.current = null;
+      pickRequestIdRef.current = null;
     };
 
     window.addEventListener("coreflex-iots-library-selected", onSelected);
     return () =>
       window.removeEventListener("coreflex-iots-library-selected", onSelected);
-  }, []);
+  }, [tank.id]);
 
   return (
     <div
