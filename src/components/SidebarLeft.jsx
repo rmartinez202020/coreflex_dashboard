@@ -299,6 +299,13 @@ export default function SidebarLeft({
                     icon={<IconBadge>🔄</IconBadge>}
                     label="State Image"
                   />
+
+                  {/* ✅ MOVED HERE: Interlock (DI) */}
+                  <DraggableMenuItem
+                    shape="interlock"
+                    icon={<IconBadge>🔒</IconBadge>}
+                    label="Interlock (DI)"
+                  />
                 </div>
               )}
 
