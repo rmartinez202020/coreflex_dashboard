@@ -349,7 +349,7 @@ export default function SidebarLeft({
                 className="cursor-pointer mb-2 flex items-center gap-2"
                 onClick={() => openOnly("devicecontrols")}
               >
-                Device Controls <span>{showDeviceControls ? "▾" : "▸"}</span>
+                Controls <span>{showDeviceControls ? "▾" : "▸"}</span>
               </div>
 
               {showDeviceControls && (
