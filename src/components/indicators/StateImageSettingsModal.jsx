@@ -34,6 +34,8 @@ export default function StateImageSettingsModal({
   // ✅ Track last clicked slot ("off" | "on")
   const pickSlotRef = React.useRef(null);
 
+  const isTagAssigned = Boolean(String(deviceId || "").trim()) && Boolean(String(field || "").trim());
+
   // =========================
   // DRAGGABLE WINDOW
   // =========================
@@ -208,11 +210,42 @@ export default function StateImageSettingsModal({
   );
 
   // =========================
-  // ✅ IOTs LIBRARY PICKER (EVENT-BASED) — HARD FIX
+  // ✅ Button styles
+  // =========================
+  const btnNeutral = {
+    padding: "9px 12px",
+    borderRadius: 10,
+    border: "1px solid #cbd5e1",
+    background: "white",
+    cursor: "pointer",
+    fontWeight: 1000,
+    fontSize: 13,
+    whiteSpace: "nowrap",
+  };
+
+  // ✅ OFF should look "default active" -> green translucent
+  const btnGreen = {
+    ...btnNeutral,
+    border: "1px solid #86efac",
+    background: "rgba(34,197,94,0.12)",
+    color: "#065f46",
+  };
+
+  // If you want the green only when NO tag assigned:
+  // const offBtnStyle = !isTagAssigned ? btnGreen : btnNeutral;
+  // But per your request, OFF is default state -> keep green always:
+  const offBtnStyle = btnGreen;
+
+  // Optional: if you want ON to become green when a tag is assigned (not requested)
+  // const onBtnStyle = isTagAssigned ? btnNeutral : btnNeutral;
+  const onBtnStyle = btnNeutral;
+
+  // =========================
+  // ✅ IOTs LIBRARY PICKER (EVENT-BASED)
   // =========================
   const openIOTsLibrary = (which) => {
     const safeWhich = which === "on" ? "on" : "off";
-    pickSlotRef.current = safeWhich; // ✅ ALWAYS remember last clicked
+    pickSlotRef.current = safeWhich;
 
     window.dispatchEvent(
       new CustomEvent("coreflex-open-iots-library", {
@@ -231,7 +264,7 @@ export default function StateImageSettingsModal({
       const url = ev?.detail?.url;
       if (!url) return;
 
-      // ✅ If event provides tankId, require it to match (prevents cross-pollution)
+      // If event provides tankId, require it to match
       if (
         ev?.detail?.tankId != null &&
         String(ev.detail.tankId) !== String(tank.id)
@@ -239,7 +272,7 @@ export default function StateImageSettingsModal({
         return;
       }
 
-      // ✅ CRITICAL: Prefer the last clicked button over the library's "which"
+      // Prefer last clicked slot
       const fromRef =
         pickSlotRef.current === "on" || pickSlotRef.current === "off"
           ? pickSlotRef.current
@@ -251,14 +284,11 @@ export default function StateImageSettingsModal({
           : null;
 
       const which = fromRef || fromEvent;
-
-      // If still unknown, don't guess (prevents wrong OFF assignment)
       if (which !== "on" && which !== "off") return;
 
       if (which === "off") setOffImage(url);
       if (which === "on") setOnImage(url);
 
-      // ✅ clear after success
       pickSlotRef.current = null;
     };
 
@@ -403,16 +433,7 @@ export default function StateImageSettingsModal({
                     <button
                       type="button"
                       onClick={() => openIOTsLibrary("off")}
-                      style={{
-                        padding: "9px 12px",
-                        borderRadius: 10,
-                        border: "1px solid #cbd5e1",
-                        background: "#f8fafc",
-                        cursor: "pointer",
-                        fontWeight: 1000,
-                        fontSize: 13,
-                        whiteSpace: "nowrap",
-                      }}
+                      style={offBtnStyle} // ✅ green highlight on OFF
                       title="Pick OFF image from CoreFlex IOTs Library"
                     >
                       IOTs Library OFF
@@ -481,17 +502,7 @@ export default function StateImageSettingsModal({
                     <button
                       type="button"
                       onClick={() => openIOTsLibrary("on")}
-                      style={{
-                        padding: "9px 12px",
-                        borderRadius: 10,
-                        border: "1px solid #86efac",
-                        background: "#ecfdf5",
-                        cursor: "pointer",
-                        fontWeight: 1000,
-                        fontSize: 13,
-                        whiteSpace: "nowrap",
-                        color: "#065f46",
-                      }}
+                      style={onBtnStyle} // ✅ neutral
                       title="Pick ON image from CoreFlex IOTs Library"
                     >
                       IOTs Library ON
@@ -622,6 +633,22 @@ export default function StateImageSettingsModal({
                 Tip: ON means <b>truthy</b> (or numeric <b>&gt; 0</b>). Otherwise
                 it displays OFF image.
               </div>
+
+              {!isTagAssigned ? (
+                <div
+                  style={{
+                    marginTop: 10,
+                    fontSize: 12,
+                    color: "#64748b",
+                    background: "#f8fafc",
+                    border: "1px dashed #e2e8f0",
+                    borderRadius: 10,
+                    padding: 10,
+                  }}
+                >
+                  No tag assigned yet — widget will stay in <b>OFF</b> state by default.
+                </div>
+              ) : null}
             </div>
           </div>
         </div>
