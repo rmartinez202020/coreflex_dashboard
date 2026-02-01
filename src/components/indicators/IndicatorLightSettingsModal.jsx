@@ -6,8 +6,6 @@ export default function IndicatorLightSettingsModal({
   tank,
   onClose,
   onSave,
-
-  // ✅ give the modal access to available devices/tags + live values (if provided)
   sensorsData,
 }) {
   if (!open || !tank) return null;
@@ -46,7 +44,6 @@ export default function IndicatorLightSettingsModal({
   const MODAL_W = 620;
   const MODAL_H = 650; // estimate for initial clamping
 
-  // ✅ clamp helper (raw, stable, usable in initial state)
   const clampRaw = (x, y) => {
     const pad = 10;
     const maxX = Math.max(pad, window.innerWidth - MODAL_W - pad);
@@ -57,8 +54,6 @@ export default function IndicatorLightSettingsModal({
     };
   };
 
-  // ✅ IMPORTANT FIX:
-  // Set initial position centered BEFORE first paint (no render at 0,0)
   const [pos, setPos] = React.useState(() => {
     const cx = Math.round((window.innerWidth - MODAL_W) / 2);
     const cy = Math.round((window.innerHeight - MODAL_H) / 2);
@@ -98,7 +93,6 @@ export default function IndicatorLightSettingsModal({
   }, [clamp]);
 
   const startDrag = (e) => {
-    // Only left button / primary pointer
     if (e.button != null && e.button !== 0) return;
 
     e.preventDefault();
@@ -164,28 +158,21 @@ export default function IndicatorLightSettingsModal({
   const liveRawValue = React.useMemo(() => {
     if (!deviceId || !field) return undefined;
 
-    // Try common shapes safely:
-    // 1) sensorsData.latest[deviceId][field]
     const v1 = sensorsData?.latest?.[deviceId]?.[field];
     if (v1 !== undefined) return v1;
 
-    // 2) sensorsData.values[deviceId][field]
     const v2 = sensorsData?.values?.[deviceId]?.[field];
     if (v2 !== undefined) return v2;
 
-    // 3) sensorsData.tags[deviceId][field]
     const v3 = sensorsData?.tags?.[deviceId]?.[field];
     if (v3 !== undefined) return v3;
 
-    // 4) selectedDevice.values[field]
     const v4 = selectedDevice?.values?.[field];
     if (v4 !== undefined) return v4;
 
-    // 5) selectedDevice.tags[field]
     const v5 = selectedDevice?.tags?.[field];
     if (v5 !== undefined) return v5;
 
-    // 6) selectedDevice.last?.[field]
     const v6 = selectedDevice?.last?.[field];
     if (v6 !== undefined) return v6;
 
@@ -197,10 +184,6 @@ export default function IndicatorLightSettingsModal({
   const bool01 = React.useMemo(() => {
     if (!isOnline) return null;
 
-    // Normalize to 0/1:
-    // - numbers: >0 => 1
-    // - booleans: true => 1
-    // - strings: "1"/"true"/"on" => 1
     const v = liveRawValue;
 
     if (typeof v === "number") return v > 0 ? 1 : 0;
@@ -211,17 +194,14 @@ export default function IndicatorLightSettingsModal({
       if (s === "1" || s === "true" || s === "on" || s === "yes") return 1;
       if (s === "0" || s === "false" || s === "off" || s === "no") return 0;
 
-      // numeric string fallback
       const n = Number(s);
       if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
     }
 
-    // unknown type => truthy fallback
     return v ? 1 : 0;
   }, [isOnline, liveRawValue]);
 
   const apply = () => {
-    // ✅ SAVE INTO tank.properties (what DraggableLedCircle reads)
     onSave?.({
       id: tank.id,
       properties: {
@@ -245,12 +225,10 @@ export default function IndicatorLightSettingsModal({
         zIndex: 999999,
       }}
       onMouseDown={() => {
-        // click outside closes (but not while dragging)
         if (draggingRef.current) return;
         onClose?.();
       }}
       onPointerDown={() => {
-        // only close if backdrop is clicked (window stops propagation)
         if (draggingRef.current) return;
         onClose?.();
       }}
@@ -260,7 +238,6 @@ export default function IndicatorLightSettingsModal({
           position: "absolute",
           left: pos.x,
           top: pos.y,
-
           width: MODAL_W,
           background: "#fff",
           borderRadius: 12,
@@ -442,12 +419,10 @@ export default function IndicatorLightSettingsModal({
 
           {/* Colors */}
           <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-            {/* OFF COLOR */}
             <div style={{ flex: 1, textAlign: "center" }}>
               <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
                 OFF Color
               </div>
-
               <input
                 type="color"
                 value={offColor}
@@ -459,7 +434,6 @@ export default function IndicatorLightSettingsModal({
                   cursor: "pointer",
                 }}
               />
-
               <div
                 style={{
                   marginTop: 6,
@@ -473,12 +447,10 @@ export default function IndicatorLightSettingsModal({
               </div>
             </div>
 
-            {/* ON COLOR */}
             <div style={{ flex: 1, textAlign: "center" }}>
               <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
                 ON Color
               </div>
-
               <input
                 type="color"
                 value={onColor}
@@ -490,7 +462,6 @@ export default function IndicatorLightSettingsModal({
                   cursor: "pointer",
                 }}
               />
-
               <div
                 style={{
                   marginTop: 6,
@@ -526,7 +497,8 @@ export default function IndicatorLightSettingsModal({
                   value={deviceId}
                   onChange={(e) => {
                     setDeviceId(e.target.value);
-                    setField("");
+                    // keep existing tank field if possible; otherwise clear
+                    setField((prev) => prev || "");
                   }}
                   style={{
                     width: "100%",
@@ -565,47 +537,7 @@ export default function IndicatorLightSettingsModal({
               </div>
             </div>
 
-            {/* ✅ Keep ONLY dropdown for Tag selection */}
-            <div style={{ marginBottom: 10 }}>
-              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-                Tag / Field
-              </div>
-
-              <select
-                value={field}
-                onChange={(e) => setField(e.target.value)}
-                disabled={!deviceId || filteredFields.length === 0}
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  border: "1px solid #cbd5e1",
-                  fontSize: 14,
-                  background: "white",
-                  opacity: !deviceId || filteredFields.length === 0 ? 0.7 : 1,
-                  cursor:
-                    !deviceId || filteredFields.length === 0
-                      ? "not-allowed"
-                      : "pointer",
-                }}
-              >
-                <option value="">
-                  {!deviceId
-                    ? "— Select device first —"
-                    : filteredFields.length === 0
-                    ? "— No tags available —"
-                    : "— Select tag —"}
-                </option>
-
-                {filteredFields.map((f) => (
-                  <option key={f.key} value={f.key}>
-                    {f.label}
-                  </option>
-                ))}
-              </select>
-            </div>
-
-            {/* ✅ NEW: Status panel replaces the old big input + tip */}
+            {/* ✅ Status panel only */}
             <div
               style={{
                 border: "1px solid #e5e7eb",
@@ -639,6 +571,13 @@ export default function IndicatorLightSettingsModal({
                     </span>
                   )}
                 </div>
+
+                {/* ✅ Optional: show which tag is currently bound (helps user) */}
+                {deviceId && field && (
+                  <div style={{ fontSize: 12, color: "#64748b", marginTop: 6 }}>
+                    Bound Tag: <b>{field}</b>
+                  </div>
+                )}
               </div>
 
               <div style={{ textAlign: "right" }}>
@@ -657,6 +596,10 @@ export default function IndicatorLightSettingsModal({
                 </div>
               </div>
             </div>
+
+            {/* ✅ (hidden) If you still want search to affect what tag is bound,
+                we can auto-pick the first matching field.
+                For now, we do NOT auto-change "field" to avoid surprising behavior. */}
           </div>
         </div>
 
