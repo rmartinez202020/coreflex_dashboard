@@ -262,36 +262,6 @@ export default function StateImageSettingsModal({
     { id: "none", name: "None" },
   ];
 
-  // ✅ Button styles (OFF / ON)
-  const libBtnBase = {
-    width: "100%",
-    padding: "9px 12px",
-    borderRadius: 10,
-    cursor: "pointer",
-    fontWeight: 1000,
-    fontSize: 13,
-    whiteSpace: "nowrap",
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    gap: 8,
-    userSelect: "none",
-  };
-
-  const libBtnOff = {
-    ...libBtnBase,
-    border: "1px solid #cbd5e1",
-    background: "#f8fafc",
-    color: "#0f172a",
-  };
-
-  const libBtnOn = {
-    ...libBtnBase,
-    border: "1px solid #86efac",
-    background: "#ecfdf5",
-    color: "#065f46",
-  };
-
   return (
     <div
       style={{
@@ -425,26 +395,23 @@ export default function StateImageSettingsModal({
                       />
                     </label>
 
-                    {/* ✅ STACKED IOTs buttons */}
-                    <div style={{ width: 170, display: "flex", flexDirection: "column", gap: 8 }}>
-                      <button
-                        type="button"
-                        onClick={() => openIOTsLibrary("off")}
-                        style={libBtnOff}
-                        title="Pick OFF image from CoreFlex IOTs Library"
-                      >
-                        IOTs Library OFF
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => openIOTsLibrary("on")}
-                        style={libBtnOn}
-                        title="Pick ON image from CoreFlex IOTs Library"
-                      >
-                        IOTs Library ON
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => openIOTsLibrary("off")}
+                      style={{
+                        padding: "9px 12px",
+                        borderRadius: 10,
+                        border: "1px solid #cbd5e1",
+                        background: "white",
+                        cursor: "pointer",
+                        fontWeight: 1000,
+                        fontSize: 13,
+                        whiteSpace: "nowrap",
+                      }}
+                      title="Pick OFF image from CoreFlex IOTs Library"
+                    >
+                      IOTs Library OFF
+                    </button>
 
                     <button
                       type="button"
@@ -506,26 +473,23 @@ export default function StateImageSettingsModal({
                       />
                     </label>
 
-                    {/* ✅ STACKED IOTs buttons */}
-                    <div style={{ width: 170, display: "flex", flexDirection: "column", gap: 8 }}>
-                      <button
-                        type="button"
-                        onClick={() => openIOTsLibrary("off")}
-                        style={libBtnOff}
-                        title="Pick OFF image from CoreFlex IOTs Library"
-                      >
-                        IOTs Library OFF
-                      </button>
-
-                      <button
-                        type="button"
-                        onClick={() => openIOTsLibrary("on")}
-                        style={libBtnOn}
-                        title="Pick ON image from CoreFlex IOTs Library"
-                      >
-                        IOTs Library ON
-                      </button>
-                    </div>
+                    <button
+                      type="button"
+                      onClick={() => openIOTsLibrary("on")}
+                      style={{
+                        padding: "9px 12px",
+                        borderRadius: 10,
+                        border: "1px solid #cbd5e1",
+                        background: "white",
+                        cursor: "pointer",
+                        fontWeight: 1000,
+                        fontSize: 13,
+                        whiteSpace: "nowrap",
+                      }}
+                      title="Pick ON image from CoreFlex IOTs Library"
+                    >
+                      IOTs Library ON
+                    </button>
 
                     <button
                       type="button"
