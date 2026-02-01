@@ -12,39 +12,35 @@ export default function RightSidebar({
   onOpenAlarmLog,
 }) {
   const openLibrary = (key) => {
-    console.log("📁 Library click:", key); // ✅ debug (you can remove later)
-
     if (key === "image") return setShowImageLibrary?.();
     if (key === "coreflex") return setShowCoreflexLibrary?.();
-
-    // ✅ symbol windows: key must match wm keys in App.jsx
     return openSymbolLibrary?.(key);
   };
 
-  // ✅ Click-to-open Alarm Log (small item under Libraries)
   const openAlarmLog = (e) => {
     e?.stopPropagation?.();
 
-    try {
-      window.dispatchEvent(
-        new CustomEvent("coreflex-alarm-log-open-at", {
-          detail: { x: 260, y: 120 }, // ✅ safe default inside workspace
-        })
-      );
-    } catch (err) {
-      console.warn("Failed to dispatch coreflex-alarm-log-open-at", err);
-    }
+    // ✅ OPTIONAL: match the sidebar width so it opens nicely near the right area
+    window.dispatchEvent(
+      new CustomEvent("coreflex-alarm-log-open-at", {
+        detail: { x: 230, y: 120 }, // was 260
+      })
+    );
 
     onOpenAlarmLog?.();
   };
 
+  // ✅ tweak these two numbers to taste
+  const EXPANDED_W = 230; // was 260
+  const COLLAPSED_W = 36; // was 40
+
   return (
     <aside
       className={
-        "border-l border-gray-300 flex flex-col transition-all duration-300 ease-in-out overflow-hidden " +
+        "shrink-0 border-l border-gray-300 flex flex-col transition-all duration-300 ease-in-out overflow-hidden bg-white " +
         (isRightCollapsed
-          ? "w-[40px] p-2 items-center justify-between bg-white"
-          : "w-[260px] p-6 bg-white overflow-y-auto")
+          ? `w-[${COLLAPSED_W}px] p-2 items-center justify-between`
+          : `w-[${EXPANDED_W}px] p-5 overflow-y-auto`)
       }
     >
       {/* COLLAPSE BUTTON */}
@@ -89,9 +85,8 @@ export default function RightSidebar({
                   width: "100px",
                   height: "40px",
                   background: "#e6e6e6",
-                  color: "#000",
                   fontFamily: "monospace",
-                  fontWeight: "900",
+                  fontWeight: 900,
                   fontSize: "20px",
                   display: "flex",
                   alignItems: "center",
@@ -104,7 +99,6 @@ export default function RightSidebar({
               >
                 00000
               </div>
-
               <span className="text-[14px] text-center">Display Input (AI)</span>
             </div>
 
@@ -127,56 +121,12 @@ export default function RightSidebar({
                   boxShadow:
                     "0 4px 10px rgba(0,0,0,0.08), inset 0 0 6px rgba(0,0,0,0.10)",
                   position: "relative",
-                  overflow: "hidden",
                 }}
-              >
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    background:
-                      "linear-gradient(to right, rgba(0,0,0,0.06) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.06) 1px, transparent 1px)",
-                    backgroundSize: "16px 16px",
-                    opacity: 0.55,
-                  }}
-                />
-                <svg
-                  width="120"
-                  height="55"
-                  viewBox="0 0 120 55"
-                  style={{ position: "absolute", inset: 0 }}
-                >
-                  <path
-                    d="M 6 40 L 22 32 L 36 36 L 52 22 L 68 26 L 84 18 L 100 24 L 114 14"
-                    fill="none"
-                    stroke="#2563eb"
-                    strokeWidth="2.6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    opacity="0.9"
-                  />
-                </svg>
-
-                <div
-                  style={{
-                    position: "absolute",
-                    left: 8,
-                    top: 6,
-                    fontSize: 10,
-                    fontWeight: 900,
-                    color: "#111",
-                  }}
-                >
-                  GRAPH
-                </div>
-              </div>
-
+              />
               <span className="text-[14px] text-center">
                 Graphic Display (AI)
               </span>
             </div>
-
-            {/* 🚫 REMOVED: big Alarm Log entity tile */}
           </div>
 
           {/* LIBRARIES */}
@@ -190,33 +140,41 @@ export default function RightSidebar({
             ["hvac3d", "HVAC Symbols 3D"],
             ["mfg2d", "Manufacturing Symbols 2D"],
             ["mfg3d", "Manufacturing Symbols 3D"],
-
-            // ✅ IMPORTANT: these must match App.jsx wm keys
             ["tp2d", "Tanks & Pipes Symbols 2D"],
             ["tp3d", "Tanks & Pipes Symbols 3D"],
           ].map(([key, label]) => (
             <button
               key={key}
               type="button"
-              className="mt-3 w-full text-left text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
+              className="mt-3 w-full text-left text-sm font-semibold text-gray-600 hover:text-blue-500 flex items-center gap-2"
               onClick={() => openLibrary(key)}
             >
               📁 <span>{label}</span>
             </button>
           ))}
 
-          {/* ✅ NEW: ALARM LOGS SECTION (small, under Libraries) */}
+          {/* 🔥 ALARM LOGS */}
           <h3 className="text-sm font-semibold mt-8 mb-3 text-gray-600">
             Alarm Logs
           </h3>
 
           <button
             type="button"
-            className="w-full text-left text-sm font-semibold text-gray-600 cursor-pointer hover:text-blue-500 flex items-center gap-2"
+            className="w-full text-left text-sm font-semibold text-gray-700 hover:text-red-600 flex items-center gap-3"
             onClick={openAlarmLog}
-            title="Open Alarm Log"
           >
-            <span style={{ fontSize: "18px", lineHeight: 1 }}>⚠️</span>
+            <span
+              style={{
+                fontSize: "26px",
+                width: 28,
+                height: 28,
+                display: "inline-flex",
+                alignItems: "center",
+                justifyContent: "center",
+              }}
+            >
+              ⚠️
+            </span>
             <span>Alarms Log (DI-AI)</span>
           </button>
         </div>
