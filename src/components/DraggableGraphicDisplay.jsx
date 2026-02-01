@@ -4,6 +4,8 @@ import GraphicDisplay from "./controls/GraphicDisplay";
 
 export default function DraggableGraphicDisplay({
   tank,
+
+  // ✅ these may exist in canvas mode
   onUpdate,
   onSelect,
   onDoubleClick,
@@ -11,9 +13,77 @@ export default function DraggableGraphicDisplay({
   selectedIds = [],
   dragDelta = { x: 0, y: 0 },
   dashboardMode = "edit",
-}) {
-  if (!tank) return null;
 
+  // ✅ palette mode optional props (if your RightPanel passes them)
+  label = "Graphic Display (AI)",
+  onDragStart,
+  onClick,
+}) {
+  // =========================
+  // ✅ PALETTE MODE (Entities panel)
+  // =========================
+  if (!tank) {
+    return (
+      <div
+        draggable
+        onDragStart={(e) => {
+          // ✅ MUST match what DashboardCanvas expects
+          const shape = "graphicDisplay";
+          e.dataTransfer.setData("shape", shape);
+          e.dataTransfer.setData("text/plain", shape);
+
+          // preserve any external handler (some panels use it)
+          onDragStart?.(e);
+        }}
+        onClick={onClick}
+        className="cursor-grab active:cursor-grabbing"
+        style={{ userSelect: "none" }}
+      >
+        <div className="w-full flex flex-col items-center">
+          {/* ✅ same-style small preview tile */}
+          <div className="w-[92px] h-[52px] rounded-md bg-white border border-gray-200 flex items-center justify-center overflow-hidden">
+            <svg width="76" height="34" viewBox="0 0 76 34">
+              {/* grid */}
+              <path d="M8 28H70" stroke="#e5e7eb" strokeWidth="1" />
+              <path d="M8 20H70" stroke="#e5e7eb" strokeWidth="1" />
+              <path d="M8 12H70" stroke="#e5e7eb" strokeWidth="1" />
+
+              {/* axes */}
+              <path d="M8 6V28" stroke="#cbd5e1" strokeWidth="1.2" />
+              <path d="M8 28H70" stroke="#cbd5e1" strokeWidth="1.2" />
+
+              {/* line */}
+              <path
+                d="M10 24 L20 17 L30 20 L40 12 L50 14 L60 8 L68 10"
+                fill="none"
+                stroke="#2563eb"
+                strokeWidth="2.3"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+
+              {/* dots */}
+              <circle cx="10" cy="24" r="2" fill="#2563eb" />
+              <circle cx="20" cy="17" r="2" fill="#2563eb" />
+              <circle cx="30" cy="20" r="2" fill="#2563eb" />
+              <circle cx="40" cy="12" r="2" fill="#2563eb" />
+              <circle cx="50" cy="14" r="2" fill="#2563eb" />
+              <circle cx="60" cy="8" r="2" fill="#2563eb" />
+              <circle cx="68" cy="10" r="2" fill="#2563eb" />
+            </svg>
+          </div>
+
+          <div className="mt-2 text-xs text-gray-700 text-center">
+            {label}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================
+  // ✅ CANVAS MODE (your existing working code)
+  // =========================
   const isPlay = dashboardMode === "play";
   const safeOnUpdate = typeof onUpdate === "function" ? onUpdate : () => {};
 
@@ -105,7 +175,7 @@ export default function DraggableGraphicDisplay({
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", stopMove);
     };
-  }, [isResizing, resizeDir, safeOnUpdate, tank]);
+  }, [isResizing, resizeDir, safeOnUpdate, tank, width, height]);
 
   return (
     <div
@@ -113,17 +183,13 @@ export default function DraggableGraphicDisplay({
       className="draggable-item"
       style={style}
       {...attributes}
-      // ✅ CRITICAL: prevent canvas selection box for the graphic too
       onPointerDown={(e) => {
         if (isPlay) return;
 
-        // stop the canvas selection box
         e.stopPropagation();
 
-        // select it
         onSelect?.(tank.id);
 
-        // start drag (DnD-kit)
         listeners?.onPointerDown?.(e);
       }}
       onDoubleClick={(e) => {
@@ -133,7 +199,6 @@ export default function DraggableGraphicDisplay({
       }}
       onContextMenu={(e) => e.preventDefault()}
     >
-      {/* ✅ In EDIT: let wrapper handle mouse; chart shouldn't steal events */}
       <div
         style={{
           width: "100%",
@@ -147,10 +212,8 @@ export default function DraggableGraphicDisplay({
         <GraphicDisplay tank={tank} />
       </div>
 
-      {/* ✅ Resize edges (EDIT only) */}
       {selected && !isPlay && (
         <>
-          {/* LEFT EDGE */}
           <div
             onMouseDown={(e) => startResize("left", e)}
             style={{
@@ -164,8 +227,6 @@ export default function DraggableGraphicDisplay({
               zIndex: 99999,
             }}
           />
-
-          {/* RIGHT EDGE */}
           <div
             onMouseDown={(e) => startResize("right", e)}
             style={{
@@ -179,8 +240,6 @@ export default function DraggableGraphicDisplay({
               zIndex: 99999,
             }}
           />
-
-          {/* TOP EDGE */}
           <div
             onMouseDown={(e) => startResize("top", e)}
             style={{
@@ -194,8 +253,6 @@ export default function DraggableGraphicDisplay({
               zIndex: 99999,
             }}
           />
-
-          {/* BOTTOM EDGE */}
           <div
             onMouseDown={(e) => startResize("bottom", e)}
             style={{
