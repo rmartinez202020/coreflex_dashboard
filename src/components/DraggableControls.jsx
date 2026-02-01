@@ -20,12 +20,6 @@ const CONTROLS = [
     badge: { text: "NC", bg: "#ef4444" }, // red
   },
 
-  {
-    type: "interlockControl",
-    label: "Interlock (DI)",
-    icon: "🔒",
-  },
-
   // ✅ Display Output (AO) — small display icon (instead of OUT pill)
   {
     type: "displayOutput",
