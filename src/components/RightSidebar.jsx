@@ -37,11 +37,15 @@ export default function RightSidebar({
   return (
     <aside
       className={
-        "shrink-0 border-l border-gray-300 flex flex-col transition-all duration-300 ease-in-out overflow-hidden bg-white " +
-        (isRightCollapsed
-          ? `w-[${COLLAPSED_W}px] p-2 items-center justify-between`
-          : `w-[${EXPANDED_W}px] p-5 overflow-y-auto`)
+        // ✅ IMPORTANT:
+        // Tailwind cannot generate dynamic classes like `w-[${EXPANDED_W}px]`
+        // so we keep classes static and use inline style for width/padding.
+        "shrink-0 border-l border-gray-300 flex flex-col transition-all duration-300 ease-in-out overflow-hidden bg-white"
       }
+      style={{
+        width: isRightCollapsed ? COLLAPSED_W : EXPANDED_W,
+        padding: isRightCollapsed ? 8 : 20, // p-2 / p-5
+      }}
     >
       {/* COLLAPSE BUTTON */}
       <button
