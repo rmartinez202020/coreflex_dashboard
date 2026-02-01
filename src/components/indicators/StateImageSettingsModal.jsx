@@ -21,11 +21,11 @@ export default function StateImageSettingsModal({
   const initialField = p?.tag?.field ?? "";
 
   // Images
-  const initialOffImage = p?.offImage ?? ""; // dataURL or URL
-  const initialOnImage = p?.onImage ?? ""; // dataURL or URL
+  const initialOffImage = p?.offImage ?? "";
+  const initialOnImage = p?.onImage ?? "";
 
-  // Optional shared image style
-  const initialFit = p?.imageFit ?? "contain"; // contain | cover
+  // ✅ More fit options
+  const initialFit = p?.imageFit ?? "contain"; // contain|cover|fill|none|scale-down
 
   const [deviceId, setDeviceId] = React.useState(initialDeviceId);
   const [field, setField] = React.useState(initialField);
@@ -34,6 +34,9 @@ export default function StateImageSettingsModal({
   const [offImage, setOffImage] = React.useState(initialOffImage);
   const [onImage, setOnImage] = React.useState(initialOnImage);
   const [imageFit, setImageFit] = React.useState(initialFit);
+
+  // ✅ Track which slot we are choosing from the library ("off" | "on")
+  const [libraryTarget, setLibraryTarget] = React.useState(null);
 
   // =========================
   // DRAGGABLE WINDOW
@@ -72,7 +75,10 @@ export default function StateImageSettingsModal({
         window.innerWidth - 20,
         Math.max(20 - (mw - 60), nextLeft)
       );
-      const clampedTop = Math.min(window.innerHeight - 20, Math.max(20, nextTop));
+      const clampedTop = Math.min(
+        window.innerHeight - 20,
+        Math.max(20, nextTop)
+      );
 
       setPos({ left: clampedLeft, top: clampedTop });
     };
@@ -137,7 +143,8 @@ export default function StateImageSettingsModal({
     const q = tagSearch.trim().toLowerCase();
     if (!q) return availableFields;
     return availableFields.filter(
-      (f) => f.key.toLowerCase().includes(q) || f.label.toLowerCase().includes(q)
+      (f) =>
+        f.key.toLowerCase().includes(q) || f.label.toLowerCase().includes(q)
     );
   }, [availableFields, tagSearch]);
 
@@ -152,16 +159,14 @@ export default function StateImageSettingsModal({
   };
 
   const apply = () => {
-    // ✅ Keep OFF default even if user didn't pick ON
-    // ✅ Save tag only if user picked something (still ok if empty)
     onSave?.({
       id: tank.id,
       properties: {
         ...(tank.properties || {}),
-        offImage: offImage || "", // ✅ default image (OFF)
-        onImage: onImage || "", // ✅ image when ON
-        imageFit: imageFit || "contain",
-        tag: { deviceId: deviceId || "", field: field || "" },
+        offImage,
+        onImage,
+        imageFit, // ✅ contain|cover|fill|none|scale-down
+        tag: { deviceId, field },
       },
     });
   };
@@ -197,7 +202,6 @@ export default function StateImageSettingsModal({
             height: "100%",
             objectFit: imageFit,
           }}
-          draggable={false}
         />
       ) : (
         <div style={{ textAlign: "center", color: "#64748b" }}>
@@ -208,6 +212,47 @@ export default function StateImageSettingsModal({
     </div>
   );
 
+  // =========================
+  // ✅ IOTs LIBRARY PICKER (EVENT-BASED)
+  // =========================
+  const openIOTsLibrary = (which) => {
+    setLibraryTarget(which); // "off" | "on"
+    window.dispatchEvent(
+      new CustomEvent("coreflex-open-iots-library", {
+        detail: {
+          mode: "pickImage",
+          which, // off | on
+          from: "StateImageSettingsModal",
+        },
+      })
+    );
+  };
+
+  React.useEffect(() => {
+    const onSelected = (ev) => {
+      const url = ev?.detail?.url;
+      const which = ev?.detail?.which; // off | on
+      if (!url || (which !== "off" && which !== "on")) return;
+
+      if (which === "off") setOffImage(url);
+      if (which === "on") setOnImage(url);
+
+      setLibraryTarget(null);
+    };
+
+    window.addEventListener("coreflex-iots-library-selected", onSelected);
+    return () =>
+      window.removeEventListener("coreflex-iots-library-selected", onSelected);
+  }, []);
+
+  const fitOptions = [
+    { id: "contain", name: "Contain" },
+    { id: "cover", name: "Cover" },
+    { id: "fill", name: "Fill" },
+    { id: "scale-down", name: "Scale Down" },
+    { id: "none", name: "None" },
+  ];
+
   return (
     <div
       style={{
@@ -216,10 +261,7 @@ export default function StateImageSettingsModal({
         background: "rgba(0,0,0,0.35)",
         zIndex: 999999,
       }}
-      // ✅ ONLY close when clicking the backdrop itself
-      onMouseDown={(e) => {
-        if (e.target === e.currentTarget) onClose?.();
-      }}
+      onMouseDown={onClose}
     >
       <div
         ref={modalRef}
@@ -259,11 +301,7 @@ export default function StateImageSettingsModal({
         >
           <span>State Image</span>
           <button
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose?.();
-            }}
+            onClick={onClose}
             style={{
               border: "none",
               background: "transparent",
@@ -309,7 +347,13 @@ export default function StateImageSettingsModal({
               >
                 {/* OFF */}
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 1000, marginBottom: 8 }}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 1000,
+                      marginBottom: 8,
+                    }}
+                  >
                     OFF Image (default)
                   </div>
 
@@ -317,7 +361,6 @@ export default function StateImageSettingsModal({
 
                   <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
                     <label
-                      onMouseDown={(e) => e.stopPropagation()}
                       style={{
                         flex: 1,
                         padding: "9px 12px",
@@ -345,7 +388,24 @@ export default function StateImageSettingsModal({
 
                     <button
                       type="button"
-                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={() => openIOTsLibrary("off")}
+                      style={{
+                        padding: "9px 12px",
+                        borderRadius: 10,
+                        border: "1px solid #cbd5e1",
+                        background: "white",
+                        cursor: "pointer",
+                        fontWeight: 1000,
+                        fontSize: 13,
+                        whiteSpace: "nowrap",
+                      }}
+                      title="Pick from CoreFlex IOTs Library"
+                    >
+                      IOTs Library
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => setOffImage("")}
                       style={{
                         padding: "9px 12px",
@@ -365,7 +425,13 @@ export default function StateImageSettingsModal({
 
                 {/* ON */}
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 1000, marginBottom: 8 }}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 1000,
+                      marginBottom: 8,
+                    }}
+                  >
                     ON Image
                   </div>
 
@@ -373,7 +439,6 @@ export default function StateImageSettingsModal({
 
                   <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
                     <label
-                      onMouseDown={(e) => e.stopPropagation()}
                       style={{
                         flex: 1,
                         padding: "9px 12px",
@@ -401,7 +466,24 @@ export default function StateImageSettingsModal({
 
                     <button
                       type="button"
-                      onMouseDown={(e) => e.stopPropagation()}
+                      onClick={() => openIOTsLibrary("on")}
+                      style={{
+                        padding: "9px 12px",
+                        borderRadius: 10,
+                        border: "1px solid #cbd5e1",
+                        background: "white",
+                        cursor: "pointer",
+                        fontWeight: 1000,
+                        fontSize: 13,
+                        whiteSpace: "nowrap",
+                      }}
+                      title="Pick from CoreFlex IOTs Library"
+                    >
+                      IOTs Library
+                    </button>
+
+                    <button
+                      type="button"
                       onClick={() => setOnImage("")}
                       style={{
                         padding: "9px 12px",
@@ -422,22 +504,20 @@ export default function StateImageSettingsModal({
 
               <div style={{ marginTop: 12 }}>
                 <Label>Image Fit</Label>
-                <div style={{ display: "flex", gap: 10 }}>
-                  {[
-                    { id: "contain", name: "Contain" },
-                    { id: "cover", name: "Cover" },
-                  ].map((x) => {
+                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
+                  {fitOptions.map((x) => {
                     const sel = imageFit === x.id;
                     return (
                       <button
                         key={x.id}
                         type="button"
-                        onMouseDown={(e) => e.stopPropagation()}
                         onClick={() => setImageFit(x.id)}
                         style={{
                           padding: "9px 12px",
                           borderRadius: 10,
-                          border: sel ? "2px solid #22c55e" : "1px solid #e5e7eb",
+                          border: sel
+                            ? "2px solid #22c55e"
+                            : "1px solid #e5e7eb",
                           background: sel ? "#ecfdf5" : "white",
                           cursor: "pointer",
                           fontWeight: 900,
@@ -452,9 +532,26 @@ export default function StateImageSettingsModal({
               </div>
 
               <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
-                Default state is <b>OFF</b>. If your tag becomes ON (truthy / &gt; 0),
-                the ON image will display.
+                Default state is <b>OFF</b>. If your tag becomes ON (truthy / &gt;
+                0), the ON image will display.
               </div>
+
+              {libraryTarget ? (
+                <div
+                  style={{
+                    marginTop: 10,
+                    fontSize: 12,
+                    color: "#334155",
+                    background: "#f1f5f9",
+                    border: "1px solid #e2e8f0",
+                    padding: 10,
+                    borderRadius: 10,
+                  }}
+                >
+                  Picking from <b>IOTs Library</b> for:{" "}
+                  <b>{libraryTarget.toUpperCase()}</b>
+                </div>
+              ) : null}
             </div>
 
             {/* RIGHT: Tag binding */}
@@ -553,8 +650,8 @@ export default function StateImageSettingsModal({
               </div>
 
               <div style={{ fontSize: 12, color: "#64748b" }}>
-                Tip: ON means <b>truthy</b> (or numeric <b>&gt; 0</b>). Otherwise it
-                displays OFF image.
+                Tip: ON means <b>truthy</b> (or numeric <b>&gt; 0</b>). Otherwise
+                it displays OFF image.
               </div>
             </div>
           </div>
@@ -572,11 +669,7 @@ export default function StateImageSettingsModal({
           }}
         >
           <button
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose?.();
-            }}
+            onClick={onClose}
             style={{
               padding: "9px 14px",
               borderRadius: 10,
@@ -592,11 +685,7 @@ export default function StateImageSettingsModal({
           </button>
 
           <button
-            onMouseDown={(e) => e.stopPropagation()}
-            onClick={(e) => {
-              e.stopPropagation();
-              apply();
-            }}
+            onClick={apply}
             style={{
               padding: "9px 14px",
               borderRadius: 10,

@@ -22,7 +22,10 @@ import TanksAndPipesSymbols3DLibrary from "./TanksAndPipesSymbols3DLibrary";
  * - Renders RightSidebar
  * - Mounts ALL floating library windows
  *
- * Keeps App.jsx clean.
+ * ✅ NEW:
+ * - Listens for "coreflex-open-iots-library" to open CoreFlex library as a PICKER
+ * - Remembers which image user is picking: OFF or ON
+ * - Remembers which tankId is being edited
  */
 export default function RightPanel({
   isRightCollapsed,
@@ -46,9 +49,6 @@ export default function RightPanel({
     },
 
     // ✅ SYMBOL LIBRARIES
-    // IMPORTANT:
-    // - Do NOT default-center these.
-    // - Let window manager cascade/space them so they don't overlap.
     hmi: {
       position: { x: 220, y: 140 },
       size: { width: 760, height: 540 },
@@ -86,6 +86,51 @@ export default function RightPanel({
     },
   });
 
+  // ✅ Picker state for CoreFlex library (OFF/ON)
+  const [coreflexPicker, setCoreflexPicker] = React.useState({
+    active: false,
+    which: "off", // "off" | "on"
+    tankId: null,
+  });
+
+  // ✅ Listen: "open IOTs Library to pick OFF/ON image"
+  React.useEffect(() => {
+    const onOpenPicker = (ev) => {
+      const which = ev?.detail?.which === "on" ? "on" : "off";
+      const tankId = ev?.detail?.tankId ?? null;
+
+      setCoreflexPicker({ active: true, which, tankId });
+
+      // open the window
+      wm.openWindow("coreflex", { cascade: true });
+    };
+
+    window.addEventListener("coreflex-open-iots-library", onOpenPicker);
+    return () =>
+      window.removeEventListener("coreflex-open-iots-library", onOpenPicker);
+  }, [wm]);
+
+  // ✅ When user clicks an image inside CoreFlex library
+  const handleCoreflexSelect = (url) => {
+    // If not in picker mode, do nothing special (could be used for normal insert later)
+    if (!coreflexPicker.active) return;
+
+    // Send selection back to App layer (AppModals / App.jsx will patch tank properties)
+    window.dispatchEvent(
+      new CustomEvent("coreflex-iots-library-selected", {
+        detail: {
+          url,
+          which: coreflexPicker.which,
+          tankId: coreflexPicker.tankId,
+        },
+      })
+    );
+
+    // close picker + close window
+    setCoreflexPicker({ active: false, which: "off", tankId: null });
+    wm.closeWindow("coreflex");
+  };
+
   return (
     <>
       {/* ✅ RIGHT SIDEBAR */}
@@ -93,8 +138,11 @@ export default function RightPanel({
         isRightCollapsed={isRightCollapsed}
         setIsRightCollapsed={setIsRightCollapsed}
         setShowImageLibrary={() => wm.openWindow("image", { cascade: true })}
-        setShowCoreflexLibrary={() => wm.openWindow("coreflex", { cascade: true })}
-        // ✅ No center-jump; let wm cascade + space
+        setShowCoreflexLibrary={() => {
+          // normal open (not picker)
+          setCoreflexPicker({ active: false, which: "off", tankId: null });
+          wm.openWindow("coreflex", { cascade: true });
+        }}
         openSymbolLibrary={(key) => wm.openWindow(key, { cascade: true })}
         dashboardMode={dashboardMode}
         onOpenAlarmLog={onOpenAlarmLog}
@@ -103,11 +151,19 @@ export default function RightPanel({
       {/* ✅ FLOATING WINDOWS */}
       <ImageLibrary
         {...wm.getWindowProps("image", {
-          onDragStartImage: (e, img) => e.dataTransfer.setData("imageUrl", img.src),
+          onDragStartImage: (e, img) =>
+            e.dataTransfer.setData("imageUrl", img.src),
         })}
       />
 
-      <CoreFlexLibrary {...wm.getWindowProps("coreflex")} />
+      {/* ✅ CoreFlex IOTs Library */}
+      <CoreFlexLibrary
+        {...wm.getWindowProps("coreflex")}
+        // ✅ pass picker info + click callback
+        pickerMode={coreflexPicker.active}
+        pickerWhich={coreflexPicker.which}
+        onPickImage={handleCoreflexSelect}
+      />
 
       {/* ✅ SYMBOL LIBRARIES */}
       <HmiSymbolsLibrary {...wm.getWindowProps("hmi")} />
