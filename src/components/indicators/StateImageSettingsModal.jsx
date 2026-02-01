@@ -24,16 +24,12 @@ export default function StateImageSettingsModal({
   const initialOffImage = p?.offImage ?? "";
   const initialOnImage = p?.onImage ?? "";
 
-  // ✅ More fit options
-  const initialFit = p?.imageFit ?? "contain"; // contain|cover|fill|none|scale-down
-
   const [deviceId, setDeviceId] = React.useState(initialDeviceId);
   const [field, setField] = React.useState(initialField);
   const [tagSearch, setTagSearch] = React.useState("");
 
   const [offImage, setOffImage] = React.useState(initialOffImage);
   const [onImage, setOnImage] = React.useState(initialOnImage);
-  const [imageFit, setImageFit] = React.useState(initialFit);
 
   // ✅ Track which slot we are choosing ("off" | "on")
   // (NO UI for this — just internal routing)
@@ -166,7 +162,6 @@ export default function StateImageSettingsModal({
         ...(tank.properties || {}),
         offImage,
         onImage,
-        imageFit, // contain|cover|fill|none|scale-down
         tag: { deviceId, field },
       },
     });
@@ -201,7 +196,7 @@ export default function StateImageSettingsModal({
           style={{
             width: "100%",
             height: "100%",
-            objectFit: imageFit,
+            objectFit: "contain", // ✅ fixed (Image Fit menu removed)
           }}
         />
       ) : (
@@ -253,14 +248,6 @@ export default function StateImageSettingsModal({
     return () =>
       window.removeEventListener("coreflex-iots-library-selected", onSelected);
   }, []);
-
-  const fitOptions = [
-    { id: "contain", name: "Contain" },
-    { id: "cover", name: "Cover" },
-    { id: "fill", name: "Fill" },
-    { id: "scale-down", name: "Scale Down" },
-    { id: "none", name: "None" },
-  ];
 
   return (
     <div
@@ -402,7 +389,7 @@ export default function StateImageSettingsModal({
                         padding: "9px 12px",
                         borderRadius: 10,
                         border: "1px solid #cbd5e1",
-                        background: "white",
+                        background: "#f8fafc",
                         cursor: "pointer",
                         fontWeight: 1000,
                         fontSize: 13,
@@ -479,12 +466,13 @@ export default function StateImageSettingsModal({
                       style={{
                         padding: "9px 12px",
                         borderRadius: 10,
-                        border: "1px solid #cbd5e1",
-                        background: "white",
+                        border: "1px solid #86efac",
+                        background: "#ecfdf5",
                         cursor: "pointer",
                         fontWeight: 1000,
                         fontSize: 13,
                         whiteSpace: "nowrap",
+                        color: "#065f46",
                       }}
                       title="Pick ON image from CoreFlex IOTs Library"
                     >
@@ -508,35 +496,6 @@ export default function StateImageSettingsModal({
                       Clear
                     </button>
                   </div>
-                </div>
-              </div>
-
-              <div style={{ marginTop: 12 }}>
-                <Label>Image Fit</Label>
-                <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
-                  {fitOptions.map((x) => {
-                    const sel = imageFit === x.id;
-                    return (
-                      <button
-                        key={x.id}
-                        type="button"
-                        onClick={() => setImageFit(x.id)}
-                        style={{
-                          padding: "9px 12px",
-                          borderRadius: 10,
-                          border: sel
-                            ? "2px solid #22c55e"
-                            : "1px solid #e5e7eb",
-                          background: sel ? "#ecfdf5" : "white",
-                          cursor: "pointer",
-                          fontWeight: 900,
-                          fontSize: 13,
-                        }}
-                      >
-                        {x.name}
-                      </button>
-                    );
-                  })}
                 </div>
               </div>
 
