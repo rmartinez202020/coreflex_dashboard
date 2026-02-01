@@ -265,7 +265,7 @@ export default function SidebarLeft({
           </div>
 
           {showDevices && (
-            <div className="ml-2">
+            <div className="ml-1">
               {/* INDICATORS */}
               <div
                 className="cursor-pointer mb-2 flex items-center gap-2"
@@ -275,7 +275,7 @@ export default function SidebarLeft({
               </div>
 
               {showIndicators && (
-                <div className="ml-2">
+                <div className="ml-1">
                   <DraggableMenuItem
                     shape="ledCircle"
                     icon={<IconBadge>🟢</IconBadge>}
@@ -318,7 +318,7 @@ export default function SidebarLeft({
               </div>
 
               {showLevelSensors && (
-                <div className="ml-2">
+                <div className="ml-0">
                   <h3 className="text-sm text-gray-400 mb-2">Tank Models-AI</h3>
 
                   {[
@@ -353,7 +353,7 @@ export default function SidebarLeft({
               </div>
 
               {showDeviceControls && (
-                <div className="ml-2">
+                <div className="ml-0">
                   <DraggableControls />
                 </div>
               )}
