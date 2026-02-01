@@ -9,10 +9,19 @@ import React from "react";
  * ✅ Behavior update:
  * - Background does NOT blink
  * - Only accent elements blink (bar + light)
+ *
+ * ✅ NEW (fix):
+ * - Tag drives alarm, and DEFAULT is OFF when:
+ *   - no tag bound
+ *   - missing value
+ *   - false/0/"0"/""/"false"/"off"
+ * - Accepts sensorsData (passed from DashboardCanvas)
+ * - Uses alarmTone to pick accent color (red/amber/blue) WITHOUT changing background
  */
 export default function DraggableBlinkingAlarm({
   // Canvas mode
   tank,
+  sensorsData, // ✅ NEW
 
   // Palette mode
   label = "Blinking Alarm",
@@ -30,13 +39,13 @@ export default function DraggableBlinkingAlarm({
     isActive: false,
     blinkMs: 500,
 
-    // colors
+    // colors (used as fallback accents)
     colorOn: "#ef4444",
     colorOff: "#0b1220",
 
     // style
     alarmStyle: "annunciator", // annunciator | banner | stackLight | minimal
-    alarmTone: "critical", // optional (modal saves it)
+    alarmTone: "critical", // critical | warning | info
   };
 
   // =========================
@@ -52,26 +61,74 @@ export default function DraggableBlinkingAlarm({
       tank.properties?.label ??
       payload.text;
 
-    const isActive =
-      tank.isActive ??
-      tank.active ??
-      tank.properties?.isActive ??
-      tank.properties?.active ??
-      payload.isActive;
-
     const blinkMs = tank.blinkMs ?? tank.properties?.blinkMs ?? payload.blinkMs;
-
-    // ✅ IMPORTANT: these are now used ONLY for accents (NOT background)
-    const colorOn =
-      tank.colorOn ?? tank.properties?.colorOn ?? payload.colorOn;
-
-    const colorOff =
-      tank.colorOff ?? tank.properties?.colorOff ?? payload.colorOff;
 
     const alarmStyle =
       tank.properties?.alarmStyle ?? tank.alarmStyle ?? payload.alarmStyle;
 
-    // Blink animation (only when active)
+    const alarmTone =
+      tank.properties?.alarmTone ?? tank.alarmTone ?? payload.alarmTone;
+
+    // ✅ tone → accent ON color (does NOT affect background)
+    const toneMap = {
+      critical: { on: "#ef4444", glow: "rgba(239,68,68,0.55)" },
+      warning: { on: "#f59e0b", glow: "rgba(245,158,11,0.55)" },
+      info: { on: "#3b82f6", glow: "rgba(59,130,246,0.45)" },
+    };
+    const tone = toneMap[alarmTone] || toneMap.critical;
+
+    // ✅ If user manually overrides colorOn in properties, respect it
+    const colorOn =
+      tank.colorOn ?? tank.properties?.colorOn ?? tone.on ?? payload.colorOn;
+
+    // ✅ BASE background never blinks (always dark)
+    const baseBg =
+      tank.colorOff ?? tank.properties?.colorOff ?? payload.colorOff ?? "#0b1220";
+
+    // =========================
+    // ✅ TAG-DRIVEN ACTIVE (DEFAULT OFF)
+    // =========================
+    const tag = tank.properties?.tag;
+    const tagDeviceId = tag?.deviceId;
+    const tagField = tag?.field;
+
+    const readTagValue = () => {
+      if (!tagDeviceId || !tagField) return undefined;
+
+      // Option A: sensorsData.values[deviceId][field]
+      const byDev = sensorsData?.values?.[String(tagDeviceId)];
+      if (byDev && Object.prototype.hasOwnProperty.call(byDev, tagField)) {
+        return byDev[tagField];
+      }
+
+      // Option B: sensorsData.devices[] has .values or a direct field
+      const dev =
+        sensorsData?.devices?.find((d) => String(d.id) === String(tagDeviceId)) ||
+        null;
+
+      if (dev?.values && Object.prototype.hasOwnProperty.call(dev.values, tagField))
+        return dev.values[tagField];
+
+      if (dev && Object.prototype.hasOwnProperty.call(dev, tagField)) return dev[tagField];
+
+      return undefined;
+    };
+
+    const v = readTagValue();
+
+    const truthy =
+      v === true ||
+      v === 1 ||
+      v === "1" ||
+      String(v).toLowerCase() === "true" ||
+      String(v).toLowerCase() === "on";
+
+    // ✅ DEFAULT OFF if tag not bound / missing / false
+    const isActive = !!(tagDeviceId && tagField && truthy);
+
+    // =========================
+    // ✅ BLINK ENGINE (accents only)
+    // =========================
     const [blinkOn, setBlinkOn] = React.useState(true);
 
     React.useEffect(() => {
@@ -80,20 +137,17 @@ export default function DraggableBlinkingAlarm({
         return;
       }
       const ms = Math.max(120, Number(blinkMs) || 500);
-      const t = setInterval(() => setBlinkOn((v) => !v), ms);
+      const t = setInterval(() => setBlinkOn((x) => !x), ms);
       return () => clearInterval(t);
     }, [isActive, blinkMs]);
 
-    // ✅ BASE never blinks
-    const baseBg = colorOff || "#0b1220";
-
-    // ✅ Accent blinks between ON and "dim"
+    // ✅ Accent blinks between ON color and dim
     const dimAccent = "rgba(148,163,184,0.22)";
     const accent = isActive ? (blinkOn ? colorOn : dimAccent) : dimAccent;
 
     const glow = isActive
       ? blinkOn
-        ? `0 0 18px rgba(0,0,0,0), 0 0 18px ${hexToGlow(colorOn)}`
+        ? `0 0 18px ${tone.glow || hexToGlow(colorOn)}`
         : "inset 0 2px 10px rgba(0,0,0,0.45)"
       : "inset 0 2px 10px rgba(0,0,0,0.45)";
 
@@ -111,7 +165,7 @@ export default function DraggableBlinkingAlarm({
       userSelect: "none",
     };
 
-    const title = isActive ? "Alarm ACTIVE" : "Alarm inactive";
+    const title = isActive ? "Alarm ACTIVE" : "Alarm OFF";
 
     const textLeft = {
       fontWeight: 1000,
@@ -155,7 +209,7 @@ export default function DraggableBlinkingAlarm({
           <div style={{ fontSize: 11, opacity: 0.65, letterSpacing: 1 }}>
             ALARM
           </div>
-          <div style={textLeft}>{isActive ? "ACTIVE" : "NORMAL"}</div>
+          <div style={textLeft}>{isActive ? "ACTIVE" : "OFF"}</div>
         </div>
 
         {/* ✅ blinking light */}
@@ -165,7 +219,10 @@ export default function DraggableBlinkingAlarm({
             height: Math.max(12, Math.round(h * 0.22)),
             borderRadius: 999,
             background: accent,
-            boxShadow: isActive && blinkOn ? `0 0 0 4px ${hexToGlow(colorOn)}` : "none",
+            boxShadow:
+              isActive && blinkOn
+                ? `0 0 0 4px ${tone.glow || hexToGlow(colorOn)}`
+                : "none",
             border: "2px solid rgba(255,255,255,0.10)",
             transition: "all 120ms linear",
           }}
@@ -214,7 +271,7 @@ export default function DraggableBlinkingAlarm({
             }}
           >
             <div style={textLeft}>{text}</div>
-            <div style={textRight}>{isActive ? "ACTIVE" : "NORMAL"}</div>
+            <div style={textRight}>{isActive ? "ACTIVE" : "OFF"}</div>
           </div>
         </div>
       );
@@ -244,12 +301,13 @@ export default function DraggableBlinkingAlarm({
             borderRadius: 999,
             background: accent,
             border: "2px solid rgba(255,255,255,0.10)",
-            boxShadow: isActive && blinkOn ? `0 0 14px ${hexToGlow(colorOn)}` : "none",
+            boxShadow:
+              isActive && blinkOn ? `0 0 14px ${tone.glow || hexToGlow(colorOn)}` : "none",
             transition: "all 120ms linear",
           }}
         />
         <div style={{ ...textLeft, fontSize: Math.max(12, Math.round(h * 0.2)) }}>
-          {isActive ? "ALARM ACTIVE" : "NORMAL"}
+          {isActive ? "ALARM ACTIVE" : "OFF"}
         </div>
       </div>
     );
@@ -263,7 +321,11 @@ export default function DraggableBlinkingAlarm({
           borderRadius: 14,
           background: baseBg,
           border: `1px solid ${
-            isActive ? (blinkOn ? hexToGlow(colorOn) : "rgba(148,163,184,0.25)") : "rgba(148,163,184,0.25)"
+            isActive
+              ? blinkOn
+                ? (tone.glow || hexToGlow(colorOn))
+                : "rgba(148,163,184,0.25)"
+              : "rgba(148,163,184,0.25)"
           }`,
           boxShadow: isActive ? glow : "0 10px 26px rgba(0,0,0,0.18)",
           display: "flex",
