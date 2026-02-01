@@ -279,25 +279,25 @@ export default function SidebarLeft({
                   <DraggableMenuItem
                     shape="ledCircle"
                     icon={<IconBadge>🟢</IconBadge>}
-                    label="Led Circle"
+                    label="Led Circle (DI)"
                   />
 
                   <DraggableMenuItem
                     shape="statusTextBox"
                     icon={<IconBadge>📝</IconBadge>}
-                    label="Status Text Box"
+                    label="Status Text Box (DI)"
                   />
 
                   <DraggableMenuItem
                     shape="blinkingAlarm"
                     icon={<IconBadge>🚨</IconBadge>}
-                    label="Blinking Alarm"
+                    label="Blinking Alarm (DI)"
                   />
 
                   <DraggableMenuItem
                     shape="stateImage"
                     icon={<IconBadge>🔄</IconBadge>}
-                    label="State Image"
+                    label="State Image (DI)"
                   />
 
                   {/* ✅ Interlock moved to Indicators */}
