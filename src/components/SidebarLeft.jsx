@@ -1,4 +1,5 @@
-                                                                                                                                       // SidebarLeft.jsximport React, { useState } from "react";
+// SidebarLeft.jsx
+import React, { useState } from "react";
 import {
   StandardTankIcon,
   HorizontalTankIcon,
@@ -62,17 +63,13 @@ export default function SidebarLeft({
      DEVICE MENUS (ACCORDION)
   ========================= */
   const [showIndicators, setShowIndicators] = useState(false);
-  const [showDeviceControls, setShowDeviceControls] = useState(false);
 
   // ✅ helper: open ONLY one section at a time
   const openOnly = (section) => {
     if (section === "indicators") {
       setShowIndicators((prev) => {
         const next = !prev;
-        if (next) {
-          setShowLevelSensors(false);
-          setShowDeviceControls(false);
-        }
+        if (next) setShowLevelSensors(false);
         return next;
       });
       return;
@@ -81,22 +78,7 @@ export default function SidebarLeft({
     if (section === "levelsensors") {
       setShowLevelSensors((prev) => {
         const next = !prev;
-        if (next) {
-          setShowIndicators(false);
-          setShowDeviceControls(false);
-        }
-        return next;
-      });
-      return;
-    }
-
-    if (section === "devicecontrols") {
-      setShowDeviceControls((prev) => {
-        const next = !prev;
-        if (next) {
-          setShowIndicators(false);
-          setShowLevelSensors(false);
-        }
+        if (next) setShowIndicators(false);
         return next;
       });
       return;
@@ -142,23 +124,20 @@ export default function SidebarLeft({
     onRequestRestore();
   };
 
-  // ✅ small helper for consistent menu rows (same layout as Device Controls list)
-  const MenuRow = ({ icon, children, className = "" }) => {
-    return (
-      <div className={"mb-2 text-sm flex items-center " + className}>
-        {icon}
-        <div className="flex-1">{children}</div>
-      </div>
-    );
-  };
+  // ✅ small helper for consistent menu rows
+  const MenuRow = ({ icon, children }) => (
+    <div className="mb-2 text-sm flex items-center">
+      {icon}
+      <div className="flex-1">{children}</div>
+    </div>
+  );
 
-  // ✅ Helper: draggable menu item that spawns a canvas object via "shape"
+  // ✅ Helper: draggable menu item
   const DraggableMenuItem = ({ shape, icon, label }) => (
     <div
       draggable
       onDragStart={(e) => {
         e.dataTransfer.setData("shape", shape);
-        // some browsers behave nicer when text/plain is also set
         e.dataTransfer.setData("text/plain", shape);
       }}
       className="cursor-grab active:cursor-grabbing"
@@ -253,7 +232,6 @@ export default function SidebarLeft({
                 if (!next) {
                   setShowIndicators(false);
                   setShowLevelSensors(false);
-                  setShowDeviceControls(false);
                 }
                 return next;
               })
@@ -299,7 +277,6 @@ export default function SidebarLeft({
                     label="State Image (DI)"
                   />
 
-                  {/* ✅ MOVED HERE: Interlock (DI) */}
                   <DraggableMenuItem
                     shape="interlock"
                     icon={<IconBadge>🔒</IconBadge>}
@@ -343,15 +320,10 @@ export default function SidebarLeft({
                 </div>
               )}
 
-              {/* DEVICE CONTROLS */}
-              <div
-                className="cursor-pointer mb-2 flex items-center gap-2"
-                onClick={() => openOnly("devicecontrols")}
-              >
-                Device Controls <span>{showDeviceControls ? "▾" : "▸"}</span>
+              {/* ✅ DEVICE CONTROLS (NO TITLE ROW ANYMORE) */}
+              <div className="ml-2 mt-2">
+                <DraggableControls />
               </div>
-
-              {showDeviceControls && <DraggableControls />}
             </div>
           )}
         </div>
