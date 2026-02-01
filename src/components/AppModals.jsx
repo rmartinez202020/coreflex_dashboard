@@ -6,6 +6,9 @@ import StatusTextSettingsModal from "./indicators/StatusTextSettingsModal";
 // ✅ NEW
 import BlinkingAlarmSettingsModal from "./indicators/BlinkingAlarmSettingsModal";
 
+// ✅ NEW: State Image settings
+import StateImageSettingsModal from "./indicators/StateImageSettingsModal";
+
 import RestoreWarningModal from "./RestoreWarningModal";
 import DisplaySettingsModal from "./DisplaySettingsModal";
 import GraphicDisplaySettingsModal from "./GraphicDisplaySettingsModal";
@@ -48,6 +51,10 @@ export default function AppModals({
   // ✅ NEW: Blinking Alarm settings
   blinkingAlarmSettingsId,
   closeBlinkingAlarmSettings,
+
+  // ✅ NEW: State Image settings
+  stateImageSettingsId,
+  closeStateImageSettings,
 
   // ✅ give indicator modal access to available devices/tags
   sensorsData,
@@ -119,10 +126,17 @@ export default function AppModals({
     if (blinkingAlarmSettingsId == null) return null;
     return droppedTanks.find(
       (t) =>
-        isSameId(t.id, blinkingAlarmSettingsId) &&
-        t.shape === "blinkingAlarm"
+        isSameId(t.id, blinkingAlarmSettingsId) && t.shape === "blinkingAlarm"
     );
   }, [droppedTanks, blinkingAlarmSettingsId]);
+
+  // ✅ NEW: State Image target
+  const stateImageTarget = useMemo(() => {
+    if (stateImageSettingsId == null) return null;
+    return droppedTanks.find(
+      (t) => isSameId(t.id, stateImageSettingsId) && t.shape === "stateImage"
+    );
+  }, [droppedTanks, stateImageSettingsId]);
 
   const alarmLogWindowProps = windowDrag?.getWindowProps
     ? windowDrag.getWindowProps("alarmLog")
@@ -183,6 +197,20 @@ export default function AppModals({
           onSave={(updated) => {
             patchTankProperties(blinkingAlarmTarget.id, updated);
             closeBlinkingAlarmSettings?.();
+          }}
+        />
+      )}
+
+      {/* ✅ NEW: State Image Settings */}
+      {stateImageTarget && (
+        <StateImageSettingsModal
+          open={true}
+          tank={stateImageTarget}
+          sensorsData={sensorsData}
+          onClose={closeStateImageSettings}
+          onSave={(updated) => {
+            patchTankProperties(stateImageTarget.id, updated);
+            closeStateImageSettings?.();
           }}
         />
       )}

@@ -3,8 +3,16 @@ import React from "react";
 /**
  * DraggableStateImage
  * ✅ Dual mode:
- * 1) Palette mode (Sidebar): small preview + label, sets dataTransfer "shape"
- * 2) Canvas mode (Dashboard): renders image that switches by state using `tank`
+ * 1) Palette mode (Sidebar)
+ * 2) Canvas mode (Dashboard)
+ *
+ * ✅ State behavior:
+ * - Default is OFF (shows OFF image)
+ * - When tag becomes ON, shows ON image
+ *
+ * ✅ IMPORTANT:
+ * - We DO NOT open settings modal from inside this component anymore.
+ *   DashboardCanvas handles double-click (same pattern as StatusTextBox).
  */
 export default function DraggableStateImage({
   // Canvas mode
@@ -17,117 +25,111 @@ export default function DraggableStateImage({
 }) {
   const payload = {
     shape: "stateImage",
-    w: 140,
-    h: 140,
-    imgOn: "",
-    imgOff: "",
-    state: false,
+    w: 160,
+    h: 160,
+
+    // default state
+    isOn: false,
+
+    // images saved in properties
+    offImage: "",
+    onImage: "",
+    imageFit: "contain", // contain|cover
+
+    // tag binding
+    tag: { deviceId: "", field: "" },
   };
 
   // =========================
-  // ✅ CANVAS MODE (real widget)
+  // ✅ CANVAS MODE
   // =========================
   if (tank) {
     const w = tank.w ?? tank.width ?? payload.w;
     const h = tank.h ?? tank.height ?? payload.h;
 
-    const state =
-      tank.state ??
-      tank.on ??
+    // ✅ ON/OFF state (default OFF)
+    const isOn =
       tank.isOn ??
-      tank.properties?.state ??
-      tank.properties?.on ??
+      tank.on ??
+      tank.active ??
       tank.properties?.isOn ??
-      payload.state;
+      tank.properties?.on ??
+      tank.properties?.active ??
+      payload.isOn;
 
-    const imgOn =
-      tank.imgOn ?? tank.properties?.imgOn ?? tank.properties?.onSrc ?? payload.imgOn;
+    // ✅ images (prefer properties)
+    const offImage =
+      tank.properties?.offImage ?? tank.offImage ?? payload.offImage;
 
-    const imgOff =
-      tank.imgOff ??
-      tank.properties?.imgOff ??
-      tank.properties?.offSrc ??
-      payload.imgOff;
+    const onImage = tank.properties?.onImage ?? tank.onImage ?? payload.onImage;
 
-    const isOn = state === true || state === "on" || state === 1;
+    const imageFit =
+      tank.properties?.imageFit ?? tank.imageFit ?? payload.imageFit;
 
-    const src = isOn ? imgOn : imgOff;
-
-    // ✅ If no images set yet, show a nice placeholder
-    if (!src) {
-      return (
-        <div
-          style={{
-            width: w,
-            height: h,
-            border: "2px dashed rgba(0,0,0,0.35)",
-            background: "#f8fafc",
-            display: "flex",
-            flexDirection: "column",
-            alignItems: "center",
-            justifyContent: "center",
-            userSelect: "none",
-            gap: 6,
-          }}
-          title="No images set yet (double-click to configure later)"
-        >
-          <div style={{ fontSize: 34, lineHeight: 1 }}>{isOn ? "🟢" : "⚪"}</div>
-          <div
-            style={{
-              fontSize: 12,
-              fontWeight: 800,
-              color: "#0f172a",
-              letterSpacing: 1,
-            }}
-          >
-            STATE IMAGE
-          </div>
-          <div style={{ fontSize: 11, color: "#64748b" }}>
-            {isOn ? "ON" : "OFF"}
-          </div>
-        </div>
-      );
-    }
+    // ✅ choose image (OFF is default)
+    const imgSrc = isOn ? onImage : offImage;
 
     return (
       <div
         style={{
           width: w,
           height: h,
-          userSelect: "none",
+          borderRadius: 12,
+          border: "1px dashed rgba(148,163,184,0.6)",
+          background: "rgba(2,6,23,0.02)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          userSelect: "none",
           overflow: "hidden",
-          border: "1px solid rgba(0,0,0,0.25)",
-          background: "white",
+          pointerEvents: "none", // ✅ IMPORTANT: let DraggableDroppedTank handle clicks/doubleclick
         }}
-        title={isOn ? "State: ON" : "State: OFF"}
+        title="Double click to setup"
       >
-        <img
-          src={src}
-          alt={isOn ? "On state" : "Off state"}
-          draggable={false}
-          style={{
-            width: "100%",
-            height: "100%",
-            objectFit: "contain",
-            pointerEvents: "none",
-          }}
-        />
+        {imgSrc ? (
+          <img
+            src={imgSrc}
+            alt={isOn ? "ON" : "OFF"}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: imageFit,
+              display: "block",
+            }}
+            draggable={false}
+          />
+        ) : (
+          <div style={{ textAlign: "center", color: "#64748b" }}>
+            <div
+              style={{
+                width: Math.max(20, Math.round(Math.min(w, h) * 0.12)),
+                height: Math.max(20, Math.round(Math.min(w, h) * 0.12)),
+                borderRadius: 999,
+                background: "rgba(148,163,184,0.35)",
+                margin: "0 auto 10px auto",
+                boxShadow: "0 8px 18px rgba(0,0,0,0.10)",
+              }}
+            />
+            <div style={{ fontWeight: 1000, letterSpacing: 1 }}>
+              STATE IMAGE
+            </div>
+            <div style={{ fontSize: 12, marginTop: 6, opacity: 0.9 }}>
+              {isOn ? "ON" : "OFF"}
+            </div>
+          </div>
+        )}
       </div>
     );
   }
 
   // =========================
-  // ✅ PALETTE MODE (Sidebar)
+  // ✅ PALETTE MODE
   // =========================
   return (
     <div
       className="cursor-grab active:cursor-grabbing"
       draggable
       onDragStart={(e) => {
-        // ✅ Use your app's standard drag payload
         e.dataTransfer.setData("shape", "stateImage");
         e.dataTransfer.setData("text/plain", "stateImage");
         onDragStart?.(payload, e);
@@ -145,21 +147,15 @@ export default function DraggableStateImage({
     >
       <span
         style={{
-          width: 16,
-          height: 16,
+          width: 14,
+          height: 14,
           borderRadius: 4,
+          background: "rgba(148,163,184,0.35)",
           border: "1px solid rgba(255,255,255,0.25)",
-          background:
-            "linear-gradient(135deg, rgba(255,255,255,0.18), rgba(255,255,255,0.05))",
-          display: "inline-flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontSize: 11,
-          flex: "0 0 16px",
+          boxShadow: "0 0 10px rgba(148,163,184,0.25)",
+          flex: "0 0 14px",
         }}
-      >
-        🖼️
-      </span>
+      />
       <span>{label}</span>
     </div>
   );

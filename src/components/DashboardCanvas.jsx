@@ -456,6 +456,7 @@ export default function DashboardCanvas({
   onOpenIndicatorSettings,
   onOpenStatusTextSettings,
   onOpenBlinkingAlarmSettings,
+  onOpenStateImageSettings,
 
 
 
@@ -782,15 +783,19 @@ if (tank.shape === "blinkingAlarm") {
   );
 }
 
-
-
 if (tank.shape === "stateImage") {
   return (
-    <DraggableDroppedTank {...commonProps}>
+    <DraggableDroppedTank
+      {...commonProps}
+      onDoubleClick={() => {
+        if (!isPlay) onOpenStateImageSettings?.(tank);
+      }}
+    >
       <DraggableStateImage tank={tank} />
     </DraggableDroppedTank>
   );
 }
+
 
 
             return null;

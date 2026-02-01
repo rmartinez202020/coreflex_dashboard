@@ -223,6 +223,11 @@ const [blinkingAlarmSettingsId, setBlinkingAlarmSettingsId] = useState(null);
 const openBlinkingAlarmSettings = (tank) => setBlinkingAlarmSettingsId(tank.id);
 const closeBlinkingAlarmSettings = () => setBlinkingAlarmSettingsId(null);
 
+// ✅ STATE IMAGE SETTINGS MODAL (NEW)
+const [stateImageSettingsId, setStateImageSettingsId] = useState(null);
+const openStateImageSettings = (tank) => setStateImageSettingsId(tank.id);
+const closeStateImageSettings = () => setStateImageSettingsId(null);
+
 
   // ✅ GRAPHIC DISPLAY SETTINGS MODAL
   const [graphicSettingsId, setGraphicSettingsId] = useState(null);
@@ -473,6 +478,8 @@ const closeBlinkingAlarmSettings = () => setBlinkingAlarmSettingsId(null);
             onOpenIndicatorSettings={openIndicatorSettings}
             onOpenStatusTextSettings={openStatusTextSettings} 
             onOpenBlinkingAlarmSettings={openBlinkingAlarmSettings}
+            stateImageSettingsId={stateImageSettingsId}
+            closeStateImageSettings={closeStateImageSettings}
           />
         ) : activePage === "deviceControls" ? (
           <div className="w-full h-full border rounded-lg bg-white p-6">
