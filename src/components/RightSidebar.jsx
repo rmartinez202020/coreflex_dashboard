@@ -23,7 +23,7 @@ export default function RightSidebar({
     // ✅ OPTIONAL: match the sidebar width so it opens nicely near the right area
     window.dispatchEvent(
       new CustomEvent("coreflex-alarm-log-open-at", {
-        detail: { x: 230, y: 120 }, // was 260
+        detail: { x: 220, y: 120 }, // was 260
       })
     );
 
@@ -31,8 +31,8 @@ export default function RightSidebar({
   };
 
   // ✅ tweak these two numbers to taste
-  const EXPANDED_W = 230; // was 260
-  const COLLAPSED_W = 36; // was 40
+  const EXPANDED_W = 220; // was 260
+  const COLLAPSED_W = 30; // was 40
 
   return (
     <aside
@@ -138,10 +138,10 @@ export default function RightSidebar({
             ["hmi", "HMI Symbols"],
             ["hvac2d", "HVAC Symbols 2D"],
             ["hvac3d", "HVAC Symbols 3D"],
-            ["mfg2d", "Manufacturing Symbols 2D"],
-            ["mfg3d", "Manufacturing Symbols 3D"],
-            ["tp2d", "Tanks & Pipes Symbols 2D"],
-            ["tp3d", "Tanks & Pipes Symbols 3D"],
+            ["mfg2d", "Manufacturing 2D"],
+            ["mfg3d", "Manufacturing 3D"],
+            ["tp2d", "Tanks & Pipes  2D"],
+            ["tp3d", "Tanks & Pipes  3D"],
           ].map(([key, label]) => (
             <button
               key={key}
