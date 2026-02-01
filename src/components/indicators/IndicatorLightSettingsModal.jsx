@@ -378,32 +378,71 @@ export default function IndicatorLightSettingsModal({
             </div>
           </div>
 
-          {/* Colors */}
-          <div style={{ display: "flex", gap: 12, marginBottom: 6 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-                OFF Color
-              </div>
-              <input
-                type="color"
-                value={offColor}
-                onChange={(e) => setOffColor(e.target.value)}
-                style={{ width: "100%", height: 42, border: "none" }}
-              />
-            </div>
+        {/* Colors */}
+<div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
+  {/* OFF COLOR */}
+  <div style={{ flex: 1, textAlign: "center" }}>
+    <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
+      OFF Color
+    </div>
 
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-                ON Color
-              </div>
-              <input
-                type="color"
-                value={onColor}
-                onChange={(e) => setOnColor(e.target.value)}
-                style={{ width: "100%", height: 42, border: "none" }}
-              />
-            </div>
-          </div>
+    <input
+      type="color"
+      value={offColor}
+      onChange={(e) => setOffColor(e.target.value)}
+      style={{
+        width: "100%",
+        height: 44,
+        border: "none",
+        cursor: "pointer",
+      }}
+    />
+
+    <div
+      style={{
+        marginTop: 6,
+        fontSize: 13,            // ⬅️ bigger
+        fontWeight: 600,
+        color: "#475569",        // slate-600
+        userSelect: "none",
+      }}
+    >
+      Click to select the color
+    </div>
+  </div>
+
+  {/* ON COLOR */}
+  <div style={{ flex: 1, textAlign: "center" }}>
+    <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
+      ON Color
+    </div>
+
+    <input
+      type="color"
+      value={onColor}
+      onChange={(e) => setOnColor(e.target.value)}
+      style={{
+        width: "100%",
+        height: 44,
+        border: "none",
+        cursor: "pointer",
+      }}
+    />
+
+    <div
+      style={{
+        marginTop: 6,
+        fontSize: 13,            // ⬅️ bigger
+        fontWeight: 600,
+        color: "#475569",
+        userSelect: "none",
+      }}
+    >
+      Click to select the color
+    </div>
+  </div>
+</div>
+
 
           {/* ✅ NEW helper text under color pickers */}
           <div
