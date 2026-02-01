@@ -319,7 +319,7 @@ export default function SidebarLeft({
 
               {showLevelSensors && (
                 <div className="ml-4">
-                  <h3 className="text-sm text-gray-400 mb-2">Tank Models</h3>
+                  <h3 className="text-sm text-gray-400 mb-2">Tank Models-DI</h3>
 
                   {[
                     { Icon: StandardTankIcon, name: "standardTank" },
