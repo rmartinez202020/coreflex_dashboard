@@ -173,13 +173,13 @@ export default function SidebarLeft({
     <aside
       className={
         "relative bg-[#0f172a] text-white h-full border-r border-gray-800 transition-all duration-300 overflow-hidden " +
-        (isLeftCollapsed ? "w-[45px]" : "w-[260px] p-4")
+        (isLeftCollapsed ? "w-[45px]" : "w-[230px] p-4")
       }
     >
       {/* Collapse / Expand */}
       <button
         className="absolute top-3 z-50 text-white px-2 py-1 rounded hover:bg-[#1e293b]"
-        style={{ left: isLeftCollapsed ? "5px" : "232px" }}
+        style={{ left: isLeftCollapsed ? "5px" : "202px" }}
         onClick={(e) => {
           e.stopPropagation();
           if (dashboardMode === "play") return;
