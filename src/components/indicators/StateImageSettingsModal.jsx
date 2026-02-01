@@ -35,8 +35,9 @@ export default function StateImageSettingsModal({
   const [onImage, setOnImage] = React.useState(initialOnImage);
   const [imageFit, setImageFit] = React.useState(initialFit);
 
-  // ✅ Track which slot we are choosing from the library ("off" | "on")
-  const [libraryTarget, setLibraryTarget] = React.useState(null);
+  // ✅ Track which slot we are choosing ("off" | "on")
+  // (NO UI for this — just internal routing)
+  const pickSlotRef = React.useRef(null);
 
   // =========================
   // DRAGGABLE WINDOW
@@ -165,7 +166,7 @@ export default function StateImageSettingsModal({
         ...(tank.properties || {}),
         offImage,
         onImage,
-        imageFit, // ✅ contain|cover|fill|none|scale-down
+        imageFit, // contain|cover|fill|none|scale-down
         tag: { deviceId, field },
       },
     });
@@ -213,15 +214,18 @@ export default function StateImageSettingsModal({
   );
 
   // =========================
-  // ✅ IOTs LIBRARY PICKER (EVENT-BASED)
+  // ✅ IOTs LIBRARY PICKER (EVENT-BASED) — NO UI LABELS
   // =========================
   const openIOTsLibrary = (which) => {
-    setLibraryTarget(which); // "off" | "on"
+    const safeWhich = which === "on" ? "on" : "off";
+    pickSlotRef.current = safeWhich;
+
     window.dispatchEvent(
       new CustomEvent("coreflex-open-iots-library", {
         detail: {
           mode: "pickImage",
-          which, // off | on
+          which: safeWhich, // off | on
+          tankId: tank.id,
           from: "StateImageSettingsModal",
         },
       })
@@ -231,13 +235,18 @@ export default function StateImageSettingsModal({
   React.useEffect(() => {
     const onSelected = (ev) => {
       const url = ev?.detail?.url;
-      const which = ev?.detail?.which; // off | on
-      if (!url || (which !== "off" && which !== "on")) return;
+      if (!url) return;
+
+      // prefer event "which", fallback to last requested slot
+      const which =
+        ev?.detail?.which === "on" || ev?.detail?.which === "off"
+          ? ev.detail.which
+          : pickSlotRef.current || "off";
 
       if (which === "off") setOffImage(url);
       if (which === "on") setOnImage(url);
 
-      setLibraryTarget(null);
+      pickSlotRef.current = null;
     };
 
     window.addEventListener("coreflex-iots-library-selected", onSelected);
@@ -535,23 +544,6 @@ export default function StateImageSettingsModal({
                 Default state is <b>OFF</b>. If your tag becomes ON (truthy / &gt;
                 0), the ON image will display.
               </div>
-
-              {libraryTarget ? (
-                <div
-                  style={{
-                    marginTop: 10,
-                    fontSize: 12,
-                    color: "#334155",
-                    background: "#f1f5f9",
-                    border: "1px solid #e2e8f0",
-                    padding: 10,
-                    borderRadius: 10,
-                  }}
-                >
-                  Picking from <b>IOTs Library</b> for:{" "}
-                  <b>{libraryTarget.toUpperCase()}</b>
-                </div>
-              ) : null}
             </div>
 
             {/* RIGHT: Tag binding */}
