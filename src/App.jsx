@@ -478,8 +478,9 @@ const closeStateImageSettings = () => setStateImageSettingsId(null);
             onOpenIndicatorSettings={openIndicatorSettings}
             onOpenStatusTextSettings={openStatusTextSettings} 
             onOpenBlinkingAlarmSettings={openBlinkingAlarmSettings}
-            stateImageSettingsId={stateImageSettingsId}
-            closeStateImageSettings={closeStateImageSettings}
+            onOpenStateImageSettings={openStateImageSettings}
+
+            
           />
         ) : activePage === "deviceControls" ? (
           <div className="w-full h-full border rounded-lg bg-white p-6">
@@ -519,6 +520,8 @@ const closeStateImageSettings = () => setStateImageSettingsId(null);
           closeStatusTextSettings={closeStatusTextSettings}
           blinkingAlarmSettingsId={blinkingAlarmSettingsId}
           closeBlinkingAlarmSettings={closeBlinkingAlarmSettings}
+          stateImageSettingsId={stateImageSettingsId}
+          closeStateImageSettings={closeStateImageSettings}
 
           
         />

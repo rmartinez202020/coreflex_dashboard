@@ -165,7 +165,7 @@ export default function AppModals({
           open={true}
           tank={indicatorTarget}
           sensorsData={sensorsData}
-          onClose={closeIndicatorSettings}
+          onClose={() => closeIndicatorSettings?.()}
           onSave={(updated) => {
             patchTankProperties(indicatorTarget.id, updated);
             closeIndicatorSettings?.();
@@ -179,7 +179,7 @@ export default function AppModals({
           open={true}
           tank={statusTextTarget}
           sensorsData={sensorsData}
-          onClose={closeStatusTextSettings}
+          onClose={() => closeStatusTextSettings?.()}
           onSave={(updated) => {
             patchTankProperties(statusTextTarget.id, updated);
             closeStatusTextSettings?.();
@@ -193,7 +193,7 @@ export default function AppModals({
           open={true}
           tank={blinkingAlarmTarget}
           sensorsData={sensorsData}
-          onClose={closeBlinkingAlarmSettings}
+          onClose={() => closeBlinkingAlarmSettings?.()}
           onSave={(updated) => {
             patchTankProperties(blinkingAlarmTarget.id, updated);
             closeBlinkingAlarmSettings?.();
@@ -207,7 +207,7 @@ export default function AppModals({
           open={true}
           tank={stateImageTarget}
           sensorsData={sensorsData}
-          onClose={closeStateImageSettings}
+          onClose={() => closeStateImageSettings?.()}
           onSave={(updated) => {
             patchTankProperties(stateImageTarget.id, updated);
             closeStateImageSettings?.();
@@ -243,7 +243,7 @@ export default function AppModals({
             setDroppedTanks((prev) =>
               prev.map((t) => (isSameId(t.id, updatedTank.id) ? updatedTank : t))
             );
-            closeGraphicDisplaySettings();
+            closeGraphicDisplaySettings?.();
           }}
         />
       )}
