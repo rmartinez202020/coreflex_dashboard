@@ -91,10 +91,7 @@ export default function InterlockSettingsModal({
         window.innerWidth - 20,
         Math.max(20 - (mw - 60), nextLeft)
       );
-      const clampedTop = Math.min(
-        window.innerHeight - 20,
-        Math.max(20, nextTop)
-      );
+      const clampedTop = Math.min(window.innerHeight - 20, Math.max(20, nextTop));
 
       setPos({ left: clampedLeft, top: clampedTop });
     };
@@ -129,11 +126,28 @@ export default function InterlockSettingsModal({
 
   // =========================
   // DEVICES / FIELDS
+  // ✅ FIX: normalize sensorsData.devices whether it's array OR object
+  // ✅ + debug logs so we SEE what's happening
   // =========================
   const devices = React.useMemo(() => {
     const d = sensorsData?.devices;
-    return Array.isArray(d) ? d : [];
+
+    // Pattern A: sensorsData.devices is an array
+    if (Array.isArray(d)) return d;
+
+    // Pattern B: sensorsData.devices is an object keyed by id
+    if (d && typeof d === "object") return Object.values(d);
+
+    // Pattern C: sensorsData itself is an array of devices
+    if (Array.isArray(sensorsData)) return sensorsData;
+
+    return [];
   }, [sensorsData]);
+
+  React.useEffect(() => {
+    console.log("🧪 sensorsData.devices type:", typeof sensorsData?.devices, sensorsData?.devices);
+    console.log("🧪 devices normalized:", devices);
+  }, [sensorsData, devices]);
 
   const selectedDevice = React.useMemo(() => {
     return devices.find((d) => String(d.id) === String(deviceId)) || null;
@@ -161,8 +175,7 @@ export default function InterlockSettingsModal({
     const q = tagSearch.trim().toLowerCase();
     if (!q) return availableFields;
     return availableFields.filter(
-      (f) =>
-        f.key.toLowerCase().includes(q) || f.label.toLowerCase().includes(q)
+      (f) => f.key.toLowerCase().includes(q) || f.label.toLowerCase().includes(q)
     );
   }, [availableFields, tagSearch]);
 
@@ -275,14 +288,17 @@ export default function InterlockSettingsModal({
       properties: {
         interlockStyle, // shield|gate|pill|minimal
         interlockTone, // critical|warning|info
+
+        // ✅ IMPORTANT: save as colorOn/colorOff because InterlockControl should read these
         colorOn: tone.on,
         colorOff: OFF_COLOR,
+
         tag: {
           deviceId,
           field: resolvedField || "",
         },
-        // ✅ optional convenience for canvas: lock state preview
-        // (you can ignore this later and compute from tag)
+
+        // ✅ optional convenience for debugging
         _debugValue01: value01,
       },
     };
@@ -296,17 +312,12 @@ export default function InterlockSettingsModal({
       value01,
     });
 
-    // ✅ do NOT spread tank.properties here — AppModals merges them already
     onSave?.(payload);
-
-    // ✅ close modal after apply (matches other modals)
     onClose?.();
   };
 
   const Label = ({ children }) => (
-    <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-      {children}
-    </div>
+    <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>{children}</div>
   );
 
   // =========================
@@ -439,9 +450,7 @@ export default function InterlockSettingsModal({
               background: isOn
                 ? "rgba(255,255,255,0.10)"
                 : "rgba(148,163,184,0.12)",
-              border: `1px solid ${
-                isOn ? tone.glow : "rgba(148,163,184,0.18)"
-              }`,
+              border: `1px solid ${isOn ? tone.glow : "rgba(148,163,184,0.18)"}`,
               color: isOn ? "#fff" : "rgba(226,232,240,0.80)",
               fontSize: 12,
               fontWeight: 1000,
@@ -504,13 +513,7 @@ export default function InterlockSettingsModal({
           {s.name}
         </div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 10,
-          }}
-        >
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <div>
             <div
               style={{
@@ -658,8 +661,7 @@ export default function InterlockSettingsModal({
             </div>
 
             <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
-              This affects the <b>ON</b> color/glow and will be saved into the
-              widget.
+              This affects the <b>ON</b> color/glow and will be saved into the widget.
             </div>
           </div>
 
@@ -669,32 +671,20 @@ export default function InterlockSettingsModal({
               Choose Interlock Style
             </div>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 12,
-              }}
-            >
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               {styles.map((s) => (
                 <StyleCard key={s.id} s={s} />
               ))}
             </div>
 
             <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
-              Pick <b>one</b> professional style. The interlock will show ON/OFF
-              automatically based on your tag.
+              Pick <b>one</b> professional style. The interlock will show ON/OFF automatically
+              based on your tag.
             </div>
           </div>
 
           {/* TAG BINDING */}
-          <div
-            style={{
-              border: "1px solid #e5e7eb",
-              borderRadius: 12,
-              padding: 14,
-            }}
-          >
+          <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 14 }}>
             <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}>
               Tag that drives interlock (ON / OFF)
             </div>
@@ -757,21 +747,13 @@ export default function InterlockSettingsModal({
               }}
             >
               <div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 900,
-                    color: "#0f172a",
-                  }}
-                >
+                <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>
                   Status
                 </div>
                 <div style={{ fontSize: 13, color: "#475569", marginTop: 2 }}>
                   {resolvedField ? (
                     <>
-                      <span style={{ fontWeight: 900, color: "#0f172a" }}>
-                        {statusText}
-                      </span>
+                      <span style={{ fontWeight: 900, color: "#0f172a" }}>{statusText}</span>
                       <span style={{ marginLeft: 10, color: "#64748b" }}>
                         Tag: <b>{resolvedField}</b>
                       </span>
@@ -783,13 +765,7 @@ export default function InterlockSettingsModal({
               </div>
 
               <div style={{ textAlign: "right" }}>
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 900,
-                    color: "#0f172a",
-                  }}
-                >
+                <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>
                   Value
                 </div>
                 <div
@@ -808,8 +784,7 @@ export default function InterlockSettingsModal({
             </div>
 
             <div style={{ fontSize: 12, color: "#64748b", marginTop: 10 }}>
-              Tip: ON means <b>truthy</b> (or numeric <b>&gt; 0</b>). OFF means
-              false / 0 / empty.
+              Tip: ON means <b>truthy</b> (or numeric <b>&gt; 0</b>). OFF means false / 0 / empty.
             </div>
           </div>
         </div>
@@ -856,11 +831,7 @@ export default function InterlockSettingsModal({
             }}
             type="button"
             disabled={!deviceId || !resolvedField}
-            title={
-              !deviceId || !resolvedField
-                ? "Select a device and type a tag"
-                : "Apply"
-            }
+            title={!deviceId || !resolvedField ? "Select a device and type a tag" : "Apply"}
           >
             Apply
           </button>
