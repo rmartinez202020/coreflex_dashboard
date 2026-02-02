@@ -228,6 +228,20 @@ export default function AppModals({
           }}
         />
       )}
+{/* ✅ NEW: Interlock Settings */}
+      {interlockTarget && (
+        <InterlockSettingsModal
+          open={true}
+          tank={interlockTarget}
+          sensorsData={sensorsData}
+          onClose={() => closeInterlockSettings?.()}
+          onSave={(updated) => {
+            patchTankProperties(interlockTarget.id, updated);
+            closeInterlockSettings?.();
+          }}
+        />
+      )}
+
 
       {displayTarget && (
         <DisplaySettingsModal
