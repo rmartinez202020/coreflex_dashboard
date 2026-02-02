@@ -268,9 +268,9 @@ export default function InterlockSettingsModal({
   // "OFF" base (same pro dark)
   const OFF_COLOR = "#0b1220";
 
+  // ✅ helpful: don't spam, only logs on Apply click
   const apply = () => {
-    // ✅ do NOT spread tank.properties here — AppModals merges them already
-    onSave?.({
+    const payload = {
       id: tank.id,
       properties: {
         interlockStyle, // shield|gate|pill|minimal
@@ -281,8 +281,26 @@ export default function InterlockSettingsModal({
           deviceId,
           field: resolvedField || "",
         },
+        // ✅ optional convenience for canvas: lock state preview
+        // (you can ignore this later and compute from tag)
+        _debugValue01: value01,
       },
+    };
+
+    console.log("✅ INTERLOCK APPLY CLICKED:", {
+      tankId: tank.id,
+      interlockStyle,
+      interlockTone,
+      deviceId,
+      resolvedField,
+      value01,
     });
+
+    // ✅ do NOT spread tank.properties here — AppModals merges them already
+    onSave?.(payload);
+
+    // ✅ close modal after apply (matches other modals)
+    onClose?.();
   };
 
   const Label = ({ children }) => (
@@ -453,9 +471,7 @@ export default function InterlockSettingsModal({
         style={{
           ...cardBase,
           background: "rgba(2,6,23,0.92)",
-          border: `1px solid ${
-            isOn ? tone.glow : "rgba(148,163,184,0.22)"
-          }`,
+          border: `1px solid ${isOn ? tone.glow : "rgba(148,163,184,0.22)"}`,
           boxShadow: isOn
             ? `0 0 18px ${tone.glow}`
             : "0 10px 25px rgba(0,0,0,0.18)",
@@ -488,7 +504,13 @@ export default function InterlockSettingsModal({
           {s.name}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 10,
+          }}
+        >
           <div>
             <div
               style={{
@@ -636,7 +658,8 @@ export default function InterlockSettingsModal({
             </div>
 
             <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
-              This affects the <b>ON</b> color/glow and will be saved into the widget.
+              This affects the <b>ON</b> color/glow and will be saved into the
+              widget.
             </div>
           </div>
 
@@ -646,14 +669,21 @@ export default function InterlockSettingsModal({
               Choose Interlock Style
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 12,
+              }}
+            >
               {styles.map((s) => (
                 <StyleCard key={s.id} s={s} />
               ))}
             </div>
 
             <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
-              Pick <b>one</b> professional style. The interlock will show ON/OFF automatically based on your tag.
+              Pick <b>one</b> professional style. The interlock will show ON/OFF
+              automatically based on your tag.
             </div>
           </div>
 
@@ -727,7 +757,13 @@ export default function InterlockSettingsModal({
               }}
             >
               <div>
-                <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 900,
+                    color: "#0f172a",
+                  }}
+                >
                   Status
                 </div>
                 <div style={{ fontSize: 13, color: "#475569", marginTop: 2 }}>
@@ -747,7 +783,13 @@ export default function InterlockSettingsModal({
               </div>
 
               <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 900,
+                    color: "#0f172a",
+                  }}
+                >
                   Value
                 </div>
                 <div
@@ -766,7 +808,8 @@ export default function InterlockSettingsModal({
             </div>
 
             <div style={{ fontSize: 12, color: "#64748b", marginTop: 10 }}>
-              Tip: ON means <b>truthy</b> (or numeric <b>&gt; 0</b>). OFF means false / 0 / empty.
+              Tip: ON means <b>truthy</b> (or numeric <b>&gt; 0</b>). OFF means
+              false / 0 / empty.
             </div>
           </div>
         </div>
@@ -813,7 +856,11 @@ export default function InterlockSettingsModal({
             }}
             type="button"
             disabled={!deviceId || !resolvedField}
-            title={!deviceId || !resolvedField ? "Select a device and type a tag" : "Apply"}
+            title={
+              !deviceId || !resolvedField
+                ? "Select a device and type a tag"
+                : "Apply"
+            }
           >
             Apply
           </button>
