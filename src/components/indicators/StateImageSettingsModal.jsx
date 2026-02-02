@@ -259,7 +259,7 @@ export default function StateImageSettingsModal({
     whiteSpace: "nowrap",
   };
 
-  // ✅ REMOVE GREEN BACKGROUND (both OFF/ON use neutral)
+  // ✅ No green highlight
   const offBtnStyle = btnNeutral;
   const onBtnStyle = btnNeutral;
 
@@ -719,22 +719,6 @@ export default function StateImageSettingsModal({
                 value is shown as <b>0</b> or <b>1</b>.
               </div>
             </div>
-
-            {!isTagAssigned ? (
-              <div
-                style={{
-                  marginTop: 10,
-                  fontSize: 12,
-                  color: "#64748b",
-                  background: "#f8fafc",
-                  border: "1px dashed #e2e8f0",
-                  borderRadius: 10,
-                  padding: 10,
-                }}
-              >
-                No tag assigned yet — widget will stay in <b>OFF</b> state by default.
-              </div>
-            ) : null}
           </div>
         </div>
 
