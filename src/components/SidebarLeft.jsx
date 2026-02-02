@@ -9,39 +9,13 @@ import {
 
 import DraggableControls from "./DraggableControls";
 
-// ✅ NEW: Indicators (includes Interlock draggable)
+// ✅ Indicators
 import {
   DraggableLedCircle,
   DraggableStatusTextBox,
   DraggableBlinkingAlarm,
   DraggableStateImage,
 } from "./indicators";
-
-/**
- * ✅ Option B (NO lucide-react)
- * We use small "badge" icons to match the look/weight of Device Controls icons.
- */
-
-const IconBadge = ({ children }) => (
-  <span
-    style={{
-      width: 18,
-      height: 18,
-      minWidth: 18,
-      borderRadius: 4,
-      background: "#1e293b",
-      display: "inline-flex",
-      alignItems: "center",
-      justifyContent: "center",
-      fontSize: 12,
-      lineHeight: 1,
-      marginRight: 8,
-      opacity: 0.95,
-    }}
-  >
-    {children}
-  </span>
-);
 
 export default function SidebarLeft({
   isLeftCollapsed,
@@ -151,16 +125,6 @@ export default function SidebarLeft({
     onRequestRestore();
   };
 
-  // ✅ small helper for consistent menu rows (same layout as Device Controls list)
-  const MenuRow = ({ icon, children, className = "" }) => {
-    return (
-      <div className={"mb-2 text-sm flex items-center " + className}>
-        {icon}
-        <div className="flex-1">{children}</div>
-      </div>
-    );
-  };
-
   return (
     <aside
       className={
@@ -237,7 +201,7 @@ export default function SidebarLeft({
             Main Dashboard
           </div>
 
-          {/* DEVICES */}
+          {/* DEVICES (no badge icon) */}
           <div
             className="cursor-pointer mb-2 flex items-center gap-2"
             onClick={() =>
@@ -252,7 +216,6 @@ export default function SidebarLeft({
               })
             }
           >
-            <IconBadge>⚙</IconBadge>
             Devices <span>{showDevices ? "▾" : "▸"}</span>
           </div>
 
@@ -268,30 +231,26 @@ export default function SidebarLeft({
 
               {showIndicators && (
                 <div className="ml-1">
-                  {/* ✅ Now indicators use their own Draggable components (same pattern) */}
+                  {/* ✅ no small icons */}
                   <div className="mb-2 text-sm flex items-center">
-                    <IconBadge>🟢</IconBadge>
                     <div className="flex-1">
                       <DraggableLedCircle label="Led Circle (DI)" />
                     </div>
                   </div>
 
                   <div className="mb-2 text-sm flex items-center">
-                    <IconBadge>📝</IconBadge>
                     <div className="flex-1">
                       <DraggableStatusTextBox label="Status Text Box (DI)" />
                     </div>
                   </div>
 
                   <div className="mb-2 text-sm flex items-center">
-                    <IconBadge>🚨</IconBadge>
                     <div className="flex-1">
                       <DraggableBlinkingAlarm label="Blinking Alarm (DI)" />
                     </div>
                   </div>
 
                   <div className="mb-2 text-sm flex items-center">
-                    <IconBadge>🔄</IconBadge>
                     <div className="flex-1">
                       <DraggableStateImage label="State Image (DI)" />
                     </div>
@@ -334,7 +293,7 @@ export default function SidebarLeft({
                 </div>
               )}
 
-              {/* ✅ DEVICE CONTROLS (NO interlock here) */}
+              {/* DEVICE CONTROLS */}
               <div
                 className="cursor-pointer mb-2 flex items-center gap-2"
                 onClick={() => openOnly("devicecontrols")}
