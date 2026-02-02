@@ -32,6 +32,18 @@ export default function useDropHandler({ setDroppedTanks }) {
     const y = e.clientY - rect.top; // ✅ canvas coords
 
     // ===============================
+    // ✅ 0) CORE FLEX SHAPE PAYLOAD (NEW)
+    // - allows palette indicators to pass default properties (industrial style, etc.)
+    // ===============================
+    const rawPayload = e.dataTransfer.getData("coreflex_shape_payload");
+    let parsedPayload = null;
+    try {
+      parsedPayload = rawPayload ? JSON.parse(rawPayload) : null;
+    } catch {
+      parsedPayload = null;
+    }
+
+    // ===============================
     // ✅ 1) IMAGE DROP
     // ===============================
     const imageUrl = e.dataTransfer.getData("imageUrl");
@@ -115,18 +127,40 @@ export default function useDropHandler({ setDroppedTanks }) {
         return;
       }
 
+      // ✅ Interlock can be dropped as a control OR indicator.
+      // If the palette provides coreflex_shape_payload, use it so the style is industrial immediately.
       if (control === "interlockControl" || control === "interlock") {
+        const w = parsedPayload?.w ?? 260;
+        const h = parsedPayload?.h ?? 100;
+
         setDroppedTanks((prev) => [
           ...prev,
           {
             id: makeId(),
-            shape: "interlockControl",
+            // ✅ prefer "interlock" so DashboardCanvas hits the interlock branch
+            shape: parsedPayload?.shape ?? "interlock",
             x,
             y,
-            w: 190,
-            h: 80,
-            locked: true,
+            w,
+            h,
             zIndex: 1,
+
+            // ✅ default industrial look + tag placeholder
+            properties: {
+              ...(parsedPayload?.properties || {
+                interlockStyle: "shield",
+                interlockTone: "critical",
+                colorOn: "#ef4444",
+                colorOff: "#0b1220",
+                interlockTitle: "INTERLOCK",
+                lockedText: "LOCKED",
+                unlockedText: "CLEAR",
+                tag: { deviceId: "", field: "" },
+              }),
+            },
+
+            // legacy flag (doesn't hurt; renderer uses tag anyway)
+            locked: true,
           },
         ]);
         return;
@@ -199,6 +233,38 @@ export default function useDropHandler({ setDroppedTanks }) {
 
     // 🚫 Alarm Log drop ignored
     if (shape === "alarmLog") {
+      return;
+    }
+
+    // ✅ INTERLOCK (indicator) — use payload defaults if provided
+    if (shape === "interlock") {
+      const w = parsedPayload?.w ?? 260;
+      const h = parsedPayload?.h ?? 100;
+
+      setDroppedTanks((prev) => [
+        ...prev,
+        {
+          id: makeId(),
+          shape: "interlock",
+          x,
+          y,
+          w,
+          h,
+          zIndex: 1,
+          properties: {
+            ...(parsedPayload?.properties || {
+              interlockStyle: "shield",
+              interlockTone: "critical",
+              colorOn: "#ef4444",
+              colorOff: "#0b1220",
+              interlockTitle: "INTERLOCK",
+              lockedText: "LOCKED",
+              unlockedText: "CLEAR",
+              tag: { deviceId: "", field: "" },
+            }),
+          },
+        },
+      ]);
       return;
     }
 
