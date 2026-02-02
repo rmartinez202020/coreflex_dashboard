@@ -534,6 +534,7 @@ const closeStateImageSettings = () => setStateImageSettingsId(null);
           closeStateImageSettings={closeStateImageSettings}
           interlockSettingsId={interlockSettingsId}
           closeInterlockSettings={closeInterlockSettings}
+          debug={true}
 
           
         />
