@@ -34,7 +34,8 @@ export default function StateImageSettingsModal({
   // ✅ Track last clicked slot ("off" | "on")
   const pickSlotRef = React.useRef(null);
 
-  const isTagAssigned = Boolean(String(deviceId || "").trim()) && Boolean(String(field || "").trim());
+  const isTagAssigned =
+    Boolean(String(deviceId || "").trim()) && Boolean(String(field || "").trim());
 
   // =========================
   // DRAGGABLE WINDOW
@@ -141,10 +142,65 @@ export default function StateImageSettingsModal({
     const q = tagSearch.trim().toLowerCase();
     if (!q) return availableFields;
     return availableFields.filter(
-      (f) =>
-        f.key.toLowerCase().includes(q) || f.label.toLowerCase().includes(q)
+      (f) => f.key.toLowerCase().includes(q) || f.label.toLowerCase().includes(q)
     );
   }, [availableFields, tagSearch]);
+
+  // =========================
+  // ✅ LIVE STATUS (Offline/Online + 0/1)
+  // =========================
+  const getValueForField = React.useCallback(
+    (dev, fld) => {
+      if (!dev || !fld) return undefined;
+
+      // Try a few common shapes:
+      // dev.values[field]
+      // dev.data[field]
+      // dev.tags[field]
+      // dev.latest[field]
+      const pools = [
+        dev.values,
+        dev.data,
+        dev.tags,
+        dev.latest,
+        dev.last,
+        dev.payload,
+      ];
+
+      for (const pool of pools) {
+        if (pool && typeof pool === "object" && fld in pool) return pool[fld];
+      }
+
+      // Sometimes: dev.values is an array of {key,value}
+      const arrPools = [dev.values, dev.data, dev.tags, dev.latest].filter(Array.isArray);
+      for (const arr of arrPools) {
+        const hit = arr.find(
+          (x) => String(x?.key ?? x?.field ?? x?.name ?? "") === String(fld)
+        );
+        if (hit && "value" in hit) return hit.value;
+      }
+
+      return undefined;
+    },
+    []
+  );
+
+  const rawValue = React.useMemo(() => {
+    return getValueForField(selectedDevice, field);
+  }, [getValueForField, selectedDevice, field]);
+
+  const isOnline = React.useMemo(() => {
+    if (!isTagAssigned) return false;
+    return rawValue !== undefined && rawValue !== null && rawValue !== "";
+  }, [isTagAssigned, rawValue]);
+
+  const bool01 = React.useMemo(() => {
+    if (!isOnline) return "—";
+    // truthy OR numeric > 0 => 1
+    const n = Number(rawValue);
+    const on = Number.isFinite(n) ? n > 0 : Boolean(rawValue);
+    return on ? "1" : "0";
+  }, [isOnline, rawValue]);
 
   // =========================
   // IMAGE HELPERS
@@ -169,9 +225,7 @@ export default function StateImageSettingsModal({
   };
 
   const Label = ({ children }) => (
-    <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-      {children}
-    </div>
+    <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>{children}</div>
   );
 
   const ImgBox = ({ src, title }) => (
@@ -231,13 +285,7 @@ export default function StateImageSettingsModal({
     color: "#065f46",
   };
 
-  // If you want the green only when NO tag assigned:
-  // const offBtnStyle = !isTagAssigned ? btnGreen : btnNeutral;
-  // But per your request, OFF is default state -> keep green always:
   const offBtnStyle = btnGreen;
-
-  // Optional: if you want ON to become green when a tag is assigned (not requested)
-  // const onBtnStyle = isTagAssigned ? btnNeutral : btnNeutral;
   const onBtnStyle = btnNeutral;
 
   // =========================
@@ -264,7 +312,6 @@ export default function StateImageSettingsModal({
       const url = ev?.detail?.url;
       if (!url) return;
 
-      // If event provides tankId, require it to match
       if (
         ev?.detail?.tankId != null &&
         String(ev.detail.tankId) !== String(tank.id)
@@ -272,7 +319,6 @@ export default function StateImageSettingsModal({
         return;
       }
 
-      // Prefer last clicked slot
       const fromRef =
         pickSlotRef.current === "on" || pickSlotRef.current === "off"
           ? pickSlotRef.current
@@ -296,6 +342,84 @@ export default function StateImageSettingsModal({
     return () =>
       window.removeEventListener("coreflex-iots-library-selected", onSelected);
   }, [tank.id]);
+
+  // =========================
+  // ✅ Tag quick-pick list (replaces Tag/Field input)
+  // =========================
+  const TagPickList = () => {
+    if (!selectedDevice) {
+      return (
+        <div style={{ fontSize: 12, color: "#64748b" }}>
+          Select a device to see available tags.
+        </div>
+      );
+    }
+
+    const list = filteredFields.slice(0, 60); // safety
+    if (list.length === 0) {
+      return (
+        <div style={{ fontSize: 12, color: "#64748b" }}>
+          No tags found. Try a different search.
+        </div>
+      );
+    }
+
+    return (
+      <div
+        style={{
+          marginTop: 10,
+          border: "1px solid #e5e7eb",
+          borderRadius: 12,
+          overflow: "hidden",
+        }}
+      >
+        <div
+          style={{
+            padding: "10px 12px",
+            background: "#f8fafc",
+            borderBottom: "1px solid #e5e7eb",
+            fontSize: 12,
+            fontWeight: 1000,
+            color: "#0f172a",
+            display: "flex",
+            justifyContent: "space-between",
+            gap: 10,
+          }}
+        >
+          <span>Pick Tag</span>
+          <span style={{ color: "#64748b", fontWeight: 900 }}>
+            Selected: {field ? field : "—"}
+          </span>
+        </div>
+
+        <div style={{ maxHeight: 160, overflow: "auto" }}>
+          {list.map((f) => {
+            const selected = String(f.key) === String(field);
+            return (
+              <button
+                key={f.key}
+                type="button"
+                onClick={() => setField(f.key)}
+                style={{
+                  width: "100%",
+                  textAlign: "left",
+                  padding: "10px 12px",
+                  border: "none",
+                  borderBottom: "1px solid #f1f5f9",
+                  background: selected ? "rgba(34,197,94,0.10)" : "white",
+                  cursor: "pointer",
+                  fontWeight: selected ? 1000 : 800,
+                  color: "#0f172a",
+                }}
+              >
+                {f.label}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+    );
+  };
 
   return (
     <div
@@ -391,13 +515,7 @@ export default function StateImageSettingsModal({
               >
                 {/* OFF */}
                 <div>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 1000,
-                      marginBottom: 8,
-                    }}
-                  >
+                  <div style={{ fontSize: 12, fontWeight: 1000, marginBottom: 8 }}>
                     OFF Image (default)
                   </div>
 
@@ -433,7 +551,7 @@ export default function StateImageSettingsModal({
                     <button
                       type="button"
                       onClick={() => openIOTsLibrary("off")}
-                      style={offBtnStyle} // ✅ green highlight on OFF
+                      style={offBtnStyle}
                       title="Pick OFF image from CoreFlex IOTs Library"
                     >
                       IOTs Library OFF
@@ -460,13 +578,7 @@ export default function StateImageSettingsModal({
 
                 {/* ON */}
                 <div>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 1000,
-                      marginBottom: 8,
-                    }}
-                  >
+                  <div style={{ fontSize: 12, fontWeight: 1000, marginBottom: 8 }}>
                     ON Image
                   </div>
 
@@ -502,7 +614,7 @@ export default function StateImageSettingsModal({
                     <button
                       type="button"
                       onClick={() => openIOTsLibrary("on")}
-                      style={onBtnStyle} // ✅ neutral
+                      style={onBtnStyle}
                       title="Pick ON image from CoreFlex IOTs Library"
                     >
                       IOTs Library ON
@@ -529,12 +641,12 @@ export default function StateImageSettingsModal({
               </div>
 
               <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
-                Default state is <b>OFF</b>. If your tag becomes ON (truthy / &gt;
-                0), the ON image will display.
+                Default state is <b>OFF</b>. If your tag becomes ON (truthy / &gt; 0),
+                the ON image will display.
               </div>
             </div>
 
-            {/* RIGHT: Tag binding */}
+            {/* RIGHT: Tag binding + Status/Value (✅ like Indicator Light) */}
             <div
               style={{
                 border: "1px solid #e5e7eb",
@@ -554,6 +666,7 @@ export default function StateImageSettingsModal({
                     onChange={(e) => {
                       setDeviceId(e.target.value);
                       setField("");
+                      setTagSearch("");
                     }}
                     style={{
                       width: "100%",
@@ -590,65 +703,56 @@ export default function StateImageSettingsModal({
                 </div>
               </div>
 
-              <div style={{ marginBottom: 10 }}>
-                <Label>Tag / Field</Label>
+              {/* ✅ replaces the old Tag/Field block */}
+              <TagPickList />
 
-                {filteredFields.length > 0 ? (
-                  <select
-                    value={field}
-                    onChange={(e) => setField(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "10px 12px",
-                      borderRadius: 10,
-                      border: "1px solid #cbd5e1",
-                      fontSize: 14,
-                      background: "white",
-                    }}
-                  >
-                    <option value="">— Select tag —</option>
-                    {filteredFields.map((f) => (
-                      <option key={f.key} value={f.key}>
-                        {f.label}
-                      </option>
-                    ))}
-                  </select>
-                ) : (
-                  <input
-                    value={field}
-                    onChange={(e) => setField(e.target.value)}
-                    placeholder="Type tag field (ex: di0, run_status, fault)"
-                    style={{
-                      width: "100%",
-                      padding: "10px 12px",
-                      borderRadius: 10,
-                      border: "1px solid #cbd5e1",
-                      fontSize: 14,
-                    }}
-                  />
-                )}
-              </div>
-
-              <div style={{ fontSize: 12, color: "#64748b" }}>
-                Tip: ON means <b>truthy</b> (or numeric <b>&gt; 0</b>). Otherwise
-                it displays OFF image.
-              </div>
-
-              {!isTagAssigned ? (
+              {/* ✅ Status/Value (exact pattern you like) */}
+              <div
+                style={{
+                  marginTop: 12,
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 12,
+                  padding: 12,
+                  background: "#f8fafc",
+                }}
+              >
                 <div
                   style={{
-                    marginTop: 10,
-                    fontSize: 12,
-                    color: "#64748b",
-                    background: "#f8fafc",
-                    border: "1px dashed #e2e8f0",
-                    borderRadius: 10,
-                    padding: 10,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    marginBottom: 6,
                   }}
                 >
-                  No tag assigned yet — widget will stay in <b>OFF</b> state by default.
+                  <div style={{ fontSize: 12, fontWeight: 1000, color: "#0f172a" }}>
+                    Status
+                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 1000, color: "#0f172a" }}>
+                    Value
+                  </div>
                 </div>
-              ) : null}
+
+                <div style={{ display: "flex", justifyContent: "space-between" }}>
+                  <div style={{ color: "#64748b", fontSize: 12, fontWeight: 900 }}>
+                    {!deviceId || !selectedDevice
+                      ? "Select a device"
+                      : !field
+                      ? "Select a tag"
+                      : isOnline
+                      ? "Online"
+                      : "Offline"}
+                  </div>
+
+                  <div style={{ color: "#0f172a", fontSize: 14, fontWeight: 1000 }}>
+                    {field ? bool01 : "—"}
+                  </div>
+                </div>
+
+                <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
+                  Offline means there is no current value for that tag. When Online, the
+                  value is shown as <b>0</b> or <b>1</b>.
+                </div>
+              </div>
             </div>
           </div>
         </div>
