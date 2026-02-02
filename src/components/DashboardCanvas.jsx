@@ -460,8 +460,6 @@ export default function DashboardCanvas({
   onOpenInterlockSettings,
 
 
-
-
 }) {
   const isPlay = dashboardMode === "play";
 
@@ -641,6 +639,8 @@ if (tank.shape === "interlock" || tank.shape === "interlockControl") {
   // - for now we keep your existing locked value
   // - later: you'll compute this from tag (value01 === 1)
   const locked = tank.locked ?? true;
+  console.log("INTERLOCK TANK:", tank);
+
 
   return (
     <DraggableDroppedTank
