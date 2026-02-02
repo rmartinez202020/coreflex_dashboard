@@ -12,6 +12,10 @@ import React from "react";
  *
  * ✅ Backward compatible:
  * - If no `tank` is provided, it will use legacy props
+ *
+ * ✅ FIX (your request):
+ * - When interlock is FIRST dropped (no tag binding yet),
+ *   default state is OFF (CLEAR) so user sees Industrial OFF by default.
  */
 export default function InterlockControl({
   // ✅ NEW smart mode inputs
@@ -82,7 +86,9 @@ export default function InterlockControl({
     if (v3 !== undefined) return v3;
 
     // If devices is an array (your modal uses this too)
-    const devicesArr = Array.isArray(sensorsData?.devices) ? sensorsData.devices : [];
+    const devicesArr = Array.isArray(sensorsData?.devices)
+      ? sensorsData.devices
+      : [];
     const dev = devicesArr.find((d) => String(d?.id) === did) || null;
 
     const v4 = dev?.values?.[f];
@@ -116,9 +122,19 @@ export default function InterlockControl({
     return Boolean(rawValue);
   }, [rawValue]);
 
-  // If we have a tag binding and found a value, use it.
-  // Otherwise fall back to legacy locked prop.
-  const isOn = tank ? (isLockedFromTag ?? Boolean(locked)) : Boolean(locked);
+  // =========================
+  // ✅ DEFAULT BEHAVIOR FIX:
+  // - If NOT bound yet (no deviceId/field) -> show OFF by default
+  // - If bound -> use tag value; if missing -> OFF
+  // - Legacy mode -> use `locked`
+  // =========================
+  const hasBinding = Boolean(tagDeviceId && tagField);
+
+  const isOn = tank
+    ? hasBinding
+      ? (isLockedFromTag ?? false)
+      : false
+    : Boolean(locked);
 
   const statusText = isOn ? resolvedLockedText : resolvedUnlockedText;
 
@@ -221,8 +237,8 @@ export default function InterlockControl({
               fontSize: 16,
             }}
           >
-            {resolvedTitle} <span style={{ fontSize: 10, opacity: 0.6 }}>v54</span>
-
+            {resolvedTitle}{" "}
+            <span style={{ fontSize: 10, opacity: 0.6 }}>v54</span>
           </div>
 
           <div
@@ -304,7 +320,14 @@ export default function InterlockControl({
           }}
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
-            <div style={{ fontSize: 12, opacity: 0.7, fontWeight: 900, letterSpacing: 1 }}>
+            <div
+              style={{
+                fontSize: 12,
+                opacity: 0.7,
+                fontWeight: 900,
+                letterSpacing: 1,
+              }}
+            >
               {resolvedTitle}
             </div>
             <div style={{ fontSize: 16, fontWeight: 1000 }}>
@@ -377,7 +400,9 @@ export default function InterlockControl({
               padding: "6px 12px",
               borderRadius: 999,
               border: `1px solid ${isOn ? glow : "rgba(148,163,184,0.22)"}`,
-              background: isOn ? "rgba(255,255,255,0.08)" : "rgba(148,163,184,0.10)",
+              background: isOn
+                ? "rgba(255,255,255,0.08)"
+                : "rgba(148,163,184,0.10)",
               color: isOn ? "#fff" : "rgba(226,232,240,0.78)",
               fontWeight: 1000,
               fontSize: 13,
@@ -388,7 +413,14 @@ export default function InterlockControl({
           </div>
         </div>
 
-        <div style={{ marginLeft: "auto", display: "flex", alignItems: "center", gap: 10 }}>
+        <div
+          style={{
+            marginLeft: "auto",
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+          }}
+        >
           <div style={{ fontSize: 22 }}>{isOn ? "🔒" : "🔓"}</div>
           <div
             style={{
@@ -437,7 +469,13 @@ export default function InterlockControl({
         <div style={{ fontWeight: 1000, letterSpacing: 0.6 }}>
           {isOn ? "INTERLOCK" : "OFF"}
         </div>
-        <div style={{ marginLeft: "auto", fontFamily: "monospace", opacity: 0.9 }}>
+        <div
+          style={{
+            marginLeft: "auto",
+            fontFamily: "monospace",
+            opacity: 0.9,
+          }}
+        >
           {statusText}
         </div>
       </div>
