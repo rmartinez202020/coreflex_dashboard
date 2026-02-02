@@ -532,6 +532,8 @@ const closeStateImageSettings = () => setStateImageSettingsId(null);
           closeBlinkingAlarmSettings={closeBlinkingAlarmSettings}
           stateImageSettingsId={stateImageSettingsId}
           closeStateImageSettings={closeStateImageSettings}
+          interlockSettingsId={interlockSettingsId}
+          closeInterlockSettings={closeInterlockSettings}
 
           
         />
