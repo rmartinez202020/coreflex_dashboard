@@ -20,9 +20,6 @@ import ToggleSwitchControl from "./controls/ToggleSwitchControl";
 // ✅ Push button visual
 import PushButtonControl from "./controls/PushButtonControl";
 
-// ✅ Interlock visual
-import InterlockControl from "./controls/InterlockControl";
-
 import {
   StandardTank,
   HorizontalTank,
@@ -623,22 +620,6 @@ export default function DashboardCanvas({
                 </DraggableDroppedTank>
               );
             }
-
-// INTERLOCK
-if (tank.shape === "interlock" || tank.shape === "interlockControl") {
-  return (
-    <DraggableDroppedTank
-      {...commonProps}
-      onDoubleClick={() => {
-        if (!isPlay) onOpenInterlockSettings?.(tank);
-      }}
-    >
-      <InterlockControl tank={tank} sensorsData={sensorsData} />
-    </DraggableDroppedTank>
-  );
-}
-
-
 
             // TOGGLE
             if (tank.shape === "toggleSwitch" || tank.shape === "toggleControl") {

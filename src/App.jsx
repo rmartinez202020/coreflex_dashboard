@@ -223,12 +223,6 @@ const [blinkingAlarmSettingsId, setBlinkingAlarmSettingsId] = useState(null);
 const openBlinkingAlarmSettings = (tank) => setBlinkingAlarmSettingsId(tank.id);
 const closeBlinkingAlarmSettings = () => setBlinkingAlarmSettingsId(null);
 
-// ✅ INTERLOCK SETTINGS MODAL (NEW)
-const [interlockSettingsId, setInterlockSettingsId] = useState(null);
-const openInterlockSettings = (tank) => setInterlockSettingsId(tank.id);
-const closeInterlockSettings = () => setInterlockSettingsId(null);
-
-
 // ✅ STATE IMAGE SETTINGS MODAL (NEW)
 const [stateImageSettingsId, setStateImageSettingsId] = useState(null);
 const openStateImageSettings = (tank) => setStateImageSettingsId(tank.id);
@@ -487,7 +481,6 @@ const closeStateImageSettings = () => setStateImageSettingsId(null);
             onOpenStatusTextSettings={openStatusTextSettings} 
             onOpenBlinkingAlarmSettings={openBlinkingAlarmSettings}
             onOpenStateImageSettings={openStateImageSettings}
-            onOpenInterlockSettings={openInterlockSettings}
 
 
             
@@ -532,9 +525,7 @@ const closeStateImageSettings = () => setStateImageSettingsId(null);
           closeBlinkingAlarmSettings={closeBlinkingAlarmSettings}
           stateImageSettingsId={stateImageSettingsId}
           closeStateImageSettings={closeStateImageSettings}
-          interlockSettingsId={interlockSettingsId}
-          closeInterlockSettings={closeInterlockSettings}
-          debug={true}
+        
 
           
         />

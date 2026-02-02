@@ -15,7 +15,6 @@ import {
   DraggableStatusTextBox,
   DraggableBlinkingAlarm,
   DraggableStateImage,
-  DraggableInterlock,
 } from "./indicators";
 
 /**
@@ -295,14 +294,6 @@ export default function SidebarLeft({
                     <IconBadge>🔄</IconBadge>
                     <div className="flex-1">
                       <DraggableStateImage label="State Image (DI)" />
-                    </div>
-                  </div>
-
-                  {/* ✅ Interlock is HERE (Indicators), NOT in Controls */}
-                  <div className="mb-2 text-sm flex items-center">
-                    <IconBadge>🔒</IconBadge>
-                    <div className="flex-1">
-                      <DraggableInterlock label="Interlock (DI)" />
                     </div>
                   </div>
                 </div>

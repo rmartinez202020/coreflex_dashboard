@@ -32,18 +32,6 @@ export default function useDropHandler({ setDroppedTanks }) {
     const y = e.clientY - rect.top; // ✅ canvas coords
 
     // ===============================
-    // ✅ 0) CORE FLEX SHAPE PAYLOAD (NEW)
-    // - allows palette indicators to pass default properties (industrial style, etc.)
-    // ===============================
-    const rawPayload = e.dataTransfer.getData("coreflex_shape_payload");
-    let parsedPayload = null;
-    try {
-      parsedPayload = rawPayload ? JSON.parse(rawPayload) : null;
-    } catch {
-      parsedPayload = null;
-    }
-
-    // ===============================
     // ✅ 1) IMAGE DROP
     // ===============================
     const imageUrl = e.dataTransfer.getData("imageUrl");
@@ -127,45 +115,6 @@ export default function useDropHandler({ setDroppedTanks }) {
         return;
       }
 
-      // ✅ Interlock can be dropped as a control OR indicator.
-      // If the palette provides coreflex_shape_payload, use it so the style is industrial immediately.
-      if (control === "interlockControl" || control === "interlock") {
-        const w = parsedPayload?.w ?? 260;
-        const h = parsedPayload?.h ?? 100;
-
-        setDroppedTanks((prev) => [
-          ...prev,
-          {
-            id: makeId(),
-            // ✅ prefer "interlock" so DashboardCanvas hits the interlock branch
-            shape: parsedPayload?.shape ?? "interlock",
-            x,
-            y,
-            w,
-            h,
-            zIndex: 1,
-
-            // ✅ default industrial look + tag placeholder
-            properties: {
-              ...(parsedPayload?.properties || {
-                interlockStyle: "shield",
-                interlockTone: "critical",
-                colorOn: "#ef4444",
-                colorOff: "#0b1220",
-                interlockTitle: "INTERLOCK",
-                lockedText: "LOCKED",
-                unlockedText: "CLEAR",
-                tag: { deviceId: "", field: "" },
-              }),
-            },
-
-            // legacy flag (doesn't hurt; renderer uses tag anyway)
-            locked: true,
-          },
-        ]);
-        return;
-      }
-
       if (control === "displayOutput") {
         setDroppedTanks((prev) => [
           ...prev,
@@ -236,39 +185,7 @@ export default function useDropHandler({ setDroppedTanks }) {
       return;
     }
 
-    // ✅ INTERLOCK (indicator) — use payload defaults if provided
-    if (shape === "interlock") {
-      const w = parsedPayload?.w ?? 260;
-      const h = parsedPayload?.h ?? 100;
-
-      setDroppedTanks((prev) => [
-        ...prev,
-        {
-          id: makeId(),
-          shape: "interlock",
-          x,
-          y,
-          w,
-          h,
-          zIndex: 1,
-          properties: {
-            ...(parsedPayload?.properties || {
-              interlockStyle: "shield",
-              interlockTone: "critical",
-              colorOn: "#ef4444",
-              colorOff: "#0b1220",
-              interlockTitle: "INTERLOCK",
-              lockedText: "LOCKED",
-              unlockedText: "CLEAR",
-              tag: { deviceId: "", field: "" },
-            }),
-          },
-        },
-      ]);
-      return;
-    }
-
-    // ✅ INDICATORS (NEW)
+    // ✅ INDICATORS
     if (shape === "ledCircle") {
       setDroppedTanks((prev) => [
         ...prev,
@@ -280,7 +197,6 @@ export default function useDropHandler({ setDroppedTanks }) {
           w: 70,
           h: 70,
           zIndex: 1,
-          // optional default props
           properties: {
             label: "",
             onColor: "#22c55e",
@@ -346,9 +262,6 @@ export default function useDropHandler({ setDroppedTanks }) {
           zIndex: 1,
           properties: {
             state: "OFF",
-            // you can later store image urls per state here
-            // offSrc: "",
-            // onSrc: "",
           },
         },
       ]);
