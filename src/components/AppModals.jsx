@@ -2,12 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import IndicatorLightSettingsModal from "./indicators/IndicatorLightSettingsModal";
 import StatusTextSettingsModal from "./indicators/StatusTextSettingsModal";
-import InterlockSettingsModal from "./indicators/InterlockSettingsModal";
-
-// ✅ NEW
 import BlinkingAlarmSettingsModal from "./indicators/BlinkingAlarmSettingsModal";
-
-// ✅ NEW: State Image settings
 import StateImageSettingsModal from "./indicators/StateImageSettingsModal";
 
 import RestoreWarningModal from "./RestoreWarningModal";
@@ -56,10 +51,6 @@ export default function AppModals({
   // ✅ NEW: State Image settings
   stateImageSettingsId,
   closeStateImageSettings,
-
-  // ✅ NEW: Interlock settings
-  interlockSettingsId,
-  closeInterlockSettings,
 
   // ✅ give indicator modal access to available devices/tags
   sensorsData,
@@ -146,15 +137,6 @@ export default function AppModals({
     );
   }, [droppedTanks, stateImageSettingsId]);
 
-  // ✅ NEW: Interlock target
-  const interlockTarget = useMemo(() => {
-    if (interlockSettingsId == null) return null;
-    return droppedTanks.find(
-      (t) =>
-        isSameId(t.id, interlockSettingsId) &&
-        (t.shape === "interlock" || t.shape === "interlockControl")
-    );
-  }, [droppedTanks, interlockSettingsId]);
 
   const alarmLogWindowProps = windowDrag?.getWindowProps
     ? windowDrag.getWindowProps("alarmLog")
@@ -248,20 +230,6 @@ export default function AppModals({
           onSave={(updated) => {
             patchTankProperties(stateImageTarget.id, updated);
             closeStateImageSettings?.();
-          }}
-        />
-      )}
-
-      {/* ✅ NEW: Interlock Settings */}
-      {interlockTarget && (
-        <InterlockSettingsModal
-          open={true}
-          tank={interlockTarget}
-          sensorsData={sensorsData}
-          onClose={() => closeInterlockSettings?.()}
-          onSave={(updated) => {
-            patchTankProperties(interlockTarget.id, updated);
-            closeInterlockSettings?.();
           }}
         />
       )}
