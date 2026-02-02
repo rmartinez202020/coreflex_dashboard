@@ -221,7 +221,8 @@ export default function InterlockControl({
               fontSize: 16,
             }}
           >
-            {resolvedTitle}
+            {resolvedTitle} <span style={{ fontSize: 10, opacity: 0.6 }}>v54</span>
+
           </div>
 
           <div
