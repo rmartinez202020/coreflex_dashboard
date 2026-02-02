@@ -24,7 +24,7 @@ export default function StatusTextSettingsModal({
   const initialOffText = p?.offText ?? legacyText ?? "OFF";
   const initialOnText = p?.onText ?? legacyText ?? "ON";
 
-  // Shared style (✅ Radius + LetterSpacing removed)
+  // Shared style
   const initialFontSize = p?.fontSize ?? 18;
   const initialFontWeight = p?.fontWeight ?? 800;
   const initialTextColor = p?.textColor ?? "#0f172a";
@@ -38,7 +38,9 @@ export default function StatusTextSettingsModal({
 
   const [deviceId, setDeviceId] = React.useState(initialDeviceId);
   const [field, setField] = React.useState(initialField);
-  const [tagSearch, setTagSearch] = React.useState("");
+
+  // ✅ We now use Search Tag as the tag input (and it drives `field`)
+  const [tagSearch, setTagSearch] = React.useState(initialField || "");
 
   const [offText, setOffText] = React.useState(initialOffText);
   const [onText, setOnText] = React.useState(initialOnText);
@@ -128,7 +130,7 @@ export default function StatusTextSettingsModal({
   };
 
   // =========================
-  // DEVICES / FIELDS
+  // DEVICES
   // =========================
   const devices = React.useMemo(() => {
     const d = sensorsData?.devices;
@@ -139,6 +141,7 @@ export default function StatusTextSettingsModal({
     return devices.find((d) => String(d.id) === String(deviceId)) || null;
   }, [devices, deviceId]);
 
+  // Optional: we can use device.fields for suggestions in the Search box
   const availableFields = React.useMemo(() => {
     const raw = selectedDevice?.fields;
     if (!raw) return [];
@@ -158,13 +161,67 @@ export default function StatusTextSettingsModal({
   }, [selectedDevice]);
 
   const filteredFields = React.useMemo(() => {
-    const q = tagSearch.trim().toLowerCase();
+    const q = (tagSearch || "").trim().toLowerCase();
     if (!q) return availableFields;
     return availableFields.filter(
       (f) =>
         f.key.toLowerCase().includes(q) || f.label.toLowerCase().includes(q)
     );
   }, [availableFields, tagSearch]);
+
+  // =========================
+  // ✅ LIVE STATUS/VALUE (same idea as Indicator modal)
+  // =========================
+  const getTagValue = React.useCallback((dev, key) => {
+    if (!dev || !key) return undefined;
+
+    // Try common shapes where values might live
+    const candidates = [
+      dev?.data,
+      dev?.values,
+      dev?.tags,
+      dev?.payload,
+      dev?.last,
+      dev?.latest,
+      dev?.lastValues,
+      dev?.telemetry,
+      dev?.state,
+    ];
+
+    for (const obj of candidates) {
+      if (obj && typeof obj === "object" && key in obj) return obj[key];
+    }
+    return undefined;
+  }, []);
+
+  const effectiveField = (field || "").trim();
+
+  const rawValue = React.useMemo(() => {
+    if (!selectedDevice || !effectiveField) return undefined;
+    return getTagValue(selectedDevice, effectiveField);
+  }, [selectedDevice, effectiveField, getTagValue]);
+
+  const isOnline = rawValue !== undefined && rawValue !== null && effectiveField;
+
+  const as01 = React.useMemo(() => {
+    if (!isOnline) return null;
+
+    const v = rawValue;
+
+    if (typeof v === "boolean") return v ? 1 : 0;
+    if (typeof v === "number") return v > 0 ? 1 : 0;
+
+    if (typeof v === "string") {
+      const s = v.trim().toLowerCase();
+      if (s === "true" || s === "on" || s === "1" || s === "yes") return 1;
+      const n = Number(s);
+      if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
+      return 0;
+    }
+
+    // fallback truthy
+    return v ? 1 : 0;
+  }, [isOnline, rawValue]);
 
   const apply = () => {
     const safeOff = (offText ?? "").trim() || legacyText || "OFF";
@@ -178,9 +235,7 @@ export default function StatusTextSettingsModal({
         offText: safeOff,
         onText: safeOn,
 
-        // ✅ IMPORTANT FIX:
-        // Legacy "text" should match DEFAULT state = OFF
-        // so the canvas widget (if reading p.text) shows OFF.
+        // legacy "text" default = OFF
         text: safeOff,
 
         fontSize: Number(fontSize) || 18,
@@ -194,16 +249,15 @@ export default function StatusTextSettingsModal({
         textAlign,
         textTransform,
 
-        // ✅ Also remove old saved keys if they exist
         borderRadius: undefined,
         letterSpacing: undefined,
 
-        tag: { deviceId, field },
+        tag: { deviceId, field: effectiveField },
       },
     });
   };
 
-  // ✅ fixed safe radius for preview (since we removed user control)
+  // ✅ fixed safe radius for preview
   const basePreviewStyle = {
     width: "100%",
     background: bgColor,
@@ -294,13 +348,10 @@ export default function StatusTextSettingsModal({
           position: "fixed",
           left: pos.left,
           top: pos.top,
-
-          // ✅ Wider + clamped + height clamped
           width: MODAL_W,
           maxWidth: "calc(100vw - 80px)",
           height: MODAL_H,
           maxHeight: "calc(100vh - 120px)",
-
           background: "#fff",
           borderRadius: 12,
           boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
@@ -347,7 +398,7 @@ export default function StatusTextSettingsModal({
 
         {/* Body */}
         <div style={{ padding: 18, fontSize: 14, overflow: "auto", flex: "1 1 auto" }}>
-          {/* Preview (OFF default visual) */}
+          {/* Preview */}
           <div
             style={{
               border: "1px solid #e5e7eb",
@@ -545,7 +596,7 @@ export default function StatusTextSettingsModal({
               </div>
             </div>
 
-            {/* TAG */}
+            {/* TAG (updated) */}
             <div
               style={{
                 border: "1px solid #e5e7eb",
@@ -565,6 +616,7 @@ export default function StatusTextSettingsModal({
                     onChange={(e) => {
                       setDeviceId(e.target.value);
                       setField("");
+                      setTagSearch("");
                     }}
                     style={{
                       width: "100%",
@@ -588,8 +640,13 @@ export default function StatusTextSettingsModal({
                   <Label>Search Tag</Label>
                   <input
                     value={tagSearch}
-                    onChange={(e) => setTagSearch(e.target.value)}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      setTagSearch(v);
+                      setField(v.trim());
+                    }}
                     placeholder="ex: DI0, level, run..."
+                    list="statusTextTagList"
                     style={{
                       width: "100%",
                       padding: "10px 12px",
@@ -598,52 +655,63 @@ export default function StatusTextSettingsModal({
                       fontSize: 14,
                     }}
                   />
-                </div>
-              </div>
-
-              <div style={{ marginBottom: 10 }}>
-                <Label>Tag / Field</Label>
-
-                {filteredFields.length > 0 ? (
-                  <select
-                    value={field}
-                    onChange={(e) => setField(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "10px 12px",
-                      borderRadius: 10,
-                      border: "1px solid #cbd5e1",
-                      fontSize: 14,
-                      background: "white",
-                    }}
-                  >
-                    <option value="">— Select tag —</option>
-                    {filteredFields.map((f) => (
+                  {/* suggestions (no extra UI block) */}
+                  <datalist id="statusTextTagList">
+                    {filteredFields.slice(0, 80).map((f) => (
                       <option key={f.key} value={f.key}>
                         {f.label}
                       </option>
                     ))}
-                  </select>
-                ) : (
-                  <input
-                    value={field}
-                    onChange={(e) => setField(e.target.value)}
-                    placeholder="Type tag field (ex: di0, run_status, level_percent)"
-                    style={{
-                      width: "100%",
-                      padding: "10px 12px",
-                      borderRadius: 10,
-                      border: "1px solid #cbd5e1",
-                      fontSize: 14,
-                    }}
-                  />
-                )}
+                  </datalist>
+                </div>
               </div>
 
-              <div style={{ fontSize: 12, color: "#64748b" }}>
-                Tip: When the tag value is <b>truthy</b> (or numeric <b>&gt; 0</b>),
-                this widget will display <b>ON Text</b>. Otherwise it displays{" "}
-                <b>OFF Text</b>.
+              {/* ✅ STATUS / VALUE PANEL (same idea as Indicator modal) */}
+              <div
+                style={{
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 12,
+                  padding: 12,
+                  background: "#f8fafc",
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "space-between",
+                  gap: 12,
+                }}
+              >
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>
+                    Status
+                  </div>
+                  <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
+                    {!deviceId || !effectiveField
+                      ? "Select a device and tag"
+                      : isOnline
+                      ? "Online"
+                      : "Offline"}
+                  </div>
+                </div>
+
+                <div style={{ textAlign: "right", minWidth: 90 }}>
+                  <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>
+                    Value
+                  </div>
+                  <div
+                    style={{
+                      marginTop: 6,
+                      fontSize: 18,
+                      fontWeight: 1000,
+                      color: isOnline ? "#0f172a" : "#94a3b8",
+                    }}
+                  >
+                    {isOnline ? String(as01 ?? 0) : "—"}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ fontSize: 12, color: "#64748b", marginTop: 10 }}>
+                Offline means there is no current value for that tag. When Online, the
+                value is shown as <b>0</b> or <b>1</b>.
               </div>
             </div>
           </div>
