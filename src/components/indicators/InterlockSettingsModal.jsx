@@ -35,6 +35,25 @@ export default function InterlockSettingsModal({
   const [interlockStyle, setInterlockStyle] = React.useState(initialStyle);
   const [interlockTone, setInterlockTone] = React.useState(initialTone);
 
+  // ✅ IMPORTANT:
+  // When opening modal for a different tank, refresh state from that tank.properties
+  React.useEffect(() => {
+    if (!tank) return;
+
+    const nextP = tank.properties || {};
+    const nextDeviceId = nextP?.tag?.deviceId ?? "";
+    const nextField = nextP?.tag?.field ?? "";
+
+    setDeviceId(nextDeviceId);
+    setResolvedField(nextField);
+
+    // keep search empty on open (clean UX), but if they already had a field, show it
+    setTagSearch(nextField || "");
+
+    setInterlockStyle(nextP?.interlockStyle ?? "shield");
+    setInterlockTone(nextP?.interlockTone ?? "critical");
+  }, [tank?.id]); // ✅ key: only when switching targets
+
   // =========================
   // DRAGGABLE WINDOW
   // =========================
@@ -250,10 +269,10 @@ export default function InterlockSettingsModal({
   const OFF_COLOR = "#0b1220";
 
   const apply = () => {
+    // ✅ do NOT spread tank.properties here — AppModals merges them already
     onSave?.({
       id: tank.id,
       properties: {
-        ...(tank.properties || {}),
         interlockStyle, // shield|gate|pill|minimal
         interlockTone, // critical|warning|info
         colorOn: tone.on,
@@ -399,8 +418,12 @@ export default function InterlockSettingsModal({
             style={{
               padding: "6px 10px",
               borderRadius: 999,
-              background: isOn ? "rgba(255,255,255,0.10)" : "rgba(148,163,184,0.12)",
-              border: `1px solid ${isOn ? tone.glow : "rgba(148,163,184,0.18)"}`,
+              background: isOn
+                ? "rgba(255,255,255,0.10)"
+                : "rgba(148,163,184,0.12)",
+              border: `1px solid ${
+                isOn ? tone.glow : "rgba(148,163,184,0.18)"
+              }`,
               color: isOn ? "#fff" : "rgba(226,232,240,0.80)",
               fontSize: 12,
               fontWeight: 1000,
@@ -430,7 +453,9 @@ export default function InterlockSettingsModal({
         style={{
           ...cardBase,
           background: "rgba(2,6,23,0.92)",
-          border: `1px solid ${isOn ? tone.glow : "rgba(148,163,184,0.22)"}`,
+          border: `1px solid ${
+            isOn ? tone.glow : "rgba(148,163,184,0.22)"
+          }`,
           boxShadow: isOn
             ? `0 0 18px ${tone.glow}`
             : "0 10px 25px rgba(0,0,0,0.18)",
@@ -784,6 +809,7 @@ export default function InterlockSettingsModal({
               cursor: "pointer",
               fontWeight: 900,
               fontSize: 14,
+              opacity: !deviceId || !resolvedField ? 0.55 : 1,
             }}
             type="button"
             disabled={!deviceId || !resolvedField}

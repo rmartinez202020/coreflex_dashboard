@@ -56,15 +56,19 @@ export default function AppModals({
   // ✅ NEW: State Image settings
   stateImageSettingsId,
   closeStateImageSettings,
+
+  // ✅ NEW: Interlock settings
   interlockSettingsId,
   closeInterlockSettings,
-
 
   // ✅ give indicator modal access to available devices/tags
   sensorsData,
 
   // ✅ NEW: passed from App.jsx (useWindowDragResize result)
   windowDrag,
+
+  // ✅ OPTIONAL: enable console logs for modal saves
+  debug = false,
 }) {
   const isSameId = (a, b) => String(a) === String(b);
 
@@ -142,7 +146,7 @@ export default function AppModals({
     );
   }, [droppedTanks, stateImageSettingsId]);
 
-  // ✅ NEW: Interlock target  ⬅️ ADD THIS RIGHT HERE
+  // ✅ NEW: Interlock target
   const interlockTarget = useMemo(() => {
     if (interlockSettingsId == null) return null;
     return droppedTanks.find(
@@ -156,14 +160,33 @@ export default function AppModals({
     ? windowDrag.getWindowProps("alarmLog")
     : null;
 
+  // ✅ Accept either:
+  // 1) onSave({ properties: {...} })  (preferred)
+  // 2) onSave({ ...flatProps })       (fallback - we wrap into properties)
+  const normalizeUpdated = (updated) => {
+    if (!updated || typeof updated !== "object") return { properties: {} };
+    if (updated.properties && typeof updated.properties === "object") return updated;
+
+    // Fallback: treat the whole object as properties
+    const { id, shape, x, y, w, h, width, height, ...rest } = updated;
+    return { properties: rest };
+  };
+
   const patchTankProperties = (targetId, updated) => {
+    const normalized = normalizeUpdated(updated);
+
+    if (debug) {
+      console.log("🧩 MODAL SAVE (raw):", updated);
+      console.log("🧩 MODAL SAVE (normalized):", normalized);
+    }
+
     setDroppedTanks((prev) =>
       prev.map((t) => {
         if (!isSameId(t.id, targetId)) return t;
 
         const nextProps =
-          updated?.properties && typeof updated.properties === "object"
-            ? { ...(t.properties || {}), ...updated.properties }
+          normalized?.properties && typeof normalized.properties === "object"
+            ? { ...(t.properties || {}), ...normalized.properties }
             : { ...(t.properties || {}) };
 
         return { ...t, properties: nextProps };
@@ -228,7 +251,8 @@ export default function AppModals({
           }}
         />
       )}
-{/* ✅ NEW: Interlock Settings */}
+
+      {/* ✅ NEW: Interlock Settings */}
       {interlockTarget && (
         <InterlockSettingsModal
           open={true}
@@ -241,7 +265,6 @@ export default function AppModals({
           }}
         />
       )}
-
 
       {displayTarget && (
         <DisplaySettingsModal
