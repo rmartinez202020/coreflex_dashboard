@@ -5,3 +5,4 @@ export { default as DraggableStateImage } from "./DraggableStateImage";
 export { default as IndicatorLightSettingsModal } from "./IndicatorLightSettingsModal";
 export { default as StatusTextSettingsModal } from "./StatusTextSettingsModal";
 export { default as BlinkingAlarmSettingsModal } from "./BlinkingAlarmSettingsModal";
+export { default as DraggableInterlock } from "./DraggableInterlock";

@@ -9,6 +9,15 @@ import {
 
 import DraggableControls from "./DraggableControls";
 
+// ✅ NEW: Indicators (includes Interlock draggable)
+import {
+  DraggableLedCircle,
+  DraggableStatusTextBox,
+  DraggableBlinkingAlarm,
+  DraggableStateImage,
+  DraggableInterlock,
+} from "./indicators";
+
 /**
  * ✅ Option B (NO lucide-react)
  * We use small "badge" icons to match the look/weight of Device Controls icons.
@@ -153,22 +162,6 @@ export default function SidebarLeft({
     );
   };
 
-  // ✅ Helper: draggable menu item that spawns a canvas object via "shape"
-  const DraggableMenuItem = ({ shape, icon, label }) => (
-    <div
-      draggable
-      onDragStart={(e) => {
-        e.dataTransfer.setData("shape", shape);
-        // some browsers behave nicer when text/plain is also set
-        e.dataTransfer.setData("text/plain", shape);
-      }}
-      className="cursor-grab active:cursor-grabbing"
-      style={{ userSelect: "none" }}
-    >
-      <MenuRow icon={icon}>{label}</MenuRow>
-    </div>
-  );
-
   return (
     <aside
       className={
@@ -276,36 +269,42 @@ export default function SidebarLeft({
 
               {showIndicators && (
                 <div className="ml-1">
-                  <DraggableMenuItem
-                    shape="ledCircle"
-                    icon={<IconBadge>🟢</IconBadge>}
-                    label="Led Circle (DI)"
-                  />
+                  {/* ✅ Now indicators use their own Draggable components (same pattern) */}
+                  <div className="mb-2 text-sm flex items-center">
+                    <IconBadge>🟢</IconBadge>
+                    <div className="flex-1">
+                      <DraggableLedCircle label="Led Circle (DI)" />
+                    </div>
+                  </div>
 
-                  <DraggableMenuItem
-                    shape="statusTextBox"
-                    icon={<IconBadge>📝</IconBadge>}
-                    label="Status Text Box (DI)"
-                  />
+                  <div className="mb-2 text-sm flex items-center">
+                    <IconBadge>📝</IconBadge>
+                    <div className="flex-1">
+                      <DraggableStatusTextBox label="Status Text Box (DI)" />
+                    </div>
+                  </div>
 
-                  <DraggableMenuItem
-                    shape="blinkingAlarm"
-                    icon={<IconBadge>🚨</IconBadge>}
-                    label="Blinking Alarm (DI)"
-                  />
+                  <div className="mb-2 text-sm flex items-center">
+                    <IconBadge>🚨</IconBadge>
+                    <div className="flex-1">
+                      <DraggableBlinkingAlarm label="Blinking Alarm (DI)" />
+                    </div>
+                  </div>
 
-                  <DraggableMenuItem
-                    shape="stateImage"
-                    icon={<IconBadge>🔄</IconBadge>}
-                    label="State Image (DI)"
-                  />
+                  <div className="mb-2 text-sm flex items-center">
+                    <IconBadge>🔄</IconBadge>
+                    <div className="flex-1">
+                      <DraggableStateImage label="State Image (DI)" />
+                    </div>
+                  </div>
 
-                  {/* ✅ Interlock moved to Indicators */}
-                  <DraggableMenuItem
-                    shape="interlock"
-                    icon={<IconBadge>🔒</IconBadge>}
-                    label="Interlock (DI)"
-                  />
+                  {/* ✅ Interlock is HERE (Indicators), NOT in Controls */}
+                  <div className="mb-2 text-sm flex items-center">
+                    <IconBadge>🔒</IconBadge>
+                    <div className="flex-1">
+                      <DraggableInterlock label="Interlock (DI)" />
+                    </div>
+                  </div>
                 </div>
               )}
 
@@ -344,7 +343,7 @@ export default function SidebarLeft({
                 </div>
               )}
 
-              {/* ✅ DEVICE CONTROLS (independent + has title again) */}
+              {/* ✅ DEVICE CONTROLS (NO interlock here) */}
               <div
                 className="cursor-pointer mb-2 flex items-center gap-2"
                 onClick={() => openOnly("devicecontrols")}
