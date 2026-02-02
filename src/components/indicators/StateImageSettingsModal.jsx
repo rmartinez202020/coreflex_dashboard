@@ -12,9 +12,9 @@ export default function StateImageSettingsModal({
 
   const p = tank.properties || {};
 
-  // ✅ Modal sizing (clamped)
-  const MODAL_W = Math.min(980, window.innerWidth - 80);
-  const MODAL_H = Math.min(640, window.innerHeight - 120);
+  // ✅ Modal sizing (now narrower since tag section is moved to bottom)
+  const MODAL_W = Math.min(860, window.innerWidth - 80);
+  const MODAL_H = Math.min(680, window.innerHeight - 120);
 
   // Tag binding (same pattern)
   const initialDeviceId = p?.tag?.deviceId ?? "";
@@ -149,41 +149,24 @@ export default function StateImageSettingsModal({
   // =========================
   // ✅ LIVE STATUS (Offline/Online + 0/1)
   // =========================
-  const getValueForField = React.useCallback(
-    (dev, fld) => {
-      if (!dev || !fld) return undefined;
+  const getValueForField = React.useCallback((dev, fld) => {
+    if (!dev || !fld) return undefined;
 
-      // Try a few common shapes:
-      // dev.values[field]
-      // dev.data[field]
-      // dev.tags[field]
-      // dev.latest[field]
-      const pools = [
-        dev.values,
-        dev.data,
-        dev.tags,
-        dev.latest,
-        dev.last,
-        dev.payload,
-      ];
+    const pools = [dev.values, dev.data, dev.tags, dev.latest, dev.last, dev.payload];
+    for (const pool of pools) {
+      if (pool && typeof pool === "object" && fld in pool) return pool[fld];
+    }
 
-      for (const pool of pools) {
-        if (pool && typeof pool === "object" && fld in pool) return pool[fld];
-      }
+    const arrPools = [dev.values, dev.data, dev.tags, dev.latest].filter(Array.isArray);
+    for (const arr of arrPools) {
+      const hit = arr.find(
+        (x) => String(x?.key ?? x?.field ?? x?.name ?? "") === String(fld)
+      );
+      if (hit && "value" in hit) return hit.value;
+    }
 
-      // Sometimes: dev.values is an array of {key,value}
-      const arrPools = [dev.values, dev.data, dev.tags, dev.latest].filter(Array.isArray);
-      for (const arr of arrPools) {
-        const hit = arr.find(
-          (x) => String(x?.key ?? x?.field ?? x?.name ?? "") === String(fld)
-        );
-        if (hit && "value" in hit) return hit.value;
-      }
-
-      return undefined;
-    },
-    []
-  );
+    return undefined;
+  }, []);
 
   const rawValue = React.useMemo(() => {
     return getValueForField(selectedDevice, field);
@@ -196,7 +179,6 @@ export default function StateImageSettingsModal({
 
   const bool01 = React.useMemo(() => {
     if (!isOnline) return "—";
-    // truthy OR numeric > 0 => 1
     const n = Number(rawValue);
     const on = Number.isFinite(n) ? n > 0 : Boolean(rawValue);
     return on ? "1" : "0";
@@ -277,7 +259,6 @@ export default function StateImageSettingsModal({
     whiteSpace: "nowrap",
   };
 
-  // ✅ OFF should look "default active" -> green translucent
   const btnGreen = {
     ...btnNeutral,
     border: "1px solid #86efac",
@@ -299,7 +280,7 @@ export default function StateImageSettingsModal({
       new CustomEvent("coreflex-open-iots-library", {
         detail: {
           mode: "pickImage",
-          which: safeWhich, // off | on
+          which: safeWhich,
           tankId: tank.id,
           from: "StateImageSettingsModal",
         },
@@ -344,7 +325,7 @@ export default function StateImageSettingsModal({
   }, [tank.id]);
 
   // =========================
-  // ✅ Tag quick-pick list (replaces Tag/Field input)
+  // ✅ Tag quick-pick list
   // =========================
   const TagPickList = () => {
     if (!selectedDevice) {
@@ -355,7 +336,7 @@ export default function StateImageSettingsModal({
       );
     }
 
-    const list = filteredFields.slice(0, 60); // safety
+    const list = filteredFields.slice(0, 60);
     if (list.length === 0) {
       return (
         <div style={{ fontSize: 12, color: "#64748b" }}>
@@ -486,274 +467,280 @@ export default function StateImageSettingsModal({
 
         {/* Body */}
         <div style={{ padding: 16, overflow: "auto", flex: "1 1 auto" }}>
+          {/* ✅ TOP: Images section (full width) */}
           <div
             style={{
-              display: "grid",
-              gridTemplateColumns: "1.05fr 0.95fr",
-              gap: 14,
-              alignItems: "start",
+              border: "1px solid #e5e7eb",
+              borderRadius: 12,
+              padding: 14,
+              marginBottom: 14,
             }}
           >
-            {/* LEFT: OFF/ON image setup */}
-            <div
-              style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 12,
-                padding: 14,
-              }}
-            >
-              <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}>
-                State Images (OFF / ON)
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 12,
-                }}
-              >
-                {/* OFF */}
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 1000, marginBottom: 8 }}>
-                    OFF Image (default)
-                  </div>
-
-                  <ImgBox src={offImage} title="OFF" />
-
-                  <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-                    <label
-                      style={{
-                        flex: 1,
-                        padding: "9px 12px",
-                        borderRadius: 10,
-                        border: "1px solid #cbd5e1",
-                        background: "white",
-                        cursor: "pointer",
-                        fontWeight: 900,
-                        fontSize: 13,
-                        textAlign: "center",
-                      }}
-                    >
-                      Upload OFF
-                      <input
-                        type="file"
-                        accept="image/*"
-                        style={{ display: "none" }}
-                        onChange={(e) => {
-                          const f = e.target.files?.[0];
-                          readAsDataURL(f, setOffImage);
-                          e.target.value = "";
-                        }}
-                      />
-                    </label>
-
-                    <button
-                      type="button"
-                      onClick={() => openIOTsLibrary("off")}
-                      style={offBtnStyle}
-                      title="Pick OFF image from CoreFlex IOTs Library"
-                    >
-                      IOTs Library OFF
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setOffImage("")}
-                      style={{
-                        padding: "9px 12px",
-                        borderRadius: 10,
-                        border: "1px solid #e2e8f0",
-                        background: "#f8fafc",
-                        cursor: "pointer",
-                        fontWeight: 900,
-                        fontSize: 13,
-                      }}
-                      title="Clear OFF image"
-                    >
-                      Clear
-                    </button>
-                  </div>
-                </div>
-
-                {/* ON */}
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 1000, marginBottom: 8 }}>
-                    ON Image
-                  </div>
-
-                  <ImgBox src={onImage} title="ON" />
-
-                  <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
-                    <label
-                      style={{
-                        flex: 1,
-                        padding: "9px 12px",
-                        borderRadius: 10,
-                        border: "1px solid #cbd5e1",
-                        background: "white",
-                        cursor: "pointer",
-                        fontWeight: 900,
-                        fontSize: 13,
-                        textAlign: "center",
-                      }}
-                    >
-                      Upload ON
-                      <input
-                        type="file"
-                        accept="image/*"
-                        style={{ display: "none" }}
-                        onChange={(e) => {
-                          const f = e.target.files?.[0];
-                          readAsDataURL(f, setOnImage);
-                          e.target.value = "";
-                        }}
-                      />
-                    </label>
-
-                    <button
-                      type="button"
-                      onClick={() => openIOTsLibrary("on")}
-                      style={onBtnStyle}
-                      title="Pick ON image from CoreFlex IOTs Library"
-                    >
-                      IOTs Library ON
-                    </button>
-
-                    <button
-                      type="button"
-                      onClick={() => setOnImage("")}
-                      style={{
-                        padding: "9px 12px",
-                        borderRadius: 10,
-                        border: "1px solid #e2e8f0",
-                        background: "#f8fafc",
-                        cursor: "pointer",
-                        fontWeight: 900,
-                        fontSize: 13,
-                      }}
-                      title="Clear ON image"
-                    >
-                      Clear
-                    </button>
-                  </div>
-                </div>
-              </div>
-
-              <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
-                Default state is <b>OFF</b>. If your tag becomes ON (truthy / &gt; 0),
-                the ON image will display.
-              </div>
+            <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}>
+              State Images (OFF / ON)
             </div>
 
-            {/* RIGHT: Tag binding + Status/Value (✅ like Indicator Light) */}
             <div
               style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 12,
-                padding: 14,
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 12,
               }}
             >
-              <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}>
-                Tag that drives state (ON / OFF)
-              </div>
+              {/* OFF */}
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 1000, marginBottom: 8 }}>
+                  OFF Image (default)
+                </div>
 
-              <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <Label>Device</Label>
-                  <select
-                    value={deviceId}
-                    onChange={(e) => {
-                      setDeviceId(e.target.value);
-                      setField("");
-                      setTagSearch("");
-                    }}
+                <ImgBox src={offImage} title="OFF" />
+
+                <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                  <label
                     style={{
-                      width: "100%",
-                      padding: "10px 12px",
+                      flex: 1,
+                      padding: "9px 12px",
                       borderRadius: 10,
                       border: "1px solid #cbd5e1",
-                      fontSize: 14,
                       background: "white",
+                      cursor: "pointer",
+                      fontWeight: 900,
+                      fontSize: 13,
+                      textAlign: "center",
                     }}
                   >
-                    <option value="">— Select device —</option>
-                    {devices.map((d) => (
-                      <option key={String(d.id)} value={String(d.id)}>
-                        {d.name || d.label || d.id}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                    Upload OFF
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        readAsDataURL(f, setOffImage);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
 
-                <div style={{ flex: 1 }}>
-                  <Label>Search Tag</Label>
-                  <input
-                    value={tagSearch}
-                    onChange={(e) => setTagSearch(e.target.value)}
-                    placeholder="ex: DI0, run, fault..."
+                  <button
+                    type="button"
+                    onClick={() => openIOTsLibrary("off")}
+                    style={offBtnStyle}
+                    title="Pick OFF image from CoreFlex IOTs Library"
+                  >
+                    IOTs Library OFF
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setOffImage("")}
                     style={{
-                      width: "100%",
-                      padding: "10px 12px",
+                      padding: "9px 12px",
                       borderRadius: 10,
-                      border: "1px solid #cbd5e1",
-                      fontSize: 14,
+                      border: "1px solid #e2e8f0",
+                      background: "#f8fafc",
+                      cursor: "pointer",
+                      fontWeight: 900,
+                      fontSize: 13,
                     }}
-                  />
+                    title="Clear OFF image"
+                  >
+                    Clear
+                  </button>
                 </div>
               </div>
 
-              {/* ✅ replaces the old Tag/Field block */}
-              <TagPickList />
-
-              {/* ✅ Status/Value (exact pattern you like) */}
-              <div
-                style={{
-                  marginTop: 12,
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 12,
-                  padding: 12,
-                  background: "#f8fafc",
-                }}
-              >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 6,
-                  }}
-                >
-                  <div style={{ fontSize: 12, fontWeight: 1000, color: "#0f172a" }}>
-                    Status
-                  </div>
-                  <div style={{ fontSize: 12, fontWeight: 1000, color: "#0f172a" }}>
-                    Value
-                  </div>
+              {/* ON */}
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 1000, marginBottom: 8 }}>
+                  ON Image
                 </div>
 
-                <div style={{ display: "flex", justifyContent: "space-between" }}>
-                  <div style={{ color: "#64748b", fontSize: 12, fontWeight: 900 }}>
-                    {!deviceId || !selectedDevice
-                      ? "Select a device"
-                      : !field
-                      ? "Select a tag"
-                      : isOnline
-                      ? "Online"
-                      : "Offline"}
-                  </div>
+                <ImgBox src={onImage} title="ON" />
 
-                  <div style={{ color: "#0f172a", fontSize: 14, fontWeight: 1000 }}>
-                    {field ? bool01 : "—"}
-                  </div>
-                </div>
+                <div style={{ display: "flex", gap: 10, marginTop: 10 }}>
+                  <label
+                    style={{
+                      flex: 1,
+                      padding: "9px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #cbd5e1",
+                      background: "white",
+                      cursor: "pointer",
+                      fontWeight: 900,
+                      fontSize: 13,
+                      textAlign: "center",
+                    }}
+                  >
+                    Upload ON
+                    <input
+                      type="file"
+                      accept="image/*"
+                      style={{ display: "none" }}
+                      onChange={(e) => {
+                        const f = e.target.files?.[0];
+                        readAsDataURL(f, setOnImage);
+                        e.target.value = "";
+                      }}
+                    />
+                  </label>
 
-                <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
-                  Offline means there is no current value for that tag. When Online, the
-                  value is shown as <b>0</b> or <b>1</b>.
+                  <button
+                    type="button"
+                    onClick={() => openIOTsLibrary("on")}
+                    style={onBtnStyle}
+                    title="Pick ON image from CoreFlex IOTs Library"
+                  >
+                    IOTs Library ON
+                  </button>
+
+                  <button
+                    type="button"
+                    onClick={() => setOnImage("")}
+                    style={{
+                      padding: "9px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #e2e8f0",
+                      background: "#f8fafc",
+                      cursor: "pointer",
+                      fontWeight: 900,
+                      fontSize: 13,
+                    }}
+                    title="Clear ON image"
+                  >
+                    Clear
+                  </button>
                 </div>
               </div>
             </div>
+
+            <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
+              Default state is <b>OFF</b>. If your tag becomes ON (truthy / &gt; 0),
+              the ON image will display.
+            </div>
+          </div>
+
+          {/* ✅ BOTTOM: Tag section (full width) */}
+          <div
+            style={{
+              border: "1px solid #e5e7eb",
+              borderRadius: 12,
+              padding: 14,
+            }}
+          >
+            <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}>
+              Tag that drives state (ON / OFF)
+            </div>
+
+            <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+              <div style={{ flex: 1 }}>
+                <Label>Device</Label>
+                <select
+                  value={deviceId}
+                  onChange={(e) => {
+                    setDeviceId(e.target.value);
+                    setField("");
+                    setTagSearch("");
+                  }}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5e1",
+                    fontSize: 14,
+                    background: "white",
+                  }}
+                >
+                  <option value="">— Select device —</option>
+                  {devices.map((d) => (
+                    <option key={String(d.id)} value={String(d.id)}>
+                      {d.name || d.label || d.id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div style={{ flex: 1 }}>
+                <Label>Search Tag</Label>
+                <input
+                  value={tagSearch}
+                  onChange={(e) => setTagSearch(e.target.value)}
+                  placeholder="ex: DI0, run, fault..."
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5e1",
+                    fontSize: 14,
+                  }}
+                />
+              </div>
+            </div>
+
+            <TagPickList />
+
+            <div
+              style={{
+                marginTop: 12,
+                border: "1px solid #e5e7eb",
+                borderRadius: 12,
+                padding: 12,
+                background: "#f8fafc",
+              }}
+            >
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  marginBottom: 6,
+                }}
+              >
+                <div style={{ fontSize: 12, fontWeight: 1000, color: "#0f172a" }}>
+                  Status
+                </div>
+                <div style={{ fontSize: 12, fontWeight: 1000, color: "#0f172a" }}>
+                  Value
+                </div>
+              </div>
+
+              <div style={{ display: "flex", justifyContent: "space-between" }}>
+                <div style={{ color: "#64748b", fontSize: 12, fontWeight: 900 }}>
+                  {!deviceId || !selectedDevice
+                    ? "Select a device"
+                    : !field
+                    ? "Select a tag"
+                    : isOnline
+                    ? "Online"
+                    : "Offline"}
+                </div>
+
+                <div style={{ color: "#0f172a", fontSize: 14, fontWeight: 1000 }}>
+                  {field ? bool01 : "—"}
+                </div>
+              </div>
+
+              <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
+                Offline means there is no current value for that tag. When Online, the
+                value is shown as <b>0</b> or <b>1</b>.
+              </div>
+            </div>
+
+            {!isTagAssigned ? (
+              <div
+                style={{
+                  marginTop: 10,
+                  fontSize: 12,
+                  color: "#64748b",
+                  background: "#f8fafc",
+                  border: "1px dashed #e2e8f0",
+                  borderRadius: 10,
+                  padding: 10,
+                }}
+              >
+                No tag assigned yet — widget will stay in <b>OFF</b> state by default.
+              </div>
+            ) : null}
           </div>
         </div>
 
