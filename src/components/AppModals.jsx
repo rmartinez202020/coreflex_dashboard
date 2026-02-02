@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import IndicatorLightSettingsModal from "./indicators/IndicatorLightSettingsModal";
 import StatusTextSettingsModal from "./indicators/StatusTextSettingsModal";
+import InterlockSettingsModal from "./indicators/InterlockSettingsModal";
 
 // ✅ NEW
 import BlinkingAlarmSettingsModal from "./indicators/BlinkingAlarmSettingsModal";
@@ -55,6 +56,9 @@ export default function AppModals({
   // ✅ NEW: State Image settings
   stateImageSettingsId,
   closeStateImageSettings,
+  interlockSettingsId,
+  closeInterlockSettings,
+
 
   // ✅ give indicator modal access to available devices/tags
   sensorsData,
@@ -137,6 +141,16 @@ export default function AppModals({
       (t) => isSameId(t.id, stateImageSettingsId) && t.shape === "stateImage"
     );
   }, [droppedTanks, stateImageSettingsId]);
+
+  // ✅ NEW: Interlock target  ⬅️ ADD THIS RIGHT HERE
+  const interlockTarget = useMemo(() => {
+    if (interlockSettingsId == null) return null;
+    return droppedTanks.find(
+      (t) =>
+        isSameId(t.id, interlockSettingsId) &&
+        (t.shape === "interlock" || t.shape === "interlockControl")
+    );
+  }, [droppedTanks, interlockSettingsId]);
 
   const alarmLogWindowProps = windowDrag?.getWindowProps
     ? windowDrag.getWindowProps("alarmLog")
