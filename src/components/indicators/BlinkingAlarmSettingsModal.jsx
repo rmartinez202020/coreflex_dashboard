@@ -26,7 +26,10 @@ export default function BlinkingAlarmSettingsModal({
   const initialTone = p?.alarmTone ?? "critical";
 
   const [deviceId, setDeviceId] = React.useState(initialDeviceId);
-  const [field, setField] = React.useState(initialField);
+
+  // ✅ we will resolve the field automatically from Search Tag (no dropdown / no text box)
+  const [resolvedField, setResolvedField] = React.useState(initialField);
+
   const [tagSearch, setTagSearch] = React.useState("");
   const [alarmStyle, setAlarmStyle] = React.useState(initialStyle);
   const [alarmTone, setAlarmTone] = React.useState(initialTone);
@@ -143,6 +146,102 @@ export default function BlinkingAlarmSettingsModal({
     );
   }, [availableFields, tagSearch]);
 
+  // ✅ Auto-resolve field from Search Tag (first match / exact match)
+  React.useEffect(() => {
+    if (!deviceId) {
+      setResolvedField("");
+      return;
+    }
+
+    const q = tagSearch.trim().toLowerCase();
+    if (!q) {
+      // if user hasn't typed anything, keep current resolvedField (from saved config)
+      return;
+    }
+
+    // exact match first
+    const exact =
+      availableFields.find((f) => f.key.toLowerCase() === q) ||
+      availableFields.find((f) => f.label.toLowerCase() === q);
+
+    if (exact?.key) {
+      setResolvedField(exact.key);
+      return;
+    }
+
+    // otherwise first partial match
+    const first = filteredFields[0];
+    if (first?.key) setResolvedField(first.key);
+  }, [deviceId, tagSearch, availableFields, filteredFields]);
+
+  // =========================
+  // LIVE STATUS / VALUE (robust readers)
+  // =========================
+  const isDeviceOnline = React.useMemo(() => {
+    if (!deviceId || !selectedDevice) return false;
+
+    const v =
+      selectedDevice.online ??
+      selectedDevice.isOnline ??
+      selectedDevice.connected ??
+      selectedDevice.isConnected ??
+      selectedDevice.status;
+
+    if (typeof v === "boolean") return v;
+    if (typeof v === "number") return v > 0;
+    if (typeof v === "string") return v.toLowerCase().includes("online");
+    return false;
+  }, [deviceId, selectedDevice]);
+
+  const getTagValue = React.useCallback(() => {
+    if (!deviceId || !resolvedField) return undefined;
+
+    // Try common shapes (super defensive so it works with your current data structure)
+    const did = String(deviceId);
+    const f = String(resolvedField);
+
+    // 1) sensorsData.values[deviceId][field]
+    const v1 = sensorsData?.values?.[did]?.[f];
+    if (v1 !== undefined) return v1;
+
+    // 2) sensorsData.tags[deviceId][field]
+    const v2 = sensorsData?.tags?.[did]?.[f];
+    if (v2 !== undefined) return v2;
+
+    // 3) sensorsData.devices[].values[field]
+    const v3 = selectedDevice?.values?.[f];
+    if (v3 !== undefined) return v3;
+
+    // 4) sensorsData.latest[deviceId][field]
+    const v4 = sensorsData?.latest?.[did]?.[f];
+    if (v4 !== undefined) return v4;
+
+    // 5) fallback: maybe field stored flat on device object
+    const v5 = selectedDevice?.[f];
+    if (v5 !== undefined) return v5;
+
+    return undefined;
+  }, [deviceId, resolvedField, sensorsData, selectedDevice]);
+
+  const tagValue = getTagValue();
+
+  const value01 = React.useMemo(() => {
+    if (!isDeviceOnline) return undefined;
+    if (tagValue === undefined || tagValue === null) return undefined;
+
+    // boolean-ish mapping
+    if (typeof tagValue === "boolean") return tagValue ? 1 : 0;
+    if (typeof tagValue === "number") return tagValue > 0 ? 1 : 0;
+    if (typeof tagValue === "string") {
+      const s = tagValue.trim().toLowerCase();
+      if (s === "1" || s === "true" || s === "on") return 1;
+      if (s === "0" || s === "false" || s === "off") return 0;
+      // if it's some other string, treat non-empty as ON
+      return s ? 1 : 0;
+    }
+    return 0;
+  }, [isDeviceOnline, tagValue]);
+
   // =========================
   // ✅ TONE → COLORS (THIS IS THE FIX)
   // =========================
@@ -158,16 +257,19 @@ export default function BlinkingAlarmSettingsModal({
   const OFF_COLOR = "#0b1220";
 
   const apply = () => {
-    // ✅ Save BOTH tone + actual colors, so widget updates instantly
     onSave?.({
       id: tank.id,
       properties: {
         ...(tank.properties || {}),
         alarmStyle, // annunciator|banner|stackLight|minimal
         alarmTone, // critical|warning|info
-        colorOn: tone.on, // ✅ important
-        colorOff: OFF_COLOR, // ✅ important
-        tag: { deviceId, field },
+        colorOn: tone.on,
+        colorOff: OFF_COLOR,
+        // ✅ tag binding
+        tag: {
+          deviceId,
+          field: resolvedField || "", // resolved from search
+        },
       },
     });
   };
@@ -214,7 +316,13 @@ export default function BlinkingAlarmSettingsModal({
 
     if (styleId === "annunciator") {
       return (
-        <div style={{ ...card, justifyContent: "space-between", padding: "0 14px" }}>
+        <div
+          style={{
+            ...card,
+            justifyContent: "space-between",
+            padding: "0 14px",
+          }}
+        >
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
             <div style={{ fontSize: 11, opacity: 0.65, letterSpacing: 1 }}>
               ALARM
@@ -244,7 +352,13 @@ export default function BlinkingAlarmSettingsModal({
       return (
         <div style={card}>
           <div style={{ width: "100%", height: "100%" }}>
-            <div style={{ height: 12, background: stripe, opacity: isOn ? 1 : 0.7 }} />
+            <div
+              style={{
+                height: 12,
+                background: stripe,
+                opacity: isOn ? 1 : 0.7,
+              }}
+            />
             <div
               style={{
                 height: "calc(100% - 12px)",
@@ -268,7 +382,14 @@ export default function BlinkingAlarmSettingsModal({
 
     if (styleId === "stackLight") {
       return (
-        <div style={{ ...card, justifyContent: "flex-start", gap: 12, padding: "0 14px" }}>
+        <div
+          style={{
+            ...card,
+            justifyContent: "flex-start",
+            gap: 12,
+            padding: "0 14px",
+          }}
+        >
           <div
             style={{
               width: 22,
@@ -293,7 +414,9 @@ export default function BlinkingAlarmSettingsModal({
           ...card,
           background: "rgba(2,6,23,0.92)",
           border: `1px solid ${isOn ? tone.glow : "rgba(148,163,184,0.22)"}`,
-          boxShadow: isOn ? `0 0 18px ${tone.glow}` : "0 10px 25px rgba(0,0,0,0.18)",
+          boxShadow: isOn
+            ? `0 0 18px ${tone.glow}`
+            : "0 10px 25px rgba(0,0,0,0.18)",
         }}
       >
         <span style={{ color: isOn ? bg : "rgba(226,232,240,0.75)" }}>
@@ -323,15 +446,35 @@ export default function BlinkingAlarmSettingsModal({
           {s.name}
         </div>
 
-        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 10,
+          }}
+        >
           <div>
-            <div style={{ fontSize: 11, fontWeight: 900, color: "#64748b", marginBottom: 6 }}>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 900,
+                color: "#64748b",
+                marginBottom: 6,
+              }}
+            >
               OFF
             </div>
             <ProPreview styleId={s.id} isOn={false} />
           </div>
           <div>
-            <div style={{ fontSize: 11, fontWeight: 900, color: "#64748b", marginBottom: 6 }}>
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 900,
+                color: "#64748b",
+                marginBottom: 6,
+              }}
+            >
               ON
             </div>
             <ProPreview styleId={s.id} isOn={true} />
@@ -340,6 +483,17 @@ export default function BlinkingAlarmSettingsModal({
       </button>
     );
   };
+
+  const statusText = !deviceId
+    ? "Select a device and tag"
+    : !resolvedField
+    ? "Type a tag name in Search Tag"
+    : isDeviceOnline
+    ? "Online"
+    : "Offline";
+
+  const valueText =
+    isDeviceOnline && resolvedField ? (value01 === undefined ? "—" : String(value01)) : "—";
 
   return (
     <div
@@ -482,7 +636,8 @@ export default function BlinkingAlarmSettingsModal({
                   value={deviceId}
                   onChange={(e) => {
                     setDeviceId(e.target.value);
-                    setField("");
+                    setResolvedField("");
+                    setTagSearch("");
                   }}
                   style={{
                     width: "100%",
@@ -519,46 +674,58 @@ export default function BlinkingAlarmSettingsModal({
               </div>
             </div>
 
-            <div style={{ marginBottom: 10 }}>
-              <Label>Tag / Field</Label>
+            {/* ✅ STATUS BAR (same idea as Indicator Light) */}
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
+                border: "1px solid #e5e7eb",
+                background: "#f8fafc",
+                borderRadius: 12,
+                padding: "12px 14px",
+              }}
+            >
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>
+                  Status
+                </div>
+                <div style={{ fontSize: 13, color: "#475569", marginTop: 2 }}>
+                  {resolvedField ? (
+                    <>
+                      <span style={{ fontWeight: 900, color: "#0f172a" }}>
+                        {statusText}
+                      </span>
+                      <span style={{ marginLeft: 10, color: "#64748b" }}>
+                        Tag: <b>{resolvedField}</b>
+                      </span>
+                    </>
+                  ) : (
+                    statusText
+                  )}
+                </div>
+              </div>
 
-              {filteredFields.length > 0 ? (
-                <select
-                  value={field}
-                  onChange={(e) => setField(e.target.value)}
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>
+                  Value
+                </div>
+                <div
                   style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: 10,
-                    border: "1px solid #cbd5e1",
-                    fontSize: 14,
-                    background: "white",
+                    marginTop: 2,
+                    fontSize: 18,
+                    fontWeight: 1000,
+                    color: isDeviceOnline ? "#0f172a" : "#94a3b8",
+                    fontFamily: "monospace",
+                    minWidth: 22,
                   }}
                 >
-                  <option value="">— Select tag —</option>
-                  {filteredFields.map((f) => (
-                    <option key={f.key} value={f.key}>
-                      {f.label}
-                    </option>
-                  ))}
-                </select>
-              ) : (
-                <input
-                  value={field}
-                  onChange={(e) => setField(e.target.value)}
-                  placeholder="Type tag field (ex: di0, fault, alarm_active)"
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: 10,
-                    border: "1px solid #cbd5e1",
-                    fontSize: 14,
-                  }}
-                />
-              )}
+                  {valueText}
+                </div>
+              </div>
             </div>
 
-            <div style={{ fontSize: 12, color: "#64748b" }}>
+            <div style={{ fontSize: 12, color: "#64748b", marginTop: 10 }}>
               Tip: ON means <b>truthy</b> (or numeric <b>&gt; 0</b>). OFF means false / 0 / empty.
             </div>
           </div>
@@ -604,6 +771,8 @@ export default function BlinkingAlarmSettingsModal({
               fontSize: 14,
             }}
             type="button"
+            disabled={!deviceId || !resolvedField}
+            title={!deviceId || !resolvedField ? "Select a device and type a tag" : "Apply"}
           >
             Apply
           </button>
