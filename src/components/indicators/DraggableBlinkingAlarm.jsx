@@ -1,23 +1,5 @@
 import React from "react";
 
-/**
- * DraggableBlinkingAlarm
- * ✅ Dual mode:
- * 1) Palette mode (Sidebar): small preview + label, sets dataTransfer "shape"
- * 2) Canvas mode (Dashboard): renders blinking alarm widget using `tank`
- *
- * ✅ Behavior update:
- * - Background does NOT blink
- * - Only accent elements blink (bar + light)
- *
- * ✅ NEW (fix):
- * - Tag drives alarm, and DEFAULT is OFF when:
- *   - no tag bound
- *   - missing value
- *   - false/0/"0"/""/"false"/"off"
- * - Accepts sensorsData (passed from DashboardCanvas)
- * - Uses alarmTone to pick accent color (red/amber/blue) WITHOUT changing background
- */
 export default function DraggableBlinkingAlarm({
   // Canvas mode
   tank,
@@ -36,7 +18,6 @@ export default function DraggableBlinkingAlarm({
     w: 240,
     h: 70,
     text: "ALARM",
-    isActive: false,
     blinkMs: 500,
 
     // colors (used as fallback accents)
@@ -52,22 +33,18 @@ export default function DraggableBlinkingAlarm({
   // ✅ CANVAS MODE
   // =========================
   if (tank) {
+    const p = tank.properties || {};
+
     const w = tank.w ?? tank.width ?? payload.w;
     const h = tank.h ?? tank.height ?? payload.h;
 
-    const text =
-      tank.text ??
-      tank.properties?.text ??
-      tank.properties?.label ??
-      payload.text;
+    const text = tank.text ?? p.text ?? p.label ?? payload.text;
 
-    const blinkMs = tank.blinkMs ?? tank.properties?.blinkMs ?? payload.blinkMs;
+    const blinkMs = p.blinkMs ?? tank.blinkMs ?? payload.blinkMs;
 
-    const alarmStyle =
-      tank.properties?.alarmStyle ?? tank.alarmStyle ?? payload.alarmStyle;
-
-    const alarmTone =
-      tank.properties?.alarmTone ?? tank.alarmTone ?? payload.alarmTone;
+    // ✅ IMPORTANT: read ONLY from properties (this matches your modal save)
+    const alarmStyle = p.alarmStyle ?? payload.alarmStyle;
+    const alarmTone = p.alarmTone ?? payload.alarmTone;
 
     // ✅ tone → accent ON color (does NOT affect background)
     const toneMap = {
@@ -77,18 +54,14 @@ export default function DraggableBlinkingAlarm({
     };
     const tone = toneMap[alarmTone] || toneMap.critical;
 
-    // ✅ If user manually overrides colorOn in properties, respect it
-    const colorOn =
-      tank.colorOn ?? tank.properties?.colorOn ?? tone.on ?? payload.colorOn;
-
-    // ✅ BASE background never blinks (always dark)
-    const baseBg =
-      tank.colorOff ?? tank.properties?.colorOff ?? payload.colorOff ?? "#0b1220";
+    // ✅ If modal saved colorOn/colorOff, use those
+    const colorOn = p.colorOn ?? tone.on ?? payload.colorOn;
+    const baseBg = p.colorOff ?? payload.colorOff ?? "#0b1220";
 
     // =========================
     // ✅ TAG-DRIVEN ACTIVE (DEFAULT OFF)
     // =========================
-    const tag = tank.properties?.tag;
+    const tag = p.tag;
     const tagDeviceId = tag?.deviceId;
     const tagField = tag?.field;
 
@@ -103,13 +76,18 @@ export default function DraggableBlinkingAlarm({
 
       // Option B: sensorsData.devices[] has .values or a direct field
       const dev =
-        sensorsData?.devices?.find((d) => String(d.id) === String(tagDeviceId)) ||
-        null;
+        sensorsData?.devices?.find(
+          (d) => String(d.id) === String(tagDeviceId)
+        ) || null;
 
-      if (dev?.values && Object.prototype.hasOwnProperty.call(dev.values, tagField))
+      if (
+        dev?.values &&
+        Object.prototype.hasOwnProperty.call(dev.values, tagField)
+      )
         return dev.values[tagField];
 
-      if (dev && Object.prototype.hasOwnProperty.call(dev, tagField)) return dev[tagField];
+      if (dev && Object.prototype.hasOwnProperty.call(dev, tagField))
+        return dev[tagField];
 
       return undefined;
     };
@@ -165,7 +143,10 @@ export default function DraggableBlinkingAlarm({
       userSelect: "none",
     };
 
-    const title = isActive ? "Alarm ACTIVE" : "Alarm OFF";
+    // ✅ Helpful debug tooltip
+    const title = `BlinkingAlarm | ${isActive ? "ON" : "OFF"} | style=${
+      alarmStyle || "annunciator"
+    } | tone=${alarmTone || "critical"}`;
 
     const textLeft = {
       fontWeight: 1000,
@@ -209,7 +190,8 @@ export default function DraggableBlinkingAlarm({
           <div style={{ fontSize: 11, opacity: 0.65, letterSpacing: 1 }}>
             ALARM
           </div>
-          <div style={textLeft}>{isActive ? "ACTIVE" : "OFF"}</div>
+          {/* ✅ match modal preview language */}
+          <div style={textLeft}>{isActive ? "ACTIVE" : "NORMAL"}</div>
         </div>
 
         {/* ✅ blinking light */}
@@ -302,12 +284,14 @@ export default function DraggableBlinkingAlarm({
             background: accent,
             border: "2px solid rgba(255,255,255,0.10)",
             boxShadow:
-              isActive && blinkOn ? `0 0 14px ${tone.glow || hexToGlow(colorOn)}` : "none",
+              isActive && blinkOn
+                ? `0 0 14px ${tone.glow || hexToGlow(colorOn)}`
+                : "none",
             transition: "all 120ms linear",
           }}
         />
         <div style={{ ...textLeft, fontSize: Math.max(12, Math.round(h * 0.2)) }}>
-          {isActive ? "ALARM ACTIVE" : "OFF"}
+          {isActive ? "ALARM ACTIVE" : "NORMAL"}
         </div>
       </div>
     );
@@ -323,7 +307,7 @@ export default function DraggableBlinkingAlarm({
           border: `1px solid ${
             isActive
               ? blinkOn
-                ? (tone.glow || hexToGlow(colorOn))
+                ? tone.glow || hexToGlow(colorOn)
                 : "rgba(148,163,184,0.25)"
               : "rgba(148,163,184,0.25)"
           }`,
@@ -340,7 +324,11 @@ export default function DraggableBlinkingAlarm({
             fontWeight: 1000,
             letterSpacing: 2,
             fontSize: Math.max(13, Math.round(h * 0.26)),
-            color: isActive ? (blinkOn ? colorOn : "rgba(226,232,240,0.75)") : "rgba(226,232,240,0.75)",
+            color: isActive
+              ? blinkOn
+                ? colorOn
+                : "rgba(226,232,240,0.75)"
+              : "rgba(226,232,240,0.75)",
             textTransform: "uppercase",
             transition: "all 120ms linear",
           }}

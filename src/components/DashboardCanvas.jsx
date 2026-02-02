@@ -454,7 +454,6 @@ export default function DashboardCanvas({
   onOpenStatusTextSettings,
   onOpenBlinkingAlarmSettings,
   onOpenStateImageSettings,
-  onOpenInterlockSettings,
 
 
 }) {
@@ -762,7 +761,7 @@ if (tank.shape === "blinkingAlarm") {
         if (!isPlay) onOpenBlinkingAlarmSettings?.(tank);
       }}
     >
-      <DraggableBlinkingAlarm tank={tank} />
+      <DraggableBlinkingAlarm tank={tank} sensorsData={sensorsData} />
     </DraggableDroppedTank>
   );
 }
