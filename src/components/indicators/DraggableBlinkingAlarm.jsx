@@ -129,10 +129,9 @@ export default function DraggableBlinkingAlarm({
         : "inset 0 2px 10px rgba(0,0,0,0.45)"
       : "inset 0 2px 10px rgba(0,0,0,0.45)";
 
-    const handleDoubleClick = (e) => {
-      e.stopPropagation();
-      onOpenSettings?.(tank);
-    };
+   const handleDoubleClick = () => {
+  onOpenSettings?.(tank);
+};
 
     const commonWrap = {
       width: w,
