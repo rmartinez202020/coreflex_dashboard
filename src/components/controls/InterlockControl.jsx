@@ -1,32 +1,132 @@
 import React from "react";
 
+/**
+ * InterlockControl
+ * ✅ Option A (BEST):
+ * - If you pass `tank` + `sensorsData`, this component reads:
+ *   - tank.properties.interlockStyle (shield|gate|pill|minimal)
+ *   - tank.properties.interlockTone  (critical|warning|info)
+ *   - tank.properties.colorOn / colorOff   ✅ (matches modal)
+ *   - tank.properties.tag.deviceId / field
+ *   - Computes locked ON/OFF from sensorsData (same lookup logic as modal)
+ *
+ * ✅ Backward compatible:
+ * - If no `tank` is provided, it will use legacy props
+ */
 export default function InterlockControl({
-  // ✅ State
-  locked = true,
+  // ✅ NEW smart mode inputs
+  tank,
+  sensorsData,
 
-  // ✅ Layout
+  // ✅ Legacy mode props (still supported)
+  locked = true,
   width = 220,
   height = 86,
-
-  // ✅ From settings modal
   interlockStyle = "shield", // shield|gate|pill|minimal
   colorOn = "#ef4444",
   colorOff = "#0b1220",
-
-  // Optional label text
   title = "INTERLOCK",
   lockedText = "LOCKED",
   unlockedText = "UNLOCKED",
 }) {
-  const isOn = Boolean(locked); // ON => LOCKED
+  // =========================
+  // ✅ Resolve settings from tank if provided
+  // =========================
+  const p = tank?.properties || {};
 
-  const statusText = isOn ? lockedText : unlockedText;
+  const resolvedStyle = p?.interlockStyle ?? interlockStyle;
+  const resolvedTone = p?.interlockTone ?? "critical";
+
+  // Tone -> on color fallback (only used if modal didn't save colorOn)
+  const toneFallback =
+    resolvedTone === "warning"
+      ? "#f59e0b"
+      : resolvedTone === "info"
+      ? "#3b82f6"
+      : "#ef4444";
+
+  // ✅ IMPORTANT: match keys saved by InterlockSettingsModal
+  const resolvedOnColor = p?.colorOn ?? toneFallback ?? colorOn;
+  const resolvedOffColor = p?.colorOff ?? colorOff;
+
+  const resolvedTitle = p?.interlockTitle ?? title;
+  const resolvedLockedText = p?.lockedText ?? lockedText;
+  const resolvedUnlockedText = p?.unlockedText ?? unlockedText;
+
+  // allow width/height coming from tank if stored
+  const resolvedW = tank?.w ?? tank?.width ?? width;
+  const resolvedH = tank?.h ?? tank?.height ?? height;
+
+  // =========================
+  // ✅ Compute locked ON/OFF from sensorsData if tank has a tag
+  // =========================
+  const tag = p?.tag || null;
+  const tagDeviceId = tag?.deviceId || "";
+  const tagField = tag?.field || "";
+
+  // ✅ SAME defensive lookup as your InterlockSettingsModal
+  const readTagValue = React.useCallback(() => {
+    if (!tagDeviceId || !tagField) return undefined;
+    if (!sensorsData) return undefined;
+
+    const did = String(tagDeviceId);
+    const f = String(tagField);
+
+    const v1 = sensorsData?.values?.[did]?.[f];
+    if (v1 !== undefined) return v1;
+
+    const v2 = sensorsData?.tags?.[did]?.[f];
+    if (v2 !== undefined) return v2;
+
+    const v3 = sensorsData?.latest?.[did]?.[f];
+    if (v3 !== undefined) return v3;
+
+    // If devices is an array (your modal uses this too)
+    const devicesArr = Array.isArray(sensorsData?.devices) ? sensorsData.devices : [];
+    const dev = devicesArr.find((d) => String(d?.id) === did) || null;
+
+    const v4 = dev?.values?.[f];
+    if (v4 !== undefined) return v4;
+
+    const v5 = dev?.[f];
+    if (v5 !== undefined) return v5;
+
+    return undefined;
+  }, [sensorsData, tagDeviceId, tagField]);
+
+  const rawValue = readTagValue();
+
+  // ✅ Convert to ON/OFF like modal:
+  // - boolean: true/false
+  // - number: >0 is ON
+  // - string: "1"/"true"/"on" is ON, "0"/"false"/"off" is OFF, else non-empty is ON
+  const isLockedFromTag = React.useMemo(() => {
+    if (rawValue === undefined || rawValue === null) return undefined;
+
+    if (typeof rawValue === "boolean") return rawValue;
+    if (typeof rawValue === "number") return rawValue > 0;
+
+    if (typeof rawValue === "string") {
+      const s = rawValue.trim().toLowerCase();
+      if (s === "1" || s === "true" || s === "on") return true;
+      if (s === "0" || s === "false" || s === "off") return false;
+      return s ? true : false;
+    }
+
+    return Boolean(rawValue);
+  }, [rawValue]);
+
+  // If we have a tag binding and found a value, use it.
+  // Otherwise fall back to legacy locked prop.
+  const isOn = tank ? (isLockedFromTag ?? Boolean(locked)) : Boolean(locked);
+
+  const statusText = isOn ? resolvedLockedText : resolvedUnlockedText;
 
   // ✅ helper: best-effort glow color from hex/rgb
   const toGlow = (c, alpha = 0.55) => {
     if (!c) return `rgba(239,68,68,${alpha})`;
     if (String(c).startsWith("rgba(") || String(c).startsWith("rgb(")) return c;
-    // hex -> rgba (simple)
+
     const hex = String(c).replace("#", "").trim();
     if (hex.length === 3) {
       const r = parseInt(hex[0] + hex[0], 16);
@@ -43,20 +143,19 @@ export default function InterlockControl({
     return `rgba(239,68,68,${alpha})`;
   };
 
-  const ON = colorOn;
-  const OFF = colorOff;
-
+  const ON = resolvedOnColor;
+  const OFF = resolvedOffColor;
   const glow = toGlow(ON, 0.55);
 
   // =========================
-  // STYLE: shield (your current “industrial lock lens”)
+  // STYLE: shield
   // =========================
   const Shield = () => {
     return (
       <div
         style={{
-          width,
-          height,
+          width: resolvedW,
+          height: resolvedH,
           borderRadius: 16,
           position: "relative",
           userSelect: "none",
@@ -64,10 +163,9 @@ export default function InterlockControl({
           border: "1px solid rgba(0,0,0,0.45)",
           background:
             "linear-gradient(180deg, #2a2f36 0%, #15181d 55%, #0b0d10 100%)",
-          boxShadow:
-            isOn
-              ? `inset 0 1px 0 rgba(255,255,255,0.12), 0 10px 24px rgba(0,0,0,0.30), 0 0 16px ${glow}`
-              : "inset 0 1px 0 rgba(255,255,255,0.12), 0 10px 24px rgba(0,0,0,0.30)",
+          boxShadow: isOn
+            ? `inset 0 1px 0 rgba(255,255,255,0.12), 0 10px 24px rgba(0,0,0,0.30), 0 0 16px ${glow}`
+            : "inset 0 1px 0 rgba(255,255,255,0.12), 0 10px 24px rgba(0,0,0,0.30)",
           display: "flex",
           alignItems: "center",
           padding: "12px 14px",
@@ -88,8 +186,8 @@ export default function InterlockControl({
         {/* LEFT: lock lens */}
         <div
           style={{
-            width: height - 20,
-            height: height - 20,
+            width: resolvedH - 20,
+            height: resolvedH - 20,
             borderRadius: 14,
             background: isOn
               ? `radial-gradient(circle at 30% 25%, rgba(255,255,255,0.55) 0%, ${ON} 38%, rgba(0,0,0,0.65) 100%)`
@@ -123,7 +221,7 @@ export default function InterlockControl({
               fontSize: 16,
             }}
           >
-            {title}
+            {resolvedTitle}
           </div>
 
           <div
@@ -138,7 +236,9 @@ export default function InterlockControl({
                 ? `linear-gradient(180deg, ${ON}, rgba(0,0,0,0.35))`
                 : "linear-gradient(180deg, rgba(148,163,184,0.20), rgba(15,23,42,0.75))",
               border: "1px solid rgba(255,255,255,0.18)",
-              boxShadow: isOn ? `0 0 14px ${glow}` : "inset 0 1px 0 rgba(255,255,255,0.10)",
+              boxShadow: isOn
+                ? `0 0 14px ${glow}`
+                : "inset 0 1px 0 rgba(255,255,255,0.10)",
               width: "fit-content",
             }}
           >
@@ -167,7 +267,7 @@ export default function InterlockControl({
   };
 
   // =========================
-  // STYLE: gate (banner-like bar)
+  // STYLE: gate
   // =========================
   const Gate = () => {
     const topBar = isOn
@@ -177,8 +277,8 @@ export default function InterlockControl({
     return (
       <div
         style={{
-          width,
-          height,
+          width: resolvedW,
+          height: resolvedH,
           borderRadius: 16,
           overflow: "hidden",
           border: "1px solid rgba(0,0,0,0.45)",
@@ -204,7 +304,7 @@ export default function InterlockControl({
         >
           <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
             <div style={{ fontSize: 12, opacity: 0.7, fontWeight: 900, letterSpacing: 1 }}>
-              {title}
+              {resolvedTitle}
             </div>
             <div style={{ fontSize: 16, fontWeight: 1000 }}>
               {isOn ? "LOCKED" : "CLEAR"}
@@ -238,14 +338,14 @@ export default function InterlockControl({
   };
 
   // =========================
-  // STYLE: pill (compact badge + dot)
+  // STYLE: pill
   // =========================
   const Pill = () => {
     return (
       <div
         style={{
-          width,
-          height,
+          width: resolvedW,
+          height: resolvedH,
           borderRadius: 16,
           border: "1px solid rgba(0,0,0,0.45)",
           background: "linear-gradient(180deg, #0f172a, #0b1220)",
@@ -268,7 +368,7 @@ export default function InterlockControl({
               color: "rgba(255,255,255,0.92)",
             }}
           >
-            {title}
+            {resolvedTitle}
           </div>
 
           <div
@@ -304,14 +404,14 @@ export default function InterlockControl({
   };
 
   // =========================
-  // STYLE: minimal (clean outline)
+  // STYLE: minimal
   // =========================
   const Minimal = () => {
     return (
       <div
         style={{
-          width,
-          height,
+          width: resolvedW,
+          height: resolvedH,
           borderRadius: 16,
           border: `1px solid ${isOn ? glow : "rgba(148,163,184,0.20)"}`,
           background: "rgba(2,6,23,0.92)",
@@ -346,8 +446,8 @@ export default function InterlockControl({
   // =========================
   // SWITCH
   // =========================
-  if (interlockStyle === "gate") return <Gate />;
-  if (interlockStyle === "pill") return <Pill />;
-  if (interlockStyle === "minimal") return <Minimal />;
-  return <Shield />; // default
+  if (resolvedStyle === "gate") return <Gate />;
+  if (resolvedStyle === "pill") return <Pill />;
+  if (resolvedStyle === "minimal") return <Minimal />;
+  return <Shield />;
 }

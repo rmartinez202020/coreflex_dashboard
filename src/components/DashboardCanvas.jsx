@@ -624,43 +624,20 @@ export default function DashboardCanvas({
               );
             }
 
-      // INTERLOCK
+// INTERLOCK
 if (tank.shape === "interlock" || tank.shape === "interlockControl") {
-  const w = tank.w ?? tank.width ?? 190;
-  const h = tank.h ?? tank.height ?? 80;
-
-  // ✅ read props saved by InterlockSettingsModal (same pattern as blinking alarm)
-  const p = tank.properties || {};
-  const interlockStyle = p.interlockStyle ?? "shield"; // shield|gate|pill|minimal
-  const colorOn = p.colorOn ?? "#ef4444";
-  const colorOff = p.colorOff ?? "#0b1220";
-
-  // ✅ what drives the state right now:
-  // - for now we keep your existing locked value
-  // - later: you'll compute this from tag (value01 === 1)
-  const locked = tank.locked ?? true;
-  console.log("INTERLOCK TANK:", tank);
-
-
   return (
     <DraggableDroppedTank
       {...commonProps}
       onDoubleClick={() => {
-        // ✅ open interlock setup window (same UX as blinking alarm)
         if (!isPlay) onOpenInterlockSettings?.(tank);
       }}
     >
-      <InterlockControl
-        locked={locked}
-        width={w}
-        height={h}
-        interlockStyle={interlockStyle}
-        colorOn={colorOn}
-        colorOff={colorOff}
-      />
+      <InterlockControl tank={tank} sensorsData={sensorsData} />
     </DraggableDroppedTank>
   );
 }
+
 
 
             // TOGGLE
