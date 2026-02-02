@@ -259,14 +259,8 @@ export default function StateImageSettingsModal({
     whiteSpace: "nowrap",
   };
 
-  const btnGreen = {
-    ...btnNeutral,
-    border: "1px solid #86efac",
-    background: "rgba(34,197,94,0.12)",
-    color: "#065f46",
-  };
-
-  const offBtnStyle = btnGreen;
+  // ✅ REMOVE GREEN BACKGROUND (both OFF/ON use neutral)
+  const offBtnStyle = btnNeutral;
   const onBtnStyle = btnNeutral;
 
   // =========================
