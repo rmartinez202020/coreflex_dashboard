@@ -228,26 +228,43 @@ export default function useDropHandler({ setDroppedTanks }) {
       return;
     }
 
-    if (shape === "blinkingAlarm") {
-      setDroppedTanks((prev) => [
-        ...prev,
-        {
-          id: makeId(),
-          shape: "blinkingAlarm",
-          x,
-          y,
-          w: 220,
-          h: 70,
-          zIndex: 1,
-          properties: {
-            label: "ALARM",
-            active: true,
-            blinkMs: 500,
-          },
+  if (shape === "blinkingAlarm") {
+  setDroppedTanks((prev) => [
+    ...prev,
+    {
+      id: makeId(),
+      shape: "blinkingAlarm",
+      x,
+      y,
+      w: 240,
+      h: 70,
+      zIndex: 1,
+      properties: {
+        // label text
+        label: "ALARM",
+
+        // blink timing
+        blinkMs: 500,
+
+        // ✅ STYLE (this is what your modal edits)
+        alarmStyle: "annunciator", // annunciator | banner | stackLight | minimal
+        alarmTone: "critical",     // critical | warning | info
+
+        // colors used by renderer
+        colorOn: "#ef4444",
+        colorOff: "#0b1220",
+
+        // ✅ REQUIRED so isActive logic works
+        tag: {
+          deviceId: "",
+          field: "",
         },
-      ]);
-      return;
-    }
+      },
+    },
+  ]);
+  return;
+}
+
 
     if (shape === "stateImage") {
       setDroppedTanks((prev) => [
