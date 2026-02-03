@@ -525,7 +525,7 @@ const closeStateImageSettings = () => setStateImageSettingsId(null);
           closeBlinkingAlarmSettings={closeBlinkingAlarmSettings}
           stateImageSettingsId={stateImageSettingsId}
           closeStateImageSettings={closeStateImageSettings}
-          debug={true}
+          
       
           
         />
