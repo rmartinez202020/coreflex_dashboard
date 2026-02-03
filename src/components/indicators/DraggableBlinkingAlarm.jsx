@@ -129,9 +129,9 @@ export default function DraggableBlinkingAlarm({
         : "inset 0 2px 10px rgba(0,0,0,0.45)"
       : "inset 0 2px 10px rgba(0,0,0,0.45)";
 
-   const handleDoubleClick = () => {
-  onOpenSettings?.(tank);
-};
+    const handleDoubleClick = () => {
+      onOpenSettings?.(tank);
+    };
 
     const commonWrap = {
       width: w,
@@ -211,12 +211,19 @@ export default function DraggableBlinkingAlarm({
       </div>
     );
 
-    // 2) Banner Strip (Modern): hazard stripe bar blinks only
+    // 2) Banner Strip (Modern): striped bar always (OFF is subtle stripes)
     const Banner = () => {
-      const stripeColor = accent;
-      const stripe = isActive
-        ? `repeating-linear-gradient(45deg, ${stripeColor}, ${stripeColor} 10px, rgba(0,0,0,0.45) 10px, rgba(0,0,0,0.45) 20px)`
-        : "rgba(148,163,184,0.14)";
+      // ✅ always show stripes, OFF uses subtle gray stripes
+      const stripeColor = isActive ? accent : "rgba(148,163,184,0.20)";
+      const stripeDark = "rgba(0,0,0,0.35)";
+
+      const stripe = `repeating-linear-gradient(
+        45deg,
+        ${stripeColor},
+        ${stripeColor} 10px,
+        ${stripeDark} 10px,
+        ${stripeDark} 20px
+      )`;
 
       return (
         <div
@@ -233,12 +240,12 @@ export default function DraggableBlinkingAlarm({
           }}
           title={title}
         >
-          {/* ✅ blinking bar only */}
+          {/* ✅ striped bar always (OFF subtle, ON blinks via accent) */}
           <div
             style={{
               height: Math.max(10, Math.round(h * 0.22)),
               background: stripe,
-              opacity: isActive ? 1 : 0.75,
+              opacity: isActive ? 1 : 0.55,
               transition: "all 120ms linear",
             }}
           />
