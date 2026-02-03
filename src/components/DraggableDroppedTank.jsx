@@ -77,8 +77,8 @@ export default function DraggableDroppedTank({
     transformOrigin: "top left",
     cursor: selected ? "grab" : "pointer",
 
-    // ✅ Option A: use tank.z for true layering
-    zIndex: tank.z ?? 1,
+    // ✅ FIX: prefer zIndex, fallback to legacy z, then 1
+    zIndex: tank.zIndex ?? tank.z ?? 1,
   };
 
   const visualWrapperStyle = {

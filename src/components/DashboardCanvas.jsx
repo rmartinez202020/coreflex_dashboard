@@ -437,7 +437,7 @@ export default function DashboardCanvas({
   handleCanvasMouseDown,
   handleCanvasMouseMove,
   handleCanvasMouseUp,
-  getLayerScore, // (kept for compatibility; no longer used)
+  getLayerScore,
   selectionBox,
   hideContextMenu,
   guides,
@@ -457,36 +457,37 @@ export default function DashboardCanvas({
   const isPlay = dashboardMode === "play";
 
   // =====================================================
-  // ✅ Z-ORDER HELPERS (Option A)
+  // ✅ Z-ORDER HELPERS (Option A) — FIXED
+  // - Use zIndex (NOT negative) so items don't go behind canvas background
+  // - Backward compatible with older "z" field
   // =====================================================
+  const getTankZ = React.useCallback((t) => {
+    if (typeof t?.zIndex === "number") return t.zIndex;
+    if (typeof t?.z === "number") return t.z; // legacy
+    return 0;
+  }, []);
+
   const getMaxZ = React.useCallback(() => {
-    return Math.max(
-      0,
-      ...droppedTanks.map((t) =>
-        typeof t?.z === "number"
-          ? t.z
-          : typeof t?.zIndex === "number"
-          ? t.zIndex
-          : 0
-      )
-    );
-  }, [droppedTanks]);
+    return Math.max(0, ...droppedTanks.map((t) => getTankZ(t)));
+  }, [droppedTanks, getTankZ]);
 
   const getMinZ = React.useCallback(() => {
-    const arr = droppedTanks.map((t) =>
-      typeof t?.z === "number"
-        ? t.z
-        : typeof t?.zIndex === "number"
-        ? t.zIndex
-        : 0
-    );
-    return arr.length ? Math.min(...arr) : 0;
-  }, [droppedTanks]);
+    return Math.min(0, ...droppedTanks.map((t) => getTankZ(t)));
+  }, [droppedTanks, getTankZ]);
 
   const setTankZ = React.useCallback(
     (id, nextZ) => {
+      const safeZ = Math.max(0, Number(nextZ) || 0); // ✅ never negative
       setDroppedTanks((prev) =>
-        prev.map((t) => (t.id === id ? { ...t, z: nextZ } : t))
+        prev.map((t) =>
+          t.id === id
+            ? {
+                ...t,
+                zIndex: safeZ, // ✅ use zIndex going forward
+                z: undefined,  // optional: stop writing legacy
+              }
+            : t
+        )
       );
     },
     [setDroppedTanks]
@@ -498,42 +499,26 @@ export default function DashboardCanvas({
   );
 
   const sendToBack = React.useCallback(
-    (id) => setTankZ(id, getMinZ() - 1),
+    (id) => setTankZ(id, Math.max(0, getMinZ() - 1)),
     [getMinZ, setTankZ]
   );
 
-  // ✅ Auto-seed z for older projects/items that don't have it yet
-  // - Prefer old zIndex if present
+  // ✅ Auto-seed zIndex for older projects/items that don't have it yet
   React.useEffect(() => {
     if (!droppedTanks || droppedTanks.length === 0) return;
 
-    const missing = droppedTanks.some((t) => t.z === undefined || t.z === null);
+    const missing = droppedTanks.some(
+      (t) => t.zIndex === undefined && t.z === undefined
+    );
     if (!missing) return;
 
     setDroppedTanks((prev) => {
-      // start from current max (including zIndex) so we never collide
-      let z = Math.max(
-        0,
-        ...prev.map((t) =>
-          typeof t?.z === "number"
-            ? t.z
-            : typeof t?.zIndex === "number"
-            ? t.zIndex
-            : 0
-        )
-      );
-
+      let z = 1;
       return prev.map((t) => {
-        if (t.z !== undefined && t.z !== null) return t;
-
-        // If project had zIndex, use it as z (keeps old look)
-        if (typeof t.zIndex === "number") {
-          return { ...t, z: t.zIndex };
-        }
-
-        // otherwise assign incrementally
+        if (t.zIndex !== undefined || t.z !== undefined) return t;
+        const out = { ...t, zIndex: z };
         z += 1;
-        return { ...t, z };
+        return out;
       });
     });
   }, [droppedTanks, setDroppedTanks]);
@@ -547,7 +532,6 @@ export default function DashboardCanvas({
       <div
         id="coreflex-canvas-root"
         className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg bg-white"
-        // ✅ CRITICAL: keep canvas objects inside the dashed dashboard visually
         style={{ position: "relative", overflow: "hidden" }}
         onDragOver={(e) => !isPlay && e.preventDefault()}
         onDrop={(e) => !isPlay && handleDrop(e)}
@@ -557,8 +541,8 @@ export default function DashboardCanvas({
       >
         {droppedTanks
           .slice()
-          // ✅ Option A: true z-order sort (front/back)
-          .sort((a, b) => (a.z ?? a.zIndex ?? 0) - (b.z ?? b.zIndex ?? 0))
+          // ✅ Option A: true z-order sort (front/back) — FIXED
+          .sort((a, b) => getTankZ(a) - getTankZ(b))
           .map((tank) => {
             const isSelected = selectedIds.includes(tank.id);
 
@@ -571,7 +555,7 @@ export default function DashboardCanvas({
               dashboardMode,
               onSelect: handleSelect,
 
-              // ✅ CRITICAL: pass event + tank so context menu knows target
+              // ✅ Right-click: pass event + object
               onRightClick: (e) => handleRightClick?.(e, tank),
 
               onUpdate: (updated) =>
@@ -580,7 +564,7 @@ export default function DashboardCanvas({
                 ),
             };
 
-            // ✅ MINIMIZED ALARM LOG (show small icon on canvas)
+            // ✅ MINIMIZED ALARM LOG
             if (tank.shape === "alarmLog" && tank.minimized) {
               return (
                 <DraggableAlarmLog
@@ -596,7 +580,6 @@ export default function DashboardCanvas({
               );
             }
 
-            // IMAGE
             if (tank.shape === "img") {
               return (
                 <DraggableDroppedTank {...commonProps}>
@@ -605,7 +588,6 @@ export default function DashboardCanvas({
               );
             }
 
-            // DISPLAY INPUT
             if (tank.shape === "displayBox") {
               return (
                 <DraggableDroppedTank
@@ -619,7 +601,6 @@ export default function DashboardCanvas({
               );
             }
 
-            // DISPLAY OUTPUT
             if (tank.shape === "displayOutput") {
               return (
                 <DraggableDroppedTank
@@ -637,7 +618,6 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅ GRAPHIC DISPLAY
             if (tank.shape === "graphicDisplay") {
               return (
                 <DraggableGraphicDisplay
@@ -655,7 +635,6 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅✅✅ ALARM LOG (FULL WINDOW + RESIZE)
             if (tank.shape === "alarmLog") {
               const w = tank.w ?? tank.width ?? 780;
               const h = tank.h ?? tank.height ?? 360;
@@ -668,11 +647,7 @@ export default function DashboardCanvas({
                   }}
                 >
                   <div
-                    style={{
-                      width: w,
-                      height: h,
-                      position: "relative",
-                    }}
+                    style={{ width: w, height: h, position: "relative" }}
                     onMouseDown={(e) => e.stopPropagation()}
                     onPointerDown={(e) => e.stopPropagation()}
                   >
@@ -702,7 +677,6 @@ export default function DashboardCanvas({
               );
             }
 
-            // TOGGLE
             if (tank.shape === "toggleSwitch" || tank.shape === "toggleControl") {
               const w = tank.w ?? tank.width ?? 180;
               const h = tank.h ?? tank.height ?? 70;
@@ -715,7 +689,6 @@ export default function DashboardCanvas({
               );
             }
 
-            // PUSH BUTTON NO
             if (tank.shape === "pushButtonNO") {
               const w = tank.w ?? tank.width ?? 110;
               const h = tank.h ?? tank.height ?? 110;
@@ -733,7 +706,6 @@ export default function DashboardCanvas({
               );
             }
 
-            // PUSH BUTTON NC
             if (tank.shape === "pushButtonNC") {
               const w = tank.w ?? tank.width ?? 110;
               const h = tank.h ?? tank.height ?? 110;
@@ -751,7 +723,6 @@ export default function DashboardCanvas({
               );
             }
 
-            // STANDARD TANK
             if (tank.shape === "standardTank") {
               return (
                 <DraggableDroppedTank {...commonProps}>
@@ -760,7 +731,6 @@ export default function DashboardCanvas({
               );
             }
 
-            // HORIZONTAL TANK
             if (tank.shape === "horizontalTank") {
               return (
                 <DraggableDroppedTank {...commonProps}>
@@ -769,7 +739,6 @@ export default function DashboardCanvas({
               );
             }
 
-            // VERTICAL TANK
             if (tank.shape === "verticalTank") {
               return (
                 <DraggableDroppedTank {...commonProps}>
@@ -778,7 +747,6 @@ export default function DashboardCanvas({
               );
             }
 
-            // SILO
             if (tank.shape === "siloTank") {
               return (
                 <DraggableDroppedTank
@@ -797,7 +765,6 @@ export default function DashboardCanvas({
               );
             }
 
-            // TEXT BOX
             if (tank.shape === "textBox") {
               return (
                 <DraggableTextBox
@@ -863,7 +830,6 @@ export default function DashboardCanvas({
             return null;
           })}
 
-        {/* Selection box */}
         {!isPlay && selectionBox && (
           <div
             style={{
@@ -880,7 +846,6 @@ export default function DashboardCanvas({
           />
         )}
 
-        {/* Alignment guides */}
         {!isPlay &&
           guides &&
           guides.map((g, i) => (
