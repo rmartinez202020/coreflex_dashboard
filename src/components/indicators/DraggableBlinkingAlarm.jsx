@@ -211,19 +211,19 @@ export default function DraggableBlinkingAlarm({
       </div>
     );
 
-    // 2) Banner Strip (Modern): striped bar always (OFF is subtle stripes)
+    // 2) Banner Strip (Modern): ✅ MATCH MODAL PREVIEW
+    // OFF: top bar solid subtle, text "OFF" + "NORMAL"
+    // ON : top bar hazard stripes, text "ALARM" + "ACTIVE"
     const Banner = () => {
-      // ✅ always show stripes, OFF uses subtle gray stripes
-      const stripeColor = isActive ? accent : "rgba(148,163,184,0.20)";
-      const stripeDark = "rgba(0,0,0,0.35)";
-
-      const stripe = `repeating-linear-gradient(
-        45deg,
-        ${stripeColor},
-        ${stripeColor} 10px,
-        ${stripeDark} 10px,
-        ${stripeDark} 20px
-      )`;
+      const bar = isActive
+        ? `repeating-linear-gradient(
+            45deg,
+            ${accent},
+            ${accent} 10px,
+            rgba(0,0,0,0.45) 10px,
+            rgba(0,0,0,0.45) 20px
+          )`
+        : "rgba(148,163,184,0.18)";
 
       return (
         <div
@@ -240,15 +240,17 @@ export default function DraggableBlinkingAlarm({
           }}
           title={title}
         >
-          {/* ✅ striped bar always (OFF subtle, ON blinks via accent) */}
+          {/* ✅ top bar */}
           <div
             style={{
               height: Math.max(10, Math.round(h * 0.22)),
-              background: stripe,
-              opacity: isActive ? 1 : 0.55,
+              background: bar,
+              opacity: isActive ? 1 : 0.7,
               transition: "all 120ms linear",
             }}
           />
+
+          {/* ✅ labels match modal preview */}
           <div
             style={{
               flex: 1,
@@ -256,10 +258,11 @@ export default function DraggableBlinkingAlarm({
               alignItems: "center",
               justifyContent: "space-between",
               padding: "0 12px",
+              opacity: isActive ? 1 : 0.85,
             }}
           >
-            <div style={textLeft}>{text}</div>
-            <div style={textRight}>{isActive ? "ACTIVE" : "OFF"}</div>
+            <span style={textLeft}>{isActive ? "ALARM" : "OFF"}</span>
+            <span style={textRight}>{isActive ? "ACTIVE" : "NORMAL"}</span>
           </div>
         </div>
       );
