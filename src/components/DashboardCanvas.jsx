@@ -34,7 +34,6 @@ import {
   DraggableStateImage,
 } from "./indicators";
 
-
 // ===============================
 // ✅ helpers for Display Output input formatting
 // ===============================
@@ -438,7 +437,7 @@ export default function DashboardCanvas({
   handleCanvasMouseDown,
   handleCanvasMouseMove,
   handleCanvasMouseUp,
-  getLayerScore,
+  getLayerScore, // (kept for compatibility; no longer used)
   selectionBox,
   hideContextMenu,
   guides,
@@ -449,15 +448,95 @@ export default function DashboardCanvas({
   onOpenAlarmLog,
   onLaunchAlarmLog,
 
-// ✅ NEW: indicator settings
+  // ✅ NEW: indicator settings
   onOpenIndicatorSettings,
   onOpenStatusTextSettings,
   onOpenBlinkingAlarmSettings,
   onOpenStateImageSettings,
-
-
 }) {
   const isPlay = dashboardMode === "play";
+
+  // =====================================================
+  // ✅ Z-ORDER HELPERS (Option A)
+  // =====================================================
+  const getMaxZ = React.useCallback(() => {
+    return Math.max(
+      0,
+      ...droppedTanks.map((t) =>
+        typeof t?.z === "number"
+          ? t.z
+          : typeof t?.zIndex === "number"
+          ? t.zIndex
+          : 0
+      )
+    );
+  }, [droppedTanks]);
+
+  const getMinZ = React.useCallback(() => {
+    const arr = droppedTanks.map((t) =>
+      typeof t?.z === "number"
+        ? t.z
+        : typeof t?.zIndex === "number"
+        ? t.zIndex
+        : 0
+    );
+    return arr.length ? Math.min(...arr) : 0;
+  }, [droppedTanks]);
+
+  const setTankZ = React.useCallback(
+    (id, nextZ) => {
+      setDroppedTanks((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, z: nextZ } : t))
+      );
+    },
+    [setDroppedTanks]
+  );
+
+  const bringToFront = React.useCallback(
+    (id) => setTankZ(id, getMaxZ() + 1),
+    [getMaxZ, setTankZ]
+  );
+
+  const sendToBack = React.useCallback(
+    (id) => setTankZ(id, getMinZ() - 1),
+    [getMinZ, setTankZ]
+  );
+
+  // ✅ Auto-seed z for older projects/items that don't have it yet
+  // - Prefer old zIndex if present
+  React.useEffect(() => {
+    if (!droppedTanks || droppedTanks.length === 0) return;
+
+    const missing = droppedTanks.some((t) => t.z === undefined || t.z === null);
+    if (!missing) return;
+
+    setDroppedTanks((prev) => {
+      // start from current max (including zIndex) so we never collide
+      let z = Math.max(
+        0,
+        ...prev.map((t) =>
+          typeof t?.z === "number"
+            ? t.z
+            : typeof t?.zIndex === "number"
+            ? t.zIndex
+            : 0
+        )
+      );
+
+      return prev.map((t) => {
+        if (t.z !== undefined && t.z !== null) return t;
+
+        // If project had zIndex, use it as z (keeps old look)
+        if (typeof t.zIndex === "number") {
+          return { ...t, z: t.zIndex };
+        }
+
+        // otherwise assign incrementally
+        z += 1;
+        return { ...t, z };
+      });
+    });
+  }, [droppedTanks, setDroppedTanks]);
 
   return (
     <DndContext
@@ -469,7 +548,6 @@ export default function DashboardCanvas({
         id="coreflex-canvas-root"
         className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg bg-white"
         // ✅ CRITICAL: keep canvas objects inside the dashed dashboard visually
-        // (does NOT affect FloatingWindow libraries, those are outside this div)
         style={{ position: "relative", overflow: "hidden" }}
         onDragOver={(e) => !isPlay && e.preventDefault()}
         onDrop={(e) => !isPlay && handleDrop(e)}
@@ -479,7 +557,8 @@ export default function DashboardCanvas({
       >
         {droppedTanks
           .slice()
-          .sort((a, b) => getLayerScore(a) - getLayerScore(b))
+          // ✅ Option A: true z-order sort (front/back)
+          .sort((a, b) => (a.z ?? a.zIndex ?? 0) - (b.z ?? b.zIndex ?? 0))
           .map((tank) => {
             const isSelected = selectedIds.includes(tank.id);
 
@@ -491,7 +570,10 @@ export default function DashboardCanvas({
               dragDelta,
               dashboardMode,
               onSelect: handleSelect,
-              onRightClick: handleRightClick,
+
+              // ✅ CRITICAL: pass event + tank so context menu knows target
+              onRightClick: (e) => handleRightClick?.(e, tank),
+
               onUpdate: (updated) =>
                 setDroppedTanks((prev) =>
                   prev.map((t) => (t.id === updated.id ? updated : t))
@@ -726,60 +808,57 @@ export default function DashboardCanvas({
               );
             }
 
-        if (tank.shape === "ledCircle") {
-  return (
-    <DraggableDroppedTank
-      {...commonProps}
-      onDoubleClick={() => {
-        if (!isPlay) onOpenIndicatorSettings?.(tank);
-      }}
-    >
-      <DraggableLedCircle tank={tank} />
-    </DraggableDroppedTank>
-  );
-}
+            if (tank.shape === "ledCircle") {
+              return (
+                <DraggableDroppedTank
+                  {...commonProps}
+                  onDoubleClick={() => {
+                    if (!isPlay) onOpenIndicatorSettings?.(tank);
+                  }}
+                >
+                  <DraggableLedCircle tank={tank} />
+                </DraggableDroppedTank>
+              );
+            }
 
+            if (tank.shape === "statusTextBox") {
+              return (
+                <DraggableDroppedTank
+                  {...commonProps}
+                  onDoubleClick={() => {
+                    if (!isPlay) onOpenStatusTextSettings?.(tank);
+                  }}
+                >
+                  <DraggableStatusTextBox tank={tank} />
+                </DraggableDroppedTank>
+              );
+            }
 
-if (tank.shape === "statusTextBox") {
-  return (
-    <DraggableDroppedTank
-      {...commonProps}
-      onDoubleClick={() => {
-        if (!isPlay) onOpenStatusTextSettings?.(tank);
-      }}
-    >
-      <DraggableStatusTextBox tank={tank} />
-    </DraggableDroppedTank>
-  );
-}
+            if (tank.shape === "blinkingAlarm") {
+              return (
+                <DraggableDroppedTank
+                  {...commonProps}
+                  onDoubleClick={() => {
+                    if (!isPlay) onOpenBlinkingAlarmSettings?.(tank);
+                  }}
+                >
+                  <DraggableBlinkingAlarm tank={tank} sensorsData={sensorsData} />
+                </DraggableDroppedTank>
+              );
+            }
 
-if (tank.shape === "blinkingAlarm") {
-  return (
-    <DraggableDroppedTank
-      {...commonProps}
-      onDoubleClick={() => {
-        if (!isPlay) onOpenBlinkingAlarmSettings?.(tank);
-      }}
-    >
-      <DraggableBlinkingAlarm tank={tank} sensorsData={sensorsData} />
-    </DraggableDroppedTank>
-  );
-}
-
-if (tank.shape === "stateImage") {
-  return (
-    <DraggableDroppedTank
-      {...commonProps}
-      onDoubleClick={() => {
-        if (!isPlay) onOpenStateImageSettings?.(tank);
-      }}
-    >
-      <DraggableStateImage tank={tank} />
-    </DraggableDroppedTank>
-  );
-}
-
-
+            if (tank.shape === "stateImage") {
+              return (
+                <DraggableDroppedTank
+                  {...commonProps}
+                  onDoubleClick={() => {
+                    if (!isPlay) onOpenStateImageSettings?.(tank);
+                  }}
+                >
+                  <DraggableStateImage tank={tank} />
+                </DraggableDroppedTank>
+              );
+            }
 
             return null;
           })}

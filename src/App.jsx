@@ -2,7 +2,7 @@ import { API_URL } from "./config/api";
 import { PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import LaunchedMainDashboard from "./pages/LaunchedMainDashboard";
 import useDashboardHistory from "./hooks/useDashboardHistory";
-import { useEffect, useState, useRef } from "react";
+import { useEffect, useState, useRef, useCallback } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Header from "./components/Header";
 import AppTopBar from "./components/AppTopBar";
@@ -219,15 +219,15 @@ export default function App() {
   const closeStatusTextSettings = () => setStatusTextSettingsId(null);
 
   // ✅ BLINKING ALARM SETTINGS MODAL (NEW)
-const [blinkingAlarmSettingsId, setBlinkingAlarmSettingsId] = useState(null);
-const openBlinkingAlarmSettings = (tank) => setBlinkingAlarmSettingsId(tank.id);
-const closeBlinkingAlarmSettings = () => setBlinkingAlarmSettingsId(null);
+  const [blinkingAlarmSettingsId, setBlinkingAlarmSettingsId] = useState(null);
+  const openBlinkingAlarmSettings = (tank) =>
+    setBlinkingAlarmSettingsId(tank.id);
+  const closeBlinkingAlarmSettings = () => setBlinkingAlarmSettingsId(null);
 
-// ✅ STATE IMAGE SETTINGS MODAL (NEW)
-const [stateImageSettingsId, setStateImageSettingsId] = useState(null);
-const openStateImageSettings = (tank) => setStateImageSettingsId(tank.id);
-const closeStateImageSettings = () => setStateImageSettingsId(null);
-
+  // ✅ STATE IMAGE SETTINGS MODAL (NEW)
+  const [stateImageSettingsId, setStateImageSettingsId] = useState(null);
+  const openStateImageSettings = (tank) => setStateImageSettingsId(tank.id);
+  const closeStateImageSettings = () => setStateImageSettingsId(null);
 
   // ✅ GRAPHIC DISPLAY SETTINGS MODAL
   const [graphicSettingsId, setGraphicSettingsId] = useState(null);
@@ -272,14 +272,39 @@ const closeStateImageSettings = () => setStateImageSettingsId(null);
     useSensor(PointerSensor, { activationConstraint: { distance: 3 } })
   );
 
-  const getLayerScore = (obj) => {
-    const base = obj.zIndex ?? 1;
-    let offset = 0;
-    if (obj.shape === "textBox") offset = 1;
-    else if (obj.shape === "img") offset = 2;
-    else if (obj.shape === "displayBox") offset = 3;
-    return base * 10 + offset;
-  };
+  // ✅ Option A: z-order is tank.z
+  const getLayerScore = (obj) => obj.z ?? 1;
+
+  // ✅ Z-ORDER ACTIONS (used by context menu)
+  const getMaxZ = useCallback(() => {
+    return Math.max(0, ...droppedTanks.map((t) => t.z ?? 0));
+  }, [droppedTanks]);
+
+  const getMinZ = useCallback(() => {
+    return Math.min(0, ...droppedTanks.map((t) => t.z ?? 0));
+  }, [droppedTanks]);
+
+  const bringToFront = useCallback(
+    (id) => {
+      if (!id) return;
+      const nextZ = getMaxZ() + 1;
+      setDroppedTanks((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, z: nextZ } : t))
+      );
+    },
+    [getMaxZ]
+  );
+
+  const sendToBack = useCallback(
+    (id) => {
+      if (!id) return;
+      const nextZ = getMinZ() - 1;
+      setDroppedTanks((prev) =>
+        prev.map((t) => (t.id === id ? { ...t, z: nextZ } : t))
+      );
+    },
+    [getMinZ]
+  );
 
   const { goHomeHard } = useHomeReset({
     navigate,
@@ -363,6 +388,10 @@ const closeStateImageSettings = () => setStateImageSettingsId(null);
     return <LaunchedMainDashboard />;
   }
 
+  // ✅ show our context menu only in EDIT + only on dashboard page
+  const showCtx =
+    contextMenu?.visible && activePage === "dashboard" && dashboardMode !== "play";
+
   return (
     <div
       className="flex h-screen bg-white"
@@ -388,9 +417,7 @@ const closeStateImageSettings = () => setStateImageSettingsId(null);
         onGoHome={goHomeHard}
       />
 
-          <main className="flex-1 pt-6 pr-0 pb-6 pl-2 bg-white overflow-visible relative">
-
-
+      <main className="flex-1 pt-6 pr-0 pb-6 pl-2 bg-white overflow-visible relative">
         <Header onLogout={handleLogout} />
 
         <AppTopBar
@@ -424,6 +451,76 @@ const closeStateImageSettings = () => setStateImageSettingsId(null);
             if (key === "alarmLog") closeAlarmLog();
           }}
         />
+
+        {/* ✅ CONTEXT MENU UI (small + clean) */}
+        {showCtx && (
+          <div
+            style={{
+              position: "fixed",
+              left: contextMenu.x,
+              top: contextMenu.y,
+              zIndex: 2000000,
+              background: "white",
+              border: "1px solid #e2e8f0",
+              borderRadius: 10,
+              boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
+              padding: 6,
+              minWidth: 190,
+            }}
+            onClick={(e) => e.stopPropagation()}
+            onContextMenu={(e) => e.preventDefault()}
+          >
+            <div
+              style={{
+                fontSize: 12,
+                fontWeight: 800,
+                color: "#334155",
+                padding: "6px 10px 4px",
+                userSelect: "none",
+              }}
+            >
+              Layer
+            </div>
+
+            <button
+              type="button"
+              style={ctxBtnStyle()}
+              onClick={() => {
+                bringToFront(contextMenu.targetId);
+                hideContextMenu();
+              }}
+            >
+              Bring to Front
+            </button>
+
+            <button
+              type="button"
+              style={ctxBtnStyle()}
+              onClick={() => {
+                sendToBack(contextMenu.targetId);
+                hideContextMenu();
+              }}
+            >
+              Send to Back
+            </button>
+
+            <div
+              style={{
+                height: 1,
+                background: "#e2e8f0",
+                margin: "6px 0",
+              }}
+            />
+
+            <button
+              type="button"
+              style={ctxBtnStyle({ color: "#0f172a" })}
+              onClick={() => hideContextMenu()}
+            >
+              Close
+            </button>
+          </div>
+        )}
 
         {activePage === "home" ? (
           <div className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg bg-white">
@@ -478,12 +575,9 @@ const closeStateImageSettings = () => setStateImageSettingsId(null);
             onOpenAlarmLog={openAlarmLog}
             onLaunchAlarmLog={launchAlarmLog}
             onOpenIndicatorSettings={openIndicatorSettings}
-            onOpenStatusTextSettings={openStatusTextSettings} 
+            onOpenStatusTextSettings={openStatusTextSettings}
             onOpenBlinkingAlarmSettings={openBlinkingAlarmSettings}
             onOpenStateImageSettings={openStateImageSettings}
-
-
-            
           />
         ) : activePage === "deviceControls" ? (
           <div className="w-full h-full border rounded-lg bg-white p-6">
@@ -525,9 +619,6 @@ const closeStateImageSettings = () => setStateImageSettingsId(null);
           closeBlinkingAlarmSettings={closeBlinkingAlarmSettings}
           stateImageSettingsId={stateImageSettingsId}
           closeStateImageSettings={closeStateImageSettings}
-          
-      
-          
         />
       </main>
 
@@ -539,4 +630,21 @@ const closeStateImageSettings = () => setStateImageSettingsId(null);
       />
     </div>
   );
+}
+
+// ✅ Small helper for menu button styling
+function ctxBtnStyle(extra = {}) {
+  return {
+    width: "100%",
+    textAlign: "left",
+    padding: "8px 10px",
+    fontSize: 13,
+    fontWeight: 700,
+    borderRadius: 8,
+    border: "none",
+    background: "transparent",
+    cursor: "pointer",
+    color: "#0f172a",
+    ...extra,
+  };
 }

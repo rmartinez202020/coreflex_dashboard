@@ -24,6 +24,22 @@ export default function useDropHandler({ setDroppedTanks }) {
     return /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(v);
   };
 
+  // ✅ Option A: compute a new "top layer" z for every new drop
+  // - Supports both new `z` and any older `zIndex` objects that might still exist.
+  const nextTopZ = (prev) => {
+    const maxZ = Math.max(
+      0,
+      ...(prev || []).map((t) =>
+        typeof t?.z === "number"
+          ? t.z
+          : typeof t?.zIndex === "number"
+          ? t.zIndex
+          : 0
+      )
+    );
+    return maxZ + 1;
+  };
+
   const handleDrop = (e) => {
     e.preventDefault();
 
@@ -44,18 +60,21 @@ export default function useDropHandler({ setDroppedTanks }) {
       (isLikelyImageUrl(plain) && plain);
 
     if (imgSrc) {
-      setDroppedTanks((prev) => [
-        ...prev,
-        {
-          id: makeId(),
-          shape: "img",
-          x,
-          y,
-          scale: 1,
-          src: imgSrc,
-          zIndex: 1,
-        },
-      ]);
+      setDroppedTanks((prev) => {
+        const z = nextTopZ(prev);
+        return [
+          ...prev,
+          {
+            id: makeId(),
+            shape: "img",
+            x,
+            y,
+            scale: 1,
+            src: imgSrc,
+            z,
+          },
+        ];
+      });
       return;
     }
 
@@ -65,75 +84,87 @@ export default function useDropHandler({ setDroppedTanks }) {
     const control = e.dataTransfer.getData("control");
     if (control) {
       if (control === "toggleControl") {
-        setDroppedTanks((prev) => [
-          ...prev,
-          {
-            id: makeId(),
-            shape: "toggleSwitch",
-            x,
-            y,
-            w: 180,
-            h: 70,
-            isOn: true,
-            zIndex: 1,
-          },
-        ]);
+        setDroppedTanks((prev) => {
+          const z = nextTopZ(prev);
+          return [
+            ...prev,
+            {
+              id: makeId(),
+              shape: "toggleSwitch",
+              x,
+              y,
+              w: 180,
+              h: 70,
+              isOn: true,
+              z,
+            },
+          ];
+        });
         return;
       }
 
       if (control === "pushButtonNO") {
-        setDroppedTanks((prev) => [
-          ...prev,
-          {
-            id: makeId(),
-            shape: "pushButtonNO",
-            x,
-            y,
-            w: 110,
-            h: 110,
-            pressed: false,
-            zIndex: 1,
-          },
-        ]);
+        setDroppedTanks((prev) => {
+          const z = nextTopZ(prev);
+          return [
+            ...prev,
+            {
+              id: makeId(),
+              shape: "pushButtonNO",
+              x,
+              y,
+              w: 110,
+              h: 110,
+              pressed: false,
+              z,
+            },
+          ];
+        });
         return;
       }
 
       if (control === "pushButtonNC") {
-        setDroppedTanks((prev) => [
-          ...prev,
-          {
-            id: makeId(),
-            shape: "pushButtonNC",
-            x,
-            y,
-            w: 110,
-            h: 110,
-            pressed: false,
-            zIndex: 1,
-          },
-        ]);
+        setDroppedTanks((prev) => {
+          const z = nextTopZ(prev);
+          return [
+            ...prev,
+            {
+              id: makeId(),
+              shape: "pushButtonNC",
+              x,
+              y,
+              w: 110,
+              h: 110,
+              pressed: false,
+              z,
+            },
+          ];
+        });
         return;
       }
 
       if (control === "displayOutput") {
-        setDroppedTanks((prev) => [
-          ...prev,
-          {
-            id: makeId(),
-            shape: "displayOutput",
-            x,
-            y,
-            w: 160,
-            h: 60,
-            value: "",
-            zIndex: 1,
-            properties: {
-              label: "",
-              numberFormat: "00000",
-              theme: "TextBox",
+        setDroppedTanks((prev) => {
+          const z = nextTopZ(prev);
+          return [
+            ...prev,
+            {
+              id: makeId(),
+              shape: "displayOutput",
+              x,
+              y,
+              w: 160,
+              h: 60,
+              value: "",
+              z,
+              properties: {
+                label: "",
+                numberFormat: "00000",
+                theme: "TextBox",
+              },
             },
-          },
-        ]);
+          ];
+        });
         return;
       }
 
@@ -148,35 +179,38 @@ export default function useDropHandler({ setDroppedTanks }) {
 
     // ✅ GRAPHIC DISPLAY (canvas object)
     if (shape === "graphicDisplay") {
-      setDroppedTanks((prev) => [
-        ...prev,
-        {
-          id: makeId(),
-          shape: "graphicDisplay",
-          x,
-          y,
-          w: 520,
-          h: 260,
-          zIndex: 1,
-          title: "Graphic Display",
-          timeUnit: "seconds",
-          sampleMs: 1000,
-          window: 60,
-          yMin: 0,
-          yMax: 100,
-          yUnits: "",
-          graphStyle: "line",
-          series: [
-            {
-              name: "Level %",
-              deviceId: "",
-              field: "level_percent",
-            },
-          ],
-          recording: false,
-          samples: [],
-        },
-      ]);
+      setDroppedTanks((prev) => {
+        const z = nextTopZ(prev);
+        return [
+          ...prev,
+          {
+            id: makeId(),
+            shape: "graphicDisplay",
+            x,
+            y,
+            w: 520,
+            h: 260,
+            z,
+            title: "Graphic Display",
+            timeUnit: "seconds",
+            sampleMs: 1000,
+            window: 60,
+            yMin: 0,
+            yMax: 100,
+            yUnits: "",
+            graphStyle: "line",
+            series: [
+              {
+                name: "Level %",
+                deviceId: "",
+                field: "level_percent",
+              },
+            ],
+            recording: false,
+            samples: [],
+          },
+        ];
+      });
       return;
     }
 
@@ -187,138 +221,155 @@ export default function useDropHandler({ setDroppedTanks }) {
 
     // ✅ INDICATORS
     if (shape === "ledCircle") {
-      setDroppedTanks((prev) => [
-        ...prev,
-        {
-          id: makeId(),
-          shape: "ledCircle",
-          x,
-          y,
-          w: 70,
-          h: 70,
-          zIndex: 1,
-          properties: {
-            label: "",
-            onColor: "#22c55e",
-            offColor: "#94a3b8",
-            blink: false,
+      setDroppedTanks((prev) => {
+        const z = nextTopZ(prev);
+        return [
+          ...prev,
+          {
+            id: makeId(),
+            shape: "ledCircle",
+            x,
+            y,
+            w: 70,
+            h: 70,
+            z,
+            properties: {
+              label: "",
+              onColor: "#22c55e",
+              offColor: "#94a3b8",
+              blink: false,
+            },
           },
-        },
-      ]);
+        ];
+      });
       return;
     }
 
     if (shape === "statusTextBox") {
-      setDroppedTanks((prev) => [
-        ...prev,
-        {
-          id: makeId(),
-          shape: "statusTextBox",
-          x,
-          y,
-          w: 220,
-          h: 70,
-          zIndex: 1,
-          properties: {
-            label: "Status",
-            value: "OK",
+      setDroppedTanks((prev) => {
+        const z = nextTopZ(prev);
+        return [
+          ...prev,
+          {
+            id: makeId(),
+            shape: "statusTextBox",
+            x,
+            y,
+            w: 220,
+            h: 70,
+            z,
+            properties: {
+              label: "Status",
+              value: "OK",
+            },
           },
-        },
-      ]);
+        ];
+      });
       return;
     }
 
-  if (shape === "blinkingAlarm") {
-  setDroppedTanks((prev) => [
-    ...prev,
-    {
-      id: makeId(),
-      shape: "blinkingAlarm",
-      x,
-      y,
-      w: 240,
-      h: 70,
-      zIndex: 1,
-      properties: {
-        // label text
-        label: "ALARM",
+    if (shape === "blinkingAlarm") {
+      setDroppedTanks((prev) => {
+        const z = nextTopZ(prev);
+        return [
+          ...prev,
+          {
+            id: makeId(),
+            shape: "blinkingAlarm",
+            x,
+            y,
+            w: 240,
+            h: 70,
+            z,
+            properties: {
+              // label text
+              label: "ALARM",
 
-        // blink timing
-        blinkMs: 500,
+              // blink timing
+              blinkMs: 500,
 
-        // ✅ STYLE (this is what your modal edits)
-        alarmStyle: "annunciator", // annunciator | banner | stackLight | minimal
-        alarmTone: "critical",     // critical | warning | info
+              // ✅ STYLE (this is what your modal edits)
+              alarmStyle: "annunciator", // annunciator | banner | stackLight | minimal
+              alarmTone: "critical", // critical | warning | info
 
-        // colors used by renderer
-        colorOn: "#ef4444",
-        colorOff: "#0b1220",
+              // colors used by renderer
+              colorOn: "#ef4444",
+              colorOff: "#0b1220",
 
-        // ✅ REQUIRED so isActive logic works
-        tag: {
-          deviceId: "",
-          field: "",
-        },
-      },
-    },
-  ]);
-  return;
-}
-
+              // ✅ REQUIRED so isActive logic works
+              tag: {
+                deviceId: "",
+                field: "",
+              },
+            },
+          },
+        ];
+      });
+      return;
+    }
 
     if (shape === "stateImage") {
-      setDroppedTanks((prev) => [
-        ...prev,
-        {
-          id: makeId(),
-          shape: "stateImage",
-          x,
-          y,
-          w: 140,
-          h: 140,
-          zIndex: 1,
-          properties: {
-            state: "OFF",
+      setDroppedTanks((prev) => {
+        const z = nextTopZ(prev);
+        return [
+          ...prev,
+          {
+            id: makeId(),
+            shape: "stateImage",
+            x,
+            y,
+            w: 140,
+            h: 140,
+            z,
+            properties: {
+              state: "OFF",
+            },
           },
-        },
-      ]);
+        ];
+      });
       return;
     }
 
     // TEXT BOX
     if (shape === "textBox") {
-      setDroppedTanks((prev) => [
-        ...prev,
-        {
-          id: makeId(),
-          shape: "textBox",
-          x,
-          y,
-          text: "Text...",
-          fontSize: 16,
-          color: "#000",
-          width: 160,
-          height: 60,
-          zIndex: 1,
-        },
-      ]);
+      setDroppedTanks((prev) => {
+        const z = nextTopZ(prev);
+        return [
+          ...prev,
+          {
+            id: makeId(),
+            shape: "textBox",
+            x,
+            y,
+            text: "Text...",
+            fontSize: 16,
+            color: "#000",
+            width: 160,
+            height: 60,
+            z,
+          },
+        ];
+      });
       return;
     }
 
     // ===============================
     // ✅ 4) OTHER MODELS
     // ===============================
-    setDroppedTanks((prev) => [
-      ...prev,
-      {
-        id: makeId(),
-        shape,
-        x,
-        y,
-        scale: 1,
-        zIndex: 1,
-      },
-    ]);
+    setDroppedTanks((prev) => {
+      const z = nextTopZ(prev);
+      return [
+        ...prev,
+        {
+          id: makeId(),
+          shape,
+          x,
+          y,
+          scale: 1,
+          z,
+        },
+      ];
+    });
   };
 
   return { handleDrop };

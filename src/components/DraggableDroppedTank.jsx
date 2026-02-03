@@ -8,6 +8,7 @@ export default function DraggableDroppedTank({
   dragDelta = { x: 0, y: 0 },
   onSelect,
   onDoubleClick,
+  onRightClick, // ✅ NEW
   children,
   onUpdate,
   dashboardMode = "edit",
@@ -75,7 +76,9 @@ export default function DraggableDroppedTank({
     transform: liveTransform,
     transformOrigin: "top left",
     cursor: selected ? "grab" : "pointer",
-    zIndex: tank.zIndex ?? 1,
+
+    // ✅ Option A: use tank.z for true layering
+    zIndex: tank.z ?? 1,
   };
 
   const visualWrapperStyle = {
@@ -171,7 +174,10 @@ export default function DraggableDroppedTank({
       const prevW = tank.measuredW ?? 0;
       const prevH = tank.measuredH ?? 0;
 
-      if (Math.abs(unscaledW - prevW) >= 2 || Math.abs(unscaledH - prevH) >= 2) {
+      if (
+        Math.abs(unscaledW - prevW) >= 2 ||
+        Math.abs(unscaledH - prevH) >= 2
+      ) {
         onUpdate?.({
           ...tank,
           measuredW: unscaledW,
@@ -222,7 +228,12 @@ export default function DraggableDroppedTank({
         e.stopPropagation();
         if (!isPlay) onDoubleClick?.(tank);
       }}
-      onContextMenu={(e) => e.preventDefault()}
+      onContextMenu={(e) => {
+        // ✅ Prevent browser menu + open our menu
+        e.preventDefault();
+        e.stopPropagation();
+        if (!isPlay) onRightClick?.(e);
+      }}
     >
       <div style={visualWrapperStyle}>
         <div
