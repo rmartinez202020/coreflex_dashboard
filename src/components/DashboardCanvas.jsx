@@ -458,70 +458,98 @@ export default function DashboardCanvas({
 
   // =====================================================
   // ✅ Z-ORDER HELPERS (Option A) — FIXED
-  // - Use zIndex (NOT negative) so items don't go behind canvas background
-  // - Backward compatible with older "z" field
+  // - No negative z (prevents "disappearing")
+  // - Normalizes old objects with only zIndex
+  // - BringFront / SendBack reorders properly
   // =====================================================
-  const getTankZ = React.useCallback((t) => {
-    if (typeof t?.zIndex === "number") return t.zIndex;
-    if (typeof t?.z === "number") return t.z; // legacy
-    return 0;
+
+  const normalizeZ = React.useCallback((list) => {
+    let next = 1;
+    return (list || []).map((t) => {
+      // Prefer existing z, else use zIndex, else assign a new one
+      const base =
+        t.z !== undefined && t.z !== null
+          ? t.z
+          : t.zIndex !== undefined && t.zIndex !== null
+          ? t.zIndex
+          : next++;
+
+      // Keep within safe range (no 0/negative)
+      const safe = Math.max(1, Number(base) || 1);
+
+      return {
+        ...t,
+        z: safe,
+        zIndex: safe,
+      };
+    });
   }, []);
 
   const getMaxZ = React.useCallback(() => {
-    return Math.max(0, ...droppedTanks.map((t) => getTankZ(t)));
-  }, [droppedTanks, getTankZ]);
-
-  const getMinZ = React.useCallback(() => {
-    return Math.min(0, ...droppedTanks.map((t) => getTankZ(t)));
-  }, [droppedTanks, getTankZ]);
-
-  const setTankZ = React.useCallback(
-    (id, nextZ) => {
-      const safeZ = Math.max(0, Number(nextZ) || 0); // ✅ never negative
-      setDroppedTanks((prev) =>
-        prev.map((t) =>
-          t.id === id
-            ? {
-                ...t,
-                zIndex: safeZ, // ✅ use zIndex going forward
-                z: undefined,  // optional: stop writing legacy
-              }
-            : t
-        )
-      );
-    },
-    [setDroppedTanks]
-  );
+    return Math.max(
+      1,
+      ...droppedTanks.map((t) => (t.z ?? t.zIndex ?? 1))
+    );
+  }, [droppedTanks]);
 
   const bringToFront = React.useCallback(
-    (id) => setTankZ(id, getMaxZ() + 1),
-    [getMaxZ, setTankZ]
+    (id) => {
+      setDroppedTanks((prev) => {
+        const items = normalizeZ(prev);
+        const target = items.find((t) => t.id === id);
+        if (!target) return items;
+
+        const oldZ = target.z;
+        const maxZ = Math.max(1, ...items.map((t) => t.z));
+
+        // already on top
+        if (oldZ === maxZ) return items;
+
+        return items.map((t) => {
+          if (t.id === id) return { ...t, z: maxZ, zIndex: maxZ };
+          // shift down things above oldZ
+          if (t.z > oldZ) return { ...t, z: t.z - 1, zIndex: t.z - 1 };
+          return t;
+        });
+      });
+    },
+    [setDroppedTanks, normalizeZ]
   );
 
   const sendToBack = React.useCallback(
-    (id) => setTankZ(id, Math.max(0, getMinZ() - 1)),
-    [getMinZ, setTankZ]
+    (id) => {
+      setDroppedTanks((prev) => {
+        const items = normalizeZ(prev);
+        const target = items.find((t) => t.id === id);
+        if (!target) return items;
+
+        const oldZ = target.z;
+        const minZ = 1;
+
+        // already at back
+        if (oldZ === minZ) return items;
+
+        return items.map((t) => {
+          if (t.id === id) return { ...t, z: minZ, zIndex: minZ };
+          // shift up things below oldZ
+          if (t.z < oldZ) return { ...t, z: t.z + 1, zIndex: t.z + 1 };
+          return t;
+        });
+      });
+    },
+    [setDroppedTanks, normalizeZ]
   );
 
-  // ✅ Auto-seed zIndex for older projects/items that don't have it yet
+  // ✅ Auto-normalize once whenever tanks change (fixes old projects)
   React.useEffect(() => {
     if (!droppedTanks || droppedTanks.length === 0) return;
-
-    const missing = droppedTanks.some(
-      (t) => t.zIndex === undefined && t.z === undefined
+    const hasAnyMissing = droppedTanks.some(
+      (t) => t.z == null || t.zIndex == null
     );
-    if (!missing) return;
+    if (!hasAnyMissing) return;
 
-    setDroppedTanks((prev) => {
-      let z = 1;
-      return prev.map((t) => {
-        if (t.zIndex !== undefined || t.z !== undefined) return t;
-        const out = { ...t, zIndex: z };
-        z += 1;
-        return out;
-      });
-    });
-  }, [droppedTanks, setDroppedTanks]);
+    setDroppedTanks((prev) => normalizeZ(prev));
+  }, [droppedTanks, setDroppedTanks, normalizeZ]);
 
   return (
     <DndContext

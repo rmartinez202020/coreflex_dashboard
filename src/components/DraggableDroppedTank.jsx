@@ -8,7 +8,7 @@ export default function DraggableDroppedTank({
   dragDelta = { x: 0, y: 0 },
   onSelect,
   onDoubleClick,
-  onRightClick, // ✅ NEW
+  onRightClick, // ✅ context menu handler
   children,
   onUpdate,
   dashboardMode = "edit",
@@ -20,10 +20,10 @@ export default function DraggableDroppedTank({
   const isPlay = dashboardMode === "play";
   const [resizing, setResizing] = useState(false);
 
-  // ✅ measure actual rendered size (for perfect dashboard clamping)
+  // ✅ measure actual rendered size
   const elRef = useRef(null);
 
-  // ✅ combine refs: dnd-kit ref + our measuring ref
+  // combine refs
   const setRefs = useCallback(
     (node) => {
       elRef.current = node;
@@ -69,7 +69,7 @@ export default function DraggableDroppedTank({
         tank.scale || 1
       })`;
 
-  // ✅ FIX: prefer "z" (new system), fallback to "zIndex" (legacy)
+  // ✅ prefer new z, fallback to legacy zIndex
   const effectiveZ = tank.z ?? tank.zIndex ?? 1;
 
   const outerStyle = {
@@ -99,20 +99,10 @@ export default function DraggableDroppedTank({
     tank.shape === "pushButtonControl";
 
   const isGraphicDisplay = tank.shape === "graphicDisplay";
-
-  // ✅ display output textbox
   const isDisplayOutput = tank.shape === "displayOutput";
 
-  // ✅ IMPORTANT:
-  // - In PLAY: allow pointer events for toggle + pushbuttons + displayOutput
-  // - In EDIT: allow pointer events for graphic display so double-click works
-  // - Otherwise: keep "none" to avoid fighting DnD
   const contentStyle = {
     display: "inline-block",
-    width: "auto",
-    height: "auto",
-    maxWidth: "none",
-    maxHeight: "none",
     pointerEvents: isPlay
       ? isToggle || isPushButton || isDisplayOutput
         ? "auto"
@@ -122,18 +112,15 @@ export default function DraggableDroppedTank({
       : "none",
   };
 
-  // ✅ PLAY MODE INTERACTION (Toggle + PushButtons only)
   const handleMouseDown = (e) => {
     if (!isPlay) return;
     e.stopPropagation();
 
-    // Toggle = latching
     if (isToggle) {
       onUpdate?.({ ...tank, isOn: !(tank.isOn ?? true) });
       return;
     }
 
-    // Push buttons
     if (isPushButton) {
       onUpdate?.({ ...tank, pressed: true });
     }
@@ -148,15 +135,9 @@ export default function DraggableDroppedTank({
     }
   };
 
-  // ✅ KEY FIX:
-  // If it's a "typing widget" in PLAY mode, do NOT attach dnd-kit listeners,
-  // otherwise pointerdown will start drag and the input won't focus reliably.
   const dragListeners = isPlay && isDisplayOutput ? undefined : listeners;
 
-  // ===============================
-  // ✅ AUTO-MEASURE REAL SIZE (stores measuredW/H on tank)
-  // - Saves unscaled size (divide by scale) so clamp stays accurate.
-  // ===============================
+  // ✅ auto-measure size
   useEffect(() => {
     const el = elRef.current;
     if (!el) return;
@@ -164,14 +145,12 @@ export default function DraggableDroppedTank({
     let raf = 0;
 
     const writeSize = () => {
-      // getBoundingClientRect includes current scale; normalize it out
       const scale = typeof tank.scale === "number" ? tank.scale : 1;
-
       const r = el.getBoundingClientRect();
-      const unscaledW = Math.max(1, Math.round(r.width / (scale || 1)));
-      const unscaledH = Math.max(1, Math.round(r.height / (scale || 1)));
 
-      // Avoid update spam (only update if changed)
+      const unscaledW = Math.max(1, Math.round(r.width / scale));
+      const unscaledH = Math.max(1, Math.round(r.height / scale));
+
       const prevW = tank.measuredW ?? 0;
       const prevH = tank.measuredH ?? 0;
 
@@ -187,29 +166,26 @@ export default function DraggableDroppedTank({
       }
     };
 
-    // initial
-    raf = window.requestAnimationFrame(writeSize);
+    raf = requestAnimationFrame(writeSize);
 
-    // observe changes (images loading, font changes, etc.)
     const ro = new ResizeObserver(() => {
-      window.cancelAnimationFrame(raf);
-      raf = window.requestAnimationFrame(writeSize);
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(writeSize);
     });
 
     ro.observe(el);
 
-    // Also measure again shortly after mount (image decode, etc.)
     const t = setTimeout(() => {
-      window.cancelAnimationFrame(raf);
-      raf = window.requestAnimationFrame(writeSize);
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(writeSize);
     }, 120);
 
     return () => {
       clearTimeout(t);
-      window.cancelAnimationFrame(raf);
+      cancelAnimationFrame(raf);
       ro.disconnect();
     };
-  }, [tank.id, tank.scale, onUpdate]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [tank.id, tank.scale, onUpdate]);
 
   return (
     <div
@@ -231,16 +207,14 @@ export default function DraggableDroppedTank({
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        if (!isPlay) onRightClick?.(e);
+        if (!isPlay) onRightClick?.(e, tank); // ✅ FIX
       }}
     >
       <div style={visualWrapperStyle}>
         <div
           style={contentStyle}
           onMouseDownCapture={(e) => {
-            if (!isPlay && isGraphicDisplay) {
-              e.stopPropagation();
-            }
+            if (!isPlay && isGraphicDisplay) e.stopPropagation();
           }}
           onMouseDown={handleMouseDown}
           onMouseUp={handleMouseUp}
@@ -250,7 +224,6 @@ export default function DraggableDroppedTank({
         </div>
       </div>
 
-      {/* Resize handle — EDIT only */}
       {selected && !isPlay && (
         <div
           onMouseDown={startResize}
