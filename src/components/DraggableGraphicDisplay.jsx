@@ -7,6 +7,7 @@ export default function DraggableGraphicDisplay({
   onUpdate,
   onSelect,
   onDoubleClick,
+  onRightClick, // ✅ NEW
   selected,
   selectedIds = [],
   dragDelta = { x: 0, y: 0 },
@@ -39,6 +40,9 @@ export default function DraggableGraphicDisplay({
     return "translate(0px, 0px)";
   }, [isMultiDragging, dragDelta.x, dragDelta.y, transform]);
 
+  // ✅ FIX: prefer new z, fallback to legacy zIndex
+  const effectiveZ = tank.z ?? tank.zIndex ?? 1;
+
   const style = {
     position: "absolute",
     left: tank.x,
@@ -51,7 +55,7 @@ export default function DraggableGraphicDisplay({
     borderRadius: 10,
     cursor: isPlay ? "default" : isDragging ? "grabbing" : "grab",
     userSelect: "none",
-    zIndex: tank.zIndex ?? 1,
+    zIndex: effectiveZ,
   };
 
   const startResize = (dir, e) => {
@@ -78,16 +82,28 @@ export default function DraggableGraphicDisplay({
       let newH = startRef.current.h;
 
       if (resizeDir === "right") {
-        newW = Math.max(300, startRef.current.w + (e.clientX - startRef.current.x));
+        newW = Math.max(
+          300,
+          startRef.current.w + (e.clientX - startRef.current.x)
+        );
       }
       if (resizeDir === "left") {
-        newW = Math.max(300, startRef.current.w - (e.clientX - startRef.current.x));
+        newW = Math.max(
+          300,
+          startRef.current.w - (e.clientX - startRef.current.x)
+        );
       }
       if (resizeDir === "bottom") {
-        newH = Math.max(180, startRef.current.h + (e.clientY - startRef.current.y));
+        newH = Math.max(
+          180,
+          startRef.current.h + (e.clientY - startRef.current.y)
+        );
       }
       if (resizeDir === "top") {
-        newH = Math.max(180, startRef.current.h - (e.clientY - startRef.current.y));
+        newH = Math.max(
+          180,
+          startRef.current.h - (e.clientY - startRef.current.y)
+        );
       }
 
       safeOnUpdate({ ...tank, w: newW, h: newH });
@@ -131,7 +147,18 @@ export default function DraggableGraphicDisplay({
         e.stopPropagation();
         onDoubleClick?.(tank);
       }}
-      onContextMenu={(e) => e.preventDefault()}
+      // ✅ FIX: allow our custom context menu
+      onContextMenu={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        if (isPlay) return;
+
+        // ensure right-click also selects the object
+        onSelect?.(tank.id);
+
+        // open App.jsx context menu (via useContextMenu signature)
+        onRightClick?.(e);
+      }}
     >
       {/* ✅ In EDIT: let wrapper handle mouse; chart shouldn't steal events */}
       <div

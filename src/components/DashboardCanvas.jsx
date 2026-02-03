@@ -659,18 +659,20 @@ export default function DashboardCanvas({
             // ✅ GRAPHIC DISPLAY
             if (tank.shape === "graphicDisplay") {
               return (
-                <DraggableGraphicDisplay
-                  key={tank.id}
-                  tank={tank}
-                  selected={isSelected && !isPlay}
-                  selectedIds={selectedIds}
-                  dragDelta={dragDelta}
-                  onSelect={handleSelect}
-                  onUpdate={commonProps.onUpdate}
-                  onDoubleClick={() => {
-                    if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
-                  }}
-                />
+             <DraggableGraphicDisplay
+  key={tank.id}
+  tank={tank}
+  selected={isSelected && !isPlay}
+  selectedIds={selectedIds}
+  dragDelta={dragDelta}
+  onSelect={handleSelect}
+  onUpdate={commonProps.onUpdate}
+  onRightClick={(e) => handleRightClick?.(e, tank)}
+  onDoubleClick={() => {
+    if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
+  }}
+/>
+
               );
             }
 
@@ -819,6 +821,8 @@ export default function DashboardCanvas({
                   {...commonProps}
                   disableDrag={isPlay}
                   disableEdit={isPlay}
+                  dashboardMode={dashboardMode}
+                  onRightClick={(e) => handleRightClick?.(e, tank)}
                 />
               );
             }
