@@ -573,6 +573,8 @@ const deleteSelectionOrTarget = useCallback(() => {
     dashboardMode !== "play";
 
   const hasClipboard = (clipboardRef.current?.items?.length || 0) > 0;
+const hasTarget = !!contextMenu?.targetId;
+
 
   return (
     <div
@@ -633,111 +635,105 @@ const deleteSelectionOrTarget = useCallback(() => {
             if (key === "alarmLog") closeAlarmLog();
           }}
         />
+{/* ✅ CONTEXT MENU UI */}
+{showCtx && (
+  <div
+    style={{
+      position: "fixed",
+      left: contextMenu.x,
+      top: contextMenu.y,
+      zIndex: 2000000,
+      background: "white",
+      border: "1px solid #e2e8f0",
+      borderRadius: 10,
+      boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
+      padding: 6,
+      minWidth: 190,
+    }}
+    onClick={(e) => e.stopPropagation()}
+    onContextMenu={(e) => e.preventDefault()}
+  >
+    {/* ✅ Item-only actions */}
+    {hasTarget && (
+      <>
+        <button
+          type="button"
+          style={ctxBtnStyle()}
+          onClick={() => {
+            copyFromContext();
+            hideContextMenu();
+          }}
+        >
+          Copy
+        </button>
 
-        {/* ✅ CONTEXT MENU UI (Copy / Paste + Layer actions) */}
-        {showCtx && (
-          <div
-            style={{
-              position: "fixed",
-              left: contextMenu.x,
-              top: contextMenu.y,
-              zIndex: 2000000,
-              background: "white",
-              border: "1px solid #e2e8f0",
-              borderRadius: 10,
-              boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
-              padding: 6,
-              minWidth: 190,
-            }}
-            onClick={(e) => e.stopPropagation()}
-            onContextMenu={(e) => e.preventDefault()}
-          >
-            <button
-              type="button"
-              style={ctxBtnStyle()}
-              onClick={() => {
-                copyFromContext();
-                hideContextMenu();
-              }}
-            >
-              Copy
-            </button>
+        <div style={{ height: 1, background: "#e2e8f0", margin: "6px 0" }} />
 
-            <button
-              type="button"
-              disabled={!hasClipboard}
-              style={ctxBtnStyle({
-                opacity: hasClipboard ? 1 : 0.45,
-                cursor: hasClipboard ? "pointer" : "not-allowed",
-              })}
-              onClick={() => {
-                if (!hasClipboard) return;
-                pasteAtContext();
-                hideContextMenu();
-              }}
-            >
-              Paste
-            </button>
+        <button
+          type="button"
+          style={ctxBtnStyle()}
+          onClick={() => {
+            bringToFront(contextMenu.targetId);
+            hideContextMenu();
+          }}
+        >
+          Bring to Front
+        </button>
 
-            <div
-              style={{
-                height: 1,
-                background: "#e2e8f0",
-                margin: "6px 0",
-              }}
-            />
+        <button
+          type="button"
+          style={ctxBtnStyle()}
+          onClick={() => {
+            sendToBack(contextMenu.targetId);
+            hideContextMenu();
+          }}
+        >
+          Send to Back
+        </button>
 
-            <button
-              type="button"
-              style={ctxBtnStyle()}
-              onClick={() => {
-                bringToFront(contextMenu.targetId);
-                hideContextMenu();
-              }}
-            >
-              Bring to Front
-            </button>
+        <button
+          type="button"
+          style={ctxBtnStyle({ color: "#b91c1c" })}
+          onClick={() => {
+            deleteSelectionOrTarget();
+            hideContextMenu();
+          }}
+        >
+          Delete
+        </button>
 
-            <button
-              type="button"
-              style={ctxBtnStyle()}
-              onClick={() => {
-                sendToBack(contextMenu.targetId);
-                hideContextMenu();
-              }}
-            >
-              Send to Back
-            </button>
+        <div style={{ height: 1, background: "#e2e8f0", margin: "6px 0" }} />
+      </>
+    )}
 
-            <button
-  type="button"
-  style={ctxBtnStyle({ color: "#b91c1c" })}
-  onClick={() => {
-    deleteSelectionOrTarget();
-    hideContextMenu();
-  }}
->
-  Delete
-</button>
+    {/* ✅ Dashboard actions (allowed even on empty canvas) */}
+    <button
+      type="button"
+      disabled={!hasClipboard}
+      style={ctxBtnStyle({
+        opacity: hasClipboard ? 1 : 0.45,
+        cursor: hasClipboard ? "pointer" : "not-allowed",
+      })}
+      onClick={() => {
+        if (!hasClipboard) return;
+        pasteAtContext();
+        hideContextMenu();
+      }}
+    >
+      Paste
+    </button>
 
+    <div style={{ height: 1, background: "#e2e8f0", margin: "6px 0" }} />
 
-            <div
-              style={{
-                height: 1,
-                background: "#e2e8f0",
-                margin: "6px 0",
-              }}
-            />
-
-            <button
-              type="button"
-              style={ctxBtnStyle({ color: "#0f172a" })}
-              onClick={() => hideContextMenu()}
-            >
-              Close
-            </button>
-          </div>
-        )}
+    <button
+      type="button"
+      style={ctxBtnStyle({ color: "#0f172a" })}
+      onClick={() => hideContextMenu()}
+    >
+      Close
+    </button>
+  </div>
+)}
 
         {activePage === "home" ? (
           <div className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg bg-white">
