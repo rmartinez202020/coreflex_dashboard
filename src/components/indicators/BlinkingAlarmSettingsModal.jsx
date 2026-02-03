@@ -357,10 +357,18 @@ const apply = () => {
     }
 
     if (styleId === "banner") {
-      const stripeColor = isOn ? bg : "rgba(148,163,184,0.18)";
-      const stripe = isOn
-        ? `repeating-linear-gradient(45deg, ${stripeColor}, ${stripeColor} 10px, rgba(0,0,0,0.25) 10px, rgba(0,0,0,0.25) 20px)`
-        : stripeColor;
+      const stripeColor = isOn
+  ? bg
+  : "rgba(148,163,184,0.25)";
+
+const stripe = `repeating-linear-gradient(
+  45deg,
+  ${stripeColor},
+  ${stripeColor} 10px,
+  rgba(0,0,0,0.35) 10px,
+  rgba(0,0,0,0.35) 20px
+)`;
+
 
       return (
         <div style={card}>
