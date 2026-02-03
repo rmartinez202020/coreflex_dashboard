@@ -570,6 +570,13 @@ export default function DashboardCanvas({
         style={{ position: "relative", overflow: "hidden" }}
         onDragOver={(e) => !isPlay && e.preventDefault()}
         onDrop={(e) => !isPlay && handleDrop(e)}
+          onContextMenu={(e) => {
+    if (isPlay) return;          // ✅ no menu in play mode
+    e.preventDefault();          // ✅ stop browser menu
+    e.stopPropagation();         // ✅ don’t bubble
+    handleRightClick?.(e, null); // ✅ RIGHT-CLICK ON EMPTY DASHBOARD
+  }}
+
         onMouseDown={(e) => !isPlay && handleCanvasMouseDown(e)}
         onMouseMove={(e) => !isPlay && handleCanvasMouseMove(e)}
         onMouseUp={(e) => !isPlay && handleCanvasMouseUp(e)}
