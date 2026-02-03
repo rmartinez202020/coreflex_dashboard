@@ -256,23 +256,36 @@ export default function BlinkingAlarmSettingsModal({
   // Choose a consistent "OFF" base that looks pro in all tones
   const OFF_COLOR = "#0b1220";
 
-  const apply = () => {
-    onSave?.({
-      id: tank.id,
-      properties: {
-        ...(tank.properties || {}),
-        alarmStyle, // annunciator|banner|stackLight|minimal
-        alarmTone, // critical|warning|info
-        colorOn: tone.on,
-        colorOff: OFF_COLOR,
-        // ✅ tag binding
-        tag: {
-          deviceId,
-          field: resolvedField || "", // resolved from search
-        },
-      },
-    });
+const apply = () => {
+  const nextProps = {
+    ...(tank.properties || {}),
+
+    // ✅ style + tone always saved
+    alarmStyle,
+    alarmTone,
+    colorOn: tone.on,
+    colorOff: OFF_COLOR,
   };
+
+  // ✅ Only save tag IF user actually picked something.
+  // This prevents overwriting an existing saved tag with empty strings.
+  const hasTagSelection = deviceId && resolvedField;
+  if (hasTagSelection) {
+    nextProps.tag = {
+      deviceId,
+      field: resolvedField,
+    };
+  }
+
+  onSave?.({
+    id: tank.id,
+    properties: nextProps,
+  });
+
+  // optional: close after apply
+  // onClose?.();
+};
+
 
   const Label = ({ children }) => (
     <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
@@ -771,8 +784,9 @@ export default function BlinkingAlarmSettingsModal({
               fontSize: 14,
             }}
             type="button"
-            disabled={!deviceId || !resolvedField}
-            title={!deviceId || !resolvedField ? "Select a device and type a tag" : "Apply"}
+            disabled={false}
+            title="Apply"
+        
           >
             Apply
           </button>
