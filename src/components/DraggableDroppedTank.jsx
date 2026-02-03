@@ -69,6 +69,9 @@ export default function DraggableDroppedTank({
         tank.scale || 1
       })`;
 
+  // ✅ FIX: prefer "z" (new system), fallback to "zIndex" (legacy)
+  const effectiveZ = tank.z ?? tank.zIndex ?? 1;
+
   const outerStyle = {
     position: "absolute",
     left: tank.x,
@@ -76,9 +79,7 @@ export default function DraggableDroppedTank({
     transform: liveTransform,
     transformOrigin: "top left",
     cursor: selected ? "grab" : "pointer",
-
-    // ✅ FIX: prefer zIndex, fallback to legacy z, then 1
-    zIndex: tank.zIndex ?? tank.z ?? 1,
+    zIndex: effectiveZ,
   };
 
   const visualWrapperStyle = {
@@ -208,7 +209,6 @@ export default function DraggableDroppedTank({
       window.cancelAnimationFrame(raf);
       ro.disconnect();
     };
-    // NOTE: include only tank.id + tank.scale so we don't loop on measuredW/H updates
   }, [tank.id, tank.scale, onUpdate]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return (
@@ -229,7 +229,6 @@ export default function DraggableDroppedTank({
         if (!isPlay) onDoubleClick?.(tank);
       }}
       onContextMenu={(e) => {
-        // ✅ Prevent browser menu + open our menu
         e.preventDefault();
         e.stopPropagation();
         if (!isPlay) onRightClick?.(e);
@@ -238,7 +237,6 @@ export default function DraggableDroppedTank({
       <div style={visualWrapperStyle}>
         <div
           style={contentStyle}
-          // ✅ Stop canvas selection box in edit for graphic display
           onMouseDownCapture={(e) => {
             if (!isPlay && isGraphicDisplay) {
               e.stopPropagation();

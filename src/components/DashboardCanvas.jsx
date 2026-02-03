@@ -475,23 +475,23 @@ export default function DashboardCanvas({
     return Math.min(0, ...droppedTanks.map((t) => getTankZ(t)));
   }, [droppedTanks, getTankZ]);
 
-  const setTankZ = React.useCallback(
-    (id, nextZ) => {
-      const safeZ = Math.max(0, Number(nextZ) || 0); // ✅ never negative
-      setDroppedTanks((prev) =>
-        prev.map((t) =>
-          t.id === id
-            ? {
-                ...t,
-                zIndex: safeZ, // ✅ use zIndex going forward
-                z: undefined,  // optional: stop writing legacy
-              }
-            : t
-        )
-      );
-    },
-    [setDroppedTanks]
-  );
+const setTankZ = React.useCallback(
+  (id, nextZ) => {
+    setDroppedTanks((prev) =>
+      prev.map((t) =>
+        t.id === id
+          ? {
+              ...t,
+              z: nextZ,       // ✅ new system
+              zIndex: nextZ,  // ✅ legacy sync (CRITICAL)
+            }
+          : t
+      )
+    );
+  },
+  [setDroppedTanks]
+);
+
 
   const bringToFront = React.useCallback(
     (id) => setTankZ(id, getMaxZ() + 1),
