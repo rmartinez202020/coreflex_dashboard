@@ -373,6 +373,22 @@ export default function App() {
     setDroppedTanks((prev) => normalizeZList(prev));
   }, [droppedTanks, setDroppedTanks, normalizeZList]);
 
+  // ✅ Delete selected items OR the right-click target
+const deleteSelectionOrTarget = useCallback(() => {
+  const idsToDelete =
+    (selectedIds?.length || 0) > 0
+      ? selectedIds
+      : contextMenu?.targetId
+      ? [contextMenu.targetId]
+      : [];
+
+  if (!idsToDelete.length) return;
+
+  setDroppedTanks((prev) => prev.filter((t) => !idsToDelete.includes(t.id)));
+  clearSelection();
+}, [selectedIds, contextMenu, setDroppedTanks]);
+
+
   // ============================
   // ✅ CONTEXT MENU: COPY / PASTE
   // ============================
@@ -692,6 +708,18 @@ export default function App() {
             >
               Send to Back
             </button>
+
+            <button
+  type="button"
+  style={ctxBtnStyle({ color: "#b91c1c" })}
+  onClick={() => {
+    deleteSelectionOrTarget();
+    hideContextMenu();
+  }}
+>
+  Delete
+</button>
+
 
             <div
               style={{
