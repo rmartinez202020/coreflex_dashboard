@@ -22,6 +22,8 @@ import HomeSubPageRouter from "./components/HomeSubPageRouter";
 import useContextMenu from "./hooks/useContextMenu";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 import useWindowDragResize from "./hooks/useWindowDragResize";
+import DashboardCanvasContextMenu from "./components/DashboardCanvasContextMenu";
+
 
 export default function App() {
   const navigate = useNavigate();
@@ -635,105 +637,19 @@ const hasTarget = !!contextMenu?.targetId;
             if (key === "alarmLog") closeAlarmLog();
           }}
         />
-{/* ✅ CONTEXT MENU UI */}
-{showCtx && (
-  <div
-    style={{
-      position: "fixed",
-      left: contextMenu.x,
-      top: contextMenu.y,
-      zIndex: 2000000,
-      background: "white",
-      border: "1px solid #e2e8f0",
-      borderRadius: 10,
-      boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
-      padding: 6,
-      minWidth: 190,
-    }}
-    onClick={(e) => e.stopPropagation()}
-    onContextMenu={(e) => e.preventDefault()}
-  >
-    {/* ✅ Item-only actions */}
-    {hasTarget && (
-      <>
-        <button
-          type="button"
-          style={ctxBtnStyle()}
-          onClick={() => {
-            copyFromContext();
-            hideContextMenu();
-          }}
-        >
-          Copy
-        </button>
-
-        <div style={{ height: 1, background: "#e2e8f0", margin: "6px 0" }} />
-
-        <button
-          type="button"
-          style={ctxBtnStyle()}
-          onClick={() => {
-            bringToFront(contextMenu.targetId);
-            hideContextMenu();
-          }}
-        >
-          Bring to Front
-        </button>
-
-        <button
-          type="button"
-          style={ctxBtnStyle()}
-          onClick={() => {
-            sendToBack(contextMenu.targetId);
-            hideContextMenu();
-          }}
-        >
-          Send to Back
-        </button>
-
-        <button
-          type="button"
-          style={ctxBtnStyle({ color: "#b91c1c" })}
-          onClick={() => {
-            deleteSelectionOrTarget();
-            hideContextMenu();
-          }}
-        >
-          Delete
-        </button>
-
-        <div style={{ height: 1, background: "#e2e8f0", margin: "6px 0" }} />
-      </>
-    )}
-
-    {/* ✅ Dashboard actions (allowed even on empty canvas) */}
-    <button
-      type="button"
-      disabled={!hasClipboard}
-      style={ctxBtnStyle({
-        opacity: hasClipboard ? 1 : 0.45,
-        cursor: hasClipboard ? "pointer" : "not-allowed",
-      })}
-      onClick={() => {
-        if (!hasClipboard) return;
-        pasteAtContext();
-        hideContextMenu();
-      }}
-    >
-      Paste
-    </button>
-
-    <div style={{ height: 1, background: "#e2e8f0", margin: "6px 0" }} />
-
-    <button
-      type="button"
-      style={ctxBtnStyle({ color: "#0f172a" })}
-      onClick={() => hideContextMenu()}
-    >
-      Close
-    </button>
-  </div>
-)}
+<DashboardCanvasContextMenu
+  show={showCtx}
+  x={contextMenu?.x ?? 0}
+  y={contextMenu?.y ?? 0}
+  hasTarget={hasTarget}
+  hasClipboard={hasClipboard}
+  onCopy={copyFromContext}
+  onBringToFront={() => bringToFront(contextMenu?.targetId)}
+  onSendToBack={() => sendToBack(contextMenu?.targetId)}
+  onDelete={deleteSelectionOrTarget}
+  onPaste={pasteAtContext}
+  onClose={hideContextMenu}
+/>
 
         {activePage === "home" ? (
           <div className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg bg-white">
@@ -845,19 +761,3 @@ const hasTarget = !!contextMenu?.targetId;
   );
 }
 
-// ✅ Small helper for menu button styling
-function ctxBtnStyle(extra = {}) {
-  return {
-    width: "100%",
-    textAlign: "left",
-    padding: "8px 10px",
-    fontSize: 13,
-    fontWeight: 700,
-    borderRadius: 8,
-    border: "none",
-    background: "transparent",
-    cursor: "pointer",
-    color: "#0f172a",
-    ...extra,
-  };
-}
