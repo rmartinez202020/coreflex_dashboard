@@ -8,8 +8,8 @@ export default function AlarmSetupModal({
   onAddAlarm,
   onChangeAlarms,
 
-  devices = [], // [{ deviceId, name }]
-  availableTags = [], // [{ deviceId, field, label, type }]
+  devices = [],
+  availableTags = [],
   sensorsData,
 
   initialAlarms = [],
@@ -127,8 +127,7 @@ export default function AlarmSetupModal({
       tagLabel: selectedTag.label || selectedTag.field,
       ioType: alarmType === "boolean" ? "DI" : "AO",
       message: message?.trim() || "",
-      edgeDetection:
-        alarmType === "boolean" ? "Equal" : `When value ${operator} ${threshold}`,
+      edgeDetection: alarmType === "boolean" ? "Equal" : `When value ${operator} ${threshold}`,
       value:
         alarmType === "boolean"
           ? contactType === "NO"
@@ -177,14 +176,30 @@ export default function AlarmSetupModal({
             </div>
           </div>
 
-          <button style={xBtn} onClick={onClose} title="Close">
-            ✕
-          </button>
+          {/* ✅ RIGHT: move Close + Add Alarm to the X area */}
+          <div style={headerRight}>
+            <button style={btnHeaderGhost} onClick={onClose}>
+              Close
+            </button>
+
+            <button
+              style={{ ...btnHeaderPrimary, opacity: canAdd ? 1 : 0.5 }}
+              onClick={handleAdd}
+              disabled={!canAdd}
+              title={!canAdd ? "Select a tag first" : "Add Alarm"}
+            >
+              Add Alarm
+            </button>
+
+            <button style={xBtn} onClick={onClose} title="Close">
+              ✕
+            </button>
+          </div>
         </div>
 
         {/* CONTENT */}
         <div style={content}>
-          {/* ✅ TOP (no scroll): give it more height so it fits */}
+          {/* ✅ TOP (no scroll) */}
           <div style={topArea}>
             <div style={topGrid}>
               {/* LEFT */}
@@ -194,10 +209,7 @@ export default function AlarmSetupModal({
                   <div style={typeRow}>
                     <button
                       type="button"
-                      style={{
-                        ...typeBtn,
-                        ...(alarmType === "boolean" ? typeBtnActive : {}),
-                      }}
+                      style={{ ...typeBtn, ...(alarmType === "boolean" ? typeBtnActive : {}) }}
                       onClick={() => setAlarmType("boolean")}
                     >
                       Boolean Alarm (DI)
@@ -205,10 +217,7 @@ export default function AlarmSetupModal({
 
                     <button
                       type="button"
-                      style={{
-                        ...typeBtn,
-                        ...(alarmType === "dynamic" ? typeBtnActive : {}),
-                      }}
+                      style={{ ...typeBtn, ...(alarmType === "dynamic" ? typeBtnActive : {}) }}
                       onClick={() => setAlarmType("dynamic")}
                     >
                       Dynamic Alarm (AO)
@@ -260,11 +269,7 @@ export default function AlarmSetupModal({
                       <div style={row4}>
                         <div>
                           <div style={fieldLabel}>Operator</div>
-                          <select
-                            style={select}
-                            value={operator}
-                            onChange={(e) => setOperator(e.target.value)}
-                          >
+                          <select style={select} value={operator} onChange={(e) => setOperator(e.target.value)}>
                             <option value=">=">&ge;</option>
                             <option value="<=">&le;</option>
                             <option value=">">&gt;</option>
@@ -295,11 +300,7 @@ export default function AlarmSetupModal({
 
                         <div>
                           <div style={fieldLabel}>Severity</div>
-                          <select
-                            style={select}
-                            value={severity}
-                            onChange={(e) => setSeverity(e.target.value)}
-                          >
+                          <select style={select} value={severity} onChange={(e) => setSeverity(e.target.value)}>
                             <option value="info">Info</option>
                             <option value="warning">Warning</option>
                             <option value="critical">Critical</option>
@@ -318,20 +319,6 @@ export default function AlarmSetupModal({
                       </div>
                     </>
                   )}
-                </div>
-
-                <div style={topActions}>
-                  <button style={btnGhost} onClick={onClose}>
-                    Close
-                  </button>
-
-                  <button
-                    style={{ ...btnPrimary, opacity: canAdd ? 1 : 0.5 }}
-                    onClick={handleAdd}
-                    disabled={!canAdd}
-                  >
-                    Add Alarm
-                  </button>
                 </div>
               </div>
 
@@ -419,9 +406,7 @@ export default function AlarmSetupModal({
 
                         <div style={preview}>
                           <div style={previewLabel}>Status</div>
-                          <div style={previewValue}>
-                            {previewValue === null ? "—" : String(previewValue)}
-                          </div>
+                          <div style={previewValue}>{previewValue === null ? "—" : String(previewValue)}</div>
                         </div>
                       </div>
                     )}
@@ -431,7 +416,7 @@ export default function AlarmSetupModal({
             </div>
           </div>
 
-          {/* ✅ BOTTOM: ONLY SCROLL AREA (table body scrolls) */}
+          {/* ✅ BOTTOM: make it taller + ONLY scroll here */}
           <div style={bottomArea}>
             <div style={tableHeader}>
               <div style={tableHeaderLeft}>
@@ -482,12 +467,8 @@ export default function AlarmSetupModal({
                 <div style={{ ...tHeadCell, width: 170 }}>Edge Detection</div>
                 <div style={{ ...tHeadCell, width: 110, textAlign: "center" }}>Value</div>
                 <div style={{ ...tHeadCell, width: 160 }}>Deadband Mode</div>
-                <div style={{ ...tHeadCell, width: 170, textAlign: "center" }}>
-                  Deadband Level
-                </div>
-                <div style={{ ...tHeadCell, flex: 1, minWidth: 420, borderRight: "none" }}>
-                  Message
-                </div>
+                <div style={{ ...tHeadCell, width: 170, textAlign: "center" }}>Deadband Level</div>
+                <div style={{ ...tHeadCell, flex: 1, minWidth: 420, borderRight: "none" }}>Message</div>
               </div>
 
               <div style={tBody}>
@@ -497,12 +478,7 @@ export default function AlarmSetupModal({
                   alarms.map((a) => {
                     const checked = checkedIds.has(a.id);
                     return (
-                      <div
-                        key={a.id}
-                        style={tRow}
-                        onMouseEnter={(e) => (e.currentTarget.style.background = "#fffbe6")}
-                        onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
-                      >
+                      <div key={a.id} style={tRow}>
                         <div style={{ ...tCell, width: 44, textAlign: "center" }}>
                           <input
                             type="checkbox"
@@ -517,23 +493,17 @@ export default function AlarmSetupModal({
                           <div style={tSub}>{a.deviceId}</div>
                         </div>
 
-                        <div style={{ ...tCell, width: 130 }}>
-                          {a.type === "boolean" ? "Bit" : "Analog"}
-                        </div>
+                        <div style={{ ...tCell, width: 130 }}>{a.type === "boolean" ? "Bit" : "Analog"}</div>
 
                         <div style={{ ...tCell, width: 170 }}>
                           {a.type === "boolean" ? "Equal" : a.edgeDetection}
                         </div>
 
-                        <div style={{ ...tCell, width: 110, textAlign: "center" }}>
-                          {String(a.value)}
-                        </div>
+                        <div style={{ ...tCell, width: 110, textAlign: "center" }}>{String(a.value)}</div>
 
                         <div style={{ ...tCell, width: 160 }}>{a.deadbandMode}</div>
 
-                        <div style={{ ...tCell, width: 170, textAlign: "center" }}>
-                          {String(a.deadbandLevel)}
-                        </div>
+                        <div style={{ ...tCell, width: 170, textAlign: "center" }}>{String(a.deadbandLevel)}</div>
 
                         <div style={{ ...tCell, flex: 1, minWidth: 420, borderRight: "none" }}>
                           {a.message || <span style={{ color: "#888" }}>—</span>}
@@ -551,7 +521,7 @@ export default function AlarmSetupModal({
   );
 }
 
-/* ---------- MODAL SIZING (taller) ---------- */
+/* ---------- LAYOUT / SIZING ---------- */
 const overlay = {
   position: "fixed",
   inset: 0,
@@ -564,7 +534,7 @@ const overlay = {
 
 const card = {
   width: "min(1900px, calc(100% - 12px))",
-  height: "min(1040px, calc(100% - 12px))", // ✅ taller
+  height: "min(1040px, calc(100% - 12px))",
   background: "#ffffff",
   borderRadius: 18,
   border: "1px solid #cbd5e1",
@@ -597,6 +567,12 @@ const headerIcon = {
   fontSize: 18,
 };
 
+const headerRight = {
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+};
+
 const title = { fontWeight: 900, color: "#0f172a", fontSize: 17 };
 const subtitle = { color: "#475569", fontSize: 13, marginTop: 2 };
 
@@ -612,12 +588,36 @@ const xBtn = {
   fontSize: 16,
 };
 
+const btnHeaderGhost = {
+  height: 40,
+  padding: "0 14px",
+  borderRadius: 12,
+  border: "1px solid #cbd5e1",
+  background: "#ffffff",
+  color: "#0f172a",
+  cursor: "pointer",
+  fontWeight: 900,
+  fontSize: 14,
+};
+
+const btnHeaderPrimary = {
+  height: 40,
+  padding: "0 14px",
+  borderRadius: 12,
+  border: "1px solid #1d4ed8",
+  background: "#2563eb",
+  color: "#fff",
+  cursor: "pointer",
+  fontWeight: 900,
+  fontSize: 14,
+};
+
 const content = { display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" };
 
-/* ✅ Give top more height so it fits (and still NO scroll there) */
+/* ✅ TOP: no scroll */
 const topArea = {
-  flex: "0 0 54%", // ✅ taller top (was smaller)
-  overflow: "hidden", // ✅ no scroll at top
+  flex: "0 0 40%",
+  overflow: "hidden",
   padding: 16,
   borderBottom: "1px solid #e5e7eb",
   background: "#ffffff",
@@ -713,8 +713,7 @@ const tagBoxHeader = {
 const tagBoxTitle = { color: "#0f172a", fontWeight: 900, fontSize: 13 };
 const tagBoxHint = { color: "#475569", fontSize: 13 };
 
-/* small internal list scroll is ok; main scroll is bottom table */
-const tagList = { maxHeight: 200, overflow: "auto" };
+const tagList = { maxHeight: 160, overflow: "auto" };
 
 const tagRowBtn = {
   width: "100%",
@@ -791,31 +790,7 @@ const chipActive = { border: "2px solid #2563eb", background: "#eff6ff" };
 
 const help = { marginTop: 8, fontSize: 13, color: "#64748b" };
 
-const topActions = { display: "flex", justifyContent: "flex-end", gap: 12, marginTop: "auto" };
-
-const btnGhost = {
-  padding: "11px 14px",
-  borderRadius: 12,
-  border: "1px solid #cbd5e1",
-  background: "#f8fafc",
-  color: "#0f172a",
-  cursor: "pointer",
-  fontWeight: 900,
-  fontSize: 14,
-};
-
-const btnPrimary = {
-  padding: "11px 14px",
-  borderRadius: 12,
-  border: "1px solid #1d4ed8",
-  background: "#2563eb",
-  color: "#fff",
-  cursor: "pointer",
-  fontWeight: 900,
-  fontSize: 14,
-};
-
-/* ✅ Bottom table area stays scrollable */
+/* ✅ BOTTOM: taller + scroll in table body only */
 const bottomArea = {
   flex: "1 1 auto",
   overflow: "hidden",
@@ -823,7 +798,13 @@ const bottomArea = {
   background: "#ffffff",
 };
 
-const tableHeader = { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 };
+const tableHeader = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  marginBottom: 10,
+};
+
 const tableHeaderLeft = { display: "flex", gap: 10, alignItems: "center" };
 
 const tableBtn = {
@@ -878,7 +859,8 @@ const tHeadCell = {
 
 const tBody = {
   flex: 1,
-  overflow: "auto", // ✅ scroll only here
+  overflowY: "auto", // ✅ scroll only on bottom table body
+  overflowX: "hidden",
   background: "#ffffff",
 };
 
