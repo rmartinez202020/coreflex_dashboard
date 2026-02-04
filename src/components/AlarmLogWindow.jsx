@@ -239,15 +239,35 @@ export default function AlarmLogWindow({
         </div>
       </div>
 
-      {/* CLOSE CONFIRM */}
+      {/* CLOSE CONFIRM (✅ upgraded professional warning modal) */}
       {showCloseConfirm && (
-        <div style={confirmOverlay} onMouseDown={(e) => e.stopPropagation()}>
+        <div
+          style={confirmOverlay}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+        >
           <div style={confirmCard}>
-            <div style={confirmTitle}>Close Alarm Log?</div>
+            <div style={confirmHeader}>
+              <div style={warnIcon}>⚠️</div>
+              <div style={{ display: "flex", flexDirection: "column" }}>
+                <div style={confirmTitle}>Unsaved changes</div>
+                <div style={confirmSubTitle}>Close Alarms Log?</div>
+              </div>
+            </div>
+
+            <div style={confirmBody}>
+              If you close this window, <b>your current Alarm Log setup will be lost</b>{" "}
+              (view mode, filters, selections, and any unsaved configuration).
+              <div style={confirmHint}>
+                Tip: Save your project first if you want to keep this setup.
+              </div>
+            </div>
+
             <div style={confirmActions}>
               <button style={cancelBtn} onClick={() => setShowCloseConfirm(false)}>
-                Cancel
+                Keep Open
               </button>
+
               <button
                 style={dangerBtn}
                 onClick={() => {
@@ -255,7 +275,7 @@ export default function AlarmLogWindow({
                   onClose?.();
                 }}
               >
-                Close
+                Close Anyway
               </button>
             </div>
           </div>
@@ -412,10 +432,11 @@ const ackBtn = {
 
 const bottomInfo = { fontSize: 12, color: "#111827" };
 
+/* ✅ Professional warning modal styles */
 const confirmOverlay = {
   position: "absolute",
   inset: 0,
-  background: "rgba(0,0,0,.55)",
+  background: "rgba(0,0,0,0.60)",
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
@@ -423,31 +444,90 @@ const confirmOverlay = {
 };
 
 const confirmCard = {
-  background: "#fff",
-  padding: 16,
-  borderRadius: 12,
-  border: "2px solid #000",
-  minWidth: 320,
+  width: 440,
+  maxWidth: "calc(100% - 40px)",
+  background: "#0b1220",
+  borderRadius: 14,
+  border: "1px solid rgba(148,163,184,0.25)",
+  boxShadow: "0 18px 55px rgba(0,0,0,0.55)",
+  overflow: "hidden",
 };
 
-const confirmTitle = { fontWeight: 900, marginBottom: 12 };
-const confirmActions = { display: "flex", justifyContent: "flex-end", gap: 10 };
+const confirmHeader = {
+  display: "flex",
+  alignItems: "center",
+  gap: 12,
+  padding: "14px 16px",
+  borderBottom: "1px solid rgba(148,163,184,0.18)",
+  background: "linear-gradient(180deg, rgba(30,41,59,0.65), rgba(2,6,23,0))",
+};
+
+const warnIcon = {
+  width: 34,
+  height: 34,
+  borderRadius: 10,
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 18,
+  background: "rgba(245,158,11,0.12)",
+  border: "1px solid rgba(245,158,11,0.35)",
+};
+
+const confirmTitle = {
+  fontWeight: 900,
+  color: "#f8fafc",
+  fontSize: 14,
+  letterSpacing: 0.2,
+  lineHeight: 1.1,
+};
+
+const confirmSubTitle = {
+  marginTop: 2,
+  fontSize: 12,
+  color: "rgba(226,232,240,0.75)",
+};
+
+const confirmBody = {
+  padding: "14px 16px 6px",
+  color: "rgba(226,232,240,0.88)",
+  fontSize: 13,
+  lineHeight: 1.35,
+};
+
+const confirmHint = {
+  marginTop: 10,
+  padding: "10px 12px",
+  borderRadius: 10,
+  background: "rgba(239,68,68,0.10)",
+  border: "1px solid rgba(239,68,68,0.22)",
+  color: "rgba(254,226,226,0.92)",
+  fontSize: 12,
+};
+
+const confirmActions = {
+  display: "flex",
+  justifyContent: "flex-end",
+  gap: 10,
+  padding: "12px 16px 16px",
+};
 
 const cancelBtn = {
-  padding: "6px 12px",
+  padding: "8px 12px",
   cursor: "pointer",
-  border: "1px solid #9ca3af",
-  background: "#f3f4f6",
-  borderRadius: 8,
+  border: "1px solid rgba(148,163,184,0.30)",
+  background: "rgba(15,23,42,0.55)",
+  color: "rgba(226,232,240,0.92)",
+  borderRadius: 10,
   fontWeight: 900,
 };
 
 const dangerBtn = {
-  padding: "6px 12px",
-  background: "#7f1d1d",
-  color: "#fff",
+  padding: "8px 12px",
   cursor: "pointer",
-  border: "1px solid #ef4444",
-  borderRadius: 8,
+  border: "1px solid rgba(239,68,68,0.45)",
+  background: "rgba(239,68,68,0.95)",
+  color: "#fff",
+  borderRadius: 10,
   fontWeight: 900,
 };
