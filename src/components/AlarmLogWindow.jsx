@@ -121,8 +121,21 @@ export default function AlarmLogWindow({
           ))}
         </div>
 
-        {/* ✅ Settings removed from here (we moved it to bottom bar) */}
-        <div style={tabsRight} />
+        <div style={tabsRight}>
+          <button
+            type="button"
+            style={settingsTabBtn}
+            title="Alarm Manager"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowAlarmSetup(true);
+              onOpenSettings?.();
+            }}
+          >
+            <span style={gearPill}>⚙</span>
+            <span style={{ fontSize: 12, fontWeight: 900 }}>Settings</span>
+          </button>
+        </div>
       </div>
 
       {/* TABLE (✅ WHITE BACKGROUND NOW) */}
@@ -219,20 +232,6 @@ export default function AlarmLogWindow({
 
       {/* Bottom bar */}
       <div style={bottomBar}>
-        {/* ✅ MOVED SETTINGS BUTTON HERE (LEFT SIDE OF SETTINGS BUTTON) */}
-        <button
-          type="button"
-          style={settingsBottomBtn}
-          title="Alarm Manager"
-          onClick={(e) => {
-            e.stopPropagation();
-            setShowAlarmSetup(true);
-            onOpenSettings?.();
-          }}
-        >
-          <span style={gearPill}>⚙</span>
-        </button>
-
         <button
           type="button"
           style={{
@@ -426,6 +425,18 @@ const tabBtnActive = {
   boxShadow: "0 1px 0 rgba(0,0,0,0.25)",
 };
 
+const settingsTabBtn = {
+  height: 26,
+  padding: "4px 10px",
+  borderRadius: 6,
+  border: "1px solid #9ca3af",
+  background: "#ffffff",
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+};
+
 const gearPill = {
   width: 18,
   height: 18,
@@ -436,20 +447,6 @@ const gearPill = {
   alignItems: "center",
   justifyContent: "center",
   fontSize: 12,
-};
-
-/* ✅ NEW: bottom settings icon button (small square like your header buttons) */
-const settingsBottomBtn = {
-  width: 32,
-  height: 32,
-  borderRadius: 8,
-  border: "1px solid #000",
-  background: "#e5e7eb",
-  cursor: "pointer",
-  display: "inline-flex",
-  alignItems: "center",
-  justifyContent: "center",
-  padding: 0,
 };
 
 /* ✅ THIS WAS THE MAIN ISSUE: background was gray.
