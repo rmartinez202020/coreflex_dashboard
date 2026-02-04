@@ -21,6 +21,8 @@ export default function AlarmSetupModal({
 }) {
   if (!open) return null;
 
+  const topAreaRef = React.useRef(null);
+
   // ======== ALARMS LIST (TABLE) ========
   const [alarms, setAlarms] = React.useState(() => initialAlarms || []);
   const [checkedIds, setCheckedIds] = React.useState(() => new Set());
@@ -121,9 +123,7 @@ export default function AlarmSetupModal({
 
   const canAdd =
     !!selectedTag &&
-    (alarmType === "boolean"
-      ? true
-      : threshold !== "" && !Number.isNaN(Number(threshold)));
+    (alarmType === "boolean" ? true : threshold !== "" && !Number.isNaN(Number(threshold)));
 
   const handleAdd = () => {
     if (!canAdd) return;
@@ -142,8 +142,8 @@ export default function AlarmSetupModal({
       edgeDetection:
         alarmType === "boolean"
           ? contactType === "NO"
-            ? "Alarm when = 1 (ON)"
-            : "Alarm when = 0 (OFF)"
+            ? "Equal (1)"
+            : "Equal (0)"
           : `When value ${operator} ${threshold}`,
       value:
         alarmType === "boolean"
@@ -173,8 +173,24 @@ export default function AlarmSetupModal({
     setMessage("");
   };
 
+  const scrollToAddForm = () => {
+    try {
+      topAreaRef.current?.scrollTo({ top: 0, behavior: "smooth" });
+    } catch {
+      try {
+        topAreaRef.current && (topAreaRef.current.scrollTop = 0);
+      } catch {}
+    }
+  };
+
+  const allChecked = alarms.length > 0 && alarms.every((a) => checkedIds.has(a.id));
+
   return (
-    <div style={overlay} onMouseDown={(e) => e.stopPropagation()}>
+    <div
+      style={overlay}
+      onMouseDown={(e) => e.stopPropagation()}
+      onClick={(e) => e.stopPropagation()}
+    >
       <div style={card} onMouseDown={(e) => e.stopPropagation()}>
         {/* HEADER */}
         <div style={header}>
@@ -196,7 +212,7 @@ export default function AlarmSetupModal({
         {/* CONTENT */}
         <div style={content}>
           {/* TOP: ADD FORM */}
-          <div style={topArea}>
+          <div style={topArea} ref={topAreaRef}>
             <div style={section}>
               <div style={sectionLabel}>Alarm Type</div>
               <div style={typeRow}>
@@ -299,7 +315,11 @@ export default function AlarmSetupModal({
                         </div>
                       </div>
 
-                      <button type="button" style={miniBtn} onClick={() => setSelectedTag(null)}>
+                      <button
+                        type="button"
+                        style={miniBtn}
+                        onClick={() => setSelectedTag(null)}
+                      >
                         Change
                       </button>
                     </div>
@@ -432,36 +452,38 @@ export default function AlarmSetupModal({
             </div>
           </div>
 
-          {/* BOTTOM: TABLE */}
+          {/* BOTTOM: TABLE (classic look like your screenshot) */}
           <div style={bottomArea}>
             <div style={tableHeader}>
-              <div style={tableTitle}>Existing Alarms</div>
+              <div style={tableHeaderLeft}>
+                <button type="button" style={tableBtn} onClick={scrollToAddForm}>
+                  Add Alarm
+                </button>
 
-              <div style={tableBtns}>
                 <button
+                  type="button"
                   style={{
-                    ...miniActionBtn,
+                    ...tableBtn,
                     opacity: checkedIds.size === 0 ? 0.5 : 1,
                     cursor: checkedIds.size === 0 ? "not-allowed" : "pointer",
                   }}
                   disabled={checkedIds.size === 0}
                   onClick={deleteSelected}
                 >
-                  Delete Selected
-                </button>
-
-                <button
-                  style={{
-                    ...miniActionBtn,
-                    borderColor: "#ef4444",
-                    color: "#991b1b",
-                    background: "#fff5f5",
-                  }}
-                  onClick={clearAll}
-                >
-                  Clear All
+                  Delete Alarms
                 </button>
               </div>
+
+              <button
+                type="button"
+                style={advancedLink}
+                onClick={() => {
+                  const ok = window.confirm("Advanced: Clear ALL alarms?");
+                  if (ok) clearAll();
+                }}
+              >
+                Advanced &gt;&gt;
+              </button>
             </div>
 
             <div style={tableWrap}>
@@ -469,18 +491,22 @@ export default function AlarmSetupModal({
                 <div style={{ ...tHeadCell, width: 34, textAlign: "center" }}>
                   <input
                     type="checkbox"
-                    checked={alarms.length > 0 && alarms.every((a) => checkedIds.has(a.id))}
+                    checked={allChecked}
                     onChange={toggleAll}
                     style={checkbox}
+                    title="Select all"
                   />
                 </div>
+
                 <div style={{ ...tHeadCell, width: 160 }}>Trigger</div>
                 <div style={{ ...tHeadCell, width: 90 }}>Alarm Type</div>
-                <div style={{ ...tHeadCell, width: 170 }}>Edge Detection</div>
+                <div style={{ ...tHeadCell, width: 140 }}>Edge Detection</div>
                 <div style={{ ...tHeadCell, width: 80, textAlign: "center" }}>Value</div>
                 <div style={{ ...tHeadCell, width: 120 }}>Deadband Mode</div>
                 <div style={{ ...tHeadCell, width: 120, textAlign: "center" }}>Deadband Level</div>
-                <div style={{ ...tHeadCell, flex: 1, minWidth: 220 }}>Message</div>
+                <div style={{ ...tHeadCell, flex: 1, minWidth: 260, borderRight: "none" }}>
+                  Message
+                </div>
               </div>
 
               <div style={tBody}>
@@ -490,7 +516,12 @@ export default function AlarmSetupModal({
                   alarms.map((a) => {
                     const checked = checkedIds.has(a.id);
                     return (
-                      <div key={a.id} style={tRow}>
+                      <div
+                        key={a.id}
+                        style={tRow}
+                        onMouseEnter={(e) => (e.currentTarget.style.background = "#fffbe6")}
+                        onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
+                      >
                         <div style={{ ...tCell, width: 34, textAlign: "center" }}>
                           <input
                             type="checkbox"
@@ -499,17 +530,32 @@ export default function AlarmSetupModal({
                             style={checkbox}
                           />
                         </div>
+
                         <div style={{ ...tCell, width: 160 }}>
                           <b>{a.field}</b>
                           <div style={tSub}>{a.deviceId}</div>
                         </div>
-                        <div style={{ ...tCell, width: 90 }}>{a.type === "boolean" ? "Bit" : "Analog"}</div>
-                        <div style={{ ...tCell, width: 170 }}>{a.edgeDetection}</div>
-                        <div style={{ ...tCell, width: 80, textAlign: "center" }}>{String(a.value)}</div>
+
+                        <div style={{ ...tCell, width: 90 }}>
+                          {a.type === "boolean" ? "Bit" : "Analog"}
+                        </div>
+
+                        <div style={{ ...tCell, width: 140 }}>
+                          {a.type === "boolean" ? "Equal" : a.edgeDetection}
+                        </div>
+
+                        <div style={{ ...tCell, width: 80, textAlign: "center" }}>
+                          {String(a.value)}
+                        </div>
+
                         <div style={{ ...tCell, width: 120 }}>{a.deadbandMode}</div>
-                        <div style={{ ...tCell, width: 120, textAlign: "center" }}>{String(a.deadbandLevel)}</div>
-                        <div style={{ ...tCell, flex: 1, minWidth: 220 }}>
-                          {a.message || <span style={{ color: "#94a3b8" }}>—</span>}
+
+                        <div style={{ ...tCell, width: 120, textAlign: "center" }}>
+                          {String(a.deadbandLevel)}
+                        </div>
+
+                        <div style={{ ...tCell, flex: 1, minWidth: 260, borderRight: "none" }}>
+                          {a.message || <span style={{ color: "#888" }}>—</span>}
                         </div>
                       </div>
                     );
@@ -674,7 +720,7 @@ const tagBox = {
 
 const tagBoxHeader = {
   padding: "10px 12px",
-  display: "flex", // ✅ FIXED
+  display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
   borderBottom: "1px solid #e5e7eb",
@@ -779,54 +825,92 @@ const btnPrimary = {
   fontWeight: 900,
 };
 
-const tableHeader = { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 };
-const tableTitle = { fontWeight: 900, color: "#0f172a", fontSize: 13 };
-const tableBtns = { display: "flex", gap: 10 };
+/* ---------- TABLE STYLES (classic clean grid like your screenshot) ---------- */
+const tableHeader = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  marginBottom: 8,
+};
 
-const miniActionBtn = {
-  padding: "8px 10px",
-  borderRadius: 10,
-  border: "1px solid #cbd5e1",
-  background: "#f8fafc",
-  color: "#0f172a",
+const tableHeaderLeft = {
+  display: "flex",
+  gap: 8,
+  alignItems: "center",
+};
+
+const tableBtn = {
+  height: 28,
+  padding: "0 10px",
+  borderRadius: 2,
+  border: "1px solid #c9c9c9",
+  background: "#efefef",
+  color: "#111",
   cursor: "pointer",
-  fontWeight: 900,
   fontSize: 12,
+  fontWeight: 700,
+};
+
+const advancedLink = {
+  border: "none",
+  background: "transparent",
+  color: "#1d4ed8",
+  fontSize: 12,
+  cursor: "pointer",
+  textDecoration: "underline",
+  padding: 0,
 };
 
 const tableWrap = {
-  border: "1px solid #e5e7eb",
-  borderRadius: 12,
+  border: "1px solid #c9c9c9",
+  borderRadius: 2,
   overflow: "hidden",
-  height: "calc(100% - 40px)",
+  height: "calc(100% - 36px)",
   display: "flex",
   flexDirection: "column",
+  background: "#fff",
 };
 
-const tHeadRow = { display: "flex", background: "#0f172a", color: "#fff", borderBottom: "1px solid #000" };
+const tHeadRow = {
+  display: "flex",
+  background: "#f3f3f3",
+  color: "#111",
+  borderBottom: "1px solid #c9c9c9",
+};
 
 const tHeadCell = {
-  padding: 10,
-  fontWeight: 900,
+  padding: "6px 8px",
+  fontWeight: 800,
   fontSize: 12,
   whiteSpace: "nowrap",
   overflow: "hidden",
   textOverflow: "ellipsis",
+  borderRight: "1px solid #d7d7d7",
 };
 
-const tBody = { flex: 1, overflow: "auto", background: "#ffffff" };
-const tRow = { display: "flex", borderBottom: "1px solid #e5e7eb", background: "#ffffff" };
+const tBody = {
+  flex: 1,
+  overflow: "auto",
+  background: "#ffffff",
+};
+
+const tRow = {
+  display: "flex",
+  borderBottom: "1px solid #e2e2e2",
+  background: "#fff",
+};
 
 const tCell = {
-  padding: 10,
+  padding: "6px 8px",
   fontSize: 12,
   whiteSpace: "nowrap",
   overflow: "hidden",
   textOverflow: "ellipsis",
-  color: "#0f172a",
+  color: "#111",
+  borderRight: "1px solid #eeeeee",
 };
 
-const tSub = { fontSize: 11, color: "#64748b", marginTop: 2 };
-const tEmpty = { padding: 14, color: "#64748b", fontSize: 12 };
+const tSub = { fontSize: 11, color: "#666", marginTop: 2 };
+const tEmpty = { padding: 10, color: "#666", fontSize: 12 };
 
-const checkbox = { width: 14, height: 14, cursor: "pointer", accentColor: "#111827" };
+const checkbox = { width: 14, height: 14, cursor: "pointer" };
