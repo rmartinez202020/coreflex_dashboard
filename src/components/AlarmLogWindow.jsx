@@ -259,7 +259,7 @@ export default function AlarmLogWindow({
               If you close this window, <b>your current Alarm Log setup will be lost</b>{" "}
               (view mode, filters, selections, and any unsaved configuration).
               <div style={confirmHint}>
-                Tip: Save your project first if you want to keep this setup.
+                Tip: Save your project and Minimize the window if you want to keep this setup.
               </div>
             </div>
 
