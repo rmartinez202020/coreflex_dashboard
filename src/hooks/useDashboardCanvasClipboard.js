@@ -1,5 +1,5 @@
 // src/hooks/useDashboardCanvasClipboard.js
-import { useCallback, useMemo, useRef } from "react";
+import { useCallback, useRef, useState } from "react";
 
 /**
  * useDashboardCanvasClipboard
@@ -33,12 +33,8 @@ export default function useDashboardCanvasClipboard({
     copiedAt: 0,
   });
 
-  const hasClipboard = useMemo(
-    () => (clipboardRef.current?.items?.length || 0) > 0,
-    // this is stable, but value updates when we write clipboardRef.current
-    // eslint won't like empty deps sometimes; safe to keep empty
-    []
-  );
+  // ✅ MUST be state (ref updates don't re-render)
+  const [hasClipboard, setHasClipboard] = useState(false);
 
   const safeGetTankZ = useCallback(
     (t) => {
@@ -90,15 +86,29 @@ export default function useDashboardCanvasClipboard({
       items,
       copiedAt: Date.now(),
     };
+
+    // ✅ trigger re-render so menu can show "Paste"
+    setHasClipboard(items.length > 0);
   }, [contextMenu?.targetId, selectedIds, droppedTanks]);
 
   const pasteAtContext = useCallback(() => {
     const clip = clipboardRef.current?.items || [];
-    if (!clip.length) return;
 
-    const pt = getCanvasPointFromClient(contextMenu?.x ?? 0, contextMenu?.y ?? 0);
+    // ✅ if clipboard got cleared somehow, keep UI correct
+    if (!clip.length) {
+      setHasClipboard(false);
+      return;
+    }
 
-    const currentMaxZ = Math.max(1, ...(droppedTanks || []).map((t) => safeGetTankZ(t)));
+    const pt = getCanvasPointFromClient(
+      contextMenu?.x ?? 0,
+      contextMenu?.y ?? 0
+    );
+
+    const currentMaxZ = Math.max(
+      1,
+      ...(droppedTanks || []).map((t) => safeGetTankZ(t))
+    );
     let z = currentMaxZ + 1;
 
     const base = clip[0];
