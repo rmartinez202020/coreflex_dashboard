@@ -27,15 +27,12 @@ export default function AlarmSetupModal({
   const [alarms, setAlarms] = React.useState(() => initialAlarms || []);
   const [checkedIds, setCheckedIds] = React.useState(() => new Set());
 
-  // keep in sync when modal opens with new project data
   React.useEffect(() => {
     setAlarms(initialAlarms || []);
     setCheckedIds(new Set());
   }, [open, initialAlarms]);
 
-  const emitChange = (next) => {
-    onChangeAlarms?.(next);
-  };
+  const emitChange = (next) => onChangeAlarms?.(next);
 
   const toggleRowCheck = (id) => {
     setCheckedIds((prev) => {
@@ -89,7 +86,6 @@ export default function AlarmSetupModal({
   // common
   const [message, setMessage] = React.useState("");
 
-  // reset tag selection when type changes
   React.useEffect(() => {
     setSelectedTag(null);
     setSearch("");
@@ -107,7 +103,7 @@ export default function AlarmSetupModal({
         const hay = `${t.field} ${t.label || ""}`.toLowerCase();
         return hay.includes(q);
       })
-      .slice(0, 60);
+      .slice(0, 80);
   }, [availableTags, deviceId, search, alarmType]);
 
   const previewValue = React.useMemo(() => {
@@ -169,7 +165,6 @@ export default function AlarmSetupModal({
     setAlarms(next);
     emitChange(next);
     onAddAlarm?.(newAlarm);
-
     setMessage("");
   };
 
@@ -315,11 +310,7 @@ export default function AlarmSetupModal({
                         </div>
                       </div>
 
-                      <button
-                        type="button"
-                        style={miniBtn}
-                        onClick={() => setSelectedTag(null)}
-                      >
+                      <button type="button" style={miniBtn} onClick={() => setSelectedTag(null)}>
                         Change
                       </button>
                     </div>
@@ -378,11 +369,7 @@ export default function AlarmSetupModal({
                 <div style={grid3}>
                   <div>
                     <div style={fieldLabel}>Operator</div>
-                    <select
-                      style={select}
-                      value={operator}
-                      onChange={(e) => setOperator(e.target.value)}
-                    >
+                    <select style={select} value={operator} onChange={(e) => setOperator(e.target.value)}>
                       <option value=">=">&ge;</option>
                       <option value="<=">&le;</option>
                       <option value=">">&gt;</option>
@@ -413,11 +400,7 @@ export default function AlarmSetupModal({
 
                   <div>
                     <div style={fieldLabel}>Severity</div>
-                    <select
-                      style={select}
-                      value={severity}
-                      onChange={(e) => setSeverity(e.target.value)}
-                    >
+                    <select style={select} value={severity} onChange={(e) => setSeverity(e.target.value)}>
                       <option value="info">Info</option>
                       <option value="warning">Warning</option>
                       <option value="critical">Critical</option>
@@ -488,25 +471,17 @@ export default function AlarmSetupModal({
 
             <div style={tableWrap}>
               <div style={tHeadRow}>
-                <div style={{ ...tHeadCell, width: 34, textAlign: "center" }}>
-                  <input
-                    type="checkbox"
-                    checked={allChecked}
-                    onChange={toggleAll}
-                    style={checkbox}
-                    title="Select all"
-                  />
+                <div style={{ ...tHeadCell, width: 44, textAlign: "center" }}>
+                  <input type="checkbox" checked={allChecked} onChange={toggleAll} style={checkbox} title="Select all" />
                 </div>
 
-                <div style={{ ...tHeadCell, width: 160 }}>Trigger</div>
-                <div style={{ ...tHeadCell, width: 90 }}>Alarm Type</div>
-                <div style={{ ...tHeadCell, width: 140 }}>Edge Detection</div>
-                <div style={{ ...tHeadCell, width: 80, textAlign: "center" }}>Value</div>
-                <div style={{ ...tHeadCell, width: 120 }}>Deadband Mode</div>
-                <div style={{ ...tHeadCell, width: 120, textAlign: "center" }}>Deadband Level</div>
-                <div style={{ ...tHeadCell, flex: 1, minWidth: 260, borderRight: "none" }}>
-                  Message
-                </div>
+                <div style={{ ...tHeadCell, width: 200 }}>Trigger</div>
+                <div style={{ ...tHeadCell, width: 110 }}>Alarm Type</div>
+                <div style={{ ...tHeadCell, width: 160 }}>Edge Detection</div>
+                <div style={{ ...tHeadCell, width: 90, textAlign: "center" }}>Value</div>
+                <div style={{ ...tHeadCell, width: 150 }}>Deadband Mode</div>
+                <div style={{ ...tHeadCell, width: 150, textAlign: "center" }}>Deadband Level</div>
+                <div style={{ ...tHeadCell, flex: 1, minWidth: 320, borderRight: "none" }}>Message</div>
               </div>
 
               <div style={tBody}>
@@ -522,39 +497,26 @@ export default function AlarmSetupModal({
                         onMouseEnter={(e) => (e.currentTarget.style.background = "#fffbe6")}
                         onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
                       >
-                        <div style={{ ...tCell, width: 34, textAlign: "center" }}>
-                          <input
-                            type="checkbox"
-                            checked={checked}
-                            onChange={() => toggleRowCheck(a.id)}
-                            style={checkbox}
-                          />
+                        <div style={{ ...tCell, width: 44, textAlign: "center" }}>
+                          <input type="checkbox" checked={checked} onChange={() => toggleRowCheck(a.id)} style={checkbox} />
                         </div>
 
-                        <div style={{ ...tCell, width: 160 }}>
-                          <b>{a.field}</b>
+                        <div style={{ ...tCell, width: 200 }}>
+                          <b style={{ fontSize: 14 }}>{a.field}</b>
                           <div style={tSub}>{a.deviceId}</div>
                         </div>
 
-                        <div style={{ ...tCell, width: 90 }}>
-                          {a.type === "boolean" ? "Bit" : "Analog"}
-                        </div>
+                        <div style={{ ...tCell, width: 110 }}>{a.type === "boolean" ? "Bit" : "Analog"}</div>
 
-                        <div style={{ ...tCell, width: 140 }}>
-                          {a.type === "boolean" ? "Equal" : a.edgeDetection}
-                        </div>
+                        <div style={{ ...tCell, width: 160 }}>{a.type === "boolean" ? "Equal" : a.edgeDetection}</div>
 
-                        <div style={{ ...tCell, width: 80, textAlign: "center" }}>
-                          {String(a.value)}
-                        </div>
+                        <div style={{ ...tCell, width: 90, textAlign: "center" }}>{String(a.value)}</div>
 
-                        <div style={{ ...tCell, width: 120 }}>{a.deadbandMode}</div>
+                        <div style={{ ...tCell, width: 150 }}>{a.deadbandMode}</div>
 
-                        <div style={{ ...tCell, width: 120, textAlign: "center" }}>
-                          {String(a.deadbandLevel)}
-                        </div>
+                        <div style={{ ...tCell, width: 150, textAlign: "center" }}>{String(a.deadbandLevel)}</div>
 
-                        <div style={{ ...tCell, flex: 1, minWidth: 260, borderRight: "none" }}>
+                        <div style={{ ...tCell, flex: 1, minWidth: 320, borderRight: "none" }}>
                           {a.message || <span style={{ color: "#888" }}>—</span>}
                         </div>
                       </div>
@@ -570,7 +532,7 @@ export default function AlarmSetupModal({
   );
 }
 
-/* ---------- BIG MODAL (near full screen) ---------- */
+/* ---------- BIG MODAL (bigger + bigger text) ---------- */
 const overlay = {
   position: "fixed",
   inset: 0,
@@ -582,19 +544,20 @@ const overlay = {
 };
 
 const card = {
-  width: "min(1400px, calc(100% - 32px))",
-  height: "min(880px, calc(100% - 32px))",
+  width: "min(1700px, calc(100% - 16px))",
+  height: "min(980px, calc(100% - 16px))",
   background: "#ffffff",
-  borderRadius: 16,
+  borderRadius: 18,
   border: "1px solid #cbd5e1",
   boxShadow: "0 18px 60px rgba(0,0,0,0.25)",
   overflow: "hidden",
   display: "flex",
   flexDirection: "column",
+  fontSize: 14, // ✅ overall bigger
 };
 
 const header = {
-  padding: "14px 16px",
+  padding: "16px 18px",
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
@@ -604,28 +567,30 @@ const header = {
 
 const headerLeft = { display: "flex", alignItems: "center", gap: 12 };
 const headerIcon = {
-  width: 36,
-  height: 36,
-  borderRadius: 12,
+  width: 42,
+  height: 42,
+  borderRadius: 14,
   background: "#eff6ff",
   border: "1px solid #bfdbfe",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
+  fontSize: 18,
 };
 
-const title = { fontWeight: 900, color: "#0f172a", fontSize: 14 };
-const subtitle = { color: "#475569", fontSize: 12, marginTop: 2 };
+const title = { fontWeight: 900, color: "#0f172a", fontSize: 16 };
+const subtitle = { color: "#475569", fontSize: 13, marginTop: 2 };
 
 const xBtn = {
-  width: 34,
-  height: 32,
-  borderRadius: 10,
+  width: 40,
+  height: 38,
+  borderRadius: 12,
   border: "1px solid #cbd5e1",
   background: "#f8fafc",
   color: "#0f172a",
   cursor: "pointer",
   fontWeight: 900,
+  fontSize: 16,
 };
 
 const content = {
@@ -636,90 +601,93 @@ const content = {
 };
 
 const topArea = {
-  flex: "0 0 52%",
+  flex: "0 0 56%",
   overflow: "auto",
-  padding: 16,
+  padding: 18,
   borderBottom: "1px solid #e5e7eb",
 };
 
 const bottomArea = {
   flex: "1 1 auto",
   overflow: "hidden",
-  padding: 16,
+  padding: 18,
   background: "#ffffff",
 };
 
 const section = {
   border: "1px solid #e5e7eb",
-  borderRadius: 14,
-  padding: 14,
+  borderRadius: 16,
+  padding: 16,
   background: "#ffffff",
-  marginBottom: 12,
+  marginBottom: 14,
 };
 
 const sectionLabel = {
   fontWeight: 900,
   color: "#0f172a",
-  fontSize: 12,
-  marginBottom: 10,
+  fontSize: 13,
+  marginBottom: 12,
 };
 
-const typeRow = { display: "flex", gap: 10, flexWrap: "wrap" };
+const typeRow = { display: "flex", gap: 12, flexWrap: "wrap" };
 
 const typeBtn = {
-  padding: "8px 12px",
-  borderRadius: 12,
+  padding: "10px 14px",
+  borderRadius: 14,
   border: "1px solid #cbd5e1",
   background: "#f8fafc",
   color: "#0f172a",
   cursor: "pointer",
   fontWeight: 900,
+  fontSize: 14,
 };
 
-const typeBtnActive = { border: "1px solid #2563eb", background: "#eff6ff" };
+const typeBtnActive = { border: "2px solid #2563eb", background: "#eff6ff" };
 
-const grid2 = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 };
+const grid2 = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 };
 
 const grid3 = {
   display: "grid",
-  gridTemplateColumns: "140px 1fr 1fr 180px 1fr 1fr",
-  gap: 12,
+  gridTemplateColumns: "160px 1fr 1fr 200px 1fr 1fr",
+  gap: 14,
 };
 
-const fieldLabel = { fontSize: 12, color: "#475569", marginBottom: 6 };
+const fieldLabel = { fontSize: 13, color: "#475569", marginBottom: 8 };
 
 const input = {
   width: "100%",
-  height: 36,
-  borderRadius: 10,
+  height: 42,
+  borderRadius: 12,
   border: "1px solid #cbd5e1",
   background: "#ffffff",
   color: "#0f172a",
-  padding: "0 10px",
+  padding: "0 12px",
   outline: "none",
+  fontSize: 14,
 };
 
 const select = {
   width: "100%",
-  height: 36,
-  borderRadius: 10,
+  height: 42,
+  borderRadius: 12,
   border: "1px solid #cbd5e1",
   background: "#ffffff",
   color: "#0f172a",
-  padding: "0 10px",
+  padding: "0 12px",
   outline: "none",
+  fontSize: 14,
 };
 
 const tagBox = {
-  marginTop: 12,
-  borderRadius: 12,
+  marginTop: 14,
+  borderRadius: 14,
   border: "1px solid #e5e7eb",
   background: "#ffffff",
   overflow: "hidden",
 };
 
 const tagBoxHeader = {
-  padding: "10px 12px",
+  padding: "12px 14px",
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
@@ -727,16 +695,16 @@ const tagBoxHeader = {
   background: "#f8fafc",
 };
 
-const tagBoxTitle = { color: "#0f172a", fontWeight: 900, fontSize: 12 };
-const tagBoxHint = { color: "#475569", fontSize: 12 };
-const tagList = { maxHeight: 180, overflow: "auto" };
+const tagBoxTitle = { color: "#0f172a", fontWeight: 900, fontSize: 13 };
+const tagBoxHint = { color: "#475569", fontSize: 13 };
+const tagList = { maxHeight: 220, overflow: "auto" };
 
 const tagRowBtn = {
   width: "100%",
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
-  padding: "10px 12px",
+  padding: "12px 14px",
   border: "none",
   background: "transparent",
   cursor: "pointer",
@@ -744,40 +712,41 @@ const tagRowBtn = {
 };
 
 const tagMain = { display: "flex", flexDirection: "column", alignItems: "flex-start" };
-const tagField = { fontWeight: 900, fontSize: 12 };
-const tagMeta = { fontSize: 12, color: "#475569", marginTop: 2 };
+const tagField = { fontWeight: 900, fontSize: 14 };
+const tagMeta = { fontSize: 13, color: "#475569", marginTop: 3 };
 
 const tagTypePill = {
-  fontSize: 11,
+  fontSize: 12,
   fontWeight: 900,
-  padding: "2px 8px",
+  padding: "3px 10px",
   borderRadius: 999,
   border: "1px solid #cbd5e1",
   background: "#f8fafc",
   color: "#0f172a",
 };
 
-const empty = { padding: 12, color: "#64748b", fontSize: 12 };
+const empty = { padding: 14, color: "#64748b", fontSize: 13 };
 
-const picked = { padding: 12 };
+const picked = { padding: 14 };
 const pickedTop = { display: "flex", alignItems: "center", justifyContent: "space-between" };
-const pickedLabel = { color: "#475569", fontSize: 12 };
-const pickedValue = { color: "#0f172a", fontSize: 13, marginTop: 4 };
+const pickedLabel = { color: "#475569", fontSize: 13 };
+const pickedValue = { color: "#0f172a", fontSize: 14, marginTop: 6 };
 
 const miniBtn = {
-  padding: "6px 10px",
-  borderRadius: 10,
+  padding: "8px 12px",
+  borderRadius: 12,
   border: "1px solid #cbd5e1",
   background: "#f8fafc",
   color: "#0f172a",
   cursor: "pointer",
   fontWeight: 900,
+  fontSize: 13,
 };
 
 const preview = {
-  marginTop: 12,
-  padding: "10px 12px",
-  borderRadius: 12,
+  marginTop: 14,
+  padding: "12px 14px",
+  borderRadius: 14,
   border: "1px solid #e5e7eb",
   background: "#f8fafc",
   display: "flex",
@@ -785,87 +754,87 @@ const preview = {
   justifyContent: "space-between",
 };
 
-const previewLabel = { color: "#475569", fontSize: 12 };
-const previewValue = { color: "#0f172a", fontWeight: 900, fontSize: 12 };
+const previewLabel = { color: "#475569", fontSize: 13 };
+const previewValue = { color: "#0f172a", fontWeight: 900, fontSize: 13 };
 
-const inlineRow = { display: "flex", gap: 10, alignItems: "center" };
+const inlineRow = { display: "flex", gap: 12, alignItems: "center" };
 
 const chip = {
-  padding: "8px 12px",
+  padding: "10px 14px",
   borderRadius: 999,
   border: "1px solid #cbd5e1",
   background: "#f8fafc",
   color: "#0f172a",
   cursor: "pointer",
   fontWeight: 900,
+  fontSize: 14,
 };
 
-const chipActive = { border: "1px solid #2563eb", background: "#eff6ff" };
-const help = { marginTop: 8, fontSize: 12, color: "#64748b" };
+const chipActive = { border: "2px solid #2563eb", background: "#eff6ff" };
+const help = { marginTop: 10, fontSize: 13, color: "#64748b" };
 
-const topActions = { display: "flex", justifyContent: "flex-end", gap: 10, paddingTop: 4 };
+const topActions = { display: "flex", justifyContent: "flex-end", gap: 12, paddingTop: 6 };
 
 const btnGhost = {
-  padding: "9px 12px",
-  borderRadius: 10,
+  padding: "11px 14px",
+  borderRadius: 12,
   border: "1px solid #cbd5e1",
   background: "#f8fafc",
   color: "#0f172a",
   cursor: "pointer",
   fontWeight: 900,
+  fontSize: 14,
 };
 
 const btnPrimary = {
-  padding: "9px 12px",
-  borderRadius: 10,
+  padding: "11px 14px",
+  borderRadius: 12,
   border: "1px solid #1d4ed8",
   background: "#2563eb",
   color: "#fff",
   cursor: "pointer",
   fontWeight: 900,
+  fontSize: 14,
 };
 
-/* ---------- TABLE STYLES (classic clean grid like your screenshot) ---------- */
+/* ---------- TABLE (classic) ---------- */
 const tableHeader = {
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
-  marginBottom: 8,
+  marginBottom: 10,
 };
 
-const tableHeaderLeft = {
-  display: "flex",
-  gap: 8,
-  alignItems: "center",
-};
+const tableHeaderLeft = { display: "flex", gap: 10, alignItems: "center" };
 
 const tableBtn = {
-  height: 28,
-  padding: "0 10px",
+  height: 34,
+  padding: "0 12px",
   borderRadius: 2,
   border: "1px solid #c9c9c9",
   background: "#efefef",
   color: "#111",
   cursor: "pointer",
-  fontSize: 12,
-  fontWeight: 700,
+  fontSize: 13,
+  fontWeight: 800,
 };
 
 const advancedLink = {
   border: "none",
   background: "transparent",
   color: "#1d4ed8",
-  fontSize: 12,
+  fontSize: 13,
   cursor: "pointer",
   textDecoration: "underline",
   padding: 0,
+  fontWeight: 700,
 };
 
 const tableWrap = {
   border: "1px solid #c9c9c9",
   borderRadius: 2,
   overflow: "hidden",
-  height: "calc(100% - 36px)",
+  height: "calc(100% - 44px)",
   display: "flex",
   flexDirection: "column",
   background: "#fff",
@@ -879,20 +848,16 @@ const tHeadRow = {
 };
 
 const tHeadCell = {
-  padding: "6px 8px",
-  fontWeight: 800,
-  fontSize: 12,
+  padding: "8px 10px",
+  fontWeight: 900,
+  fontSize: 13,
   whiteSpace: "nowrap",
   overflow: "hidden",
   textOverflow: "ellipsis",
   borderRight: "1px solid #d7d7d7",
 };
 
-const tBody = {
-  flex: 1,
-  overflow: "auto",
-  background: "#ffffff",
-};
+const tBody = { flex: 1, overflow: "auto", background: "#ffffff" };
 
 const tRow = {
   display: "flex",
@@ -901,8 +866,8 @@ const tRow = {
 };
 
 const tCell = {
-  padding: "6px 8px",
-  fontSize: 12,
+  padding: "8px 10px",
+  fontSize: 13,
   whiteSpace: "nowrap",
   overflow: "hidden",
   textOverflow: "ellipsis",
@@ -910,7 +875,7 @@ const tCell = {
   borderRight: "1px solid #eeeeee",
 };
 
-const tSub = { fontSize: 11, color: "#666", marginTop: 2 };
-const tEmpty = { padding: 10, color: "#666", fontSize: 12 };
+const tSub = { fontSize: 12, color: "#666", marginTop: 3 };
+const tEmpty = { padding: 12, color: "#666", fontSize: 13 };
 
-const checkbox = { width: 14, height: 14, cursor: "pointer" };
+const checkbox = { width: 16, height: 16, cursor: "pointer" };
