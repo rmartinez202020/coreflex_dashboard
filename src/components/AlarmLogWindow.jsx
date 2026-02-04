@@ -70,8 +70,6 @@ export default function AlarmLogWindow({
         </div>
 
         <div style={btnRow}>
-          {/* ✅ Settings icon MOVED OUT of top bar (now lives in tabs bar right side) */}
-
           <button
             style={iconBtn}
             title="Launch"
@@ -110,7 +108,7 @@ export default function AlarmLogWindow({
         </div>
       </div>
 
-      {/* TABS (✅ now has right-side Settings icon in the location you circled) */}
+      {/* TABS (✅ Settings button moved to the X location) */}
       <div style={tabsBar}>
         <div style={tabsLeft}>
           {["alarms", "history", "active", "disabled"].map((v) => (
@@ -123,17 +121,18 @@ export default function AlarmLogWindow({
           ))}
         </div>
 
+        {/* ✅ RIGHT SIDE: BIG Settings button (tab-like, same row) */}
         <div style={tabsRight}>
           <button
             type="button"
-            style={settingsIconBtn}
+            style={settingsTabBtn}
             title="Settings"
             onClick={(e) => {
               e.stopPropagation();
               onOpenSettings?.();
             }}
           >
-            ⚙
+            ⚙ <span style={{ fontSize: 12 }}>Settings</span>
           </button>
         </div>
       </div>
@@ -223,7 +222,7 @@ export default function AlarmLogWindow({
         )}
       </div>
 
-      {/* Bottom bar (✅ now includes a BIG Settings button) */}
+      {/* Bottom bar (✅ Settings button removed from here) */}
       <div style={bottomBar}>
         <button
           type="button"
@@ -243,19 +242,6 @@ export default function AlarmLogWindow({
 
         <div style={bottomInfo}>
           Selected: <b>{checkedIds.size}</b>
-        </div>
-
-        <div style={{ marginLeft: "auto" }}>
-          <button
-            type="button"
-            style={bigSettingsBtn}
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenSettings?.();
-            }}
-          >
-            Settings
-          </button>
         </div>
       </div>
 
@@ -342,8 +328,8 @@ const topBar = {
   alignItems: "center",
   padding: "0 10px",
   borderBottom: "2px solid #000",
-  cursor: "move", // ✅ visual hint
-  userSelect: "none", // ✅ prevents text selection while dragging
+  cursor: "move",
+  userSelect: "none",
 };
 
 const titleWrap = { display: "flex", gap: 8, alignItems: "center" };
@@ -368,7 +354,6 @@ const iconBtn = {
   fontWeight: 900,
 };
 
-// ✅ NEW: red close icon style (matches the old top bar red X vibe)
 const closeBtnRed = {
   width: 28,
   height: 26,
@@ -396,19 +381,6 @@ const tabsRight = {
   marginLeft: "auto",
   display: "flex",
   alignItems: "center",
-  gap: 8,
-};
-
-const settingsIconBtn = {
-  width: 30,
-  height: 26,
-  borderRadius: 6,
-  border: "1px solid #111",
-  background: "#0b1220",
-  color: "#fff",
-  cursor: "pointer",
-  fontWeight: 900,
-  boxShadow: "0 0 0 1px rgba(255,255,255,0.06) inset",
 };
 
 const tabBtn = {
@@ -422,6 +394,15 @@ const tabBtn = {
 };
 
 const tabBtnActive = { background: "#fff", border: "1px solid #000" };
+
+/* ✅ Settings button styled like a TAB (similar to Disabled) */
+const settingsTabBtn = {
+  ...tabBtn,
+  height: 26,
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+};
 
 const table = { flex: 1, overflow: "auto", background: "#e5e7eb" };
 const headerRow = {
@@ -472,17 +453,6 @@ const ackBtn = {
 };
 
 const bottomInfo = { fontSize: 12, color: "#111827" };
-
-const bigSettingsBtn = {
-  padding: "10px 16px",
-  borderRadius: 10,
-  border: "2px solid #000",
-  background: "#111827",
-  color: "#fff",
-  fontWeight: 900,
-  cursor: "pointer",
-  minWidth: 120,
-};
 
 /* ✅ Professional warning modal styles */
 const confirmOverlay = {
