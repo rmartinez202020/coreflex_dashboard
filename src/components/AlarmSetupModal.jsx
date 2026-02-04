@@ -5,18 +5,13 @@ export default function AlarmSetupModal({
   open,
   onClose,
 
-  // called when user adds an alarm (optional, parent can persist)
   onAddAlarm,
-
-  // (optional) called when alarms list changes (save to project)
   onChangeAlarms,
 
-  // provide these from parent if you already have them
   devices = [], // [{ deviceId, name }]
-  availableTags = [], // [{ deviceId, field, label, type }] type: "DI" | "AO" | "AI" | ...
-  sensorsData, // optional for preview
+  availableTags = [], // [{ deviceId, field, label, type }]
+  sensorsData,
 
-  // optional: initial alarms from project
   initialAlarms = [],
 }) {
   if (!open) return null;
@@ -66,22 +61,19 @@ export default function AlarmSetupModal({
     emitChange(next);
   };
 
-  // ======== FORM STATE (ADD NEW ALARM) ========
+  // ======== FORM STATE ========
   const [alarmType, setAlarmType] = React.useState("boolean"); // boolean | dynamic
   const [deviceId, setDeviceId] = React.useState("");
   const [search, setSearch] = React.useState("");
   const [selectedTag, setSelectedTag] = React.useState(null);
 
-  // boolean
   const [contactType, setContactType] = React.useState("NO"); // NO | NC
 
-  // dynamic
   const [operator, setOperator] = React.useState(">=");
   const [threshold, setThreshold] = React.useState("0");
   const [deadband, setDeadband] = React.useState("0");
   const [severity, setSeverity] = React.useState("warning");
 
-  // common
   const [message, setMessage] = React.useState("");
 
   React.useEffect(() => {
@@ -129,18 +121,14 @@ export default function AlarmSetupModal({
     const newAlarm = {
       id,
       createdAt: Date.now(),
-      type: alarmType, // boolean | dynamic
+      type: alarmType,
       deviceId: selectedTag.deviceId,
       field: selectedTag.field,
       tagLabel: selectedTag.label || selectedTag.field,
       ioType: alarmType === "boolean" ? "DI" : "AO",
       message: message?.trim() || "",
       edgeDetection:
-        alarmType === "boolean"
-          ? contactType === "NO"
-            ? "Equal"
-            : "Equal"
-          : `When value ${operator} ${threshold}`,
+        alarmType === "boolean" ? "Equal" : `When value ${operator} ${threshold}`,
       value:
         alarmType === "boolean"
           ? contactType === "NO"
@@ -167,10 +155,6 @@ export default function AlarmSetupModal({
     onAddAlarm?.(newAlarm);
     setMessage("");
   };
-
-  // ✅ NO scroll on TOP: we keep top fixed height and "fit"
-  // If your top form gets too tall, it will simply clip instead of scrolling.
-  // Bottom table is the ONLY scroll area.
 
   const allChecked = alarms.length > 0 && alarms.every((a) => checkedIds.has(a.id));
 
@@ -200,10 +184,10 @@ export default function AlarmSetupModal({
 
         {/* CONTENT */}
         <div style={content}>
-          {/* TOP: FIXED (NO SCROLL) */}
+          {/* ✅ TOP (no scroll): give it more height so it fits */}
           <div style={topArea}>
             <div style={topGrid}>
-              {/* LEFT COLUMN */}
+              {/* LEFT */}
               <div style={col}>
                 <div style={sectionCompact}>
                   <div style={sectionLabel}>Alarm Type</div>
@@ -256,7 +240,8 @@ export default function AlarmSetupModal({
                           </button>
                         </div>
                         <div style={help}>
-                          NO = alarm when input becomes <b>1</b> • NC = alarm when input becomes <b>0</b>
+                          NO = alarm when input becomes <b>1</b> • NC = alarm when input becomes{" "}
+                          <b>0</b>
                         </div>
                       </div>
 
@@ -350,7 +335,7 @@ export default function AlarmSetupModal({
                 </div>
               </div>
 
-              {/* RIGHT COLUMN */}
+              {/* RIGHT */}
               <div style={col}>
                 <div style={sectionCompact}>
                   <div style={sectionLabel}>Tag that triggers this alarm</div>
@@ -446,11 +431,11 @@ export default function AlarmSetupModal({
             </div>
           </div>
 
-          {/* BOTTOM: TABLE (ONLY SCROLL AREA) */}
+          {/* ✅ BOTTOM: ONLY SCROLL AREA (table body scrolls) */}
           <div style={bottomArea}>
             <div style={tableHeader}>
               <div style={tableHeaderLeft}>
-                <button type="button" style={tableBtn} onClick={() => {}}>
+                <button type="button" style={tableBtn}>
                   Add Alarm
                 </button>
 
@@ -497,7 +482,9 @@ export default function AlarmSetupModal({
                 <div style={{ ...tHeadCell, width: 170 }}>Edge Detection</div>
                 <div style={{ ...tHeadCell, width: 110, textAlign: "center" }}>Value</div>
                 <div style={{ ...tHeadCell, width: 160 }}>Deadband Mode</div>
-                <div style={{ ...tHeadCell, width: 170, textAlign: "center" }}>Deadband Level</div>
+                <div style={{ ...tHeadCell, width: 170, textAlign: "center" }}>
+                  Deadband Level
+                </div>
                 <div style={{ ...tHeadCell, flex: 1, minWidth: 420, borderRight: "none" }}>
                   Message
                 </div>
@@ -530,17 +517,23 @@ export default function AlarmSetupModal({
                           <div style={tSub}>{a.deviceId}</div>
                         </div>
 
-                        <div style={{ ...tCell, width: 130 }}>{a.type === "boolean" ? "Bit" : "Analog"}</div>
-
-                        <div style={{ ...tCell, width: 170 }}>
-                          {a.type === "boolean" ? (a.config?.contactType === "NO" ? "Equal" : "Equal") : a.edgeDetection}
+                        <div style={{ ...tCell, width: 130 }}>
+                          {a.type === "boolean" ? "Bit" : "Analog"}
                         </div>
 
-                        <div style={{ ...tCell, width: 110, textAlign: "center" }}>{String(a.value)}</div>
+                        <div style={{ ...tCell, width: 170 }}>
+                          {a.type === "boolean" ? "Equal" : a.edgeDetection}
+                        </div>
+
+                        <div style={{ ...tCell, width: 110, textAlign: "center" }}>
+                          {String(a.value)}
+                        </div>
 
                         <div style={{ ...tCell, width: 160 }}>{a.deadbandMode}</div>
 
-                        <div style={{ ...tCell, width: 170, textAlign: "center" }}>{String(a.deadbandLevel)}</div>
+                        <div style={{ ...tCell, width: 170, textAlign: "center" }}>
+                          {String(a.deadbandLevel)}
+                        </div>
 
                         <div style={{ ...tCell, flex: 1, minWidth: 420, borderRight: "none" }}>
                           {a.message || <span style={{ color: "#888" }}>—</span>}
@@ -558,7 +551,7 @@ export default function AlarmSetupModal({
   );
 }
 
-/* ---------- BIG MODAL (wider + bigger text) ---------- */
+/* ---------- MODAL SIZING (taller) ---------- */
 const overlay = {
   position: "fixed",
   inset: 0,
@@ -570,8 +563,8 @@ const overlay = {
 };
 
 const card = {
-  width: "min(1900px, calc(100% - 12px))", // ✅ wider
-  height: "min(980px, calc(100% - 12px))",
+  width: "min(1900px, calc(100% - 12px))",
+  height: "min(1040px, calc(100% - 12px))", // ✅ taller
   background: "#ffffff",
   borderRadius: 18,
   border: "1px solid #cbd5e1",
@@ -579,7 +572,7 @@ const card = {
   overflow: "hidden",
   display: "flex",
   flexDirection: "column",
-  fontSize: 15, // ✅ bigger base font
+  fontSize: 15,
 };
 
 const header = {
@@ -619,17 +612,12 @@ const xBtn = {
   fontSize: 16,
 };
 
-const content = {
-  display: "flex",
-  flexDirection: "column",
-  flex: 1,
-  overflow: "hidden", // ✅ prevent global scroll
-};
+const content = { display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" };
 
-/* ✅ Top fits, NO scroll here */
+/* ✅ Give top more height so it fits (and still NO scroll there) */
 const topArea = {
-  flex: "0 0 46%", // ✅ smaller top so it fits
-  overflow: "hidden", // ✅ no scroll
+  flex: "0 0 54%", // ✅ taller top (was smaller)
+  overflow: "hidden", // ✅ no scroll at top
   padding: 16,
   borderBottom: "1px solid #e5e7eb",
   background: "#ffffff",
@@ -638,7 +626,7 @@ const topArea = {
 const topGrid = {
   height: "100%",
   display: "grid",
-  gridTemplateColumns: "1fr 1.15fr", // ✅ give more space to Tag/Results
+  gridTemplateColumns: "1fr 1.15fr",
   gap: 14,
 };
 
@@ -652,12 +640,7 @@ const sectionCompact = {
   marginBottom: 12,
 };
 
-const sectionLabel = {
-  fontWeight: 900,
-  color: "#0f172a",
-  fontSize: 13,
-  marginBottom: 10,
-};
+const sectionLabel = { fontWeight: 900, color: "#0f172a", fontSize: 13, marginBottom: 10 };
 
 const typeRow = { display: "flex", gap: 12, flexWrap: "wrap" };
 
@@ -684,7 +667,6 @@ const row4 = {
 };
 
 const fieldRow = { marginTop: 10 };
-
 const fieldLabel = { fontSize: 13, color: "#475569", marginBottom: 8 };
 
 const input = {
@@ -731,8 +713,8 @@ const tagBoxHeader = {
 const tagBoxTitle = { color: "#0f172a", fontWeight: 900, fontSize: 13 };
 const tagBoxHint = { color: "#475569", fontSize: 13 };
 
-/* ✅ list can scroll internally without creating page scroll */
-const tagList = { maxHeight: 170, overflow: "auto" };
+/* small internal list scroll is ok; main scroll is bottom table */
+const tagList = { maxHeight: 200, overflow: "auto" };
 
 const tagRowBtn = {
   width: "100%",
@@ -833,7 +815,7 @@ const btnPrimary = {
   fontSize: 14,
 };
 
-/* ✅ Bottom: ONLY scroll area */
+/* ✅ Bottom table area stays scrollable */
 const bottomArea = {
   flex: "1 1 auto",
   overflow: "hidden",
@@ -841,13 +823,7 @@ const bottomArea = {
   background: "#ffffff",
 };
 
-const tableHeader = {
-  display: "flex",
-  alignItems: "center",
-  justifyContent: "space-between",
-  marginBottom: 10,
-};
-
+const tableHeader = { display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: 10 };
 const tableHeaderLeft = { display: "flex", gap: 10, alignItems: "center" };
 
 const tableBtn = {
@@ -902,15 +878,11 @@ const tHeadCell = {
 
 const tBody = {
   flex: 1,
-  overflow: "auto", // ✅ only scroll here
+  overflow: "auto", // ✅ scroll only here
   background: "#ffffff",
 };
 
-const tRow = {
-  display: "flex",
-  borderBottom: "1px solid #e2e2e2",
-  background: "#fff",
-};
+const tRow = { display: "flex", borderBottom: "1px solid #e2e2e2", background: "#fff" };
 
 const tCell = {
   padding: "9px 10px",
