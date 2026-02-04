@@ -25,6 +25,7 @@ import useWindowDragResize from "./hooks/useWindowDragResize";
 import DashboardCanvasContextMenu from "./components/DashboardCanvasContextMenu";
 import useDashboardCanvasClipboard from "./hooks/useDashboardCanvasClipboard";
 import useDashboardZOrder from "./hooks/useDashboardZOrder";
+import useDashboardModalsController from "./hooks/useDashboardModalsController";
 
 export default function App() {
   const navigate = useNavigate();
@@ -203,39 +204,29 @@ export default function App() {
   const [activeSiloId, setActiveSiloId] = useState(null);
   const [showSiloProps, setShowSiloProps] = useState(false);
 
-  // DISPLAY SETTINGS MODAL
-  const [displaySettingsId, setDisplaySettingsId] = useState(null);
-  const openDisplaySettings = (tank) => setDisplaySettingsId(tank.id);
-  const closeDisplaySettings = () => setDisplaySettingsId(null);
+    // ✅ MODALS (extracted)
+  const {
+    displaySettingsId,
+    indicatorSettingsId,
+    statusTextSettingsId,
+    blinkingAlarmSettingsId,
+    stateImageSettingsId,
+    graphicSettingsId,
 
-  // ✅ INDICATOR (LED) SETTINGS MODAL
-  const [indicatorSettingsId, setIndicatorSettingsId] = useState(null);
-  const openIndicatorSettings = (tank) => setIndicatorSettingsId(tank.id);
-  const closeIndicatorSettings = () => setIndicatorSettingsId(null);
+    openDisplaySettings,
+    openIndicatorSettings,
+    openStatusTextSettings,
+    openBlinkingAlarmSettings,
+    openStateImageSettings,
+    openGraphicDisplaySettings,
 
-  const indicatorTank =
-    droppedTanks.find((t) => t.id === indicatorSettingsId) || null;
-
-  // ✅ STATUS TEXT SETTINGS MODAL (NEW)
-  const [statusTextSettingsId, setStatusTextSettingsId] = useState(null);
-  const openStatusTextSettings = (tank) => setStatusTextSettingsId(tank.id);
-  const closeStatusTextSettings = () => setStatusTextSettingsId(null);
-
-  // ✅ BLINKING ALARM SETTINGS MODAL (NEW)
-  const [blinkingAlarmSettingsId, setBlinkingAlarmSettingsId] = useState(null);
-  const openBlinkingAlarmSettings = (tank) =>
-    setBlinkingAlarmSettingsId(tank.id);
-  const closeBlinkingAlarmSettings = () => setBlinkingAlarmSettingsId(null);
-
-  // ✅ STATE IMAGE SETTINGS MODAL (NEW)
-  const [stateImageSettingsId, setStateImageSettingsId] = useState(null);
-  const openStateImageSettings = (tank) => setStateImageSettingsId(tank.id);
-  const closeStateImageSettings = () => setStateImageSettingsId(null);
-
-  // ✅ GRAPHIC DISPLAY SETTINGS MODAL
-  const [graphicSettingsId, setGraphicSettingsId] = useState(null);
-  const openGraphicDisplaySettings = (tank) => setGraphicSettingsId(tank.id);
-  const closeGraphicDisplaySettings = () => setGraphicSettingsId(null);
+    closeDisplaySettings,
+    closeIndicatorSettings,
+    closeStatusTextSettings,
+    closeBlinkingAlarmSettings,
+    closeStateImageSettings,
+    closeGraphicDisplaySettings,
+  } = useDashboardModalsController({ droppedTanks });
 
   // 🚨 ALARMS LOG MODAL (AI)
   const [alarmLogOpen, setAlarmLogOpen] = useState(false);
@@ -395,7 +386,6 @@ const { copyFromContext, pasteAtContext, hasClipboard } =
     dashboardMode !== "play";
 
 const hasTarget = !!contextMenu?.targetId;
-
 
   return (
     <div
