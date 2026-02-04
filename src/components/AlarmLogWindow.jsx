@@ -126,7 +126,7 @@ export default function AlarmLogWindow({
           <button
             type="button"
             style={settingsTabBtn}
-            title="Settings"
+            title="Alarm Manager"
             onClick={(e) => {
               e.stopPropagation();
               onOpenSettings?.();
