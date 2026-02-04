@@ -1,14 +1,23 @@
 // src/components/AlarmLogWindow.jsx
 import React from "react";
+import AlarmSetupModal from "./AlarmSetupModal";
 
 export default function AlarmLogWindow({
   onLaunch,
   onMinimize,
   onClose,
+
+  // (optional) legacy hook — we keep it for backward compatibility
   onOpenSettings,
 
   // ✅ NEW: provided by FloatingWindow wrapper (useWindowDragResize.getWindowProps)
   onStartDragWindow,
+
+  // ✅ NEW: wiring for Alarm Setup Modal
+  devices = [], // [{ deviceId, name }]
+  availableTags = [], // [{ deviceId, field, label, type: "DI"|"AO"|... }]
+  sensorsData, // optional, for preview value inside modal
+  onAddAlarm, // (alarmObj) => void
 
   title = "Alarms Log (DI-AI)",
 }) {
@@ -19,6 +28,9 @@ export default function AlarmLogWindow({
   const [selectedId, setSelectedId] = React.useState(null);
   const [checkedIds, setCheckedIds] = React.useState(() => new Set());
   const [showCloseConfirm, setShowCloseConfirm] = React.useState(false);
+
+  // ✅ NEW: open/close Alarm Setup modal
+  const [showAlarmSetup, setShowAlarmSetup] = React.useState(false);
 
   const visibleAlarms = React.useMemo(() => {
     if (alarmView === "disabled") return [];
@@ -121,7 +133,7 @@ export default function AlarmLogWindow({
           ))}
         </div>
 
-        {/* ✅ RIGHT SIDE: BIG Settings button (tab-like, same row) */}
+        {/* ✅ RIGHT SIDE: Settings button opens Alarm Setup modal */}
         <div style={tabsRight}>
           <button
             type="button"
@@ -129,6 +141,11 @@ export default function AlarmLogWindow({
             title="Alarm Manager"
             onClick={(e) => {
               e.stopPropagation();
+
+              // ✅ OPEN our new Alarm Setup window
+              setShowAlarmSetup(true);
+
+              // ✅ keep compatibility if parent uses this hook for something else
               onOpenSettings?.();
             }}
           >
@@ -222,7 +239,7 @@ export default function AlarmLogWindow({
         )}
       </div>
 
-      {/* Bottom bar (✅ Settings button removed from here) */}
+      {/* Bottom bar */}
       <div style={bottomBar}>
         <button
           type="button"
@@ -245,6 +262,19 @@ export default function AlarmLogWindow({
         </div>
       </div>
 
+      {/* ✅ NEW: Alarm Setup Modal */}
+      <AlarmSetupModal
+        open={showAlarmSetup}
+        onClose={() => setShowAlarmSetup(false)}
+        onAddAlarm={(alarmObj) => {
+          console.log("✅ Added Alarm:", alarmObj);
+          onAddAlarm?.(alarmObj);
+        }}
+        devices={devices}
+        availableTags={availableTags}
+        sensorsData={sensorsData}
+      />
+
       {/* CLOSE CONFIRM (✅ upgraded professional warning modal) */}
       {showCloseConfirm && (
         <div
@@ -262,15 +292,20 @@ export default function AlarmLogWindow({
             </div>
 
             <div style={confirmBody}>
-              If you close this window, <b>your current Alarm Log setup will be lost</b>{" "}
-              (view mode, filters, selections, and any unsaved configuration).
+              If you close this window,{" "}
+              <b>your current Alarm Log setup will be lost</b> (view mode,
+              filters, selections, and any unsaved configuration).
               <div style={confirmHint}>
-                Tip: Save your project and Minimize the window if you want to keep this setup.
+                Tip: Save your project and Minimize the window if you want to
+                keep this setup.
               </div>
             </div>
 
             <div style={confirmActions}>
-              <button style={cancelBtn} onClick={() => setShowCloseConfirm(false)}>
+              <button
+                style={cancelBtn}
+                onClick={() => setShowCloseConfirm(false)}
+              >
                 Keep Open
               </button>
 
@@ -421,7 +456,12 @@ const cellHead = {
   textOverflow: "ellipsis",
 };
 
-const row = { display: "flex", borderBottom: "1px solid #9ca3af", cursor: "default" };
+const row = {
+  display: "flex",
+  borderBottom: "1px solid #9ca3af",
+  cursor: "default",
+};
+
 const cell = {
   padding: 8,
   fontSize: 12,
@@ -430,7 +470,12 @@ const cell = {
   textOverflow: "ellipsis",
 };
 
-const checkbox = { width: 14, height: 14, cursor: "pointer", accentColor: "#111827" };
+const checkbox = {
+  width: 14,
+  height: 14,
+  cursor: "pointer",
+  accentColor: "#111827",
+};
 
 const emptyState = { padding: 16, fontSize: 13, color: "#111827" };
 
