@@ -23,6 +23,7 @@ import useContextMenu from "./hooks/useContextMenu";
 import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 import useWindowDragResize from "./hooks/useWindowDragResize";
 import DashboardCanvasContextMenu from "./components/DashboardCanvasContextMenu";
+import useDashboardCanvasClipboard from "./hooks/useDashboardCanvasClipboard";
 
 
 export default function App() {
@@ -390,101 +391,17 @@ const deleteSelectionOrTarget = useCallback(() => {
   clearSelection();
 }, [selectedIds, contextMenu, setDroppedTanks]);
 
-
-  // ============================
-  // ✅ CONTEXT MENU: COPY / PASTE
-  // ============================
-  const clipboardRef = useRef({
-    items: [],
-    copiedAt: 0,
-  });
-
-  const getCanvasPointFromClient = useCallback((clientX, clientY) => {
-    const el = document.getElementById("coreflex-canvas-root");
-    if (!el) return { x: 40, y: 40 };
-
-    const r = el.getBoundingClientRect();
-    const x = Math.round((clientX ?? 0) - r.left);
-    const y = Math.round((clientY ?? 0) - r.top);
-
-    const cx = Math.max(0, Math.min(x, el.clientWidth - 10));
-    const cy = Math.max(0, Math.min(y, el.clientHeight - 10));
-    return { x: cx, y: cy };
-  }, []);
-
-  const makeId = () => {
-    try {
-      return crypto.randomUUID();
-    } catch {
-      return `id_${Date.now()}_${Math.random().toString(16).slice(2)}`;
-    }
-  };
-
-  const copyFromContext = useCallback(() => {
-    const targetId = contextMenu?.targetId;
-    if (!targetId) return;
-
-    const idsToCopy =
-      selectedIds?.length > 1 && selectedIds.includes(targetId)
-        ? selectedIds
-        : [targetId];
-
-    const items = droppedTanks
-      .filter((t) => idsToCopy.includes(t.id))
-      .map((t) => ({ ...t }));
-
-    clipboardRef.current = {
-      items,
-      copiedAt: Date.now(),
-    };
-  }, [contextMenu?.targetId, selectedIds, droppedTanks]);
-
-  const pasteAtContext = useCallback(() => {
-    const clip = clipboardRef.current?.items || [];
-    if (!clip.length) return;
-
-    const pt = getCanvasPointFromClient(contextMenu?.x ?? 0, contextMenu?.y ?? 0);
-
-    const currentMaxZ = Math.max(1, ...droppedTanks.map((t) => getTankZ(t)));
-    let z = currentMaxZ + 1;
-
-    const base = clip[0];
-    const baseX = base?.x ?? 0;
-    const baseY = base?.y ?? 0;
-
-    const OFFSET = 18;
-
-    const pasted = clip.map((src, i) => {
-      const dx = (src.x ?? 0) - baseX;
-      const dy = (src.y ?? 0) - baseY;
-
-      const nx = pt.x + dx + OFFSET;
-      const ny = pt.y + dy + OFFSET;
-
-      const id = makeId();
-
-      const next = {
-        ...src,
-        id,
-        x: nx,
-        y: ny,
-        z,
-        zIndex: z,
-      };
-
-      z += 1;
-      return next;
-    });
-
-    setDroppedTanks((prev) => [...prev, ...pasted]);
-  }, [
-    contextMenu?.x,
-    contextMenu?.y,
-    getCanvasPointFromClient,
+const { copyFromContext, pasteAtContext, hasClipboard } =
+  useDashboardCanvasClipboard({
     droppedTanks,
+    selectedIds,
+    contextMenu,
     setDroppedTanks,
     getTankZ,
-  ]);
+    canvasRootId: "coreflex-canvas-root",
+  });
+
+
 
   const { goHomeHard } = useHomeReset({
     navigate,
@@ -574,7 +491,6 @@ const deleteSelectionOrTarget = useCallback(() => {
     activePage === "dashboard" &&
     dashboardMode !== "play";
 
-  const hasClipboard = (clipboardRef.current?.items?.length || 0) > 0;
 const hasTarget = !!contextMenu?.targetId;
 
 
