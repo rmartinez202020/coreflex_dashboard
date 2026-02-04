@@ -70,16 +70,7 @@ export default function AlarmLogWindow({
         </div>
 
         <div style={btnRow}>
-          <button
-            style={iconBtn}
-            title="Settings"
-            onClick={(e) => {
-              e.stopPropagation();
-              onOpenSettings?.();
-            }}
-          >
-            ⚙
-          </button>
+          {/* ✅ Settings icon MOVED OUT of top bar (now lives in tabs bar right side) */}
 
           <button
             style={iconBtn}
@@ -119,16 +110,32 @@ export default function AlarmLogWindow({
         </div>
       </div>
 
-      {/* TABS */}
+      {/* TABS (✅ now has right-side Settings icon in the location you circled) */}
       <div style={tabsBar}>
-        {["alarms", "history", "active", "disabled"].map((v) => (
-          <TabButton
-            key={v}
-            label={v.charAt(0).toUpperCase() + v.slice(1)}
-            active={alarmView === v}
-            onClick={() => setAlarmView(v)}
-          />
-        ))}
+        <div style={tabsLeft}>
+          {["alarms", "history", "active", "disabled"].map((v) => (
+            <TabButton
+              key={v}
+              label={v.charAt(0).toUpperCase() + v.slice(1)}
+              active={alarmView === v}
+              onClick={() => setAlarmView(v)}
+            />
+          ))}
+        </div>
+
+        <div style={tabsRight}>
+          <button
+            type="button"
+            style={settingsIconBtn}
+            title="Settings"
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenSettings?.();
+            }}
+          >
+            ⚙
+          </button>
+        </div>
       </div>
 
       {/* TABLE */}
@@ -216,7 +223,7 @@ export default function AlarmLogWindow({
         )}
       </div>
 
-      {/* Bottom bar */}
+      {/* Bottom bar (✅ now includes a BIG Settings button) */}
       <div style={bottomBar}>
         <button
           type="button"
@@ -236,6 +243,19 @@ export default function AlarmLogWindow({
 
         <div style={bottomInfo}>
           Selected: <b>{checkedIds.size}</b>
+        </div>
+
+        <div style={{ marginLeft: "auto" }}>
+          <button
+            type="button"
+            style={bigSettingsBtn}
+            onClick={(e) => {
+              e.stopPropagation();
+              onOpenSettings?.();
+            }}
+          >
+            Settings
+          </button>
         </div>
       </div>
 
@@ -370,6 +390,27 @@ const tabsBar = {
   borderBottom: "1px solid #9ca3af",
 };
 
+const tabsLeft = { display: "flex", gap: 6, alignItems: "center" };
+
+const tabsRight = {
+  marginLeft: "auto",
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+};
+
+const settingsIconBtn = {
+  width: 30,
+  height: 26,
+  borderRadius: 6,
+  border: "1px solid #111",
+  background: "#0b1220",
+  color: "#fff",
+  cursor: "pointer",
+  fontWeight: 900,
+  boxShadow: "0 0 0 1px rgba(255,255,255,0.06) inset",
+};
+
 const tabBtn = {
   padding: "4px 10px",
   fontWeight: 900,
@@ -431,6 +472,17 @@ const ackBtn = {
 };
 
 const bottomInfo = { fontSize: 12, color: "#111827" };
+
+const bigSettingsBtn = {
+  padding: "10px 16px",
+  borderRadius: 10,
+  border: "2px solid #000",
+  background: "#111827",
+  color: "#fff",
+  fontWeight: 900,
+  cursor: "pointer",
+  minWidth: 120,
+};
 
 /* ✅ Professional warning modal styles */
 const confirmOverlay = {
