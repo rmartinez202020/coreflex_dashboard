@@ -10,13 +10,13 @@ export default function AlarmLogWindow({
   // (optional) legacy hook — we keep it for backward compatibility
   onOpenSettings,
 
-  // ✅ NEW: provided by FloatingWindow wrapper (useWindowDragResize.getWindowProps)
+  // ✅ provided by FloatingWindow wrapper (useWindowDragResize.getWindowProps)
   onStartDragWindow,
 
-  // ✅ NEW: wiring for Alarm Setup Modal
+  // ✅ Alarm Setup Modal data
   devices = [], // [{ deviceId, name }]
   availableTags = [], // [{ deviceId, field, label, type: "DI"|"AO"|... }]
-  sensorsData, // optional, for preview value inside modal
+  sensorsData, // optional preview
   onAddAlarm, // (alarmObj) => void
 
   title = "Alarms Log (DI-AI)",
@@ -29,7 +29,7 @@ export default function AlarmLogWindow({
   const [checkedIds, setCheckedIds] = React.useState(() => new Set());
   const [showCloseConfirm, setShowCloseConfirm] = React.useState(false);
 
-  // ✅ NEW: open/close Alarm Setup modal
+  // ✅ open/close Alarm Setup modal
   const [showAlarmSetup, setShowAlarmSetup] = React.useState(false);
 
   const visibleAlarms = React.useMemo(() => {
@@ -67,11 +67,10 @@ export default function AlarmLogWindow({
 
   return (
     <div style={wrap}>
-      {/* TOP BAR (✅ NOW DRAGS THE OUTER FloatingWindow) */}
+      {/* TOP BAR (dark like screenshot) */}
       <div
         style={topBar}
         onMouseDown={(e) => {
-          // Drag the floating window when grabbing this bar
           e.stopPropagation();
           onStartDragWindow?.(e);
         }}
@@ -93,20 +92,17 @@ export default function AlarmLogWindow({
             ↗
           </button>
 
-          {/* ✅ IMPORTANT: this MUST call parent minimizer */}
           <button
             style={iconBtn}
             title="Minimize"
             onClick={(e) => {
               e.stopPropagation();
-              console.log("🟡 AlarmLogWindow minimize clicked");
               onMinimize?.();
             }}
           >
             —
           </button>
 
-          {/* ✅ UPDATED: RED CLOSE BUTTON */}
           <button
             style={closeBtnRed}
             title="Close"
@@ -120,7 +116,7 @@ export default function AlarmLogWindow({
         </div>
       </div>
 
-      {/* TABS (✅ Settings button moved to the X location) */}
+      {/* TABS BAR (✅ now WHITE / classic) */}
       <div style={tabsBar}>
         <div style={tabsLeft}>
           {["alarms", "history", "active", "disabled"].map((v) => (
@@ -133,7 +129,7 @@ export default function AlarmLogWindow({
           ))}
         </div>
 
-        {/* ✅ RIGHT SIDE: Settings button opens Alarm Setup modal */}
+        {/* ✅ RIGHT SIDE: Settings button (classic white) */}
         <div style={tabsRight}>
           <button
             type="button"
@@ -141,15 +137,12 @@ export default function AlarmLogWindow({
             title="Alarm Manager"
             onClick={(e) => {
               e.stopPropagation();
-
-              // ✅ OPEN our new Alarm Setup window
               setShowAlarmSetup(true);
-
-              // ✅ keep compatibility if parent uses this hook for something else
               onOpenSettings?.();
             }}
           >
-            ⚙ <span style={{ fontSize: 12 }}>Settings</span>
+            <span style={gearPill}>⚙</span>
+            <span style={{ fontSize: 12, fontWeight: 900 }}>Settings</span>
           </button>
         </div>
       </div>
@@ -239,7 +232,7 @@ export default function AlarmLogWindow({
         )}
       </div>
 
-      {/* Bottom bar */}
+      {/* Bottom bar (classic) */}
       <div style={bottomBar}>
         <button
           type="button"
@@ -262,7 +255,7 @@ export default function AlarmLogWindow({
         </div>
       </div>
 
-      {/* ✅ NEW: Alarm Setup Modal */}
+      {/* ✅ Alarm Setup Modal */}
       <AlarmSetupModal
         open={showAlarmSetup}
         onClose={() => setShowAlarmSetup(false)}
@@ -275,7 +268,7 @@ export default function AlarmLogWindow({
         sensorsData={sensorsData}
       />
 
-      {/* CLOSE CONFIRM (✅ upgraded professional warning modal) */}
+      {/* CLOSE CONFIRM */}
       {showCloseConfirm && (
         <div
           style={confirmOverlay}
@@ -343,10 +336,11 @@ function TabButton({ label, active, onClick }) {
 
 const COL = { sel: 34, time: 170, ack: 48, sev: 48, group: 120, controller: 120 };
 
+/* ✅ WINDOW WRAP (light) */
 const wrap = {
   width: "100%",
   height: "100%",
-  background: "#e5e7eb",
+  background: "#f8fafc",
   border: "3px solid #000",
   boxShadow: "0 0 0 1px #374151 inset, 0 8px 24px rgba(0,0,0,.45)",
   display: "flex",
@@ -354,6 +348,7 @@ const wrap = {
   position: "relative",
 };
 
+/* ✅ DARK TITLE BAR (keep) */
 const topBar = {
   height: 42,
   background: "#111827",
@@ -400,12 +395,13 @@ const closeBtnRed = {
   fontWeight: 900,
 };
 
+/* ✅ WHITE / CLASSIC TAB BAR */
 const tabsBar = {
   height: 34,
   display: "flex",
   gap: 6,
   padding: "0 10px",
-  background: "#d1d5db",
+  background: "#e5e7eb",
   alignItems: "center",
   borderBottom: "1px solid #9ca3af",
 };
@@ -423,23 +419,44 @@ const tabBtn = {
   fontWeight: 900,
   borderRadius: 6,
   border: "1px solid #9ca3af",
-  background: "#f3f4f6",
+  background: "#ffffff",
   cursor: "pointer",
   fontSize: 12,
 };
 
-const tabBtnActive = { background: "#fff", border: "1px solid #000" };
+const tabBtnActive = {
+  background: "#ffffff",
+  border: "1px solid #000",
+  boxShadow: "0 1px 0 rgba(0,0,0,0.25)",
+};
 
-/* ✅ Settings button styled like a TAB (similar to Disabled) */
+/* ✅ Settings button matches “white tab” look */
 const settingsTabBtn = {
-  ...tabBtn,
   height: 26,
+  padding: "4px 10px",
+  borderRadius: 6,
+  border: "1px solid #9ca3af",
+  background: "#ffffff",
+  cursor: "pointer",
   display: "inline-flex",
   alignItems: "center",
   gap: 8,
 };
 
+const gearPill = {
+  width: 18,
+  height: 18,
+  borderRadius: 6,
+  border: "1px solid #cbd5e1",
+  background: "#f1f5f9",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 12,
+};
+
 const table = { flex: 1, overflow: "auto", background: "#e5e7eb" };
+
 const headerRow = {
   display: "flex",
   background: "#111827",
@@ -479,6 +496,7 @@ const checkbox = {
 
 const emptyState = { padding: 16, fontSize: 13, color: "#111827" };
 
+/* ✅ CLASSIC BOTTOM BAR */
 const bottomBar = {
   height: 44,
   display: "flex",
@@ -486,20 +504,20 @@ const bottomBar = {
   gap: 10,
   padding: "0 10px",
   background: "#d1d5db",
-  borderTop: "2px solid #000",
+  borderTop: "1px solid #000",
 };
 
 const ackBtn = {
   padding: "8px 12px",
   borderRadius: 8,
-  border: "2px solid #000",
-  background: "#f3f4f6",
+  border: "1px solid #000",
+  background: "#e5e7eb",
   fontWeight: 900,
 };
 
 const bottomInfo = { fontSize: 12, color: "#111827" };
 
-/* ✅ Professional warning modal styles */
+/* ✅ Professional warning modal styles (keep dark modal for contrast) */
 const confirmOverlay = {
   position: "absolute",
   inset: 0,
