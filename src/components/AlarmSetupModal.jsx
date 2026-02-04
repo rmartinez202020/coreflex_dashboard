@@ -54,7 +54,6 @@ export default function AlarmSetupModal({
     if (!selectedTag || !sensorsData) return null;
     const dev = sensorsData?.[selectedTag.deviceId];
     if (!dev) return null;
-    // try common shapes: dev[field] or dev.values[field]
     const v =
       dev?.[selectedTag.field] ??
       dev?.values?.[selectedTag.field] ??
@@ -215,9 +214,7 @@ export default function AlarmSetupModal({
                         >
                           <div style={tagMain}>
                             <div style={tagField}>{t.field}</div>
-                            <div style={tagMeta}>
-                              {t.label ? t.label : ""}
-                            </div>
+                            <div style={tagMeta}>{t.label ? t.label : ""}</div>
                           </div>
                           <div style={tagTypePill}>{t.type || "—"}</div>
                         </button>
@@ -383,11 +380,11 @@ export default function AlarmSetupModal({
   );
 }
 
-/* ---------- styles ---------- */
+/* ---------- LIGHT STYLES (white/clean) ---------- */
 const overlay = {
   position: "fixed",
   inset: 0,
-  background: "rgba(0,0,0,0.55)",
+  background: "rgba(0,0,0,0.35)",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
@@ -399,10 +396,10 @@ const card = {
   maxWidth: "calc(100% - 40px)",
   height: 640,
   maxHeight: "calc(100% - 40px)",
-  background: "#0b1220",
+  background: "#ffffff",
   borderRadius: 16,
-  border: "1px solid rgba(148,163,184,0.25)",
-  boxShadow: "0 20px 60px rgba(0,0,0,0.60)",
+  border: "1px solid #cbd5e1",
+  boxShadow: "0 18px 60px rgba(0,0,0,0.25)",
   overflow: "hidden",
   display: "flex",
   flexDirection: "column",
@@ -413,8 +410,8 @@ const header = {
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
-  borderBottom: "1px solid rgba(148,163,184,0.18)",
-  background: "linear-gradient(180deg, rgba(30,41,59,0.65), rgba(2,6,23,0))",
+  borderBottom: "1px solid #e5e7eb",
+  background: "linear-gradient(180deg, #f8fafc, #ffffff)",
 };
 
 const headerLeft = { display: "flex", alignItems: "center", gap: 12 };
@@ -422,23 +419,23 @@ const headerIcon = {
   width: 36,
   height: 36,
   borderRadius: 12,
-  background: "rgba(59,130,246,0.12)",
-  border: "1px solid rgba(59,130,246,0.35)",
+  background: "#eff6ff",
+  border: "1px solid #bfdbfe",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
 };
 
-const title = { fontWeight: 900, color: "#f8fafc", fontSize: 14 };
-const subtitle = { color: "rgba(226,232,240,0.75)", fontSize: 12, marginTop: 2 };
+const title = { fontWeight: 900, color: "#0f172a", fontSize: 14 };
+const subtitle = { color: "#475569", fontSize: 12, marginTop: 2 };
 
 const xBtn = {
   width: 34,
   height: 32,
   borderRadius: 10,
-  border: "1px solid rgba(148,163,184,0.25)",
-  background: "rgba(15,23,42,0.55)",
-  color: "#fff",
+  border: "1px solid #cbd5e1",
+  background: "#f8fafc",
+  color: "#0f172a",
   cursor: "pointer",
   fontWeight: 900,
 };
@@ -446,16 +443,16 @@ const xBtn = {
 const body = { padding: 16, overflow: "auto", flex: 1 };
 
 const section = {
-  border: "1px solid rgba(148,163,184,0.18)",
+  border: "1px solid #e5e7eb",
   borderRadius: 14,
   padding: 14,
-  background: "rgba(15,23,42,0.35)",
+  background: "#ffffff",
   marginBottom: 12,
 };
 
 const sectionLabel = {
   fontWeight: 900,
-  color: "rgba(226,232,240,0.92)",
+  color: "#0f172a",
   fontSize: 12,
   marginBottom: 10,
 };
@@ -465,31 +462,34 @@ const typeRow = { display: "flex", gap: 10, flexWrap: "wrap" };
 const typeBtn = {
   padding: "8px 12px",
   borderRadius: 12,
-  border: "1px solid rgba(148,163,184,0.25)",
-  background: "rgba(2,6,23,0.25)",
-  color: "rgba(226,232,240,0.85)",
+  border: "1px solid #cbd5e1",
+  background: "#f8fafc",
+  color: "#0f172a",
   cursor: "pointer",
   fontWeight: 900,
 };
 
 const typeBtnActive = {
-  border: "1px solid rgba(59,130,246,0.55)",
-  background: "rgba(59,130,246,0.15)",
-  color: "#fff",
+  border: "1px solid #2563eb",
+  background: "#eff6ff",
 };
 
 const grid2 = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 };
-const grid3 = { display: "grid", gridTemplateColumns: "120px 1fr 1fr 160px 1fr 1fr", gap: 12 };
+const grid3 = {
+  display: "grid",
+  gridTemplateColumns: "120px 1fr 1fr 160px 1fr 1fr",
+  gap: 12,
+};
 
-const fieldLabel = { fontSize: 12, color: "rgba(226,232,240,0.75)", marginBottom: 6 };
+const fieldLabel = { fontSize: 12, color: "#475569", marginBottom: 6 };
 
 const input = {
   width: "100%",
   height: 36,
   borderRadius: 10,
-  border: "1px solid rgba(148,163,184,0.25)",
-  background: "rgba(2,6,23,0.35)",
-  color: "#fff",
+  border: "1px solid #cbd5e1",
+  background: "#ffffff",
+  color: "#0f172a",
   padding: "0 10px",
   outline: "none",
 };
@@ -498,9 +498,9 @@ const select = {
   width: "100%",
   height: 36,
   borderRadius: 10,
-  border: "1px solid rgba(148,163,184,0.25)",
-  background: "rgba(2,6,23,0.35)",
-  color: "#fff",
+  border: "1px solid #cbd5e1",
+  background: "#ffffff",
+  color: "#0f172a",
   padding: "0 10px",
   outline: "none",
 };
@@ -508,8 +508,8 @@ const select = {
 const tagBox = {
   marginTop: 12,
   borderRadius: 12,
-  border: "1px solid rgba(148,163,184,0.18)",
-  background: "rgba(2,6,23,0.22)",
+  border: "1px solid #e5e7eb",
+  background: "#ffffff",
   overflow: "hidden",
 };
 
@@ -518,11 +518,12 @@ const tagBoxHeader = {
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
-  borderBottom: "1px solid rgba(148,163,184,0.12)",
+  borderBottom: "1px solid #e5e7eb",
+  background: "#f8fafc",
 };
 
-const tagBoxTitle = { color: "#fff", fontWeight: 900, fontSize: 12 };
-const tagBoxHint = { color: "rgba(226,232,240,0.70)", fontSize: 12 };
+const tagBoxTitle = { color: "#0f172a", fontWeight: 900, fontSize: 12 };
+const tagBoxHint = { color: "#475569", fontSize: 12 };
 
 const tagList = { maxHeight: 170, overflow: "auto" };
 
@@ -535,35 +536,36 @@ const tagRowBtn = {
   border: "none",
   background: "transparent",
   cursor: "pointer",
-  color: "#fff",
+  color: "#0f172a",
 };
 
 const tagMain = { display: "flex", flexDirection: "column", alignItems: "flex-start" };
 const tagField = { fontWeight: 900, fontSize: 12 };
-const tagMeta = { fontSize: 12, color: "rgba(226,232,240,0.70)", marginTop: 2 };
+const tagMeta = { fontSize: 12, color: "#475569", marginTop: 2 };
 
 const tagTypePill = {
   fontSize: 11,
   fontWeight: 900,
   padding: "2px 8px",
   borderRadius: 999,
-  border: "1px solid rgba(148,163,184,0.18)",
-  background: "rgba(15,23,42,0.35)",
+  border: "1px solid #cbd5e1",
+  background: "#f8fafc",
+  color: "#0f172a",
 };
 
-const empty = { padding: 12, color: "rgba(226,232,240,0.70)", fontSize: 12 };
+const empty = { padding: 12, color: "#64748b", fontSize: 12 };
 
 const picked = { padding: 12 };
 const pickedTop = { display: "flex", alignItems: "center", justifyContent: "space-between" };
-const pickedLabel = { color: "rgba(226,232,240,0.75)", fontSize: 12 };
-const pickedValue = { color: "#fff", fontSize: 13, marginTop: 4 };
+const pickedLabel = { color: "#475569", fontSize: 12 };
+const pickedValue = { color: "#0f172a", fontSize: 13, marginTop: 4 };
 
 const miniBtn = {
   padding: "6px 10px",
   borderRadius: 10,
-  border: "1px solid rgba(148,163,184,0.25)",
-  background: "rgba(15,23,42,0.55)",
-  color: "#fff",
+  border: "1px solid #cbd5e1",
+  background: "#f8fafc",
+  color: "#0f172a",
   cursor: "pointer",
   fontWeight: 900,
 };
@@ -572,51 +574,50 @@ const preview = {
   marginTop: 12,
   padding: "10px 12px",
   borderRadius: 12,
-  border: "1px solid rgba(148,163,184,0.18)",
-  background: "rgba(15,23,42,0.35)",
+  border: "1px solid #e5e7eb",
+  background: "#f8fafc",
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
 };
 
-const previewLabel = { color: "rgba(226,232,240,0.70)", fontSize: 12 };
-const previewValue = { color: "#fff", fontWeight: 900, fontSize: 12 };
+const previewLabel = { color: "#475569", fontSize: 12 };
+const previewValue = { color: "#0f172a", fontWeight: 900, fontSize: 12 };
 
 const inlineRow = { display: "flex", gap: 10, alignItems: "center" };
 
 const chip = {
   padding: "8px 12px",
   borderRadius: 999,
-  border: "1px solid rgba(148,163,184,0.25)",
-  background: "rgba(2,6,23,0.25)",
-  color: "rgba(226,232,240,0.85)",
+  border: "1px solid #cbd5e1",
+  background: "#f8fafc",
+  color: "#0f172a",
   cursor: "pointer",
   fontWeight: 900,
 };
 
 const chipActive = {
-  border: "1px solid rgba(59,130,246,0.55)",
-  background: "rgba(59,130,246,0.15)",
-  color: "#fff",
+  border: "1px solid #2563eb",
+  background: "#eff6ff",
 };
 
-const help = { marginTop: 8, fontSize: 12, color: "rgba(226,232,240,0.65)" };
+const help = { marginTop: 8, fontSize: 12, color: "#64748b" };
 
 const footer = {
   padding: "12px 16px",
-  borderTop: "1px solid rgba(148,163,184,0.18)",
+  borderTop: "1px solid #e5e7eb",
   display: "flex",
   justifyContent: "flex-end",
   gap: 10,
-  background: "rgba(2,6,23,0.20)",
+  background: "#ffffff",
 };
 
 const btnGhost = {
   padding: "9px 12px",
   borderRadius: 10,
-  border: "1px solid rgba(148,163,184,0.25)",
-  background: "rgba(15,23,42,0.55)",
-  color: "#fff",
+  border: "1px solid #cbd5e1",
+  background: "#f8fafc",
+  color: "#0f172a",
   cursor: "pointer",
   fontWeight: 900,
 };
@@ -624,8 +625,8 @@ const btnGhost = {
 const btnPrimary = {
   padding: "9px 12px",
   borderRadius: 10,
-  border: "1px solid rgba(59,130,246,0.45)",
-  background: "rgba(59,130,246,0.95)",
+  border: "1px solid #1d4ed8",
+  background: "#2563eb",
   color: "#fff",
   cursor: "pointer",
   fontWeight: 900,
