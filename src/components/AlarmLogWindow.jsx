@@ -6,30 +6,22 @@ export default function AlarmLogWindow({
   onLaunch,
   onMinimize,
   onClose,
-
-  // (optional) legacy hook — we keep it for backward compatibility
   onOpenSettings,
-
-  // ✅ provided by FloatingWindow wrapper (useWindowDragResize.getWindowProps)
   onStartDragWindow,
 
-  // ✅ Alarm Setup Modal data
-  devices = [], // [{ deviceId, name }]
-  availableTags = [], // [{ deviceId, field, label, type: "DI"|"AO"|... }]
-  sensorsData, // optional preview
-  onAddAlarm, // (alarmObj) => void
+  devices = [],
+  availableTags = [],
+  sensorsData,
+  onAddAlarm,
 
   title = "Alarms Log (DI-AI)",
 }) {
-  // ✅ NO ALARMS YET
   const alarms = [];
 
   const [alarmView, setAlarmView] = React.useState("alarms");
   const [selectedId, setSelectedId] = React.useState(null);
   const [checkedIds, setCheckedIds] = React.useState(() => new Set());
   const [showCloseConfirm, setShowCloseConfirm] = React.useState(false);
-
-  // ✅ open/close Alarm Setup modal
   const [showAlarmSetup, setShowAlarmSetup] = React.useState(false);
 
   const visibleAlarms = React.useMemo(() => {
@@ -67,7 +59,7 @@ export default function AlarmLogWindow({
 
   return (
     <div style={wrap}>
-      {/* TOP BAR (dark like screenshot) */}
+      {/* TOP BAR */}
       <div
         style={topBar}
         onMouseDown={(e) => {
@@ -116,7 +108,7 @@ export default function AlarmLogWindow({
         </div>
       </div>
 
-      {/* TABS BAR (✅ now WHITE / classic) */}
+      {/* TABS BAR */}
       <div style={tabsBar}>
         <div style={tabsLeft}>
           {["alarms", "history", "active", "disabled"].map((v) => (
@@ -129,7 +121,6 @@ export default function AlarmLogWindow({
           ))}
         </div>
 
-        {/* ✅ RIGHT SIDE: Settings button (classic white) */}
         <div style={tabsRight}>
           <button
             type="button"
@@ -147,7 +138,7 @@ export default function AlarmLogWindow({
         </div>
       </div>
 
-      {/* TABLE */}
+      {/* TABLE (✅ WHITE BACKGROUND NOW) */}
       <div style={table}>
         <div style={headerRow}>
           <div style={{ ...cellHead, width: COL.sel, textAlign: "center" }}>
@@ -181,14 +172,19 @@ export default function AlarmLogWindow({
           <div style={{ ...cellHead, width: COL.controller }}>Controller</div>
         </div>
 
-        {/* Rows (none for now) */}
+        {/* Rows */}
         {visibleAlarms.map((a) => {
           const isChecked = checkedIds.has(a.id);
+          const isSelected = selectedId === a.id;
 
           return (
             <div
               key={a.id}
-              style={{ ...row, background: "#fff", color: "#111827" }}
+              style={{
+                ...row,
+                background: isSelected ? "#eff6ff" : "#ffffff",
+                color: "#111827",
+              }}
               onMouseDown={(e) => {
                 e.stopPropagation();
                 setSelectedId(a.id);
@@ -220,19 +216,21 @@ export default function AlarmLogWindow({
           );
         })}
 
-        {/* Empty state */}
+        {/* Empty state (✅ WHITE, not gray) */}
         {visibleAlarms.length === 0 && (
-          <div style={emptyState}>
-            <b>No alarms yet.</b>
-            <div style={{ marginTop: 6, color: "#374151" }}>
-              The alarm engine is not configured — this log window is ready and
-              will show events once we wire the alarm rules.
+          <div style={emptyWrap}>
+            <div style={emptyState}>
+              <b>No alarms yet.</b>
+              <div style={{ marginTop: 6, color: "#374151" }}>
+                The alarm engine is not configured — this log window is ready and
+                will show events once we wire the alarm rules.
+              </div>
             </div>
           </div>
         )}
       </div>
 
-      {/* Bottom bar (classic) */}
+      {/* Bottom bar */}
       <div style={bottomBar}>
         <button
           type="button"
@@ -255,7 +253,7 @@ export default function AlarmLogWindow({
         </div>
       </div>
 
-      {/* ✅ Alarm Setup Modal */}
+      {/* Alarm Setup Modal */}
       <AlarmSetupModal
         open={showAlarmSetup}
         onClose={() => setShowAlarmSetup(false)}
@@ -268,7 +266,7 @@ export default function AlarmLogWindow({
         sensorsData={sensorsData}
       />
 
-      {/* CLOSE CONFIRM */}
+      {/* Close confirm */}
       {showCloseConfirm && (
         <div
           style={confirmOverlay}
@@ -336,7 +334,6 @@ function TabButton({ label, active, onClick }) {
 
 const COL = { sel: 34, time: 170, ack: 48, sev: 48, group: 120, controller: 120 };
 
-/* ✅ WINDOW WRAP (light) */
 const wrap = {
   width: "100%",
   height: "100%",
@@ -348,7 +345,6 @@ const wrap = {
   position: "relative",
 };
 
-/* ✅ DARK TITLE BAR (keep) */
 const topBar = {
   height: 42,
   background: "#111827",
@@ -395,7 +391,6 @@ const closeBtnRed = {
   fontWeight: 900,
 };
 
-/* ✅ WHITE / CLASSIC TAB BAR */
 const tabsBar = {
   height: 34,
   display: "flex",
@@ -430,7 +425,6 @@ const tabBtnActive = {
   boxShadow: "0 1px 0 rgba(0,0,0,0.25)",
 };
 
-/* ✅ Settings button matches “white tab” look */
 const settingsTabBtn = {
   height: 26,
   padding: "4px 10px",
@@ -455,7 +449,16 @@ const gearPill = {
   fontSize: 12,
 };
 
-const table = { flex: 1, overflow: "auto", background: "#e5e7eb" };
+/* ✅ THIS WAS THE MAIN ISSUE: background was gray.
+   Now it is white, plus light gridlines. */
+const table = {
+  flex: 1,
+  overflow: "auto",
+  background: "#ffffff",
+  backgroundImage:
+    "linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px)",
+  backgroundSize: "100% 30px, 160px 100%",
+};
 
 const headerRow = {
   display: "flex",
@@ -475,7 +478,7 @@ const cellHead = {
 
 const row = {
   display: "flex",
-  borderBottom: "1px solid #9ca3af",
+  borderBottom: "1px solid #e5e7eb",
   cursor: "default",
 };
 
@@ -494,9 +497,22 @@ const checkbox = {
   accentColor: "#111827",
 };
 
-const emptyState = { padding: 16, fontSize: 13, color: "#111827" };
+const emptyWrap = {
+  padding: 16,
+  background: "transparent",
+};
 
-/* ✅ CLASSIC BOTTOM BAR */
+const emptyState = {
+  padding: 14,
+  fontSize: 13,
+  color: "#111827",
+  background: "#ffffff",
+  border: "1px solid #e5e7eb",
+  borderRadius: 10,
+  width: "fit-content",
+  maxWidth: 720,
+};
+
 const bottomBar = {
   height: 44,
   display: "flex",
@@ -517,7 +533,7 @@ const ackBtn = {
 
 const bottomInfo = { fontSize: 12, color: "#111827" };
 
-/* ✅ Professional warning modal styles (keep dark modal for contrast) */
+/* confirm modal (unchanged) */
 const confirmOverlay = {
   position: "absolute",
   inset: 0,
