@@ -21,8 +21,6 @@ export default function AlarmSetupModal({
 }) {
   if (!open) return null;
 
-  const topAreaRef = React.useRef(null);
-
   // ======== ALARMS LIST (TABLE) ========
   const [alarms, setAlarms] = React.useState(() => initialAlarms || []);
   const [checkedIds, setCheckedIds] = React.useState(() => new Set());
@@ -119,7 +117,9 @@ export default function AlarmSetupModal({
 
   const canAdd =
     !!selectedTag &&
-    (alarmType === "boolean" ? true : threshold !== "" && !Number.isNaN(Number(threshold)));
+    (alarmType === "boolean"
+      ? true
+      : threshold !== "" && !Number.isNaN(Number(threshold)));
 
   const handleAdd = () => {
     if (!canAdd) return;
@@ -138,8 +138,8 @@ export default function AlarmSetupModal({
       edgeDetection:
         alarmType === "boolean"
           ? contactType === "NO"
-            ? "Equal (1)"
-            : "Equal (0)"
+            ? "Equal"
+            : "Equal"
           : `When value ${operator} ${threshold}`,
       value:
         alarmType === "boolean"
@@ -168,15 +168,9 @@ export default function AlarmSetupModal({
     setMessage("");
   };
 
-  const scrollToAddForm = () => {
-    try {
-      topAreaRef.current?.scrollTo({ top: 0, behavior: "smooth" });
-    } catch {
-      try {
-        topAreaRef.current && (topAreaRef.current.scrollTop = 0);
-      } catch {}
-    }
-  };
+  // ✅ NO scroll on TOP: we keep top fixed height and "fit"
+  // If your top form gets too tall, it will simply clip instead of scrolling.
+  // Bottom table is the ONLY scroll area.
 
   const allChecked = alarms.length > 0 && alarms.every((a) => checkedIds.has(a.id));
 
@@ -206,240 +200,257 @@ export default function AlarmSetupModal({
 
         {/* CONTENT */}
         <div style={content}>
-          {/* TOP: ADD FORM */}
-          <div style={topArea} ref={topAreaRef}>
-            <div style={section}>
-              <div style={sectionLabel}>Alarm Type</div>
-              <div style={typeRow}>
-                <button
-                  type="button"
-                  style={{
-                    ...typeBtn,
-                    ...(alarmType === "boolean" ? typeBtnActive : {}),
-                  }}
-                  onClick={() => setAlarmType("boolean")}
-                >
-                  Boolean Alarm (DI)
-                </button>
+          {/* TOP: FIXED (NO SCROLL) */}
+          <div style={topArea}>
+            <div style={topGrid}>
+              {/* LEFT COLUMN */}
+              <div style={col}>
+                <div style={sectionCompact}>
+                  <div style={sectionLabel}>Alarm Type</div>
+                  <div style={typeRow}>
+                    <button
+                      type="button"
+                      style={{
+                        ...typeBtn,
+                        ...(alarmType === "boolean" ? typeBtnActive : {}),
+                      }}
+                      onClick={() => setAlarmType("boolean")}
+                    >
+                      Boolean Alarm (DI)
+                    </button>
 
-                <button
-                  type="button"
-                  style={{
-                    ...typeBtn,
-                    ...(alarmType === "dynamic" ? typeBtnActive : {}),
-                  }}
-                  onClick={() => setAlarmType("dynamic")}
-                >
-                  Dynamic Alarm (AO)
-                </button>
-              </div>
-            </div>
-
-            <div style={section}>
-              <div style={sectionLabel}>Tag that triggers this alarm</div>
-
-              <div style={grid2}>
-                <div>
-                  <div style={fieldLabel}>Device</div>
-                  <select
-                    style={select}
-                    value={deviceId}
-                    onChange={(e) => {
-                      setDeviceId(e.target.value);
-                      setSelectedTag(null);
-                    }}
-                  >
-                    <option value="">— Select device —</option>
-                    {(devices || []).map((d) => (
-                      <option key={d.deviceId} value={d.deviceId}>
-                        {d.name || d.deviceId}
-                      </option>
-                    ))}
-                  </select>
+                    <button
+                      type="button"
+                      style={{
+                        ...typeBtn,
+                        ...(alarmType === "dynamic" ? typeBtnActive : {}),
+                      }}
+                      onClick={() => setAlarmType("dynamic")}
+                    >
+                      Dynamic Alarm (AO)
+                    </button>
+                  </div>
                 </div>
 
-                <div>
-                  <div style={fieldLabel}>Search Tag</div>
-                  <input
-                    style={input}
-                    value={search}
-                    onChange={(e) => setSearch(e.target.value)}
-                    placeholder="ex: DI0, level, run..."
-                  />
-                </div>
-              </div>
+                <div style={sectionCompact}>
+                  <div style={sectionLabel}>Alarm Options</div>
 
-              <div style={tagBox}>
-                {!selectedTag ? (
-                  <>
-                    <div style={tagBoxHeader}>
-                      <div style={tagBoxTitle}>Results</div>
-                      <div style={tagBoxHint}>
-                        Showing {alarmType === "boolean" ? "DI" : "AO"} tags
-                      </div>
-                    </div>
-
-                    <div style={tagList}>
-                      {filteredTags.length === 0 ? (
-                        <div style={empty}>No matching tags. Choose a device and search.</div>
-                      ) : (
-                        filteredTags.map((t) => (
+                  {alarmType === "boolean" ? (
+                    <>
+                      <div style={fieldRow}>
+                        <div style={fieldLabel}>Contact Type</div>
+                        <div style={inlineRow}>
                           <button
-                            key={`${t.deviceId}:${t.field}`}
                             type="button"
-                            style={tagRowBtn}
-                            onClick={() => setSelectedTag(t)}
+                            style={{ ...chip, ...(contactType === "NO" ? chipActive : {}) }}
+                            onClick={() => setContactType("NO")}
                           >
-                            <div style={tagMain}>
-                              <div style={tagField}>{t.field}</div>
-                              <div style={tagMeta}>{t.label ? t.label : ""}</div>
-                            </div>
-                            <div style={tagTypePill}>{t.type || "—"}</div>
+                            NO
                           </button>
-                        ))
-                      )}
-                    </div>
-                  </>
-                ) : (
-                  <div style={picked}>
-                    <div style={pickedTop}>
-                      <div>
-                        <div style={pickedLabel}>Selected Tag</div>
-                        <div style={pickedValue}>
-                          {selectedTag.deviceId} / <b>{selectedTag.field}</b>
+                          <button
+                            type="button"
+                            style={{ ...chip, ...(contactType === "NC" ? chipActive : {}) }}
+                            onClick={() => setContactType("NC")}
+                          >
+                            NC
+                          </button>
+                        </div>
+                        <div style={help}>
+                          NO = alarm when input becomes <b>1</b> • NC = alarm when input becomes <b>0</b>
                         </div>
                       </div>
 
-                      <button type="button" style={miniBtn} onClick={() => setSelectedTag(null)}>
-                        Change
-                      </button>
-                    </div>
-
-                    <div style={preview}>
-                      <div style={previewLabel}>Status</div>
-                      <div style={previewValue}>
-                        {previewValue === null ? "—" : String(previewValue)}
+                      <div style={fieldRow}>
+                        <div style={fieldLabel}>Message</div>
+                        <input
+                          style={input}
+                          value={message}
+                          onChange={(e) => setMessage(e.target.value)}
+                          placeholder="ex: E-Stop Pressed"
+                        />
                       </div>
-                    </div>
-                  </div>
-                )}
+                    </>
+                  ) : (
+                    <>
+                      <div style={row4}>
+                        <div>
+                          <div style={fieldLabel}>Operator</div>
+                          <select
+                            style={select}
+                            value={operator}
+                            onChange={(e) => setOperator(e.target.value)}
+                          >
+                            <option value=">=">&ge;</option>
+                            <option value="<=">&le;</option>
+                            <option value=">">&gt;</option>
+                            <option value="<">&lt;</option>
+                            <option value="==">==</option>
+                          </select>
+                        </div>
+
+                        <div>
+                          <div style={fieldLabel}>Threshold</div>
+                          <input
+                            style={input}
+                            value={threshold}
+                            onChange={(e) => setThreshold(e.target.value)}
+                            placeholder="ex: 75"
+                          />
+                        </div>
+
+                        <div>
+                          <div style={fieldLabel}>Deadband</div>
+                          <input
+                            style={input}
+                            value={deadband}
+                            onChange={(e) => setDeadband(e.target.value)}
+                            placeholder="ex: 2"
+                          />
+                        </div>
+
+                        <div>
+                          <div style={fieldLabel}>Severity</div>
+                          <select
+                            style={select}
+                            value={severity}
+                            onChange={(e) => setSeverity(e.target.value)}
+                          >
+                            <option value="info">Info</option>
+                            <option value="warning">Warning</option>
+                            <option value="critical">Critical</option>
+                          </select>
+                        </div>
+                      </div>
+
+                      <div style={fieldRow}>
+                        <div style={fieldLabel}>Message</div>
+                        <input
+                          style={input}
+                          value={message}
+                          onChange={(e) => setMessage(e.target.value)}
+                          placeholder="ex: LSH1 High Level Alarm"
+                        />
+                      </div>
+                    </>
+                  )}
+                </div>
+
+                <div style={topActions}>
+                  <button style={btnGhost} onClick={onClose}>
+                    Close
+                  </button>
+
+                  <button
+                    style={{ ...btnPrimary, opacity: canAdd ? 1 : 0.5 }}
+                    onClick={handleAdd}
+                    disabled={!canAdd}
+                  >
+                    Add Alarm
+                  </button>
+                </div>
               </div>
-            </div>
 
-            <div style={section}>
-              <div style={sectionLabel}>Alarm Options</div>
+              {/* RIGHT COLUMN */}
+              <div style={col}>
+                <div style={sectionCompact}>
+                  <div style={sectionLabel}>Tag that triggers this alarm</div>
 
-              {alarmType === "boolean" ? (
-                <div style={grid2}>
-                  <div>
-                    <div style={fieldLabel}>Contact Type</div>
-                    <div style={inlineRow}>
-                      <button
-                        type="button"
-                        style={{ ...chip, ...(contactType === "NO" ? chipActive : {}) }}
-                        onClick={() => setContactType("NO")}
+                  <div style={grid2}>
+                    <div>
+                      <div style={fieldLabel}>Device</div>
+                      <select
+                        style={select}
+                        value={deviceId}
+                        onChange={(e) => {
+                          setDeviceId(e.target.value);
+                          setSelectedTag(null);
+                        }}
                       >
-                        NO
-                      </button>
-                      <button
-                        type="button"
-                        style={{ ...chip, ...(contactType === "NC" ? chipActive : {}) }}
-                        onClick={() => setContactType("NC")}
-                      >
-                        NC
-                      </button>
+                        <option value="">— Select device —</option>
+                        {(devices || []).map((d) => (
+                          <option key={d.deviceId} value={d.deviceId}>
+                            {d.name || d.deviceId}
+                          </option>
+                        ))}
+                      </select>
                     </div>
-                    <div style={help}>
-                      NO = alarm when input becomes <b>1</b> (ON) • NC = alarm when input becomes{" "}
-                      <b>0</b> (OFF)
+
+                    <div>
+                      <div style={fieldLabel}>Search Tag</div>
+                      <input
+                        style={input}
+                        value={search}
+                        onChange={(e) => setSearch(e.target.value)}
+                        placeholder="ex: DI0, level, run..."
+                      />
                     </div>
                   </div>
 
-                  <div>
-                    <div style={fieldLabel}>Message</div>
-                    <input
-                      style={input}
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      placeholder="ex: E-Stop Pressed"
-                    />
+                  <div style={tagBox}>
+                    {!selectedTag ? (
+                      <>
+                        <div style={tagBoxHeader}>
+                          <div style={tagBoxTitle}>Results</div>
+                          <div style={tagBoxHint}>
+                            Showing {alarmType === "boolean" ? "DI" : "AO"} tags
+                          </div>
+                        </div>
+
+                        <div style={tagList}>
+                          {filteredTags.length === 0 ? (
+                            <div style={empty}>No matching tags. Choose a device and search.</div>
+                          ) : (
+                            filteredTags.map((t) => (
+                              <button
+                                key={`${t.deviceId}:${t.field}`}
+                                type="button"
+                                style={tagRowBtn}
+                                onClick={() => setSelectedTag(t)}
+                              >
+                                <div style={tagMain}>
+                                  <div style={tagField}>{t.field}</div>
+                                  <div style={tagMeta}>{t.label ? t.label : ""}</div>
+                                </div>
+                                <div style={tagTypePill}>{t.type || "—"}</div>
+                              </button>
+                            ))
+                          )}
+                        </div>
+                      </>
+                    ) : (
+                      <div style={picked}>
+                        <div style={pickedTop}>
+                          <div>
+                            <div style={pickedLabel}>Selected Tag</div>
+                            <div style={pickedValue}>
+                              {selectedTag.deviceId} / <b>{selectedTag.field}</b>
+                            </div>
+                          </div>
+
+                          <button type="button" style={miniBtn} onClick={() => setSelectedTag(null)}>
+                            Change
+                          </button>
+                        </div>
+
+                        <div style={preview}>
+                          <div style={previewLabel}>Status</div>
+                          <div style={previewValue}>
+                            {previewValue === null ? "—" : String(previewValue)}
+                          </div>
+                        </div>
+                      </div>
+                    )}
                   </div>
                 </div>
-              ) : (
-                <div style={grid3}>
-                  <div>
-                    <div style={fieldLabel}>Operator</div>
-                    <select style={select} value={operator} onChange={(e) => setOperator(e.target.value)}>
-                      <option value=">=">&ge;</option>
-                      <option value="<=">&le;</option>
-                      <option value=">">&gt;</option>
-                      <option value="<">&lt;</option>
-                      <option value="==">==</option>
-                    </select>
-                  </div>
-
-                  <div>
-                    <div style={fieldLabel}>Threshold</div>
-                    <input
-                      style={input}
-                      value={threshold}
-                      onChange={(e) => setThreshold(e.target.value)}
-                      placeholder="ex: 75"
-                    />
-                  </div>
-
-                  <div>
-                    <div style={fieldLabel}>Deadband</div>
-                    <input
-                      style={input}
-                      value={deadband}
-                      onChange={(e) => setDeadband(e.target.value)}
-                      placeholder="ex: 2"
-                    />
-                  </div>
-
-                  <div>
-                    <div style={fieldLabel}>Severity</div>
-                    <select style={select} value={severity} onChange={(e) => setSeverity(e.target.value)}>
-                      <option value="info">Info</option>
-                      <option value="warning">Warning</option>
-                      <option value="critical">Critical</option>
-                    </select>
-                  </div>
-
-                  <div style={{ gridColumn: "span 2" }}>
-                    <div style={fieldLabel}>Message</div>
-                    <input
-                      style={input}
-                      value={message}
-                      onChange={(e) => setMessage(e.target.value)}
-                      placeholder="ex: LSH1 High Level Alarm"
-                    />
-                  </div>
-                </div>
-              )}
-            </div>
-
-            <div style={topActions}>
-              <button style={btnGhost} onClick={onClose}>
-                Close
-              </button>
-
-              <button
-                style={{ ...btnPrimary, opacity: canAdd ? 1 : 0.5 }}
-                onClick={handleAdd}
-                disabled={!canAdd}
-              >
-                Add Alarm
-              </button>
+              </div>
             </div>
           </div>
 
-          {/* BOTTOM: TABLE (classic look like your screenshot) */}
+          {/* BOTTOM: TABLE (ONLY SCROLL AREA) */}
           <div style={bottomArea}>
             <div style={tableHeader}>
               <div style={tableHeaderLeft}>
-                <button type="button" style={tableBtn} onClick={scrollToAddForm}>
+                <button type="button" style={tableBtn} onClick={() => {}}>
                   Add Alarm
                 </button>
 
@@ -472,16 +483,24 @@ export default function AlarmSetupModal({
             <div style={tableWrap}>
               <div style={tHeadRow}>
                 <div style={{ ...tHeadCell, width: 44, textAlign: "center" }}>
-                  <input type="checkbox" checked={allChecked} onChange={toggleAll} style={checkbox} title="Select all" />
+                  <input
+                    type="checkbox"
+                    checked={allChecked}
+                    onChange={toggleAll}
+                    style={checkbox}
+                    title="Select all"
+                  />
                 </div>
 
-                <div style={{ ...tHeadCell, width: 200 }}>Trigger</div>
-                <div style={{ ...tHeadCell, width: 110 }}>Alarm Type</div>
-                <div style={{ ...tHeadCell, width: 160 }}>Edge Detection</div>
-                <div style={{ ...tHeadCell, width: 90, textAlign: "center" }}>Value</div>
-                <div style={{ ...tHeadCell, width: 150 }}>Deadband Mode</div>
-                <div style={{ ...tHeadCell, width: 150, textAlign: "center" }}>Deadband Level</div>
-                <div style={{ ...tHeadCell, flex: 1, minWidth: 320, borderRight: "none" }}>Message</div>
+                <div style={{ ...tHeadCell, width: 220 }}>Trigger</div>
+                <div style={{ ...tHeadCell, width: 130 }}>Alarm Type</div>
+                <div style={{ ...tHeadCell, width: 170 }}>Edge Detection</div>
+                <div style={{ ...tHeadCell, width: 110, textAlign: "center" }}>Value</div>
+                <div style={{ ...tHeadCell, width: 160 }}>Deadband Mode</div>
+                <div style={{ ...tHeadCell, width: 170, textAlign: "center" }}>Deadband Level</div>
+                <div style={{ ...tHeadCell, flex: 1, minWidth: 420, borderRight: "none" }}>
+                  Message
+                </div>
               </div>
 
               <div style={tBody}>
@@ -498,25 +517,32 @@ export default function AlarmSetupModal({
                         onMouseLeave={(e) => (e.currentTarget.style.background = "#fff")}
                       >
                         <div style={{ ...tCell, width: 44, textAlign: "center" }}>
-                          <input type="checkbox" checked={checked} onChange={() => toggleRowCheck(a.id)} style={checkbox} />
+                          <input
+                            type="checkbox"
+                            checked={checked}
+                            onChange={() => toggleRowCheck(a.id)}
+                            style={checkbox}
+                          />
                         </div>
 
-                        <div style={{ ...tCell, width: 200 }}>
-                          <b style={{ fontSize: 14 }}>{a.field}</b>
+                        <div style={{ ...tCell, width: 220 }}>
+                          <b style={{ fontSize: 15 }}>{a.field}</b>
                           <div style={tSub}>{a.deviceId}</div>
                         </div>
 
-                        <div style={{ ...tCell, width: 110 }}>{a.type === "boolean" ? "Bit" : "Analog"}</div>
+                        <div style={{ ...tCell, width: 130 }}>{a.type === "boolean" ? "Bit" : "Analog"}</div>
 
-                        <div style={{ ...tCell, width: 160 }}>{a.type === "boolean" ? "Equal" : a.edgeDetection}</div>
+                        <div style={{ ...tCell, width: 170 }}>
+                          {a.type === "boolean" ? (a.config?.contactType === "NO" ? "Equal" : "Equal") : a.edgeDetection}
+                        </div>
 
-                        <div style={{ ...tCell, width: 90, textAlign: "center" }}>{String(a.value)}</div>
+                        <div style={{ ...tCell, width: 110, textAlign: "center" }}>{String(a.value)}</div>
 
-                        <div style={{ ...tCell, width: 150 }}>{a.deadbandMode}</div>
+                        <div style={{ ...tCell, width: 160 }}>{a.deadbandMode}</div>
 
-                        <div style={{ ...tCell, width: 150, textAlign: "center" }}>{String(a.deadbandLevel)}</div>
+                        <div style={{ ...tCell, width: 170, textAlign: "center" }}>{String(a.deadbandLevel)}</div>
 
-                        <div style={{ ...tCell, flex: 1, minWidth: 320, borderRight: "none" }}>
+                        <div style={{ ...tCell, flex: 1, minWidth: 420, borderRight: "none" }}>
                           {a.message || <span style={{ color: "#888" }}>—</span>}
                         </div>
                       </div>
@@ -532,7 +558,7 @@ export default function AlarmSetupModal({
   );
 }
 
-/* ---------- BIG MODAL (bigger + bigger text) ---------- */
+/* ---------- BIG MODAL (wider + bigger text) ---------- */
 const overlay = {
   position: "fixed",
   inset: 0,
@@ -544,8 +570,8 @@ const overlay = {
 };
 
 const card = {
-  width: "min(1700px, calc(100% - 16px))",
-  height: "min(980px, calc(100% - 16px))",
+  width: "min(1900px, calc(100% - 12px))", // ✅ wider
+  height: "min(980px, calc(100% - 12px))",
   background: "#ffffff",
   borderRadius: 18,
   border: "1px solid #cbd5e1",
@@ -553,7 +579,7 @@ const card = {
   overflow: "hidden",
   display: "flex",
   flexDirection: "column",
-  fontSize: 14, // ✅ overall bigger
+  fontSize: 15, // ✅ bigger base font
 };
 
 const header = {
@@ -567,8 +593,8 @@ const header = {
 
 const headerLeft = { display: "flex", alignItems: "center", gap: 12 };
 const headerIcon = {
-  width: 42,
-  height: 42,
+  width: 44,
+  height: 44,
   borderRadius: 14,
   background: "#eff6ff",
   border: "1px solid #bfdbfe",
@@ -578,12 +604,12 @@ const headerIcon = {
   fontSize: 18,
 };
 
-const title = { fontWeight: 900, color: "#0f172a", fontSize: 16 };
+const title = { fontWeight: 900, color: "#0f172a", fontSize: 17 };
 const subtitle = { color: "#475569", fontSize: 13, marginTop: 2 };
 
 const xBtn = {
-  width: 40,
-  height: 38,
+  width: 42,
+  height: 40,
   borderRadius: 12,
   border: "1px solid #cbd5e1",
   background: "#f8fafc",
@@ -597,36 +623,40 @@ const content = {
   display: "flex",
   flexDirection: "column",
   flex: 1,
-  overflow: "hidden",
+  overflow: "hidden", // ✅ prevent global scroll
 };
 
+/* ✅ Top fits, NO scroll here */
 const topArea = {
-  flex: "0 0 56%",
-  overflow: "auto",
-  padding: 18,
+  flex: "0 0 46%", // ✅ smaller top so it fits
+  overflow: "hidden", // ✅ no scroll
+  padding: 16,
   borderBottom: "1px solid #e5e7eb",
-};
-
-const bottomArea = {
-  flex: "1 1 auto",
-  overflow: "hidden",
-  padding: 18,
   background: "#ffffff",
 };
 
-const section = {
+const topGrid = {
+  height: "100%",
+  display: "grid",
+  gridTemplateColumns: "1fr 1.15fr", // ✅ give more space to Tag/Results
+  gap: 14,
+};
+
+const col = { display: "flex", flexDirection: "column", minHeight: 0 };
+
+const sectionCompact = {
   border: "1px solid #e5e7eb",
   borderRadius: 16,
-  padding: 16,
+  padding: 14,
   background: "#ffffff",
-  marginBottom: 14,
+  marginBottom: 12,
 };
 
 const sectionLabel = {
   fontWeight: 900,
   color: "#0f172a",
   fontSize: 13,
-  marginBottom: 12,
+  marginBottom: 10,
 };
 
 const typeRow = { display: "flex", gap: 12, flexWrap: "wrap" };
@@ -644,13 +674,16 @@ const typeBtn = {
 
 const typeBtnActive = { border: "2px solid #2563eb", background: "#eff6ff" };
 
-const grid2 = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 };
+const grid2 = { display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 };
 
-const grid3 = {
+const row4 = {
   display: "grid",
-  gridTemplateColumns: "160px 1fr 1fr 200px 1fr 1fr",
-  gap: 14,
+  gridTemplateColumns: "160px 1fr 1fr 200px",
+  gap: 12,
+  alignItems: "end",
 };
+
+const fieldRow = { marginTop: 10 };
 
 const fieldLabel = { fontSize: 13, color: "#475569", marginBottom: 8 };
 
@@ -679,7 +712,7 @@ const select = {
 };
 
 const tagBox = {
-  marginTop: 14,
+  marginTop: 12,
   borderRadius: 14,
   border: "1px solid #e5e7eb",
   background: "#ffffff",
@@ -687,7 +720,7 @@ const tagBox = {
 };
 
 const tagBoxHeader = {
-  padding: "12px 14px",
+  padding: "10px 12px",
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
@@ -697,14 +730,16 @@ const tagBoxHeader = {
 
 const tagBoxTitle = { color: "#0f172a", fontWeight: 900, fontSize: 13 };
 const tagBoxHint = { color: "#475569", fontSize: 13 };
-const tagList = { maxHeight: 220, overflow: "auto" };
+
+/* ✅ list can scroll internally without creating page scroll */
+const tagList = { maxHeight: 170, overflow: "auto" };
 
 const tagRowBtn = {
   width: "100%",
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
-  padding: "12px 14px",
+  padding: "10px 12px",
   border: "none",
   background: "transparent",
   cursor: "pointer",
@@ -725,9 +760,9 @@ const tagTypePill = {
   color: "#0f172a",
 };
 
-const empty = { padding: 14, color: "#64748b", fontSize: 13 };
+const empty = { padding: 12, color: "#64748b", fontSize: 13 };
 
-const picked = { padding: 14 };
+const picked = { padding: 12 };
 const pickedTop = { display: "flex", alignItems: "center", justifyContent: "space-between" };
 const pickedLabel = { color: "#475569", fontSize: 13 };
 const pickedValue = { color: "#0f172a", fontSize: 14, marginTop: 6 };
@@ -744,8 +779,8 @@ const miniBtn = {
 };
 
 const preview = {
-  marginTop: 14,
-  padding: "12px 14px",
+  marginTop: 10,
+  padding: "10px 12px",
   borderRadius: 14,
   border: "1px solid #e5e7eb",
   background: "#f8fafc",
@@ -757,7 +792,7 @@ const preview = {
 const previewLabel = { color: "#475569", fontSize: 13 };
 const previewValue = { color: "#0f172a", fontWeight: 900, fontSize: 13 };
 
-const inlineRow = { display: "flex", gap: 12, alignItems: "center" };
+const inlineRow = { display: "flex", gap: 12, alignItems: "center", marginTop: 4 };
 
 const chip = {
   padding: "10px 14px",
@@ -771,9 +806,10 @@ const chip = {
 };
 
 const chipActive = { border: "2px solid #2563eb", background: "#eff6ff" };
-const help = { marginTop: 10, fontSize: 13, color: "#64748b" };
 
-const topActions = { display: "flex", justifyContent: "flex-end", gap: 12, paddingTop: 6 };
+const help = { marginTop: 8, fontSize: 13, color: "#64748b" };
+
+const topActions = { display: "flex", justifyContent: "flex-end", gap: 12, marginTop: "auto" };
 
 const btnGhost = {
   padding: "11px 14px",
@@ -797,7 +833,14 @@ const btnPrimary = {
   fontSize: 14,
 };
 
-/* ---------- TABLE (classic) ---------- */
+/* ✅ Bottom: ONLY scroll area */
+const bottomArea = {
+  flex: "1 1 auto",
+  overflow: "hidden",
+  padding: 16,
+  background: "#ffffff",
+};
+
 const tableHeader = {
   display: "flex",
   alignItems: "center",
@@ -808,14 +851,14 @@ const tableHeader = {
 const tableHeaderLeft = { display: "flex", gap: 10, alignItems: "center" };
 
 const tableBtn = {
-  height: 34,
-  padding: "0 12px",
+  height: 36,
+  padding: "0 14px",
   borderRadius: 2,
   border: "1px solid #c9c9c9",
   background: "#efefef",
   color: "#111",
   cursor: "pointer",
-  fontSize: 13,
+  fontSize: 14,
   fontWeight: 800,
 };
 
@@ -823,11 +866,11 @@ const advancedLink = {
   border: "none",
   background: "transparent",
   color: "#1d4ed8",
-  fontSize: 13,
+  fontSize: 14,
   cursor: "pointer",
   textDecoration: "underline",
   padding: 0,
-  fontWeight: 700,
+  fontWeight: 800,
 };
 
 const tableWrap = {
@@ -848,16 +891,20 @@ const tHeadRow = {
 };
 
 const tHeadCell = {
-  padding: "8px 10px",
+  padding: "9px 10px",
   fontWeight: 900,
-  fontSize: 13,
+  fontSize: 14,
   whiteSpace: "nowrap",
   overflow: "hidden",
   textOverflow: "ellipsis",
   borderRight: "1px solid #d7d7d7",
 };
 
-const tBody = { flex: 1, overflow: "auto", background: "#ffffff" };
+const tBody = {
+  flex: 1,
+  overflow: "auto", // ✅ only scroll here
+  background: "#ffffff",
+};
 
 const tRow = {
   display: "flex",
@@ -866,8 +913,8 @@ const tRow = {
 };
 
 const tCell = {
-  padding: "8px 10px",
-  fontSize: 13,
+  padding: "9px 10px",
+  fontSize: 14,
   whiteSpace: "nowrap",
   overflow: "hidden",
   textOverflow: "ellipsis",
@@ -876,6 +923,6 @@ const tCell = {
 };
 
 const tSub = { fontSize: 12, color: "#666", marginTop: 3 };
-const tEmpty = { padding: 12, color: "#666", fontSize: 13 };
+const tEmpty = { padding: 12, color: "#666", fontSize: 14 };
 
 const checkbox = { width: 16, height: 16, cursor: "pointer" };
