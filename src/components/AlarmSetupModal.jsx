@@ -54,6 +54,7 @@ export default function AlarmSetupModal({
     emitChange(next);
   };
 
+  // ✅ removed "Advanced" clear-all UI, but we keep a safe internal helper (not exposed)
   const clearAll = () => {
     const next = [];
     setAlarms(next);
@@ -127,7 +128,8 @@ export default function AlarmSetupModal({
       tagLabel: selectedTag.label || selectedTag.field,
       ioType: alarmType === "boolean" ? "DI" : "AO",
       message: message?.trim() || "",
-      edgeDetection: alarmType === "boolean" ? "Equal" : `When value ${operator} ${threshold}`,
+      edgeDetection:
+        alarmType === "boolean" ? "Equal" : `When value ${operator} ${threshold}`,
       value:
         alarmType === "boolean"
           ? contactType === "NO"
@@ -176,7 +178,7 @@ export default function AlarmSetupModal({
             </div>
           </div>
 
-          {/* ✅ RIGHT: move Close + Add Alarm to the X area */}
+          {/* ✅ RIGHT: Close + Add Alarm + X */}
           <div style={headerRight}>
             <button style={btnHeaderGhost} onClick={onClose}>
               Close
@@ -209,7 +211,10 @@ export default function AlarmSetupModal({
                   <div style={typeRow}>
                     <button
                       type="button"
-                      style={{ ...typeBtn, ...(alarmType === "boolean" ? typeBtnActive : {}) }}
+                      style={{
+                        ...typeBtn,
+                        ...(alarmType === "boolean" ? typeBtnActive : {}),
+                      }}
                       onClick={() => setAlarmType("boolean")}
                     >
                       Boolean Alarm (DI)
@@ -217,7 +222,10 @@ export default function AlarmSetupModal({
 
                     <button
                       type="button"
-                      style={{ ...typeBtn, ...(alarmType === "dynamic" ? typeBtnActive : {}) }}
+                      style={{
+                        ...typeBtn,
+                        ...(alarmType === "dynamic" ? typeBtnActive : {}),
+                      }}
                       onClick={() => setAlarmType("dynamic")}
                     >
                       Dynamic Alarm (AO)
@@ -235,14 +243,20 @@ export default function AlarmSetupModal({
                         <div style={inlineRow}>
                           <button
                             type="button"
-                            style={{ ...chip, ...(contactType === "NO" ? chipActive : {}) }}
+                            style={{
+                              ...chip,
+                              ...(contactType === "NO" ? chipActive : {}),
+                            }}
                             onClick={() => setContactType("NO")}
                           >
                             NO
                           </button>
                           <button
                             type="button"
-                            style={{ ...chip, ...(contactType === "NC" ? chipActive : {}) }}
+                            style={{
+                              ...chip,
+                              ...(contactType === "NC" ? chipActive : {}),
+                            }}
                             onClick={() => setContactType("NC")}
                           >
                             NC
@@ -269,7 +283,11 @@ export default function AlarmSetupModal({
                       <div style={row4}>
                         <div>
                           <div style={fieldLabel}>Operator</div>
-                          <select style={select} value={operator} onChange={(e) => setOperator(e.target.value)}>
+                          <select
+                            style={select}
+                            value={operator}
+                            onChange={(e) => setOperator(e.target.value)}
+                          >
                             <option value=">=">&ge;</option>
                             <option value="<=">&le;</option>
                             <option value=">">&gt;</option>
@@ -300,7 +318,11 @@ export default function AlarmSetupModal({
 
                         <div>
                           <div style={fieldLabel}>Severity</div>
-                          <select style={select} value={severity} onChange={(e) => setSeverity(e.target.value)}>
+                          <select
+                            style={select}
+                            value={severity}
+                            onChange={(e) => setSeverity(e.target.value)}
+                          >
                             <option value="info">Info</option>
                             <option value="warning">Warning</option>
                             <option value="critical">Critical</option>
@@ -370,7 +392,9 @@ export default function AlarmSetupModal({
 
                         <div style={tagList}>
                           {filteredTags.length === 0 ? (
-                            <div style={empty}>No matching tags. Choose a device and search.</div>
+                            <div style={empty}>
+                              No matching tags. Choose a device and search.
+                            </div>
                           ) : (
                             filteredTags.map((t) => (
                               <button
@@ -399,14 +423,20 @@ export default function AlarmSetupModal({
                             </div>
                           </div>
 
-                          <button type="button" style={miniBtn} onClick={() => setSelectedTag(null)}>
+                          <button
+                            type="button"
+                            style={miniBtn}
+                            onClick={() => setSelectedTag(null)}
+                          >
                             Change
                           </button>
                         </div>
 
                         <div style={preview}>
                           <div style={previewLabel}>Status</div>
-                          <div style={previewValue}>{previewValue === null ? "—" : String(previewValue)}</div>
+                          <div style={previewValueText}>
+                            {previewValue === null ? "—" : String(previewValue)}
+                          </div>
                         </div>
                       </div>
                     )}
@@ -416,11 +446,12 @@ export default function AlarmSetupModal({
             </div>
           </div>
 
-          {/* ✅ BOTTOM: make it taller + ONLY scroll here */}
+          {/* ✅ BOTTOM: ONLY scroll here */}
           <div style={bottomArea}>
             <div style={tableHeader}>
               <div style={tableHeaderLeft}>
-                <button type="button" style={tableBtn}>
+                {/* (kept as your UI, but header Add Alarm is the real one) */}
+                <button type="button" style={tableBtn} onClick={handleAdd} disabled={!canAdd}>
                   Add Alarm
                 </button>
 
@@ -438,16 +469,8 @@ export default function AlarmSetupModal({
                 </button>
               </div>
 
-              <button
-                type="button"
-                style={advancedLink}
-                onClick={() => {
-                  const ok = window.confirm("Advanced: Clear ALL alarms?");
-                  if (ok) clearAll();
-                }}
-              >
-                Advanced &gt;&gt;
-              </button>
+              {/* ✅ Advanced removed */}
+              <div />
             </div>
 
             <div style={tableWrap}>
@@ -468,12 +491,16 @@ export default function AlarmSetupModal({
                 <div style={{ ...tHeadCell, width: 110, textAlign: "center" }}>Value</div>
                 <div style={{ ...tHeadCell, width: 160 }}>Deadband Mode</div>
                 <div style={{ ...tHeadCell, width: 170, textAlign: "center" }}>Deadband Level</div>
-                <div style={{ ...tHeadCell, flex: 1, minWidth: 420, borderRight: "none" }}>Message</div>
+                <div style={{ ...tHeadCell, flex: 1, minWidth: 420, borderRight: "none" }}>
+                  Message
+                </div>
               </div>
 
               <div style={tBody}>
                 {alarms.length === 0 ? (
-                  <div style={tEmpty}>No alarms added yet. Add one above and it will appear here.</div>
+                  <div style={tEmpty}>
+                    No alarms added yet. Add one above and it will appear here.
+                  </div>
                 ) : (
                   alarms.map((a) => {
                     const checked = checkedIds.has(a.id);
@@ -493,19 +520,32 @@ export default function AlarmSetupModal({
                           <div style={tSub}>{a.deviceId}</div>
                         </div>
 
-                        <div style={{ ...tCell, width: 130 }}>{a.type === "boolean" ? "Bit" : "Analog"}</div>
+                        <div style={{ ...tCell, width: 130 }}>
+                          {a.type === "boolean" ? "Bit" : "Analog"}
+                        </div>
 
                         <div style={{ ...tCell, width: 170 }}>
                           {a.type === "boolean" ? "Equal" : a.edgeDetection}
                         </div>
 
-                        <div style={{ ...tCell, width: 110, textAlign: "center" }}>{String(a.value)}</div>
+                        <div style={{ ...tCell, width: 110, textAlign: "center" }}>
+                          {String(a.value)}
+                        </div>
 
                         <div style={{ ...tCell, width: 160 }}>{a.deadbandMode}</div>
 
-                        <div style={{ ...tCell, width: 170, textAlign: "center" }}>{String(a.deadbandLevel)}</div>
+                        <div style={{ ...tCell, width: 170, textAlign: "center" }}>
+                          {String(a.deadbandLevel)}
+                        </div>
 
-                        <div style={{ ...tCell, flex: 1, minWidth: 420, borderRight: "none" }}>
+                        <div
+                          style={{
+                            ...tCell,
+                            flex: 1,
+                            minWidth: 420,
+                            borderRight: "none",
+                          }}
+                        >
                           {a.message || <span style={{ color: "#888" }}>—</span>}
                         </div>
                       </div>
@@ -514,6 +554,10 @@ export default function AlarmSetupModal({
                 )}
               </div>
             </div>
+
+            {/* keep clearAll available for future use but not exposed */}
+            {/* eslint-disable-next-line no-unused-vars */}
+            {false && <button onClick={clearAll}>Clear</button>}
           </div>
         </div>
       </div>
@@ -612,7 +656,12 @@ const btnHeaderPrimary = {
   fontSize: 14,
 };
 
-const content = { display: "flex", flexDirection: "column", flex: 1, overflow: "hidden" };
+const content = {
+  display: "flex",
+  flexDirection: "column",
+  flex: 1,
+  overflow: "hidden",
+};
 
 /* ✅ TOP: no scroll */
 const topArea = {
@@ -640,7 +689,12 @@ const sectionCompact = {
   marginBottom: 12,
 };
 
-const sectionLabel = { fontWeight: 900, color: "#0f172a", fontSize: 13, marginBottom: 10 };
+const sectionLabel = {
+  fontWeight: 900,
+  color: "#0f172a",
+  fontSize: 13,
+  marginBottom: 10,
+};
 
 const typeRow = { display: "flex", gap: 12, flexWrap: "wrap" };
 
@@ -771,7 +825,7 @@ const preview = {
 };
 
 const previewLabel = { color: "#475569", fontSize: 13 };
-const previewValue = { color: "#0f172a", fontWeight: 900, fontSize: 13 };
+const previewValueText = { color: "#0f172a", fontWeight: 900, fontSize: 13 };
 
 const inlineRow = { display: "flex", gap: 12, alignItems: "center", marginTop: 4 };
 
@@ -819,17 +873,6 @@ const tableBtn = {
   fontWeight: 800,
 };
 
-const advancedLink = {
-  border: "none",
-  background: "transparent",
-  color: "#1d4ed8",
-  fontSize: 14,
-  cursor: "pointer",
-  textDecoration: "underline",
-  padding: 0,
-  fontWeight: 800,
-};
-
 const tableWrap = {
   border: "1px solid #c9c9c9",
   borderRadius: 2,
@@ -859,12 +902,16 @@ const tHeadCell = {
 
 const tBody = {
   flex: 1,
-  overflowY: "auto", // ✅ scroll only on bottom table body
+  overflowY: "auto",
   overflowX: "hidden",
   background: "#ffffff",
 };
 
-const tRow = { display: "flex", borderBottom: "1px solid #e2e2e2", background: "#fff" };
+const tRow = {
+  display: "flex",
+  borderBottom: "1px solid #e2e2e2",
+  background: "#fff",
+};
 
 const tCell = {
   padding: "9px 10px",
