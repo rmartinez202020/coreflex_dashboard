@@ -26,6 +26,7 @@ import DashboardCanvasContextMenu from "./components/DashboardCanvasContextMenu"
 import useDashboardCanvasClipboard from "./hooks/useDashboardCanvasClipboard";
 import useDashboardZOrder from "./hooks/useDashboardZOrder";
 import useDashboardModalsController from "./hooks/useDashboardModalsController";
+import AlarmLogPage from "./pages/AlarmLogPage";
 
 export default function App() {
   const navigate = useNavigate();
@@ -378,6 +379,13 @@ const { copyFromContext, pasteAtContext, hasClipboard } =
   if (isLaunchPage) {
     return <LaunchedMainDashboard />;
   }
+
+// ✅ ALARM LOG LAUNCH PAGE — render full-page Alarm Log
+const isLaunchAlarmLog = location.pathname === "/launchAlarmLog";
+if (isLaunchAlarmLog) {
+  return <AlarmLogPage />;
+}
+
 
   // ✅ show our context menu only in EDIT + only on dashboard page
   const showCtx =
