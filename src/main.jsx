@@ -4,12 +4,12 @@ import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "leaflet/dist/leaflet.css";
 
-
 import "./index.css";
 import App from "./App.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import RegisterPage from "./pages/RegisterPage.jsx";
 import LaunchedMainDashboard from "./pages/LaunchedMainDashboard.jsx";
+import AlarmLogPage from "./pages/AlarmLogPage.jsx"; // ✅ NEW
 
 // 🔐 Simple Auth Protection
 function RequireAuth({ children }) {
@@ -20,7 +20,6 @@ function RequireAuth({ children }) {
 createRoot(document.getElementById("root")).render(
   <BrowserRouter>
     <Routes>
-
       {/* 🔐 LOGIN PAGE */}
       <Route path="/" element={<LoginPage />} />
 
@@ -47,6 +46,15 @@ createRoot(document.getElementById("root")).render(
         }
       />
 
+      {/* 🚀 LAUNCH ALARM LOG (protected) ✅ NEW */}
+      <Route
+        path="/launchAlarmLog"
+        element={
+          <RequireAuth>
+            <AlarmLogPage />
+          </RequireAuth>
+        }
+      />
     </Routes>
   </BrowserRouter>
 );
