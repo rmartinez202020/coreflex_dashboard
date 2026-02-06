@@ -75,34 +75,36 @@ export default function AlarmLogWindow({
           <span style={countPill}>{visibleAlarms.length}</span>
         </div>
 
-        <div style={btnRow}>
-          {/* ✅ Launch removed from top bar */}
+     <div style={btnRow}>
+  {/* Minimize only in window mode */}
+  {!isPage && (
+    <button
+      style={iconBtn}
+      title="Minimize"
+      onClick={(e) => {
+        e.stopPropagation();
+        onMinimize?.();
+      }}
+    >
+      —
+    </button>
+  )}
 
-          {/* ✅ In page mode, minimize is hidden */}
-          {!isPage && (
-            <button
-              style={iconBtn}
-              title="Minimize"
-              onClick={(e) => {
-                e.stopPropagation();
-                onMinimize?.();
-              }}
-            >
-              —
-            </button>
-          )}
+  {/* ❌ Close ONLY in window mode */}
+  {!isPage && (
+    <button
+      style={closeBtnRed}
+      title="Close"
+      onClick={(e) => {
+        e.stopPropagation();
+        setShowCloseConfirm(true);
+      }}
+    >
+      ✕
+    </button>
+  )}
+</div>
 
-          <button
-            style={closeBtnRed}
-            title={isPage ? "Back" : "Close"}
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowCloseConfirm(true);
-            }}
-          >
-            ✕
-          </button>
-        </div>
       </div>
 
       {/* TABS BAR */}
