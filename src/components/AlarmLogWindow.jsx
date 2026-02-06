@@ -15,6 +15,9 @@ export default function AlarmLogWindow({
   onAddAlarm,
 
   title = "Alarms Log (DI-AI)",
+
+  // ✅ NEW: when true, renders like a full page (no drag/minimize/launch)
+  isPage = false,
 }) {
   const alarms = [];
 
@@ -61,10 +64,10 @@ export default function AlarmLogWindow({
     <div style={wrap}>
       {/* TOP BAR */}
       <div
-        style={topBar}
+        style={{ ...topBar, cursor: isPage ? "default" : "move" }}
         onMouseDown={(e) => {
           e.stopPropagation();
-          onStartDragWindow?.(e);
+          if (!isPage) onStartDragWindow?.(e);
         }}
       >
         <div style={titleWrap}>
@@ -75,20 +78,23 @@ export default function AlarmLogWindow({
         <div style={btnRow}>
           {/* ✅ Launch removed from top bar */}
 
-          <button
-            style={iconBtn}
-            title="Minimize"
-            onClick={(e) => {
-              e.stopPropagation();
-              onMinimize?.();
-            }}
-          >
-            —
-          </button>
+          {/* ✅ In page mode, minimize is hidden */}
+          {!isPage && (
+            <button
+              style={iconBtn}
+              title="Minimize"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMinimize?.();
+              }}
+            >
+              —
+            </button>
+          )}
 
           <button
             style={closeBtnRed}
-            title="Close"
+            title={isPage ? "Back" : "Close"}
             onClick={(e) => {
               e.stopPropagation();
               setShowCloseConfirm(true);
@@ -113,19 +119,21 @@ export default function AlarmLogWindow({
         </div>
 
         <div style={tabsRight}>
-          {/* ✅ NEW: Launch button moved here (left of Settings) */}
-          <button
-            type="button"
-            style={launchTabBtn}
-            title="Launch"
-            onClick={(e) => {
-              e.stopPropagation();
-              onLaunch?.();
-            }}
-          >
-            <span style={launchPill}>↗</span>
-            <span style={{ fontSize: 12, fontWeight: 900 }}>Launch</span>
-          </button>
+          {/* ✅ In page mode, hide Launch (already launched) */}
+          {!isPage && (
+            <button
+              type="button"
+              style={launchTabBtn}
+              title="Launch"
+              onClick={(e) => {
+                e.stopPropagation();
+                onLaunch?.();
+              }}
+            >
+              <span style={launchPill}>↗</span>
+              <span style={{ fontSize: 12, fontWeight: 900 }}>Launch</span>
+            </button>
+          )}
 
           <button
             type="button"
@@ -143,7 +151,7 @@ export default function AlarmLogWindow({
         </div>
       </div>
 
-      {/* TABLE (✅ WHITE BACKGROUND NOW) */}
+      {/* TABLE */}
       <div style={table}>
         <div style={headerRow}>
           <div style={{ ...cellHead, width: COL.sel, textAlign: "center" }}>
@@ -216,12 +224,14 @@ export default function AlarmLogWindow({
               </div>
               <div style={{ ...cell, flex: 1, minWidth: 260 }}>{a.text}</div>
               <div style={{ ...cell, width: COL.group }}>{a.groupName}</div>
-              <div style={{ ...cell, width: COL.controller }}>{a.controller}</div>
+              <div style={{ ...cell, width: COL.controller }}>
+                {a.controller}
+              </div>
             </div>
           );
         })}
 
-        {/* Empty state (✅ WHITE, not gray) */}
+        {/* Empty state */}
         {visibleAlarms.length === 0 && (
           <div style={emptyWrap}>
             <div style={emptyState}>
@@ -283,7 +293,9 @@ export default function AlarmLogWindow({
               <div style={warnIcon}>⚠️</div>
               <div style={{ display: "flex", flexDirection: "column" }}>
                 <div style={confirmTitle}>Unsaved changes</div>
-                <div style={confirmSubTitle}>Close Alarms Log?</div>
+                <div style={confirmSubTitle}>
+                  {isPage ? "Leave Alarms Page?" : "Close Alarms Log?"}
+                </div>
               </div>
             </div>
 
@@ -312,7 +324,7 @@ export default function AlarmLogWindow({
                   onClose?.();
                 }}
               >
-                Close Anyway
+                {isPage ? "Leave Page" : "Close Anyway"}
               </button>
             </div>
           </div>
@@ -359,7 +371,6 @@ const topBar = {
   alignItems: "center",
   padding: "0 10px",
   borderBottom: "2px solid #000",
-  cursor: "move",
   userSelect: "none",
 };
 
@@ -412,7 +423,7 @@ const tabsRight = {
   marginLeft: "auto",
   display: "flex",
   alignItems: "center",
-  gap: 8, // ✅ adds spacing between Launch + Settings
+  gap: 8,
 };
 
 const tabBtn = {
@@ -455,7 +466,6 @@ const gearPill = {
   fontSize: 12,
 };
 
-/* ✅ NEW Launch button styling: same as Settings */
 const launchTabBtn = {
   height: 26,
   padding: "4px 10px",
