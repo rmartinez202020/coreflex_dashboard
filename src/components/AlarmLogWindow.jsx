@@ -73,16 +73,7 @@ export default function AlarmLogWindow({
         </div>
 
         <div style={btnRow}>
-          <button
-            style={iconBtn}
-            title="Launch"
-            onClick={(e) => {
-              e.stopPropagation();
-              onLaunch?.();
-            }}
-          >
-            ↗
-          </button>
+          {/* ✅ Launch removed from top bar */}
 
           <button
             style={iconBtn}
@@ -122,6 +113,20 @@ export default function AlarmLogWindow({
         </div>
 
         <div style={tabsRight}>
+          {/* ✅ NEW: Launch button moved here (left of Settings) */}
+          <button
+            type="button"
+            style={launchTabBtn}
+            title="Launch"
+            onClick={(e) => {
+              e.stopPropagation();
+              onLaunch?.();
+            }}
+          >
+            <span style={launchPill}>↗</span>
+            <span style={{ fontSize: 12, fontWeight: 900 }}>Launch</span>
+          </button>
+
           <button
             type="button"
             style={settingsTabBtn}
@@ -407,6 +412,7 @@ const tabsRight = {
   marginLeft: "auto",
   display: "flex",
   alignItems: "center",
+  gap: 8, // ✅ adds spacing between Launch + Settings
 };
 
 const tabBtn = {
@@ -449,8 +455,32 @@ const gearPill = {
   fontSize: 12,
 };
 
-/* ✅ THIS WAS THE MAIN ISSUE: background was gray.
-   Now it is white, plus light gridlines. */
+/* ✅ NEW Launch button styling: same as Settings */
+const launchTabBtn = {
+  height: 26,
+  padding: "4px 10px",
+  borderRadius: 6,
+  border: "1px solid #9ca3af",
+  background: "#ffffff",
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+};
+
+const launchPill = {
+  width: 18,
+  height: 18,
+  borderRadius: 6,
+  border: "1px solid #cbd5e1",
+  background: "#f1f5f9",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 12,
+  fontWeight: 900,
+};
+
 const table = {
   flex: 1,
   overflow: "auto",
