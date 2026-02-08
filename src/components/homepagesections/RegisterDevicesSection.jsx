@@ -33,7 +33,13 @@ function formatDateMMDDYYYY_hmma(ts) {
 }
 
 // ✅ Professional confirm modal (white background, like your AlarmLog style but white)
-function ConfirmDeleteModal({ open, deviceId, busy, onCancel, onConfirm }) {
+function ConfirmDeleteModal({
+  open,
+  deviceId,
+  busy,
+  onCancel,
+  onConfirm,
+}) {
   if (!open) return null;
 
   return (
@@ -55,24 +61,25 @@ function ConfirmDeleteModal({ open, deviceId, busy, onCancel, onConfirm }) {
 
               <div className="flex-1">
                 <div className="text-base font-bold text-slate-900">
-                  Confirm delete
+                  Remove device from my account
                 </div>
 
                 <div className="mt-1 text-sm text-slate-600">
-                  You are about to delete device{" "}
+                  You are about to remove device{" "}
                   <span className="font-semibold text-slate-900">
                     {deviceId}
-                  </span>
-                  .
+                  </span>{" "}
+                  from your account.
                 </div>
 
                 <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
                   <div className="font-semibold text-slate-900">
-                    This action can’t be undone.
+                    This will unclaim the device.
                   </div>
                   <div className="mt-1">
-                    All configuration related to this device (dashboards, tags,
-                    bindings, and settings) will be permanently removed.
+                    The device will be removed from your Registered Devices list
+                    and can be claimed again later. Any configuration linked to
+                    this device under your account may stop working.
                   </div>
                 </div>
 
@@ -85,13 +92,13 @@ function ConfirmDeleteModal({ open, deviceId, busy, onCancel, onConfirm }) {
                     Cancel
                   </button>
 
-                  {/* ✅ Delete button style matches Admin Dashboard delete vibe */}
+                  {/* ✅ Button style matches Admin Dashboard delete vibe */}
                   <button
                     onClick={onConfirm}
                     disabled={busy}
                     className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-50"
                   >
-                    🗑 {busy ? "Deleting..." : "Delete"}
+                    {busy ? "Removing..." : "Remove"}
                   </button>
                 </div>
               </div>
@@ -182,7 +189,7 @@ export default function RegisterDevicesSection({ onBack }) {
     }
   }
 
-  // ✅ open confirm modal
+  // ✅ open confirm modal (now: unclaim/remove)
   function requestDelete(row) {
     const id = String(row?.deviceId || "").trim();
     if (!id) return;
@@ -190,42 +197,43 @@ export default function RegisterDevicesSection({ onBack }) {
     setConfirmOpen(true);
   }
 
-  // ✅ confirm delete (real DELETE call)
+  // ✅ confirm remove (UNCLAIM)
   async function confirmDelete() {
     const id = String(pendingDeleteId || "").trim();
     if (!id) return;
 
-    // ✅ CLOSE MODAL IMMEDIATELY (so it disappears right after clicking Delete)
+    // ✅ CLOSE MODAL IMMEDIATELY
     setConfirmOpen(false);
     setPendingDeleteId("");
 
     setDeleting(true);
     setErr("");
     try {
-      // IMPORTANT: update endpoint if your backend uses a different route
-      const res = await fetch(
-        `${API_URL}/zhc1921/devices/${encodeURIComponent(id)}`,
-        {
-          method: "DELETE",
-          headers: {
-            "Content-Type": "application/json",
-            ...getAuthHeaders(),
-          },
-        }
-      );
+      /**
+       * ✅ UNCLAIM endpoint
+       * Backend should implement:
+       *   POST /zhc1921/unclaim
+       * Body:
+       *   { device_id: "123" }
+       */
+      const res = await fetch(`${API_URL}/zhc1921/unclaim`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({ device_id: id }),
+      });
 
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
-        throw new Error(j?.detail || `Delete failed (${res.status})`);
+        throw new Error(j?.detail || `Remove failed (${res.status})`);
       }
 
-      // ✅ refresh list (device disappears -> effectively unclaimed for this user)
+      // ✅ refresh list (device disappears because it's unclaimed)
       await loadMyDevices();
     } catch (e) {
-      // modal stays closed even on error (as requested)
-      setErr(e.message || "Delete failed");
-      // optional: you could also reload to reflect server truth
-      // await loadMyDevices();
+      setErr(e.message || "Remove failed");
     } finally {
       setDeleting(false);
     }
@@ -349,7 +357,7 @@ export default function RegisterDevicesSection({ onBack }) {
 
             <div className="rounded-xl border overflow-hidden">
               <div className="overflow-x-auto">
-                {/* ✅ tight table + right-side Delete column */}
+                {/* ✅ tight table + right-side Action column */}
                 <table className="w-full table-fixed text-[12px]">
                   <thead>
                     <tr className="bg-blue-200">
@@ -391,7 +399,7 @@ export default function RegisterDevicesSection({ onBack }) {
                         </th>
                       ))}
 
-                      <th className="px-[6px] py-[3px] w-[92px] text-right font-bold text-slate-900">
+                      <th className="px-[6px] py-[3px] w-[112px] text-right font-bold text-slate-900">
                         Action
                       </th>
                     </tr>
@@ -466,15 +474,15 @@ export default function RegisterDevicesSection({ onBack }) {
                             </td>
                           ))}
 
-                          {/* ✅ Delete button styled like Admin Dashboard delete */}
+                          {/* ✅ Button now removes claim (unclaim) */}
                           <td className="px-[6px] py-[3px] text-right">
                             <button
                               onClick={() => requestDelete(r)}
                               disabled={loading || deleting}
-                              className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-50"
-                              title="Delete device"
+                              className="inline-flex items-center justify-center rounded-lg bg-red-600 px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-50"
+                              title="Remove device from my account"
                             >
-                              🗑 Delete
+                              Remove
                             </button>
                           </td>
                         </tr>
