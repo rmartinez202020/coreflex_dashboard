@@ -32,6 +32,86 @@ function formatDateMMDDYYYY_hmma(ts) {
   return `${mm}/${dd}/${yyyy}-${h}:${min}${ampm}`;
 }
 
+// ✅ Professional confirm modal (white background, like your AlarmLog style but white)
+function ConfirmDeleteModal({
+  open,
+  deviceId,
+  busy,
+  onCancel,
+  onConfirm,
+}) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[9999]">
+      {/* overlay */}
+      <div
+        className="absolute inset-0 bg-black/40"
+        onClick={busy ? undefined : onCancel}
+      />
+
+      {/* dialog */}
+      <div className="absolute inset-0 flex items-center justify-center p-4">
+        <div className="w-full max-w-[560px] rounded-2xl border border-slate-200 bg-white shadow-2xl">
+          <div className="p-5">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 inline-flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-red-700 border border-red-100">
+                ⚠️
+              </div>
+
+              <div className="flex-1">
+                <div className="text-base font-bold text-slate-900">
+                  Confirm delete
+                </div>
+
+                <div className="mt-1 text-sm text-slate-600">
+                  You are about to delete device{" "}
+                  <span className="font-semibold text-slate-900">
+                    {deviceId}
+                  </span>
+                  .
+                </div>
+
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                  <div className="font-semibold text-slate-900">
+                    This action can’t be undone.
+                  </div>
+                  <div className="mt-1">
+                    All configuration related to this device (dashboards, tags,
+                    bindings, and settings) will be permanently removed.
+                  </div>
+                </div>
+
+                <div className="mt-4 flex items-center justify-end gap-2">
+                  <button
+                    onClick={onCancel}
+                    disabled={busy}
+                    className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+
+                  {/* ✅ Delete button style matches Admin Dashboard delete vibe */}
+                  <button
+                    onClick={onConfirm}
+                    disabled={busy}
+                    className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-50"
+                  >
+                    🗑 {busy ? "Deleting..." : "Delete"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* subtle bottom border like a dialog frame */}
+          <div className="h-[1px] bg-slate-100" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
 const MODELS = [
   { key: "cf2000", label: "Model CF-2000", desc: "ZHC1921 devices" },
   { key: "cf1600", label: "Model CF-1600", desc: "ZHC1661 devices (next)" },
@@ -45,6 +125,11 @@ export default function RegisterDevicesSection({ onBack }) {
   const [rows, setRows] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [err, setErr] = React.useState("");
+
+  // ✅ modal state
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = React.useState("");
+  const [deleting, setDeleting] = React.useState(false);
 
   async function loadMyDevices() {
     setLoading(true);
@@ -103,17 +188,20 @@ export default function RegisterDevicesSection({ onBack }) {
     }
   }
 
-  // ✅ delete device (UI + confirm). Backend endpoint may differ; adjust if needed.
-  async function deleteDevice(row) {
+  // ✅ open confirm modal
+  function requestDelete(row) {
     const id = String(row?.deviceId || "").trim();
     if (!id) return;
+    setPendingDeleteId(id);
+    setConfirmOpen(true);
+  }
 
-    const ok = window.confirm(
-      `Delete device ${id}?\n\nThis action cannot be undone. All dashboards, tags, and configuration related to this device will be permanently removed.`
-    );
-    if (!ok) return;
+  // ✅ confirm delete (real DELETE call)
+  async function confirmDelete() {
+    const id = String(pendingDeleteId || "").trim();
+    if (!id) return;
 
-    setLoading(true);
+    setDeleting(true);
     setErr("");
     try {
       // IMPORTANT: update endpoint if your backend uses a different route
@@ -133,11 +221,13 @@ export default function RegisterDevicesSection({ onBack }) {
         throw new Error(j?.detail || `Delete failed (${res.status})`);
       }
 
+      setConfirmOpen(false);
+      setPendingDeleteId("");
       await loadMyDevices();
     } catch (e) {
       setErr(e.message || "Delete failed");
     } finally {
-      setLoading(false);
+      setDeleting(false);
     }
   }
 
@@ -190,196 +280,217 @@ export default function RegisterDevicesSection({ onBack }) {
   // =========================
   if (activeModel === "cf2000") {
     return (
-      <div className="mt-6 rounded-xl border border-slate-200 bg-white overflow-hidden">
-        <div className="bg-sky-800 text-white px-4 py-4 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={() => setActiveModel(null)}
-              className="rounded-lg bg-sky-700 hover:bg-sky-600 px-3 py-2 text-sm"
-            >
-              ← Back
-            </button>
-            <div>
-              <div className="text-lg font-semibold">
-                Register Devices — Model CF-2000
-              </div>
-              <div className="text-xs text-sky-100">
-                Enter a DEVICE ID. We verify it exists and assign it to your
-                account.
-              </div>
-            </div>
-          </div>
+      <>
+        <ConfirmDeleteModal
+          open={confirmOpen}
+          deviceId={pendingDeleteId}
+          busy={deleting}
+          onCancel={() => {
+            if (deleting) return;
+            setConfirmOpen(false);
+            setPendingDeleteId("");
+          }}
+          onConfirm={confirmDelete}
+        />
 
-          <button
-            onClick={loadMyDevices}
-            className="rounded-lg bg-sky-700 hover:bg-sky-600 px-3 py-2 text-sm"
-            disabled={loading}
-          >
-            Refresh
-          </button>
-        </div>
-
-        <div className="p-4">
-          <div className="mb-4">
-            <div className="text-sm font-semibold mb-2">Add / Claim Device ID</div>
-
-            <div className="flex gap-3">
-              <input
-                value={deviceId}
-                onChange={(e) => setDeviceId(e.target.value)}
-                placeholder="Enter DEVICE ID"
-                className="flex-1 rounded-lg border px-3 py-2 text-sm"
-              />
+        <div className="mt-6 rounded-xl border border-slate-200 bg-white overflow-hidden">
+          <div className="bg-sky-800 text-white px-4 py-4 flex items-center justify-between">
+            <div className="flex items-center gap-3">
               <button
-                onClick={claimDevice}
-                disabled={loading}
-                className="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm"
+                onClick={() => setActiveModel(null)}
+                className="rounded-lg bg-sky-700 hover:bg-sky-600 px-3 py-2 text-sm"
               >
-                + Add Device
+                ← Back
               </button>
+              <div>
+                <div className="text-lg font-semibold">
+                  Register Devices — Model CF-2000
+                </div>
+                <div className="text-xs text-sky-100">
+                  Enter a DEVICE ID. We verify it exists and assign it to your
+                  account.
+                </div>
+              </div>
             </div>
 
-            {err && <div className="mt-2 text-xs text-red-600">{err}</div>}
+            <button
+              onClick={loadMyDevices}
+              className="rounded-lg bg-sky-700 hover:bg-sky-600 px-3 py-2 text-sm"
+              disabled={loading}
+            >
+              Refresh
+            </button>
           </div>
 
-          <div className="rounded-xl border overflow-hidden">
-            <div className="overflow-x-auto">
-              {/* ✅ tighter overall table: narrower widths + tighter padding + tighter numeric columns */}
-              <table className="w-full table-fixed text-[12px]">
-                <thead>
-                  <tr className="bg-blue-200">
-                    <th className="px-[6px] py-[3px] w-[110px] text-left font-bold text-slate-900">
-                      DEVICE ID
-                    </th>
+          <div className="p-4">
+            <div className="mb-4">
+              <div className="text-sm font-semibold mb-2">
+                Add / Claim Device ID
+              </div>
 
-                    {/* Date/LastSeen: keep compact but readable */}
-                    <th className="px-[6px] py-[3px] w-[135px] text-left font-bold text-slate-900">
-                      Date
-                    </th>
+              <div className="flex gap-3">
+                <input
+                  value={deviceId}
+                  onChange={(e) => setDeviceId(e.target.value)}
+                  placeholder="Enter DEVICE ID"
+                  className="flex-1 rounded-lg border px-3 py-2 text-sm"
+                />
+                <button
+                  onClick={claimDevice}
+                  disabled={loading}
+                  className="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm"
+                >
+                  + Add Device
+                </button>
+              </div>
 
-                    <th className="px-[6px] py-[3px] w-[72px] text-left font-bold text-slate-900">
-                      Status
-                    </th>
+              {err && <div className="mt-2 text-xs text-red-600">{err}</div>}
+            </div>
 
-                    <th className="px-[6px] py-[3px] w-[135px] text-left font-bold text-slate-900 border-r border-blue-300">
-                      Last Seen
-                    </th>
-
-                    {[
-                      "DI-1",
-                      "DI-2",
-                      "DI-3",
-                      "DI-4",
-                      "DO-1",
-                      "DO-2",
-                      "DO-3",
-                      "DO-4",
-                      "AI-1",
-                      "AI-2",
-                      "AI-3",
-                      "AI-4",
-                    ].map((k) => (
-                      <th
-                        key={k}
-                        className="px-[4px] py-[3px] w-[34px] text-center font-bold text-slate-900"
-                      >
-                        {k}
+            <div className="rounded-xl border overflow-hidden">
+              <div className="overflow-x-auto">
+                {/* ✅ tight table + right-side Delete column */}
+                <table className="w-full table-fixed text-[12px]">
+                  <thead>
+                    <tr className="bg-blue-200">
+                      <th className="px-[6px] py-[3px] w-[110px] text-left font-bold text-slate-900">
+                        DEVICE ID
                       </th>
-                    ))}
 
-                    {/* ✅ Delete column */}
-                    <th className="px-[6px] py-[3px] w-[92px] text-right font-bold text-slate-900">
-                      {/* blank header is ok, but keeping label helps */}
-                      Action
-                    </th>
-                  </tr>
-                </thead>
+                      <th className="px-[6px] py-[3px] w-[135px] text-left font-bold text-slate-900">
+                        Date
+                      </th>
 
-                <tbody>
-                  {loading && rows.length === 0 ? (
-                    <tr>
-                      <td colSpan={17} className="text-center py-6 text-slate-500">
-                        Loading...
-                      </td>
-                    </tr>
-                  ) : !rows.length ? (
-                    <tr>
-                      <td colSpan={17} className="text-center py-6 text-slate-500">
-                        No registered devices yet.
-                      </td>
-                    </tr>
-                  ) : (
-                    rows.map((r, i) => (
-                      <tr key={i} className={i % 2 ? "bg-slate-50" : "bg-white"}>
-                        <td className="px-[6px] py-[3px] truncate text-slate-800">
-                          {r.deviceId}
-                        </td>
+                      <th className="px-[6px] py-[3px] w-[72px] text-left font-bold text-slate-900">
+                        Status
+                      </th>
 
-                        <td
-                          className="px-[6px] py-[3px] truncate text-slate-800"
-                          title={r.addedAt || ""}
+                      <th className="px-[6px] py-[3px] w-[135px] text-left font-bold text-slate-900 border-r border-blue-300">
+                        Last Seen
+                      </th>
+
+                      {[
+                        "DI-1",
+                        "DI-2",
+                        "DI-3",
+                        "DI-4",
+                        "DO-1",
+                        "DO-2",
+                        "DO-3",
+                        "DO-4",
+                        "AI-1",
+                        "AI-2",
+                        "AI-3",
+                        "AI-4",
+                      ].map((k) => (
+                        <th
+                          key={k}
+                          className="px-[4px] py-[3px] w-[34px] text-center font-bold text-slate-900"
                         >
-                          {formatDateMMDDYYYY_hmma(r.addedAt)}
-                        </td>
+                          {k}
+                        </th>
+                      ))}
 
-                        <td className="px-[6px] py-[3px] capitalize text-slate-800">
-                          {r.status}
-                        </td>
+                      <th className="px-[6px] py-[3px] w-[92px] text-right font-bold text-slate-900">
+                        Action
+                      </th>
+                    </tr>
+                  </thead>
 
+                  <tbody>
+                    {loading && rows.length === 0 ? (
+                      <tr>
                         <td
-                          className="px-[6px] py-[3px] truncate text-slate-800 border-r border-slate-200"
-                          title={r.lastSeen || ""}
+                          colSpan={17}
+                          className="text-center py-6 text-slate-500"
                         >
-                          {formatDateMMDDYYYY_hmma(r.lastSeen)}
-                        </td>
-
-                        {[
-                          r.in1,
-                          r.in2,
-                          r.in3,
-                          r.in4,
-                          r.do1,
-                          r.do2,
-                          r.do3,
-                          r.do4,
-                          r.ai1,
-                          r.ai2,
-                          r.ai3,
-                          r.ai4,
-                        ].map((v, j) => (
-                          <td
-                            key={j}
-                            className="text-center px-[4px] py-[3px] text-slate-800"
-                          >
-                            {String(v ?? "")}
-                          </td>
-                        ))}
-
-                        {/* ✅ Delete button styled like Admin Dashboard delete */}
-                        <td className="px-[6px] py-[3px] text-right">
-                          <button
-                            onClick={() => deleteDevice(r)}
-                            disabled={loading}
-                            className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-50"
-                            title="Delete device"
-                          >
-                            🗑 Delete
-                          </button>
+                          Loading...
                         </td>
                       </tr>
-                    ))
-                  )}
-                </tbody>
-              </table>
-            </div>
+                    ) : !rows.length ? (
+                      <tr>
+                        <td
+                          colSpan={17}
+                          className="text-center py-6 text-slate-500"
+                        >
+                          No registered devices yet.
+                        </td>
+                      </tr>
+                    ) : (
+                      rows.map((r, i) => (
+                        <tr
+                          key={i}
+                          className={i % 2 ? "bg-slate-50" : "bg-white"}
+                        >
+                          <td className="px-[6px] py-[3px] truncate text-slate-800">
+                            {r.deviceId}
+                          </td>
 
-            {/* Optional small footer tip */}
-            <div className="px-3 py-2 text-[11px] text-slate-500">
-              Tip: You can scroll horizontally inside this table.
+                          <td
+                            className="px-[6px] py-[3px] truncate text-slate-800"
+                            title={r.addedAt || ""}
+                          >
+                            {formatDateMMDDYYYY_hmma(r.addedAt)}
+                          </td>
+
+                          <td className="px-[6px] py-[3px] capitalize text-slate-800">
+                            {r.status}
+                          </td>
+
+                          <td
+                            className="px-[6px] py-[3px] truncate text-slate-800 border-r border-slate-200"
+                            title={r.lastSeen || ""}
+                          >
+                            {formatDateMMDDYYYY_hmma(r.lastSeen)}
+                          </td>
+
+                          {[
+                            r.in1,
+                            r.in2,
+                            r.in3,
+                            r.in4,
+                            r.do1,
+                            r.do2,
+                            r.do3,
+                            r.do4,
+                            r.ai1,
+                            r.ai2,
+                            r.ai3,
+                            r.ai4,
+                          ].map((v, j) => (
+                            <td
+                              key={j}
+                              className="text-center px-[4px] py-[3px] text-slate-800"
+                            >
+                              {String(v ?? "")}
+                            </td>
+                          ))}
+
+                          {/* ✅ Delete button styled like Admin Dashboard delete */}
+                          <td className="px-[6px] py-[3px] text-right">
+                            <button
+                              onClick={() => requestDelete(r)}
+                              disabled={loading || deleting}
+                              className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-50"
+                              title="Delete device"
+                            >
+                              🗑 Delete
+                            </button>
+                          </td>
+                        </tr>
+                      ))
+                    )}
+                  </tbody>
+                </table>
+              </div>
+
+              <div className="px-3 py-2 text-[11px] text-slate-500">
+                Tip: You can scroll horizontally inside this table.
+              </div>
             </div>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 
