@@ -113,14 +113,10 @@ export default function HomePage({
   const normalizedUser = safeLower(detectedEmail || currentUserKey);
   const isPlatformOwner = normalizedUser === safeLower(PLATFORM_OWNER_EMAIL);
 
-  // ✅ Device Manager UI state (inside Home)
+  // ✅ Device Manager state
   const [activeModel, setActiveModel] = React.useState(null);
 
-  // ✅ Add-device UI (ZHC1921)
-  const [newDeviceId, setNewDeviceId] = React.useState("");
-  const [addError, setAddError] = React.useState("");
-
-  // ✅ Placeholder rows (later we replace with backend API)
+  // ✅ Placeholder rows (later replace with backend API)
   const [zhc1921Rows, setZhc1921Rows] = React.useState([
     {
       deviceId: "1921251024070670",
@@ -143,198 +139,8 @@ export default function HomePage({
     },
   ]);
 
-  // ✅ Temporary local add (later replaced by backend POST)
-  const handleAddZhc1921Device = () => {
-    const id = String(newDeviceId || "").trim();
-    if (!id) {
-      setAddError("Please type a DEVICE ID.");
-      return;
-    }
-    const exists = zhc1921Rows.some((r) => String(r.deviceId) === id);
-    if (exists) {
-      setAddError("That DEVICE ID already exists in the table.");
-      return;
-    }
-
-    setZhc1921Rows((prev) => [
-      {
-        deviceId: id,
-        addedAt: new Date().toLocaleString(),
-        ownedBy: "—",
-        status: "offline",
-        lastSeen: "—",
-        in1: 0,
-        in2: 0,
-        in3: 0,
-        in4: 0,
-        do1: 0,
-        do2: 0,
-        do3: 0,
-        do4: 0,
-        ai1: "",
-        ai2: "",
-        ai3: "",
-        ai4: "",
-      },
-      ...prev,
-    ]);
-
-    setNewDeviceId("");
-    setAddError("");
-  };
-
-  // ✅ The full manager panel for ZHC1921 (header + add device + table)
-  const renderZhc1921Table = () => (
-    <div className="mt-6">
-      {/* ✅ Header bar like Admin Dashboard */}
-      <div className="rounded-xl bg-gray-700 text-white p-4 md:p-5 flex items-center justify-between">
-        <div>
-          <div className="text-lg font-semibold">
-            Device Manager — ZHC1921 (CF-2000)
-          </div>
-          <div className="text-sm text-gray-200">
-            Add authorized devices and view live I/O status from backend.
-          </div>
-        </div>
-
-        <button
-          onClick={() => {
-            // placeholder refresh (later this calls backend)
-            setZhc1921Rows((prev) => [...prev]);
-          }}
-          className="rounded-lg bg-white/10 text-white px-4 py-2 text-sm hover:bg-white/15 transition"
-        >
-          Refresh
-        </button>
-      </div>
-
-      {/* ✅ Add Device row */}
-      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
-        <div className="flex flex-col md:flex-row md:items-end gap-3">
-          <div className="flex-1">
-            <div className="text-sm font-semibold text-slate-800 mb-1">
-              Add Device ID (authorized backend device)
-            </div>
-            <input
-              value={newDeviceId}
-              onChange={(e) => {
-                setNewDeviceId(e.target.value);
-                setAddError("");
-              }}
-              placeholder="Enter DEVICE ID (example: 1921251024070670)"
-              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
-            />
-            {addError ? (
-              <div className="text-xs text-red-600 mt-1">{addError}</div>
-            ) : (
-              <div className="text-xs text-slate-500 mt-1">
-                Owner only. This will create a new row in the backend table.
-              </div>
-            )}
-          </div>
-
-          <button
-            onClick={handleAddZhc1921Device}
-            className="rounded-lg bg-slate-900 text-white px-5 py-2 text-sm hover:opacity-90"
-          >
-            + Add Device
-          </button>
-        </div>
-      </div>
-
-      {/* ✅ Table */}
-      <div className="mt-4 rounded-xl border border-slate-200 bg-white overflow-hidden">
-        <div className="w-full overflow-auto">
-          <table className="min-w-max w-full text-sm">
-            <thead className="bg-slate-100 sticky top-0 z-10">
-              <tr>
-                {ZHC1921_COLUMNS.map((c) => (
-                  <th
-                    key={c.key}
-                    className="text-left font-semibold text-slate-700 px-3 py-3 border-b border-slate-200"
-                    style={{ minWidth: c.minW }}
-                  >
-                    {c.label}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-
-            <tbody>
-              {zhc1921Rows.length === 0 ? (
-                <tr>
-                  <td
-                    colSpan={ZHC1921_COLUMNS.length}
-                    className="px-4 py-8 text-center text-slate-500"
-                  >
-                    No devices found.
-                  </td>
-                </tr>
-              ) : (
-                zhc1921Rows.map((r, idx) => (
-                  <tr
-                    key={r.deviceId + idx}
-                    className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}
-                  >
-                    {ZHC1921_COLUMNS.map((c) => {
-                      const val = r[c.key];
-
-                      if (c.key === "status") {
-                        const statusLower = String(val || "").toLowerCase();
-                        const dotClass =
-                          statusLower === "online"
-                            ? "bg-emerald-500"
-                            : "bg-slate-400";
-
-                        return (
-                          <td
-                            key={c.key}
-                            className="px-3 py-3 border-b border-slate-100 text-slate-800"
-                          >
-                            <div className="flex items-center gap-2">
-                              <span
-                                className={`inline-block w-2.5 h-2.5 rounded-full ${dotClass}`}
-                              />
-                              <span className="capitalize">
-                                {val || "offline"}
-                              </span>
-                            </div>
-                          </td>
-                        );
-                      }
-
-                      return (
-                        <td
-                          key={c.key}
-                          className="px-3 py-3 border-b border-slate-100 text-slate-800"
-                        >
-                          {val === undefined || val === null ? "" : String(val)}
-                        </td>
-                      );
-                    })}
-                  </tr>
-                ))
-              )}
-            </tbody>
-          </table>
-        </div>
-      </div>
-
-      <div className="mt-2 text-xs text-slate-500">
-        Tip: Scroll horizontally to see all columns.
-      </div>
-    </div>
-  );
-
   return (
     <>
-      {/* ✅ ALWAYS-VISIBLE DEBUG LINE (remove after it works) */}
-      <div className="mb-3 text-[11px] text-slate-500">
-        debug owner-check → detectedEmail: "{detectedEmail || "(none)"}" |
-        currentUserKey: "{String(currentUserKey || "")}" | normalizedUser: "
-        {normalizedUser}" | isPlatformOwner: {String(isPlatformOwner)}
-      </div>
-
       {/* TOP ROW CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         {/* PROFILE CARD */}
@@ -425,13 +231,15 @@ export default function HomePage({
         </div>
       </div>
 
-      {/* ✅ OWNER-ONLY: DEVICE MANAGER SECTION (EXTRACTED) */}
+      {/* ✅ OWNER-ONLY: DEVICE MANAGER SECTION (FULL "NEW SECTION" VIEW) */}
       {isPlatformOwner && (
         <DeviceManagerSection
           ownerEmail={normalizedUser}
           activeModel={activeModel}
           setActiveModel={setActiveModel}
-          renderZhc1921Table={renderZhc1921Table}
+          zhc1921Columns={ZHC1921_COLUMNS}
+          zhc1921Rows={zhc1921Rows}
+          setZhc1921Rows={setZhc1921Rows}
         />
       )}
 
