@@ -33,10 +33,11 @@ export default function LoginPage() {
     const startTime = Date.now();
 
     try {
-      // ✅ Always clear old auth first (prevents ghost users)
+      // ✅ Clear any old tokens first
       clearAuth();
 
-      const emailClean = String(email || "").trim().toLowerCase();
+      // ✅ SAFE: trim only (DO NOT lowercase; some backends are case-sensitive)
+      const emailClean = String(email || "").trim();
 
       const res = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
@@ -52,7 +53,7 @@ export default function LoginPage() {
       }
 
       // ✅ Support both shapes: {access_token} or {token}
-      const token = (data?.access_token || data?.token || "").trim();
+      const token = String(data?.access_token || data?.token || "").trim();
       if (!token) {
         await waitRemaining(startTime);
         throw new Error("Login failed: missing access_token");
@@ -60,7 +61,7 @@ export default function LoginPage() {
 
       await waitRemaining(startTime);
 
-      // ✅ Store token in ONE place (authToken.js controls the key)
+      // ✅ Store token (authToken.js decides where/how)
       setToken(token);
 
       // ✅ Clear ONLY dashboard caches (not auth)
@@ -69,6 +70,9 @@ export default function LoginPage() {
       localStorage.removeItem("coreflex_last_dashboard");
       localStorage.removeItem("dashboard_layout");
       localStorage.removeItem("dashboardState");
+
+      // ✅ Notify app (safe even if setToken dispatches too)
+      window.dispatchEvent(new Event("coreflex-auth-changed"));
 
       // ✅ HARD redirect so App re-inits with correct token/user
       window.location.href = "/app";
@@ -84,32 +88,24 @@ export default function LoginPage() {
     setCapsLockOn(!!caps);
   };
 
-  // ✅ Submit helper (one place)
   const submitLogin = () => {
     if (loading) return;
     formRef.current?.requestSubmit?.();
   };
 
-  // ✅ ENTER key should login even if user didn't click anywhere
   useEffect(() => {
     const onKeyDown = (e) => {
       if (e.key !== "Enter") return;
       if (loading) return;
 
-      // Avoid interfering with special cases
-      if (e.isComposing) return; // IME composition
+      if (e.isComposing) return;
       if (e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return;
 
       const t = e.target;
       const tag = t?.tagName?.toLowerCase?.() || "";
 
-      // If user is in a textarea, Enter should not submit
       if (tag === "textarea") return;
-
-      // If user is clicking buttons/links etc., let default happen
       if (tag === "button" || tag === "a") return;
-
-      // only submit when this page's form exists
       if (!formRef.current) return;
 
       e.preventDefault();
