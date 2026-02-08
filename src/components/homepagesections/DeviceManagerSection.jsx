@@ -79,24 +79,21 @@ export default function DeviceManagerSection({
 
     const newRow = {
       deviceId: id,
-      addedAt, // ✅ maps to "Date"
-      ownedBy: "—", // ✅ maps to "User"
+      addedAt, // Date
+      ownedBy: "—", // User
       status: "offline",
       lastSeen: "—",
 
-      // ✅ DI (0/1)
       in1: 0,
       in2: 0,
       in3: 0,
       in4: 0,
 
-      // ✅ DO (0/1)
       do1: 0,
       do2: 0,
       do3: 0,
       do4: 0,
 
-      // ✅ AI values
       ai1: "",
       ai2: "",
       ai3: "",
@@ -111,170 +108,117 @@ export default function DeviceManagerSection({
     setZhc1921Rows?.((prev) => [...(prev || [])]);
   }
 
-  // ✅ Spreadsheet-style EXACT headers:
-  // Row 1 (blue): DEVICE ID | Date | User | Status | last seen | DI-1..DI-4 | DO1..DO4 | AI-1..AI-4
-  // Row 2 (white):         |      |      | online/offline |     | 0/1.. | 0/1.. | value..
+  // ✅ Compact spreadsheet-like table
   const renderZhc1921Table = () => (
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden w-full max-w-full">
-      {/* horizontal scroll ONLY inside this box */}
       <div className="w-full overflow-x-auto">
-        <table className="min-w-max w-full text-sm">
-          <thead className="sticky top-0 z-10">
+        {/* table-fixed + explicit widths makes spacing tighter */}
+        <table className="w-full table-fixed text-[12px]">
+          <thead>
             {/* ✅ Row 1 (BLUE TITLES) */}
             <tr className="bg-blue-200">
-              <th
-                className="text-left font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
-                style={{ minWidth: 180 }}
-              >
+              <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[160px]">
                 DEVICE ID
               </th>
-              <th
-                className="text-left font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
-                style={{ minWidth: 140 }}
-              >
+              <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[95px]">
                 Date
               </th>
-              <th
-                className="text-left font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
-                style={{ minWidth: 140 }}
-              >
+              <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[95px]">
                 User
               </th>
-              <th
-                className="text-left font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
-                style={{ minWidth: 150 }}
-              >
+              <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[110px]">
                 Status
               </th>
-              <th
-                className="text-left font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
-                style={{ minWidth: 140 }}
-              >
+              <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[95px]">
                 last seen
               </th>
 
-              <th
-                className="text-center font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
-                style={{ minWidth: 90 }}
-              >
+              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
                 DI-1
               </th>
-              <th
-                className="text-center font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
-                style={{ minWidth: 90 }}
-              >
+              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
                 DI-2
               </th>
-              <th
-                className="text-center font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
-                style={{ minWidth: 90 }}
-              >
+              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
                 DI-3
               </th>
-              <th
-                className="text-center font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
-                style={{ minWidth: 90 }}
-              >
+              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
                 DI-4
               </th>
 
-              <th
-                className="text-center font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
-                style={{ minWidth: 90 }}
-              >
+              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
                 DO 1
               </th>
-              <th
-                className="text-center font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
-                style={{ minWidth: 90 }}
-              >
+              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
                 DO 2
               </th>
-              <th
-                className="text-center font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
-                style={{ minWidth: 90 }}
-              >
+              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
                 DO 3
               </th>
-              <th
-                className="text-center font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
-                style={{ minWidth: 90 }}
-              >
+              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
                 DO 4
               </th>
 
-              <th
-                className="text-center font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
-                style={{ minWidth: 100 }}
-              >
+              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[70px]">
                 AI-1
               </th>
-              <th
-                className="text-center font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
-                style={{ minWidth: 100 }}
-              >
+              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[70px]">
                 AI-2
               </th>
-              <th
-                className="text-center font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
-                style={{ minWidth: 100 }}
-              >
+              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[70px]">
                 AI-3
               </th>
-              <th
-                className="text-center font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
-                style={{ minWidth: 100 }}
-              >
+              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[70px]">
                 AI-4
               </th>
             </tr>
 
             {/* ✅ Row 2 (SUBTITLES) */}
-            <tr className="bg-white">
-              <th className="px-3 py-1.5 border-b border-slate-200" />
-              <th className="px-3 py-1.5 border-b border-slate-200" />
-              <th className="px-3 py-1.5 border-b border-slate-200" />
-              <th className="px-3 py-1.5 text-left text-xs text-slate-700 border-b border-slate-200">
+            <tr className="bg-white text-[11px]">
+              <th className="px-2 py-1 border-b border-slate-200" />
+              <th className="px-2 py-1 border-b border-slate-200" />
+              <th className="px-2 py-1 border-b border-slate-200" />
+              <th className="px-2 py-1 text-left text-slate-700 border-b border-slate-200">
                 online/offline
               </th>
-              <th className="px-3 py-1.5 border-b border-slate-200" />
+              <th className="px-2 py-1 border-b border-slate-200" />
 
-              <th className="px-3 py-1.5 text-center text-xs text-slate-700 border-b border-slate-200">
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
                 0/1
               </th>
-              <th className="px-3 py-1.5 text-center text-xs text-slate-700 border-b border-slate-200">
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
                 0/1
               </th>
-              <th className="px-3 py-1.5 text-center text-xs text-slate-700 border-b border-slate-200">
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
                 0/1
               </th>
-              <th className="px-3 py-1.5 text-center text-xs text-slate-700 border-b border-slate-200">
-                0/1
-              </th>
-
-              <th className="px-3 py-1.5 text-center text-xs text-slate-700 border-b border-slate-200">
-                0/1
-              </th>
-              <th className="px-3 py-1.5 text-center text-xs text-slate-700 border-b border-slate-200">
-                0/1
-              </th>
-              <th className="px-3 py-1.5 text-center text-xs text-slate-700 border-b border-slate-200">
-                0/1
-              </th>
-              <th className="px-3 py-1.5 text-center text-xs text-slate-700 border-b border-slate-200">
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
                 0/1
               </th>
 
-              <th className="px-3 py-1.5 text-center text-xs text-slate-700 border-b border-slate-200">
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
                 value
               </th>
-              <th className="px-3 py-1.5 text-center text-xs text-slate-700 border-b border-slate-200">
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
                 value
               </th>
-              <th className="px-3 py-1.5 text-center text-xs text-slate-700 border-b border-slate-200">
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
                 value
               </th>
-              <th className="px-3 py-1.5 text-center text-xs text-slate-700 border-b border-slate-200">
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
                 value
               </th>
             </tr>
@@ -283,7 +227,10 @@ export default function DeviceManagerSection({
           <tbody>
             {!zhc1921Rows || zhc1921Rows.length === 0 ? (
               <tr>
-                <td colSpan={17} className="px-4 py-8 text-center text-slate-500">
+                <td
+                  colSpan={17}
+                  className="px-3 py-6 text-center text-slate-500"
+                >
                   No devices found.
                 </td>
               </tr>
@@ -298,22 +245,22 @@ export default function DeviceManagerSection({
                     key={(r?.deviceId || "row") + idx}
                     className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}
                   >
-                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800">
+                    <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800 truncate">
                       {r?.deviceId ?? ""}
                     </td>
 
-                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800">
+                    <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800 truncate">
                       {r?.addedAt ?? "—"}
                     </td>
 
-                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800">
+                    <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800 truncate">
                       {r?.ownedBy ?? "—"}
                     </td>
 
-                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800">
-                      <div className="flex items-center gap-2">
+                    <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800">
+                      <div className="flex items-center gap-1.5">
                         <span
-                          className={`inline-block w-2.5 h-2.5 rounded-full ${dotClass}`}
+                          className={`inline-block w-2 h-2 rounded-full ${dotClass}`}
                         />
                         <span className="capitalize">
                           {r?.status || "offline"}
@@ -321,46 +268,46 @@ export default function DeviceManagerSection({
                       </div>
                     </td>
 
-                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800">
+                    <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800 truncate">
                       {r?.lastSeen ?? "—"}
                     </td>
 
-                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800 text-center">
+                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
                       {String(r?.in1 ?? "")}
                     </td>
-                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800 text-center">
+                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
                       {String(r?.in2 ?? "")}
                     </td>
-                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800 text-center">
+                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
                       {String(r?.in3 ?? "")}
                     </td>
-                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800 text-center">
+                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
                       {String(r?.in4 ?? "")}
                     </td>
 
-                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800 text-center">
+                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
                       {String(r?.do1 ?? "")}
                     </td>
-                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800 text-center">
+                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
                       {String(r?.do2 ?? "")}
                     </td>
-                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800 text-center">
+                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
                       {String(r?.do3 ?? "")}
                     </td>
-                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800 text-center">
+                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
                       {String(r?.do4 ?? "")}
                     </td>
 
-                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800 text-center">
+                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center truncate">
                       {r?.ai1 ?? ""}
                     </td>
-                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800 text-center">
+                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center truncate">
                       {r?.ai2 ?? ""}
                     </td>
-                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800 text-center">
+                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center truncate">
                       {r?.ai3 ?? ""}
                     </td>
-                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800 text-center">
+                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center truncate">
                       {r?.ai4 ?? ""}
                     </td>
                   </tr>
@@ -371,7 +318,7 @@ export default function DeviceManagerSection({
         </table>
       </div>
 
-      <div className="px-4 py-2 text-xs text-slate-500">
+      <div className="px-3 py-2 text-xs text-slate-500">
         Tip: If needed, scroll horizontally inside this table only.
       </div>
     </div>
