@@ -30,28 +30,21 @@ function modelMeta(modelKey) {
   return { title: "Device Manager", desc: "" };
 }
 
-// ✅ get token from whichever key you use
+// ✅ Single source of truth (matches your authToken.js)
 function getAuthToken() {
-  const keys = [
-    "coreflex_access_token",
-    "coreflex_token",
-    "access_token",
-    "token",
-    "jwt",
-  ];
-  for (const k of keys) {
-    const v = localStorage.getItem(k);
-    if (v && String(v).trim()) return String(v).trim();
-  }
-  return "";
+  return String(localStorage.getItem("coreflex_access_token") || "").trim();
 }
 
 async function apiFetch(path, options = {}) {
   const token = getAuthToken();
   const headers = {
-    "Content-Type": "application/json",
     ...(options.headers || {}),
   };
+
+  // only attach JSON header when we actually send a body
+  const hasBody = options.body !== undefined && options.body !== null;
+  if (hasBody) headers["Content-Type"] = "application/json";
+
   if (token) headers.Authorization = `Bearer ${token}`;
 
   const res = await fetch(`${API_URL}${path}`, {
@@ -70,6 +63,7 @@ async function apiFetch(path, options = {}) {
     const msg = data?.detail || data?.error || `Request failed (${res.status})`;
     throw new Error(msg);
   }
+
   return data;
 }
 
@@ -116,6 +110,49 @@ function formatDateTime(value) {
   return `${mm}/${dd}/${yyyy}-${hours}:${mins}${ampm}`;
 }
 
+/**
+ * ✅ Normalize backend row keys -> UI keys
+ * Your backend likely returns snake_case like:
+ * device_id, authorized_at, claimed_by_email, last_seen, di1..di4, do1..do4, ai1..ai4
+ */
+function normalizeZhc1921Row(r) {
+  const row = r || {};
+
+  const pick = (...keys) => {
+    for (const k of keys) {
+      const v = row?.[k];
+      if (v !== undefined && v !== null) return v;
+    }
+    return undefined;
+  };
+
+  return {
+    deviceId: pick("deviceId", "device_id", "deviceID"),
+    addedAt: pick("addedAt", "authorized_at", "authorizedAt", "added_at"),
+    ownedBy: pick("ownedBy", "claimed_by_email", "claimedByEmail", "user_email", "email"),
+    status: pick("status") ?? "offline",
+    lastSeen: pick("lastSeen", "last_seen", "lastSeenAt"),
+
+    // DI
+    in1: pick("in1", "di1", "di_1") ?? 0,
+    in2: pick("in2", "di2", "di_2") ?? 0,
+    in3: pick("in3", "di3", "di_3") ?? 0,
+    in4: pick("in4", "di4", "di_4") ?? 0,
+
+    // DO
+    do1: pick("do1") ?? 0,
+    do2: pick("do2") ?? 0,
+    do3: pick("do3") ?? 0,
+    do4: pick("do4") ?? 0,
+
+    // AI
+    ai1: pick("ai1") ?? "",
+    ai2: pick("ai2") ?? "",
+    ai3: pick("ai3") ?? "",
+    ai4: pick("ai4") ?? "",
+  };
+}
+
 export default function DeviceManagerSection({
   ownerEmail,
   activeModel,
@@ -143,9 +180,20 @@ export default function DeviceManagerSection({
   async function loadZhc1921() {
     setLoading(true);
     setErr("");
+
     try {
+      const token = getAuthToken();
+      if (!token) {
+        setZhc1921Rows?.([]);
+        throw new Error("Missing auth token. Please logout and login again.");
+      }
+
       const rows = await apiFetch("/zhc1921/devices", { method: "GET" });
-      setZhc1921Rows?.(Array.isArray(rows) ? rows : []);
+
+      const list = Array.isArray(rows) ? rows : [];
+      const normalized = list.map(normalizeZhc1921Row);
+
+      setZhc1921Rows?.(normalized);
     } catch (e) {
       setErr(e.message || "Failed to load devices.");
     } finally {
@@ -155,9 +203,7 @@ export default function DeviceManagerSection({
 
   // ✅ Load from backend when model opens
   React.useEffect(() => {
-    if (activeModel === "zhc1921") {
-      loadZhc1921();
-    }
+    if (activeModel === "zhc1921") loadZhc1921();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeModel]);
 
@@ -358,9 +404,7 @@ export default function DeviceManagerSection({
                         <span
                           className={`inline-block w-2 h-2 rounded-full ${dotClass}`}
                         />
-                        <span className="capitalize">
-                          {r?.status || "offline"}
-                        </span>
+                        <span className="capitalize">{r?.status || "offline"}</span>
                       </div>
                     </td>
 
