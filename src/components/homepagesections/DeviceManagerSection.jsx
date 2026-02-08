@@ -318,9 +318,12 @@ export default function DeviceManagerSection({
         </table>
       </div>
 
-      <div className="px-3 py-2 text-xs text-slate-500">
-        Tip: If needed, scroll horizontally inside this table only.
-      </div>
+      {/* ✅ ONLY show this tip when at least 1 device exists */}
+      {(zhc1921Rows?.length || 0) > 0 ? (
+        <div className="px-3 py-2 text-xs text-slate-500">
+          Tip: If needed, scroll horizontally inside this table only.
+        </div>
+      ) : null}
     </div>
   );
 
