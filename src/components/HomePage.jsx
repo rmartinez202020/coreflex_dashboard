@@ -39,7 +39,18 @@ export default function HomePage({
   setSubPageColor,
   currentUserKey,
 }) {
-  const normalizedUser = (currentUserKey || "").trim().toLowerCase();
+  // ✅ IMPORTANT FIX:
+  // currentUserKey is NOT always the email. So we also read email from localStorage
+  // (you already display the email in the header, so it is stored somewhere).
+  const storedEmail =
+    localStorage.getItem("coreflex_user_email") ||
+    localStorage.getItem("coreflex_email") ||
+    localStorage.getItem("user_email") ||
+    localStorage.getItem("email") ||
+    "";
+
+  const rawIdentity = storedEmail || currentUserKey || "";
+  const normalizedUser = String(rawIdentity).trim().toLowerCase();
   const isPlatformOwner = normalizedUser === PLATFORM_OWNER_EMAIL;
 
   // ✅ Device Manager UI state (inside Home)
@@ -170,6 +181,13 @@ export default function HomePage({
 
       <div className="mt-2 text-xs text-slate-500">
         Tip: Scroll horizontally to see all columns.
+      </div>
+
+      {/* ✅ TEMP DEBUG (remove later) */}
+      <div className="mt-2 text-[11px] text-slate-400">
+        debug: currentUserKey="{String(currentUserKey || "")}" | storedEmail="
+        {String(storedEmail || "")}" | normalizedUser="{normalizedUser}" |
+        isPlatformOwner={String(isPlatformOwner)}
       </div>
     </div>
   );
