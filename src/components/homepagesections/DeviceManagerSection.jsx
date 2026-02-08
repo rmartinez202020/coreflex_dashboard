@@ -201,75 +201,77 @@ export default function DeviceManagerSection({
   const renderZhc1921Table = () => (
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden w-full max-w-full">
       <div className="w-full overflow-x-auto">
-        <table className="w-full table-fixed text-[12px]">
+        {/* ✅ table-auto lets columns pack tighter naturally */}
+        <table className="w-full table-auto text-[12px]">
           <thead>
             {/* ✅ Row 1 (BLUE TITLES) */}
             <tr className="bg-blue-200">
-              <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[160px]">
+              <th className="text-left font-bold text-slate-900 px-1.5 py-1 border-b border-blue-300 w-[145px]">
                 DEVICE ID
               </th>
-              <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[95px]">
+              <th className="text-left font-bold text-slate-900 px-1.5 py-1 border-b border-blue-300 w-[110px]">
                 Date
               </th>
-              <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[95px]">
+              {/* ✅ wider so you can see user */}
+              <th className="text-left font-bold text-slate-900 px-1.5 py-1 border-b border-blue-300 w-[220px]">
                 User
               </th>
-              <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[110px]">
+              <th className="text-left font-bold text-slate-900 px-1.5 py-1 border-b border-blue-300 w-[95px]">
                 Status
               </th>
-              <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[95px]">
+              <th className="text-left font-bold text-slate-900 px-1.5 py-1 border-b border-blue-300 w-[110px]">
                 last seen
               </th>
 
-              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
+              <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[44px]">
                 DI-1
               </th>
-              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
+              <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[44px]">
                 DI-2
               </th>
-              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
+              <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[44px]">
                 DI-3
               </th>
-              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
+              <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[44px]">
                 DI-4
               </th>
 
-              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
+              <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[44px]">
                 DO 1
               </th>
-              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
+              <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[44px]">
                 DO 2
               </th>
-              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
+              <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[44px]">
                 DO 3
               </th>
-              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
+              <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[44px]">
                 DO 4
               </th>
 
-              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[70px]">
+              <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[56px]">
                 AI-1
               </th>
-              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[70px]">
+              <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[56px]">
                 AI-2
               </th>
-              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[70px]">
+              <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[56px]">
                 AI-3
               </th>
-              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[70px]">
+              <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[56px]">
                 AI-4
               </th>
             </tr>
 
             {/* ✅ Row 2 (SUBTITLES) */}
             <tr className="bg-white text-[11px]">
-              <th className="px-2 py-1 border-b border-slate-200" />
-              <th className="px-2 py-1 border-b border-slate-200" />
-              <th className="px-2 py-1 border-b border-slate-200" />
-              <th className="px-2 py-1 text-left text-slate-700 border-b border-slate-200">
+              <th className="px-1.5 py-1 border-b border-slate-200" />
+              <th className="px-1.5 py-1 border-b border-slate-200" />
+              <th className="px-1.5 py-1 border-b border-slate-200" />
+              <th className="px-1.5 py-1 text-left text-slate-700 border-b border-slate-200">
                 online/offline
               </th>
-              <th className="px-2 py-1 border-b border-slate-200" />
+              <th className="px-1.5 py-1 border-b border-slate-200" />
 
               <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
                 0/1
@@ -336,20 +338,22 @@ export default function DeviceManagerSection({
                     key={(r?.deviceId || "row") + idx}
                     className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}
                   >
-                    <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800 truncate">
+                    <td className="px-1.5 py-1 border-b border-slate-100 text-slate-800 truncate">
                       {r?.deviceId ?? ""}
                     </td>
 
-                    {/* ✅ ONLY CHANGE: formatted date */}
-                    <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800 truncate">
+                    <td className="px-1.5 py-1 border-b border-slate-100 text-slate-800 truncate">
                       {formatDateTime(r?.addedAt)}
                     </td>
 
-                    <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800 truncate">
-                      {r?.ownedBy ?? "—"}
+                    {/* ✅ wider + not truncating as early */}
+                    <td className="px-1.5 py-1 border-b border-slate-100 text-slate-800">
+                      <div className="truncate" title={r?.ownedBy ?? ""}>
+                        {r?.ownedBy ?? "—"}
+                      </div>
                     </td>
 
-                    <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800">
+                    <td className="px-1.5 py-1 border-b border-slate-100 text-slate-800">
                       <div className="flex items-center gap-1.5">
                         <span
                           className={`inline-block w-2 h-2 rounded-full ${dotClass}`}
@@ -360,47 +364,46 @@ export default function DeviceManagerSection({
                       </div>
                     </td>
 
-                    {/* ✅ ONLY CHANGE: formatted last seen */}
-                    <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800 truncate">
+                    <td className="px-1.5 py-1 border-b border-slate-100 text-slate-800 truncate">
                       {formatDateTime(r?.lastSeen)}
                     </td>
 
-                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
+                    <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center">
                       {String(r?.in1 ?? "")}
                     </td>
-                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
+                    <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center">
                       {String(r?.in2 ?? "")}
                     </td>
-                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
+                    <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center">
                       {String(r?.in3 ?? "")}
                     </td>
-                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
+                    <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center">
                       {String(r?.in4 ?? "")}
                     </td>
 
-                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
+                    <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center">
                       {String(r?.do1 ?? "")}
                     </td>
-                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
+                    <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center">
                       {String(r?.do2 ?? "")}
                     </td>
-                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
+                    <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center">
                       {String(r?.do3 ?? "")}
                     </td>
-                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
+                    <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center">
                       {String(r?.do4 ?? "")}
                     </td>
 
-                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center truncate">
+                    <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center truncate">
                       {r?.ai1 ?? ""}
                     </td>
-                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center truncate">
+                    <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center truncate">
                       {r?.ai2 ?? ""}
                     </td>
-                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center truncate">
+                    <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center truncate">
                       {r?.ai3 ?? ""}
                     </td>
-                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center truncate">
+                    <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center truncate">
                       {r?.ai4 ?? ""}
                     </td>
                   </tr>
