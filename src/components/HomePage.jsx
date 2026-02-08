@@ -2,6 +2,9 @@ import React from "react";
 import DeviceManagerSection from "./homepagesections/DeviceManagerSection";
 import RegisterDevicesSection from "./homepagesections/RegisterDevicesSection"; // ✅ NEW
 
+// ✅ IMPORTANT: read token the same way the rest of the app does
+import { getToken, parseJwt } from "../utils/authToken";
+
 // ✅ Owner allowlist (LOCKED to one admin email only)
 const PLATFORM_OWNER_EMAIL = "roquemartinez_8@hotmail.com";
 
@@ -32,7 +35,7 @@ const ZHC1921_COLUMNS = [
 ];
 
 // ---------------------------
-// Helpers: email + JWT decode
+// Helpers: email + normalize
 // ---------------------------
 function safeLower(s) {
   return String(s || "").trim().toLowerCase();
@@ -43,29 +46,17 @@ function looksLikeEmail(s) {
   return v.includes("@") && v.includes(".");
 }
 
-function decodeJwtPayload(token) {
-  try {
-    if (!token || typeof token !== "string") return null;
-    const parts = token.split(".");
-    if (parts.length < 2) return null;
-    const base64Url = parts[1];
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = base64.padEnd(
-      base64.length + ((4 - (base64.length % 4)) % 4),
-      "="
-    );
-    const json = atob(padded);
-    return JSON.parse(json);
-  } catch {
-    return null;
-  }
-}
-
+/**
+ * ✅ DETECT EMAIL FROM:
+ * 1) currentUserKey if already email
+ * 2) known email keys in localStorage
+ * 3) ✅ JWT payload from the REAL token source (getToken() => sessionStorage-first)
+ */
 function detectEmail(currentUserKey) {
   // 1) If currentUserKey already is email, use it
   if (looksLikeEmail(currentUserKey)) return String(currentUserKey).trim();
 
-  // 2) Try common localStorage email keys
+  // 2) Try common localStorage email keys (safe)
   const emailKeys = [
     "coreflex_user_email",
     "coreflex_email",
@@ -78,26 +69,16 @@ function detectEmail(currentUserKey) {
     if (looksLikeEmail(v)) return String(v).trim();
   }
 
-  // 3) Try decoding JWT from common token keys
-  const tokenKeys = [
-    "coreflex_access_token",
-    "coreflex_token",
-    "access_token",
-    "token",
-    "jwt",
-  ];
-  for (const tk of tokenKeys) {
-    const t = localStorage.getItem(tk);
-    const payload = decodeJwtPayload(t);
-    if (!payload) continue;
-
+  // 3) ✅ Decode JWT from the SAME token used for API calls
+  const t = getToken();
+  const payload = parseJwt(t);
+  if (payload) {
     const candidates = [
       payload.email,
       payload.user?.email,
       payload.sub,
       payload.username,
     ];
-
     for (const c of candidates) {
       if (looksLikeEmail(c)) return String(c).trim();
     }
@@ -111,8 +92,27 @@ export default function HomePage({
   setSubPageColor,
   currentUserKey,
 }) {
-  // ✅ Robust email detection
-  const detectedEmail = detectEmail(currentUserKey);
+  // ✅ keep detected email in state so it updates when auth changes
+  const [detectedEmail, setDetectedEmail] = React.useState(() =>
+    detectEmail(currentUserKey)
+  );
+
+  // ✅ Re-check identity when:
+  // - currentUserKey changes
+  // - login/logout happens in this tab (coreflex-auth-changed)
+  React.useEffect(() => {
+    const refreshIdentity = () => {
+      setDetectedEmail(detectEmail(currentUserKey));
+    };
+
+    refreshIdentity(); // run once on mount / prop changes
+
+    window.addEventListener("coreflex-auth-changed", refreshIdentity);
+    return () => {
+      window.removeEventListener("coreflex-auth-changed", refreshIdentity);
+    };
+  }, [currentUserKey]);
+
   const normalizedUser = safeLower(detectedEmail || currentUserKey);
   const isPlatformOwner = normalizedUser === safeLower(PLATFORM_OWNER_EMAIL);
 
@@ -178,7 +178,7 @@ export default function HomePage({
       <div className="mt-4 md:mt-6">
         <DeviceManagerSection
           mode="page" // ✅ IMPORTANT: page mode removes mt-10 border-t padding
-          ownerEmail={normalizedUser}
+          ownerEmail={detectedEmail || normalizedUser}
           activeModel={activeModel}
           setActiveModel={setActiveModel}
           zhc1921Columns={ZHC1921_COLUMNS}
@@ -292,7 +292,7 @@ export default function HomePage({
       {isPlatformOwner && (
         <DeviceManagerSection
           mode="inline" // ✅ IMPORTANT: keep mt-10 border-t spacing on Home
-          ownerEmail={normalizedUser}
+          ownerEmail={detectedEmail || normalizedUser}
           activeModel={activeModel}
           setActiveModel={setActiveModel}
           zhc1921Columns={ZHC1921_COLUMNS}
@@ -309,7 +309,7 @@ export default function HomePage({
               Business Reports (Owner Only)
             </h2>
             <span className="text-xs text-gray-500">
-              Owner: {normalizedUser || "unknown"}
+              Owner: {detectedEmail || normalizedUser || "unknown"}
             </span>
           </div>
 
