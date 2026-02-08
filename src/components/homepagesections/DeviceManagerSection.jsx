@@ -1,4 +1,5 @@
 import React from "react";
+import { API_URL } from "../../config/api";
 
 // ✅ Model buttons (inside Home)
 const DEVICE_MODELS = [
@@ -29,14 +30,55 @@ function modelMeta(modelKey) {
   return { title: "Device Manager", desc: "" };
 }
 
+// ✅ get token from whichever key you use
+function getAuthToken() {
+  const keys = [
+    "coreflex_access_token",
+    "coreflex_token",
+    "access_token",
+    "token",
+    "jwt",
+  ];
+  for (const k of keys) {
+    const v = localStorage.getItem(k);
+    if (v && String(v).trim()) return String(v).trim();
+  }
+  return "";
+}
+
+async function apiFetch(path, options = {}) {
+  const token = getAuthToken();
+  const headers = {
+    "Content-Type": "application/json",
+    ...(options.headers || {}),
+  };
+  if (token) headers.Authorization = `Bearer ${token}`;
+
+  const res = await fetch(`${API_URL}${path}`, {
+    ...options,
+    headers,
+  });
+
+  let data = null;
+  try {
+    data = await res.json();
+  } catch {
+    // ignore
+  }
+
+  if (!res.ok) {
+    const msg = data?.detail || data?.error || `Request failed (${res.status})`;
+    throw new Error(msg);
+  }
+  return data;
+}
+
 export default function DeviceManagerSection({
   ownerEmail,
   activeModel,
   setActiveModel,
 
   // ✅ render mode
-  // "inline" = inside Home with border-top spacing
-  // "page"   = full-page section (no border-top spacing)
   mode = "inline",
 
   // rows
@@ -45,6 +87,7 @@ export default function DeviceManagerSection({
 }) {
   const [newDeviceId, setNewDeviceId] = React.useState("");
   const [err, setErr] = React.useState("");
+  const [loading, setLoading] = React.useState(false);
 
   const meta = modelMeta(activeModel);
 
@@ -54,293 +97,272 @@ export default function DeviceManagerSection({
     setActiveModel(null);
   }
 
-  function addZhc1921Device() {
+  async function loadZhc1921() {
+    setLoading(true);
+    setErr("");
+    try {
+      const rows = await apiFetch("/zhc1921/devices", { method: "GET" });
+      setZhc1921Rows?.(Array.isArray(rows) ? rows : []);
+    } catch (e) {
+      setErr(e.message || "Failed to load devices.");
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ✅ Load from backend when model opens
+  React.useEffect(() => {
+    if (activeModel === "zhc1921") {
+      loadZhc1921();
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeModel]);
+
+  async function addZhc1921Device() {
     const id = String(newDeviceId || "").trim();
+
     if (!id) {
       setErr("Please enter a DEVICE ID.");
       return;
     }
-
     if (!/^\d+$/.test(id)) {
       setErr("DEVICE ID must be numeric (digits only).");
       return;
     }
 
-    // ✅ Only compare against real rows (ignore placeholder rows)
-    const exists = (zhc1921Rows || [])
-      .filter((r) => String(r?.addedAt ?? "").trim() !== "—")
-      .some((r) => String(r.deviceId) === id);
-
-    if (exists) {
-      setErr("That DEVICE ID already exists in the table.");
-      return;
-    }
-
+    setLoading(true);
     setErr("");
+    try {
+      // ✅ Backend insert
+      await apiFetch("/zhc1921/devices", {
+        method: "POST",
+        body: JSON.stringify({ device_id: id }),
+      });
 
-    const now = new Date();
-    const addedAt = now.toLocaleString();
+      setNewDeviceId("");
 
-    const newRow = {
-      deviceId: id,
-      addedAt, // Date
-      ownedBy: "—", // User
-      status: "offline",
-      lastSeen: "—",
-
-      in1: 0,
-      in2: 0,
-      in3: 0,
-      in4: 0,
-
-      do1: 0,
-      do2: 0,
-      do3: 0,
-      do4: 0,
-
-      ai1: "",
-      ai2: "",
-      ai3: "",
-      ai4: "",
-    };
-
-    setZhc1921Rows?.((prev) => [newRow, ...(prev || [])]);
-    setNewDeviceId("");
+      // ✅ Reload table from backend (source of truth)
+      await loadZhc1921();
+    } catch (e) {
+      setErr(e.message || "Failed to add device.");
+    } finally {
+      setLoading(false);
+    }
   }
 
   function refreshZhc1921() {
-    setZhc1921Rows?.((prev) => [...(prev || [])]);
+    loadZhc1921();
   }
 
   // ✅ Compact spreadsheet-like table
-  const renderZhc1921Table = () => {
-    // ✅ Filter out placeholder rows (your default row has addedAt: "—")
-    const realRows = (zhc1921Rows || []).filter(
-      (r) => String(r?.addedAt ?? "").trim() !== "—"
-    );
+  const renderZhc1921Table = () => (
+    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden w-full max-w-full">
+      <div className="w-full overflow-x-auto">
+        <table className="w-full table-fixed text-[12px]">
+          <thead>
+            {/* ✅ Row 1 (BLUE TITLES) */}
+            <tr className="bg-blue-200">
+              <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[160px]">
+                DEVICE ID
+              </th>
+              <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[95px]">
+                Date
+              </th>
+              <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[95px]">
+                User
+              </th>
+              <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[110px]">
+                Status
+              </th>
+              <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[95px]">
+                last seen
+              </th>
 
-    const hasRealRows = realRows.length > 0;
+              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
+                DI-1
+              </th>
+              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
+                DI-2
+              </th>
+              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
+                DI-3
+              </th>
+              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
+                DI-4
+              </th>
 
-    return (
-      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden w-full max-w-full">
-        <div className="w-full overflow-x-auto">
-          {/* table-fixed + explicit widths makes spacing tighter */}
-          <table className="w-full table-fixed text-[12px]">
-            <thead>
-              {/* ✅ Row 1 (BLUE TITLES) */}
-              <tr className="bg-blue-200">
-                <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[160px]">
-                  DEVICE ID
-                </th>
-                <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[95px]">
-                  Date
-                </th>
-                <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[95px]">
-                  User
-                </th>
-                <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[110px]">
-                  Status
-                </th>
-                <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[95px]">
-                  last seen
-                </th>
+              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
+                DO 1
+              </th>
+              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
+                DO 2
+              </th>
+              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
+                DO 3
+              </th>
+              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
+                DO 4
+              </th>
 
-                <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
-                  DI-1
-                </th>
-                <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
-                  DI-2
-                </th>
-                <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
-                  DI-3
-                </th>
-                <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
-                  DI-4
-                </th>
+              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[70px]">
+                AI-1
+              </th>
+              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[70px]">
+                AI-2
+              </th>
+              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[70px]">
+                AI-3
+              </th>
+              <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[70px]">
+                AI-4
+              </th>
+            </tr>
 
-                <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
-                  DO 1
-                </th>
-                <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
-                  DO 2
-                </th>
-                <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
-                  DO 3
-                </th>
-                <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[58px]">
-                  DO 4
-                </th>
+            {/* ✅ Row 2 (SUBTITLES) */}
+            <tr className="bg-white text-[11px]">
+              <th className="px-2 py-1 border-b border-slate-200" />
+              <th className="px-2 py-1 border-b border-slate-200" />
+              <th className="px-2 py-1 border-b border-slate-200" />
+              <th className="px-2 py-1 text-left text-slate-700 border-b border-slate-200">
+                online/offline
+              </th>
+              <th className="px-2 py-1 border-b border-slate-200" />
 
-                <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[70px]">
-                  AI-1
-                </th>
-                <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[70px]">
-                  AI-2
-                </th>
-                <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[70px]">
-                  AI-3
-                </th>
-                <th className="text-center font-bold text-slate-900 px-1 py-1.5 border-b border-blue-300 w-[70px]">
-                  AI-4
-                </th>
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                value
+              </th>
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                value
+              </th>
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                value
+              </th>
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                value
+              </th>
+            </tr>
+          </thead>
+
+          <tbody>
+            {loading ? (
+              <tr>
+                <td colSpan={17} className="px-3 py-6 text-center text-slate-500">
+                  Loading...
+                </td>
               </tr>
-
-              {/* ✅ Row 2 (SUBTITLES) */}
-              <tr className="bg-white text-[11px]">
-                <th className="px-2 py-1 border-b border-slate-200" />
-                <th className="px-2 py-1 border-b border-slate-200" />
-                <th className="px-2 py-1 border-b border-slate-200" />
-                <th className="px-2 py-1 text-left text-slate-700 border-b border-slate-200">
-                  online/offline
-                </th>
-                <th className="px-2 py-1 border-b border-slate-200" />
-
-                <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
-                  0/1
-                </th>
-                <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
-                  0/1
-                </th>
-                <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
-                  0/1
-                </th>
-                <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
-                  0/1
-                </th>
-
-                <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
-                  0/1
-                </th>
-                <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
-                  0/1
-                </th>
-                <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
-                  0/1
-                </th>
-                <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
-                  0/1
-                </th>
-
-                <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
-                  value
-                </th>
-                <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
-                  value
-                </th>
-                <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
-                  value
-                </th>
-                <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
-                  value
-                </th>
+            ) : !zhc1921Rows || zhc1921Rows.length === 0 ? (
+              <tr>
+                <td colSpan={17} className="px-3 py-6 text-center text-slate-500">
+                  No devices found.
+                </td>
               </tr>
-            </thead>
+            ) : (
+              zhc1921Rows.map((r, idx) => {
+                const statusLower = String(r?.status || "").toLowerCase();
+                const dotClass =
+                  statusLower === "online" ? "bg-emerald-500" : "bg-slate-400";
 
-            <tbody>
-              {!hasRealRows ? (
-                <tr>
-                  <td
-                    colSpan={17}
-                    className="px-3 py-6 text-center text-slate-500"
+                return (
+                  <tr
+                    key={(r?.deviceId || "row") + idx}
+                    className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}
                   >
-                    No devices found.
-                  </td>
-                </tr>
-              ) : (
-                realRows.map((r, idx) => {
-                  const statusLower = String(r?.status || "").toLowerCase();
-                  const dotClass =
-                    statusLower === "online"
-                      ? "bg-emerald-500"
-                      : "bg-slate-400";
+                    <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800 truncate">
+                      {r?.deviceId ?? ""}
+                    </td>
 
-                  return (
-                    <tr
-                      key={(r?.deviceId || "row") + idx}
-                      className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}
-                    >
-                      <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800 truncate">
-                        {r?.deviceId ?? ""}
-                      </td>
+                    <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800 truncate">
+                      {r?.addedAt ?? "—"}
+                    </td>
 
-                      <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800 truncate">
-                        {r?.addedAt ?? "—"}
-                      </td>
+                    <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800 truncate">
+                      {r?.ownedBy ?? "—"}
+                    </td>
 
-                      <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800 truncate">
-                        {r?.ownedBy ?? "—"}
-                      </td>
+                    <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800">
+                      <div className="flex items-center gap-1.5">
+                        <span className={`inline-block w-2 h-2 rounded-full ${dotClass}`} />
+                        <span className="capitalize">{r?.status || "offline"}</span>
+                      </div>
+                    </td>
 
-                      <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800">
-                        <div className="flex items-center gap-1.5">
-                          <span
-                            className={`inline-block w-2 h-2 rounded-full ${dotClass}`}
-                          />
-                          <span className="capitalize">
-                            {r?.status || "offline"}
-                          </span>
-                        </div>
-                      </td>
+                    <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800 truncate">
+                      {r?.lastSeen ?? "—"}
+                    </td>
 
-                      <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800 truncate">
-                        {r?.lastSeen ?? "—"}
-                      </td>
+                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
+                      {String(r?.in1 ?? "")}
+                    </td>
+                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
+                      {String(r?.in2 ?? "")}
+                    </td>
+                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
+                      {String(r?.in3 ?? "")}
+                    </td>
+                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
+                      {String(r?.in4 ?? "")}
+                    </td>
 
-                      <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
-                        {String(r?.in1 ?? "")}
-                      </td>
-                      <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
-                        {String(r?.in2 ?? "")}
-                      </td>
-                      <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
-                        {String(r?.in3 ?? "")}
-                      </td>
-                      <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
-                        {String(r?.in4 ?? "")}
-                      </td>
+                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
+                      {String(r?.do1 ?? "")}
+                    </td>
+                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
+                      {String(r?.do2 ?? "")}
+                    </td>
+                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
+                      {String(r?.do3 ?? "")}
+                    </td>
+                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
+                      {String(r?.do4 ?? "")}
+                    </td>
 
-                      <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
-                        {String(r?.do1 ?? "")}
-                      </td>
-                      <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
-                        {String(r?.do2 ?? "")}
-                      </td>
-                      <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
-                        {String(r?.do3 ?? "")}
-                      </td>
-                      <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
-                        {String(r?.do4 ?? "")}
-                      </td>
-
-                      <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center truncate">
-                        {r?.ai1 ?? ""}
-                      </td>
-                      <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center truncate">
-                        {r?.ai2 ?? ""}
-                      </td>
-                      <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center truncate">
-                        {r?.ai3 ?? ""}
-                      </td>
-                      <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center truncate">
-                        {r?.ai4 ?? ""}
-                      </td>
-                    </tr>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* ✅ Tip ONLY after you actually add a device */}
-        {hasRealRows ? (
-          <div className="px-3 py-2 text-xs text-slate-500">
-            Tip: If needed, scroll horizontally inside this table only.
-          </div>
-        ) : null}
+                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center truncate">
+                      {r?.ai1 ?? ""}
+                    </td>
+                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center truncate">
+                      {r?.ai2 ?? ""}
+                    </td>
+                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center truncate">
+                      {r?.ai3 ?? ""}
+                    </td>
+                    <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center truncate">
+                      {r?.ai4 ?? ""}
+                    </td>
+                  </tr>
+                );
+              })
+            )}
+          </tbody>
+        </table>
       </div>
-    );
-  };
+    </div>
+  );
 
   // wrapper spacing depends on mode
   const wrapperClass =
@@ -380,7 +402,7 @@ export default function DeviceManagerSection({
   }
 
   // =========================
-  // VIEW B: Full “new section”
+  // VIEW B: Full section
   // =========================
   return (
     <div className={wrapperClass}>
@@ -402,6 +424,7 @@ export default function DeviceManagerSection({
           <button
             onClick={refreshZhc1921}
             className="rounded-lg bg-slate-600 hover:bg-slate-500 px-3 py-2 text-sm"
+            disabled={loading}
           >
             Refresh
           </button>
@@ -426,7 +449,8 @@ export default function DeviceManagerSection({
 
                 <button
                   onClick={addZhc1921Device}
-                  className="md:w-[160px] rounded-lg bg-slate-900 text-white px-4 py-2 text-sm hover:opacity-90"
+                  className="md:w-[160px] rounded-lg bg-slate-900 text-white px-4 py-2 text-sm hover:opacity-90 disabled:opacity-50"
+                  disabled={loading}
                 >
                   + Add Device
                 </button>
@@ -435,8 +459,7 @@ export default function DeviceManagerSection({
               {err && <div className="mt-2 text-xs text-red-600">{err}</div>}
 
               <div className="mt-2 text-xs text-slate-500">
-                Owner only. This will create a new row in the backend table
-                (placeholder now → backend next).
+                Owner only. This will create a new row in the backend table.
               </div>
             </div>
 
