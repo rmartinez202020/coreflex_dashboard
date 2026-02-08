@@ -1,73 +1,81 @@
 // src/utils/authToken.js
-// ✅ SINGLE SOURCE OF TRUTH: localStorage only
+// ✅ SINGLE SOURCE OF TRUTH: sessionStorage (tab-isolated)
+// This prevents "User A" and "User B" from overwriting each other in the same browser.
 
 const TOKEN_KEY = "coreflex_access_token";
 
-// ✅ remove any legacy keys that may exist from older versions
-// (IMPORTANT: include BOTH localStorage + sessionStorage cases)
+// Remove any legacy keys that may exist from older versions
 const LEGACY_KEYS = [
-  // tokens
   "coreflex_token",
-  "coreflex_access_token",
   "access_token",
   "token",
   "jwt",
-
-  // flags
   "coreflex_logged_in",
-  "coreflex_is_logged_in",
 ];
 
-// ✅ wipe keys from BOTH storages (prevents “mixed user” after login switching)
-function wipeKeyEverywhere(k) {
+// ---- helpers ----
+const removeEverywhere = (key) => {
   try {
-    localStorage.removeItem(k);
-  } catch {
-    // ignore
-  }
+    localStorage.removeItem(key);
+  } catch {}
   try {
-    sessionStorage.removeItem(k);
-  } catch {
-    // ignore
-  }
-}
-
-export const clearAllAuthStorage = () => {
-  // wipe all known keys in both storages
-  for (const k of LEGACY_KEYS) wipeKeyEverywhere(k);
+    sessionStorage.removeItem(key);
+  } catch {}
 };
 
+const setSession = (key, val) => {
+  try {
+    sessionStorage.setItem(key, val);
+  } catch {}
+};
+
+const getSession = (key) => {
+  try {
+    return sessionStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+const getLocal = (key) => {
+  try {
+    return localStorage.getItem(key);
+  } catch {
+    return null;
+  }
+};
+
+// ✅ Token read: session first, then local fallback (for old deployments)
 export const getToken = () => {
-  const t = localStorage.getItem(TOKEN_KEY) || "";
-  return (t || "").trim();
+  const t = getSession(TOKEN_KEY) || getLocal(TOKEN_KEY) || "";
+  return String(t || "").trim();
 };
 
+// ✅ Token write: session ONLY (tab isolated)
 export const setToken = (token) => {
-  const t = (token || "").trim();
+  const t = String(token || "").trim();
 
-  // ✅ wipe legacy keys so old code can’t “win”
-  // (also wipes sessionStorage leftovers)
-  clearAllAuthStorage();
+  // wipe legacy keys so old code can’t “win”
+  for (const k of LEGACY_KEYS) removeEverywhere(k);
 
   if (!t) {
-    wipeKeyEverywhere(TOKEN_KEY);
+    removeEverywhere(TOKEN_KEY);
     window.dispatchEvent(new Event("coreflex-auth-changed"));
     return;
   }
 
-  // ✅ store ONLY here (source of truth)
-  localStorage.setItem(TOKEN_KEY, t);
+  // ✅ store token in sessionStorage ONLY
+  setSession(TOKEN_KEY, t);
 
-  // ✅ Optional compatibility flag (ONLY if you still have old guards checking it)
-  // Keeping it in localStorage is fine as long as it is rewritten on every login.
-  localStorage.setItem("coreflex_logged_in", "yes");
+  // ✅ OPTIONAL (DO NOT enable if you want multiple users in same browser)
+  // localStorage.setItem(TOKEN_KEY, t);
 
   window.dispatchEvent(new Event("coreflex-auth-changed"));
 };
 
 export const clearAuth = () => {
-  wipeKeyEverywhere(TOKEN_KEY);
-  clearAllAuthStorage();
+  removeEverywhere(TOKEN_KEY);
+  for (const k of LEGACY_KEYS) removeEverywhere(k);
   window.dispatchEvent(new Event("coreflex-auth-changed"));
 };
 
@@ -101,7 +109,7 @@ export const parseJwt = (token) => {
  * Accept tokenOverride so we ALWAYS decode the SAME token used for API calls.
  */
 export const getUserKeyFromToken = (tokenOverride) => {
-  const token = (tokenOverride ?? getToken()).trim();
+  const token = String(tokenOverride ?? getToken()).trim();
   if (!token) return null;
 
   const payload = parseJwt(token);
@@ -113,28 +121,6 @@ export const getUserKeyFromToken = (tokenOverride) => {
   }
 
   return payload?.sub ? String(payload.sub) : null;
-};
-
-/**
- * ✅ NEW:
- * Get email/username from token so UI can correctly detect owner-only sections.
- * (supports common claim names)
- */
-export const getEmailFromToken = (tokenOverride) => {
-  const token = (tokenOverride ?? getToken()).trim();
-  if (!token) return null;
-
-  const payload = parseJwt(token);
-  if (!payload) return null;
-
-  return (
-    payload?.email ||
-    payload?.user_email ||
-    payload?.username ||
-    payload?.preferred_username ||
-    payload?.sub ||
-    null
-  );
 };
 
 // Optional debug helper

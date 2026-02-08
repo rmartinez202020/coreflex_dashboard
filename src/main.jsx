@@ -1,5 +1,4 @@
 // src/main.jsx
-
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "leaflet/dist/leaflet.css";
@@ -9,15 +8,13 @@ import App from "./App.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
 import RegisterPage from "./pages/RegisterPage.jsx";
 import LaunchedMainDashboard from "./pages/LaunchedMainDashboard.jsx";
-import AlarmLogPage from "./pages/AlarmLogPage.jsx"; // ✅ NEW
+import AlarmLogPage from "./pages/AlarmLogPage.jsx";
 
-// ✅ Use the SAME token source as API calls
-import { getToken } from "./utils/authToken";
+import { isLoggedIn } from "./utils/authToken";
 
-// 🔐 Auth Protection (token-based, prevents “mixed user” issues)
+// 🔐 Auth Protection (token-based)
 function RequireAuth({ children }) {
-  const token = getToken();
-  return token ? children : <Navigate to="/" replace />;
+  return isLoggedIn() ? children : <Navigate to="/" replace />;
 }
 
 createRoot(document.getElementById("root")).render(
@@ -49,7 +46,7 @@ createRoot(document.getElementById("root")).render(
         }
       />
 
-      {/* 🚀 LAUNCH ALARM LOG (protected) ✅ NEW */}
+      {/* 🚀 LAUNCH ALARM LOG (protected) */}
       <Route
         path="/launchAlarmLog"
         element={
