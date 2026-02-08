@@ -29,6 +29,23 @@ function modelMeta(modelKey) {
   return { title: "Device Manager", desc: "" };
 }
 
+// ✅ Helper: split labels into 2 lines to save space
+function splitTwoLineLabel(label) {
+  const s = String(label || "").trim();
+
+  // "Input 1 (0/1)" -> ["Input 1", "0/1"]
+  // "Status (online/offline)" -> ["Status", "online/offline"]
+  const m = s.match(/^(.*)\s\((.*)\)\s*$/);
+  if (m) return [m[1], m[2]];
+
+  // "AI-1 value" -> ["AI-1", "value"]
+  const m2 = s.match(/^(AI-\d)\s+(.*)$/i);
+  if (m2) return [m2[1], m2[2]];
+
+  // fallback: keep single line
+  return [s, ""];
+}
+
 export default function DeviceManagerSection({
   ownerEmail,
   activeModel,
@@ -109,20 +126,36 @@ export default function DeviceManagerSection({
   }
 
   const renderZhc1921Table = () => (
-    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-      <div className="w-full overflow-auto">
-        <table className="min-w-max w-full text-sm">
+    // ✅ max-w-full + overflow hidden ensures it never spills outside center panel
+    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden max-w-full">
+      {/* ✅ Only horizontal scroll inside this panel */}
+      <div className="w-full overflow-x-auto">
+        <table className="w-full text-sm">
           <thead className="bg-slate-100 sticky top-0 z-10">
             <tr>
-              {zhc1921Columns.map((c) => (
-                <th
-                  key={c.key}
-                  className="text-left font-semibold text-slate-700 px-3 py-3 border-b border-slate-200"
-                  style={{ minWidth: c.minW }}
-                >
-                  {c.label}
-                </th>
-              ))}
+              {zhc1921Columns.map((c) => {
+                const [l1, l2] = splitTwoLineLabel(c.label);
+
+                return (
+                  <th
+                    key={c.key}
+                    className="text-left font-semibold text-slate-700 px-3 py-2 border-b border-slate-200 align-bottom"
+                    style={{
+                      minWidth: c.minW,
+                      whiteSpace: "normal", // ✅ allow wrap
+                    }}
+                  >
+                    <div className="leading-tight">
+                      <div className="text-[12px] md:text-[13px]">{l1}</div>
+                      {l2 ? (
+                        <div className="text-[11px] md:text-[12px] text-slate-500 font-medium">
+                          {l2}
+                        </div>
+                      ) : null}
+                    </div>
+                  </th>
+                );
+              })}
             </tr>
           </thead>
 
@@ -155,7 +188,8 @@ export default function DeviceManagerSection({
                       return (
                         <td
                           key={c.key}
-                          className="px-3 py-3 border-b border-slate-100 text-slate-800"
+                          className="px-3 py-2 border-b border-slate-100 text-slate-800"
+                          style={{ whiteSpace: "nowrap" }}
                         >
                           <div className="flex items-center gap-2">
                             <span
@@ -172,7 +206,8 @@ export default function DeviceManagerSection({
                     return (
                       <td
                         key={c.key}
-                        className="px-3 py-3 border-b border-slate-100 text-slate-800"
+                        className="px-3 py-2 border-b border-slate-100 text-slate-800"
+                        style={{ whiteSpace: "nowrap" }}
                       >
                         {val === undefined || val === null ? "" : String(val)}
                       </td>
@@ -194,8 +229,8 @@ export default function DeviceManagerSection({
   // wrapper spacing depends on mode
   const wrapperClass =
     mode === "page"
-      ? "mt-4"
-      : "mt-10 border-t border-gray-200 pt-6";
+      ? "mt-4 w-full max-w-full min-w-0" // ✅ min-w-0 helps in flex layouts
+      : "mt-10 border-t border-gray-200 pt-6 w-full max-w-full min-w-0";
 
   // =========================
   // VIEW A: Selector (cards)
@@ -259,7 +294,7 @@ export default function DeviceManagerSection({
       </div>
 
       {/* Content panel */}
-      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 max-w-full min-w-0">
         {activeModel === "zhc1921" && (
           <>
             {/* Add device row */}
