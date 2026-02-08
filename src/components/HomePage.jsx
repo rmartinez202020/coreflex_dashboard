@@ -34,24 +34,89 @@ const ZHC1921_COLUMNS = [
   { key: "ai4", label: "AI-4 value", minW: 120 },
 ];
 
+// ---------------------------
+// Helpers: email + JWT decode
+// ---------------------------
+function safeLower(s) {
+  return String(s || "").trim().toLowerCase();
+}
+
+function looksLikeEmail(s) {
+  const v = String(s || "").trim();
+  return v.includes("@") && v.includes(".");
+}
+
+function decodeJwtPayload(token) {
+  try {
+    if (!token || typeof token !== "string") return null;
+    const parts = token.split(".");
+    if (parts.length < 2) return null;
+    const base64Url = parts[1];
+    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
+    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+    const json = atob(padded);
+    return JSON.parse(json);
+  } catch {
+    return null;
+  }
+}
+
+function detectEmail(currentUserKey) {
+  // 1) If currentUserKey already is email, use it
+  if (looksLikeEmail(currentUserKey)) return String(currentUserKey).trim();
+
+  // 2) Try common localStorage email keys
+  const emailKeys = [
+    "coreflex_user_email",
+    "coreflex_email",
+    "user_email",
+    "email",
+    "userEmail",
+  ];
+  for (const k of emailKeys) {
+    const v = localStorage.getItem(k);
+    if (looksLikeEmail(v)) return String(v).trim();
+  }
+
+  // 3) Try decoding JWT from common token keys
+  const tokenKeys = [
+    "coreflex_access_token",
+    "coreflex_token",
+    "access_token",
+    "token",
+    "jwt",
+  ];
+  for (const tk of tokenKeys) {
+    const t = localStorage.getItem(tk);
+    const payload = decodeJwtPayload(t);
+    if (!payload) continue;
+
+    // common JWT fields
+    const candidates = [
+      payload.email,
+      payload.user?.email,
+      payload.sub, // sometimes the email is in sub
+      payload.username,
+    ];
+
+    for (const c of candidates) {
+      if (looksLikeEmail(c)) return String(c).trim();
+    }
+  }
+
+  // nothing found
+  return "";
+}
+
 export default function HomePage({
   setActiveSubPage,
   setSubPageColor,
   currentUserKey,
 }) {
-  // ✅ IMPORTANT FIX:
-  // currentUserKey is NOT always the email. So we also read email from localStorage
-  // (you already display the email in the header, so it is stored somewhere).
-  const storedEmail =
-    localStorage.getItem("coreflex_user_email") ||
-    localStorage.getItem("coreflex_email") ||
-    localStorage.getItem("user_email") ||
-    localStorage.getItem("email") ||
-    "";
-
-  const rawIdentity = storedEmail || currentUserKey || "";
-  const normalizedUser = String(rawIdentity).trim().toLowerCase();
-  const isPlatformOwner = normalizedUser === PLATFORM_OWNER_EMAIL;
+  // ✅ Robust email detection
+  const detectedEmail = detectEmail(currentUserKey);
+  const normalizedUser = safeLower(detectedEmail || currentUserKey);
+  const isPlatformOwner = normalizedUser === safeLower(PLATFORM_OWNER_EMAIL);
 
   // ✅ Device Manager UI state (inside Home)
   const [activeModel, setActiveModel] = React.useState(null);
@@ -182,18 +247,18 @@ export default function HomePage({
       <div className="mt-2 text-xs text-slate-500">
         Tip: Scroll horizontally to see all columns.
       </div>
-
-      {/* ✅ TEMP DEBUG (remove later) */}
-      <div className="mt-2 text-[11px] text-slate-400">
-        debug: currentUserKey="{String(currentUserKey || "")}" | storedEmail="
-        {String(storedEmail || "")}" | normalizedUser="{normalizedUser}" |
-        isPlatformOwner={String(isPlatformOwner)}
-      </div>
     </div>
   );
 
   return (
     <>
+      {/* ✅ ALWAYS-VISIBLE DEBUG LINE (remove after it works) */}
+      <div className="mb-3 text-[11px] text-slate-500">
+        debug owner-check → detectedEmail: "{detectedEmail || "(none)"}" |
+        currentUserKey: "{String(currentUserKey || "")}" | normalizedUser: "{normalizedUser}"
+        | isPlatformOwner: {String(isPlatformOwner)}
+      </div>
+
       {/* TOP ROW CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         {/* PROFILE CARD */}
