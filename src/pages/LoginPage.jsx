@@ -33,13 +33,15 @@ export default function LoginPage() {
     const startTime = Date.now();
 
     try {
-      // ✅ Clear any old tokens first
+      // ✅ Always clear old auth first (prevents ghost users)
       clearAuth();
+
+      const emailClean = String(email || "").trim().toLowerCase();
 
       const res = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: email.trim(), password }),
+        body: JSON.stringify({ email: emailClean, password }),
       });
 
       const data = await res.json().catch(() => ({}));
@@ -49,15 +51,17 @@ export default function LoginPage() {
         throw new Error(data?.detail || "Invalid email or password");
       }
 
-      if (!data?.access_token) {
+      // ✅ Support both shapes: {access_token} or {token}
+      const token = (data?.access_token || data?.token || "").trim();
+      if (!token) {
         await waitRemaining(startTime);
         throw new Error("Login failed: missing access_token");
       }
 
       await waitRemaining(startTime);
 
-      // ✅ Store token in ONE place
-      setToken(data.access_token);
+      // ✅ Store token in ONE place (authToken.js controls the key)
+      setToken(token);
 
       // ✅ Clear ONLY dashboard caches (not auth)
       localStorage.removeItem("mainDashboard");
@@ -65,9 +69,6 @@ export default function LoginPage() {
       localStorage.removeItem("coreflex_last_dashboard");
       localStorage.removeItem("dashboard_layout");
       localStorage.removeItem("dashboardState");
-
-      // ✅ Notify app
-      window.dispatchEvent(new Event("coreflex-auth-changed"));
 
       // ✅ HARD redirect so App re-inits with correct token/user
       window.location.href = "/app";
@@ -80,7 +81,7 @@ export default function LoginPage() {
 
   const handlePasswordKeyEvent = (e) => {
     const caps = e.getModifierState && e.getModifierState("CapsLock");
-    setCapsLockOn(caps);
+    setCapsLockOn(!!caps);
   };
 
   // ✅ Submit helper (one place)
@@ -108,7 +109,6 @@ export default function LoginPage() {
       // If user is clicking buttons/links etc., let default happen
       if (tag === "button" || tag === "a") return;
 
-      // If a modal/dialog is open in the future, this is safer:
       // only submit when this page's form exists
       if (!formRef.current) return;
 
@@ -225,7 +225,10 @@ export default function LoginPage() {
 
         <p className="text-center text-gray-600 text-sm mt-4">
           Don’t have an account?{" "}
-          <Link to="/register" className="text-blue-600 font-semibold hover:underline">
+          <Link
+            to="/register"
+            className="text-blue-600 font-semibold hover:underline"
+          >
             Create one
           </Link>
         </p>

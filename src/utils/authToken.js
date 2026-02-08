@@ -1,40 +1,41 @@
 // src/utils/authToken.js
-// ✅ SINGLE SOURCE OF TRUTH: sessionStorage-first (with localStorage fallback)
+// ✅ SINGLE SOURCE OF TRUTH: localStorage only
 
-const TOKEN_KEY = "coreflex_token";
-const LOGGED_IN_KEY = "coreflex_logged_in";
+const TOKEN_KEY = "coreflex_access_token";
+
+// remove any legacy keys that may exist from older versions
+const LEGACY_KEYS = [
+  "coreflex_token",
+  "access_token",
+  "token",
+  "jwt",
+  "coreflex_logged_in",
+];
 
 export const getToken = () => {
-  const t =
-    sessionStorage.getItem(TOKEN_KEY) ||
-    localStorage.getItem(TOKEN_KEY) ||
-    "";
+  const t = localStorage.getItem(TOKEN_KEY) || "";
   return (t || "").trim();
 };
 
 export const setToken = (token) => {
   const t = (token || "").trim();
-  if (!t) return;
 
-  // ✅ store in session (preferred)
-  sessionStorage.setItem(TOKEN_KEY, t);
-  sessionStorage.setItem(LOGGED_IN_KEY, "yes");
+  // wipe legacy keys so old code can’t “win”
+  for (const k of LEGACY_KEYS) localStorage.removeItem(k);
 
-  // ✅ optional: keep localStorage in sync to avoid old code paths breaking
-  // If you want TRUE single source, comment these two lines out.
+  if (!t) {
+    localStorage.removeItem(TOKEN_KEY);
+    window.dispatchEvent(new Event("coreflex-auth-changed"));
+    return;
+  }
+
   localStorage.setItem(TOKEN_KEY, t);
-  localStorage.setItem(LOGGED_IN_KEY, "yes");
-
-  // ✅ notify same-tab listeners
   window.dispatchEvent(new Event("coreflex-auth-changed"));
 };
 
 export const clearAuth = () => {
-  sessionStorage.removeItem(TOKEN_KEY);
-  sessionStorage.removeItem(LOGGED_IN_KEY);
   localStorage.removeItem(TOKEN_KEY);
-  localStorage.removeItem(LOGGED_IN_KEY);
-
+  for (const k of LEGACY_KEYS) localStorage.removeItem(k);
   window.dispatchEvent(new Event("coreflex-auth-changed"));
 };
 
@@ -84,3 +85,9 @@ export const getUserKeyFromToken = (tokenOverride) => {
 
 // Optional debug helper
 export const getTokenStart = (len = 25) => getToken().slice(0, len);
+
+// ✅ helper for fetch headers
+export const authHeader = () => {
+  const t = getToken();
+  return t ? { Authorization: `Bearer ${t}` } : {};
+};
