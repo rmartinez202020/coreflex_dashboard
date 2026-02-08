@@ -38,7 +38,7 @@ export default function RegisterDevicesSection({ onBack }) {
 
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
-        throw new Error(j?.detail || `Failed to load devices`);
+        throw new Error(j?.detail || `Failed to load devices (${res.status})`);
       }
 
       const data = await res.json();
@@ -54,7 +54,7 @@ export default function RegisterDevicesSection({ onBack }) {
     const id = String(deviceId || "").trim();
     if (!id) return setErr("Please enter a DEVICE ID.");
     if (!/^\d+$/.test(id))
-      return setErr("DEVICE ID must be numeric.");
+      return setErr("DEVICE ID must be numeric (digits only).");
 
     setLoading(true);
     setErr("");
@@ -70,7 +70,7 @@ export default function RegisterDevicesSection({ onBack }) {
 
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
-        throw new Error(j?.detail || `Claim failed`);
+        throw new Error(j?.detail || `Claim failed (${res.status})`);
       }
 
       setDeviceId("");
@@ -86,119 +86,239 @@ export default function RegisterDevicesSection({ onBack }) {
     if (activeModel === "cf2000") loadMyDevices();
   }, [activeModel]);
 
-  if (activeModel !== "cf2000") return null;
+  // =========================
+  // VIEW A: MODEL SELECTION
+  // =========================
+  if (!activeModel) {
+    return (
+      <div className="mt-6 rounded-xl border border-slate-200 bg-white overflow-hidden">
+        <div className="bg-sky-800 text-white px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onBack}
+              className="rounded-lg bg-sky-700 hover:bg-sky-600 px-3 py-2 text-sm"
+            >
+              ← Back
+            </button>
+            <div>
+              <div className="text-lg font-semibold">Register Devices</div>
+              <div className="text-xs text-sky-100">
+                Select your device model to register/claim a device.
+              </div>
+            </div>
+          </div>
+        </div>
 
+        <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+          {MODELS.map((m) => (
+            <button
+              key={m.key}
+              onClick={() => setActiveModel(m.key)}
+              className="w-full rounded-xl px-5 py-4 text-left transition shadow-sm border bg-white hover:bg-slate-50 text-slate-900 border-slate-200"
+            >
+              <div className="text-lg font-semibold">{m.label}</div>
+              <div className="text-sm text-slate-600">{m.desc}</div>
+            </button>
+          ))}
+        </div>
+      </div>
+    );
+  }
+
+  // =========================
+  // VIEW B: CF-2000
+  // =========================
+  if (activeModel === "cf2000") {
+    return (
+      <div className="mt-6 rounded-xl border border-slate-200 bg-white overflow-hidden">
+        <div className="bg-sky-800 text-white px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={() => setActiveModel(null)}
+              className="rounded-lg bg-sky-700 hover:bg-sky-600 px-3 py-2 text-sm"
+            >
+              ← Back
+            </button>
+            <div>
+              <div className="text-lg font-semibold">
+                Register Devices — Model CF-2000
+              </div>
+              <div className="text-xs text-sky-100">
+                Enter a DEVICE ID. We verify it exists and assign it to your
+                account.
+              </div>
+            </div>
+          </div>
+
+          <button
+            onClick={loadMyDevices}
+            className="rounded-lg bg-sky-700 hover:bg-sky-600 px-3 py-2 text-sm"
+            disabled={loading}
+          >
+            Refresh
+          </button>
+        </div>
+
+        <div className="p-4">
+          <div className="mb-4">
+            <div className="text-sm font-semibold mb-2">
+              Add / Claim Device ID
+            </div>
+
+            <div className="flex gap-3">
+              <input
+                value={deviceId}
+                onChange={(e) => setDeviceId(e.target.value)}
+                placeholder="Enter DEVICE ID"
+                className="flex-1 rounded-lg border px-3 py-2 text-sm"
+              />
+              <button
+                onClick={claimDevice}
+                disabled={loading}
+                className="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm"
+              >
+                + Add Device
+              </button>
+            </div>
+
+            {err && <div className="mt-2 text-xs text-red-600">{err}</div>}
+          </div>
+
+          <div className="rounded-xl border overflow-hidden">
+            <div className="overflow-x-auto">
+              <table className="w-full table-fixed text-[12px]">
+                <thead>
+                  <tr className="bg-blue-200">
+                    {/* ✅ tightened widths + padding (this removes the big gap you marked) */}
+                    <th className="px-1 py-[3px] w-[95px] text-left font-bold text-slate-900">
+                      DEVICE ID
+                    </th>
+                    <th className="px-1 py-[3px] w-[95px] text-left font-bold text-slate-900">
+                      Date
+                    </th>
+                    <th className="px-1 py-[3px] w-[80px] text-left font-bold text-slate-900">
+                      Status
+                    </th>
+
+                    <th className="px-1 py-[3px] w-[90px] text-left font-bold text-slate-900 border-r border-blue-300">
+                      Last Seen
+                    </th>
+
+                    {[
+                      "DI-1",
+                      "DI-2",
+                      "DI-3",
+                      "DI-4",
+                      "DO-1",
+                      "DO-2",
+                      "DO-3",
+                      "DO-4",
+                      "AI-1",
+                      "AI-2",
+                      "AI-3",
+                      "AI-4",
+                    ].map((k) => (
+                      <th
+                        key={k}
+                        className="px-1 py-1 w-[46px] text-center font-bold text-slate-900"
+                      >
+                        {k}
+                      </th>
+                    ))}
+                  </tr>
+                </thead>
+
+                <tbody>
+                  {!rows.length ? (
+                    <tr>
+                      <td
+                        colSpan={16}
+                        className="text-center py-6 text-slate-500"
+                      >
+                        No registered devices yet.
+                      </td>
+                    </tr>
+                  ) : (
+                    rows.map((r, i) => (
+                      <tr
+                        key={i}
+                        className={i % 2 ? "bg-slate-50" : "bg-white"}
+                      >
+                        <td className="px-1 py-[3px] truncate text-slate-800">
+                          {r.deviceId}
+                        </td>
+
+                        <td
+                          className="px-1 py-[3px] truncate text-slate-800"
+                          title={r.addedAt || ""}
+                        >
+                          {r.addedAt || "—"}
+                        </td>
+
+                        <td className="px-1 py-[3px] capitalize text-slate-800">
+                          {r.status}
+                        </td>
+
+                        <td className="px-1 py-[3px] truncate text-slate-800 border-r border-slate-200">
+                          {r.lastSeen || "—"}
+                        </td>
+
+                        {[
+                          r.in1,
+                          r.in2,
+                          r.in3,
+                          r.in4,
+                          r.do1,
+                          r.do2,
+                          r.do3,
+                          r.do4,
+                          r.ai1,
+                          r.ai2,
+                          r.ai3,
+                          r.ai4,
+                        ].map((v, j) => (
+                          <td
+                            key={j}
+                            className="text-center px-1 py-1 text-slate-800"
+                          >
+                            {String(v ?? "")}
+                          </td>
+                        ))}
+                      </tr>
+                    ))
+                  )}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  // =========================
+  // VIEW B: placeholders
+  // =========================
+  const modelLabel = MODELS.find((m) => m.key === activeModel)?.label || "Model";
   return (
     <div className="mt-6 rounded-xl border border-slate-200 bg-white overflow-hidden">
-      {/* Header */}
-      <div className="bg-sky-800 text-white px-4 py-3 flex items-center justify-between">
+      <div className="bg-sky-800 text-white px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setActiveModel(null)}
-            className="rounded-lg bg-sky-700 hover:bg-sky-600 px-3 py-1.5 text-sm"
+            className="rounded-lg bg-sky-700 hover:bg-sky-600 px-3 py-2 text-sm"
           >
             ← Back
           </button>
           <div>
-            <div className="text-base font-semibold">
-              Register Devices — Model CF-2000
-            </div>
-            <div className="text-xs text-sky-100">
-              Enter a DEVICE ID to claim it.
-            </div>
+            <div className="text-lg font-semibold">Register Devices — {modelLabel}</div>
+            <div className="text-xs text-sky-100">Coming next.</div>
           </div>
         </div>
-
-        <button
-          onClick={loadMyDevices}
-          className="rounded-lg bg-sky-700 hover:bg-sky-600 px-3 py-1.5 text-sm"
-        >
-          Refresh
-        </button>
       </div>
 
-      {/* Content */}
-      <div className="p-4">
-        <div className="mb-3">
-          <div className="text-sm font-semibold mb-1">Add / Claim Device ID</div>
-          <div className="flex gap-2">
-            <input
-              value={deviceId}
-              onChange={(e) => setDeviceId(e.target.value)}
-              placeholder="Enter DEVICE ID"
-              className="flex-1 rounded-lg border px-3 py-2 text-sm"
-            />
-            <button
-              onClick={claimDevice}
-              className="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm"
-            >
-              + Add Device
-            </button>
-          </div>
-          {err && <div className="mt-1 text-xs text-red-600">{err}</div>}
-        </div>
-
-        {/* Table */}
-        <div className="rounded-lg border overflow-hidden">
-          <div className="overflow-x-auto">
-            <table className="w-full table-fixed text-[12px]">
-              <thead>
-                <tr className="bg-blue-200">
-                  <th className="px-1 py-[3px] w-[95px] text-left">
-                    DEVICE ID
-                  </th>
-                  <th className="px-1 py-[3px] w-[95px] text-left">
-                    Date
-                  </th>
-                  <th className="px-1 py-[3px] w-[70px] text-left">
-                    Status
-                  </th>
-                  <th className="px-1 py-[3px] w-[85px] text-left border-r border-blue-300">
-                    Last Seen
-                  </th>
-
-                  {[
-                    "DI-1","DI-2","DI-3","DI-4",
-                    "DO-1","DO-2","DO-3","DO-4",
-                    "AI-1","AI-2","AI-3","AI-4",
-                  ].map(k => (
-                    <th key={k} className="px-1 py-[3px] w-[44px] text-center">
-                      {k}
-                    </th>
-                  ))}
-                </tr>
-              </thead>
-
-              <tbody>
-                {!rows.length ? (
-                  <tr>
-                    <td colSpan={16} className="text-center py-6 text-slate-500">
-                      No registered devices yet.
-                    </td>
-                  </tr>
-                ) : (
-                  rows.map((r, i) => (
-                    <tr key={i} className={i % 2 ? "bg-slate-50" : "bg-white"}>
-                      <td className="px-1 py-[3px] truncate">{r.deviceId}</td>
-                      <td className="px-1 py-[3px] truncate">{r.addedAt}</td>
-                      <td className="px-1 py-[3px] capitalize">{r.status}</td>
-                      <td className="px-1 py-[3px] truncate border-r border-slate-200">
-                        {r.lastSeen || "—"}
-                      </td>
-
-                      {[r.in1,r.in2,r.in3,r.in4,r.do1,r.do2,r.do3,r.do4,r.ai1,r.ai2,r.ai3,r.ai4]
-                        .map((v, j) => (
-                          <td key={j} className="text-center px-1 py-[3px]">
-                            {String(v ?? "")}
-                          </td>
-                        ))}
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+      <div className="p-4 text-sm text-slate-700">
+        Next: we’ll add backend + claim flow for this model.
       </div>
     </div>
   );
