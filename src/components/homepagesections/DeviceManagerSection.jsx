@@ -73,53 +73,6 @@ async function apiFetch(path, options = {}) {
   return data;
 }
 
-/**
- * ✅ Format to: 01/01/2025-8:15AM
- * - supports ISO strings, normal date strings, unix timestamps (sec/ms)
- * - returns "—" when empty
- * - if parse fails, returns original value (safe)
- */
-function formatDateTime(value) {
-  if (value === null || value === undefined) return "—";
-
-  const raw = String(value).trim();
-  if (!raw || raw === "—" || raw.toLowerCase() === "null") return "—";
-
-  let dt = null;
-
-  // numeric timestamps
-  if (/^\d+$/.test(raw)) {
-    // seconds vs ms
-    const n = Number(raw);
-    if (!Number.isFinite(n)) return raw;
-
-    // if it's 10 digits -> seconds
-    if (raw.length <= 10) dt = new Date(n * 1000);
-    else dt = new Date(n);
-  } else {
-    // try normal date parse
-    const t = Date.parse(raw);
-    if (!Number.isNaN(t)) dt = new Date(t);
-  }
-
-  if (!dt || Number.isNaN(dt.getTime())) {
-    return raw; // keep original if backend gives weird format
-  }
-
-  const mm = String(dt.getMonth() + 1).padStart(2, "0");
-  const dd = String(dt.getDate()).padStart(2, "0");
-  const yyyy = String(dt.getFullYear());
-
-  let hours = dt.getHours();
-  const ampm = hours >= 12 ? "PM" : "AM";
-  hours = hours % 12;
-  if (hours === 0) hours = 12;
-
-  const mins = String(dt.getMinutes()).padStart(2, "0");
-
-  return `${mm}/${dd}/${yyyy}-${hours}:${mins}${ampm}`;
-}
-
 export default function DeviceManagerSection({
   ownerEmail,
   activeModel,
@@ -212,7 +165,7 @@ export default function DeviceManagerSection({
               <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[160px]">
                 DEVICE ID
               </th>
-              <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[140px]">
+              <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[95px]">
                 Date
               </th>
               <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[95px]">
@@ -221,7 +174,7 @@ export default function DeviceManagerSection({
               <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[110px]">
                 Status
               </th>
-              <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[140px]">
+              <th className="text-left font-bold text-slate-900 px-2 py-1.5 border-b border-blue-300 w-[95px]">
                 last seen
               </th>
 
@@ -345,7 +298,7 @@ export default function DeviceManagerSection({
                     </td>
 
                     <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800 truncate">
-                      {formatDateTime(r?.addedAt)}
+                      {r?.addedAt ?? "—"}
                     </td>
 
                     <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800 truncate">
@@ -360,7 +313,7 @@ export default function DeviceManagerSection({
                     </td>
 
                     <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800 truncate">
-                      {formatDateTime(r?.lastSeen)}
+                      {r?.lastSeen ?? "—"}
                     </td>
 
                     <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
