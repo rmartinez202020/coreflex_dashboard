@@ -33,13 +33,7 @@ function formatDateMMDDYYYY_hmma(ts) {
 }
 
 // ✅ Professional confirm modal (white background, like your AlarmLog style but white)
-function ConfirmDeleteModal({
-  open,
-  deviceId,
-  busy,
-  onCancel,
-  onConfirm,
-}) {
+function ConfirmDeleteModal({ open, deviceId, busy, onCancel, onConfirm }) {
   if (!open) return null;
 
   return (
@@ -201,6 +195,10 @@ export default function RegisterDevicesSection({ onBack }) {
     const id = String(pendingDeleteId || "").trim();
     if (!id) return;
 
+    // ✅ CLOSE MODAL IMMEDIATELY (so it disappears right after clicking Delete)
+    setConfirmOpen(false);
+    setPendingDeleteId("");
+
     setDeleting(true);
     setErr("");
     try {
@@ -221,11 +219,13 @@ export default function RegisterDevicesSection({ onBack }) {
         throw new Error(j?.detail || `Delete failed (${res.status})`);
       }
 
-      setConfirmOpen(false);
-      setPendingDeleteId("");
+      // ✅ refresh list (device disappears -> effectively unclaimed for this user)
       await loadMyDevices();
     } catch (e) {
+      // modal stays closed even on error (as requested)
       setErr(e.message || "Delete failed");
+      // optional: you could also reload to reflect server truth
+      // await loadMyDevices();
     } finally {
       setDeleting(false);
     }
