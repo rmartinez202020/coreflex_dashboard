@@ -103,8 +103,47 @@ export default function RegisterDevicesSection({ onBack }) {
     }
   }
 
+  // ✅ delete device (UI + confirm). Backend endpoint may differ; adjust if needed.
+  async function deleteDevice(row) {
+    const id = String(row?.deviceId || "").trim();
+    if (!id) return;
+
+    const ok = window.confirm(
+      `Delete device ${id}?\n\nThis action cannot be undone. All dashboards, tags, and configuration related to this device will be permanently removed.`
+    );
+    if (!ok) return;
+
+    setLoading(true);
+    setErr("");
+    try {
+      // IMPORTANT: update endpoint if your backend uses a different route
+      const res = await fetch(
+        `${API_URL}/zhc1921/devices/${encodeURIComponent(id)}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+          },
+        }
+      );
+
+      if (!res.ok) {
+        const j = await res.json().catch(() => ({}));
+        throw new Error(j?.detail || `Delete failed (${res.status})`);
+      }
+
+      await loadMyDevices();
+    } catch (e) {
+      setErr(e.message || "Delete failed");
+    } finally {
+      setLoading(false);
+    }
+  }
+
   React.useEffect(() => {
     if (activeModel === "cf2000") loadMyDevices();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeModel]);
 
   // =========================
@@ -182,9 +221,7 @@ export default function RegisterDevicesSection({ onBack }) {
 
         <div className="p-4">
           <div className="mb-4">
-            <div className="text-sm font-semibold mb-2">
-              Add / Claim Device ID
-            </div>
+            <div className="text-sm font-semibold mb-2">Add / Claim Device ID</div>
 
             <div className="flex gap-3">
               <input
@@ -207,20 +244,24 @@ export default function RegisterDevicesSection({ onBack }) {
 
           <div className="rounded-xl border overflow-hidden">
             <div className="overflow-x-auto">
+              {/* ✅ tighter overall table: narrower widths + tighter padding + tighter numeric columns */}
               <table className="w-full table-fixed text-[12px]">
                 <thead>
                   <tr className="bg-blue-200">
-                    <th className="px-1 py-[3px] w-[95px] text-left font-bold text-slate-900">
+                    <th className="px-[6px] py-[3px] w-[110px] text-left font-bold text-slate-900">
                       DEVICE ID
                     </th>
-                    <th className="px-1 py-[3px] w-[95px] text-left font-bold text-slate-900">
+
+                    {/* Date/LastSeen: keep compact but readable */}
+                    <th className="px-[6px] py-[3px] w-[135px] text-left font-bold text-slate-900">
                       Date
                     </th>
-                    <th className="px-1 py-[3px] w-[80px] text-left font-bold text-slate-900">
+
+                    <th className="px-[6px] py-[3px] w-[72px] text-left font-bold text-slate-900">
                       Status
                     </th>
 
-                    <th className="px-1 py-[3px] w-[90px] text-left font-bold text-slate-900 border-r border-blue-300">
+                    <th className="px-[6px] py-[3px] w-[135px] text-left font-bold text-slate-900 border-r border-blue-300">
                       Last Seen
                     </th>
 
@@ -240,48 +281,53 @@ export default function RegisterDevicesSection({ onBack }) {
                     ].map((k) => (
                       <th
                         key={k}
-                        className="px-1 py-1 w-[46px] text-center font-bold text-slate-900"
+                        className="px-[4px] py-[3px] w-[34px] text-center font-bold text-slate-900"
                       >
                         {k}
                       </th>
                     ))}
+
+                    {/* ✅ Delete column */}
+                    <th className="px-[6px] py-[3px] w-[92px] text-right font-bold text-slate-900">
+                      {/* blank header is ok, but keeping label helps */}
+                      Action
+                    </th>
                   </tr>
                 </thead>
 
                 <tbody>
-                  {!rows.length ? (
+                  {loading && rows.length === 0 ? (
                     <tr>
-                      <td
-                        colSpan={16}
-                        className="text-center py-6 text-slate-500"
-                      >
+                      <td colSpan={17} className="text-center py-6 text-slate-500">
+                        Loading...
+                      </td>
+                    </tr>
+                  ) : !rows.length ? (
+                    <tr>
+                      <td colSpan={17} className="text-center py-6 text-slate-500">
                         No registered devices yet.
                       </td>
                     </tr>
                   ) : (
                     rows.map((r, i) => (
-                      <tr
-                        key={i}
-                        className={i % 2 ? "bg-slate-50" : "bg-white"}
-                      >
-                        <td className="px-1 py-[3px] truncate text-slate-800">
+                      <tr key={i} className={i % 2 ? "bg-slate-50" : "bg-white"}>
+                        <td className="px-[6px] py-[3px] truncate text-slate-800">
                           {r.deviceId}
                         </td>
 
                         <td
-                          className="px-1 py-[3px] truncate text-slate-800"
+                          className="px-[6px] py-[3px] truncate text-slate-800"
                           title={r.addedAt || ""}
                         >
                           {formatDateMMDDYYYY_hmma(r.addedAt)}
                         </td>
 
-                        <td className="px-1 py-[3px] capitalize text-slate-800">
+                        <td className="px-[6px] py-[3px] capitalize text-slate-800">
                           {r.status}
                         </td>
 
-                        {/* ✅ Last Seen formatted same as Date */}
                         <td
-                          className="px-1 py-[3px] truncate text-slate-800 border-r border-slate-200"
+                          className="px-[6px] py-[3px] truncate text-slate-800 border-r border-slate-200"
                           title={r.lastSeen || ""}
                         >
                           {formatDateMMDDYYYY_hmma(r.lastSeen)}
@@ -303,16 +349,33 @@ export default function RegisterDevicesSection({ onBack }) {
                         ].map((v, j) => (
                           <td
                             key={j}
-                            className="text-center px-1 py-1 text-slate-800"
+                            className="text-center px-[4px] py-[3px] text-slate-800"
                           >
                             {String(v ?? "")}
                           </td>
                         ))}
+
+                        {/* ✅ Delete button styled like Admin Dashboard delete */}
+                        <td className="px-[6px] py-[3px] text-right">
+                          <button
+                            onClick={() => deleteDevice(r)}
+                            disabled={loading}
+                            className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-50"
+                            title="Delete device"
+                          >
+                            🗑 Delete
+                          </button>
+                        </td>
                       </tr>
                     ))
                   )}
                 </tbody>
               </table>
+            </div>
+
+            {/* Optional small footer tip */}
+            <div className="px-3 py-2 text-[11px] text-slate-500">
+              Tip: You can scroll horizontally inside this table.
             </div>
           </div>
         </div>
