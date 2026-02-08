@@ -33,13 +33,7 @@ function formatDateMMDDYYYY_hmma(ts) {
 }
 
 // ✅ Professional confirm modal (white background, like your AlarmLog style but white)
-function ConfirmDeleteModal({
-  open,
-  deviceId,
-  busy,
-  onCancel,
-  onConfirm,
-}) {
+function ConfirmDeleteModal({ open, deviceId, busy, onCancel, onConfirm }) {
   if (!open) return null;
 
   return (
@@ -189,7 +183,7 @@ export default function RegisterDevicesSection({ onBack }) {
     }
   }
 
-  // ✅ open confirm modal (now: unclaim/remove)
+  // ✅ open confirm modal (unclaim/remove)
   function requestDelete(row) {
     const id = String(row?.deviceId || "").trim();
     if (!id) return;
@@ -197,7 +191,7 @@ export default function RegisterDevicesSection({ onBack }) {
     setConfirmOpen(true);
   }
 
-  // ✅ confirm remove (UNCLAIM)
+  // ✅ confirm remove (UNCLAIM) — Option A: DELETE /zhc1921/unclaim/{device_id}
   async function confirmDelete() {
     const id = String(pendingDeleteId || "").trim();
     if (!id) return;
@@ -209,21 +203,15 @@ export default function RegisterDevicesSection({ onBack }) {
     setDeleting(true);
     setErr("");
     try {
-      /**
-       * ✅ UNCLAIM endpoint
-       * Backend should implement:
-       *   POST /zhc1921/unclaim
-       * Body:
-       *   { device_id: "123" }
-       */
-      const res = await fetch(`${API_URL}/zhc1921/unclaim`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeaders(),
-        },
-        body: JSON.stringify({ device_id: id }),
-      });
+      const res = await fetch(
+        `${API_URL}/zhc1921/unclaim/${encodeURIComponent(id)}`,
+        {
+          method: "DELETE",
+          headers: {
+            ...getAuthHeaders(),
+          },
+        }
+      );
 
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
