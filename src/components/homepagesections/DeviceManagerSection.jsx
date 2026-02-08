@@ -34,6 +34,11 @@ export default function DeviceManagerSection({
   activeModel,
   setActiveModel,
 
+  // ✅ NEW: render mode
+  // "inline" = inside Home with border-top spacing
+  // "page"   = full-page section (no border-top spacing)
+  mode = "inline",
+
   // ZHC1921 table props
   zhc1921Columns = [],
   zhc1921Rows = [],
@@ -186,12 +191,18 @@ export default function DeviceManagerSection({
     </div>
   );
 
+  // wrapper spacing depends on mode
+  const wrapperClass =
+    mode === "page"
+      ? "mt-4"
+      : "mt-10 border-t border-gray-200 pt-6";
+
   // =========================
   // VIEW A: Selector (cards)
   // =========================
   if (!activeModel) {
     return (
-      <div className="mt-10 border-t border-gray-200 pt-6">
+      <div className={wrapperClass}>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-xl font-bold text-gray-800">
             Device Manager (Owner Only)
@@ -221,7 +232,7 @@ export default function DeviceManagerSection({
   // VIEW B: Full “new section”
   // =========================
   return (
-    <div className="mt-10 border-t border-gray-200 pt-6">
+    <div className={wrapperClass}>
       {/* Dark header bar like Admin Dashboard */}
       <div className="rounded-xl bg-slate-700 text-white px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
