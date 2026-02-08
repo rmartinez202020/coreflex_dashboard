@@ -1,5 +1,6 @@
 import React from "react";
 import DeviceManagerSection from "./homepagesections/DeviceManagerSection";
+import RegisterDevicesSection from "./homepagesections/RegisterDevicesSection"; // ✅ NEW
 
 // ✅ Owner allowlist (LOCKED to one admin email only)
 const PLATFORM_OWNER_EMAIL = "roquemartinez_8@hotmail.com";
@@ -115,6 +116,9 @@ export default function HomePage({
   const normalizedUser = safeLower(detectedEmail || currentUserKey);
   const isPlatformOwner = normalizedUser === safeLower(PLATFORM_OWNER_EMAIL);
 
+  // ✅ NEW: Registered Devices "section open" state
+  const [showRegisterDevices, setShowRegisterDevices] = React.useState(false);
+
   // ✅ Device Manager state
   const [activeModel, setActiveModel] = React.useState(null);
 
@@ -148,8 +152,24 @@ export default function HomePage({
     }
   }, [activeModel]);
 
+  // ✅ When Register Devices opens, scroll to top too
+  React.useEffect(() => {
+    if (showRegisterDevices) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [showRegisterDevices]);
+
   // ✅ Treat “device manager open” like a full-page section (like Admin Dashboard)
   const isDeviceManagerOpen = isPlatformOwner && !!activeModel;
+
+  // ✅ FULL “REGISTER DEVICES PAGE” VIEW
+  if (showRegisterDevices) {
+    return (
+      <div className="mt-4 md:mt-6">
+        <RegisterDevicesSection onBack={() => setShowRegisterDevices(false)} />
+      </div>
+    );
+  }
 
   // ✅ FULL “DEVICE MANAGER PAGE” VIEW
   // ✅ FIX: remove the extra top header here (DeviceManagerSection already has its own header)
@@ -169,7 +189,7 @@ export default function HomePage({
     );
   }
 
-  // ✅ NORMAL HOME VIEW (unchanged)
+  // ✅ NORMAL HOME VIEW (with Registered Devices click opening the new section)
   return (
     <>
       {/* TOP ROW CARDS */}
@@ -207,14 +227,20 @@ export default function HomePage({
         </div>
 
         {/* REGISTERED DEVICES CARD */}
-        <div className="rounded-xl bg-sky-700 text-white p-4 md:p-5 flex flex-col justify-between hover:bg-sky-800 transition">
+        <div
+          className="rounded-xl bg-sky-700 text-white p-4 md:p-5 flex flex-col justify-between cursor-pointer hover:bg-sky-800 transition"
+          onClick={() => setShowRegisterDevices(true)} // ✅ NEW
+        >
           <div className="flex items-center gap-2 mb-2">
             <span className="text-2xl">📡</span>
             <h2 className="text-lg font-semibold">Registered Devices</h2>
           </div>
           <p className="text-sm text-sky-100">
-            Review all sensors and gateways.
+            Register devices by model (CF-2000 / CF-1600 / TP-400).
           </p>
+          <div className="mt-3 text-xs text-sky-200 opacity-90">
+            Click to open Register Devices
+          </div>
         </div>
       </div>
 
