@@ -1,14 +1,8 @@
 import React from "react";
+import DeviceManagerSection from "./homepagesections/DeviceManagerSection";
 
 // ✅ Owner allowlist (LOCKED to one admin email only)
 const PLATFORM_OWNER_EMAIL = "roquemartinez_8@hotmail.com";
-
-// ✅ Model buttons (inside Home)
-const DEVICE_MODELS = [
-  { key: "zhc1921", label: "Model ZHC1921 (CF-2000)" },
-  { key: "zhc1661", label: "Model ZHC1661 (CF-1600)" },
-  { key: "tp4000", label: "Model TP-4000" },
-];
 
 // ✅ Columns exactly like your spreadsheet (ZHC1921)
 const ZHC1921_COLUMNS = [
@@ -53,7 +47,10 @@ function decodeJwtPayload(token) {
     if (parts.length < 2) return null;
     const base64Url = parts[1];
     const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-    const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
+    const padded = base64.padEnd(
+      base64.length + ((4 - (base64.length % 4)) % 4),
+      "="
+    );
     const json = atob(padded);
     return JSON.parse(json);
   } catch {
@@ -91,11 +88,10 @@ function detectEmail(currentUserKey) {
     const payload = decodeJwtPayload(t);
     if (!payload) continue;
 
-    // common JWT fields
     const candidates = [
       payload.email,
       payload.user?.email,
-      payload.sub, // sometimes the email is in sub
+      payload.sub,
       payload.username,
     ];
 
@@ -104,7 +100,6 @@ function detectEmail(currentUserKey) {
     }
   }
 
-  // nothing found
   return "";
 }
 
@@ -152,7 +147,8 @@ export default function HomePage({
             Backend Device Table — ZHC1921 (CF-2000)
           </div>
           <div className="text-sm text-slate-600">
-            This table will mirror the backend for authorized devices + live status.
+            This table will mirror the backend for authorized devices + live
+            status.
           </div>
         </div>
 
@@ -255,8 +251,8 @@ export default function HomePage({
       {/* ✅ ALWAYS-VISIBLE DEBUG LINE (remove after it works) */}
       <div className="mb-3 text-[11px] text-slate-500">
         debug owner-check → detectedEmail: "{detectedEmail || "(none)"}" |
-        currentUserKey: "{String(currentUserKey || "")}" | normalizedUser: "{normalizedUser}"
-        | isPlatformOwner: {String(isPlatformOwner)}
+        currentUserKey: "{String(currentUserKey || "")}" | normalizedUser: "
+        {normalizedUser}" | isPlatformOwner: {String(isPlatformOwner)}
       </div>
 
       {/* TOP ROW CARDS */}
@@ -293,7 +289,7 @@ export default function HomePage({
           </p>
         </div>
 
-        {/* REGISTERED DEVICES CARD — STEEL BLUE */}
+        {/* REGISTERED DEVICES CARD */}
         <div className="rounded-xl bg-sky-700 text-white p-4 md:p-5 flex flex-col justify-between hover:bg-sky-800 transition">
           <div className="flex items-center gap-2 mb-2">
             <span className="text-2xl">📡</span>
@@ -349,73 +345,17 @@ export default function HomePage({
         </div>
       </div>
 
-      {/* ✅ OWNER-ONLY: DEVICE MANAGER SECTION (INSIDE HOME) */}
+      {/* ✅ OWNER-ONLY: DEVICE MANAGER SECTION (EXTRACTED) */}
       {isPlatformOwner && (
-        <div className="mt-10 border-t border-gray-200 pt-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-800">
-              Device Manager (Owner Only)
-            </h2>
-            <span className="text-xs text-gray-500">
-              Owner: {normalizedUser || "unknown"}
-            </span>
-          </div>
-
-          {/* 3 model buttons */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {DEVICE_MODELS.map((m) => {
-              const active = activeModel === m.key;
-              return (
-                <button
-                  key={m.key}
-                  onClick={() => setActiveModel(m.key)}
-                  className={[
-                    "w-full rounded-xl px-5 py-4 text-left transition shadow-sm border",
-                    active
-                      ? "bg-slate-900 text-white border-slate-900"
-                      : "bg-white hover:bg-slate-50 text-slate-900 border-slate-200",
-                  ].join(" ")}
-                >
-                  <div className="text-lg font-semibold">{m.label}</div>
-                  <div
-                    className={
-                      active ? "text-sm opacity-80" : "text-sm text-slate-600"
-                    }
-                  >
-                    Manage authorized devices and view live I/O status.
-                  </div>
-                </button>
-              );
-            })}
-          </div>
-
-          {/* Table only for ZHC1921 */}
-          {activeModel === "zhc1921" && renderZhc1921Table()}
-
-          {/* Placeholders for the other 2 models (we’ll build next) */}
-          {activeModel === "zhc1661" && (
-            <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
-              <div className="font-semibold text-slate-900">
-                ZHC1661 (CF-1600)
-              </div>
-              <div className="text-sm text-slate-600">
-                Next: show the backend table for ZHC1661 devices.
-              </div>
-            </div>
-          )}
-
-          {activeModel === "tp4000" && (
-            <div className="mt-5 rounded-xl border border-slate-200 bg-white p-4">
-              <div className="font-semibold text-slate-900">TP-4000</div>
-              <div className="text-sm text-slate-600">
-                Next: show the backend table for TP-4000 devices.
-              </div>
-            </div>
-          )}
-        </div>
+        <DeviceManagerSection
+          ownerEmail={normalizedUser}
+          activeModel={activeModel}
+          setActiveModel={setActiveModel}
+          renderZhc1921Table={renderZhc1921Table}
+        />
       )}
 
-      {/* ✅ OWNER-ONLY BUSINESS SECTION (BOTTOM) */}
+      {/* ✅ OWNER-ONLY BUSINESS SECTION (unchanged) */}
       {isPlatformOwner && (
         <div className="mt-10 border-t border-gray-200 pt-6">
           <div className="flex items-center justify-between mb-4">
@@ -428,7 +368,6 @@ export default function HomePage({
           </div>
 
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            {/* Business Dashboards Report */}
             <button
               onClick={() => {
                 setActiveSubPage("businessDashboardsReport");
@@ -444,7 +383,6 @@ export default function HomePage({
               </div>
             </button>
 
-            {/* Business Users Report */}
             <button
               onClick={() => {
                 setActiveSubPage("businessUsersReport");
@@ -458,7 +396,6 @@ export default function HomePage({
               </div>
             </button>
 
-            {/* Reset User Password */}
             <button
               onClick={() => {
                 setActiveSubPage("resetUserPassword");
