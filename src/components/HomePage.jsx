@@ -116,6 +116,10 @@ export default function HomePage({
   // ✅ Device Manager UI state (inside Home)
   const [activeModel, setActiveModel] = React.useState(null);
 
+  // ✅ Add-device UI (ZHC1921)
+  const [newDeviceId, setNewDeviceId] = React.useState("");
+  const [addError, setAddError] = React.useState("");
+
   // ✅ Placeholder rows (later we replace with backend API)
   const [zhc1921Rows, setZhc1921Rows] = React.useState([
     {
@@ -139,16 +143,57 @@ export default function HomePage({
     },
   ]);
 
+  // ✅ Temporary local add (later replaced by backend POST)
+  const handleAddZhc1921Device = () => {
+    const id = String(newDeviceId || "").trim();
+    if (!id) {
+      setAddError("Please type a DEVICE ID.");
+      return;
+    }
+    const exists = zhc1921Rows.some((r) => String(r.deviceId) === id);
+    if (exists) {
+      setAddError("That DEVICE ID already exists in the table.");
+      return;
+    }
+
+    setZhc1921Rows((prev) => [
+      {
+        deviceId: id,
+        addedAt: new Date().toLocaleString(),
+        ownedBy: "—",
+        status: "offline",
+        lastSeen: "—",
+        in1: 0,
+        in2: 0,
+        in3: 0,
+        in4: 0,
+        do1: 0,
+        do2: 0,
+        do3: 0,
+        do4: 0,
+        ai1: "",
+        ai2: "",
+        ai3: "",
+        ai4: "",
+      },
+      ...prev,
+    ]);
+
+    setNewDeviceId("");
+    setAddError("");
+  };
+
+  // ✅ The full manager panel for ZHC1921 (header + add device + table)
   const renderZhc1921Table = () => (
-    <div className="mt-5">
-      <div className="flex items-center justify-between mb-3">
+    <div className="mt-6">
+      {/* ✅ Header bar like Admin Dashboard */}
+      <div className="rounded-xl bg-gray-700 text-white p-4 md:p-5 flex items-center justify-between">
         <div>
-          <div className="text-xl font-bold text-slate-900">
-            Backend Device Table — ZHC1921 (CF-2000)
+          <div className="text-lg font-semibold">
+            Device Manager — ZHC1921 (CF-2000)
           </div>
-          <div className="text-sm text-slate-600">
-            This table will mirror the backend for authorized devices + live
-            status.
+          <div className="text-sm text-gray-200">
+            Add authorized devices and view live I/O status from backend.
           </div>
         </div>
 
@@ -157,13 +202,48 @@ export default function HomePage({
             // placeholder refresh (later this calls backend)
             setZhc1921Rows((prev) => [...prev]);
           }}
-          className="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm hover:opacity-90"
+          className="rounded-lg bg-white/10 text-white px-4 py-2 text-sm hover:bg-white/15 transition"
         >
           Refresh
         </button>
       </div>
 
-      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+      {/* ✅ Add Device row */}
+      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4">
+        <div className="flex flex-col md:flex-row md:items-end gap-3">
+          <div className="flex-1">
+            <div className="text-sm font-semibold text-slate-800 mb-1">
+              Add Device ID (authorized backend device)
+            </div>
+            <input
+              value={newDeviceId}
+              onChange={(e) => {
+                setNewDeviceId(e.target.value);
+                setAddError("");
+              }}
+              placeholder="Enter DEVICE ID (example: 1921251024070670)"
+              className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm"
+            />
+            {addError ? (
+              <div className="text-xs text-red-600 mt-1">{addError}</div>
+            ) : (
+              <div className="text-xs text-slate-500 mt-1">
+                Owner only. This will create a new row in the backend table.
+              </div>
+            )}
+          </div>
+
+          <button
+            onClick={handleAddZhc1921Device}
+            className="rounded-lg bg-slate-900 text-white px-5 py-2 text-sm hover:opacity-90"
+          >
+            + Add Device
+          </button>
+        </div>
+      </div>
+
+      {/* ✅ Table */}
+      <div className="mt-4 rounded-xl border border-slate-200 bg-white overflow-hidden">
         <div className="w-full overflow-auto">
           <table className="min-w-max w-full text-sm">
             <thead className="bg-slate-100 sticky top-0 z-10">
