@@ -55,7 +55,8 @@ export default function RegisterDevicesSection({ onBack }) {
   async function claimDevice() {
     const id = String(deviceId || "").trim();
     if (!id) return setErr("Please enter a DEVICE ID.");
-    if (!/^\d+$/.test(id)) return setErr("DEVICE ID must be numeric (digits only).");
+    if (!/^\d+$/.test(id))
+      return setErr("DEVICE ID must be numeric (digits only).");
 
     setLoading(true);
     setErr("");
@@ -94,34 +95,48 @@ export default function RegisterDevicesSection({ onBack }) {
   // =========================
   if (!activeModel) {
     return (
-      <div className="mt-6 rounded-xl border border-slate-200 bg-white p-5">
-        <div className="flex items-center justify-between mb-4">
-          <div>
-            <div className="text-lg font-bold text-slate-900">Register Devices</div>
-            <div className="text-sm text-slate-600">
-              Select your device model to register/claim a device.
+      <div className="mt-6 rounded-xl border border-slate-200 bg-white overflow-hidden">
+        {/* ✅ TOP HEADER BAR (match Home "Registered Devices" tile) */}
+        <div className="bg-sky-800 text-white px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onBack}
+              className="rounded-lg bg-sky-700 hover:bg-sky-600 px-3 py-2 text-sm"
+            >
+              ← Back
+            </button>
+
+            <div className="leading-tight">
+              <div className="text-lg font-semibold">Register Devices</div>
+              <div className="text-xs text-sky-100">
+                Select your device model to register/claim a device.
+              </div>
             </div>
           </div>
 
+          {/* Optional: keep close if you still want it */}
           <button
             onClick={onBack}
-            className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-sm hover:bg-slate-50"
+            className="rounded-lg bg-sky-700 hover:bg-sky-600 px-3 py-2 text-sm"
+            title="Close"
           >
             ✕ Close
           </button>
         </div>
 
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {MODELS.map((m) => (
-            <button
-              key={m.key}
-              onClick={() => setActiveModel(m.key)}
-              className="w-full rounded-xl px-5 py-4 text-left transition shadow-sm border bg-white hover:bg-slate-50 text-slate-900 border-slate-200"
-            >
-              <div className="text-lg font-semibold">{m.label}</div>
-              <div className="text-sm text-slate-600">{m.desc}</div>
-            </button>
-          ))}
+        <div className="p-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            {MODELS.map((m) => (
+              <button
+                key={m.key}
+                onClick={() => setActiveModel(m.key)}
+                className="w-full rounded-xl px-5 py-4 text-left transition shadow-sm border bg-white hover:bg-slate-50 text-slate-900 border-slate-200"
+              >
+                <div className="text-lg font-semibold">{m.label}</div>
+                <div className="text-sm text-slate-600">{m.desc}</div>
+              </button>
+            ))}
+          </div>
         </div>
       </div>
     );
@@ -133,28 +148,32 @@ export default function RegisterDevicesSection({ onBack }) {
   if (activeModel === "cf2000") {
     return (
       <div className="mt-6 rounded-xl border border-slate-200 bg-white overflow-hidden">
-        <div className="bg-slate-800 text-white px-4 py-4 flex items-center justify-between">
+        {/* ✅ TOP HEADER BAR (match Home "Registered Devices" tile) */}
+        <div className="bg-sky-800 text-white px-4 py-4 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={() => {
                 setActiveModel(null);
                 setErr("");
               }}
-              className="rounded-lg bg-slate-700 hover:bg-slate-600 px-3 py-2 text-sm"
+              className="rounded-lg bg-sky-700 hover:bg-sky-600 px-3 py-2 text-sm"
             >
               ← Back
             </button>
             <div>
-              <div className="text-lg font-semibold">Register Devices — Model CF-2000</div>
-              <div className="text-xs text-slate-200">
-                Enter a DEVICE ID. We verify it exists and assign it to your account.
+              <div className="text-lg font-semibold">
+                Register Devices — Model CF-2000
+              </div>
+              <div className="text-xs text-sky-100">
+                Enter a DEVICE ID. We verify it exists and assign it to your
+                account.
               </div>
             </div>
           </div>
 
           <button
             onClick={loadMyDevices}
-            className="rounded-lg bg-slate-700 hover:bg-slate-600 px-3 py-2 text-sm"
+            className="rounded-lg bg-sky-700 hover:bg-sky-600 px-3 py-2 text-sm"
             disabled={loading}
           >
             Refresh
@@ -249,13 +268,19 @@ export default function RegisterDevicesSection({ onBack }) {
                 <tbody>
                   {loading ? (
                     <tr>
-                      <td colSpan={17} className="px-3 py-6 text-center text-slate-500">
+                      <td
+                        colSpan={17}
+                        className="px-3 py-6 text-center text-slate-500"
+                      >
                         Loading...
                       </td>
                     </tr>
                   ) : !rows || rows.length === 0 ? (
                     <tr>
-                      <td colSpan={17} className="px-3 py-6 text-center text-slate-500">
+                      <td
+                        colSpan={17}
+                        className="px-3 py-6 text-center text-slate-500"
+                      >
                         No registered devices yet.
                       </td>
                     </tr>
@@ -263,7 +288,9 @@ export default function RegisterDevicesSection({ onBack }) {
                     rows.map((r, idx) => {
                       const statusLower = String(r?.status || "").toLowerCase();
                       const dotClass =
-                        statusLower === "online" ? "bg-emerald-500" : "bg-slate-400";
+                        statusLower === "online"
+                          ? "bg-emerald-500"
+                          : "bg-slate-400";
 
                       return (
                         <tr
@@ -284,8 +311,12 @@ export default function RegisterDevicesSection({ onBack }) {
 
                           <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800">
                             <div className="flex items-center gap-1.5">
-                              <span className={`inline-block w-2 h-2 rounded-full ${dotClass}`} />
-                              <span className="capitalize">{r?.status || "offline"}</span>
+                              <span
+                                className={`inline-block w-2 h-2 rounded-full ${dotClass}`}
+                              />
+                              <span className="capitalize">
+                                {r?.status || "offline"}
+                              </span>
                             </div>
                           </td>
 
@@ -354,17 +385,20 @@ export default function RegisterDevicesSection({ onBack }) {
   const modelLabel = MODELS.find((m) => m.key === activeModel)?.label || "Model";
   return (
     <div className="mt-6 rounded-xl border border-slate-200 bg-white overflow-hidden">
-      <div className="bg-slate-800 text-white px-4 py-4 flex items-center justify-between">
+      {/* ✅ TOP HEADER BAR (match Home "Registered Devices" tile) */}
+      <div className="bg-sky-800 text-white px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
             onClick={() => setActiveModel(null)}
-            className="rounded-lg bg-slate-700 hover:bg-slate-600 px-3 py-2 text-sm"
+            className="rounded-lg bg-sky-700 hover:bg-sky-600 px-3 py-2 text-sm"
           >
             ← Back
           </button>
           <div>
-            <div className="text-lg font-semibold">Register Devices — {modelLabel}</div>
-            <div className="text-xs text-slate-200">Coming next.</div>
+            <div className="text-lg font-semibold">
+              Register Devices — {modelLabel}
+            </div>
+            <div className="text-xs text-sky-100">Coming next.</div>
           </div>
         </div>
       </div>
