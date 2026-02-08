@@ -210,7 +210,6 @@ export default function RegisterDevicesSection({ onBack }) {
               <table className="w-full table-fixed text-[12px]">
                 <thead>
                   <tr className="bg-blue-200">
-                    {/* ✅ tightened widths + padding (this removes the big gap you marked) */}
                     <th className="px-1 py-[3px] w-[95px] text-left font-bold text-slate-900">
                       DEVICE ID
                     </th>
@@ -269,7 +268,6 @@ export default function RegisterDevicesSection({ onBack }) {
                           {r.deviceId}
                         </td>
 
-                        {/* ✅ formatted date (01/01/2025-8:15AM) + tooltip keeps full original */}
                         <td
                           className="px-1 py-[3px] truncate text-slate-800"
                           title={r.addedAt || ""}
@@ -281,8 +279,12 @@ export default function RegisterDevicesSection({ onBack }) {
                           {r.status}
                         </td>
 
-                        <td className="px-1 py-[3px] truncate text-slate-800 border-r border-slate-200">
-                          {r.lastSeen || "—"}
+                        {/* ✅ Last Seen formatted same as Date */}
+                        <td
+                          className="px-1 py-[3px] truncate text-slate-800 border-r border-slate-200"
+                          title={r.lastSeen || ""}
+                        >
+                          {formatDateMMDDYYYY_hmma(r.lastSeen)}
                         </td>
 
                         {[
