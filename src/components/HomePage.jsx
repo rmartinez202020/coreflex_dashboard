@@ -150,39 +150,19 @@ export default function HomePage({
   const isDeviceManagerOpen = isPlatformOwner && !!activeModel;
 
   // ✅ FULL “DEVICE MANAGER PAGE” VIEW
+  // ✅ FIX: remove the extra top header here (DeviceManagerSection already has its own header)
   if (isDeviceManagerOpen) {
     return (
       <div className="mt-4 md:mt-6">
-        {/* Top bar like Admin Dashboard */}
-        <div className="rounded-xl bg-slate-700 text-white px-4 py-3 flex items-center justify-between">
-          <button
-            onClick={() => setActiveModel(null)}
-            className="px-3 py-1.5 rounded-lg bg-slate-600 hover:bg-slate-500 transition text-sm"
-          >
-            ← Back
-          </button>
-
-          <div className="text-sm md:text-base font-semibold">
-            Device Manager — {String(activeModel || "")}
-          </div>
-
-          <div className="text-xs text-slate-200 opacity-90">
-            Owner: {normalizedUser || "unknown"}
-          </div>
-        </div>
-
-        {/* The device manager section itself (full width) */}
-        <div className="mt-3">
-          <DeviceManagerSection
-            mode="page" // ✅ IMPORTANT: page mode removes mt-10 border-t padding
-            ownerEmail={normalizedUser}
-            activeModel={activeModel}
-            setActiveModel={setActiveModel}
-            zhc1921Columns={ZHC1921_COLUMNS}
-            zhc1921Rows={zhc1921Rows}
-            setZhc1921Rows={setZhc1921Rows}
-          />
-        </div>
+        <DeviceManagerSection
+          mode="page" // ✅ IMPORTANT: page mode removes mt-10 border-t padding
+          ownerEmail={normalizedUser}
+          activeModel={activeModel}
+          setActiveModel={setActiveModel}
+          zhc1921Columns={ZHC1921_COLUMNS}
+          zhc1921Rows={zhc1921Rows}
+          setZhc1921Rows={setZhc1921Rows}
+        />
       </div>
     );
   }
