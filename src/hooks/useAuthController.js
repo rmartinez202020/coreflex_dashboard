@@ -1,115 +1,140 @@
-// src/utils/authToken.js
-// ✅ SINGLE SOURCE OF TRUTH: sessionStorage (per-tab)
-// This fixes multi-tab login issues (two users in two tabs).
+// src/hooks/useAuthController.js
+import { useCallback, useEffect, useRef, useState } from "react";
+import { getUserKeyFromToken, getToken, clearAuth } from "../utils/authToken";
 
-const TOKEN_KEY = "coreflex_access_token";
+/**
+ * useAuthController
+ * - Owns currentUserKey derived from JWT
+ * - Keeps app state in sync when token/user changes
+ * - Provides a single logout handler
+ *
+ * Key fixes:
+ * ✅ Sync on tab focus / visibility change (multi-tab stability)
+ * ✅ Listen to storage changes (other tabs touching localStorage)
+ */
+export default function useAuthController({
+  onNoAuthReset,
+  onUserChangedReset,
+  onLogoutReset,
+  navigate,
+  logoutRoute = "/",
+} = {}) {
+  const [currentUserKey, setCurrentUserKey] = useState(() =>
+    getUserKeyFromToken()
+  );
 
-// remove any legacy keys that may exist from older versions
-const LEGACY_KEYS = [
-  "coreflex_token",
-  "access_token",
-  "token",
-  "jwt",
-  "coreflex_logged_in",
-];
+  // ✅ prevent stale closure issues in event listeners
+  const currentUserKeyRef = useRef(currentUserKey);
+  useEffect(() => {
+    currentUserKeyRef.current = currentUserKey;
+  }, [currentUserKey]);
 
-function wipeLegacy() {
-  for (const k of LEGACY_KEYS) {
-    try {
-      localStorage.removeItem(k);
-    } catch {}
-    try {
-      sessionStorage.removeItem(k);
-    } catch {}
-  }
-}
+  // ✅ prevent duplicate resets spam
+  const lastResetRef = useRef({ reason: "", at: 0 });
 
-export const getToken = () => {
-  try {
-    const t = sessionStorage.getItem(TOKEN_KEY) || "";
-    return (t || "").trim();
-  } catch {
-    return "";
-  }
-};
+  const safeResetNoAuth = useCallback(() => {
+    // avoid hammering resets if multiple events fire at once
+    const now = Date.now();
+    const last = lastResetRef.current;
+    if (last.reason === "noauth" && now - last.at < 250) return;
+    lastResetRef.current = { reason: "noauth", at: now };
 
-export const setToken = (token) => {
-  wipeLegacy();
+    setCurrentUserKey(null);
+    onNoAuthReset?.();
+  }, [onNoAuthReset]);
 
-  const t = (token || "").trim();
+  const syncUserFromToken = useCallback(() => {
+    const token = getToken();
+    const newUserKey = getUserKeyFromToken(token); // ✅ decode the SAME token we use
 
-  try {
-    if (!t) {
-      sessionStorage.removeItem(TOKEN_KEY);
-      window.dispatchEvent(new Event("coreflex-auth-changed"));
+    // No token/user -> become logged out + reset app state
+    if (!token || !newUserKey) {
+      // only reset if we currently think we’re logged in
+      if (currentUserKeyRef.current) safeResetNoAuth();
       return;
     }
 
-    sessionStorage.setItem(TOKEN_KEY, t);
+    // User changed -> reset app state for new tenant
+    if (newUserKey !== currentUserKeyRef.current) {
+      const old = currentUserKeyRef.current;
+      setCurrentUserKey(newUserKey);
+      onUserChangedReset?.(newUserKey, old);
+      return;
+    }
+
+    // If same user, still ensure state is set (edge cases)
+    if (!currentUserKeyRef.current) {
+      setCurrentUserKey(newUserKey);
+    }
+  }, [onUserChangedReset, safeResetNoAuth]);
+
+  useEffect(() => {
+    // Initial sync
+    syncUserFromToken();
+
+    // 1) Existing internal event bus
+    window.addEventListener("coreflex-auth-changed", syncUserFromToken);
+
+    // 2) ✅ Multi-tab: other tab writes to localStorage -> this tab can react
+    // NOTE: 'storage' does NOT fire for sessionStorage; it fires for localStorage changes from other tabs.
+    const onStorage = (e) => {
+      const k = e?.key || "";
+      // react only to auth-ish keys (avoid noisy refreshes)
+      const looksAuthy =
+        k.includes("token") ||
+        k.includes("jwt") ||
+        k.includes("coreflex_access_token") ||
+        k.includes("coreflex_logged_in") ||
+        k.includes("coreflex_user_email");
+
+      if (!k || looksAuthy) {
+        syncUserFromToken();
+      }
+    };
+    window.addEventListener("storage", onStorage);
+
+    // 3) ✅ When user comes back to this tab, re-sync from THIS tab’s token
+    const onFocus = () => syncUserFromToken();
+    const onVisibility = () => {
+      if (document.visibilityState === "visible") syncUserFromToken();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onVisibility);
+
+    return () => {
+      window.removeEventListener("coreflex-auth-changed", syncUserFromToken);
+      window.removeEventListener("storage", onStorage);
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onVisibility);
+    };
+  }, [syncUserFromToken]);
+
+  const handleLogout = useCallback(() => {
+    // 1) clear token
+    clearAuth();
+    setCurrentUserKey(null);
+
+    // 2) reset app UI state
+    onLogoutReset?.();
+
+    // 3) notify listeners
     window.dispatchEvent(new Event("coreflex-auth-changed"));
-  } catch {
-    // if storage fails, still dispatch so UI can react
-    window.dispatchEvent(new Event("coreflex-auth-changed"));
-  }
-};
 
-export const clearAuth = () => {
-  wipeLegacy();
-  try {
-    sessionStorage.removeItem(TOKEN_KEY);
-  } catch {}
-  window.dispatchEvent(new Event("coreflex-auth-changed"));
-};
+    // 4) try soft navigation
+    try {
+      if (navigate) navigate(logoutRoute, { replace: true });
+    } catch {
+      // ignore
+    }
 
-export const isLoggedIn = () => !!getToken();
+    // 5) ✅ HARD redirect
+    window.location.assign(logoutRoute);
+  }, [navigate, logoutRoute, onLogoutReset]);
 
-// ---------- JWT helpers ----------
-export const parseJwt = (token) => {
-  try {
-    if (!token || typeof token !== "string") return null;
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-
-    const base64Url = parts[1];
-    const base64 = base64Url.replace(/-/g, "+").replace(/_/g, "/");
-
-    const jsonPayload = decodeURIComponent(
-      atob(base64)
-        .split("")
-        .map((c) => "%" + ("00" + c.charCodeAt(0).toString(16)).slice(-2))
-        .join("")
-    );
-
-    return JSON.parse(jsonPayload);
-  } catch {
-    return null;
-  }
-};
-
-/**
- * ✅ IMPORTANT:
- * Accept tokenOverride so we ALWAYS decode the SAME token used for API calls.
- */
-export const getUserKeyFromToken = (tokenOverride) => {
-  const token = (tokenOverride ?? getToken()).trim();
-  if (!token) return null;
-
-  const payload = parseJwt(token);
-  if (!payload) return null;
-
-  const userId = payload?.user_id;
-  if (userId !== undefined && userId !== null && userId !== "") {
-    return String(userId);
-  }
-
-  return payload?.sub ? String(payload.sub) : null;
-};
-
-// Optional debug helper
-export const getTokenStart = (len = 25) => getToken().slice(0, len);
-
-// ✅ helper for fetch headers
-export const authHeader = () => {
-  const t = getToken();
-  return t ? { Authorization: `Bearer ${t}` } : {};
-};
+  return {
+    currentUserKey,
+    setCurrentUserKey, // optional escape hatch (rarely needed)
+    handleLogout,
+    syncUserFromToken, // optional (rarely needed)
+  };
+}
