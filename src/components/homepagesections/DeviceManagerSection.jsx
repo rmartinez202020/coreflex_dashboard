@@ -73,6 +73,49 @@ async function apiFetch(path, options = {}) {
   return data;
 }
 
+/**
+ * ✅ Format to: 01/01/2025-8:15AM
+ * Safe:
+ * - null/empty => "—"
+ * - parses ISO / normal strings / unix timestamps (sec or ms)
+ * - if parsing fails => returns original text
+ */
+function formatDateTime(value) {
+  if (value === null || value === undefined) return "—";
+
+  const raw = String(value).trim();
+  if (!raw || raw === "—" || raw.toLowerCase() === "null") return "—";
+
+  let dt = null;
+
+  // numeric timestamps (seconds or ms)
+  if (/^\d+$/.test(raw)) {
+    const n = Number(raw);
+    if (!Number.isFinite(n)) return raw;
+
+    // 10 digits or less -> seconds, else ms
+    dt = raw.length <= 10 ? new Date(n * 1000) : new Date(n);
+  } else {
+    const t = Date.parse(raw);
+    if (!Number.isNaN(t)) dt = new Date(t);
+  }
+
+  if (!dt || Number.isNaN(dt.getTime())) return raw;
+
+  const mm = String(dt.getMonth() + 1).padStart(2, "0");
+  const dd = String(dt.getDate()).padStart(2, "0");
+  const yyyy = String(dt.getFullYear());
+
+  let hours = dt.getHours();
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12;
+  if (hours === 0) hours = 12;
+
+  const mins = String(dt.getMinutes()).padStart(2, "0");
+
+  return `${mm}/${dd}/${yyyy}-${hours}:${mins}${ampm}`;
+}
+
 export default function DeviceManagerSection({
   ownerEmail,
   activeModel,
@@ -297,8 +340,9 @@ export default function DeviceManagerSection({
                       {r?.deviceId ?? ""}
                     </td>
 
+                    {/* ✅ ONLY CHANGE: formatted date */}
                     <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800 truncate">
-                      {r?.addedAt ?? "—"}
+                      {formatDateTime(r?.addedAt)}
                     </td>
 
                     <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800 truncate">
@@ -307,13 +351,18 @@ export default function DeviceManagerSection({
 
                     <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800">
                       <div className="flex items-center gap-1.5">
-                        <span className={`inline-block w-2 h-2 rounded-full ${dotClass}`} />
-                        <span className="capitalize">{r?.status || "offline"}</span>
+                        <span
+                          className={`inline-block w-2 h-2 rounded-full ${dotClass}`}
+                        />
+                        <span className="capitalize">
+                          {r?.status || "offline"}
+                        </span>
                       </div>
                     </td>
 
+                    {/* ✅ ONLY CHANGE: formatted last seen */}
                     <td className="px-2 py-1.5 border-b border-slate-100 text-slate-800 truncate">
-                      {r?.lastSeen ?? "—"}
+                      {formatDateTime(r?.lastSeen)}
                     </td>
 
                     <td className="px-1 py-1.5 border-b border-slate-100 text-slate-800 text-center">
