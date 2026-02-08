@@ -42,7 +42,6 @@ function splitTwoLineLabel(label) {
   const m2 = s.match(/^(AI-\d)\s+(.*)$/i);
   if (m2) return [m2[1], m2[2]];
 
-  // fallback: keep single line
   return [s, ""];
 }
 
@@ -51,9 +50,7 @@ export default function DeviceManagerSection({
   activeModel,
   setActiveModel,
 
-  // ✅ NEW: render mode
-  // "inline" = inside Home with border-top spacing
-  // "page"   = full-page section (no border-top spacing)
+  // ✅ render mode
   mode = "inline",
 
   // ZHC1921 table props
@@ -79,7 +76,6 @@ export default function DeviceManagerSection({
       return;
     }
 
-    // digits-only (you can relax later)
     if (!/^\d+$/.test(id)) {
       setErr("DEVICE ID must be numeric (digits only).");
       return;
@@ -121,28 +117,29 @@ export default function DeviceManagerSection({
   }
 
   function refreshZhc1921() {
-    // placeholder (later: call backend and update rows)
     setZhc1921Rows((prev) => [...(prev || [])]);
   }
 
+  // ✅ IMPORTANT CHANGE:
+  // - no `min-w-max`
+  // - table is `w-full`
+  // - horizontal scroll ONLY inside panel
   const renderZhc1921Table = () => (
-    // ✅ max-w-full + overflow hidden ensures it never spills outside center panel
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden max-w-full">
-      {/* ✅ Only horizontal scroll inside this panel */}
       <div className="w-full overflow-x-auto">
         <table className="w-full text-sm">
           <thead className="bg-slate-100 sticky top-0 z-10">
             <tr>
               {zhc1921Columns.map((c) => {
                 const [l1, l2] = splitTwoLineLabel(c.label);
-
                 return (
                   <th
                     key={c.key}
                     className="text-left font-semibold text-slate-700 px-3 py-2 border-b border-slate-200 align-bottom"
                     style={{
+                      // keep your min widths, but allow wrapping
                       minWidth: c.minW,
-                      whiteSpace: "normal", // ✅ allow wrap
+                      whiteSpace: "normal",
                     }}
                   >
                     <div className="leading-tight">
@@ -226,11 +223,10 @@ export default function DeviceManagerSection({
     </div>
   );
 
-  // wrapper spacing depends on mode
   const wrapperClass =
     mode === "page"
-      ? "mt-4 w-full max-w-full min-w-0" // ✅ min-w-0 helps in flex layouts
-      : "mt-10 border-t border-gray-200 pt-6 w-full max-w-full min-w-0";
+      ? "mt-4 w-full max-w-full"
+      : "mt-10 border-t border-gray-200 pt-6 w-full max-w-full";
 
   // =========================
   // VIEW A: Selector (cards)
@@ -268,7 +264,6 @@ export default function DeviceManagerSection({
   // =========================
   return (
     <div className={wrapperClass}>
-      {/* Dark header bar like Admin Dashboard */}
       <div className="rounded-xl bg-slate-700 text-white px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
@@ -293,11 +288,9 @@ export default function DeviceManagerSection({
         )}
       </div>
 
-      {/* Content panel */}
-      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 max-w-full min-w-0">
+      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 max-w-full">
         {activeModel === "zhc1921" && (
           <>
-            {/* Add device row */}
             <div className="mb-4">
               <div className="text-sm font-semibold text-slate-900 mb-2">
                 Add Device ID (authorized backend device)
@@ -327,7 +320,6 @@ export default function DeviceManagerSection({
               </div>
             </div>
 
-            {/* Table */}
             {renderZhc1921Table()}
           </>
         )}
