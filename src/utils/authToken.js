@@ -3,14 +3,39 @@
 
 const TOKEN_KEY = "coreflex_access_token";
 
-// remove any legacy keys that may exist from older versions
+// ✅ remove any legacy keys that may exist from older versions
+// (IMPORTANT: include BOTH localStorage + sessionStorage cases)
 const LEGACY_KEYS = [
+  // tokens
   "coreflex_token",
+  "coreflex_access_token",
   "access_token",
   "token",
   "jwt",
+
+  // flags
   "coreflex_logged_in",
+  "coreflex_is_logged_in",
 ];
+
+// ✅ wipe keys from BOTH storages (prevents “mixed user” after login switching)
+function wipeKeyEverywhere(k) {
+  try {
+    localStorage.removeItem(k);
+  } catch {
+    // ignore
+  }
+  try {
+    sessionStorage.removeItem(k);
+  } catch {
+    // ignore
+  }
+}
+
+export const clearAllAuthStorage = () => {
+  // wipe all known keys in both storages
+  for (const k of LEGACY_KEYS) wipeKeyEverywhere(k);
+};
 
 export const getToken = () => {
   const t = localStorage.getItem(TOKEN_KEY) || "";
@@ -20,22 +45,29 @@ export const getToken = () => {
 export const setToken = (token) => {
   const t = (token || "").trim();
 
-  // wipe legacy keys so old code can’t “win”
-  for (const k of LEGACY_KEYS) localStorage.removeItem(k);
+  // ✅ wipe legacy keys so old code can’t “win”
+  // (also wipes sessionStorage leftovers)
+  clearAllAuthStorage();
 
   if (!t) {
-    localStorage.removeItem(TOKEN_KEY);
+    wipeKeyEverywhere(TOKEN_KEY);
     window.dispatchEvent(new Event("coreflex-auth-changed"));
     return;
   }
 
+  // ✅ store ONLY here (source of truth)
   localStorage.setItem(TOKEN_KEY, t);
+
+  // ✅ Optional compatibility flag (ONLY if you still have old guards checking it)
+  // Keeping it in localStorage is fine as long as it is rewritten on every login.
+  localStorage.setItem("coreflex_logged_in", "yes");
+
   window.dispatchEvent(new Event("coreflex-auth-changed"));
 };
 
 export const clearAuth = () => {
-  localStorage.removeItem(TOKEN_KEY);
-  for (const k of LEGACY_KEYS) localStorage.removeItem(k);
+  wipeKeyEverywhere(TOKEN_KEY);
+  clearAllAuthStorage();
   window.dispatchEvent(new Event("coreflex-auth-changed"));
 };
 
@@ -81,6 +113,28 @@ export const getUserKeyFromToken = (tokenOverride) => {
   }
 
   return payload?.sub ? String(payload.sub) : null;
+};
+
+/**
+ * ✅ NEW:
+ * Get email/username from token so UI can correctly detect owner-only sections.
+ * (supports common claim names)
+ */
+export const getEmailFromToken = (tokenOverride) => {
+  const token = (tokenOverride ?? getToken()).trim();
+  if (!token) return null;
+
+  const payload = parseJwt(token);
+  if (!payload) return null;
+
+  return (
+    payload?.email ||
+    payload?.user_email ||
+    payload?.username ||
+    payload?.preferred_username ||
+    payload?.sub ||
+    null
+  );
 };
 
 // Optional debug helper

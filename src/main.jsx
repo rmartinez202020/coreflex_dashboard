@@ -11,10 +11,13 @@ import RegisterPage from "./pages/RegisterPage.jsx";
 import LaunchedMainDashboard from "./pages/LaunchedMainDashboard.jsx";
 import AlarmLogPage from "./pages/AlarmLogPage.jsx"; // ✅ NEW
 
-// 🔐 Simple Auth Protection
+// ✅ Use the SAME token source as API calls
+import { getToken } from "./utils/authToken";
+
+// 🔐 Auth Protection (token-based, prevents “mixed user” issues)
 function RequireAuth({ children }) {
-  const loggedIn = localStorage.getItem("coreflex_logged_in") === "yes";
-  return loggedIn ? children : <Navigate to="/" replace />;
+  const token = getToken();
+  return token ? children : <Navigate to="/" replace />;
 }
 
 createRoot(document.getElementById("root")).render(
