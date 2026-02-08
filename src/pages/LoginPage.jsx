@@ -26,18 +26,17 @@ export default function LoginPage() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    if (loading) return; // ✅ prevent double-submit
+    if (loading) return;
     setError("");
     setLoading(true);
 
     const startTime = Date.now();
 
     try {
-      // ✅ Clear any old tokens first
+      // ✅ Clear old auth first
       clearAuth();
 
-      // ✅ SAFE: trim only (DO NOT lowercase; some backends are case-sensitive)
-      const emailClean = String(email || "").trim();
+      const emailClean = String(email || "").trim(); // ✅ SAFE: trim only
 
       const res = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
@@ -45,14 +44,20 @@ export default function LoginPage() {
         body: JSON.stringify({ email: emailClean, password }),
       });
 
-      const data = await res.json().catch(() => ({}));
+      // ✅ Handle non-JSON responses safely
+      let data = {};
+      try {
+        data = await res.json();
+      } catch {
+        data = {};
+      }
 
       if (!res.ok) {
         await waitRemaining(startTime);
-        throw new Error(data?.detail || "Invalid email or password");
+        throw new Error(data?.detail || data?.error || "Invalid email or password");
       }
 
-      // ✅ Support both shapes: {access_token} or {token}
+      // ✅ Support token key variations
       const token = String(data?.access_token || data?.token || "").trim();
       if (!token) {
         await waitRemaining(startTime);
@@ -61,8 +66,23 @@ export default function LoginPage() {
 
       await waitRemaining(startTime);
 
-      // ✅ Store token (authToken.js decides where/how)
+      // ✅ Store token using your auth helper
       setToken(token);
+
+      // ✅ IMPORTANT: also set compatibility keys used by older code/guards
+      // (This prevents redirect loop back to / when RequireAuth checks these)
+      try {
+        localStorage.setItem("coreflex_logged_in", "yes");
+        sessionStorage.setItem("coreflex_logged_in", "yes");
+
+        // Token keys that might be referenced in different parts of the app
+        localStorage.setItem("coreflex_access_token", token);
+        localStorage.setItem("coreflex_token", token);
+        sessionStorage.setItem("coreflex_access_token", token);
+        sessionStorage.setItem("coreflex_token", token);
+      } catch {
+        // ignore storage errors
+      }
 
       // ✅ Clear ONLY dashboard caches (not auth)
       localStorage.removeItem("mainDashboard");
@@ -71,7 +91,7 @@ export default function LoginPage() {
       localStorage.removeItem("dashboard_layout");
       localStorage.removeItem("dashboardState");
 
-      // ✅ Notify app (safe even if setToken dispatches too)
+      // ✅ Notify app (some components listen for this)
       window.dispatchEvent(new Event("coreflex-auth-changed"));
 
       // ✅ HARD redirect so App re-inits with correct token/user
