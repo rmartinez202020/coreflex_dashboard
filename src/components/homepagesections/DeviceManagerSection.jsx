@@ -79,18 +79,24 @@ export default function DeviceManagerSection({
 
     const newRow = {
       deviceId: id,
-      addedAt,
-      ownedBy: "—",
+      addedAt, // ✅ maps to "Date"
+      ownedBy: "—", // ✅ maps to "User"
       status: "offline",
       lastSeen: "—",
+
+      // ✅ DI (0/1)
       in1: 0,
       in2: 0,
       in3: 0,
       in4: 0,
+
+      // ✅ DO (0/1)
       do1: 0,
       do2: 0,
       do3: 0,
       do4: 0,
+
+      // ✅ AI values
       ai1: "",
       ai2: "",
       ai3: "",
@@ -105,121 +111,179 @@ export default function DeviceManagerSection({
     setZhc1921Rows?.((prev) => [...(prev || [])]);
   }
 
-  // ✅ Spreadsheet-style compact table:
-  // - Status / last seen stacked
-  // - Input / AI stacked
-  // - DO1/DO3 stacked, DO2/DO4 stacked
+  // ✅ Spreadsheet-style EXACT headers:
+  // Row 1 (blue): DEVICE ID | Date | User | Status | last seen | DI-1..DI-4 | DO1..DO4 | AI-1..AI-4
+  // Row 2 (white):         |      |      | online/offline |     | 0/1.. | 0/1.. | value..
   const renderZhc1921Table = () => (
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden w-full max-w-full">
       {/* horizontal scroll ONLY inside this box */}
       <div className="w-full overflow-x-auto">
-        <table className="w-full table-fixed text-sm">
-          <thead className="bg-slate-100">
-            {/* Row 1 (top headers) */}
-            <tr>
-              <th className="px-3 py-2 text-left font-semibold text-slate-700 border-b border-slate-200 w-[170px]">
+        <table className="min-w-max w-full text-sm">
+          <thead className="sticky top-0 z-10">
+            {/* ✅ Row 1 (BLUE TITLES) */}
+            <tr className="bg-blue-200">
+              <th
+                className="text-left font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
+                style={{ minWidth: 180 }}
+              >
                 DEVICE ID
               </th>
-              <th className="px-3 py-2 text-left font-semibold text-slate-700 border-b border-slate-200 w-[140px]">
-                date added
+              <th
+                className="text-left font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
+                style={{ minWidth: 140 }}
+              >
+                Date
               </th>
-              <th className="px-3 py-2 text-left font-semibold text-slate-700 border-b border-slate-200 w-[120px]">
-                Own by user
+              <th
+                className="text-left font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
+                style={{ minWidth: 140 }}
+              >
+                User
               </th>
-
-              <th className="px-3 py-2 text-left font-semibold text-slate-700 border-b border-slate-200 w-[150px]">
-                <div className="leading-tight">
-                  <div>Status</div>
-                  <div className="text-xs text-slate-500 font-medium">
-                    online/offline
-                  </div>
-                </div>
+              <th
+                className="text-left font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
+                style={{ minWidth: 150 }}
+              >
+                Status
               </th>
-
-              <th className="px-3 py-2 text-center font-semibold text-slate-700 border-b border-slate-200 w-[105px]">
-                <div className="leading-tight">
-                  <div>Input 1</div>
-                  <div className="text-xs text-slate-500 font-medium">0/1</div>
-                </div>
-              </th>
-              <th className="px-3 py-2 text-center font-semibold text-slate-700 border-b border-slate-200 w-[105px]">
-                <div className="leading-tight">
-                  <div>Input 2</div>
-                  <div className="text-xs text-slate-500 font-medium">0/1</div>
-                </div>
-              </th>
-              <th className="px-3 py-2 text-center font-semibold text-slate-700 border-b border-slate-200 w-[105px]">
-                <div className="leading-tight">
-                  <div>Input 3</div>
-                  <div className="text-xs text-slate-500 font-medium">0/1</div>
-                </div>
-              </th>
-              <th className="px-3 py-2 text-center font-semibold text-slate-700 border-b border-slate-200 w-[105px]">
-                <div className="leading-tight">
-                  <div>Input 4</div>
-                  <div className="text-xs text-slate-500 font-medium">0/1</div>
-                </div>
-              </th>
-
-              <th className="px-3 py-2 text-center font-semibold text-slate-700 border-b border-slate-200 w-[105px]">
-                <div className="leading-tight">
-                  <div>DO 1</div>
-                  <div className="text-xs text-slate-500 font-medium">0/1</div>
-                </div>
-              </th>
-              <th className="px-3 py-2 text-center font-semibold text-slate-700 border-b border-slate-200 w-[105px]">
-                <div className="leading-tight">
-                  <div>DO 2</div>
-                  <div className="text-xs text-slate-500 font-medium">0/1</div>
-                </div>
-              </th>
-            </tr>
-
-            {/* Row 2 (second headers like your spreadsheet) */}
-            <tr className="bg-slate-50">
-              <th className="px-3 py-1.5 text-left text-xs text-slate-500 border-b border-slate-200">
-                {/* blank */}
-              </th>
-              <th className="px-3 py-1.5 text-left text-xs text-slate-500 border-b border-slate-200">
-                {/* blank */}
-              </th>
-              <th className="px-3 py-1.5 text-left text-xs text-slate-500 border-b border-slate-200">
-                {/* blank */}
-              </th>
-
-              <th className="px-3 py-1.5 text-left text-xs text-slate-500 border-b border-slate-200">
+              <th
+                className="text-left font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
+                style={{ minWidth: 140 }}
+              >
                 last seen
               </th>
 
-              <th className="px-3 py-1.5 text-center text-xs text-slate-500 border-b border-slate-200">
-                AI-1 value
+              <th
+                className="text-center font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
+                style={{ minWidth: 90 }}
+              >
+                DI-1
               </th>
-              <th className="px-3 py-1.5 text-center text-xs text-slate-500 border-b border-slate-200">
-                AI-2 value
+              <th
+                className="text-center font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
+                style={{ minWidth: 90 }}
+              >
+                DI-2
               </th>
-              <th className="px-3 py-1.5 text-center text-xs text-slate-500 border-b border-slate-200">
-                AI-3 value
+              <th
+                className="text-center font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
+                style={{ minWidth: 90 }}
+              >
+                DI-3
               </th>
-              <th className="px-3 py-1.5 text-center text-xs text-slate-500 border-b border-slate-200">
-                AI-4 value
+              <th
+                className="text-center font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
+                style={{ minWidth: 90 }}
+              >
+                DI-4
               </th>
 
-              <th className="px-3 py-1.5 text-center text-xs text-slate-500 border-b border-slate-200">
-                DO 3 0/1
+              <th
+                className="text-center font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
+                style={{ minWidth: 90 }}
+              >
+                DO 1
               </th>
-              <th className="px-3 py-1.5 text-center text-xs text-slate-500 border-b border-slate-200">
-                DO 4 0/1
+              <th
+                className="text-center font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
+                style={{ minWidth: 90 }}
+              >
+                DO 2
+              </th>
+              <th
+                className="text-center font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
+                style={{ minWidth: 90 }}
+              >
+                DO 3
+              </th>
+              <th
+                className="text-center font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
+                style={{ minWidth: 90 }}
+              >
+                DO 4
+              </th>
+
+              <th
+                className="text-center font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
+                style={{ minWidth: 100 }}
+              >
+                AI-1
+              </th>
+              <th
+                className="text-center font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
+                style={{ minWidth: 100 }}
+              >
+                AI-2
+              </th>
+              <th
+                className="text-center font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
+                style={{ minWidth: 100 }}
+              >
+                AI-3
+              </th>
+              <th
+                className="text-center font-bold text-slate-900 px-3 py-2 border-b border-blue-300"
+                style={{ minWidth: 100 }}
+              >
+                AI-4
+              </th>
+            </tr>
+
+            {/* ✅ Row 2 (SUBTITLES) */}
+            <tr className="bg-white">
+              <th className="px-3 py-1.5 border-b border-slate-200" />
+              <th className="px-3 py-1.5 border-b border-slate-200" />
+              <th className="px-3 py-1.5 border-b border-slate-200" />
+              <th className="px-3 py-1.5 text-left text-xs text-slate-700 border-b border-slate-200">
+                online/offline
+              </th>
+              <th className="px-3 py-1.5 border-b border-slate-200" />
+
+              <th className="px-3 py-1.5 text-center text-xs text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+              <th className="px-3 py-1.5 text-center text-xs text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+              <th className="px-3 py-1.5 text-center text-xs text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+              <th className="px-3 py-1.5 text-center text-xs text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+
+              <th className="px-3 py-1.5 text-center text-xs text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+              <th className="px-3 py-1.5 text-center text-xs text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+              <th className="px-3 py-1.5 text-center text-xs text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+              <th className="px-3 py-1.5 text-center text-xs text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+
+              <th className="px-3 py-1.5 text-center text-xs text-slate-700 border-b border-slate-200">
+                value
+              </th>
+              <th className="px-3 py-1.5 text-center text-xs text-slate-700 border-b border-slate-200">
+                value
+              </th>
+              <th className="px-3 py-1.5 text-center text-xs text-slate-700 border-b border-slate-200">
+                value
+              </th>
+              <th className="px-3 py-1.5 text-center text-xs text-slate-700 border-b border-slate-200">
+                value
               </th>
             </tr>
           </thead>
 
           <tbody>
-            {(!zhc1921Rows || zhc1921Rows.length === 0) ? (
+            {!zhc1921Rows || zhc1921Rows.length === 0 ? (
               <tr>
-                <td
-                  colSpan={10}
-                  className="px-4 py-8 text-center text-slate-500"
-                >
+                <td colSpan={17} className="px-4 py-8 text-center text-slate-500">
                   No devices found.
                 </td>
               </tr>
@@ -227,99 +291,77 @@ export default function DeviceManagerSection({
               zhc1921Rows.map((r, idx) => {
                 const statusLower = String(r?.status || "").toLowerCase();
                 const dotClass =
-                  statusLower === "online"
-                    ? "bg-emerald-500"
-                    : "bg-slate-400";
+                  statusLower === "online" ? "bg-emerald-500" : "bg-slate-400";
 
                 return (
                   <tr
                     key={(r?.deviceId || "row") + idx}
                     className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}
                   >
-                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800 truncate">
+                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800">
                       {r?.deviceId ?? ""}
                     </td>
 
-                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800 truncate">
-                      {r?.addedAt ?? ""}
-                    </td>
-
-                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800 truncate">
-                      {r?.ownedBy ?? ""}
-                    </td>
-
-                    {/* Status + lastSeen stacked */}
                     <td className="px-3 py-2 border-b border-slate-100 text-slate-800">
-                      <div className="leading-tight">
-                        <div className="flex items-center gap-2">
-                          <span
-                            className={`inline-block w-2.5 h-2.5 rounded-full ${dotClass}`}
-                          />
-                          <span className="capitalize">
-                            {r?.status || "offline"}
-                          </span>
-                        </div>
-                        <div className="text-xs text-slate-500 mt-1 truncate">
-                          {r?.lastSeen ?? "—"}
-                        </div>
+                      {r?.addedAt ?? "—"}
+                    </td>
+
+                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800">
+                      {r?.ownedBy ?? "—"}
+                    </td>
+
+                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800">
+                      <div className="flex items-center gap-2">
+                        <span
+                          className={`inline-block w-2.5 h-2.5 rounded-full ${dotClass}`}
+                        />
+                        <span className="capitalize">
+                          {r?.status || "offline"}
+                        </span>
                       </div>
                     </td>
 
-                    {/* Inputs + AI stacked */}
-                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800 text-center">
-                      <div className="leading-tight">
-                        <div>{String(r?.in1 ?? "")}</div>
-                        <div className="text-xs text-slate-500 mt-1 truncate">
-                          {r?.ai1 ?? ""}
-                        </div>
-                      </div>
+                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800">
+                      {r?.lastSeen ?? "—"}
                     </td>
 
                     <td className="px-3 py-2 border-b border-slate-100 text-slate-800 text-center">
-                      <div className="leading-tight">
-                        <div>{String(r?.in2 ?? "")}</div>
-                        <div className="text-xs text-slate-500 mt-1 truncate">
-                          {r?.ai2 ?? ""}
-                        </div>
-                      </div>
+                      {String(r?.in1 ?? "")}
+                    </td>
+                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800 text-center">
+                      {String(r?.in2 ?? "")}
+                    </td>
+                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800 text-center">
+                      {String(r?.in3 ?? "")}
+                    </td>
+                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800 text-center">
+                      {String(r?.in4 ?? "")}
                     </td>
 
                     <td className="px-3 py-2 border-b border-slate-100 text-slate-800 text-center">
-                      <div className="leading-tight">
-                        <div>{String(r?.in3 ?? "")}</div>
-                        <div className="text-xs text-slate-500 mt-1 truncate">
-                          {r?.ai3 ?? ""}
-                        </div>
-                      </div>
+                      {String(r?.do1 ?? "")}
+                    </td>
+                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800 text-center">
+                      {String(r?.do2 ?? "")}
+                    </td>
+                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800 text-center">
+                      {String(r?.do3 ?? "")}
+                    </td>
+                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800 text-center">
+                      {String(r?.do4 ?? "")}
                     </td>
 
                     <td className="px-3 py-2 border-b border-slate-100 text-slate-800 text-center">
-                      <div className="leading-tight">
-                        <div>{String(r?.in4 ?? "")}</div>
-                        <div className="text-xs text-slate-500 mt-1 truncate">
-                          {r?.ai4 ?? ""}
-                        </div>
-                      </div>
+                      {r?.ai1 ?? ""}
                     </td>
-
-                    {/* DO1 + DO3 stacked */}
                     <td className="px-3 py-2 border-b border-slate-100 text-slate-800 text-center">
-                      <div className="leading-tight">
-                        <div>{String(r?.do1 ?? "")}</div>
-                        <div className="text-xs text-slate-500 mt-1">
-                          {String(r?.do3 ?? "")}
-                        </div>
-                      </div>
+                      {r?.ai2 ?? ""}
                     </td>
-
-                    {/* DO2 + DO4 stacked */}
                     <td className="px-3 py-2 border-b border-slate-100 text-slate-800 text-center">
-                      <div className="leading-tight">
-                        <div>{String(r?.do2 ?? "")}</div>
-                        <div className="text-xs text-slate-500 mt-1">
-                          {String(r?.do4 ?? "")}
-                        </div>
-                      </div>
+                      {r?.ai3 ?? ""}
+                    </td>
+                    <td className="px-3 py-2 border-b border-slate-100 text-slate-800 text-center">
+                      {r?.ai4 ?? ""}
                     </td>
                   </tr>
                 );
