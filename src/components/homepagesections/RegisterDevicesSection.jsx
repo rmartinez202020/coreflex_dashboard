@@ -189,11 +189,21 @@ export default function RegisterDevicesSection({ onBack }) {
               <table className="w-full table-fixed text-[12px]">
                 <thead>
                   <tr className="bg-blue-200">
-                    {/* ✅ tighter widths + tighter padding */}
-                    <th className="px-1.5 py-1 w-[140px]">DEVICE ID</th>
-                    <th className="px-1.5 py-1 w-[120px]">Date</th>
-                    <th className="px-1.5 py-1 w-[90px]">Status</th>
-                    <th className="px-1.5 py-1 w-[110px]">Last Seen</th>
+                    {/* ✅ tighter + grouped */}
+                    <th className="px-1.5 py-1 w-[120px] text-left font-bold text-slate-900">
+                      DEVICE ID
+                    </th>
+                    <th className="px-1.5 py-1 w-[100px] text-left font-bold text-slate-900">
+                      Date
+                    </th>
+                    <th className="px-1.5 py-1 w-[80px] text-left font-bold text-slate-900">
+                      Status
+                    </th>
+
+                    {/* ✅ separator to visually group columns */}
+                    <th className="px-1.5 py-1 w-[90px] text-left font-bold text-slate-900 border-r border-blue-300">
+                      Last Seen
+                    </th>
 
                     {[
                       "DI-1",
@@ -211,7 +221,7 @@ export default function RegisterDevicesSection({ onBack }) {
                     ].map((k) => (
                       <th
                         key={k}
-                        className="px-1 py-1 w-[52px] text-center"
+                        className="px-1 py-1 w-[46px] text-center font-bold text-slate-900"
                       >
                         {k}
                       </th>
@@ -235,11 +245,26 @@ export default function RegisterDevicesSection({ onBack }) {
                         key={i}
                         className={i % 2 ? "bg-slate-50" : "bg-white"}
                       >
-                        {/* ✅ tighter padding + safer lastSeen fallback */}
-                        <td className="px-1.5 py-1 truncate">{r.deviceId}</td>
-                        <td className="px-1.5 py-1 truncate">{r.addedAt}</td>
-                        <td className="px-1.5 py-1 capitalize">{r.status}</td>
-                        <td className="px-1.5 py-1 truncate">{r.lastSeen || "—"}</td>
+                        <td className="px-1.5 py-1 truncate text-slate-800">
+                          {r.deviceId}
+                        </td>
+
+                        {/* ✅ narrow date + keep full date in tooltip */}
+                        <td
+                          className="px-1.5 py-1 truncate text-slate-800"
+                          title={r.addedAt || ""}
+                        >
+                          {r.addedAt || "—"}
+                        </td>
+
+                        <td className="px-1.5 py-1 capitalize text-slate-800">
+                          {r.status}
+                        </td>
+
+                        {/* ✅ separator matches header */}
+                        <td className="px-1.5 py-1 truncate text-slate-800 border-r border-slate-200">
+                          {r.lastSeen || "—"}
+                        </td>
 
                         {[
                           r.in1,
@@ -255,7 +280,7 @@ export default function RegisterDevicesSection({ onBack }) {
                           r.ai3,
                           r.ai4,
                         ].map((v, j) => (
-                          <td key={j} className="text-center px-1 py-1">
+                          <td key={j} className="text-center px-1 py-1 text-slate-800">
                             {String(v ?? "")}
                           </td>
                         ))}
