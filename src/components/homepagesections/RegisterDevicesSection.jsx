@@ -189,12 +189,32 @@ export default function RegisterDevicesSection({ onBack }) {
               <table className="w-full table-fixed text-[12px]">
                 <thead>
                   <tr className="bg-blue-200">
-                    <th className="px-2 py-1.5 w-[160px]">DEVICE ID</th>
-                    <th className="px-2 py-1.5 w-[140px]">Date</th>
-                    <th className="px-2 py-1.5 w-[110px]">Status</th>
-                    <th className="px-2 py-1.5 w-[140px]">Last Seen</th>
-                    {["DI-1","DI-2","DI-3","DI-4","DO-1","DO-2","DO-3","DO-4","AI-1","AI-2","AI-3","AI-4"].map(k=>(
-                      <th key={k} className="px-1 py-1.5 w-[58px] text-center">{k}</th>
+                    {/* ✅ tighter widths + tighter padding */}
+                    <th className="px-1.5 py-1 w-[140px]">DEVICE ID</th>
+                    <th className="px-1.5 py-1 w-[120px]">Date</th>
+                    <th className="px-1.5 py-1 w-[90px]">Status</th>
+                    <th className="px-1.5 py-1 w-[110px]">Last Seen</th>
+
+                    {[
+                      "DI-1",
+                      "DI-2",
+                      "DI-3",
+                      "DI-4",
+                      "DO-1",
+                      "DO-2",
+                      "DO-3",
+                      "DO-4",
+                      "AI-1",
+                      "AI-2",
+                      "AI-3",
+                      "AI-4",
+                    ].map((k) => (
+                      <th
+                        key={k}
+                        className="px-1 py-1 w-[52px] text-center"
+                      >
+                        {k}
+                      </th>
                     ))}
                   </tr>
                 </thead>
@@ -202,19 +222,42 @@ export default function RegisterDevicesSection({ onBack }) {
                 <tbody>
                   {!rows.length ? (
                     <tr>
-                      <td colSpan={16} className="text-center py-6 text-slate-500">
+                      <td
+                        colSpan={16}
+                        className="text-center py-6 text-slate-500"
+                      >
                         No registered devices yet.
                       </td>
                     </tr>
                   ) : (
                     rows.map((r, i) => (
-                      <tr key={i} className={i % 2 ? "bg-slate-50" : "bg-white"}>
-                        <td className="px-2 py-1.5 truncate">{r.deviceId}</td>
-                        <td className="px-2 py-1.5 truncate">{r.addedAt}</td>
-                        <td className="px-2 py-1.5 capitalize">{r.status}</td>
-                        <td className="px-2 py-1.5 truncate">{r.lastSeen}</td>
-                        {[r.in1,r.in2,r.in3,r.in4,r.do1,r.do2,r.do3,r.do4,r.ai1,r.ai2,r.ai3,r.ai4].map((v,j)=>(
-                          <td key={j} className="text-center px-1 py-1.5">{String(v ?? "")}</td>
+                      <tr
+                        key={i}
+                        className={i % 2 ? "bg-slate-50" : "bg-white"}
+                      >
+                        {/* ✅ tighter padding + safer lastSeen fallback */}
+                        <td className="px-1.5 py-1 truncate">{r.deviceId}</td>
+                        <td className="px-1.5 py-1 truncate">{r.addedAt}</td>
+                        <td className="px-1.5 py-1 capitalize">{r.status}</td>
+                        <td className="px-1.5 py-1 truncate">{r.lastSeen || "—"}</td>
+
+                        {[
+                          r.in1,
+                          r.in2,
+                          r.in3,
+                          r.in4,
+                          r.do1,
+                          r.do2,
+                          r.do3,
+                          r.do4,
+                          r.ai1,
+                          r.ai2,
+                          r.ai3,
+                          r.ai4,
+                        ].map((v, j) => (
+                          <td key={j} className="text-center px-1 py-1">
+                            {String(v ?? "")}
+                          </td>
                         ))}
                       </tr>
                     ))
