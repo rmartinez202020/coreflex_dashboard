@@ -1,8 +1,8 @@
 import React from "react";
 import DeviceManagerSection from "./homepagesections/DeviceManagerSection";
-import RegisterDevicesSection from "./homepagesections/RegisterDevicesSection"; // ✅ NEW
+import RegisterDevicesSection from "./homepagesections/RegisterDevicesSection";
 
-// ✅ IMPORTANT: read token the same way the rest of the app does
+// ✅ IMPORTANT: read token the same way the rest of the app does (sessionStorage per-tab)
 import { getToken, parseJwt } from "../utils/authToken";
 
 // ✅ Owner allowlist (LOCKED to one admin email only)
@@ -35,7 +35,7 @@ const ZHC1921_COLUMNS = [
 ];
 
 // ---------------------------
-// Helpers: email + normalize
+// Helpers: normalize + email
 // ---------------------------
 function safeLower(s) {
   return String(s || "").trim().toLowerCase();
@@ -47,38 +47,28 @@ function looksLikeEmail(s) {
 }
 
 /**
- * ✅ DETECT EMAIL FROM:
- * 1) currentUserKey if already email
- * 2) known email keys in localStorage
- * 3) ✅ JWT payload from the REAL token source (getToken() => sessionStorage-first)
+ * ✅ Detect identity ONLY from:
+ * - currentUserKey (from useAuthController)
+ * - JWT payload from getToken() (sessionStorage per-tab)
+ *
+ * ❌ DO NOT read identity from localStorage here (shared across tabs)
  */
-function detectEmail(currentUserKey) {
+function detectEmailFromAuth(currentUserKey) {
   // 1) If currentUserKey already is email, use it
   if (looksLikeEmail(currentUserKey)) return String(currentUserKey).trim();
 
-  // 2) Try common localStorage email keys (safe)
-  const emailKeys = [
-    "coreflex_user_email",
-    "coreflex_email",
-    "user_email",
-    "email",
-    "userEmail",
-  ];
-  for (const k of emailKeys) {
-    const v = localStorage.getItem(k);
-    if (looksLikeEmail(v)) return String(v).trim();
-  }
-
-  // 3) ✅ Decode JWT from the SAME token used for API calls
+  // 2) Decode JWT from the SAME token used for API calls (sessionStorage per-tab)
   const t = getToken();
   const payload = parseJwt(t);
+
   if (payload) {
     const candidates = [
       payload.email,
       payload.user?.email,
-      payload.sub,
       payload.username,
+      payload.sub, // sometimes email, sometimes id
     ];
+
     for (const c of candidates) {
       if (looksLikeEmail(c)) return String(c).trim();
     }
@@ -92,34 +82,8 @@ export default function HomePage({
   setSubPageColor,
   currentUserKey,
 }) {
-  // ✅ keep detected email in state so it updates when auth changes
-  const [detectedEmail, setDetectedEmail] = React.useState(() =>
-    detectEmail(currentUserKey)
-  );
-
-  // ✅ Re-check identity when:
-  // - currentUserKey changes
-  // - login/logout happens in this tab (coreflex-auth-changed)
-  React.useEffect(() => {
-    const refreshIdentity = () => {
-      setDetectedEmail(detectEmail(currentUserKey));
-    };
-
-    refreshIdentity(); // run once on mount / prop changes
-
-    window.addEventListener("coreflex-auth-changed", refreshIdentity);
-    return () => {
-      window.removeEventListener("coreflex-auth-changed", refreshIdentity);
-    };
-  }, [currentUserKey]);
-
-  const normalizedUser = safeLower(detectedEmail || currentUserKey);
-  const isPlatformOwner = normalizedUser === safeLower(PLATFORM_OWNER_EMAIL);
-
-  // ✅ NEW: Registered Devices "section open" state
+  // ✅ UI state
   const [showRegisterDevices, setShowRegisterDevices] = React.useState(false);
-
-  // ✅ Device Manager state
   const [activeModel, setActiveModel] = React.useState(null);
 
   // ✅ Placeholder rows (later replace with backend API)
@@ -145,21 +109,69 @@ export default function HomePage({
     },
   ]);
 
-  // ✅ When Device Manager opens (model selected), scroll to top so it feels like a “new page”
+  // ✅ Identity state (per-tab)
+  const [detectedEmail, setDetectedEmail] = React.useState(() =>
+    detectEmailFromAuth(currentUserKey)
+  );
+
+  const normalizedUser = safeLower(detectedEmail || currentUserKey);
+  const isPlatformOwner = normalizedUser === safeLower(PLATFORM_OWNER_EMAIL);
+
+  // ✅ Refresh identity when auth changes in THIS TAB
   React.useEffect(() => {
-    if (activeModel) {
-      window.scrollTo({ top: 0, behavior: "smooth" });
+    const refreshIdentity = () => {
+      const next = detectEmailFromAuth(currentUserKey);
+      setDetectedEmail(next);
+    };
+
+    refreshIdentity();
+
+    window.addEventListener("coreflex-auth-changed", refreshIdentity);
+    return () => {
+      window.removeEventListener("coreflex-auth-changed", refreshIdentity);
+    };
+  }, [currentUserKey]);
+
+  /**
+   * ✅ If another tab logs in/out, it might update localStorage keys used elsewhere.
+   * We do NOT read identity from localStorage, BUT we can still re-check token + currentUserKey.
+   * This keeps Home stable across multi-tab activity.
+   */
+  React.useEffect(() => {
+    const onStorage = () => {
+      setDetectedEmail(detectEmailFromAuth(currentUserKey));
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, [currentUserKey]);
+
+  /**
+   * ✅ Critical: when identity/owner status changes, reset owner-only UI state
+   * so you don’t get stuck with activeModel open from a previous user.
+   */
+  React.useEffect(() => {
+    // If you are not owner, force-close owner-only sections
+    if (!isPlatformOwner) {
+      setActiveModel(null);
     }
+    // Always close register devices “sub page” if user changes
+    // (prevents weird shared UI feel)
+    // NOTE: you can remove this if you want it to stay open across user change.
+    // But it's safer to reset.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isPlatformOwner, normalizedUser]);
+
+  // ✅ When Device Manager opens (model selected), scroll to top
+  React.useEffect(() => {
+    if (activeModel) window.scrollTo({ top: 0, behavior: "smooth" });
   }, [activeModel]);
 
   // ✅ When Register Devices opens, scroll to top too
   React.useEffect(() => {
-    if (showRegisterDevices) {
-      window.scrollTo({ top: 0, behavior: "smooth" });
-    }
+    if (showRegisterDevices) window.scrollTo({ top: 0, behavior: "smooth" });
   }, [showRegisterDevices]);
 
-  // ✅ Treat “device manager open” like a full-page section (like Admin Dashboard)
+  // ✅ Treat “device manager open” like a full-page section
   const isDeviceManagerOpen = isPlatformOwner && !!activeModel;
 
   // ✅ FULL “REGISTER DEVICES PAGE” VIEW
@@ -172,12 +184,11 @@ export default function HomePage({
   }
 
   // ✅ FULL “DEVICE MANAGER PAGE” VIEW
-  // ✅ FIX: remove the extra top header here (DeviceManagerSection already has its own header)
   if (isDeviceManagerOpen) {
     return (
       <div className="mt-4 md:mt-6">
         <DeviceManagerSection
-          mode="page" // ✅ IMPORTANT: page mode removes mt-10 border-t padding
+          mode="page"
           ownerEmail={detectedEmail || normalizedUser}
           activeModel={activeModel}
           setActiveModel={setActiveModel}
@@ -189,7 +200,7 @@ export default function HomePage({
     );
   }
 
-  // ✅ NORMAL HOME VIEW (with Registered Devices click opening the new section)
+  // ✅ NORMAL HOME VIEW
   return (
     <>
       {/* TOP ROW CARDS */}
@@ -229,7 +240,7 @@ export default function HomePage({
         {/* REGISTERED DEVICES CARD */}
         <div
           className="rounded-xl bg-sky-700 text-white p-4 md:p-5 flex flex-col justify-between cursor-pointer hover:bg-sky-800 transition"
-          onClick={() => setShowRegisterDevices(true)} // ✅ NEW
+          onClick={() => setShowRegisterDevices(true)}
         >
           <div className="flex items-center gap-2 mb-2">
             <span className="text-2xl">📡</span>
@@ -288,10 +299,10 @@ export default function HomePage({
         </div>
       </div>
 
-      {/* ✅ OWNER-ONLY: DEVICE MANAGER ENTRY (model chooser lives here until a model is selected) */}
+      {/* ✅ OWNER-ONLY: DEVICE MANAGER ENTRY */}
       {isPlatformOwner && (
         <DeviceManagerSection
-          mode="inline" // ✅ IMPORTANT: keep mt-10 border-t spacing on Home
+          mode="inline"
           ownerEmail={detectedEmail || normalizedUser}
           activeModel={activeModel}
           setActiveModel={setActiveModel}
@@ -301,7 +312,7 @@ export default function HomePage({
         />
       )}
 
-      {/* ✅ OWNER-ONLY BUSINESS SECTION (unchanged) */}
+      {/* ✅ OWNER-ONLY BUSINESS SECTION */}
       {isPlatformOwner && (
         <div className="mt-10 border-t border-gray-200 pt-6">
           <div className="flex items-center justify-between mb-4">

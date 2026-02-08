@@ -1,10 +1,10 @@
 // src/utils/authToken.js
-// ✅ SINGLE SOURCE OF TRUTH: sessionStorage (tab-isolated)
-// This prevents "User A" and "User B" from overwriting each other in the same browser.
+// ✅ SINGLE SOURCE OF TRUTH: sessionStorage (per-tab)
+// This fixes multi-tab login issues (two users in two tabs).
 
 const TOKEN_KEY = "coreflex_access_token";
 
-// Remove any legacy keys that may exist from older versions
+// remove any legacy keys that may exist from older versions
 const LEGACY_KEYS = [
   "coreflex_token",
   "access_token",
@@ -13,69 +13,51 @@ const LEGACY_KEYS = [
   "coreflex_logged_in",
 ];
 
-// ---- helpers ----
-const removeEverywhere = (key) => {
-  try {
-    localStorage.removeItem(key);
-  } catch {}
-  try {
-    sessionStorage.removeItem(key);
-  } catch {}
-};
-
-const setSession = (key, val) => {
-  try {
-    sessionStorage.setItem(key, val);
-  } catch {}
-};
-
-const getSession = (key) => {
-  try {
-    return sessionStorage.getItem(key);
-  } catch {
-    return null;
+function wipeLegacy() {
+  for (const k of LEGACY_KEYS) {
+    try {
+      localStorage.removeItem(k);
+    } catch {}
+    try {
+      sessionStorage.removeItem(k);
+    } catch {}
   }
-};
+}
 
-const getLocal = (key) => {
-  try {
-    return localStorage.getItem(key);
-  } catch {
-    return null;
-  }
-};
-
-// ✅ Token read: session first, then local fallback (for old deployments)
 export const getToken = () => {
-  const t = getSession(TOKEN_KEY) || getLocal(TOKEN_KEY) || "";
-  return String(t || "").trim();
+  try {
+    const t = sessionStorage.getItem(TOKEN_KEY) || "";
+    return (t || "").trim();
+  } catch {
+    return "";
+  }
 };
 
-// ✅ Token write: session ONLY (tab isolated)
 export const setToken = (token) => {
-  const t = String(token || "").trim();
+  wipeLegacy();
 
-  // wipe legacy keys so old code can’t “win”
-  for (const k of LEGACY_KEYS) removeEverywhere(k);
+  const t = (token || "").trim();
 
-  if (!t) {
-    removeEverywhere(TOKEN_KEY);
+  try {
+    if (!t) {
+      sessionStorage.removeItem(TOKEN_KEY);
+      window.dispatchEvent(new Event("coreflex-auth-changed"));
+      return;
+    }
+
+    sessionStorage.setItem(TOKEN_KEY, t);
     window.dispatchEvent(new Event("coreflex-auth-changed"));
-    return;
+  } catch {
+    // if storage fails, still dispatch so UI can react
+    window.dispatchEvent(new Event("coreflex-auth-changed"));
   }
-
-  // ✅ store token in sessionStorage ONLY
-  setSession(TOKEN_KEY, t);
-
-  // ✅ OPTIONAL (DO NOT enable if you want multiple users in same browser)
-  // localStorage.setItem(TOKEN_KEY, t);
-
-  window.dispatchEvent(new Event("coreflex-auth-changed"));
 };
 
 export const clearAuth = () => {
-  removeEverywhere(TOKEN_KEY);
-  for (const k of LEGACY_KEYS) removeEverywhere(k);
+  wipeLegacy();
+  try {
+    sessionStorage.removeItem(TOKEN_KEY);
+  } catch {}
   window.dispatchEvent(new Event("coreflex-auth-changed"));
 };
 
@@ -109,7 +91,7 @@ export const parseJwt = (token) => {
  * Accept tokenOverride so we ALWAYS decode the SAME token used for API calls.
  */
 export const getUserKeyFromToken = (tokenOverride) => {
-  const token = String(tokenOverride ?? getToken()).trim();
+  const token = (tokenOverride ?? getToken()).trim();
   if (!token) return null;
 
   const payload = parseJwt(token);

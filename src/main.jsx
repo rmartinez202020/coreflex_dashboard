@@ -10,9 +10,10 @@ import RegisterPage from "./pages/RegisterPage.jsx";
 import LaunchedMainDashboard from "./pages/LaunchedMainDashboard.jsx";
 import AlarmLogPage from "./pages/AlarmLogPage.jsx";
 
+// ✅ use shared auth util (now sessionStorage per-tab)
 import { isLoggedIn } from "./utils/authToken";
 
-// 🔐 Auth Protection (token-based)
+// 🔐 Simple Auth Protection
 function RequireAuth({ children }) {
   return isLoggedIn() ? children : <Navigate to="/" replace />;
 }

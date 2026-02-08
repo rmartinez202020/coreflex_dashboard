@@ -33,10 +33,10 @@ export default function LoginPage() {
     const startTime = Date.now();
 
     try {
-      // ✅ Clear old auth first
+      // ✅ Clear old auth first (removes legacy localStorage keys too)
       clearAuth();
 
-      const emailClean = String(email || "").trim(); // ✅ SAFE: trim only
+      const emailClean = String(email || "").trim();
 
       const res = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
@@ -44,7 +44,6 @@ export default function LoginPage() {
         body: JSON.stringify({ email: emailClean, password }),
       });
 
-      // ✅ Handle non-JSON responses safely
       let data = {};
       try {
         data = await res.json();
@@ -54,10 +53,11 @@ export default function LoginPage() {
 
       if (!res.ok) {
         await waitRemaining(startTime);
-        throw new Error(data?.detail || data?.error || "Invalid email or password");
+        throw new Error(
+          data?.detail || data?.error || "Invalid email or password"
+        );
       }
 
-      // ✅ Support token key variations
       const token = String(data?.access_token || data?.token || "").trim();
       if (!token) {
         await waitRemaining(startTime);
@@ -66,22 +66,15 @@ export default function LoginPage() {
 
       await waitRemaining(startTime);
 
-      // ✅ Store token using your auth helper
+      // ✅ Store token using your auth helper (sessionStorage only)
       setToken(token);
 
-      // ✅ IMPORTANT: also set compatibility keys used by older code/guards
-      // (This prevents redirect loop back to / when RequireAuth checks these)
+      // ✅ OPTIONAL (per-tab only): if you still have any old guard relying on this,
+      // keep it ONLY in sessionStorage — NEVER localStorage.
       try {
-        localStorage.setItem("coreflex_logged_in", "yes");
         sessionStorage.setItem("coreflex_logged_in", "yes");
-
-        // Token keys that might be referenced in different parts of the app
-        localStorage.setItem("coreflex_access_token", token);
-        localStorage.setItem("coreflex_token", token);
-        sessionStorage.setItem("coreflex_access_token", token);
-        sessionStorage.setItem("coreflex_token", token);
       } catch {
-        // ignore storage errors
+        // ignore
       }
 
       // ✅ Clear ONLY dashboard caches (not auth)
@@ -91,11 +84,11 @@ export default function LoginPage() {
       localStorage.removeItem("dashboard_layout");
       localStorage.removeItem("dashboardState");
 
-      // ✅ Notify app (some components listen for this)
+      // ✅ Notify app (same-tab listeners)
       window.dispatchEvent(new Event("coreflex-auth-changed"));
 
-      // ✅ HARD redirect so App re-inits with correct token/user
-      window.location.href = "/app";
+      // ✅ Redirect to app
+      window.location.assign("/app");
     } catch (err) {
       await waitRemaining(startTime);
       setError(err?.message || "Login failed");
@@ -117,13 +110,11 @@ export default function LoginPage() {
     const onKeyDown = (e) => {
       if (e.key !== "Enter") return;
       if (loading) return;
-
       if (e.isComposing) return;
       if (e.shiftKey || e.altKey || e.ctrlKey || e.metaKey) return;
 
       const t = e.target;
       const tag = t?.tagName?.toLowerCase?.() || "";
-
       if (tag === "textarea") return;
       if (tag === "button" || tag === "a") return;
       if (!formRef.current) return;
