@@ -5,27 +5,29 @@ import DeviceManagerSection from "./homepagesections/DeviceManagerSection";
 const PLATFORM_OWNER_EMAIL = "roquemartinez_8@hotmail.com";
 
 // ✅ Columns exactly like your spreadsheet (ZHC1921)
+// Blue row = title, second line = unit/meaning (sub)
 const ZHC1921_COLUMNS = [
-  { key: "deviceId", label: "DEVICE ID", minW: 220 },
-  { key: "addedAt", label: "added by admin on date", minW: 190 },
-  { key: "ownedBy", label: "own by user", minW: 180 },
-  { key: "status", label: "Status (online/offline)", minW: 170 },
-  { key: "lastSeen", label: "last seen", minW: 170 },
+  { key: "deviceId", title: "DEVICE ID", minW: 200 },
+  { key: "addedAt", title: "Date", minW: 140 },
+  { key: "ownedBy", title: "User", minW: 140 },
 
-  { key: "in1", label: "Input 1 (0/1)", minW: 120 },
-  { key: "in2", label: "Input 2 (0/1)", minW: 120 },
-  { key: "in3", label: "Input 3 (0/1)", minW: 120 },
-  { key: "in4", label: "Input 4 (0/1)", minW: 120 },
+  { key: "status", title: "Status", sub: "online/offline", minW: 140 },
+  { key: "lastSeen", title: "last seen", minW: 130 },
 
-  { key: "do1", label: "DO 1 (0/1)", minW: 110 },
-  { key: "do2", label: "DO 2 (0/1)", minW: 110 },
-  { key: "do3", label: "DO 3 (0/1)", minW: 110 },
-  { key: "do4", label: "DO 4 (0/1)", minW: 110 },
+  { key: "in1", title: "DI-1", sub: "0/1", minW: 90 },
+  { key: "in2", title: "DI-2", sub: "0/1", minW: 90 },
+  { key: "in3", title: "DI-3", sub: "0/1", minW: 90 },
+  { key: "in4", title: "DI-4", sub: "0/1", minW: 90 },
 
-  { key: "ai1", label: "AI-1 value", minW: 120 },
-  { key: "ai2", label: "AI-2 value", minW: 120 },
-  { key: "ai3", label: "AI-3 value", minW: 120 },
-  { key: "ai4", label: "AI-4 value", minW: 120 },
+  { key: "do1", title: "DO 1", sub: "0/1", minW: 90 },
+  { key: "do2", title: "DO 2", sub: "0/1", minW: 90 },
+  { key: "do3", title: "DO 3", sub: "0/1", minW: 90 },
+  { key: "do4", title: "DO 4", sub: "0/1", minW: 90 },
+
+  { key: "ai1", title: "AI-1", sub: "value", minW: 100 },
+  { key: "ai2", title: "AI-2", sub: "value", minW: 100 },
+  { key: "ai3", title: "AI-3", sub: "value", minW: 100 },
+  { key: "ai4", title: "AI-4", sub: "value", minW: 100 },
 ];
 
 // ---------------------------
