@@ -1,35 +1,20 @@
 // src/components/Header.jsx
 import { useEffect, useState } from "react";
+import { getToken, parseJwt } from "../utils/authToken";
 
 /**
  * Header
  * - Displays welcome message (name + email)
  * - Displays Logout button
  * - Pure UI component (no routing logic)
+ *
+ * ✅ IMPORTANT:
+ * - Must read auth from sessionStorage per-tab via getToken()
+ * - Never use localStorage for identity (cross-tab pollution)
  */
 export default function Header({ onLogout }) {
   const [userEmail, setUserEmail] = useState("");
   const [userName, setUserName] = useState("");
-
-  // ✅ base64url-safe JWT payload decode
-  const decodeJwtPayload = (token) => {
-    try {
-      const part = token.split(".")[1];
-      if (!part) return null;
-
-      // base64url → base64
-      const base64 = part.replace(/-/g, "+").replace(/_/g, "/");
-
-      // pad
-      const padded = base64.padEnd(base64.length + ((4 - (base64.length % 4)) % 4), "=");
-
-      const json = atob(padded);
-      return JSON.parse(json);
-    } catch (err) {
-      console.error("Header: failed to decode auth token", err);
-      return null;
-    }
-  };
 
   const toNiceName = (email) =>
     (email || "")
@@ -38,7 +23,7 @@ export default function Header({ onLogout }) {
       .replace(/\b\w/g, (c) => c.toUpperCase());
 
   const syncFromToken = () => {
-    const token = localStorage.getItem("coreflex_token");
+    const token = getToken(); // ✅ per-tab token (sessionStorage-first)
 
     if (!token) {
       setUserEmail("");
@@ -46,27 +31,56 @@ export default function Header({ onLogout }) {
       return;
     }
 
-    const payload = decodeJwtPayload(token);
+    const payload = parseJwt(token); // ✅ already base64url-safe in your util
     if (!payload) {
       setUserEmail("");
       setUserName("");
       return;
     }
 
-    const email = payload.email || payload.sub || "";
-    const name = payload.name || payload.full_name || toNiceName(email);
+    // Try several common fields
+    const email =
+      payload.email ||
+      payload.user?.email ||
+      (typeof payload.sub === "string" && payload.sub.includes("@")
+        ? payload.sub
+        : "") ||
+      payload.username ||
+      "";
 
-    setUserEmail(email);
-    setUserName(name);
+    const name =
+      payload.name ||
+      payload.full_name ||
+      payload.user?.name ||
+      payload.user?.full_name ||
+      toNiceName(email);
+
+    setUserEmail(String(email || "").trim());
+    setUserName(String(name || "").trim());
   };
 
-  // ✅ Decode on mount + refresh whenever auth changes
   useEffect(() => {
+    // initial
     syncFromToken();
 
+    // auth event (same tab)
     const onAuthChanged = () => syncFromToken();
     window.addEventListener("coreflex-auth-changed", onAuthChanged);
-    return () => window.removeEventListener("coreflex-auth-changed", onAuthChanged);
+
+    // ✅ also resync when returning to tab
+    const onVis = () => {
+      if (document.visibilityState === "visible") syncFromToken();
+    };
+    const onFocus = () => syncFromToken();
+
+    document.addEventListener("visibilitychange", onVis);
+    window.addEventListener("focus", onFocus);
+
+    return () => {
+      window.removeEventListener("coreflex-auth-changed", onAuthChanged);
+      document.removeEventListener("visibilitychange", onVis);
+      window.removeEventListener("focus", onFocus);
+    };
   }, []);
 
   return (
@@ -79,8 +93,8 @@ export default function Header({ onLogout }) {
       </div>
 
       <button
-        type="button" // ✅ IMPORTANT
-        onClick={onLogout} // ✅ must call the real logout handler
+        type="button"
+        onClick={onLogout}
         className="px-3 py-1 rounded-md text-sm bg-red-600 text-white hover:bg-red-700 shadow"
       >
         Logout
