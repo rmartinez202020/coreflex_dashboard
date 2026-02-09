@@ -72,7 +72,81 @@ function formatDateTime(value) {
 }
 
 /**
- * ✅ Normalize backend row keys -> UI keys (ZHC1661)
+ * ✅ Professional confirm modal (white background)
+ */
+function ConfirmDeleteModal({ open, deviceId, busy, onCancel, onConfirm }) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[9999]">
+      <div
+        className="absolute inset-0 bg-black/40"
+        onClick={busy ? undefined : onCancel}
+      />
+
+      <div className="absolute inset-0 flex items-center justify-center p-4">
+        <div className="w-full max-w-[560px] rounded-2xl border border-slate-200 bg-white shadow-2xl">
+          <div className="p-5">
+            <div className="flex items-start gap-3">
+              <div className="mt-0.5 inline-flex h-10 w-10 items-center justify-center rounded-full bg-red-50 text-red-700 border border-red-100">
+                ⚠️
+              </div>
+
+              <div className="flex-1">
+                <div className="text-base font-bold text-slate-900">
+                  Remove device from my account
+                </div>
+
+                <div className="mt-1 text-sm text-slate-600">
+                  You are about to remove device{" "}
+                  <span className="font-semibold text-slate-900">
+                    {deviceId}
+                  </span>{" "}
+                  from your account.
+                </div>
+
+                <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-3 text-sm text-slate-700">
+                  <div className="font-semibold text-slate-900">
+                    This will unclaim the device.
+                  </div>
+                  <div className="mt-1">
+                    The device will be removed from your list and can be claimed
+                    again later. Any configuration linked to this device under
+                    your account may stop working.
+                  </div>
+                </div>
+
+                <div className="mt-4 flex items-center justify-end gap-2">
+                  <button
+                    onClick={onCancel}
+                    disabled={busy}
+                    className="rounded-lg border border-slate-200 bg-white px-4 py-2 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-50"
+                  >
+                    Cancel
+                  </button>
+
+                  <button
+                    onClick={onConfirm}
+                    disabled={busy}
+                    className="inline-flex items-center gap-2 rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-50"
+                  >
+                    {busy ? "Removing..." : "Remove"}
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div className="h-[1px] bg-slate-100" />
+        </div>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * ✅ Normalize backend row keys -> UI keys (ZHC1661 / CF-1600)
+ * ✅ This device has: 4 AI + 2 AO
  */
 function normalizeZhc1661Row(r) {
   const row = r || {};
@@ -99,6 +173,8 @@ function normalizeZhc1661Row(r) {
 
     ai1: pick("ai1", "ai_1") ?? "",
     ai2: pick("ai2", "ai_2") ?? "",
+    ai3: pick("ai3", "ai_3") ?? "",
+    ai4: pick("ai4", "ai_4") ?? "",
 
     ao1: pick("ao1", "ao_1", "analog_out1", "out1") ?? "",
     ao2: pick("ao2", "ao_2", "analog_out2", "out2") ?? "",
@@ -107,10 +183,9 @@ function normalizeZhc1661Row(r) {
 
 export default function DeviceManagerZhc1661Section({
   ownerEmail,
-  onBack, // parent provides the "Back" handler
+  onBack,
   mode = "inline",
 
-  // ✅ optional: allow parent state to own rows
   zhc1661Rows = [],
   setZhc1661Rows,
 }) {
@@ -118,7 +193,11 @@ export default function DeviceManagerZhc1661Section({
   const [err, setErr] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
-  // ✅ local fallback if parent didn't pass setter
+  // ✅ confirm modal state (same pattern as CF-2000)
+  const [confirmOpen, setConfirmOpen] = React.useState(false);
+  const [pendingDeleteId, setPendingDeleteId] = React.useState("");
+  const [deleting, setDeleting] = React.useState(false);
+
   const [localRows, setLocalRows] = React.useState([]);
   const rows = Array.isArray(zhc1661Rows) ? zhc1661Rows : [];
   const effectiveRows = setZhc1661Rows ? rows : localRows;
@@ -172,7 +251,48 @@ export default function DeviceManagerZhc1661Section({
     loadZhc1661();
   }
 
-  // ✅ auto-load when mounted
+  // ✅ open confirm modal
+  function requestDelete(row) {
+    const id = String(row?.deviceId || "").trim();
+    if (!id) return;
+    setPendingDeleteId(id);
+    setConfirmOpen(true);
+  }
+
+  // ✅ confirm remove (UNCLAIM)
+  async function confirmDelete() {
+    const id = String(pendingDeleteId || "").trim();
+    if (!id) return;
+
+    // ✅ close immediately
+    setConfirmOpen(false);
+    setPendingDeleteId("");
+
+    setDeleting(true);
+    setErr("");
+
+    try {
+      // preferred endpoint (match CF-2000 style)
+      await apiFetch(`/zhc1661/unclaim/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
+
+      await loadZhc1661();
+    } catch (e) {
+      // fallback endpoint (optional)
+      try {
+        await apiFetch(`/zhc1661/devices/${encodeURIComponent(id)}`, {
+          method: "DELETE",
+        });
+        await loadZhc1661();
+      } catch (e2) {
+        setErr(e2.message || e.message || "Remove failed");
+      }
+    } finally {
+      setDeleting(false);
+    }
+  }
+
   React.useEffect(() => {
     loadZhc1661();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -206,12 +326,23 @@ export default function DeviceManagerZhc1661Section({
               <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[56px]">
                 AI-2
               </th>
+              <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[56px]">
+                AI-3
+              </th>
+              <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[56px]">
+                AI-4
+              </th>
 
               <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[56px]">
                 AO-1
               </th>
               <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[56px]">
                 AO-2
+              </th>
+
+              {/* ✅ NEW Action column */}
+              <th className="text-right font-bold text-slate-900 px-1.5 py-1 border-b border-blue-300 w-[112px]">
+                Action
               </th>
             </tr>
 
@@ -230,6 +361,12 @@ export default function DeviceManagerZhc1661Section({
               <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
                 value
               </th>
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                value
+              </th>
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                value
+              </th>
 
               <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
                 value
@@ -237,19 +374,21 @@ export default function DeviceManagerZhc1661Section({
               <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
                 value
               </th>
+
+              <th className="px-1.5 py-1 border-b border-slate-200" />
             </tr>
           </thead>
 
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={9} className="px-3 py-6 text-center text-slate-500">
+                <td colSpan={12} className="px-3 py-6 text-center text-slate-500">
                   Loading...
                 </td>
               </tr>
             ) : !effectiveRows || effectiveRows.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-3 py-6 text-center text-slate-500">
+                <td colSpan={12} className="px-3 py-6 text-center text-slate-500">
                   No devices found.
                 </td>
               </tr>
@@ -283,9 +422,7 @@ export default function DeviceManagerZhc1661Section({
                         <span
                           className={`inline-block w-2 h-2 rounded-full ${dotClass}`}
                         />
-                        <span className="capitalize">
-                          {r?.status || "offline"}
-                        </span>
+                        <span className="capitalize">{r?.status || "offline"}</span>
                       </div>
                     </td>
 
@@ -299,6 +436,12 @@ export default function DeviceManagerZhc1661Section({
                     <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center truncate">
                       {r?.ai2 ?? ""}
                     </td>
+                    <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center truncate">
+                      {r?.ai3 ?? ""}
+                    </td>
+                    <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center truncate">
+                      {r?.ai4 ?? ""}
+                    </td>
 
                     <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center truncate">
                       {r?.ao1 ?? ""}
@@ -306,12 +449,28 @@ export default function DeviceManagerZhc1661Section({
                     <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center truncate">
                       {r?.ao2 ?? ""}
                     </td>
+
+                    {/* ✅ NEW Remove button */}
+                    <td className="px-1.5 py-1 border-b border-slate-100 text-right">
+                      <button
+                        onClick={() => requestDelete(r)}
+                        disabled={loading || deleting}
+                        className="inline-flex items-center justify-center rounded-lg bg-red-600 px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-50"
+                        title="Remove device from my account"
+                      >
+                        Remove
+                      </button>
+                    </td>
                   </tr>
                 );
               })
             )}
           </tbody>
         </table>
+      </div>
+
+      <div className="px-3 py-2 text-[11px] text-slate-500">
+        Tip: You can scroll horizontally inside this table.
       </div>
     </div>
   );
@@ -322,86 +481,100 @@ export default function DeviceManagerZhc1661Section({
       : "mt-10 border-t border-gray-200 pt-6 w-full max-w-full";
 
   return (
-    <div className={wrapperClass}>
-      <div className="rounded-xl bg-slate-700 text-white px-4 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => {
-              setNewDeviceId("");
-              setErr("");
-              onBack?.();
-            }}
-            className="rounded-lg bg-slate-600 hover:bg-slate-500 px-3 py-2 text-sm"
-          >
-            ← Back
-          </button>
+    <>
+      <ConfirmDeleteModal
+        open={confirmOpen}
+        deviceId={pendingDeleteId}
+        busy={deleting}
+        onCancel={() => {
+          if (deleting) return;
+          setConfirmOpen(false);
+          setPendingDeleteId("");
+        }}
+        onConfirm={confirmDelete}
+      />
 
-          <div>
-            <div className="text-lg font-semibold">
-              Device Manager — ZHC1661 (CF-1600)
-            </div>
-            <div className="text-xs text-slate-200">
-              Add authorized devices and view live AI/AO status from backend.
-            </div>
-          </div>
-        </div>
-
-        <button
-          onClick={refreshZhc1661}
-          className="rounded-lg bg-slate-600 hover:bg-slate-500 px-3 py-2 text-sm"
-          disabled={loading}
-        >
-          Refresh
-        </button>
-      </div>
-
-      <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 w-full max-w-full">
-        <div className="mb-4">
-          <div className="text-sm font-semibold text-slate-900 mb-2">
-            Add Device ID (authorized backend device)
-          </div>
-
-          <div className="flex flex-col md:flex-row gap-3">
-            <input
-              value={newDeviceId}
-              onChange={(e) => setNewDeviceId(e.target.value)}
-              placeholder="Enter DEVICE ID"
-              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300"
-              onKeyDown={(e) => {
-                if (e.key === "Enter" && !loading) addZhc1661Device();
-              }}
-            />
-
+      <div className={wrapperClass}>
+        <div className="rounded-xl bg-slate-700 text-white px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
             <button
-              onClick={addZhc1661Device}
-              className="md:w-[160px] rounded-lg bg-slate-900 text-white px-4 py-2 text-sm hover:opacity-90 disabled:opacity-50"
-              disabled={loading}
+              onClick={() => {
+                setNewDeviceId("");
+                setErr("");
+                onBack?.();
+              }}
+              className="rounded-lg bg-slate-600 hover:bg-slate-500 px-3 py-2 text-sm"
             >
-              + Add Device
+              ← Back
             </button>
-          </div>
 
-          {err && <div className="mt-2 text-xs text-red-600">{err}</div>}
-
-          <div className="mt-2 text-xs text-slate-500">
-            Owner only. This will create a new row in the backend table.
-          </div>
-
-          <div className="mt-2 text-xs text-slate-500">
-            Note: backend endpoints expected:{" "}
-            <span className="font-semibold">GET /zhc1661/devices</span> and{" "}
-            <span className="font-semibold">POST /zhc1661/devices</span>
-          </div>
-
-          {!!ownerEmail && (
-            <div className="mt-1 text-[11px] text-slate-400">
-              Owner: {ownerEmail}
+            <div>
+              <div className="text-lg font-semibold">
+                Device Manager — ZHC1661 (CF-1600)
+              </div>
+              <div className="text-xs text-slate-200">
+                Add authorized devices and view live AI/AO status from backend.
+              </div>
             </div>
-          )}
+          </div>
+
+          <button
+            onClick={refreshZhc1661}
+            className="rounded-lg bg-slate-600 hover:bg-slate-500 px-3 py-2 text-sm"
+            disabled={loading}
+          >
+            Refresh
+          </button>
         </div>
 
-        {renderZhc1661Table()}
+        <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 w-full max-w-full">
+          <div className="mb-4">
+            <div className="text-sm font-semibold text-slate-900 mb-2">
+              Add Device ID (authorized backend device)
+            </div>
+
+            <div className="flex flex-col md:flex-row gap-3">
+              <input
+                value={newDeviceId}
+                onChange={(e) => setNewDeviceId(e.target.value)}
+                placeholder="Enter DEVICE ID"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !loading) addZhc1661Device();
+                }}
+              />
+
+              <button
+                onClick={addZhc1661Device}
+                className="md:w-[160px] rounded-lg bg-slate-900 text-white px-4 py-2 text-sm hover:opacity-90 disabled:opacity-50"
+                disabled={loading}
+              >
+                + Add Device
+              </button>
+            </div>
+
+            {err && <div className="mt-2 text-xs text-red-600">{err}</div>}
+
+            <div className="mt-2 text-xs text-slate-500">
+              Owner only. This will create a new row in the backend table.
+            </div>
+
+            <div className="mt-2 text-xs text-slate-500">
+              Note: backend endpoints expected:{" "}
+              <span className="font-semibold">GET /zhc1661/devices</span> and{" "}
+              <span className="font-semibold">POST /zhc1661/devices</span>
+            </div>
+
+            {!!ownerEmail && (
+              <div className="mt-1 text-[11px] text-slate-400">
+                Owner: {ownerEmail}
+              </div>
+            )}
+          </div>
+
+          {renderZhc1661Table()}
+        </div>
       </div>
-    </div>
+    </>
   );
 }
