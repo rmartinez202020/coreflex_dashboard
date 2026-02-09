@@ -138,26 +138,41 @@ export default function DeviceManagerZhc1921Section({
   const effectiveRows = setZhc1921Rows ? rows : localRows;
   const setRows = setZhc1921Rows || setLocalRows;
 
-  async function loadZhc1921() {
-    setLoading(true);
-    setErr("");
+  // ✅ live refresh settings (match Node-RED 3 sec)
+  const POLL_MS = 3000;
+  const isMountedRef = React.useRef(true);
+  const firstLoadDoneRef = React.useRef(false);
 
-    try {
-      const token = getAuthToken();
-      if (!token) {
-        setRows([]);
-        throw new Error("Missing auth token. Please logout and login again.");
+  // ✅ Load devices (supports silent mode so UI doesn't flash "Loading..." every poll)
+  const loadZhc1921 = React.useCallback(
+    async ({ silent = false } = {}) => {
+      if (!silent) setLoading(true);
+      setErr("");
+
+      try {
+        const token = getAuthToken();
+        if (!token) {
+          setRows([]);
+          throw new Error("Missing auth token. Please logout and login again.");
+        }
+
+        const data = await apiFetch("/zhc1921/devices", { method: "GET" });
+        const list = Array.isArray(data) ? data : [];
+
+        if (!isMountedRef.current) return;
+        setRows(list.map(normalizeZhc1921Row));
+        firstLoadDoneRef.current = true;
+      } catch (e) {
+        // During polling, avoid spamming errors if something temporary happens
+        if (!silent || !firstLoadDoneRef.current) {
+          setErr(e.message || "Failed to load devices.");
+        }
+      } finally {
+        if (!silent) setLoading(false);
       }
-
-      const data = await apiFetch("/zhc1921/devices", { method: "GET" });
-      const list = Array.isArray(data) ? data : [];
-      setRows(list.map(normalizeZhc1921Row));
-    } catch (e) {
-      setErr(e.message || "Failed to load devices.");
-    } finally {
-      setLoading(false);
-    }
-  }
+    },
+    [setRows]
+  );
 
   async function addZhc1921Device() {
     const id = String(newDeviceId || "").trim();
@@ -174,7 +189,7 @@ export default function DeviceManagerZhc1921Section({
       });
 
       setNewDeviceId("");
-      await loadZhc1921();
+      await loadZhc1921({ silent: false });
     } catch (e) {
       setErr(e.message || "Failed to add device.");
     } finally {
@@ -182,12 +197,11 @@ export default function DeviceManagerZhc1921Section({
     }
   }
 
-  // ✅ NEW: delete button handler (frontend-first; calls an endpoint placeholder)
+  // ✅ delete button handler
   async function deleteZhc1921Device(deviceId) {
     const id = String(deviceId || "").trim();
     if (!id) return;
 
-    // frontend first: optimistic disable + simple confirm
     const ok = window.confirm(
       `Delete device ${id} from backend list?\n\nThis will remove the device row.`
     );
@@ -197,13 +211,11 @@ export default function DeviceManagerZhc1921Section({
     setErr("");
 
     try {
-      // ✅ backend will be implemented next:
-      // Choose the final endpoint later (example placeholder below)
       await apiFetch(`/zhc1921/devices/${encodeURIComponent(id)}`, {
         method: "DELETE",
       });
 
-      await loadZhc1921();
+      await loadZhc1921({ silent: false });
     } catch (e) {
       setErr(e.message || "Failed to delete device.");
     } finally {
@@ -212,14 +224,31 @@ export default function DeviceManagerZhc1921Section({
   }
 
   function refreshZhc1921() {
-    loadZhc1921();
+    loadZhc1921({ silent: false });
   }
 
-  // ✅ auto-load when mounted
+  // ✅ auto-load + LIVE polling
   React.useEffect(() => {
-    loadZhc1921();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+    isMountedRef.current = true;
+
+    // First load (show loading)
+    loadZhc1921({ silent: false });
+
+    // Live polling (silent)
+    const id = setInterval(() => {
+      // don’t poll when tab hidden or while user is doing add/delete
+      if (document.hidden) return;
+      if (deletingId) return;
+
+      // don’t poll while initial “loading” state to avoid overlap
+      loadZhc1921({ silent: true });
+    }, POLL_MS);
+
+    return () => {
+      isMountedRef.current = false;
+      clearInterval(id);
+    };
+  }, [loadZhc1921, deletingId]);
 
   const renderZhc1921Table = () => (
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden w-full max-w-full">
@@ -282,7 +311,6 @@ export default function DeviceManagerZhc1921Section({
                 AI-4
               </th>
 
-              {/* ✅ NEW: delete column (right side) */}
               <th className="text-center font-bold text-slate-900 px-1.5 py-1 border-b border-blue-300 w-[86px]">
                 Delete
               </th>
@@ -336,7 +364,6 @@ export default function DeviceManagerZhc1921Section({
                 value
               </th>
 
-              {/* delete column subtitle row */}
               <th className="px-1.5 py-1 border-b border-slate-200" />
             </tr>
           </thead>
@@ -441,7 +468,6 @@ export default function DeviceManagerZhc1921Section({
                       {r?.ai4 ?? ""}
                     </td>
 
-                    {/* ✅ NEW: delete button cell */}
                     <td className="px-1.5 py-1 border-b border-slate-100 text-center">
                       <button
                         onClick={() => deleteZhc1921Device(r?.deviceId)}
@@ -462,7 +488,6 @@ export default function DeviceManagerZhc1921Section({
     </div>
   );
 
-  // wrapper spacing depends on mode
   const wrapperClass =
     mode === "page"
       ? "mt-4 w-full max-w-full"
@@ -497,6 +522,7 @@ export default function DeviceManagerZhc1921Section({
           onClick={refreshZhc1921}
           className="rounded-lg bg-slate-600 hover:bg-slate-500 px-3 py-2 text-sm"
           disabled={loading}
+          title="Manual refresh (live auto-refresh also runs every 3 seconds)"
         >
           Refresh
         </button>
