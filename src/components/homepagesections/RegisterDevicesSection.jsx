@@ -106,9 +106,9 @@ function ConfirmDeleteModal({ open, deviceId, busy, onCancel, onConfirm }) {
 }
 
 const MODELS = [
-  { key: "cf2000", label: "Model CF-2000" },
-  { key: "cf1600", label: "Model CF-1600" },
-  { key: "tp400", label: "Model TP-400" },
+  { key: "cf2000", label: "Model CF-2000", desc: "4-DI // 4-DO // 4-AI" },
+  { key: "cf1600", label: "Model CF-1600", desc: "4-AI // 2-AO" },
+  { key: "tp400", label: "Model TP-400", desc: "8-Thermocouple channels" },
 ];
 
 export default function RegisterDevicesSection({ onBack }) {
@@ -277,7 +277,7 @@ export default function RegisterDevicesSection({ onBack }) {
               className="w-full rounded-xl px-5 py-4 text-left transition shadow-sm border bg-white hover:bg-slate-50 text-slate-900 border-slate-200"
             >
               <div className="text-lg font-semibold">{m.label}</div>
-              {/* ✅ removed the small subtitle lines under each model */}
+              <div className="mt-1 text-sm text-slate-600">{m.desc}</div>
             </button>
           ))}
         </div>
