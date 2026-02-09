@@ -1,6 +1,9 @@
 import React from "react";
 import { API_URL } from "../../config/api";
 
+// ✅ ✅ IMPORTANT: use per-tab auth token (sessionStorage-first)
+import { getToken } from "../../utils/authToken";
+
 // ✅ Model buttons (inside Home)
 const DEVICE_MODELS = [
   { key: "zhc1921", label: "Model ZHC1921 (CF-2000)" },
@@ -30,9 +33,9 @@ function modelMeta(modelKey) {
   return { title: "Device Manager", desc: "" };
 }
 
-// ✅ Single source of truth (matches your authToken.js)
+// ✅ Single source of truth (matches authToken.js, per-tab)
 function getAuthToken() {
-  return String(localStorage.getItem("coreflex_access_token") || "").trim();
+  return String(getToken() || "").trim();
 }
 
 async function apiFetch(path, options = {}) {
@@ -129,7 +132,13 @@ function normalizeZhc1921Row(r) {
   return {
     deviceId: pick("deviceId", "device_id", "deviceID"),
     addedAt: pick("addedAt", "authorized_at", "authorizedAt", "added_at"),
-    ownedBy: pick("ownedBy", "claimed_by_email", "claimedByEmail", "user_email", "email"),
+    ownedBy: pick(
+      "ownedBy",
+      "claimed_by_email",
+      "claimedByEmail",
+      "user_email",
+      "email"
+    ),
     status: pick("status") ?? "offline",
     lastSeen: pick("lastSeen", "last_seen", "lastSeenAt"),
 
@@ -247,10 +256,8 @@ export default function DeviceManagerSection({
   const renderZhc1921Table = () => (
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden w-full max-w-full">
       <div className="w-full overflow-x-auto">
-        {/* ✅ table-auto lets columns pack tighter naturally */}
         <table className="w-full table-auto text-[12px]">
           <thead>
-            {/* ✅ Row 1 (BLUE TITLES) */}
             <tr className="bg-blue-200">
               <th className="text-left font-bold text-slate-900 px-1.5 py-1 border-b border-blue-300 w-[145px]">
                 DEVICE ID
@@ -258,7 +265,6 @@ export default function DeviceManagerSection({
               <th className="text-left font-bold text-slate-900 px-1.5 py-1 border-b border-blue-300 w-[110px]">
                 Date
               </th>
-              {/* ✅ wider so you can see user */}
               <th className="text-left font-bold text-slate-900 px-1.5 py-1 border-b border-blue-300 w-[220px]">
                 User
               </th>
@@ -309,7 +315,6 @@ export default function DeviceManagerSection({
               </th>
             </tr>
 
-            {/* ✅ Row 2 (SUBTITLES) */}
             <tr className="bg-white text-[11px]">
               <th className="px-1.5 py-1 border-b border-slate-200" />
               <th className="px-1.5 py-1 border-b border-slate-200" />
@@ -392,7 +397,6 @@ export default function DeviceManagerSection({
                       {formatDateTime(r?.addedAt)}
                     </td>
 
-                    {/* ✅ wider + not truncating as early */}
                     <td className="px-1.5 py-1 border-b border-slate-100 text-slate-800">
                       <div className="truncate" title={r?.ownedBy ?? ""}>
                         {r?.ownedBy ?? "—"}
@@ -460,15 +464,12 @@ export default function DeviceManagerSection({
     </div>
   );
 
-  // wrapper spacing depends on mode
   const wrapperClass =
     mode === "page"
       ? "mt-4 w-full max-w-full"
       : "mt-10 border-t border-gray-200 pt-6 w-full max-w-full";
 
-  // =========================
   // VIEW A: Selector (cards)
-  // =========================
   if (!activeModel) {
     return (
       <div className={wrapperClass}>
@@ -497,9 +498,7 @@ export default function DeviceManagerSection({
     );
   }
 
-  // =========================
   // VIEW B: Full section
-  // =========================
   return (
     <div className={wrapperClass}>
       <div className="rounded-xl bg-slate-700 text-white px-4 py-4 flex items-center justify-between">
