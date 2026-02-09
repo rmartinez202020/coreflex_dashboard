@@ -16,7 +16,7 @@ function formatDateMMDDYYYY_hmma(ts) {
   if (!ts) return "—";
 
   const d = new Date(ts);
-  if (Number.isNaN(d.getTime())) return String(ts); // if backend sends a non-ISO string
+  if (Number.isNaN(d.getTime())) return String(ts);
 
   const mm = String(d.getMonth() + 1).padStart(2, "0");
   const dd = String(d.getDate()).padStart(2, "0");
@@ -32,19 +32,17 @@ function formatDateMMDDYYYY_hmma(ts) {
   return `${mm}/${dd}/${yyyy}-${h}:${min}${ampm}`;
 }
 
-// ✅ Professional confirm modal (white background, like your AlarmLog style but white)
+// ✅ Professional confirm modal (white background)
 function ConfirmDeleteModal({ open, deviceId, busy, onCancel, onConfirm }) {
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-[9999]">
-      {/* overlay */}
       <div
         className="absolute inset-0 bg-black/40"
         onClick={busy ? undefined : onCancel}
       />
 
-      {/* dialog */}
       <div className="absolute inset-0 flex items-center justify-center p-4">
         <div className="w-full max-w-[560px] rounded-2xl border border-slate-200 bg-white shadow-2xl">
           <div className="p-5">
@@ -60,9 +58,7 @@ function ConfirmDeleteModal({ open, deviceId, busy, onCancel, onConfirm }) {
 
                 <div className="mt-1 text-sm text-slate-600">
                   You are about to remove device{" "}
-                  <span className="font-semibold text-slate-900">
-                    {deviceId}
-                  </span>{" "}
+                  <span className="font-semibold text-slate-900">{deviceId}</span>{" "}
                   from your account.
                 </div>
 
@@ -121,6 +117,26 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
   const isMountedRef = React.useRef(true);
   const firstLoadDoneRef = React.useRef(false);
 
+  // ✅ REFS to prevent effect re-creating intervals (prevents blinking)
+  const loadingRef = React.useRef(false);
+  const deletingRef = React.useRef(false);
+  const confirmOpenRef = React.useRef(false);
+
+  React.useEffect(() => {
+    loadingRef.current = loading;
+  }, [loading]);
+
+  React.useEffect(() => {
+    deletingRef.current = deleting;
+  }, [deleting]);
+
+  React.useEffect(() => {
+    confirmOpenRef.current = confirmOpen;
+  }, [confirmOpen]);
+
+  // ✅ avoid unnecessary re-render if same data
+  const lastJsonRef = React.useRef("");
+
   async function loadMyDevices({ silent = false } = {}) {
     if (!silent) setLoading(true);
     setErr("");
@@ -147,10 +163,19 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
       const data = await res.json();
       if (!isMountedRef.current) return;
 
-      setRows(Array.isArray(data) ? data : []);
+      const list = Array.isArray(data) ? data : [];
+      const json = JSON.stringify(list);
+
+      // ✅ if nothing changed, don't touch state (prevents button flicker)
+      if (silent && json === lastJsonRef.current) {
+        firstLoadDoneRef.current = true;
+        return;
+      }
+
+      lastJsonRef.current = json;
+      setRows(list);
       firstLoadDoneRef.current = true;
     } catch (e) {
-      // avoid error spam during silent polling
       if (!silent || !firstLoadDoneRef.current) {
         setErr(e.message || "Failed to load devices");
       }
@@ -170,9 +195,7 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
 
     try {
       const token = String(getToken() || "").trim();
-      if (!token) {
-        throw new Error("Missing auth token. Please logout and login again.");
-      }
+      if (!token) throw new Error("Missing auth token. Please logout and login again.");
 
       const res = await fetch(`${API_URL}/zhc1921/claim`, {
         method: "POST",
@@ -197,7 +220,6 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
     }
   }
 
-  // ✅ open confirm modal (unclaim/remove)
   function requestDelete(row) {
     const id = String(row?.deviceId || "").trim();
     if (!id) return;
@@ -205,12 +227,10 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
     setConfirmOpen(true);
   }
 
-  // ✅ confirm remove (UNCLAIM)
   async function confirmDelete() {
     const id = String(pendingDeleteId || "").trim();
     if (!id) return;
 
-    // ✅ CLOSE MODAL IMMEDIATELY
     setConfirmOpen(false);
     setPendingDeleteId("");
 
@@ -219,19 +239,12 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
 
     try {
       const token = String(getToken() || "").trim();
-      if (!token) {
-        throw new Error("Missing auth token. Please logout and login again.");
-      }
+      if (!token) throw new Error("Missing auth token. Please logout and login again.");
 
-      const res = await fetch(
-        `${API_URL}/zhc1921/unclaim/${encodeURIComponent(id)}`,
-        {
-          method: "DELETE",
-          headers: {
-            ...getAuthHeaders(),
-          },
-        }
-      );
+      const res = await fetch(`${API_URL}/zhc1921/unclaim/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+        headers: { ...getAuthHeaders() },
+      });
 
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
@@ -246,29 +259,28 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
     }
   }
 
-  // ✅ mount + live polling
+  // ✅ mount + polling RUNS ONCE (no dependencies)
   React.useEffect(() => {
     isMountedRef.current = true;
 
-    // first load (shows loading)
+    // first load
     loadMyDevices({ silent: false });
 
-    // live polling (silent)
-    const id = setInterval(() => {
+    const intervalId = setInterval(() => {
       if (document.hidden) return;
-      if (loading) return;
-      if (deleting) return;
-      if (confirmOpen) return;
+      if (loadingRef.current) return;
+      if (deletingRef.current) return;
+      if (confirmOpenRef.current) return;
 
       loadMyDevices({ silent: true });
     }, POLL_MS);
 
     return () => {
       isMountedRef.current = false;
-      clearInterval(id);
+      clearInterval(intervalId);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deleting, confirmOpen, loading]);
+  }, []);
 
   return (
     <>
@@ -298,8 +310,7 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
                 Register Devices — Model CF-2000
               </div>
               <div className="text-xs text-sky-100">
-                Enter a DEVICE ID. We verify it exists and assign it to your
-                account.
+                Enter a DEVICE ID. We verify it exists and assign it to your account.
               </div>
             </div>
           </div>
@@ -308,7 +319,6 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
             onClick={() => loadMyDevices({ silent: false })}
             className="rounded-lg bg-sky-700 hover:bg-sky-600 px-3 py-2 text-sm"
             disabled={loading}
-            title="Manual refresh (live auto-refresh runs every 3 seconds)"
           >
             Refresh
           </button>
@@ -316,9 +326,7 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
 
         <div className="p-4">
           <div className="mb-4">
-            <div className="text-sm font-semibold mb-2">
-              Add / Claim Device ID
-            </div>
+            <div className="text-sm font-semibold mb-2">Add / Claim Device ID</div>
 
             <div className="flex gap-3">
               <input
@@ -350,32 +358,20 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
                     <th className="px-[6px] py-[3px] w-[110px] text-left font-bold text-slate-900">
                       DEVICE ID
                     </th>
-
                     <th className="px-[6px] py-[3px] w-[135px] text-left font-bold text-slate-900">
                       Date
                     </th>
-
                     <th className="px-[6px] py-[3px] w-[72px] text-left font-bold text-slate-900">
                       Status
                     </th>
-
                     <th className="px-[6px] py-[3px] w-[135px] text-left font-bold text-slate-900 border-r border-blue-300">
                       Last Seen
                     </th>
 
                     {[
-                      "DI-1",
-                      "DI-2",
-                      "DI-3",
-                      "DI-4",
-                      "DO-1",
-                      "DO-2",
-                      "DO-3",
-                      "DO-4",
-                      "AI-1",
-                      "AI-2",
-                      "AI-3",
-                      "AI-4",
+                      "DI-1","DI-2","DI-3","DI-4",
+                      "DO-1","DO-2","DO-3","DO-4",
+                      "AI-1","AI-2","AI-3","AI-4",
                     ].map((k) => (
                       <th
                         key={k}
@@ -394,36 +390,24 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
                 <tbody>
                   {loading && rows.length === 0 ? (
                     <tr>
-                      <td
-                        colSpan={17}
-                        className="text-center py-6 text-slate-500"
-                      >
+                      <td colSpan={17} className="text-center py-6 text-slate-500">
                         Loading...
                       </td>
                     </tr>
                   ) : !rows.length ? (
                     <tr>
-                      <td
-                        colSpan={17}
-                        className="text-center py-6 text-slate-500"
-                      >
+                      <td colSpan={17} className="text-center py-6 text-slate-500">
                         No registered devices yet.
                       </td>
                     </tr>
                   ) : (
                     rows.map((r, i) => (
-                      <tr
-                        key={i}
-                        className={i % 2 ? "bg-slate-50" : "bg-white"}
-                      >
+                      <tr key={i} className={i % 2 ? "bg-slate-50" : "bg-white"}>
                         <td className="px-[6px] py-[3px] truncate text-slate-800">
                           {r.deviceId}
                         </td>
 
-                        <td
-                          className="px-[6px] py-[3px] truncate text-slate-800"
-                          title={r.addedAt || ""}
-                        >
+                        <td className="px-[6px] py-[3px] truncate text-slate-800" title={r.addedAt || ""}>
                           {formatDateMMDDYYYY_hmma(r.addedAt)}
                         </td>
 
@@ -431,31 +415,16 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
                           {r.status}
                         </td>
 
-                        <td
-                          className="px-[6px] py-[3px] truncate text-slate-800 border-r border-slate-200"
-                          title={r.lastSeen || ""}
-                        >
+                        <td className="px-[6px] py-[3px] truncate text-slate-800 border-r border-slate-200" title={r.lastSeen || ""}>
                           {formatDateMMDDYYYY_hmma(r.lastSeen)}
                         </td>
 
                         {[
-                          r.in1,
-                          r.in2,
-                          r.in3,
-                          r.in4,
-                          r.do1,
-                          r.do2,
-                          r.do3,
-                          r.do4,
-                          r.ai1,
-                          r.ai2,
-                          r.ai3,
-                          r.ai4,
+                          r.in1,r.in2,r.in3,r.in4,
+                          r.do1,r.do2,r.do3,r.do4,
+                          r.ai1,r.ai2,r.ai3,r.ai4,
                         ].map((v, j) => (
-                          <td
-                            key={j}
-                            className="text-center px-[4px] py-[3px] text-slate-800"
-                          >
+                          <td key={j} className="text-center px-[4px] py-[3px] text-slate-800">
                             {String(v ?? "")}
                           </td>
                         ))}
@@ -478,8 +447,7 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
             </div>
 
             <div className="px-3 py-2 text-[11px] text-slate-500">
-              Tip: You can scroll horizontally inside this table. Live updates
-              run every 3 seconds.
+              Tip: You can scroll horizontally inside this table. Live updates run every 3 seconds.
             </div>
           </div>
         </div>
