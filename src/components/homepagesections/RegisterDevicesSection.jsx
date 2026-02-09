@@ -1,8 +1,10 @@
 // src/components/homepagesections/RegisterDevicesSection.jsx
 import React from "react";
 
-// ✅ Extracted model section
+// ✅ extracted sections
 import RegisterDevicesCf2000Section from "./RegisterDevicesCf2000Section";
+import RegisterDevicesCf1600Section from "./RegisterDevicesCf1600Section";
+import RegisterDevicesTp4000Section from "./RegisterDevicesTp4000Section";
 
 const MODELS = [
   { key: "cf2000", label: "Model CF-2000", desc: "4-DI // 4-DO // 4-AI" },
@@ -50,35 +52,20 @@ export default function RegisterDevicesSection({ onBack }) {
     );
   }
 
-  // VIEW B: CF-2000 (Extracted)
+  // CF-2000
   if (activeModel === "cf2000") {
     return <RegisterDevicesCf2000Section onBack={() => setActiveModel(null)} />;
   }
 
-  // placeholders
-  const modelLabel = MODELS.find((m) => m.key === activeModel)?.label || "Model";
-  return (
-    <div className="mt-6 rounded-xl border border-slate-200 bg-white overflow-hidden">
-      <div className="bg-sky-800 text-white px-4 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={() => setActiveModel(null)}
-            className="rounded-lg bg-sky-700 hover:bg-sky-600 px-3 py-2 text-sm"
-          >
-            ← Back
-          </button>
-          <div>
-            <div className="text-lg font-semibold">
-              Register Devices — {modelLabel}
-            </div>
-            <div className="text-xs text-sky-100">Coming next.</div>
-          </div>
-        </div>
-      </div>
+  // CF-1600
+  if (activeModel === "cf1600") {
+    return <RegisterDevicesCf1600Section onBack={() => setActiveModel(null)} />;
+  }
 
-      <div className="p-4 text-sm text-slate-700">
-        Next: we’ll add backend + claim flow for this model.
-      </div>
-    </div>
-  );
+  // ✅ TP-4000 (extracted)
+  if (activeModel === "tp400") {
+    return <RegisterDevicesTp4000Section onBack={() => setActiveModel(null)} />;
+  }
+
+  return null;
 }
