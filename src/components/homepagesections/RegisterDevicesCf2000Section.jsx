@@ -116,8 +116,13 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
   const [pendingDeleteId, setPendingDeleteId] = React.useState("");
   const [deleting, setDeleting] = React.useState(false);
 
-  async function loadMyDevices() {
-    setLoading(true);
+  // ✅ LIVE polling controls
+  const POLL_MS = 3000;
+  const isMountedRef = React.useRef(true);
+  const firstLoadDoneRef = React.useRef(false);
+
+  async function loadMyDevices({ silent = false } = {}) {
+    if (!silent) setLoading(true);
     setErr("");
 
     try {
@@ -140,11 +145,17 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
       }
 
       const data = await res.json();
+      if (!isMountedRef.current) return;
+
       setRows(Array.isArray(data) ? data : []);
+      firstLoadDoneRef.current = true;
     } catch (e) {
-      setErr(e.message || "Failed to load devices");
+      // avoid error spam during silent polling
+      if (!silent || !firstLoadDoneRef.current) {
+        setErr(e.message || "Failed to load devices");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
@@ -178,7 +189,7 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
       }
 
       setDeviceId("");
-      await loadMyDevices();
+      await loadMyDevices({ silent: false });
     } catch (e) {
       setErr(e.message || "Claim failed");
     } finally {
@@ -227,7 +238,7 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
         throw new Error(j?.detail || `Remove failed (${res.status})`);
       }
 
-      await loadMyDevices();
+      await loadMyDevices({ silent: false });
     } catch (e) {
       setErr(e.message || "Remove failed");
     } finally {
@@ -235,10 +246,29 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
     }
   }
 
+  // ✅ mount + live polling
   React.useEffect(() => {
-    loadMyDevices();
+    isMountedRef.current = true;
+
+    // first load (shows loading)
+    loadMyDevices({ silent: false });
+
+    // live polling (silent)
+    const id = setInterval(() => {
+      if (document.hidden) return;
+      if (loading) return;
+      if (deleting) return;
+      if (confirmOpen) return;
+
+      loadMyDevices({ silent: true });
+    }, POLL_MS);
+
+    return () => {
+      isMountedRef.current = false;
+      clearInterval(id);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [deleting, confirmOpen, loading]);
 
   return (
     <>
@@ -275,9 +305,10 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
           </div>
 
           <button
-            onClick={loadMyDevices}
+            onClick={() => loadMyDevices({ silent: false })}
             className="rounded-lg bg-sky-700 hover:bg-sky-600 px-3 py-2 text-sm"
             disabled={loading}
+            title="Manual refresh (live auto-refresh runs every 3 seconds)"
           >
             Refresh
           </button>
@@ -295,11 +326,14 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
                 onChange={(e) => setDeviceId(e.target.value)}
                 placeholder="Enter DEVICE ID"
                 className="flex-1 rounded-lg border px-3 py-2 text-sm"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !loading) claimDevice();
+                }}
               />
               <button
                 onClick={claimDevice}
                 disabled={loading}
-                className="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm"
+                className="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm disabled:opacity-50"
               >
                 + Add Device
               </button>
@@ -444,7 +478,8 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
             </div>
 
             <div className="px-3 py-2 text-[11px] text-slate-500">
-              Tip: You can scroll horizontally inside this table.
+              Tip: You can scroll horizontally inside this table. Live updates
+              run every 3 seconds.
             </div>
           </div>
         </div>
