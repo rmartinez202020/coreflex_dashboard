@@ -1,36 +1,9 @@
-// src/components/homepagesections/DeviceManagerSection.jsx
+// src/components/homepagesections/DeviceManagerZhc1921Section.jsx
 import React from "react";
 import { API_URL } from "../../config/api";
 
-// ✅ ✅ IMPORTANT: use per-tab auth token (sessionStorage-first)
+// ✅ IMPORTANT: use per-tab auth token (sessionStorage-first)
 import { getToken } from "../../utils/authToken";
-
-// ✅ ✅ Extracted: ZHC1921 section lives in its own file now
-import DeviceManagerZhc1921Section from "./DeviceManagerZhc1921Section";
-
-// ✅ Model buttons (inside Home)
-const DEVICE_MODELS = [
-  { key: "zhc1921", label: "Model ZHC1921 (CF-2000)" },
-  { key: "zhc1661", label: "Model ZHC1661 (CF-1600)" },
-  { key: "tp4000", label: "Model TP-4000" },
-];
-
-function modelMeta(modelKey) {
-  if (modelKey === "zhc1661") {
-    return {
-      title: "Device Manager — ZHC1661 (CF-1600)",
-      desc: "Add authorized devices and view live AI/AO status from backend.",
-    };
-  }
-  if (modelKey === "tp4000") {
-    return {
-      title: "Device Manager — TP-4000",
-      desc: "Backend table for TP-4000 devices (next).",
-    };
-  }
-  // ZHC1921 is now handled by the extracted component
-  return { title: "Device Manager", desc: "" };
-}
 
 // ✅ Single source of truth (matches authToken.js, per-tab)
 function getAuthToken() {
@@ -64,10 +37,6 @@ async function apiFetch(path, options = {}) {
 
 /**
  * ✅ Format to: 01/01/2025-8:15AM
- * Safe:
- * - null/empty => "—"
- * - parses ISO / normal strings / unix timestamps (sec or ms)
- * - if parsing fails => returns original text
  */
 function formatDateTime(value) {
   if (value === null || value === undefined) return "—";
@@ -103,13 +72,10 @@ function formatDateTime(value) {
 }
 
 /**
- * ✅ ZHC1661 table per your screenshot:
- * DEVICE ID | Date | User | Status | last seen | AI-1 | AI-2 | AO-1 | AO-2
- *
- * Backend might return:
- * device_id, authorized_at, claimed_by_email, last_seen, ai1, ai2, ao1, ao2
+ * ✅ Normalize backend row keys -> UI keys (ZHC1921)
+ * NOTE: DO fields can arrive as do1..do4 OR do_1..do_4 (backend variations)
  */
-function normalizeZhc1661Row(r) {
+function normalizeZhc1921Row(r) {
   const row = r || {};
   const pick = (...keys) => {
     for (const k of keys) {
@@ -132,114 +98,56 @@ function normalizeZhc1661Row(r) {
     status: pick("status") ?? "offline",
     lastSeen: pick("lastSeen", "last_seen", "lastSeenAt"),
 
+    in1: pick("in1", "di1", "di_1") ?? 0,
+    in2: pick("in2", "di2", "di_2") ?? 0,
+    in3: pick("in3", "di3", "di_3") ?? 0,
+    in4: pick("in4", "di4", "di_4") ?? 0,
+
+    do1: pick("do1", "do_1") ?? 0,
+    do2: pick("do2", "do_2") ?? 0,
+    do3: pick("do3", "do_3") ?? 0,
+    do4: pick("do4", "do_4") ?? 0,
+
     ai1: pick("ai1", "ai_1") ?? "",
     ai2: pick("ai2", "ai_2") ?? "",
-
-    ao1: pick("ao1", "ao_1", "analog_out1", "out1") ?? "",
-    ao2: pick("ao2", "ao_2", "analog_out2", "out2") ?? "",
+    ai3: pick("ai3", "ai_3") ?? "",
+    ai4: pick("ai4", "ai_4") ?? "",
   };
 }
 
-export default function DeviceManagerSection({
+export default function DeviceManagerZhc1921Section({
   ownerEmail,
-  activeModel,
-  setActiveModel,
-
-  // ✅ render mode
+  onBack, // parent provides the "Back" handler
   mode = "inline",
 
-  // ✅ rows passed from Home (optional)
+  // ✅ optional: allow parent state to own rows (same pattern you already use)
   zhc1921Rows = [],
   setZhc1921Rows,
-
-  zhc1661Rows = [],
-  setZhc1661Rows,
 }) {
-  // ✅ These are ONLY for ZHC1661 now (ZHC1921 manages itself in its extracted file)
   const [newDeviceId, setNewDeviceId] = React.useState("");
   const [err, setErr] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
-  const meta = modelMeta(activeModel);
+  // ✅ Ensure we always have a local rows state even if parent doesn't pass setters
+  const [localRows, setLocalRows] = React.useState([]);
+  const rows = Array.isArray(zhc1921Rows) && zhc1921Rows.length >= 0 ? zhc1921Rows : [];
+  const effectiveRows = setZhc1921Rows ? rows : localRows;
+  const setRows = setZhc1921Rows || setLocalRows;
 
-  function onBack() {
-    setNewDeviceId("");
-    setErr("");
-    setActiveModel(null);
-  }
-
-  // wrapper spacing depends on mode
-  const wrapperClass =
-    mode === "page"
-      ? "mt-4 w-full max-w-full"
-      : "mt-10 border-t border-gray-200 pt-6 w-full max-w-full";
-
-  // =========================
-  // VIEW A: Selector (cards)
-  // =========================
-  if (!activeModel) {
-    return (
-      <div className={wrapperClass}>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-xl font-bold text-gray-800">
-            Device Manager (Owner Only)
-          </h2>
-          <span className="text-xs text-gray-500">Owner: {ownerEmail}</span>
-        </div>
-
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-          {DEVICE_MODELS.map((m) => (
-            <button
-              key={m.key}
-              onClick={() => setActiveModel(m.key)}
-              className="w-full rounded-xl px-5 py-4 text-left transition shadow-sm border bg-white hover:bg-slate-50 text-slate-900 border-slate-200"
-            >
-              <div className="text-lg font-semibold">{m.label}</div>
-              <div className="text-sm text-slate-600">
-                Manage authorized devices and view live I/O status.
-              </div>
-            </button>
-          ))}
-        </div>
-      </div>
-    );
-  }
-
-  // =========================
-  // ✅ ZHC1921 (CF-2000) - Extracted
-  // =========================
-  if (activeModel === "zhc1921") {
-    return (
-      <DeviceManagerZhc1921Section
-        ownerEmail={ownerEmail}
-        mode={mode}
-        zhc1921Rows={zhc1921Rows}
-        setZhc1921Rows={setZhc1921Rows}
-        onBack={() => setActiveModel(null)}
-      />
-    );
-  }
-
-  // =========================
-  // ZHC1661 (CF-1600)
-  // =========================
-  async function loadZhc1661() {
+  async function loadZhc1921() {
     setLoading(true);
     setErr("");
 
     try {
       const token = getAuthToken();
       if (!token) {
-        setZhc1661Rows?.([]);
+        setRows([]);
         throw new Error("Missing auth token. Please logout and login again.");
       }
 
-      // ✅ Backend endpoint for CF-1600 manager
-      // Create this in backend: GET /zhc1661/devices
-      const rows = await apiFetch("/zhc1661/devices", { method: "GET" });
-
-      const list = Array.isArray(rows) ? rows : [];
-      setZhc1661Rows?.(list.map(normalizeZhc1661Row));
+      const data = await apiFetch("/zhc1921/devices", { method: "GET" });
+      const list = Array.isArray(data) ? data : [];
+      setRows(list.map(normalizeZhc1921Row));
     } catch (e) {
       setErr(e.message || "Failed to load devices.");
     } finally {
@@ -247,7 +155,7 @@ export default function DeviceManagerSection({
     }
   }
 
-  async function addZhc1661Device() {
+  async function addZhc1921Device() {
     const id = String(newDeviceId || "").trim();
     if (!id) return setErr("Please enter a DEVICE ID.");
     if (!/^\d+$/.test(id))
@@ -256,14 +164,13 @@ export default function DeviceManagerSection({
     setLoading(true);
     setErr("");
     try {
-      // ✅ Backend endpoint: POST /zhc1661/devices { device_id }
-      await apiFetch("/zhc1661/devices", {
+      await apiFetch("/zhc1921/devices", {
         method: "POST",
         body: JSON.stringify({ device_id: id }),
       });
 
       setNewDeviceId("");
-      await loadZhc1661();
+      await loadZhc1921();
     } catch (e) {
       setErr(e.message || "Failed to add device.");
     } finally {
@@ -271,20 +178,17 @@ export default function DeviceManagerSection({
     }
   }
 
-  function refreshZhc1661() {
-    loadZhc1661();
+  function refreshZhc1921() {
+    loadZhc1921();
   }
 
-  // ✅ Load from backend when model opens (ONLY ZHC1661 now)
+  // ✅ auto-load when mounted
   React.useEffect(() => {
-    if (activeModel === "zhc1661") loadZhc1661();
+    loadZhc1921();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeModel]);
+  }, []);
 
-  // =========================
-  // Table (ZHC1661)
-  // =========================
-  const renderZhc1661Table = () => (
+  const renderZhc1921Table = () => (
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden w-full max-w-full">
       <div className="w-full overflow-x-auto">
         <table className="w-full table-auto text-[12px]">
@@ -306,18 +210,43 @@ export default function DeviceManagerSection({
                 last seen
               </th>
 
+              <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[44px]">
+                DI-1
+              </th>
+              <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[44px]">
+                DI-2
+              </th>
+              <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[44px]">
+                DI-3
+              </th>
+              <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[44px]">
+                DI-4
+              </th>
+
+              <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[44px]">
+                DO 1
+              </th>
+              <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[44px]">
+                DO 2
+              </th>
+              <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[44px]">
+                DO 3
+              </th>
+              <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[44px]">
+                DO 4
+              </th>
+
               <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[56px]">
                 AI-1
               </th>
               <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[56px]">
                 AI-2
               </th>
-
               <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[56px]">
-                AO-1
+                AI-3
               </th>
               <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[56px]">
-                AO-2
+                AI-4
               </th>
             </tr>
 
@@ -331,12 +260,37 @@ export default function DeviceManagerSection({
               <th className="px-1.5 py-1 border-b border-slate-200" />
 
               <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
                 value
               </th>
               <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
                 value
               </th>
-
               <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
                 value
               </th>
@@ -349,18 +303,18 @@ export default function DeviceManagerSection({
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={9} className="px-3 py-6 text-center text-slate-500">
+                <td colSpan={17} className="px-3 py-6 text-center text-slate-500">
                   Loading...
                 </td>
               </tr>
-            ) : !zhc1661Rows || zhc1661Rows.length === 0 ? (
+            ) : !effectiveRows || effectiveRows.length === 0 ? (
               <tr>
-                <td colSpan={9} className="px-3 py-6 text-center text-slate-500">
+                <td colSpan={17} className="px-3 py-6 text-center text-slate-500">
                   No devices found.
                 </td>
               </tr>
             ) : (
-              zhc1661Rows.map((r, idx) => {
+              effectiveRows.map((r, idx) => {
                 const statusLower = String(r?.status || "").toLowerCase();
                 const dotClass =
                   statusLower === "online" ? "bg-emerald-500" : "bg-slate-400";
@@ -399,18 +353,43 @@ export default function DeviceManagerSection({
                       {formatDateTime(r?.lastSeen)}
                     </td>
 
+                    <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center">
+                      {String(r?.in1 ?? "")}
+                    </td>
+                    <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center">
+                      {String(r?.in2 ?? "")}
+                    </td>
+                    <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center">
+                      {String(r?.in3 ?? "")}
+                    </td>
+                    <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center">
+                      {String(r?.in4 ?? "")}
+                    </td>
+
+                    <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center">
+                      {String(r?.do1 ?? "")}
+                    </td>
+                    <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center">
+                      {String(r?.do2 ?? "")}
+                    </td>
+                    <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center">
+                      {String(r?.do3 ?? "")}
+                    </td>
+                    <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center">
+                      {String(r?.do4 ?? "")}
+                    </td>
+
                     <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center truncate">
                       {r?.ai1 ?? ""}
                     </td>
                     <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center truncate">
                       {r?.ai2 ?? ""}
                     </td>
-
                     <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center truncate">
-                      {r?.ao1 ?? ""}
+                      {r?.ai3 ?? ""}
                     </td>
                     <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center truncate">
-                      {r?.ao2 ?? ""}
+                      {r?.ai4 ?? ""}
                     </td>
                   </tr>
                 );
@@ -422,91 +401,86 @@ export default function DeviceManagerSection({
     </div>
   );
 
-  // =========================
-  // VIEW B: Full section (ZHC1661 / TP4000)
-  // =========================
-  const showRefresh = activeModel === "zhc1661";
+  // wrapper spacing depends on mode
+  const wrapperClass =
+    mode === "page"
+      ? "mt-4 w-full max-w-full"
+      : "mt-10 border-t border-gray-200 pt-6 w-full max-w-full";
 
   return (
     <div className={wrapperClass}>
       <div className="rounded-xl bg-slate-700 text-white px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
-            onClick={onBack}
+            onClick={() => {
+              setNewDeviceId("");
+              setErr("");
+              onBack?.();
+            }}
             className="rounded-lg bg-slate-600 hover:bg-slate-500 px-3 py-2 text-sm"
           >
             ← Back
           </button>
+
           <div>
-            <div className="text-lg font-semibold">{meta.title}</div>
-            <div className="text-xs text-slate-200">{meta.desc}</div>
+            <div className="text-lg font-semibold">
+              Device Manager — ZHC1921 (CF-2000)
+            </div>
+            <div className="text-xs text-slate-200">
+              Add authorized devices and view live I/O status from backend.
+            </div>
           </div>
         </div>
 
-        {showRefresh && (
-          <button
-            onClick={refreshZhc1661}
-            className="rounded-lg bg-slate-600 hover:bg-slate-500 px-3 py-2 text-sm"
-            disabled={loading}
-          >
-            Refresh
-          </button>
-        )}
+        <button
+          onClick={refreshZhc1921}
+          className="rounded-lg bg-slate-600 hover:bg-slate-500 px-3 py-2 text-sm"
+          disabled={loading}
+        >
+          Refresh
+        </button>
       </div>
 
       <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 w-full max-w-full">
-        {/* =========================
-            ZHC1661
-            ========================= */}
-        {activeModel === "zhc1661" && (
-          <>
-            <div className="mb-4">
-              <div className="text-sm font-semibold text-slate-900 mb-2">
-                Add Device ID (authorized backend device)
-              </div>
-
-              <div className="flex flex-col md:flex-row gap-3">
-                <input
-                  value={newDeviceId}
-                  onChange={(e) => setNewDeviceId(e.target.value)}
-                  placeholder="Enter DEVICE ID"
-                  className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300"
-                />
-
-                <button
-                  onClick={addZhc1661Device}
-                  className="md:w-[160px] rounded-lg bg-slate-900 text-white px-4 py-2 text-sm hover:opacity-90 disabled:opacity-50"
-                  disabled={loading}
-                >
-                  + Add Device
-                </button>
-              </div>
-
-              {err && <div className="mt-2 text-xs text-red-600">{err}</div>}
-
-              <div className="mt-2 text-xs text-slate-500">
-                Owner only. This will create a new row in the backend table.
-              </div>
-
-              <div className="mt-2 text-xs text-slate-500">
-                Note: backend endpoints expected:{" "}
-                <span className="font-semibold">GET /zhc1661/devices</span> and{" "}
-                <span className="font-semibold">POST /zhc1661/devices</span>
-              </div>
-            </div>
-
-            {renderZhc1661Table()}
-          </>
-        )}
-
-        {/* =========================
-            TP-4000 placeholder
-            ========================= */}
-        {activeModel === "tp4000" && (
-          <div className="text-sm text-slate-700">
-            Next: build the TP-4000 backend table + add device input.
+        <div className="mb-4">
+          <div className="text-sm font-semibold text-slate-900 mb-2">
+            Add Device ID (authorized backend device)
           </div>
-        )}
+
+          <div className="flex flex-col md:flex-row gap-3">
+            <input
+              value={newDeviceId}
+              onChange={(e) => setNewDeviceId(e.target.value)}
+              placeholder="Enter DEVICE ID (example: 1921251024070670)"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !loading) addZhc1921Device();
+              }}
+            />
+
+            <button
+              onClick={addZhc1921Device}
+              className="md:w-[160px] rounded-lg bg-slate-900 text-white px-4 py-2 text-sm hover:opacity-90 disabled:opacity-50"
+              disabled={loading}
+            >
+              + Add Device
+            </button>
+          </div>
+
+          {err && <div className="mt-2 text-xs text-red-600">{err}</div>}
+
+          <div className="mt-2 text-xs text-slate-500">
+            Owner only. This will create a new row in the backend table.
+          </div>
+
+          {!!ownerEmail && (
+            <div className="mt-1 text-[11px] text-slate-400">
+              Owner: {ownerEmail}
+            </div>
+          )}
+        </div>
+
+        {renderZhc1921Table()}
       </div>
     </div>
   );
