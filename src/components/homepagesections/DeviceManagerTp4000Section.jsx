@@ -229,8 +229,31 @@ export default function DeviceManagerTp4000Section({
   const effectiveRows = setTp4000Rows ? rows : localRows;
   const setRows = setTp4000Rows || setLocalRows;
 
-  async function loadTp4000() {
-    setLoading(true);
+  // ✅ LIVE polling controls (same pattern as CF-2000 / ZHC1661)
+  const POLL_MS = 3000;
+  const isMountedRef = React.useRef(true);
+  const firstLoadDoneRef = React.useRef(false);
+
+  const loadingRef = React.useRef(false);
+  const deletingRef = React.useRef(false);
+  const confirmOpenRef = React.useRef(false);
+
+  React.useEffect(() => {
+    loadingRef.current = loading;
+  }, [loading]);
+
+  React.useEffect(() => {
+    deletingRef.current = deleting;
+  }, [deleting]);
+
+  React.useEffect(() => {
+    confirmOpenRef.current = confirmOpen;
+  }, [confirmOpen]);
+
+  const lastJsonRef = React.useRef("");
+
+  async function loadTp4000({ silent = false } = {}) {
+    if (!silent) setLoading(true);
     setErr("");
 
     try {
@@ -242,12 +265,28 @@ export default function DeviceManagerTp4000Section({
 
       // ✅ Backend must provide: GET /tp4000/devices
       const data = await apiFetch("/tp4000/devices", { method: "GET" });
+      if (!isMountedRef.current) return;
+
       const list = Array.isArray(data) ? data : [];
-      setRows(list.map(normalizeTp4000Row));
+      const normalized = list.map(normalizeTp4000Row);
+
+      const json = JSON.stringify(normalized);
+
+      // ✅ if nothing changed, don't touch state (prevents flicker)
+      if (silent && json === lastJsonRef.current) {
+        firstLoadDoneRef.current = true;
+        return;
+      }
+
+      lastJsonRef.current = json;
+      setRows(normalized);
+      firstLoadDoneRef.current = true;
     } catch (e) {
-      setErr(e.message || "Failed to load devices.");
+      if (!silent || !firstLoadDoneRef.current) {
+        setErr(e.message || "Failed to load devices.");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
@@ -268,7 +307,7 @@ export default function DeviceManagerTp4000Section({
       });
 
       setNewDeviceId("");
-      await loadTp4000();
+      await loadTp4000({ silent: false });
     } catch (e) {
       setErr(e.message || "Failed to add device.");
     } finally {
@@ -277,7 +316,7 @@ export default function DeviceManagerTp4000Section({
   }
 
   function refreshTp4000() {
-    loadTp4000();
+    loadTp4000({ silent: false });
   }
 
   // ✅ open confirm modal
@@ -306,14 +345,14 @@ export default function DeviceManagerTp4000Section({
         method: "DELETE",
       });
 
-      await loadTp4000();
+      await loadTp4000({ silent: false });
     } catch (e) {
       // fallback endpoint (optional)
       try {
         await apiFetch(`/tp4000/devices/${encodeURIComponent(id)}`, {
           method: "DELETE",
         });
-        await loadTp4000();
+        await loadTp4000({ silent: false });
       } catch (e2) {
         setErr(e2.message || e.message || "Remove failed");
       }
@@ -322,8 +361,26 @@ export default function DeviceManagerTp4000Section({
     }
   }
 
+  // ✅ mount + polling RUNS ONCE (prevents interval re-create)
   React.useEffect(() => {
-    loadTp4000();
+    isMountedRef.current = true;
+
+    // first load
+    loadTp4000({ silent: false });
+
+    const intervalId = setInterval(() => {
+      if (document.hidden) return;
+      if (loadingRef.current) return;
+      if (deletingRef.current) return;
+      if (confirmOpenRef.current) return;
+
+      loadTp4000({ silent: true });
+    }, POLL_MS);
+
+    return () => {
+      isMountedRef.current = false;
+      clearInterval(intervalId);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -394,7 +451,7 @@ export default function DeviceManagerTp4000Section({
           </thead>
 
           <tbody>
-            {loading ? (
+            {loading && effectiveRows.length === 0 ? (
               <tr>
                 <td
                   colSpan={6 + TP4000_TE_COLUMNS.length}
@@ -481,7 +538,8 @@ export default function DeviceManagerTp4000Section({
       </div>
 
       <div className="px-3 py-2 text-[11px] text-slate-500">
-        Tip: You can scroll horizontally inside this table.
+        Tip: You can scroll horizontally inside this table. Live updates run
+        every 3 seconds.
       </div>
     </div>
   );

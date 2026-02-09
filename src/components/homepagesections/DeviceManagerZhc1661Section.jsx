@@ -193,7 +193,7 @@ export default function DeviceManagerZhc1661Section({
   const [err, setErr] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
-  // ✅ confirm modal state (same pattern as CF-2000)
+  // ✅ confirm modal state
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [pendingDeleteId, setPendingDeleteId] = React.useState("");
   const [deleting, setDeleting] = React.useState(false);
@@ -203,8 +203,31 @@ export default function DeviceManagerZhc1661Section({
   const effectiveRows = setZhc1661Rows ? rows : localRows;
   const setRows = setZhc1661Rows || setLocalRows;
 
-  async function loadZhc1661() {
-    setLoading(true);
+  // ✅ LIVE polling controls (same pattern as CF-2000)
+  const POLL_MS = 3000;
+  const isMountedRef = React.useRef(true);
+  const firstLoadDoneRef = React.useRef(false);
+
+  const loadingRef = React.useRef(false);
+  const deletingRef = React.useRef(false);
+  const confirmOpenRef = React.useRef(false);
+
+  React.useEffect(() => {
+    loadingRef.current = loading;
+  }, [loading]);
+
+  React.useEffect(() => {
+    deletingRef.current = deleting;
+  }, [deleting]);
+
+  React.useEffect(() => {
+    confirmOpenRef.current = confirmOpen;
+  }, [confirmOpen]);
+
+  const lastJsonRef = React.useRef("");
+
+  async function loadZhc1661({ silent = false } = {}) {
+    if (!silent) setLoading(true);
     setErr("");
 
     try {
@@ -215,12 +238,28 @@ export default function DeviceManagerZhc1661Section({
       }
 
       const data = await apiFetch("/zhc1661/devices", { method: "GET" });
+      if (!isMountedRef.current) return;
+
       const list = Array.isArray(data) ? data : [];
-      setRows(list.map(normalizeZhc1661Row));
+      const normalized = list.map(normalizeZhc1661Row);
+
+      const json = JSON.stringify(normalized);
+
+      // ✅ if nothing changed, don't touch state (prevents flicker)
+      if (silent && json === lastJsonRef.current) {
+        firstLoadDoneRef.current = true;
+        return;
+      }
+
+      lastJsonRef.current = json;
+      setRows(normalized);
+      firstLoadDoneRef.current = true;
     } catch (e) {
-      setErr(e.message || "Failed to load devices.");
+      if (!silent || !firstLoadDoneRef.current) {
+        setErr(e.message || "Failed to load devices.");
+      }
     } finally {
-      setLoading(false);
+      if (!silent) setLoading(false);
     }
   }
 
@@ -239,7 +278,7 @@ export default function DeviceManagerZhc1661Section({
       });
 
       setNewDeviceId("");
-      await loadZhc1661();
+      await loadZhc1661({ silent: false });
     } catch (e) {
       setErr(e.message || "Failed to add device.");
     } finally {
@@ -248,7 +287,7 @@ export default function DeviceManagerZhc1661Section({
   }
 
   function refreshZhc1661() {
-    loadZhc1661();
+    loadZhc1661({ silent: false });
   }
 
   // ✅ open confirm modal
@@ -259,12 +298,12 @@ export default function DeviceManagerZhc1661Section({
     setConfirmOpen(true);
   }
 
-  // ✅ confirm remove (UNCLAIM)
+  // ✅ confirm remove (UNCLAIM / DELETE fallback)
   async function confirmDelete() {
     const id = String(pendingDeleteId || "").trim();
     if (!id) return;
 
-    // ✅ close immediately
+    // close immediately
     setConfirmOpen(false);
     setPendingDeleteId("");
 
@@ -272,19 +311,16 @@ export default function DeviceManagerZhc1661Section({
     setErr("");
 
     try {
-      // preferred endpoint (match CF-2000 style)
       await apiFetch(`/zhc1661/unclaim/${encodeURIComponent(id)}`, {
         method: "DELETE",
       });
-
-      await loadZhc1661();
+      await loadZhc1661({ silent: false });
     } catch (e) {
-      // fallback endpoint (optional)
       try {
         await apiFetch(`/zhc1661/devices/${encodeURIComponent(id)}`, {
           method: "DELETE",
         });
-        await loadZhc1661();
+        await loadZhc1661({ silent: false });
       } catch (e2) {
         setErr(e2.message || e.message || "Remove failed");
       }
@@ -293,8 +329,26 @@ export default function DeviceManagerZhc1661Section({
     }
   }
 
+  // ✅ mount + polling RUNS ONCE (prevents interval re-create)
   React.useEffect(() => {
-    loadZhc1661();
+    isMountedRef.current = true;
+
+    // first load
+    loadZhc1661({ silent: false });
+
+    const intervalId = setInterval(() => {
+      if (document.hidden) return;
+      if (loadingRef.current) return;
+      if (deletingRef.current) return;
+      if (confirmOpenRef.current) return;
+
+      loadZhc1661({ silent: true });
+    }, POLL_MS);
+
+    return () => {
+      isMountedRef.current = false;
+      clearInterval(intervalId);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -340,7 +394,6 @@ export default function DeviceManagerZhc1661Section({
                 AO-2
               </th>
 
-              {/* ✅ NEW Action column */}
               <th className="text-right font-bold text-slate-900 px-1.5 py-1 border-b border-blue-300 w-[112px]">
                 Action
               </th>
@@ -380,15 +433,21 @@ export default function DeviceManagerZhc1661Section({
           </thead>
 
           <tbody>
-            {loading ? (
+            {loading && effectiveRows.length === 0 ? (
               <tr>
-                <td colSpan={12} className="px-3 py-6 text-center text-slate-500">
+                <td
+                  colSpan={12}
+                  className="px-3 py-6 text-center text-slate-500"
+                >
                   Loading...
                 </td>
               </tr>
             ) : !effectiveRows || effectiveRows.length === 0 ? (
               <tr>
-                <td colSpan={12} className="px-3 py-6 text-center text-slate-500">
+                <td
+                  colSpan={12}
+                  className="px-3 py-6 text-center text-slate-500"
+                >
                   No devices found.
                 </td>
               </tr>
@@ -422,7 +481,9 @@ export default function DeviceManagerZhc1661Section({
                         <span
                           className={`inline-block w-2 h-2 rounded-full ${dotClass}`}
                         />
-                        <span className="capitalize">{r?.status || "offline"}</span>
+                        <span className="capitalize">
+                          {r?.status || "offline"}
+                        </span>
                       </div>
                     </td>
 
@@ -450,7 +511,6 @@ export default function DeviceManagerZhc1661Section({
                       {r?.ao2 ?? ""}
                     </td>
 
-                    {/* ✅ NEW Remove button */}
                     <td className="px-1.5 py-1 border-b border-slate-100 text-right">
                       <button
                         onClick={() => requestDelete(r)}
@@ -470,7 +530,8 @@ export default function DeviceManagerZhc1661Section({
       </div>
 
       <div className="px-3 py-2 text-[11px] text-slate-500">
-        Tip: You can scroll horizontally inside this table.
+        Tip: You can scroll horizontally inside this table. Live updates run
+        every 3 seconds.
       </div>
     </div>
   );
