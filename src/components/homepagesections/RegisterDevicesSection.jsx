@@ -1,13 +1,12 @@
 import React from "react";
 import { API_URL } from "../../config/api";
 
-// Auth headers
+// ✅ ✅ IMPORTANT: use per-tab auth token (sessionStorage-first)
+import { getToken } from "../../utils/authToken";
+
+// Auth headers (single source of truth)
 function getAuthHeaders() {
-  const token =
-    localStorage.getItem("coreflex_token") ||
-    localStorage.getItem("token") ||
-    localStorage.getItem("access_token") ||
-    "";
+  const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
@@ -86,7 +85,6 @@ function ConfirmDeleteModal({ open, deviceId, busy, onCancel, onConfirm }) {
                     Cancel
                   </button>
 
-                  {/* ✅ Button style matches Admin Dashboard delete vibe */}
                   <button
                     onClick={onConfirm}
                     disabled={busy}
@@ -99,7 +97,6 @@ function ConfirmDeleteModal({ open, deviceId, busy, onCancel, onConfirm }) {
             </div>
           </div>
 
-          {/* subtle bottom border like a dialog frame */}
           <div className="h-[1px] bg-slate-100" />
         </div>
       </div>
@@ -129,7 +126,14 @@ export default function RegisterDevicesSection({ onBack }) {
   async function loadMyDevices() {
     setLoading(true);
     setErr("");
+
     try {
+      const token = String(getToken() || "").trim();
+      if (!token) {
+        setRows([]);
+        throw new Error("Missing auth token. Please logout and login again.");
+      }
+
       const res = await fetch(`${API_URL}/zhc1921/my-devices`, {
         headers: {
           "Content-Type": "application/json",
@@ -159,7 +163,13 @@ export default function RegisterDevicesSection({ onBack }) {
 
     setLoading(true);
     setErr("");
+
     try {
+      const token = String(getToken() || "").trim();
+      if (!token) {
+        throw new Error("Missing auth token. Please logout and login again.");
+      }
+
       const res = await fetch(`${API_URL}/zhc1921/claim`, {
         method: "POST",
         headers: {
@@ -191,7 +201,7 @@ export default function RegisterDevicesSection({ onBack }) {
     setConfirmOpen(true);
   }
 
-  // ✅ confirm remove (UNCLAIM) — Option A: DELETE /zhc1921/unclaim/{device_id}
+  // ✅ confirm remove (UNCLAIM)
   async function confirmDelete() {
     const id = String(pendingDeleteId || "").trim();
     if (!id) return;
@@ -202,7 +212,13 @@ export default function RegisterDevicesSection({ onBack }) {
 
     setDeleting(true);
     setErr("");
+
     try {
+      const token = String(getToken() || "").trim();
+      if (!token) {
+        throw new Error("Missing auth token. Please logout and login again.");
+      }
+
       const res = await fetch(
         `${API_URL}/zhc1921/unclaim/${encodeURIComponent(id)}`,
         {
@@ -218,7 +234,6 @@ export default function RegisterDevicesSection({ onBack }) {
         throw new Error(j?.detail || `Remove failed (${res.status})`);
       }
 
-      // ✅ refresh list (device disappears because it's unclaimed)
       await loadMyDevices();
     } catch (e) {
       setErr(e.message || "Remove failed");
@@ -232,9 +247,7 @@ export default function RegisterDevicesSection({ onBack }) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeModel]);
 
-  // =========================
   // VIEW A: MODEL SELECTION
-  // =========================
   if (!activeModel) {
     return (
       <div className="mt-6 rounded-xl border border-slate-200 bg-white overflow-hidden">
@@ -271,9 +284,7 @@ export default function RegisterDevicesSection({ onBack }) {
     );
   }
 
-  // =========================
   // VIEW B: CF-2000
-  // =========================
   if (activeModel === "cf2000") {
     return (
       <>
@@ -345,7 +356,6 @@ export default function RegisterDevicesSection({ onBack }) {
 
             <div className="rounded-xl border overflow-hidden">
               <div className="overflow-x-auto">
-                {/* ✅ tight table + right-side Action column */}
                 <table className="w-full table-fixed text-[12px]">
                   <thead>
                     <tr className="bg-blue-200">
@@ -462,7 +472,6 @@ export default function RegisterDevicesSection({ onBack }) {
                             </td>
                           ))}
 
-                          {/* ✅ Button now removes claim (unclaim) */}
                           <td className="px-[6px] py-[3px] text-right">
                             <button
                               onClick={() => requestDelete(r)}
@@ -490,9 +499,7 @@ export default function RegisterDevicesSection({ onBack }) {
     );
   }
 
-  // =========================
-  // VIEW B: placeholders
-  // =========================
+  // placeholders
   const modelLabel = MODELS.find((m) => m.key === activeModel)?.label || "Model";
   return (
     <div className="mt-6 rounded-xl border border-slate-200 bg-white overflow-hidden">
