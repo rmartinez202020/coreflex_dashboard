@@ -128,9 +128,13 @@ export default function DeviceManagerZhc1921Section({
   const [err, setErr] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
+  // ✅ delete UI state (frontend-first)
+  const [deletingId, setDeletingId] = React.useState("");
+
   // ✅ Ensure we always have a local rows state even if parent doesn't pass setters
   const [localRows, setLocalRows] = React.useState([]);
-  const rows = Array.isArray(zhc1921Rows) && zhc1921Rows.length >= 0 ? zhc1921Rows : [];
+  const rows =
+    Array.isArray(zhc1921Rows) && zhc1921Rows.length >= 0 ? zhc1921Rows : [];
   const effectiveRows = setZhc1921Rows ? rows : localRows;
   const setRows = setZhc1921Rows || setLocalRows;
 
@@ -175,6 +179,35 @@ export default function DeviceManagerZhc1921Section({
       setErr(e.message || "Failed to add device.");
     } finally {
       setLoading(false);
+    }
+  }
+
+  // ✅ NEW: delete button handler (frontend-first; calls an endpoint placeholder)
+  async function deleteZhc1921Device(deviceId) {
+    const id = String(deviceId || "").trim();
+    if (!id) return;
+
+    // frontend first: optimistic disable + simple confirm
+    const ok = window.confirm(
+      `Delete device ${id} from backend list?\n\nThis will remove the device row.`
+    );
+    if (!ok) return;
+
+    setDeletingId(id);
+    setErr("");
+
+    try {
+      // ✅ backend will be implemented next:
+      // Choose the final endpoint later (example placeholder below)
+      await apiFetch(`/zhc1921/devices/${encodeURIComponent(id)}`, {
+        method: "DELETE",
+      });
+
+      await loadZhc1921();
+    } catch (e) {
+      setErr(e.message || "Failed to delete device.");
+    } finally {
+      setDeletingId("");
     }
   }
 
@@ -248,6 +281,11 @@ export default function DeviceManagerZhc1921Section({
               <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[56px]">
                 AI-4
               </th>
+
+              {/* ✅ NEW: delete column (right side) */}
+              <th className="text-center font-bold text-slate-900 px-1.5 py-1 border-b border-blue-300 w-[86px]">
+                Delete
+              </th>
             </tr>
 
             <tr className="bg-white text-[11px]">
@@ -297,19 +335,28 @@ export default function DeviceManagerZhc1921Section({
               <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
                 value
               </th>
+
+              {/* delete column subtitle row */}
+              <th className="px-1.5 py-1 border-b border-slate-200" />
             </tr>
           </thead>
 
           <tbody>
             {loading ? (
               <tr>
-                <td colSpan={17} className="px-3 py-6 text-center text-slate-500">
+                <td
+                  colSpan={18}
+                  className="px-3 py-6 text-center text-slate-500"
+                >
                   Loading...
                 </td>
               </tr>
             ) : !effectiveRows || effectiveRows.length === 0 ? (
               <tr>
-                <td colSpan={17} className="px-3 py-6 text-center text-slate-500">
+                <td
+                  colSpan={18}
+                  className="px-3 py-6 text-center text-slate-500"
+                >
                   No devices found.
                 </td>
               </tr>
@@ -318,6 +365,8 @@ export default function DeviceManagerZhc1921Section({
                 const statusLower = String(r?.status || "").toLowerCase();
                 const dotClass =
                   statusLower === "online" ? "bg-emerald-500" : "bg-slate-400";
+
+                const isDeletingThis = deletingId === String(r?.deviceId || "");
 
                 return (
                   <tr
@@ -390,6 +439,18 @@ export default function DeviceManagerZhc1921Section({
                     </td>
                     <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center truncate">
                       {r?.ai4 ?? ""}
+                    </td>
+
+                    {/* ✅ NEW: delete button cell */}
+                    <td className="px-1.5 py-1 border-b border-slate-100 text-center">
+                      <button
+                        onClick={() => deleteZhc1921Device(r?.deviceId)}
+                        disabled={loading || !!deletingId}
+                        className="inline-flex items-center justify-center rounded-md bg-red-600 px-2.5 py-1 text-[12px] font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                        title="Delete device row"
+                      >
+                        {isDeletingThis ? "Deleting..." : "Delete"}
+                      </button>
                     </td>
                   </tr>
                 );
