@@ -195,7 +195,8 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
 
     try {
       const token = String(getToken() || "").trim();
-      if (!token) throw new Error("Missing auth token. Please logout and login again.");
+      if (!token)
+        throw new Error("Missing auth token. Please logout and login again.");
 
       const res = await fetch(`${API_URL}/zhc1921/claim`, {
         method: "POST",
@@ -239,12 +240,16 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
 
     try {
       const token = String(getToken() || "").trim();
-      if (!token) throw new Error("Missing auth token. Please logout and login again.");
+      if (!token)
+        throw new Error("Missing auth token. Please logout and login again.");
 
-      const res = await fetch(`${API_URL}/zhc1921/unclaim/${encodeURIComponent(id)}`, {
-        method: "DELETE",
-        headers: { ...getAuthHeaders() },
-      });
+      const res = await fetch(
+        `${API_URL}/zhc1921/unclaim/${encodeURIComponent(id)}`,
+        {
+          method: "DELETE",
+          headers: { ...getAuthHeaders() },
+        }
+      );
 
       if (!res.ok) {
         const j = await res.json().catch(() => ({}));
@@ -310,7 +315,8 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
                 Register Devices — Model CF-2000
               </div>
               <div className="text-xs text-sky-100">
-                Enter a DEVICE ID. We verify it exists and assign it to your account.
+                Enter a DEVICE ID. We verify it exists and assign it to your
+                account.
               </div>
             </div>
           </div>
@@ -326,7 +332,9 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
 
         <div className="p-4">
           <div className="mb-4">
-            <div className="text-sm font-semibold mb-2">Add / Claim Device ID</div>
+            <div className="text-sm font-semibold mb-2">
+              Add / Claim Device ID
+            </div>
 
             <div className="flex gap-3">
               <input
@@ -361,7 +369,7 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
                     <th className="px-[6px] py-[3px] w-[135px] text-left font-bold text-slate-900">
                       Date
                     </th>
-                    <th className="px-[6px] py-[3px] w-[72px] text-left font-bold text-slate-900">
+                    <th className="px-[6px] py-[3px] w-[88px] text-left font-bold text-slate-900">
                       Status
                     </th>
                     <th className="px-[6px] py-[3px] w-[135px] text-left font-bold text-slate-900 border-r border-blue-300">
@@ -369,9 +377,18 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
                     </th>
 
                     {[
-                      "DI-1","DI-2","DI-3","DI-4",
-                      "DO-1","DO-2","DO-3","DO-4",
-                      "AI-1","AI-2","AI-3","AI-4",
+                      "DI-1",
+                      "DI-2",
+                      "DI-3",
+                      "DI-4",
+                      "DO-1",
+                      "DO-2",
+                      "DO-3",
+                      "DO-4",
+                      "AI-1",
+                      "AI-2",
+                      "AI-3",
+                      "AI-4",
                     ].map((k) => (
                       <th
                         key={k}
@@ -390,64 +407,110 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
                 <tbody>
                   {loading && rows.length === 0 ? (
                     <tr>
-                      <td colSpan={17} className="text-center py-6 text-slate-500">
+                      <td
+                        colSpan={17}
+                        className="text-center py-6 text-slate-500"
+                      >
                         Loading...
                       </td>
                     </tr>
                   ) : !rows.length ? (
                     <tr>
-                      <td colSpan={17} className="text-center py-6 text-slate-500">
+                      <td
+                        colSpan={17}
+                        className="text-center py-6 text-slate-500"
+                      >
                         No registered devices yet.
                       </td>
                     </tr>
                   ) : (
-                    rows.map((r, i) => (
-                      <tr key={i} className={i % 2 ? "bg-slate-50" : "bg-white"}>
-                        <td className="px-[6px] py-[3px] truncate text-slate-800">
-                          {r.deviceId}
-                        </td>
+                    rows.map((r, i) => {
+                      const statusLower = String(r?.status || "")
+                        .trim()
+                        .toLowerCase();
+                      const isOnline = statusLower === "online";
+                      const dotClass = isOnline
+                        ? "bg-emerald-500"
+                        : "bg-slate-400";
 
-                        <td className="px-[6px] py-[3px] truncate text-slate-800" title={r.addedAt || ""}>
-                          {formatDateMMDDYYYY_hmma(r.addedAt)}
-                        </td>
-
-                        <td className="px-[6px] py-[3px] capitalize text-slate-800">
-                          {r.status}
-                        </td>
-
-                        <td className="px-[6px] py-[3px] truncate text-slate-800 border-r border-slate-200" title={r.lastSeen || ""}>
-                          {formatDateMMDDYYYY_hmma(r.lastSeen)}
-                        </td>
-
-                        {[
-                          r.in1,r.in2,r.in3,r.in4,
-                          r.do1,r.do2,r.do3,r.do4,
-                          r.ai1,r.ai2,r.ai3,r.ai4,
-                        ].map((v, j) => (
-                          <td key={j} className="text-center px-[4px] py-[3px] text-slate-800">
-                            {String(v ?? "")}
+                      return (
+                        <tr
+                          key={i}
+                          className={i % 2 ? "bg-slate-50" : "bg-white"}
+                        >
+                          <td className="px-[6px] py-[3px] truncate text-slate-800">
+                            {r.deviceId}
                           </td>
-                        ))}
 
-                        <td className="px-[6px] py-[3px] text-right">
-                          <button
-                            onClick={() => requestDelete(r)}
-                            disabled={loading || deleting}
-                            className="inline-flex items-center justify-center rounded-lg bg-red-600 px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-50"
-                            title="Remove device from my account"
+                          <td
+                            className="px-[6px] py-[3px] truncate text-slate-800"
+                            title={r.addedAt || ""}
                           >
-                            Remove
-                          </button>
-                        </td>
-                      </tr>
-                    ))
+                            {formatDateMMDDYYYY_hmma(r.addedAt)}
+                          </td>
+
+                          {/* ✅ Status with green dot when Online */}
+                          <td className="px-[6px] py-[3px] text-slate-800">
+                            <div className="flex items-center gap-1.5">
+                              <span
+                                className={`inline-block w-2 h-2 rounded-full ${dotClass}`}
+                              />
+                              <span className="capitalize">
+                                {r.status || "offline"}
+                              </span>
+                            </div>
+                          </td>
+
+                          <td
+                            className="px-[6px] py-[3px] truncate text-slate-800 border-r border-slate-200"
+                            title={r.lastSeen || ""}
+                          >
+                            {formatDateMMDDYYYY_hmma(r.lastSeen)}
+                          </td>
+
+                          {[
+                            r.in1,
+                            r.in2,
+                            r.in3,
+                            r.in4,
+                            r.do1,
+                            r.do2,
+                            r.do3,
+                            r.do4,
+                            r.ai1,
+                            r.ai2,
+                            r.ai3,
+                            r.ai4,
+                          ].map((v, j) => (
+                            <td
+                              key={j}
+                              className="text-center px-[4px] py-[3px] text-slate-800"
+                            >
+                              {String(v ?? "")}
+                            </td>
+                          ))}
+
+                          <td className="px-[6px] py-[3px] text-right">
+                            <button
+                              onClick={() => requestDelete(r)}
+                              disabled={loading || deleting}
+                              className="inline-flex items-center justify-center rounded-lg bg-red-600 px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-50"
+                              title="Remove device from my account"
+                            >
+                              Remove
+                            </button>
+                          </td>
+                        </tr>
+                      );
+                    })
                   )}
                 </tbody>
               </table>
             </div>
 
             <div className="px-3 py-2 text-[11px] text-slate-500">
-              Tip: You can scroll horizontally inside this table. Live updates run every 3 seconds.
+              Tip: You can scroll horizontally inside this table. Live updates
+              run every 3 seconds.
             </div>
           </div>
         </div>
