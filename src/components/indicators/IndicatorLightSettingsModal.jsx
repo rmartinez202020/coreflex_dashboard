@@ -1,5 +1,24 @@
 // src/components/indicators/IndicatorLightSettingsModal.jsx
 import React from "react";
+import { API_URL } from "../../config/api";
+
+// ✅ per-tab token
+import { getToken } from "../../utils/authToken";
+
+function getAuthHeaders() {
+  const token = String(getToken() || "").trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// ✅ CF-2000 digital inputs are fixed
+const CF2000_DI_FIELDS = [
+  { key: "di1", label: "DI-1" },
+  { key: "di2", label: "DI-2" },
+  { key: "di3", label: "DI-3" },
+  { key: "di4", label: "DI-4" },
+  { key: "di5", label: "DI-5" },
+  { key: "di6", label: "DI-6" },
+];
 
 export default function IndicatorLightSettingsModal({
   open,
@@ -34,15 +53,19 @@ export default function IndicatorLightSettingsModal({
   // ✅ optional: search/filter tags
   const [tagSearch, setTagSearch] = React.useState("");
 
+  // ✅ devices list for dropdown (fallback to API if sensorsData has none)
+  const [devices, setDevices] = React.useState([]);
+  const [devicesErr, setDevicesErr] = React.useState("");
+
   // --- helpers for UI preview
-  const previewSize = 56; // ✅ bigger
+  const previewSize = 56;
   const borderRadius = shapeStyle === "square" ? 12 : 999;
 
   // =========================
   // ✅ DRAGGABLE MODAL WINDOW
   // =========================
   const MODAL_W = 620;
-  const MODAL_H = 650; // estimate for initial clamping
+  const MODAL_H = 650;
 
   const clampRaw = (x, y) => {
     const pad = 10;
@@ -114,64 +137,103 @@ export default function IndicatorLightSettingsModal({
   };
 
   // =========================
-  // ✅ DATA HELPERS
+  // ✅ LOAD DEVICES FOR DROPDOWN
   // =========================
-  const devices = React.useMemo(() => {
-    const d = sensorsData?.devices;
-    return Array.isArray(d) ? d : [];
-  }, [sensorsData]);
+  React.useEffect(() => {
+    let alive = true;
+
+    async function loadDevices() {
+      setDevicesErr("");
+
+      // 1) Try sensorsData.devices if present
+      const sd = sensorsData?.devices;
+      if (Array.isArray(sd) && sd.length > 0) {
+        const mapped = sd
+          .map((d) => ({
+            id: String(d.id ?? d.deviceId ?? d.device_id ?? "").trim(),
+            name: d.name || d.label || String(d.id ?? d.deviceId ?? d.device_id),
+          }))
+          .filter((x) => x.id);
+        if (mapped.length > 0) {
+          if (alive) setDevices(mapped);
+          return;
+        }
+      }
+
+      // 2) Fallback: infer from sensorsData.latest / values keys
+      const inferredKeys = Object.keys(sensorsData?.latest || {});
+      if (inferredKeys.length > 0) {
+        const mapped = inferredKeys.map((k) => ({ id: String(k), name: String(k) }));
+        if (alive) setDevices(mapped);
+        return;
+      }
+
+      const inferredKeys2 = Object.keys(sensorsData?.values || {});
+      if (inferredKeys2.length > 0) {
+        const mapped = inferredKeys2.map((k) => ({ id: String(k), name: String(k) }));
+        if (alive) setDevices(mapped);
+        return;
+      }
+
+      // 3) BEST fallback: fetch claimed CF-2000 devices for this user
+      try {
+        const token = String(getToken() || "").trim();
+        if (!token) {
+          if (alive) {
+            setDevices([]);
+            setDevicesErr("Missing auth token. Please logout and login again.");
+          }
+          return;
+        }
+
+        const res = await fetch(`${API_URL}/zhc1921/my-devices`, {
+          headers: { ...getAuthHeaders() },
+        });
+
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}));
+          throw new Error(j?.detail || `Failed to load devices (${res.status})`);
+        }
+
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : [];
+
+        const mapped = list
+          .map((r) => ({
+            id: String(r.deviceId ?? r.device_id ?? "").trim(),
+            name: String(r.deviceId ?? r.device_id ?? "").trim(),
+          }))
+          .filter((x) => x.id);
+
+        if (alive) setDevices(mapped);
+      } catch (e) {
+        if (alive) {
+          setDevices([]);
+          setDevicesErr(e.message || "Failed to load devices for this user.");
+        }
+      }
+    }
+
+    if (open) loadDevices();
+
+    return () => {
+      alive = false;
+    };
+  }, [open, sensorsData]);
 
   const selectedDevice = React.useMemo(() => {
     return devices.find((d) => String(d.id) === String(deviceId)) || null;
   }, [devices, deviceId]);
 
-  // normalize available fields (same logic you used before)
-  const allFieldsForSelected = React.useMemo(() => {
-    const raw = selectedDevice?.fields;
-    if (!raw) return [];
-
-    if (Array.isArray(raw) && typeof raw[0] === "string") {
-      return raw.map((k) => ({ key: k, label: k }));
-    }
-    if (Array.isArray(raw) && typeof raw[0] === "object") {
-      return raw
-        .map((x) => ({
-          key: x.key ?? x.field ?? x.name ?? "",
-          label: x.label ?? x.name ?? x.field ?? x.key ?? "",
-        }))
-        .filter((x) => x.key);
-    }
-    return [];
-  }, [selectedDevice]);
-
-  // Helper: determine if a field key refers to a digital input (DI/IN)
-  const isDigitalFieldKey = React.useCallback((k) => {
-    if (!k || typeof k !== "string") return false;
-    const s = k.trim().toLowerCase();
-    // Accept patterns: di1, di-1, di_1, in1, in-1, in_1 (robust)
-    return /^((di|in)[-_]?\d+)$/i.test(s) || /^d i[-_]?(\d+)$/i.test(s) === false; // fallback prevented
-  }, []);
-
-  // produce only DI fields (digital inputs) for the selected device
-  const digitalFields = React.useMemo(() => {
-    return allFieldsForSelected.filter((f) => {
-      const k = String(f.key || "").trim();
-      // normalized key (remove whitespace)
-      const nk = k.replace(/\s+/g, "").toLowerCase();
-      return /^((di|in)[-_]?\d+)$/i.test(nk);
-    });
-  }, [allFieldsForSelected]);
-
-  // filtered by tagSearch (applies only to digital fields)
+  // ✅ Only DI fields for CF-2000 (fixed list)
   const filteredFields = React.useMemo(() => {
-    const q = (tagSearch || "").trim().toLowerCase();
-    if (!q) return digitalFields;
-    return digitalFields.filter(
+    const q = tagSearch.trim().toLowerCase();
+    if (!q) return CF2000_DI_FIELDS;
+    return CF2000_DI_FIELDS.filter(
       (f) =>
-        (f.key || "").toLowerCase().includes(q) ||
-        (f.label || "").toLowerCase().includes(q)
+        f.key.toLowerCase().includes(q) || f.label.toLowerCase().includes(q)
     );
-  }, [digitalFields, tagSearch]);
+  }, [tagSearch]);
 
   // =========================
   // ✅ LIVE VALUE / STATUS (Offline vs Online + 0/1)
@@ -188,17 +250,8 @@ export default function IndicatorLightSettingsModal({
     const v3 = sensorsData?.tags?.[deviceId]?.[field];
     if (v3 !== undefined) return v3;
 
-    const v4 = selectedDevice?.values?.[field];
-    if (v4 !== undefined) return v4;
-
-    const v5 = selectedDevice?.tags?.[field];
-    if (v5 !== undefined) return v5;
-
-    const v6 = selectedDevice?.last?.[field];
-    if (v6 !== undefined) return v6;
-
     return undefined;
-  }, [sensorsData, selectedDevice, deviceId, field]);
+  }, [sensorsData, deviceId, field]);
 
   const isOnline = liveRawValue !== undefined && liveRawValue !== null;
 
@@ -222,6 +275,13 @@ export default function IndicatorLightSettingsModal({
     return v ? 1 : 0;
   }, [isOnline, liveRawValue]);
 
+  // ✅ When device changes, clear field + search
+  React.useEffect(() => {
+    setField("");
+    setTagSearch("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deviceId]);
+
   const apply = () => {
     onSave?.({
       id: tank.id,
@@ -236,14 +296,6 @@ export default function IndicatorLightSettingsModal({
       },
     });
   };
-
-  // If user selects a different device, clear field if it's not part of the new digital fields
-  React.useEffect(() => {
-    if (!deviceId) return;
-    const exists = digitalFields.some((f) => String(f.key) === String(field));
-    if (!exists) setField("");
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [deviceId, digitalFields]);
 
   return (
     <div
@@ -276,7 +328,7 @@ export default function IndicatorLightSettingsModal({
         onMouseDown={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
       >
-        {/* Header (DRAG HANDLE) */}
+        {/* Header */}
         <div
           onPointerDown={startDrag}
           onDoubleClick={(e) => {
@@ -517,6 +569,12 @@ export default function IndicatorLightSettingsModal({
               Tag that drives the LED (ON/OFF)
             </div>
 
+            {devicesErr && (
+              <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>
+                {devicesErr}
+              </div>
+            )}
+
             <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
@@ -524,12 +582,7 @@ export default function IndicatorLightSettingsModal({
                 </div>
                 <select
                   value={deviceId}
-                  onChange={(e) => {
-                    setDeviceId(e.target.value);
-                    // when device changes, clear field to avoid binding to wrong device
-                    setField("");
-                    setTagSearch("");
-                  }}
+                  onChange={(e) => setDeviceId(e.target.value)}
                   style={{
                     width: "100%",
                     padding: "10px 12px",
@@ -542,20 +595,26 @@ export default function IndicatorLightSettingsModal({
                   <option value="">— Select device —</option>
                   {devices.map((d) => (
                     <option key={String(d.id)} value={String(d.id)}>
-                      {d.name || d.label || d.id}
+                      {d.name || d.id}
                     </option>
                   ))}
                 </select>
+
+                {deviceId && selectedDevice && (
+                  <div style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}>
+                    Selected: <b>{selectedDevice.id}</b>
+                  </div>
+                )}
               </div>
 
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-                  Search Tag (digital inputs only)
+                  Search Tag (DI only)
                 </div>
                 <input
                   value={tagSearch}
                   onChange={(e) => setTagSearch(e.target.value)}
-                  placeholder="ex: DI1, DI-2, in3..."
+                  placeholder="ex: DI1, di5..."
                   style={{
                     width: "100%",
                     padding: "10px 12px",
@@ -567,57 +626,41 @@ export default function IndicatorLightSettingsModal({
               </div>
             </div>
 
-            {/* clickable list of matching DI fields */}
+            {/* ✅ DI TAG PICKER */}
             <div style={{ marginBottom: 12 }}>
               {deviceId ? (
-                filteredFields.length > 0 ? (
-                  <div
-                    style={{
-                      display: "flex",
-                      gap: 8,
-                      flexWrap: "wrap",
-                    }}
-                  >
-                    {filteredFields.map((f) => {
-                      const k = String(f.key || "");
-                      const isSelected = String(field || "") === k;
-                      return (
-                        <button
-                          key={k}
-                          onClick={() => {
-                            setField(k);
-                            setTagSearch(String(k));
-                          }}
-                          style={{
-                            padding: "6px 10px",
-                            borderRadius: 8,
-                            border: isSelected
-                              ? "2px solid #16a34a"
-                              : "1px solid #e2e8f0",
-                            background: isSelected ? "#ecfdf5" : "white",
-                            cursor: "pointer",
-                            fontWeight: isSelected ? 900 : 600,
-                            fontSize: 13,
-                          }}
-                        >
-                          {f.label || f.key}
-                        </button>
-                      );
-                    })}
-                  </div>
-                ) : (
-                  <div style={{ color: "#64748b", fontSize: 13 }}>
-                    No digital input tags found for this device.
-                  </div>
-                )
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {filteredFields.map((f) => {
+                    const isSelected = String(field) === String(f.key);
+                    return (
+                      <button
+                        key={f.key}
+                        onClick={() => setField(f.key)}
+                        style={{
+                          padding: "6px 10px",
+                          borderRadius: 8,
+                          border: isSelected
+                            ? "2px solid #16a34a"
+                            : "1px solid #e2e8f0",
+                          background: isSelected ? "#ecfdf5" : "white",
+                          cursor: "pointer",
+                          fontWeight: isSelected ? 900 : 700,
+                          fontSize: 13,
+                        }}
+                      >
+                        {f.label}
+                      </button>
+                    );
+                  })}
+                </div>
               ) : (
                 <div style={{ color: "#64748b", fontSize: 13 }}>
-                  Select a device to list digital inputs.
+                  Select a device to choose a DI tag.
                 </div>
               )}
             </div>
 
-            {/* ✅ Status panel only */}
+            {/* ✅ Status panel */}
             <div
               style={{
                 border: "1px solid #e5e7eb",
@@ -647,12 +690,11 @@ export default function IndicatorLightSettingsModal({
                     )
                   ) : (
                     <span style={{ color: "#64748b" }}>
-                      Select a device and tag
+                      Select a device and DI tag
                     </span>
                   )}
                 </div>
 
-                {/* ✅ Optional: show which tag is currently bound (helps user) */}
                 {deviceId && field && (
                   <div style={{ fontSize: 12, color: "#64748b", marginTop: 6 }}>
                     Bound Tag: <b>{field}</b>
@@ -676,10 +718,6 @@ export default function IndicatorLightSettingsModal({
                 </div>
               </div>
             </div>
-
-            {/* ✅ (hidden) If you still want search to affect what tag is bound,
-                we can auto-pick the first matching field.
-                For now, we do NOT auto-change "field" to avoid surprising behavior. */}
           </div>
         </div>
 
@@ -716,6 +754,7 @@ export default function IndicatorLightSettingsModal({
               e.stopPropagation();
               apply();
             }}
+            disabled={!deviceId || !field}
             style={{
               padding: "9px 14px",
               borderRadius: 10,
@@ -725,6 +764,7 @@ export default function IndicatorLightSettingsModal({
               cursor: "pointer",
               fontWeight: 900,
               fontSize: 14,
+              opacity: !deviceId || !field ? 0.5 : 1,
             }}
           >
             Apply
