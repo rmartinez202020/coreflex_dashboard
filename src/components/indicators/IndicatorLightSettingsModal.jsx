@@ -20,57 +20,6 @@ const CF2000_DI_FIELDS = [
   { key: "di6", label: "DI-6" },
 ];
 
-// ✅ Safe date formatter
-function formatDateMMDDYYYY_hmma(ts) {
-  if (!ts) return "—";
-  const d = new Date(ts);
-  if (Number.isNaN(d.getTime())) return String(ts);
-
-  const mm = String(d.getMonth() + 1).padStart(2, "0");
-  const dd = String(d.getDate()).padStart(2, "0");
-  const yyyy = d.getFullYear();
-
-  let h = d.getHours();
-  const ampm = h >= 12 ? "PM" : "AM";
-  h = h % 12;
-  if (h === 0) h = 12;
-
-  const min = String(d.getMinutes()).padStart(2, "0");
-  return `${mm}/${dd}/${yyyy}-${h}:${min}${ampm}`;
-}
-
-// ✅ Convert anything to 0/1
-function to01(v) {
-  if (v === undefined || v === null) return null;
-  if (typeof v === "boolean") return v ? 1 : 0;
-  if (typeof v === "number") return v > 0 ? 1 : 0;
-  if (typeof v === "string") {
-    const s = v.trim().toLowerCase();
-    if (s === "1" || s === "true" || s === "on" || s === "yes") return 1;
-    if (s === "0" || s === "false" || s === "off" || s === "no") return 0;
-    const n = Number(s);
-    if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
-  }
-  return v ? 1 : 0;
-}
-
-// ✅ Read DI values from backend rows (supports multiple legacy keys)
-function readDiFromRow(row, diKey) {
-  if (!row) return undefined;
-
-  if (row[diKey] !== undefined) return row[diKey];
-
-  const map = { di1: "in1", di2: "in2", di3: "in3", di4: "in4", di5: "in5", di6: "in6" };
-  const alt = map[diKey];
-  if (alt && row[alt] !== undefined) return row[alt];
-
-  const map2 = { di1: "DI1", di2: "DI2", di3: "DI3", di4: "DI4", di5: "DI5", di6: "DI6" };
-  const alt2 = map2[diKey];
-  if (alt2 && row[alt2] !== undefined) return row[alt2];
-
-  return undefined;
-}
-
 export default function IndicatorLightSettingsModal({
   open,
   tank,
@@ -101,14 +50,12 @@ export default function IndicatorLightSettingsModal({
   const [deviceId, setDeviceId] = React.useState(initialDeviceId);
   const [field, setField] = React.useState(initialField);
 
+  // ✅ optional: search/filter tags
   const [tagSearch, setTagSearch] = React.useState("");
 
+  // ✅ devices list for dropdown (fallback to API if sensorsData has none)
   const [devices, setDevices] = React.useState([]);
   const [devicesErr, setDevicesErr] = React.useState("");
-
-  const [telemetryRow, setTelemetryRow] = React.useState(null);
-  const [telemetryErr, setTelemetryErr] = React.useState("");
-  const telemetryRef = React.useRef({ loading: false });
 
   // --- helpers for UI preview
   const previewSize = 56;
@@ -117,8 +64,8 @@ export default function IndicatorLightSettingsModal({
   // =========================
   // ✅ DRAGGABLE MODAL WINDOW
   // =========================
-  const MODAL_W = Math.min(1040, window.innerWidth - 60);
-  const MODAL_H = 560;
+  const MODAL_W = 980;
+  const MODAL_H = 520;
 
   const clampRaw = (x, y) => {
     const pad = 10;
@@ -198,7 +145,37 @@ export default function IndicatorLightSettingsModal({
     async function loadDevices() {
       setDevicesErr("");
 
-      // best: fetch claimed CF-2000 devices
+      // 1) Try sensorsData.devices if present
+      const sd = sensorsData?.devices;
+      if (Array.isArray(sd) && sd.length > 0) {
+        const mapped = sd
+          .map((d) => ({
+            id: String(d.id ?? d.deviceId ?? d.device_id ?? "").trim(),
+            name: d.name || d.label || String(d.id ?? d.deviceId ?? d.device_id),
+          }))
+          .filter((x) => x.id);
+        if (mapped.length > 0) {
+          if (alive) setDevices(mapped);
+          return;
+        }
+      }
+
+      // 2) Fallback: infer from sensorsData.latest / values keys
+      const inferredKeys = Object.keys(sensorsData?.latest || {});
+      if (inferredKeys.length > 0) {
+        const mapped = inferredKeys.map((k) => ({ id: String(k), name: String(k) }));
+        if (alive) setDevices(mapped);
+        return;
+      }
+
+      const inferredKeys2 = Object.keys(sensorsData?.values || {});
+      if (inferredKeys2.length > 0) {
+        const mapped = inferredKeys2.map((k) => ({ id: String(k), name: String(k) }));
+        if (alive) setDevices(mapped);
+        return;
+      }
+
+      // 3) BEST fallback: fetch claimed CF-2000 devices for this user
       try {
         const token = String(getToken() || "").trim();
         if (!token) {
@@ -242,12 +219,13 @@ export default function IndicatorLightSettingsModal({
     return () => {
       alive = false;
     };
-  }, [open]);
+  }, [open, sensorsData]);
 
   const selectedDevice = React.useMemo(() => {
     return devices.find((d) => String(d.id) === String(deviceId)) || null;
   }, [devices, deviceId]);
 
+  // ✅ Only DI fields for CF-2000 (fixed list)
   const filteredFields = React.useMemo(() => {
     const q = tagSearch.trim().toLowerCase();
     if (!q) return CF2000_DI_FIELDS;
@@ -257,153 +235,79 @@ export default function IndicatorLightSettingsModal({
   }, [tagSearch]);
 
   // =========================
-  // ✅ PULL REAL STATUS/DI VALUES (same endpoint as Register Devices table)
+  // ✅ LIVE VALUE / STATUS (Offline vs Online + 0/1)
   // =========================
-  const fetchTelemetryRow = React.useCallback(async () => {
-    const id = String(deviceId || "").trim();
-    if (!id) {
-      setTelemetryRow(null);
-      setTelemetryErr("");
-      return;
-    }
-    if (telemetryRef.current.loading) return;
-
-    telemetryRef.current.loading = true;
-    setTelemetryErr("");
-
-    try {
-      const token = String(getToken() || "").trim();
-      if (!token) throw new Error("Missing auth token. Please logout and login again.");
-
-      const res = await fetch(`${API_URL}/zhc1921/my-devices`, {
-        headers: { ...getAuthHeaders() },
-      });
-
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j?.detail || `Failed to load device telemetry (${res.status})`);
-      }
-
-      const data = await res.json();
-      const list = Array.isArray(data) ? data : [];
-
-      const row =
-        list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
-
-      setTelemetryRow(row);
-    } catch (e) {
-      setTelemetryRow(null);
-      setTelemetryErr(e.message || "Failed to load device telemetry.");
-    } finally {
-      telemetryRef.current.loading = false;
-    }
-  }, [deviceId]);
-
-  React.useEffect(() => {
-    if (!open) return;
-
-    fetchTelemetryRow();
-
-    const POLL_MS = 3000;
-    const t = setInterval(() => {
-      if (document.hidden) return;
-      fetchTelemetryRow();
-    }, POLL_MS);
-
-    return () => clearInterval(t);
-  }, [open, fetchTelemetryRow]);
-
-  const backendDeviceStatus = React.useMemo(() => {
-    const s = String(telemetryRow?.status || "").trim().toLowerCase();
-    if (!deviceId) return "";
-    if (!s) return "";
-    return s; // "online"/"offline"
-  }, [telemetryRow, deviceId]);
-
-  const deviceIsOnline = backendDeviceStatus === "online";
-
-  const backendDiValue = React.useMemo(() => {
-    if (!telemetryRow || !field) return undefined;
-    return readDiFromRow(telemetryRow, field);
-  }, [telemetryRow, field]);
-
-  const sensorsFallbackRaw = React.useMemo(() => {
+  const liveRawValue = React.useMemo(() => {
     if (!deviceId || !field) return undefined;
+
     const v1 = sensorsData?.latest?.[deviceId]?.[field];
     if (v1 !== undefined) return v1;
+
     const v2 = sensorsData?.values?.[deviceId]?.[field];
     if (v2 !== undefined) return v2;
+
     const v3 = sensorsData?.tags?.[deviceId]?.[field];
     if (v3 !== undefined) return v3;
+
     return undefined;
   }, [sensorsData, deviceId, field]);
 
-  const tagRawValue =
-    backendDiValue !== undefined ? backendDiValue : sensorsFallbackRaw;
+  const isOnline = liveRawValue !== undefined && liveRawValue !== null;
 
-  const tag01 = React.useMemo(() => to01(tagRawValue), [tagRawValue]);
+  const bool01 = React.useMemo(() => {
+    if (!isOnline) return null;
 
-  const tagIsOnline = deviceIsOnline && tagRawValue !== undefined && tagRawValue !== null;
+    const v = liveRawValue;
 
-  const lastSeenText = React.useMemo(() => {
-    const ts = telemetryRow?.lastSeen || telemetryRow?.last_seen || "";
-    return formatDateMMDDYYYY_hmma(ts);
-  }, [telemetryRow]);
+    if (typeof v === "number") return v > 0 ? 1 : 0;
+    if (typeof v === "boolean") return v ? 1 : 0;
+
+    if (typeof v === "string") {
+      const s = v.trim().toLowerCase();
+      if (s === "1" || s === "true" || s === "on" || s === "yes") return 1;
+      if (s === "0" || s === "false" || s === "off" || s === "no") return 0;
+
+      const n = Number(s);
+      if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
+    }
+
+    return v ? 1 : 0;
+  }, [isOnline, liveRawValue]);
 
   // ✅ When device changes, clear field + search
   React.useEffect(() => {
     setField("");
     setTagSearch("");
-    setTelemetryRow(null);
-    setTelemetryErr("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deviceId]);
 
-  // ✅ NEW: live preview state (ON when selected tag is 1)
-  const previewState = React.useMemo(() => {
-    if (!deviceId || !field) return "unknown";
-    if (!deviceIsOnline) return "offline";
-    if (tag01 === 1) return "on";
-    if (tag01 === 0) return "off";
-    return "unknown";
-  }, [deviceId, field, deviceIsOnline, tag01]);
-
-  const previewIsOn = previewState === "on";
-  const previewIsOff = previewState === "off";
-  const previewUnknown = previewState === "unknown" || previewState === "offline";
-
-  // ✅ use live state to pick the preview LED colors
-  const previewOffFill = previewUnknown
-    ? offColor
-    : previewIsOff
-    ? offColor
-    : "#e5e7eb";
-
-  const previewOnFill = previewUnknown
-    ? onColor
-    : previewIsOn
-    ? onColor
-    : "#e5e7eb";
-
   const apply = () => {
+    const nextProps = {
+      ...(tank.properties || {}),
+      shapeStyle,
+      colorOff: offColor,
+      colorOn: onColor,
+      offText,
+      onText,
+      tag: { deviceId, field },
+
+      // ✅ snapshot so dashboard can reflect immediately (even before live updates)
+      value: bool01 === 1 ? 1 : 0,
+      status: bool01 === 1 ? "on" : "off",
+    };
+
+    // ✅ IMPORTANT: send FULL tank object so parent can persist correctly
     onSave?.({
-      id: tank.id,
-      properties: {
-        ...(tank.properties || {}),
-        shapeStyle,
-        colorOff: offColor,
-        colorOn: onColor,
-        offText,
-        onText,
-        tag: { deviceId, field },
-      },
+      ...tank,
+      properties: nextProps,
     });
+
+    onClose?.();
   };
 
-  const deviceDot = deviceId ? (deviceIsOnline ? "#16a34a" : "#dc2626") : "#94a3b8";
-  const tagDot =
-    deviceId && field ? (tagIsOnline ? "#16a34a" : "#dc2626") : "#94a3b8";
-
+  // =========================
+  // ✅ Layout: left settings + right tag panel
+  // =========================
   return (
     <div
       style={{
@@ -427,10 +331,13 @@ export default function IndicatorLightSettingsModal({
           left: pos.x,
           top: pos.y,
           width: MODAL_W,
+          height: MODAL_H,
           background: "#fff",
           borderRadius: 12,
           boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
           overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
         }}
         onMouseDown={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
@@ -480,11 +387,11 @@ export default function IndicatorLightSettingsModal({
         </div>
 
         {/* Body */}
-        <div style={{ padding: 18, fontSize: 14 }}>
-          <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-            {/* LEFT SIDE */}
-            <div style={{ flex: 1, minWidth: 420 }}>
-              {/* Preview (NOW LIVE) */}
+        <div style={{ padding: 18, fontSize: 14, flex: 1, overflow: "hidden" }}>
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 420px", gap: 16, height: "100%" }}>
+            {/* LEFT */}
+            <div style={{ overflow: "auto", paddingRight: 4 }}>
+              {/* Preview */}
               <div
                 style={{
                   display: "flex",
@@ -503,24 +410,12 @@ export default function IndicatorLightSettingsModal({
                       width: previewSize,
                       height: previewSize,
                       borderRadius,
-                      background: previewOffFill,
-                      border: previewIsOff
-                        ? "3px solid rgba(0,0,0,0.35)"
-                        : "2px solid rgba(0,0,0,0.20)",
+                      background: offColor,
+                      border: "2px solid rgba(0,0,0,0.25)",
                       margin: "0 auto",
-                      boxShadow: previewIsOff ? "0 0 0 4px rgba(0,0,0,0.06)" : "none",
-                      transition: "all 160ms ease",
                     }}
                   />
-                  <div
-                    style={{
-                      fontSize: 12,
-                      marginTop: 10,
-                      color: "#334155",
-                      fontWeight: previewIsOff ? 900 : 700,
-                      opacity: previewIsOff ? 1 : 0.75,
-                    }}
-                  >
+                  <div style={{ fontSize: 12, marginTop: 10, color: "#334155", fontWeight: 800 }}>
                     OFF
                   </div>
                 </div>
@@ -531,58 +426,24 @@ export default function IndicatorLightSettingsModal({
                       width: previewSize,
                       height: previewSize,
                       borderRadius,
-                      background: previewOnFill,
-                      border: previewIsOn
-                        ? "3px solid rgba(0,0,0,0.35)"
-                        : "2px solid rgba(0,0,0,0.20)",
+                      background: onColor,
+                      border: "2px solid rgba(0,0,0,0.25)",
                       margin: "0 auto",
-                      boxShadow: previewIsOn ? "0 0 0 4px rgba(0,0,0,0.06)" : "none",
-                      transition: "all 160ms ease",
                     }}
                   />
-                  <div
-                    style={{
-                      fontSize: 12,
-                      marginTop: 10,
-                      color: "#334155",
-                      fontWeight: previewIsOn ? 900 : 700,
-                      opacity: previewIsOn ? 1 : 0.75,
-                    }}
-                  >
+                  <div style={{ fontSize: 12, marginTop: 10, color: "#334155", fontWeight: 800 }}>
                     ON
                   </div>
                 </div>
 
                 <div style={{ flex: 1, fontSize: 13, color: "#475569" }}>
-                  {deviceId && field ? (
-                    previewState === "offline" ? (
-                      <span>
-                        Device is <b style={{ color: "#dc2626" }}>OFFLINE</b>. Preview is not live.
-                      </span>
-                    ) : previewState === "unknown" ? (
-                      <span>
-                        Waiting for tag value… (select device + DI tag)
-                      </span>
-                    ) : previewIsOn ? (
-                      <span>
-                        Tag is <b style={{ color: "#16a34a" }}>ON (1)</b>
-                      </span>
-                    ) : (
-                      <span>
-                        Tag is <b style={{ color: "#475569" }}>OFF (0)</b>
-                      </span>
-                    )
-                  ) : (
-                    "Configure shape, colors, text, and the tag that drives the state."
-                  )}
+                  Configure shape, colors, text, and the tag that drives the state.
                 </div>
               </div>
 
               {/* Shape */}
               <div style={{ marginBottom: 14 }}>
-                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-                  Shape
-                </div>
+                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>Shape</div>
                 <label style={{ marginRight: 18, fontSize: 14 }}>
                   <input
                     type="radio"
@@ -604,9 +465,7 @@ export default function IndicatorLightSettingsModal({
               {/* Text ON/OFF */}
               <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-                    OFF Text
-                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>OFF Text</div>
                   <input
                     value={offText}
                     onChange={(e) => setOffText(e.target.value)}
@@ -621,9 +480,7 @@ export default function IndicatorLightSettingsModal({
                 </div>
 
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-                    ON Text
-                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>ON Text</div>
                   <input
                     value={onText}
                     onChange={(e) => setOnText(e.target.value)}
@@ -639,73 +496,43 @@ export default function IndicatorLightSettingsModal({
               </div>
 
               {/* Colors */}
-              <div style={{ display: "flex", gap: 12 }}>
+              <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
                 <div style={{ flex: 1, textAlign: "center" }}>
-                  <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-                    OFF Color
-                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>OFF Color</div>
                   <input
                     type="color"
                     value={offColor}
                     onChange={(e) => setOffColor(e.target.value)}
-                    style={{
-                      width: "100%",
-                      height: 44,
-                      border: "none",
-                      cursor: "pointer",
-                    }}
+                    style={{ width: "100%", height: 44, border: "none", cursor: "pointer" }}
                   />
-                  <div
-                    style={{
-                      marginTop: 6,
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "#475569",
-                      userSelect: "none",
-                    }}
-                  >
+                  <div style={{ marginTop: 6, fontSize: 13, fontWeight: 600, color: "#475569" }}>
                     Click to select the color
                   </div>
                 </div>
 
                 <div style={{ flex: 1, textAlign: "center" }}>
-                  <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-                    ON Color
-                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>ON Color</div>
                   <input
                     type="color"
                     value={onColor}
                     onChange={(e) => setOnColor(e.target.value)}
-                    style={{
-                      width: "100%",
-                      height: 44,
-                      border: "none",
-                      cursor: "pointer",
-                    }}
+                    style={{ width: "100%", height: 44, border: "none", cursor: "pointer" }}
                   />
-                  <div
-                    style={{
-                      marginTop: 6,
-                      fontSize: 13,
-                      fontWeight: 600,
-                      color: "#475569",
-                      userSelect: "none",
-                    }}
-                  >
+                  <div style={{ marginTop: 6, fontSize: 13, fontWeight: 600, color: "#475569" }}>
                     Click to select the color
                   </div>
                 </div>
               </div>
             </div>
 
-            {/* RIGHT SIDE */}
+            {/* RIGHT: TAG PANEL */}
             <div
               style={{
-                width: 420,
                 border: "1px solid #e5e7eb",
                 borderRadius: 12,
                 padding: 14,
-                background: "#ffffff",
+                background: "#fff",
+                height: "fit-content",
               }}
             >
               <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 10 }}>
@@ -717,16 +544,9 @@ export default function IndicatorLightSettingsModal({
                   {devicesErr}
                 </div>
               )}
-              {telemetryErr && (
-                <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>
-                  {telemetryErr}
-                </div>
-              )}
 
               <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-                  Device
-                </div>
+                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>Device</div>
                 <select
                   value={deviceId}
                   onChange={(e) => setDeviceId(e.target.value)}
@@ -750,35 +570,12 @@ export default function IndicatorLightSettingsModal({
                 {deviceId && selectedDevice && (
                   <div style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}>
                     Selected: <b>{selectedDevice.id}</b>
-                    {"  "}•{"  "}
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                      <span
-                        style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: 99,
-                          background: deviceDot,
-                          display: "inline-block",
-                        }}
-                      />
-                      <b style={{ color: deviceIsOnline ? "#16a34a" : "#dc2626" }}>
-                        {backendDeviceStatus ? backendDeviceStatus.toUpperCase() : "—"}
-                      </b>
-                    </span>
-                  </div>
-                )}
-
-                {deviceId && (
-                  <div style={{ marginTop: 4, fontSize: 12, color: "#64748b" }}>
-                    Last seen: <b>{lastSeenText}</b>
                   </div>
                 )}
               </div>
 
               <div style={{ marginBottom: 10 }}>
-                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-                  Search DI
-                </div>
+                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>Search DI</div>
                 <input
                   value={tagSearch}
                   onChange={(e) => setTagSearch(e.target.value)}
@@ -837,63 +634,46 @@ export default function IndicatorLightSettingsModal({
                     <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>
                       Device Status
                     </div>
-                    <div style={{ fontSize: 13, marginTop: 6, color: "#334155" }}>
+                    <div style={{ fontSize: 13, marginTop: 6 }}>
                       {deviceId ? (
-                        backendDeviceStatus ? (
-                          <span style={{ fontWeight: 900, color: deviceIsOnline ? "#16a34a" : "#dc2626" }}>
-                            {deviceIsOnline ? "Online" : "Offline"}
-                          </span>
+                        isOnline ? (
+                          <span style={{ fontWeight: 900, color: "#16a34a" }}>Online</span>
                         ) : (
-                          <span style={{ color: "#64748b" }}>—</span>
+                          <span style={{ fontWeight: 900, color: "#dc2626" }}>Offline</span>
                         )
                       ) : (
-                        <span style={{ color: "#64748b" }}>Select a device</span>
+                        <span style={{ color: "#64748b" }}>Select device</span>
                       )}
                     </div>
                   </div>
 
-                  <div style={{ flex: 1 }}>
+                  <div style={{ flex: 1, textAlign: "right" }}>
                     <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>
                       Selected Tag
                     </div>
-
-                    <div style={{ fontSize: 13, marginTop: 6, color: "#334155" }}>
-                      {deviceId && field ? (
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                          <span
-                            style={{
-                              width: 8,
-                              height: 8,
-                              borderRadius: 99,
-                              background: tagDot,
-                              display: "inline-block",
-                            }}
-                          />
-                          <b>{field.toUpperCase()}</b>
-                        </span>
+                    <div style={{ fontSize: 13, marginTop: 6 }}>
+                      {field ? (
+                        <>
+                          <div style={{ fontWeight: 900, color: "#0f172a" }}>
+                            <span style={{ color: "#16a34a" }}>●</span>{" "}
+                            {field.toUpperCase()}
+                          </div>
+                          <div style={{ marginTop: 6, fontWeight: 900, color: "#0f172a" }}>
+                            Value:{" "}
+                            <span style={{ color: isOnline ? "#0f172a" : "#94a3b8" }}>
+                              {isOnline ? String(bool01) : "—"}
+                            </span>
+                          </div>
+                        </>
                       ) : (
                         <span style={{ color: "#64748b" }}>Select DI tag</span>
-                      )}
-                    </div>
-
-                    <div style={{ fontSize: 13, marginTop: 6, color: "#334155" }}>
-                      {deviceId && field ? (
-                        tagIsOnline ? (
-                          <span style={{ fontWeight: 900 }}>
-                            Value: <span style={{ color: "#0f172a" }}>{String(tag01 ?? "—")}</span>
-                          </span>
-                        ) : (
-                          <span style={{ fontWeight: 900, color: "#dc2626" }}>Offline / No data</span>
-                        )
-                      ) : (
-                        <span style={{ color: "#64748b" }}>—</span>
                       )}
                     </div>
                   </div>
                 </div>
 
                 {deviceId && field && (
-                  <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
+                  <div style={{ fontSize: 12, color: "#64748b", marginTop: 10 }}>
                     Bound Tag: <b>{field}</b>
                   </div>
                 )}
