@@ -50,9 +50,6 @@ export default function IndicatorLightSettingsModal({
   const [deviceId, setDeviceId] = React.useState(initialDeviceId);
   const [field, setField] = React.useState(initialField);
 
-  // ✅ optional: search/filter tags
-  const [tagSearch, setTagSearch] = React.useState("");
-
   // ✅ devices list for dropdown (fallback to API if sensorsData has none)
   const [devices, setDevices] = React.useState([]);
   const [devicesErr, setDevicesErr] = React.useState("");
@@ -235,16 +232,6 @@ export default function IndicatorLightSettingsModal({
     return devices.find((d) => String(d.id) === String(deviceId)) || null;
   }, [devices, deviceId]);
 
-  // ✅ Only DI fields for CF-2000 (fixed list)
-  const filteredFields = React.useMemo(() => {
-    const q = tagSearch.trim().toLowerCase();
-    if (!q) return CF2000_DI_FIELDS;
-    return CF2000_DI_FIELDS.filter(
-      (f) =>
-        f.key.toLowerCase().includes(q) || f.label.toLowerCase().includes(q)
-    );
-  }, [tagSearch]);
-
   // =========================
   // ✅ LIVE VALUE / STATUS (Offline vs Online + 0/1)
   // =========================
@@ -285,10 +272,9 @@ export default function IndicatorLightSettingsModal({
     return v ? 1 : 0;
   }, [isOnline, liveRawValue]);
 
-  // ✅ When device changes, clear field + search
+  // ✅ When device changes, clear field
   React.useEffect(() => {
     setField("");
-    setTagSearch("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deviceId]);
 
@@ -579,7 +565,7 @@ export default function IndicatorLightSettingsModal({
             </div>
           </div>
 
-          {/* RIGHT: Tag selector (moved right + wider) */}
+          {/* RIGHT: Tag selector (NO search box) */}
           <div
             style={{
               border: "1px solid #e5e7eb",
@@ -598,68 +584,42 @@ export default function IndicatorLightSettingsModal({
               </div>
             )}
 
-            <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-                  Device
-                </div>
-                <select
-                  value={deviceId}
-                  onChange={(e) => setDeviceId(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: 10,
-                    border: "1px solid #cbd5e1",
-                    fontSize: 14,
-                    background: "white",
-                  }}
-                >
-                  <option value="">— Select device —</option>
-                  {devices.map((d) => (
-                    <option key={String(d.id)} value={String(d.id)}>
-                      {d.name || d.id}
-                    </option>
-                  ))}
-                </select>
-
-                {deviceId && selectedDevice && (
-                  <div style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}>
-                    Selected: <b>{selectedDevice.id}</b>
-                  </div>
-                )}
+            <div style={{ marginBottom: 10 }}>
+              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
+                Device
               </div>
+              <select
+                value={deviceId}
+                onChange={(e) => setDeviceId(e.target.value)}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: "1px solid #cbd5e1",
+                  fontSize: 14,
+                  background: "white",
+                }}
+              >
+                <option value="">— Select device —</option>
+                {devices.map((d) => (
+                  <option key={String(d.id)} value={String(d.id)}>
+                    {d.name || d.id}
+                  </option>
+                ))}
+              </select>
 
-              <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-                  Search Tag (DI only)
+              {deviceId && selectedDevice && (
+                <div style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}>
+                  Selected: <b>{selectedDevice.id}</b>
                 </div>
-                <input
-                  value={tagSearch}
-                  onChange={(e) => setTagSearch(e.target.value)}
-                  placeholder="ex: DI1, di5..."
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: 10,
-                    border: "1px solid #cbd5e1",
-                    fontSize: 14,
-                  }}
-                />
-              </div>
+              )}
             </div>
 
-            {/* ✅ DI TAG PICKER */}
+            {/* ✅ DI TAG PICKER (no search) */}
             <div style={{ marginBottom: 12 }}>
               {deviceId ? (
-                <div
-                  style={{
-                    display: "flex",
-                    gap: 8,
-                    flexWrap: "wrap",
-                  }}
-                >
-                  {filteredFields.map((f) => {
+                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  {CF2000_DI_FIELDS.map((f) => {
                     const isSelected = String(field) === String(f.key);
                     return (
                       <button
