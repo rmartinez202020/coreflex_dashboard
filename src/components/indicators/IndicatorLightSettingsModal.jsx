@@ -60,11 +60,25 @@ function readDiFromRow(row, diKey) {
 
   if (row[diKey] !== undefined) return row[diKey];
 
-  const map = { di1: "in1", di2: "in2", di3: "in3", di4: "in4", di5: "in5", di6: "in6" };
+  const map = {
+    di1: "in1",
+    di2: "in2",
+    di3: "in3",
+    di4: "in4",
+    di5: "in5",
+    di6: "in6",
+  };
   const alt = map[diKey];
   if (alt && row[alt] !== undefined) return row[alt];
 
-  const map2 = { di1: "DI1", di2: "DI2", di3: "DI3", di4: "DI4", di5: "DI5", di6: "DI6" };
+  const map2 = {
+    di1: "DI1",
+    di2: "DI2",
+    di3: "DI3",
+    di4: "DI4",
+    di5: "DI5",
+    di6: "DI6",
+  };
   const alt2 = map2[diKey];
   if (alt2 && row[alt2] !== undefined) return row[alt2];
 
@@ -76,7 +90,6 @@ export default function IndicatorLightSettingsModal({
   tank,
   onClose,
   onSave,
-  sensorsData,
 }) {
   if (!open || !tank) return null;
 
@@ -109,6 +122,25 @@ export default function IndicatorLightSettingsModal({
   const [telemetryRow, setTelemetryRow] = React.useState(null);
   const [telemetryErr, setTelemetryErr] = React.useState("");
   const telemetryRef = React.useRef({ loading: false });
+
+  // ✅ Rehydrate state whenever opening or switching to a different widget
+  React.useEffect(() => {
+    if (!open || !tank) return;
+
+    setShapeStyle(tank?.properties?.shapeStyle ?? "circle");
+    setOffColor(tank?.properties?.colorOff ?? "#9ca3af");
+    setOnColor(tank?.properties?.colorOn ?? "#22c55e");
+
+    setOffText(tank?.properties?.offText ?? "OFF");
+    setOnText(tank?.properties?.onText ?? "ON");
+
+    setDeviceId(tank?.properties?.tag?.deviceId ?? "");
+    setField(tank?.properties?.tag?.field ?? "");
+
+    setTagSearch("");
+    setTelemetryRow(null);
+    setTelemetryErr("");
+  }, [open, tank?.id]);
 
   // --- helpers for UI preview
   const previewSize = 56;
@@ -198,7 +230,6 @@ export default function IndicatorLightSettingsModal({
     async function loadDevices() {
       setDevicesErr("");
 
-      // best: fetch claimed CF-2000 devices
       try {
         const token = String(getToken() || "").trim();
         if (!token) {
@@ -327,23 +358,13 @@ export default function IndicatorLightSettingsModal({
     return readDiFromRow(telemetryRow, field);
   }, [telemetryRow, field]);
 
-  const sensorsFallbackRaw = React.useMemo(() => {
-    if (!deviceId || !field) return undefined;
-    const v1 = sensorsData?.latest?.[deviceId]?.[field];
-    if (v1 !== undefined) return v1;
-    const v2 = sensorsData?.values?.[deviceId]?.[field];
-    if (v2 !== undefined) return v2;
-    const v3 = sensorsData?.tags?.[deviceId]?.[field];
-    if (v3 !== undefined) return v3;
-    return undefined;
-  }, [sensorsData, deviceId, field]);
-
-  const tagRawValue =
-    backendDiValue !== undefined ? backendDiValue : sensorsFallbackRaw;
+  // ✅ backend-only value (no sensorsData fallback)
+  const tagRawValue = backendDiValue;
 
   const tag01 = React.useMemo(() => to01(tagRawValue), [tagRawValue]);
 
-  const tagIsOnline = deviceIsOnline && tagRawValue !== undefined && tagRawValue !== null;
+  const tagIsOnline =
+    deviceIsOnline && tagRawValue !== undefined && tagRawValue !== null;
 
   const lastSeenText = React.useMemo(() => {
     const ts = telemetryRow?.lastSeen || telemetryRow?.last_seen || "";
@@ -359,7 +380,7 @@ export default function IndicatorLightSettingsModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deviceId]);
 
-  // ✅ NEW: live preview state (ON when selected tag is 1)
+  // ✅ live preview state (ON when selected tag is 1)
   const previewState = React.useMemo(() => {
     if (!deviceId || !field) return "unknown";
     if (!deviceIsOnline) return "offline";
@@ -370,7 +391,8 @@ export default function IndicatorLightSettingsModal({
 
   const previewIsOn = previewState === "on";
   const previewIsOff = previewState === "off";
-  const previewUnknown = previewState === "unknown" || previewState === "offline";
+  const previewUnknown =
+    previewState === "unknown" || previewState === "offline";
 
   // ✅ use live state to pick the preview LED colors
   const previewOffFill = previewUnknown
@@ -400,7 +422,12 @@ export default function IndicatorLightSettingsModal({
     });
   };
 
-  const deviceDot = deviceId ? (deviceIsOnline ? "#16a34a" : "#dc2626") : "#94a3b8";
+  const deviceDot = deviceId
+    ? deviceIsOnline
+      ? "#16a34a"
+      : "#dc2626"
+    : "#94a3b8";
+
   const tagDot =
     deviceId && field ? (tagIsOnline ? "#16a34a" : "#dc2626") : "#94a3b8";
 
@@ -484,7 +511,7 @@ export default function IndicatorLightSettingsModal({
           <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
             {/* LEFT SIDE */}
             <div style={{ flex: 1, minWidth: 420 }}>
-              {/* Preview (NOW LIVE) */}
+              {/* Preview (backend-only) */}
               <div
                 style={{
                   display: "flex",
@@ -508,7 +535,9 @@ export default function IndicatorLightSettingsModal({
                         ? "3px solid rgba(0,0,0,0.35)"
                         : "2px solid rgba(0,0,0,0.20)",
                       margin: "0 auto",
-                      boxShadow: previewIsOff ? "0 0 0 4px rgba(0,0,0,0.06)" : "none",
+                      boxShadow: previewIsOff
+                        ? "0 0 0 4px rgba(0,0,0,0.06)"
+                        : "none",
                       transition: "all 160ms ease",
                     }}
                   />
@@ -536,7 +565,9 @@ export default function IndicatorLightSettingsModal({
                         ? "3px solid rgba(0,0,0,0.35)"
                         : "2px solid rgba(0,0,0,0.20)",
                       margin: "0 auto",
-                      boxShadow: previewIsOn ? "0 0 0 4px rgba(0,0,0,0.06)" : "none",
+                      boxShadow: previewIsOn
+                        ? "0 0 0 4px rgba(0,0,0,0.06)"
+                        : "none",
                       transition: "all 160ms ease",
                     }}
                   />
@@ -557,12 +588,12 @@ export default function IndicatorLightSettingsModal({
                   {deviceId && field ? (
                     previewState === "offline" ? (
                       <span>
-                        Device is <b style={{ color: "#dc2626" }}>OFFLINE</b>. Preview is not live.
+                        Device is{" "}
+                        <b style={{ color: "#dc2626" }}>OFFLINE</b>. Preview is
+                        not live.
                       </span>
                     ) : previewState === "unknown" ? (
-                      <span>
-                        Waiting for tag value… (select device + DI tag)
-                      </span>
+                      <span>Waiting for tag value… (select device + DI tag)</span>
                     ) : previewIsOn ? (
                       <span>
                         Tag is <b style={{ color: "#16a34a" }}>ON (1)</b>
@@ -751,7 +782,13 @@ export default function IndicatorLightSettingsModal({
                   <div style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}>
                     Selected: <b>{selectedDevice.id}</b>
                     {"  "}•{"  "}
-                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                    <span
+                      style={{
+                        display: "inline-flex",
+                        alignItems: "center",
+                        gap: 6,
+                      }}
+                    >
                       <span
                         style={{
                           width: 8,
@@ -761,8 +798,14 @@ export default function IndicatorLightSettingsModal({
                           display: "inline-block",
                         }}
                       />
-                      <b style={{ color: deviceIsOnline ? "#16a34a" : "#dc2626" }}>
-                        {backendDeviceStatus ? backendDeviceStatus.toUpperCase() : "—"}
+                      <b
+                        style={{
+                          color: deviceIsOnline ? "#16a34a" : "#dc2626",
+                        }}
+                      >
+                        {backendDeviceStatus
+                          ? backendDeviceStatus.toUpperCase()
+                          : "—"}
                       </b>
                     </span>
                   </div>
@@ -805,7 +848,9 @@ export default function IndicatorLightSettingsModal({
                           style={{
                             padding: "6px 10px",
                             borderRadius: 8,
-                            border: isSelected ? "2px solid #16a34a" : "1px solid #e2e8f0",
+                            border: isSelected
+                              ? "2px solid #16a34a"
+                              : "1px solid #e2e8f0",
                             background: isSelected ? "#ecfdf5" : "white",
                             cursor: "pointer",
                             fontWeight: isSelected ? 900 : 700,
@@ -832,15 +877,32 @@ export default function IndicatorLightSettingsModal({
                   background: "#f8fafc",
                 }}
               >
-                <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    gap: 12,
+                  }}
+                >
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 900,
+                        color: "#0f172a",
+                      }}
+                    >
                       Device Status
                     </div>
                     <div style={{ fontSize: 13, marginTop: 6, color: "#334155" }}>
                       {deviceId ? (
                         backendDeviceStatus ? (
-                          <span style={{ fontWeight: 900, color: deviceIsOnline ? "#16a34a" : "#dc2626" }}>
+                          <span
+                            style={{
+                              fontWeight: 900,
+                              color: deviceIsOnline ? "#16a34a" : "#dc2626",
+                            }}
+                          >
                             {deviceIsOnline ? "Online" : "Offline"}
                           </span>
                         ) : (
@@ -853,13 +915,25 @@ export default function IndicatorLightSettingsModal({
                   </div>
 
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 900,
+                        color: "#0f172a",
+                      }}
+                    >
                       Selected Tag
                     </div>
 
                     <div style={{ fontSize: 13, marginTop: 6, color: "#334155" }}>
                       {deviceId && field ? (
-                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                        <span
+                          style={{
+                            display: "inline-flex",
+                            alignItems: "center",
+                            gap: 6,
+                          }}
+                        >
                           <span
                             style={{
                               width: 8,
@@ -880,10 +954,15 @@ export default function IndicatorLightSettingsModal({
                       {deviceId && field ? (
                         tagIsOnline ? (
                           <span style={{ fontWeight: 900 }}>
-                            Value: <span style={{ color: "#0f172a" }}>{String(tag01 ?? "—")}</span>
+                            Value:{" "}
+                            <span style={{ color: "#0f172a" }}>
+                              {String(tag01 ?? "—")}
+                            </span>
                           </span>
                         ) : (
-                          <span style={{ fontWeight: 900, color: "#dc2626" }}>Offline / No data</span>
+                          <span style={{ fontWeight: 900, color: "#dc2626" }}>
+                            Offline / No data
+                          </span>
                         )
                       ) : (
                         <span style={{ color: "#64748b" }}>—</span>
