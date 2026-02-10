@@ -381,6 +381,8 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
                       "DI-2",
                       "DI-3",
                       "DI-4",
+                      "DI-5", // ✅ NEW
+                      "DI-6", // ✅ NEW
                       "DO-1",
                       "DO-2",
                       "DO-3",
@@ -408,7 +410,7 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
                   {loading && rows.length === 0 ? (
                     <tr>
                       <td
-                        colSpan={17}
+                        colSpan={19}
                         className="text-center py-6 text-slate-500"
                       >
                         Loading...
@@ -417,7 +419,7 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
                   ) : !rows.length ? (
                     <tr>
                       <td
-                        colSpan={17}
+                        colSpan={19}
                         className="text-center py-6 text-slate-500"
                       >
                         No registered devices yet.
@@ -473,6 +475,8 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
                             r.in2,
                             r.in3,
                             r.in4,
+                            r.in5, // ✅ NEW
+                            r.in6, // ✅ NEW
                             r.do1,
                             r.do2,
                             r.do3,
