@@ -7,12 +7,13 @@ import React from "react";
  * - Canvas mode (Dashboard)
  *
  * ✅ Supports circle/square via tank.properties.shapeStyle
- * ✅ If bound tag exists: reads live value from sensorsData to drive ON/OFF
+ * ✅ Reads LIVE tag value (tank.properties.tag.deviceId + field) from sensorsData
+ * ✅ LED turns ON/OFF automatically based on DI value (0/1)
  */
 export default function DraggableLedCircle({
   // Canvas mode
   tank,
-  sensorsData,
+  sensorsData, // ✅ NEW (must be passed from DashboardCanvas)
 
   // Palette mode
   label = "Led Circle",
@@ -22,7 +23,7 @@ export default function DraggableLedCircle({
   const payload = {
     shape: "ledCircle",
     w: 70,
-    h: 90,
+    h: 90, // ⬅️ taller to allow text
     status: "off",
     properties: {
       shapeStyle: "circle",
@@ -30,11 +31,46 @@ export default function DraggableLedCircle({
       colorOff: "#9ca3af",
       offText: "OFF",
       onText: "ON",
-
-      // optional persisted snapshot
-      value: 0,
+      // tag: { deviceId, field } // ✅ set by settings modal when Apply
     },
   };
+
+  // =========================
+  // ✅ Helpers: read live tag + normalize to 0/1
+  // =========================
+  function readTagValue(sd, deviceId, field) {
+    if (!sd || !deviceId || !field) return undefined;
+
+    const v1 = sd?.latest?.[deviceId]?.[field];
+    if (v1 !== undefined) return v1;
+
+    const v2 = sd?.values?.[deviceId]?.[field];
+    if (v2 !== undefined) return v2;
+
+    const v3 = sd?.tags?.[deviceId]?.[field];
+    if (v3 !== undefined) return v3;
+
+    return undefined;
+  }
+
+  function to01(v) {
+    if (v === undefined || v === null) return null;
+
+    if (typeof v === "boolean") return v ? 1 : 0;
+
+    if (typeof v === "number") return v > 0 ? 1 : 0;
+
+    if (typeof v === "string") {
+      const s = v.trim().toLowerCase();
+      if (s === "1" || s === "true" || s === "on" || s === "yes") return 1;
+      if (s === "0" || s === "false" || s === "off" || s === "no") return 0;
+
+      const n = Number(s);
+      if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
+    }
+
+    return v ? 1 : 0;
+  }
 
   // =========================
   // ✅ CANVAS MODE
@@ -43,54 +79,39 @@ export default function DraggableLedCircle({
     const w = tank.w ?? payload.w;
     const h = tank.h ?? payload.h;
 
-    const shapeStyle = tank.properties?.shapeStyle ?? payload.properties.shapeStyle;
+    // ✅ prefer LIVE tag value if bound
+    const deviceId = String(tank.properties?.tag?.deviceId || "").trim();
+    const field = String(tank.properties?.tag?.field || "").trim();
+
+    const liveRaw = readTagValue(sensorsData, deviceId, field);
+    const liveBit = to01(liveRaw);
+    const hasLive = liveBit !== null;
+
+    // ✅ fallback to legacy status if no live data / no tag selected
+    const legacyStatus =
+      tank.status ??
+      tank.properties?.status ??
+      tank.properties?.value ??
+      "off";
+
+    const legacyOn =
+      legacyStatus === "on" ||
+      legacyStatus === true ||
+      legacyStatus === 1 ||
+      legacyStatus === "1";
+
+    const isOn = hasLive ? liveBit === 1 : legacyOn;
+
+    const shapeStyle =
+      tank.properties?.shapeStyle ?? payload.properties.shapeStyle;
+
     const colorOn = tank.properties?.colorOn ?? payload.properties.colorOn;
     const colorOff = tank.properties?.colorOff ?? payload.properties.colorOff;
+
     const textOn = tank.properties?.onText ?? "ON";
     const textOff = tank.properties?.offText ?? "OFF";
 
-    const tagDeviceId = tank?.properties?.tag?.deviceId || "";
-    const tagField = tank?.properties?.tag?.field || "";
-
-    // ✅ live raw from sensorsData
-    const liveRaw =
-      tagDeviceId && tagField
-        ? sensorsData?.latest?.[tagDeviceId]?.[tagField] ??
-          sensorsData?.values?.[tagDeviceId]?.[tagField] ??
-          sensorsData?.tags?.[tagDeviceId]?.[tagField]
-        : undefined;
-
-    const hasLive = liveRaw !== undefined && liveRaw !== null;
-
-    const live01 = (() => {
-      if (!hasLive) return null;
-
-      const v = liveRaw;
-      if (typeof v === "number") return v > 0 ? 1 : 0;
-      if (typeof v === "boolean") return v ? 1 : 0;
-
-      if (typeof v === "string") {
-        const s = v.trim().toLowerCase();
-        if (s === "1" || s === "true" || s === "on" || s === "yes") return 1;
-        if (s === "0" || s === "false" || s === "off" || s === "no") return 0;
-
-        const n = Number(s);
-        if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
-      }
-
-      return v ? 1 : 0;
-    })();
-
-    // ✅ fallback (saved snapshot / legacy)
-    const fallbackStatus =
-      tank.status ?? tank.properties?.status ?? tank.properties?.value ?? "off";
-
-    const fallbackIsOn =
-      fallbackStatus === "on" || fallbackStatus === true || fallbackStatus === 1;
-
-    const isOn = hasLive ? live01 === 1 : fallbackIsOn;
-
-    const diameter = Math.min(w, h - 22);
+    const diameter = Math.min(w, h - 22); // ⬅️ reserve space for text
     const isCircle = shapeStyle !== "square";
 
     return (
@@ -102,7 +123,7 @@ export default function DraggableLedCircle({
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          gap: 6,
+          gap: 6, // ⬅️ space between LED and text
           userSelect: "none",
         }}
       >
