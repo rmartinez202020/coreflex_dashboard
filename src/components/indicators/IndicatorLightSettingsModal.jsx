@@ -25,39 +25,31 @@ function lsKeyForTank(tankId) {
   return `coreflex_indicator_light_tag_${String(tankId || "").trim()}`;
 }
 
-// ✅ Normalize ANY stored DI key into: di1..di6
-function normalizeDiField(raw) {
-  const s = String(raw || "").trim();
-  if (!s) return "";
+// ✅ Normalize "field" so button highlight ALWAYS matches (DI-1 / DI1 / in1 / etc → di1)
+function normalizeDiField(fieldRaw) {
+  const s0 = String(fieldRaw || "").trim();
+  if (!s0) return "";
 
-  // already correct
-  if (/^di[1-6]$/i.test(s)) return s.toLowerCase();
+  const s = s0.toLowerCase().replace(/\s+/g, "").replace(/_/g, "").replace(/-/g, "");
 
-  // strip spaces
-  const t = s.replace(/\s+/g, "");
+  // already canonical: di1..di6
+  if (/^di[1-6]$/.test(s)) return s;
 
-  // DI-1 / di-1
-  const m1 = /^di-?([1-6])$/i.exec(t);
-  if (m1) return `di${m1[1]}`;
+  // legacy: DI1..DI6
+  if (/^di[1-6]$/.test(s)) return s;
 
-  // DI1 / di1
-  const m2 = /^di([1-6])$/i.exec(t);
-  if (m2) return `di${m2[1]}`;
+  // legacy: in1..in6
+  if (/^in[1-6]$/.test(s)) return s.replace(/^in/, "di");
 
-  // in1 / IN1
-  const m3 = /^in([1-6])$/i.exec(t);
-  if (m3) return `di${m3[1]}`;
+  // legacy: DI-1 style turned into "di1" by cleanup above (handled)
+  // also accept "d1" (just in case)
+  if (/^d[1-6]$/.test(s)) return `di${s.slice(1)}`;
 
-  // DI_1 / DI-01 style
-  const m4 = /^di[_-]?0?([1-6])$/i.exec(t);
-  if (m4) return `di${m4[1]}`;
+  // if someone saved "DI-01" -> di01 => map
+  const m = s.match(/^di0?([1-6])$/);
+  if (m) return `di${m[1]}`;
 
-  // last chance: if it contains a 1-6 and also "di" or "in"
-  const digit = /([1-6])/.exec(t)?.[1];
-  if (digit && /di/i.test(t)) return `di${digit}`;
-  if (digit && /^in/i.test(t)) return `di${digit}`;
-
-  return "";
+  return s0.trim(); // fallback (won't match buttons, but we keep it)
 }
 
 // ✅ Safe date formatter
@@ -95,8 +87,10 @@ function to01(v) {
 }
 
 // ✅ Read DI values from backend rows (supports multiple legacy keys)
-function readDiFromRow(row, diKey) {
+function readDiFromRow(row, diKeyRaw) {
   if (!row) return undefined;
+
+  const diKey = normalizeDiField(diKeyRaw);
 
   if (row[diKey] !== undefined) return row[diKey];
 
@@ -111,12 +105,7 @@ function readDiFromRow(row, diKey) {
   return undefined;
 }
 
-export default function IndicatorLightSettingsModal({
-  open,
-  tank,
-  onClose,
-  onSave,
-}) {
+export default function IndicatorLightSettingsModal({ open, tank, onClose, onSave }) {
   if (!open || !tank) return null;
 
   // =========================
@@ -159,8 +148,7 @@ export default function IndicatorLightSettingsModal({
 
     // primary source: tank.properties.tag
     let nextDeviceId = String(tank?.properties?.tag?.deviceId ?? "").trim();
-    let nextFieldRaw = tank?.properties?.tag?.field ?? "";
-    let nextField = normalizeDiField(nextFieldRaw);
+    let nextField = normalizeDiField(tank?.properties?.tag?.field ?? "");
 
     // fallback: localStorage
     if (!nextDeviceId || !nextField) {
@@ -397,9 +385,7 @@ export default function IndicatorLightSettingsModal({
       const data = await res.json();
       const list = Array.isArray(data) ? data : [];
 
-      const row =
-        list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
-
+      const row = list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
       setTelemetryRow(row);
     } catch (e) {
       setTelemetryRow(null);
@@ -439,8 +425,7 @@ export default function IndicatorLightSettingsModal({
 
   const tag01 = React.useMemo(() => to01(backendDiValue), [backendDiValue]);
 
-  const tagIsOnline =
-    deviceIsOnline && backendDiValue !== undefined && backendDiValue !== null;
+  const tagIsOnline = deviceIsOnline && backendDiValue !== undefined && backendDiValue !== null;
 
   const lastSeenText = React.useMemo(() => {
     const ts = telemetryRow?.lastSeen || telemetryRow?.last_seen || "";
@@ -465,7 +450,7 @@ export default function IndicatorLightSettingsModal({
 
   const apply = () => {
     const nextDeviceId = String(deviceId || "").trim();
-    const nextField = normalizeDiField(field);
+    const nextField = normalizeDiField(field || "");
 
     // ✅ localStorage fallback (so reopening modal always shows selection)
     try {
@@ -493,6 +478,9 @@ export default function IndicatorLightSettingsModal({
 
   const deviceDot = deviceId ? (deviceIsOnline ? "#16a34a" : "#dc2626") : "#94a3b8";
   const tagDot = deviceId && field ? (tagIsOnline ? "#16a34a" : "#dc2626") : "#94a3b8";
+
+  // ✅ IMPORTANT: use normalized field for comparing/highlighting
+  const fieldKey = normalizeDiField(field);
 
   return (
     <div
@@ -670,11 +658,19 @@ export default function IndicatorLightSettingsModal({
               <div style={{ marginBottom: 14 }}>
                 <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>Shape</div>
                 <label style={{ marginRight: 18, fontSize: 14 }}>
-                  <input type="radio" checked={shapeStyle === "circle"} onChange={() => setShapeStyle("circle")} />{" "}
+                  <input
+                    type="radio"
+                    checked={shapeStyle === "circle"}
+                    onChange={() => setShapeStyle("circle")}
+                  />{" "}
                   Circle
                 </label>
                 <label style={{ fontSize: 14 }}>
-                  <input type="radio" checked={shapeStyle === "square"} onChange={() => setShapeStyle("square")} />{" "}
+                  <input
+                    type="radio"
+                    checked={shapeStyle === "square"}
+                    onChange={() => setShapeStyle("square")}
+                  />{" "}
                   Square
                 </label>
               </div>
@@ -686,7 +682,13 @@ export default function IndicatorLightSettingsModal({
                   <input
                     value={offText}
                     onChange={(e) => setOffText(e.target.value)}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #cbd5e1", fontSize: 14 }}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #cbd5e1",
+                      fontSize: 14,
+                    }}
                   />
                 </div>
 
@@ -695,7 +697,13 @@ export default function IndicatorLightSettingsModal({
                   <input
                     value={onText}
                     onChange={(e) => setOnText(e.target.value)}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #cbd5e1", fontSize: 14 }}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #cbd5e1",
+                      fontSize: 14,
+                    }}
                   />
                 </div>
               </div>
@@ -710,7 +718,15 @@ export default function IndicatorLightSettingsModal({
                     onChange={(e) => setOffColor(e.target.value)}
                     style={{ width: "100%", height: 44, border: "none", cursor: "pointer" }}
                   />
-                  <div style={{ marginTop: 6, fontSize: 13, fontWeight: 600, color: "#475569", userSelect: "none" }}>
+                  <div
+                    style={{
+                      marginTop: 6,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "#475569",
+                      userSelect: "none",
+                    }}
+                  >
                     Click to select the color
                   </div>
                 </div>
@@ -723,7 +739,15 @@ export default function IndicatorLightSettingsModal({
                     onChange={(e) => setOnColor(e.target.value)}
                     style={{ width: "100%", height: 44, border: "none", cursor: "pointer" }}
                   />
-                  <div style={{ marginTop: 6, fontSize: 13, fontWeight: 600, color: "#475569", userSelect: "none" }}>
+                  <div
+                    style={{
+                      marginTop: 6,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "#475569",
+                      userSelect: "none",
+                    }}
+                  >
                     Click to select the color
                   </div>
                 </div>
@@ -731,8 +755,18 @@ export default function IndicatorLightSettingsModal({
             </div>
 
             {/* RIGHT SIDE */}
-            <div style={{ width: 420, border: "1px solid #e5e7eb", borderRadius: 12, padding: 14, background: "#ffffff" }}>
-              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 10 }}>Tag that drives the LED (ON/OFF)</div>
+            <div
+              style={{
+                width: 420,
+                border: "1px solid #e5e7eb",
+                borderRadius: 12,
+                padding: 14,
+                background: "#ffffff",
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 10 }}>
+                Tag that drives the LED (ON/OFF)
+              </div>
 
               {devicesErr && <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>{devicesErr}</div>}
               {telemetryErr && <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>{telemetryErr}</div>}
@@ -742,7 +776,14 @@ export default function IndicatorLightSettingsModal({
                 <select
                   value={deviceId}
                   onChange={(e) => setDeviceId(e.target.value)}
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #cbd5e1", fontSize: 14, background: "white" }}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5e1",
+                    fontSize: 14,
+                    background: "white",
+                  }}
                 >
                   <option value="">— Select device —</option>
                   {devices.map((d) => (
@@ -777,7 +818,13 @@ export default function IndicatorLightSettingsModal({
                   value={tagSearch}
                   onChange={(e) => setTagSearch(e.target.value)}
                   placeholder="ex: di1, di5..."
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #cbd5e1", fontSize: 14 }}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5e1",
+                    fontSize: 14,
+                  }}
                 />
               </div>
 
@@ -785,11 +832,11 @@ export default function IndicatorLightSettingsModal({
                 {deviceId ? (
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     {filteredFields.map((f) => {
-                      const isSelected = String(field) === String(f.key);
+                      const isSelected = String(fieldKey) === String(f.key); // ✅ fixed compare
                       return (
                         <button
                           key={f.key}
-                          onClick={() => setField(normalizeDiField(f.key))}
+                          onClick={() => setField(normalizeDiField(f.key))} // ✅ always store canonical
                           style={{
                             padding: "6px 10px",
                             borderRadius: 8,
@@ -833,10 +880,10 @@ export default function IndicatorLightSettingsModal({
                     <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>Selected Tag</div>
 
                     <div style={{ fontSize: 13, marginTop: 6, color: "#334155" }}>
-                      {deviceId && field ? (
+                      {deviceId && fieldKey ? (
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                           <span style={{ width: 8, height: 8, borderRadius: 99, background: tagDot, display: "inline-block" }} />
-                          <b>{field.toUpperCase()}</b>
+                          <b>{fieldKey.toUpperCase()}</b>
                         </span>
                       ) : (
                         <span style={{ color: "#64748b" }}>Select DI tag</span>
@@ -844,7 +891,7 @@ export default function IndicatorLightSettingsModal({
                     </div>
 
                     <div style={{ fontSize: 13, marginTop: 6, color: "#334155" }}>
-                      {deviceId && field ? (
+                      {deviceId && fieldKey ? (
                         tagIsOnline ? (
                           <span style={{ fontWeight: 900 }}>
                             Value: <span style={{ color: "#0f172a" }}>{String(tag01 ?? "—")}</span>
@@ -859,9 +906,9 @@ export default function IndicatorLightSettingsModal({
                   </div>
                 </div>
 
-                {deviceId && field && (
+                {deviceId && fieldKey && (
                   <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
-                    Bound Tag: <b>{field}</b>
+                    Bound Tag: <b>{fieldKey}</b>
                   </div>
                 )}
               </div>
@@ -876,7 +923,15 @@ export default function IndicatorLightSettingsModal({
               e.stopPropagation();
               onClose?.();
             }}
-            style={{ padding: "9px 14px", borderRadius: 10, border: "1px solid #cbd5e1", background: "white", cursor: "pointer", fontWeight: 900, fontSize: 14 }}
+            style={{
+              padding: "9px 14px",
+              borderRadius: 10,
+              border: "1px solid #cbd5e1",
+              background: "white",
+              cursor: "pointer",
+              fontWeight: 900,
+              fontSize: 14,
+            }}
           >
             Cancel
           </button>
@@ -886,7 +941,7 @@ export default function IndicatorLightSettingsModal({
               e.stopPropagation();
               apply();
             }}
-            disabled={!deviceId || !field}
+            disabled={!deviceId || !fieldKey}
             style={{
               padding: "9px 14px",
               borderRadius: 10,
@@ -896,7 +951,7 @@ export default function IndicatorLightSettingsModal({
               cursor: "pointer",
               fontWeight: 900,
               fontSize: 14,
-              opacity: !deviceId || !field ? 0.5 : 1,
+              opacity: !deviceId || !fieldKey ? 0.5 : 1,
             }}
           >
             Apply
