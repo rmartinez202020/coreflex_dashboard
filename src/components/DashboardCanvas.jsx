@@ -834,19 +834,20 @@ export default function DashboardCanvas({
               );
             }
 
-            // LED CIRCLE
-            if (tank.shape === "ledCircle") {
-              return (
-                <DraggableDroppedTank
-                  {...commonProps}
-                  onDoubleClick={() => {
-                    if (!isPlay) onOpenIndicatorSettings?.(tank);
-                  }}
-                >
-                  <DraggableLedCircle tank={tank} />
-                </DraggableDroppedTank>
-              );
-            }
+           // LED CIRCLE
+if (tank.shape === "ledCircle") {
+  return (
+    <DraggableDroppedTank
+      {...commonProps}
+      onDoubleClick={() => {
+        if (!isPlay) onOpenIndicatorSettings?.(tank);
+      }}
+    >
+      <DraggableLedCircle tank={tank} sensorsData={sensorsData} />
+    </DraggableDroppedTank>
+  );
+}
+
 
             // STATUS TEXT
             if (tank.shape === "statusTextBox") {
