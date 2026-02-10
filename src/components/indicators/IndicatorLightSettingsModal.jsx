@@ -64,7 +64,8 @@ export default function IndicatorLightSettingsModal({
   // =========================
   // ✅ DRAGGABLE MODAL WINDOW
   // =========================
-  const MODAL_W = 620;
+  // ✅ wider modal to fit right-side tag selector
+  const MODAL_W = 980;
   const MODAL_H = 650;
 
   const clampRaw = (x, y) => {
@@ -151,7 +152,10 @@ export default function IndicatorLightSettingsModal({
         const mapped = sd
           .map((d) => ({
             id: String(d.id ?? d.deviceId ?? d.device_id ?? "").trim(),
-            name: d.name || d.label || String(d.id ?? d.deviceId ?? d.device_id),
+            name:
+              d.name ||
+              d.label ||
+              String(d.id ?? d.deviceId ?? d.device_id),
           }))
           .filter((x) => x.id);
         if (mapped.length > 0) {
@@ -163,14 +167,20 @@ export default function IndicatorLightSettingsModal({
       // 2) Fallback: infer from sensorsData.latest / values keys
       const inferredKeys = Object.keys(sensorsData?.latest || {});
       if (inferredKeys.length > 0) {
-        const mapped = inferredKeys.map((k) => ({ id: String(k), name: String(k) }));
+        const mapped = inferredKeys.map((k) => ({
+          id: String(k),
+          name: String(k),
+        }));
         if (alive) setDevices(mapped);
         return;
       }
 
       const inferredKeys2 = Object.keys(sensorsData?.values || {});
       if (inferredKeys2.length > 0) {
-        const mapped = inferredKeys2.map((k) => ({ id: String(k), name: String(k) }));
+        const mapped = inferredKeys2.map((k) => ({
+          id: String(k),
+          name: String(k),
+        }));
         if (alive) setDevices(mapped);
         return;
       }
@@ -372,197 +382,210 @@ export default function IndicatorLightSettingsModal({
           </button>
         </div>
 
-        {/* Body */}
-        <div style={{ padding: 18, fontSize: 14 }}>
-          {/* Preview */}
+        {/* Body (2 columns) */}
+        <div
+          style={{
+            padding: 18,
+            fontSize: 14,
+            display: "grid",
+            gridTemplateColumns: "1.1fr 1fr",
+            gap: 18,
+            alignItems: "start",
+          }}
+        >
+          {/* LEFT: preview + settings */}
+          <div>
+            {/* Preview */}
+            <div
+              style={{
+                display: "flex",
+                gap: 16,
+                alignItems: "center",
+                border: "1px solid #e5e7eb",
+                borderRadius: 12,
+                padding: 14,
+                background: "#f8fafc",
+                marginBottom: 14,
+              }}
+            >
+              <div style={{ textAlign: "center" }}>
+                <div
+                  style={{
+                    width: previewSize,
+                    height: previewSize,
+                    borderRadius,
+                    background: offColor,
+                    border: "2px solid rgba(0,0,0,0.25)",
+                    margin: "0 auto",
+                  }}
+                />
+                <div
+                  style={{
+                    fontSize: 12,
+                    marginTop: 10,
+                    color: "#334155",
+                    fontWeight: 800,
+                  }}
+                >
+                  OFF
+                </div>
+              </div>
+
+              <div style={{ textAlign: "center" }}>
+                <div
+                  style={{
+                    width: previewSize,
+                    height: previewSize,
+                    borderRadius,
+                    background: onColor,
+                    border: "2px solid rgba(0,0,0,0.25)",
+                    margin: "0 auto",
+                  }}
+                />
+                <div
+                  style={{
+                    fontSize: 12,
+                    marginTop: 10,
+                    color: "#334155",
+                    fontWeight: 800,
+                  }}
+                >
+                  ON
+                </div>
+              </div>
+
+              <div style={{ flex: 1, fontSize: 13, color: "#475569" }}>
+                Configure shape, colors, text, and the tag that drives the state.
+              </div>
+            </div>
+
+            {/* Shape */}
+            <div style={{ marginBottom: 14 }}>
+              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
+                Shape
+              </div>
+              <label style={{ marginRight: 18, fontSize: 14 }}>
+                <input
+                  type="radio"
+                  checked={shapeStyle === "circle"}
+                  onChange={() => setShapeStyle("circle")}
+                />{" "}
+                Circle
+              </label>
+              <label style={{ fontSize: 14 }}>
+                <input
+                  type="radio"
+                  checked={shapeStyle === "square"}
+                  onChange={() => setShapeStyle("square")}
+                />{" "}
+                Square
+              </label>
+            </div>
+
+            {/* Text ON/OFF */}
+            <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
+                  OFF Text
+                </div>
+                <input
+                  value={offText}
+                  onChange={(e) => setOffText(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5e1",
+                    fontSize: 14,
+                  }}
+                />
+              </div>
+
+              <div style={{ flex: 1 }}>
+                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
+                  ON Text
+                </div>
+                <input
+                  value={onText}
+                  onChange={(e) => setOnText(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5e1",
+                    fontSize: 14,
+                  }}
+                />
+              </div>
+            </div>
+
+            {/* Colors */}
+            <div style={{ display: "flex", gap: 12, marginBottom: 0 }}>
+              <div style={{ flex: 1, textAlign: "center" }}>
+                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
+                  OFF Color
+                </div>
+                <input
+                  type="color"
+                  value={offColor}
+                  onChange={(e) => setOffColor(e.target.value)}
+                  style={{
+                    width: "100%",
+                    height: 44,
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                />
+                <div
+                  style={{
+                    marginTop: 6,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#475569",
+                    userSelect: "none",
+                  }}
+                >
+                  Click to select the color
+                </div>
+              </div>
+
+              <div style={{ flex: 1, textAlign: "center" }}>
+                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
+                  ON Color
+                </div>
+                <input
+                  type="color"
+                  value={onColor}
+                  onChange={(e) => setOnColor(e.target.value)}
+                  style={{
+                    width: "100%",
+                    height: 44,
+                    border: "none",
+                    cursor: "pointer",
+                  }}
+                />
+                <div
+                  style={{
+                    marginTop: 6,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#475569",
+                    userSelect: "none",
+                  }}
+                >
+                  Click to select the color
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* RIGHT: Tag selector (moved right + wider) */}
           <div
             style={{
-              display: "flex",
-              gap: 16,
-              alignItems: "center",
               border: "1px solid #e5e7eb",
-              borderRadius: 12,
+              borderRadius: 14,
               padding: 14,
               background: "#f8fafc",
-              marginBottom: 14,
-            }}
-          >
-            <div style={{ textAlign: "center" }}>
-              <div
-                style={{
-                  width: previewSize,
-                  height: previewSize,
-                  borderRadius,
-                  background: offColor,
-                  border: "2px solid rgba(0,0,0,0.25)",
-                  margin: "0 auto",
-                }}
-              />
-              <div
-                style={{
-                  fontSize: 12,
-                  marginTop: 10,
-                  color: "#334155",
-                  fontWeight: 800,
-                }}
-              >
-                OFF
-              </div>
-            </div>
-
-            <div style={{ textAlign: "center" }}>
-              <div
-                style={{
-                  width: previewSize,
-                  height: previewSize,
-                  borderRadius,
-                  background: onColor,
-                  border: "2px solid rgba(0,0,0,0.25)",
-                  margin: "0 auto",
-                }}
-              />
-              <div
-                style={{
-                  fontSize: 12,
-                  marginTop: 10,
-                  color: "#334155",
-                  fontWeight: 800,
-                }}
-              >
-                ON
-              </div>
-            </div>
-
-            <div style={{ flex: 1, fontSize: 13, color: "#475569" }}>
-              Configure shape, colors, text, and the tag that drives the state.
-            </div>
-          </div>
-
-          {/* Shape */}
-          <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-              Shape
-            </div>
-            <label style={{ marginRight: 18, fontSize: 14 }}>
-              <input
-                type="radio"
-                checked={shapeStyle === "circle"}
-                onChange={() => setShapeStyle("circle")}
-              />{" "}
-              Circle
-            </label>
-            <label style={{ fontSize: 14 }}>
-              <input
-                type="radio"
-                checked={shapeStyle === "square"}
-                onChange={() => setShapeStyle("square")}
-              />{" "}
-              Square
-            </label>
-          </div>
-
-          {/* Text ON/OFF */}
-          <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-                OFF Text
-              </div>
-              <input
-                value={offText}
-                onChange={(e) => setOffText(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  border: "1px solid #cbd5e1",
-                  fontSize: 14,
-                }}
-              />
-            </div>
-
-            <div style={{ flex: 1 }}>
-              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-                ON Text
-              </div>
-              <input
-                value={onText}
-                onChange={(e) => setOnText(e.target.value)}
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  border: "1px solid #cbd5e1",
-                  fontSize: 14,
-                }}
-              />
-            </div>
-          </div>
-
-          {/* Colors */}
-          <div style={{ display: "flex", gap: 12, marginBottom: 16 }}>
-            <div style={{ flex: 1, textAlign: "center" }}>
-              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-                OFF Color
-              </div>
-              <input
-                type="color"
-                value={offColor}
-                onChange={(e) => setOffColor(e.target.value)}
-                style={{
-                  width: "100%",
-                  height: 44,
-                  border: "none",
-                  cursor: "pointer",
-                }}
-              />
-              <div
-                style={{
-                  marginTop: 6,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "#475569",
-                  userSelect: "none",
-                }}
-              >
-                Click to select the color
-              </div>
-            </div>
-
-            <div style={{ flex: 1, textAlign: "center" }}>
-              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-                ON Color
-              </div>
-              <input
-                type="color"
-                value={onColor}
-                onChange={(e) => setOnColor(e.target.value)}
-                style={{
-                  width: "100%",
-                  height: 44,
-                  border: "none",
-                  cursor: "pointer",
-                }}
-              />
-              <div
-                style={{
-                  marginTop: 6,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "#475569",
-                  userSelect: "none",
-                }}
-              >
-                Click to select the color
-              </div>
-            </div>
-          </div>
-
-          {/* TAG SELECTOR */}
-          <div
-            style={{
-              borderTop: "1px solid #e5e7eb",
-              paddingTop: 14,
-              marginTop: 8,
             }}
           >
             <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 10 }}>
@@ -629,7 +652,13 @@ export default function IndicatorLightSettingsModal({
             {/* ✅ DI TAG PICKER */}
             <div style={{ marginBottom: 12 }}>
               {deviceId ? (
-                <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+                <div
+                  style={{
+                    display: "flex",
+                    gap: 8,
+                    flexWrap: "wrap",
+                  }}
+                >
                   {filteredFields.map((f) => {
                     const isSelected = String(field) === String(f.key);
                     return (
@@ -666,7 +695,7 @@ export default function IndicatorLightSettingsModal({
                 border: "1px solid #e5e7eb",
                 borderRadius: 12,
                 padding: 12,
-                background: "#f8fafc",
+                background: "#ffffff",
                 display: "flex",
                 alignItems: "center",
                 justifyContent: "space-between",
