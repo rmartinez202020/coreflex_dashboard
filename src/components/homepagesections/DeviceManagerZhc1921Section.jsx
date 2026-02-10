@@ -102,6 +102,9 @@ function normalizeZhc1921Row(r) {
     in2: pick("in2", "di2", "di_2") ?? 0,
     in3: pick("in3", "di3", "di_3") ?? 0,
     in4: pick("in4", "di4", "di_4") ?? 0,
+    // ✅ NEW: DI5/DI6 (backend sends in5/in6)
+    in5: pick("in5", "di5", "di_5") ?? 0,
+    in6: pick("in6", "di6", "di_6") ?? 0,
 
     do1: pick("do1", "do_1") ?? 0,
     do2: pick("do2", "do_2") ?? 0,
@@ -284,6 +287,14 @@ export default function DeviceManagerZhc1921Section({
               <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[44px]">
                 DI-4
               </th>
+              {/* ✅ NEW */}
+              <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[44px]">
+                DI-5
+              </th>
+              {/* ✅ NEW */}
+              <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[44px]">
+                DI-6
+              </th>
 
               <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[44px]">
                 DO 1
@@ -337,6 +348,14 @@ export default function DeviceManagerZhc1921Section({
               <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
                 0/1
               </th>
+              {/* ✅ NEW */}
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
+              {/* ✅ NEW */}
+              <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
+                0/1
+              </th>
 
               <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
                 0/1
@@ -372,7 +391,7 @@ export default function DeviceManagerZhc1921Section({
             {loading ? (
               <tr>
                 <td
-                  colSpan={18}
+                  colSpan={20}
                   className="px-3 py-6 text-center text-slate-500"
                 >
                   Loading...
@@ -381,7 +400,7 @@ export default function DeviceManagerZhc1921Section({
             ) : !effectiveRows || effectiveRows.length === 0 ? (
               <tr>
                 <td
-                  colSpan={18}
+                  colSpan={20}
                   className="px-3 py-6 text-center text-slate-500"
                 >
                   No devices found.
@@ -440,6 +459,14 @@ export default function DeviceManagerZhc1921Section({
                     </td>
                     <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center">
                       {String(r?.in4 ?? "")}
+                    </td>
+                    {/* ✅ NEW */}
+                    <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center">
+                      {String(r?.in5 ?? "")}
+                    </td>
+                    {/* ✅ NEW */}
+                    <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center">
+                      {String(r?.in6 ?? "")}
                     </td>
 
                     <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center">
