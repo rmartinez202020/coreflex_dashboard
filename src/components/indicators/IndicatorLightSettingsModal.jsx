@@ -125,7 +125,8 @@ export default function IndicatorLightSettingsModal({
     return devices.find((d) => String(d.id) === String(deviceId)) || null;
   }, [devices, deviceId]);
 
-  const availableFields = React.useMemo(() => {
+  // normalize available fields (same logic you used before)
+  const allFieldsForSelected = React.useMemo(() => {
     const raw = selectedDevice?.fields;
     if (!raw) return [];
 
@@ -143,14 +144,34 @@ export default function IndicatorLightSettingsModal({
     return [];
   }, [selectedDevice]);
 
+  // Helper: determine if a field key refers to a digital input (DI/IN)
+  const isDigitalFieldKey = React.useCallback((k) => {
+    if (!k || typeof k !== "string") return false;
+    const s = k.trim().toLowerCase();
+    // Accept patterns: di1, di-1, di_1, in1, in-1, in_1 (robust)
+    return /^((di|in)[-_]?\d+)$/i.test(s) || /^d i[-_]?(\d+)$/i.test(s) === false; // fallback prevented
+  }, []);
+
+  // produce only DI fields (digital inputs) for the selected device
+  const digitalFields = React.useMemo(() => {
+    return allFieldsForSelected.filter((f) => {
+      const k = String(f.key || "").trim();
+      // normalized key (remove whitespace)
+      const nk = k.replace(/\s+/g, "").toLowerCase();
+      return /^((di|in)[-_]?\d+)$/i.test(nk);
+    });
+  }, [allFieldsForSelected]);
+
+  // filtered by tagSearch (applies only to digital fields)
   const filteredFields = React.useMemo(() => {
-    const q = tagSearch.trim().toLowerCase();
-    if (!q) return availableFields;
-    return availableFields.filter(
+    const q = (tagSearch || "").trim().toLowerCase();
+    if (!q) return digitalFields;
+    return digitalFields.filter(
       (f) =>
-        f.key.toLowerCase().includes(q) || f.label.toLowerCase().includes(q)
+        (f.key || "").toLowerCase().includes(q) ||
+        (f.label || "").toLowerCase().includes(q)
     );
-  }, [availableFields, tagSearch]);
+  }, [digitalFields, tagSearch]);
 
   // =========================
   // ✅ LIVE VALUE / STATUS (Offline vs Online + 0/1)
@@ -215,6 +236,14 @@ export default function IndicatorLightSettingsModal({
       },
     });
   };
+
+  // If user selects a different device, clear field if it's not part of the new digital fields
+  React.useEffect(() => {
+    if (!deviceId) return;
+    const exists = digitalFields.some((f) => String(f.key) === String(field));
+    if (!exists) setField("");
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [deviceId, digitalFields]);
 
   return (
     <div
@@ -497,8 +526,9 @@ export default function IndicatorLightSettingsModal({
                   value={deviceId}
                   onChange={(e) => {
                     setDeviceId(e.target.value);
-                    // keep existing tank field if possible; otherwise clear
-                    setField((prev) => prev || "");
+                    // when device changes, clear field to avoid binding to wrong device
+                    setField("");
+                    setTagSearch("");
                   }}
                   style={{
                     width: "100%",
@@ -520,12 +550,12 @@ export default function IndicatorLightSettingsModal({
 
               <div style={{ flex: 1 }}>
                 <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-                  Search Tag
+                  Search Tag (digital inputs only)
                 </div>
                 <input
                   value={tagSearch}
                   onChange={(e) => setTagSearch(e.target.value)}
-                  placeholder="ex: DI0, level, run..."
+                  placeholder="ex: DI1, DI-2, in3..."
                   style={{
                     width: "100%",
                     padding: "10px 12px",
@@ -535,6 +565,56 @@ export default function IndicatorLightSettingsModal({
                   }}
                 />
               </div>
+            </div>
+
+            {/* clickable list of matching DI fields */}
+            <div style={{ marginBottom: 12 }}>
+              {deviceId ? (
+                filteredFields.length > 0 ? (
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 8,
+                      flexWrap: "wrap",
+                    }}
+                  >
+                    {filteredFields.map((f) => {
+                      const k = String(f.key || "");
+                      const isSelected = String(field || "") === k;
+                      return (
+                        <button
+                          key={k}
+                          onClick={() => {
+                            setField(k);
+                            setTagSearch(String(k));
+                          }}
+                          style={{
+                            padding: "6px 10px",
+                            borderRadius: 8,
+                            border: isSelected
+                              ? "2px solid #16a34a"
+                              : "1px solid #e2e8f0",
+                            background: isSelected ? "#ecfdf5" : "white",
+                            cursor: "pointer",
+                            fontWeight: isSelected ? 900 : 600,
+                            fontSize: 13,
+                          }}
+                        >
+                          {f.label || f.key}
+                        </button>
+                      );
+                    })}
+                  </div>
+                ) : (
+                  <div style={{ color: "#64748b", fontSize: 13 }}>
+                    No digital input tags found for this device.
+                  </div>
+                )
+              ) : (
+                <div style={{ color: "#64748b", fontSize: 13 }}>
+                  Select a device to list digital inputs.
+                </div>
+              )}
             </div>
 
             {/* ✅ Status panel only */}
