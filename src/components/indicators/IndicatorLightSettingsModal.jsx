@@ -20,6 +20,22 @@ const CF2000_DI_FIELDS = [
   { key: "di6", label: "DI-6" },
 ];
 
+function normalizeOnline(v) {
+  if (v == null) return null;
+  if (typeof v === "boolean") return v;
+  if (typeof v === "number") return v > 0;
+  if (typeof v === "string") {
+    const s = v.trim().toLowerCase();
+    if (["online", "on", "true", "1", "yes"].includes(s)) return true;
+    if (["offline", "off", "false", "0", "no"].includes(s)) return false;
+  }
+  return null;
+}
+
+function hasAnyKeys(obj) {
+  return obj && typeof obj === "object" && Object.keys(obj).length > 0;
+}
+
 export default function IndicatorLightSettingsModal({
   open,
   tank,
@@ -61,7 +77,6 @@ export default function IndicatorLightSettingsModal({
   // =========================
   // ✅ DRAGGABLE MODAL WINDOW
   // =========================
-  // ✅ wider modal to fit right-side tag selector
   const MODAL_W = 980;
   const MODAL_H = 650;
 
@@ -233,7 +248,31 @@ export default function IndicatorLightSettingsModal({
   }, [devices, deviceId]);
 
   // =========================
-  // ✅ LIVE VALUE / STATUS (Offline vs Online + 0/1)
+  // ✅ DEVICE ONLINE/OFFLINE (separate from tag)
+  // =========================
+  const deviceOnline = React.useMemo(() => {
+    if (!deviceId) return null;
+
+    // If your backend ever provides a device-level status map, we’ll use it.
+    const s1 =
+      sensorsData?.deviceStatus?.[deviceId] ??
+      sensorsData?.devicesStatus?.[deviceId] ??
+      sensorsData?.status?.[deviceId];
+    const normalized = normalizeOnline(s1);
+    if (normalized !== null) return normalized;
+
+    // Otherwise infer online if we have ANY telemetry object for the device.
+    const obj =
+      sensorsData?.latest?.[deviceId] ||
+      sensorsData?.values?.[deviceId] ||
+      sensorsData?.tags?.[deviceId];
+
+    if (hasAnyKeys(obj)) return true;
+    return false;
+  }, [sensorsData, deviceId]);
+
+  // =========================
+  // ✅ TAG LIVE VALUE / STATUS (Online vs Offline + 0/1)
   // =========================
   const liveRawValue = React.useMemo(() => {
     if (!deviceId || !field) return undefined;
@@ -250,10 +289,10 @@ export default function IndicatorLightSettingsModal({
     return undefined;
   }, [sensorsData, deviceId, field]);
 
-  const isOnline = liveRawValue !== undefined && liveRawValue !== null;
+  const tagOnline = liveRawValue !== undefined && liveRawValue !== null;
 
   const bool01 = React.useMemo(() => {
-    if (!isOnline) return null;
+    if (!tagOnline) return null;
 
     const v = liveRawValue;
 
@@ -270,7 +309,7 @@ export default function IndicatorLightSettingsModal({
     }
 
     return v ? 1 : 0;
-  }, [isOnline, liveRawValue]);
+  }, [tagOnline, liveRawValue]);
 
   // ✅ When device changes, clear field
   React.useEffect(() => {
@@ -292,6 +331,36 @@ export default function IndicatorLightSettingsModal({
       },
     });
   };
+
+  const Pill = ({ ok, label }) => (
+    <span
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        padding: "4px 10px",
+        borderRadius: 999,
+        border: `1px solid ${ok ? "#bbf7d0" : "#fecaca"}`,
+        background: ok ? "#ecfdf5" : "#fef2f2",
+        color: ok ? "#166534" : "#991b1b",
+        fontWeight: 900,
+        fontSize: 12,
+        userSelect: "none",
+        whiteSpace: "nowrap",
+      }}
+    >
+      <span
+        style={{
+          width: 8,
+          height: 8,
+          borderRadius: 999,
+          background: ok ? "#22c55e" : "#ef4444",
+          display: "inline-block",
+        }}
+      />
+      {label}
+    </span>
+  );
 
   return (
     <div
@@ -565,7 +634,7 @@ export default function IndicatorLightSettingsModal({
             </div>
           </div>
 
-          {/* RIGHT: Tag selector (NO search box) */}
+          {/* RIGHT: Tag selector */}
           <div
             style={{
               border: "1px solid #e5e7eb",
@@ -609,13 +678,18 @@ export default function IndicatorLightSettingsModal({
               </select>
 
               {deviceId && selectedDevice && (
-                <div style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}>
-                  Selected: <b>{selectedDevice.id}</b>
+                <div style={{ marginTop: 8, display: "flex", gap: 8, flexWrap: "wrap" }}>
+                  <Pill ok={deviceOnline === true} label={`Device: ${deviceOnline ? "Online" : "Offline"}`} />
+                  {field ? (
+                    <Pill ok={tagOnline} label={`Tag: ${tagOnline ? "Online" : "Offline"}`} />
+                  ) : (
+                    <Pill ok={false} label="Tag: Not selected" />
+                  )}
                 </div>
               )}
             </div>
 
-            {/* ✅ DI TAG PICKER (no search) */}
+            {/* ✅ DI TAG PICKER */}
             <div style={{ marginBottom: 12 }}>
               {deviceId ? (
                 <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -649,7 +723,7 @@ export default function IndicatorLightSettingsModal({
               )}
             </div>
 
-            {/* ✅ Status panel */}
+            {/* ✅ Status panel (shows BOTH device + tag status + value) */}
             <div
               style={{
                 border: "1px solid #e5e7eb",
@@ -657,35 +731,58 @@ export default function IndicatorLightSettingsModal({
                 padding: 12,
                 background: "#ffffff",
                 display: "flex",
-                alignItems: "center",
+                alignItems: "flex-start",
                 justifyContent: "space-between",
                 gap: 12,
               }}
             >
-              <div>
+              <div style={{ minWidth: 0 }}>
                 <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>
                   Status
                 </div>
-                <div style={{ fontSize: 13, marginTop: 4, color: "#334155" }}>
-                  {deviceId && field ? (
-                    isOnline ? (
-                      <span style={{ fontWeight: 900, color: "#16a34a" }}>
-                        Online
-                      </span>
-                    ) : (
-                      <span style={{ fontWeight: 900, color: "#dc2626" }}>
-                        Offline
-                      </span>
-                    )
+
+                <div style={{ marginTop: 6, fontSize: 13, color: "#334155" }}>
+                  {deviceId ? (
+                    <>
+                      <div>
+                        Device:{" "}
+                        {deviceOnline === true ? (
+                          <span style={{ fontWeight: 900, color: "#16a34a" }}>
+                            Online
+                          </span>
+                        ) : (
+                          <span style={{ fontWeight: 900, color: "#dc2626" }}>
+                            Offline
+                          </span>
+                        )}
+                      </div>
+
+                      <div style={{ marginTop: 4 }}>
+                        Tag:{" "}
+                        {field ? (
+                          tagOnline ? (
+                            <span style={{ fontWeight: 900, color: "#16a34a" }}>
+                              Online
+                            </span>
+                          ) : (
+                            <span style={{ fontWeight: 900, color: "#dc2626" }}>
+                              Offline
+                            </span>
+                          )
+                        ) : (
+                          <span style={{ fontWeight: 900, color: "#64748b" }}>
+                            Not selected
+                          </span>
+                        )}
+                      </div>
+                    </>
                   ) : (
-                    <span style={{ color: "#64748b" }}>
-                      Select a device and DI tag
-                    </span>
+                    <span style={{ color: "#64748b" }}>Select a device</span>
                   )}
                 </div>
 
                 {deviceId && field && (
-                  <div style={{ fontSize: 12, color: "#64748b", marginTop: 6 }}>
+                  <div style={{ fontSize: 12, color: "#64748b", marginTop: 8 }}>
                     Bound Tag: <b>{field}</b>
                   </div>
                 )}
@@ -695,15 +792,21 @@ export default function IndicatorLightSettingsModal({
                 <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>
                   Value
                 </div>
+
                 <div
                   style={{
-                    fontSize: 16,
+                    fontSize: 18,
                     fontWeight: 900,
-                    marginTop: 4,
-                    color: isOnline ? "#0f172a" : "#94a3b8",
+                    marginTop: 8,
+                    color: tagOnline ? "#0f172a" : "#94a3b8",
                   }}
                 >
-                  {deviceId && field ? (isOnline ? String(bool01) : "—") : "—"}
+                  {deviceId && field ? (tagOnline ? String(bool01) : "—") : "—"}
+                </div>
+
+                {/* Optional: show raw under it (helps debugging) */}
+                <div style={{ marginTop: 6, fontSize: 11, color: "#94a3b8" }}>
+                  {deviceId && field && tagOnline ? `raw: ${String(liveRawValue)}` : ""}
                 </div>
               </div>
             </div>
