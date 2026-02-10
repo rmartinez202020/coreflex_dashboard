@@ -25,6 +25,41 @@ function lsKeyForTank(tankId) {
   return `coreflex_indicator_light_tag_${String(tankId || "").trim()}`;
 }
 
+// ✅ Normalize ANY stored DI key into: di1..di6
+function normalizeDiField(raw) {
+  const s = String(raw || "").trim();
+  if (!s) return "";
+
+  // already correct
+  if (/^di[1-6]$/i.test(s)) return s.toLowerCase();
+
+  // strip spaces
+  const t = s.replace(/\s+/g, "");
+
+  // DI-1 / di-1
+  const m1 = /^di-?([1-6])$/i.exec(t);
+  if (m1) return `di${m1[1]}`;
+
+  // DI1 / di1
+  const m2 = /^di([1-6])$/i.exec(t);
+  if (m2) return `di${m2[1]}`;
+
+  // in1 / IN1
+  const m3 = /^in([1-6])$/i.exec(t);
+  if (m3) return `di${m3[1]}`;
+
+  // DI_1 / DI-01 style
+  const m4 = /^di[_-]?0?([1-6])$/i.exec(t);
+  if (m4) return `di${m4[1]}`;
+
+  // last chance: if it contains a 1-6 and also "di" or "in"
+  const digit = /([1-6])/.exec(t)?.[1];
+  if (digit && /di/i.test(t)) return `di${digit}`;
+  if (digit && /^in/i.test(t)) return `di${digit}`;
+
+  return "";
+}
+
 // ✅ Safe date formatter
 function formatDateMMDDYYYY_hmma(ts) {
   if (!ts) return "—";
@@ -124,7 +159,8 @@ export default function IndicatorLightSettingsModal({
 
     // primary source: tank.properties.tag
     let nextDeviceId = String(tank?.properties?.tag?.deviceId ?? "").trim();
-    let nextField = String(tank?.properties?.tag?.field ?? "").trim();
+    let nextFieldRaw = tank?.properties?.tag?.field ?? "";
+    let nextField = normalizeDiField(nextFieldRaw);
 
     // fallback: localStorage
     if (!nextDeviceId || !nextField) {
@@ -133,7 +169,7 @@ export default function IndicatorLightSettingsModal({
         if (raw) {
           const parsed = JSON.parse(raw);
           const lsDev = String(parsed?.deviceId ?? "").trim();
-          const lsField = String(parsed?.field ?? "").trim();
+          const lsField = normalizeDiField(parsed?.field ?? "");
           if (!nextDeviceId && lsDev) nextDeviceId = lsDev;
           if (!nextField && lsField) nextField = lsField;
         }
@@ -429,7 +465,7 @@ export default function IndicatorLightSettingsModal({
 
   const apply = () => {
     const nextDeviceId = String(deviceId || "").trim();
-    const nextField = String(field || "").trim();
+    const nextField = normalizeDiField(field);
 
     // ✅ localStorage fallback (so reopening modal always shows selection)
     try {
@@ -753,7 +789,7 @@ export default function IndicatorLightSettingsModal({
                       return (
                         <button
                           key={f.key}
-                          onClick={() => setField(f.key)}
+                          onClick={() => setField(normalizeDiField(f.key))}
                           style={{
                             padding: "6px 10px",
                             borderRadius: 8,
