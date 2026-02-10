@@ -8,7 +8,7 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-// ✅ FIXED TAG LIST (NO MORE BUTTONS)
+// ✅ Tag options (DI + DO)
 const TAG_OPTIONS = [
   { key: "di1", label: "DI-1" },
   { key: "di2", label: "DI-2" },
@@ -22,10 +22,71 @@ const TAG_OPTIONS = [
   { key: "do4", label: "DO-4" },
 ];
 
-// ✅ Read tag value from backend row
+// ✅ Safe date formatter
+function formatDateMMDDYYYY_hmma(ts) {
+  if (!ts) return "—";
+  const d = new Date(ts);
+  if (Number.isNaN(d.getTime())) return String(ts);
+
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const yyyy = d.getFullYear();
+
+  let h = d.getHours();
+  const ampm = h >= 12 ? "PM" : "AM";
+  h = h % 12;
+  if (h === 0) h = 12;
+
+  const min = String(d.getMinutes()).padStart(2, "0");
+  return `${mm}/${dd}/${yyyy}-${h}:${min}${ampm}`;
+}
+
+// ✅ Convert anything to 0/1
+function to01(v) {
+  if (v === undefined || v === null) return null;
+  if (typeof v === "boolean") return v ? 1 : 0;
+  if (typeof v === "number") return v > 0 ? 1 : 0;
+  if (typeof v === "string") {
+    const s = v.trim().toLowerCase();
+    if (s === "1" || s === "true" || s === "on" || s === "yes") return 1;
+    if (s === "0" || s === "false" || s === "off" || s === "no") return 0;
+    const n = Number(s);
+    if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
+  }
+  return v ? 1 : 0;
+}
+
+// ✅ Read tag value from backend row (tries a few common variants)
 function readTagFromRow(row, field) {
   if (!row || !field) return undefined;
-  return row[field] ?? row[field.toUpperCase()] ?? undefined;
+
+  // direct
+  if (row[field] !== undefined) return row[field];
+
+  // upper-case key
+  const up = String(field).toUpperCase();
+  if (row[up] !== undefined) return row[up];
+
+  // legacy mappings
+  // di1..di6 -> in1..in6
+  if (/^di[1-6]$/.test(field)) {
+    const n = field.replace("di", "");
+    const alt = `in${n}`;
+    if (row[alt] !== undefined) return row[alt];
+    const altUp = `IN${n}`;
+    if (row[altUp] !== undefined) return row[altUp];
+  }
+
+  // do1..do4 -> out1..out4 (common)
+  if (/^do[1-4]$/.test(field)) {
+    const n = field.replace("do", "");
+    const alt = `out${n}`;
+    if (row[alt] !== undefined) return row[alt];
+    const altUp = `OUT${n}`;
+    if (row[altUp] !== undefined) return row[altUp];
+  }
+
+  return undefined;
 }
 
 export default function IndicatorLightSettingsModal({
@@ -34,7 +95,17 @@ export default function IndicatorLightSettingsModal({
   onClose,
   onSave,
 }) {
-  // 🚨 NEVER early-return before hooks
+  // ✅ do NOT early return before hooks
+
+  // =========================
+  // ✅ STATE (shape/colors/text + tag)
+  // =========================
+  const [shapeStyle, setShapeStyle] = React.useState("circle");
+  const [offColor, setOffColor] = React.useState("#9ca3af");
+  const [onColor, setOnColor] = React.useState("#22c55e");
+  const [offText, setOffText] = React.useState("OFF");
+  const [onText, setOnText] = React.useState("ON");
+
   const [deviceId, setDeviceId] = React.useState("");
   const [field, setField] = React.useState("");
 
@@ -42,16 +113,29 @@ export default function IndicatorLightSettingsModal({
   const [devicesErr, setDevicesErr] = React.useState("");
 
   const [telemetryRow, setTelemetryRow] = React.useState(null);
+  const telemetryRef = React.useRef({ loading: false });
 
   // =========================
-  // ✅ REHYDRATE FROM SAVED PROPERTIES
+  // ✅ REHYDRATE ON OPEN
   // =========================
   React.useEffect(() => {
     if (!open || !tank) return;
 
+    setShapeStyle(String(tank?.properties?.shapeStyle || "circle"));
+    setOffColor(String(tank?.properties?.colorOff || "#9ca3af"));
+    setOnColor(String(tank?.properties?.colorOn || "#22c55e"));
+    setOffText(String(tank?.properties?.offText || "OFF"));
+    setOnText(String(tank?.properties?.onText || "ON"));
+
     setDeviceId(String(tank?.properties?.tag?.deviceId || ""));
     setField(String(tank?.properties?.tag?.field || ""));
+
+    setTelemetryRow(null);
   }, [open, tank?.id]);
+
+  // --- helpers for preview
+  const previewSize = 56;
+  const borderRadius = shapeStyle === "square" ? 12 : 999;
 
   // =========================
   // ✅ LOAD DEVICES
@@ -59,122 +143,421 @@ export default function IndicatorLightSettingsModal({
   React.useEffect(() => {
     if (!open) return;
 
+    let alive = true;
+
     async function loadDevices() {
+      setDevicesErr("");
       try {
+        const token = String(getToken() || "").trim();
+        if (!token) throw new Error("Missing auth token. Please logout and login again.");
+
         const res = await fetch(`${API_URL}/zhc1921/my-devices`, {
           headers: getAuthHeaders(),
         });
+
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}));
+          throw new Error(j?.detail || `Failed to load devices (${res.status})`);
+        }
+
         const data = await res.json();
-        setDevices(Array.isArray(data) ? data : []);
+        const list = Array.isArray(data) ? data : [];
+
+        const mapped = list
+          .map((r) => ({
+            id: String(r.deviceId ?? r.device_id ?? "").trim(),
+            name: String(r.deviceId ?? r.device_id ?? "").trim(),
+          }))
+          .filter((x) => x.id);
+
+        if (alive) setDevices(mapped);
       } catch (e) {
-        setDevices([]);
-        setDevicesErr("Failed to load devices");
+        if (alive) {
+          setDevices([]);
+          setDevicesErr(e.message || "Failed to load devices");
+        }
       }
     }
 
     loadDevices();
+    return () => {
+      alive = false;
+    };
   }, [open]);
+
+  const selectedDevice = React.useMemo(() => {
+    return devices.find((d) => String(d.id) === String(deviceId)) || null;
+  }, [devices, deviceId]);
 
   // =========================
   // ✅ POLL TELEMETRY
   // =========================
-  React.useEffect(() => {
-    if (!open || !deviceId) return;
-
-    let alive = true;
-
-    async function poll() {
-      try {
-        const res = await fetch(`${API_URL}/zhc1921/my-devices`, {
-          headers: getAuthHeaders(),
-        });
-        const list = await res.json();
-        if (!alive) return;
-
-        const row = list.find(
-          (r) => String(r.deviceId) === String(deviceId)
-        );
-        setTelemetryRow(row || null);
-      } catch {
-        setTelemetryRow(null);
-      }
+  const fetchTelemetryRow = React.useCallback(async () => {
+    const id = String(deviceId || "").trim();
+    if (!id) {
+      setTelemetryRow(null);
+      return;
     }
+    if (telemetryRef.current.loading) return;
 
-    poll();
-    const t = setInterval(poll, 3000);
-    return () => {
-      alive = false;
-      clearInterval(t);
-    };
-  }, [open, deviceId]);
+    telemetryRef.current.loading = true;
+    try {
+      const token = String(getToken() || "").trim();
+      if (!token) throw new Error("Missing auth token. Please logout and login again.");
 
-  const tagValue = React.useMemo(
-    () => readTagFromRow(telemetryRow, field),
-    [telemetryRow, field]
-  );
+      const res = await fetch(`${API_URL}/zhc1921/my-devices`, {
+        headers: getAuthHeaders(),
+      });
+
+      if (!res.ok) {
+        setTelemetryRow(null);
+        return;
+      }
+
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : [];
+      const row = list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
+      setTelemetryRow(row);
+    } catch {
+      setTelemetryRow(null);
+    } finally {
+      telemetryRef.current.loading = false;
+    }
+  }, [deviceId]);
+
+  React.useEffect(() => {
+    if (!open) return;
+
+    fetchTelemetryRow();
+    const t = setInterval(() => {
+      if (document.hidden) return;
+      fetchTelemetryRow();
+    }, 3000);
+
+    return () => clearInterval(t);
+  }, [open, fetchTelemetryRow]);
+
+  const backendDeviceStatus = React.useMemo(() => {
+    const s = String(telemetryRow?.status || "").trim().toLowerCase();
+    if (!deviceId) return "";
+    return s || "";
+  }, [telemetryRow, deviceId]);
+
+  const deviceIsOnline = backendDeviceStatus === "online";
+
+  const backendTagValue = React.useMemo(() => {
+    if (!telemetryRow || !field) return undefined;
+    return readTagFromRow(telemetryRow, field);
+  }, [telemetryRow, field]);
+
+  const tag01 = React.useMemo(() => to01(backendTagValue), [backendTagValue]);
+
+  const tagIsOnline =
+    deviceIsOnline && backendTagValue !== undefined && backendTagValue !== null;
+
+  const lastSeenText = React.useMemo(() => {
+    const ts = telemetryRow?.lastSeen || telemetryRow?.last_seen || "";
+    return formatDateMMDDYYYY_hmma(ts);
+  }, [telemetryRow]);
+
+  // ✅ live preview state (ON when selected tag is 1)
+  const previewState = React.useMemo(() => {
+    if (!deviceId || !field) return "unknown";
+    if (!deviceIsOnline) return "offline";
+    if (tag01 === 1) return "on";
+    if (tag01 === 0) return "off";
+    return "unknown";
+  }, [deviceId, field, deviceIsOnline, tag01]);
+
+  const previewIsOn = previewState === "on";
+  const previewIsOff = previewState === "off";
+  const previewUnknown = previewState === "unknown" || previewState === "offline";
+
+  const previewOffFill = previewUnknown ? offColor : previewIsOff ? offColor : "#e5e7eb";
+  const previewOnFill = previewUnknown ? onColor : previewIsOn ? onColor : "#e5e7eb";
+
+  const deviceDot = deviceId ? (deviceIsOnline ? "#16a34a" : "#dc2626") : "#94a3b8";
+  const tagDot = deviceId && field ? (tagIsOnline ? "#16a34a" : "#dc2626") : "#94a3b8";
 
   const apply = () => {
+    const nextDeviceId = String(deviceId || "").trim();
+    const nextField = String(field || "").trim();
+
     onSave?.({
       id: tank.id,
       properties: {
         ...(tank.properties || {}),
-        tag: {
-          deviceId,
-          field, // ✅ SINGLE SOURCE OF TRUTH
-        },
+        shapeStyle,
+        colorOff: offColor,
+        colorOn: onColor,
+        offText,
+        onText,
+        tag: { deviceId: nextDeviceId, field: nextField },
       },
     });
+
     onClose?.();
   };
 
   if (!open || !tank) return null;
 
   return (
-    <div className="fixed inset-0 z-[9999] bg-black/40">
-      <div className="absolute inset-0 flex items-center justify-center">
-        <div className="w-[760px] rounded-xl bg-white shadow-2xl overflow-hidden">
-          {/* Header */}
-          <div className="bg-slate-900 text-white px-4 py-3 flex justify-between">
-            <b>Indicator Light</b>
-            <button onClick={onClose}>✕</button>
-          </div>
+    <div
+      style={{
+        position: "fixed",
+        inset: 0,
+        background: "rgba(0,0,0,0.35)",
+        zIndex: 999999,
+      }}
+    >
+      <div
+        style={{
+          position: "absolute",
+          left: "50%",
+          top: "50%",
+          transform: "translate(-50%, -50%)",
+          width: 1040,
+          maxWidth: "calc(100vw - 60px)",
+          background: "#fff",
+          borderRadius: 12,
+          boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
+          overflow: "hidden",
+        }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        {/* Header */}
+        <div
+          style={{
+            background: "#0f172a",
+            color: "#fff",
+            padding: "12px 14px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            fontWeight: 900,
+            fontSize: 16,
+            letterSpacing: 0.2,
+            userSelect: "none",
+          }}
+        >
+          <span>Indicator Light</span>
 
-          {/* Body */}
-          <div className="p-4 grid grid-cols-2 gap-4">
-            {/* LEFT */}
-            <div>
-              <div className="text-sm font-bold mb-2">
-                Tag that drives the LED (ON / OFF)
+          <button
+            onClick={onClose}
+            style={{
+              border: "none",
+              background: "transparent",
+              color: "white",
+              fontSize: 22,
+              cursor: "pointer",
+            }}
+            title="Close"
+          >
+            ✕
+          </button>
+        </div>
+
+        {/* Body */}
+        <div style={{ padding: 18, fontSize: 14 }}>
+          <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
+            {/* LEFT SIDE (shape/colors/text/preview) */}
+            <div style={{ flex: 1, minWidth: 420 }}>
+              {/* Preview */}
+              <div
+                style={{
+                  display: "flex",
+                  gap: 16,
+                  alignItems: "center",
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 12,
+                  padding: 14,
+                  background: "#f8fafc",
+                  marginBottom: 14,
+                }}
+              >
+                <div style={{ textAlign: "center" }}>
+                  <div
+                    style={{
+                      width: previewSize,
+                      height: previewSize,
+                      borderRadius,
+                      background: previewOffFill,
+                      border: previewIsOff ? "3px solid rgba(0,0,0,0.35)" : "2px solid rgba(0,0,0,0.20)",
+                      margin: "0 auto",
+                      boxShadow: previewIsOff ? "0 0 0 4px rgba(0,0,0,0.06)" : "none",
+                      transition: "all 160ms ease",
+                    }}
+                  />
+                  <div style={{ fontSize: 12, marginTop: 10, color: "#334155", fontWeight: previewIsOff ? 900 : 700, opacity: previewIsOff ? 1 : 0.75 }}>
+                    {offText || "OFF"}
+                  </div>
+                </div>
+
+                <div style={{ textAlign: "center" }}>
+                  <div
+                    style={{
+                      width: previewSize,
+                      height: previewSize,
+                      borderRadius,
+                      background: previewOnFill,
+                      border: previewIsOn ? "3px solid rgba(0,0,0,0.35)" : "2px solid rgba(0,0,0,0.20)",
+                      margin: "0 auto",
+                      boxShadow: previewIsOn ? "0 0 0 4px rgba(0,0,0,0.06)" : "none",
+                      transition: "all 160ms ease",
+                    }}
+                  />
+                  <div style={{ fontSize: 12, marginTop: 10, color: "#334155", fontWeight: previewIsOn ? 900 : 700, opacity: previewIsOn ? 1 : 0.75 }}>
+                    {onText || "ON"}
+                  </div>
+                </div>
+
+                <div style={{ flex: 1, fontSize: 13, color: "#475569" }}>
+                  {deviceId && field ? (
+                    previewState === "offline" ? (
+                      <span>
+                        Device is <b style={{ color: "#dc2626" }}>OFFLINE</b>. Preview is not live.
+                      </span>
+                    ) : previewState === "unknown" ? (
+                      <span>Waiting for tag value…</span>
+                    ) : previewIsOn ? (
+                      <span>
+                        Tag is <b style={{ color: "#16a34a" }}>ON (1)</b>
+                      </span>
+                    ) : (
+                      <span>
+                        Tag is <b style={{ color: "#475569" }}>OFF (0)</b>
+                      </span>
+                    )
+                  ) : (
+                    "Configure shape, colors, text, and the tag that drives the state."
+                  )}
+                </div>
               </div>
 
-              {devicesErr && (
-                <div className="text-xs text-red-600 mb-2">{devicesErr}</div>
-              )}
+              {/* Shape */}
+              <div style={{ marginBottom: 14 }}>
+                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>Shape</div>
+                <label style={{ marginRight: 18, fontSize: 14 }}>
+                  <input type="radio" checked={shapeStyle === "circle"} onChange={() => setShapeStyle("circle")} />{" "}
+                  Circle
+                </label>
+                <label style={{ fontSize: 14 }}>
+                  <input type="radio" checked={shapeStyle === "square"} onChange={() => setShapeStyle("square")} />{" "}
+                  Square
+                </label>
+              </div>
 
-              <div className="mb-3">
-                <label className="text-xs font-semibold">Device</label>
+              {/* Text ON/OFF */}
+              <div style={{ display: "flex", gap: 12, marginBottom: 14 }}>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>OFF Text</div>
+                  <input
+                    value={offText}
+                    onChange={(e) => setOffText(e.target.value)}
+                    style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #cbd5e1", fontSize: 14 }}
+                  />
+                </div>
+
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>ON Text</div>
+                  <input
+                    value={onText}
+                    onChange={(e) => setOnText(e.target.value)}
+                    style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #cbd5e1", fontSize: 14 }}
+                  />
+                </div>
+              </div>
+
+              {/* Colors */}
+              <div style={{ display: "flex", gap: 12 }}>
+                <div style={{ flex: 1, textAlign: "center" }}>
+                  <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>OFF Color</div>
+                  <input
+                    type="color"
+                    value={offColor}
+                    onChange={(e) => setOffColor(e.target.value)}
+                    style={{ width: "100%", height: 44, border: "none", cursor: "pointer" }}
+                  />
+                  <div style={{ marginTop: 6, fontSize: 13, fontWeight: 600, color: "#475569", userSelect: "none" }}>
+                    Click to select the color
+                  </div>
+                </div>
+
+                <div style={{ flex: 1, textAlign: "center" }}>
+                  <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>ON Color</div>
+                  <input
+                    type="color"
+                    value={onColor}
+                    onChange={(e) => setOnColor(e.target.value)}
+                    style={{ width: "100%", height: 44, border: "none", cursor: "pointer" }}
+                  />
+                  <div style={{ marginTop: 6, fontSize: 13, fontWeight: 600, color: "#475569", userSelect: "none" }}>
+                    Click to select the color
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* RIGHT SIDE (device + tag dropdown + status) */}
+            <div style={{ width: 420, border: "1px solid #e5e7eb", borderRadius: 12, padding: 14, background: "#ffffff" }}>
+              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 10 }}>Tag that drives the LED (ON/OFF)</div>
+
+              {devicesErr && <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>{devicesErr}</div>}
+
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>Device</div>
                 <select
                   value={deviceId}
                   onChange={(e) => setDeviceId(e.target.value)}
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #cbd5e1", fontSize: 14, background: "white" }}
                 >
-                  <option value="">Select device</option>
+                  <option value="">— Select device —</option>
                   {devices.map((d) => (
-                    <option key={d.deviceId} value={d.deviceId}>
-                      {d.deviceId}
+                    <option key={String(d.id)} value={String(d.id)}>
+                      {d.name || d.id}
                     </option>
                   ))}
                 </select>
+
+                {deviceId && selectedDevice && (
+                  <div style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}>
+                    Selected: <b>{selectedDevice.id}</b> {"  "}•{"  "}
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                      <span style={{ width: 8, height: 8, borderRadius: 99, background: deviceDot, display: "inline-block" }} />
+                      <b style={{ color: deviceIsOnline ? "#16a34a" : "#dc2626" }}>
+                        {backendDeviceStatus ? backendDeviceStatus.toUpperCase() : "—"}
+                      </b>
+                    </span>
+                  </div>
+                )}
+
+                {deviceId && (
+                  <div style={{ marginTop: 4, fontSize: 12, color: "#64748b" }}>
+                    Last seen: <b>{lastSeenText}</b>
+                  </div>
+                )}
               </div>
 
-              <div className="mb-3">
-                <label className="text-xs font-semibold">Select Tag</label>
+              {/* ✅ New: Tag dropdown (DI + DO) */}
+              <div style={{ marginBottom: 12 }}>
+                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>Select Tag</div>
                 <select
                   value={field}
                   onChange={(e) => setField(e.target.value)}
-                  className="w-full border rounded px-3 py-2 text-sm"
+                  disabled={!deviceId}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5e1",
+                    fontSize: 14,
+                    background: "white",
+                    opacity: deviceId ? 1 : 0.6,
+                    cursor: deviceId ? "pointer" : "not-allowed",
+                  }}
                 >
-                  <option value="">Select DI / DO</option>
+                  <option value="">— Select DI/DO —</option>
                   {TAG_OPTIONS.map((t) => (
                     <option key={t.key} value={t.key}>
                       {t.label}
@@ -183,48 +566,91 @@ export default function IndicatorLightSettingsModal({
                 </select>
               </div>
 
-              <div className="text-xs text-slate-600">
-                Selected Tag:{" "}
-                <b>{field ? field.toUpperCase() : "—"}</b>
-              </div>
-            </div>
+              <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, background: "#f8fafc" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>Device Status</div>
+                    <div style={{ fontSize: 13, marginTop: 6, color: "#334155" }}>
+                      {deviceId ? (
+                        backendDeviceStatus ? (
+                          <span style={{ fontWeight: 900, color: deviceIsOnline ? "#16a34a" : "#dc2626" }}>
+                            {deviceIsOnline ? "Online" : "Offline"}
+                          </span>
+                        ) : (
+                          <span style={{ color: "#64748b" }}>—</span>
+                        )
+                      ) : (
+                        <span style={{ color: "#64748b" }}>Select a device</span>
+                      )}
+                    </div>
+                  </div>
 
-            {/* RIGHT */}
-            <div className="border rounded p-3 bg-slate-50">
-              <div className="text-sm font-bold mb-2">Live Status</div>
+                  <div style={{ flex: 1 }}>
+                    <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>Selected Tag</div>
 
-              <div className="text-sm">
-                Device:{" "}
-                <b>{telemetryRow?.status || "offline"}</b>
-              </div>
+                    <div style={{ fontSize: 13, marginTop: 6, color: "#334155" }}>
+                      {deviceId && field ? (
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
+                          <span style={{ width: 8, height: 8, borderRadius: 99, background: tagDot, display: "inline-block" }} />
+                          <b>{String(field).toUpperCase()}</b>
+                        </span>
+                      ) : (
+                        <span style={{ color: "#64748b" }}>Select tag</span>
+                      )}
+                    </div>
 
-              <div className="text-sm mt-2">
-                Tag Value:{" "}
-                <b>
-                  {field && telemetryRow
-                    ? String(tagValue ?? "—")
-                    : "—"}
-                </b>
+                    <div style={{ fontSize: 13, marginTop: 6, color: "#334155" }}>
+                      {deviceId && field ? (
+                        tagIsOnline ? (
+                          <span style={{ fontWeight: 900 }}>
+                            Value: <span style={{ color: "#0f172a" }}>{String(tag01 ?? "—")}</span>
+                          </span>
+                        ) : (
+                          <span style={{ fontWeight: 900, color: "#dc2626" }}>Offline / No data</span>
+                        )
+                      ) : (
+                        <span style={{ color: "#64748b" }}>—</span>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {deviceId && field && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
+                    Bound Tag: <b>{field}</b>
+                  </div>
+                )}
               </div>
             </div>
           </div>
+        </div>
 
-          {/* Footer */}
-          <div className="border-t px-4 py-3 flex justify-end gap-2">
-            <button
-              onClick={onClose}
-              className="px-4 py-2 border rounded text-sm"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={apply}
-              disabled={!deviceId || !field}
-              className="px-4 py-2 rounded text-sm bg-green-600 text-white disabled:opacity-50"
-            >
-              Apply
-            </button>
-          </div>
+        {/* Footer */}
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: 14, borderTop: "1px solid #e5e7eb" }}>
+          <button
+            onClick={onClose}
+            style={{ padding: "9px 14px", borderRadius: 10, border: "1px solid #cbd5e1", background: "white", cursor: "pointer", fontWeight: 900, fontSize: 14 }}
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={apply}
+            disabled={!deviceId || !field}
+            style={{
+              padding: "9px 14px",
+              borderRadius: 10,
+              border: "1px solid #16a34a",
+              background: "#22c55e",
+              color: "white",
+              cursor: "pointer",
+              fontWeight: 900,
+              fontSize: 14,
+              opacity: !deviceId || !field ? 0.5 : 1,
+            }}
+          >
+            Apply
+          </button>
         </div>
       </div>
     </div>
