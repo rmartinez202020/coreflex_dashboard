@@ -39,7 +39,7 @@ function formatDateMMDDYYYY_hmma(ts) {
   return `${mm}/${dd}/${yyyy}-${h}:${min}${ampm}`;
 }
 
-// ✅ Convert anything to 0/1 (matches how table behaves visually)
+// ✅ Convert anything to 0/1
 function to01(v) {
   if (v === undefined || v === null) return null;
   if (typeof v === "boolean") return v ? 1 : 0;
@@ -58,15 +58,12 @@ function to01(v) {
 function readDiFromRow(row, diKey) {
   if (!row) return undefined;
 
-  // Preferred: di1..di6
   if (row[diKey] !== undefined) return row[diKey];
 
-  // Older variants you used earlier (in1..in6)
   const map = { di1: "in1", di2: "in2", di3: "in3", di4: "in4", di5: "in5", di6: "in6" };
   const alt = map[diKey];
   if (alt && row[alt] !== undefined) return row[alt];
 
-  // Another possible backend naming
   const map2 = { di1: "DI1", di2: "DI2", di3: "DI3", di4: "DI4", di5: "DI5", di6: "DI6" };
   const alt2 = map2[diKey];
   if (alt2 && row[alt2] !== undefined) return row[alt2];
@@ -104,14 +101,11 @@ export default function IndicatorLightSettingsModal({
   const [deviceId, setDeviceId] = React.useState(initialDeviceId);
   const [field, setField] = React.useState(initialField);
 
-  // ✅ optional: search/filter tags
   const [tagSearch, setTagSearch] = React.useState("");
 
-  // ✅ devices list for dropdown (fallback to API if sensorsData has none)
   const [devices, setDevices] = React.useState([]);
   const [devicesErr, setDevicesErr] = React.useState("");
 
-  // ✅ LIVE backend row (same as Register Devices table)
   const [telemetryRow, setTelemetryRow] = React.useState(null);
   const [telemetryErr, setTelemetryErr] = React.useState("");
   const telemetryRef = React.useRef({ loading: false });
@@ -123,7 +117,7 @@ export default function IndicatorLightSettingsModal({
   // =========================
   // ✅ DRAGGABLE MODAL WINDOW
   // =========================
-  const MODAL_W = Math.min(1040, window.innerWidth - 60); // wider (to fit right panel)
+  const MODAL_W = Math.min(1040, window.innerWidth - 60);
   const MODAL_H = 560;
 
   const clampRaw = (x, y) => {
@@ -204,22 +198,7 @@ export default function IndicatorLightSettingsModal({
     async function loadDevices() {
       setDevicesErr("");
 
-      // 1) Try sensorsData.devices if present
-      const sd = sensorsData?.devices;
-      if (Array.isArray(sd) && sd.length > 0) {
-        const mapped = sd
-          .map((d) => ({
-            id: String(d.id ?? d.deviceId ?? d.device_id ?? "").trim(),
-            name: d.name || d.label || String(d.id ?? d.deviceId ?? d.device_id),
-          }))
-          .filter((x) => x.id);
-        if (mapped.length > 0) {
-          if (alive) setDevices(mapped);
-          return;
-        }
-      }
-
-      // 2) BEST fallback: fetch claimed CF-2000 devices for this user
+      // best: fetch claimed CF-2000 devices
       try {
         const token = String(getToken() || "").trim();
         if (!token) {
@@ -263,13 +242,12 @@ export default function IndicatorLightSettingsModal({
     return () => {
       alive = false;
     };
-  }, [open, sensorsData]);
+  }, [open]);
 
   const selectedDevice = React.useMemo(() => {
     return devices.find((d) => String(d.id) === String(deviceId)) || null;
   }, [devices, deviceId]);
 
-  // ✅ Only DI fields for CF-2000 (fixed list)
   const filteredFields = React.useMemo(() => {
     const q = tagSearch.trim().toLowerCase();
     if (!q) return CF2000_DI_FIELDS;
@@ -321,11 +299,9 @@ export default function IndicatorLightSettingsModal({
     }
   }, [deviceId]);
 
-  // ✅ Poll telemetry while modal open + device selected
   React.useEffect(() => {
     if (!open) return;
 
-    // first fetch
     fetchTelemetryRow();
 
     const POLL_MS = 3000;
@@ -337,13 +313,10 @@ export default function IndicatorLightSettingsModal({
     return () => clearInterval(t);
   }, [open, fetchTelemetryRow]);
 
-  // =========================
-  // ✅ LIVE VALUE / STATUS (prefer backend row; fallback to sensorsData)
-  // =========================
   const backendDeviceStatus = React.useMemo(() => {
     const s = String(telemetryRow?.status || "").trim().toLowerCase();
     if (!deviceId) return "";
-    if (!s) return ""; // unknown
+    if (!s) return "";
     return s; // "online"/"offline"
   }, [telemetryRow, deviceId]);
 
@@ -354,7 +327,6 @@ export default function IndicatorLightSettingsModal({
     return readDiFromRow(telemetryRow, field);
   }, [telemetryRow, field]);
 
-  // fallback from sensorsData if backend row doesn't have it yet
   const sensorsFallbackRaw = React.useMemo(() => {
     if (!deviceId || !field) return undefined;
     const v1 = sensorsData?.latest?.[deviceId]?.[field];
@@ -371,7 +343,6 @@ export default function IndicatorLightSettingsModal({
 
   const tag01 = React.useMemo(() => to01(tagRawValue), [tagRawValue]);
 
-  // tag “online”: if device is online AND value exists
   const tagIsOnline = deviceIsOnline && tagRawValue !== undefined && tagRawValue !== null;
 
   const lastSeenText = React.useMemo(() => {
@@ -379,7 +350,7 @@ export default function IndicatorLightSettingsModal({
     return formatDateMMDDYYYY_hmma(ts);
   }, [telemetryRow]);
 
-  // ✅ When device changes, clear field + search (same behavior you had)
+  // ✅ When device changes, clear field + search
   React.useEffect(() => {
     setField("");
     setTagSearch("");
@@ -387,6 +358,32 @@ export default function IndicatorLightSettingsModal({
     setTelemetryErr("");
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [deviceId]);
+
+  // ✅ NEW: live preview state (ON when selected tag is 1)
+  const previewState = React.useMemo(() => {
+    if (!deviceId || !field) return "unknown";
+    if (!deviceIsOnline) return "offline";
+    if (tag01 === 1) return "on";
+    if (tag01 === 0) return "off";
+    return "unknown";
+  }, [deviceId, field, deviceIsOnline, tag01]);
+
+  const previewIsOn = previewState === "on";
+  const previewIsOff = previewState === "off";
+  const previewUnknown = previewState === "unknown" || previewState === "offline";
+
+  // ✅ use live state to pick the preview LED colors
+  const previewOffFill = previewUnknown
+    ? offColor
+    : previewIsOff
+    ? offColor
+    : "#e5e7eb";
+
+  const previewOnFill = previewUnknown
+    ? onColor
+    : previewIsOn
+    ? onColor
+    : "#e5e7eb";
 
   const apply = () => {
     onSave?.({
@@ -403,20 +400,9 @@ export default function IndicatorLightSettingsModal({
     });
   };
 
-  // =========================
-  // ✅ UI helpers
-  // =========================
-  const deviceDot = deviceId
-    ? deviceIsOnline
-      ? "#16a34a"
-      : "#dc2626"
-    : "#94a3b8";
-
-  const tagDot = deviceId && field
-    ? tagIsOnline
-      ? "#16a34a"
-      : "#dc2626"
-    : "#94a3b8";
+  const deviceDot = deviceId ? (deviceIsOnline ? "#16a34a" : "#dc2626") : "#94a3b8";
+  const tagDot =
+    deviceId && field ? (tagIsOnline ? "#16a34a" : "#dc2626") : "#94a3b8";
 
   return (
     <div
@@ -495,11 +481,10 @@ export default function IndicatorLightSettingsModal({
 
         {/* Body */}
         <div style={{ padding: 18, fontSize: 14 }}>
-          {/* TWO-COLUMN LAYOUT (saves vertical space) */}
           <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
             {/* LEFT SIDE */}
             <div style={{ flex: 1, minWidth: 420 }}>
-              {/* Preview */}
+              {/* Preview (NOW LIVE) */}
               <div
                 style={{
                   display: "flex",
@@ -518,9 +503,13 @@ export default function IndicatorLightSettingsModal({
                       width: previewSize,
                       height: previewSize,
                       borderRadius,
-                      background: offColor,
-                      border: "2px solid rgba(0,0,0,0.25)",
+                      background: previewOffFill,
+                      border: previewIsOff
+                        ? "3px solid rgba(0,0,0,0.35)"
+                        : "2px solid rgba(0,0,0,0.20)",
                       margin: "0 auto",
+                      boxShadow: previewIsOff ? "0 0 0 4px rgba(0,0,0,0.06)" : "none",
+                      transition: "all 160ms ease",
                     }}
                   />
                   <div
@@ -528,7 +517,8 @@ export default function IndicatorLightSettingsModal({
                       fontSize: 12,
                       marginTop: 10,
                       color: "#334155",
-                      fontWeight: 800,
+                      fontWeight: previewIsOff ? 900 : 700,
+                      opacity: previewIsOff ? 1 : 0.75,
                     }}
                   >
                     OFF
@@ -541,9 +531,13 @@ export default function IndicatorLightSettingsModal({
                       width: previewSize,
                       height: previewSize,
                       borderRadius,
-                      background: onColor,
-                      border: "2px solid rgba(0,0,0,0.25)",
+                      background: previewOnFill,
+                      border: previewIsOn
+                        ? "3px solid rgba(0,0,0,0.35)"
+                        : "2px solid rgba(0,0,0,0.20)",
                       margin: "0 auto",
+                      boxShadow: previewIsOn ? "0 0 0 4px rgba(0,0,0,0.06)" : "none",
+                      transition: "all 160ms ease",
                     }}
                   />
                   <div
@@ -551,7 +545,8 @@ export default function IndicatorLightSettingsModal({
                       fontSize: 12,
                       marginTop: 10,
                       color: "#334155",
-                      fontWeight: 800,
+                      fontWeight: previewIsOn ? 900 : 700,
+                      opacity: previewIsOn ? 1 : 0.75,
                     }}
                   >
                     ON
@@ -559,7 +554,27 @@ export default function IndicatorLightSettingsModal({
                 </div>
 
                 <div style={{ flex: 1, fontSize: 13, color: "#475569" }}>
-                  Configure shape, colors, text, and the tag that drives the state.
+                  {deviceId && field ? (
+                    previewState === "offline" ? (
+                      <span>
+                        Device is <b style={{ color: "#dc2626" }}>OFFLINE</b>. Preview is not live.
+                      </span>
+                    ) : previewState === "unknown" ? (
+                      <span>
+                        Waiting for tag value… (select device + DI tag)
+                      </span>
+                    ) : previewIsOn ? (
+                      <span>
+                        Tag is <b style={{ color: "#16a34a" }}>ON (1)</b>
+                      </span>
+                    ) : (
+                      <span>
+                        Tag is <b style={{ color: "#475569" }}>OFF (0)</b>
+                      </span>
+                    )
+                  ) : (
+                    "Configure shape, colors, text, and the tag that drives the state."
+                  )}
                 </div>
               </div>
 
@@ -683,7 +698,7 @@ export default function IndicatorLightSettingsModal({
               </div>
             </div>
 
-            {/* RIGHT SIDE (Tag picker + REAL status) */}
+            {/* RIGHT SIDE */}
             <div
               style={{
                 width: 420,
@@ -760,7 +775,6 @@ export default function IndicatorLightSettingsModal({
                 )}
               </div>
 
-              {/* Optional search (kept simple) */}
               <div style={{ marginBottom: 10 }}>
                 <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
                   Search DI
@@ -779,7 +793,6 @@ export default function IndicatorLightSettingsModal({
                 />
               </div>
 
-              {/* DI TAG PICKER */}
               <div style={{ marginBottom: 12 }}>
                 {deviceId ? (
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
@@ -811,7 +824,6 @@ export default function IndicatorLightSettingsModal({
                 )}
               </div>
 
-              {/* REAL STATUS (Device + Tag) */}
               <div
                 style={{
                   border: "1px solid #e5e7eb",
