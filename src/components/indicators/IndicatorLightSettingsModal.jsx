@@ -89,6 +89,24 @@ function readDiFromRow(row, diKey) {
   return undefined;
 }
 
+// ✅ Pull a saved DI field from any legacy key shape
+function getSavedFieldFromTank(tank) {
+  const t = tank?.properties || {};
+  const tag = t?.tag || {};
+
+  const raw =
+    tag.field ??
+    tag.di ??
+    tag.tagField ??
+    tag.key ??
+    tag.tagKey ??
+    t.field ??
+    t.tagField ??
+    "";
+
+  return normalizeDiKey(raw);
+}
+
 export default function IndicatorLightSettingsModal({
   open,
   tank,
@@ -133,8 +151,9 @@ export default function IndicatorLightSettingsModal({
     const nextOn = tank?.properties?.colorOn ?? "#22c55e";
     const nextOffText = tank?.properties?.offText ?? "OFF";
     const nextOnText = tank?.properties?.onText ?? "ON";
-    const nextDeviceId = tank?.properties?.tag?.deviceId ?? "";
-    const nextField = tank?.properties?.tag?.field ?? "";
+
+    const nextDeviceId = String(tank?.properties?.tag?.deviceId ?? "").trim();
+    const nextField = getSavedFieldFromTank(tank); // ✅ robust read
 
     setShapeStyle(nextShapeStyle);
     setOffColor(nextOff);
@@ -142,15 +161,15 @@ export default function IndicatorLightSettingsModal({
     setOffText(nextOffText);
     setOnText(nextOnText);
 
-    setDeviceId(String(nextDeviceId || "").trim());
-    setField(normalizeDiKey(nextField)); // ✅ normalize saved field so button highlights
+    setDeviceId(nextDeviceId);
+    setField(nextField);
 
     setTagSearch("");
     setTelemetryRow(null);
     setTelemetryErr("");
 
-    // ✅ set prevDeviceId to the saved one, so we don't clear field on open
-    prevDeviceIdRef.current = String(nextDeviceId || "").trim();
+    // ✅ set prevDeviceId to saved so we don't clear field on open
+    prevDeviceIdRef.current = nextDeviceId;
   }, [open, tank?.id]);
 
   // --- helpers for UI preview
@@ -306,7 +325,6 @@ export default function IndicatorLightSettingsModal({
     const cur = String(deviceId || "").trim();
 
     if (!cur) {
-      // user cleared device
       prevDeviceIdRef.current = cur;
       setField("");
       setTagSearch("");
@@ -316,7 +334,6 @@ export default function IndicatorLightSettingsModal({
     }
 
     if (prev && prev !== cur) {
-      // ✅ user picked a different device
       setField("");
       setTagSearch("");
       setTelemetryRow(null);
@@ -399,15 +416,14 @@ export default function IndicatorLightSettingsModal({
 
   const tag01 = React.useMemo(() => to01(backendDiValue), [backendDiValue]);
 
-  const tagIsOnline =
-    deviceIsOnline && backendDiValue !== undefined && backendDiValue !== null;
+  const tagIsOnline = deviceIsOnline && backendDiValue !== undefined && backendDiValue !== null;
 
   const lastSeenText = React.useMemo(() => {
     const ts = telemetryRow?.lastSeen || telemetryRow?.last_seen || "";
     return formatDateMMDDYYYY_hmma(ts);
   }, [telemetryRow]);
 
-  // ✅ live preview state (ON when selected tag is 1)
+  // ✅ live preview state
   const previewState = React.useMemo(() => {
     if (!deviceId || !field) return "unknown";
     if (!deviceIsOnline) return "offline";
@@ -424,6 +440,8 @@ export default function IndicatorLightSettingsModal({
   const previewOnFill = previewUnknown ? onColor : previewIsOn ? onColor : "#e5e7eb";
 
   const apply = () => {
+    const normalizedField = normalizeDiKey(field);
+
     onSave?.({
       id: tank.id,
       properties: {
@@ -433,7 +451,14 @@ export default function IndicatorLightSettingsModal({
         colorOn: onColor,
         offText,
         onText,
-        tag: { deviceId: String(deviceId || "").trim(), field: normalizeDiKey(field) }, // ✅ normalize on save
+        // ✅ SAVE REDUNDANTLY so it NEVER "disappears" depending on who reads it
+        tag: {
+          ...(tank.properties?.tag || {}),
+          deviceId: String(deviceId || "").trim(),
+          field: normalizedField,
+          di: normalizedField,
+          tagField: normalizedField,
+        },
       },
     });
   };
@@ -714,43 +739,18 @@ export default function IndicatorLightSettingsModal({
             </div>
 
             {/* RIGHT SIDE */}
-            <div
-              style={{
-                width: 420,
-                border: "1px solid #e5e7eb",
-                borderRadius: 12,
-                padding: 14,
-                background: "#ffffff",
-              }}
-            >
-              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 10 }}>
-                Tag that drives the LED (ON/OFF)
-              </div>
+            <div style={{ width: 420, border: "1px solid #e5e7eb", borderRadius: 12, padding: 14, background: "#ffffff" }}>
+              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 10 }}>Tag that drives the LED (ON/OFF)</div>
 
-              {devicesErr && (
-                <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>
-                  {devicesErr}
-                </div>
-              )}
-              {telemetryErr && (
-                <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>
-                  {telemetryErr}
-                </div>
-              )}
+              {devicesErr && <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>{devicesErr}</div>}
+              {telemetryErr && <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>{telemetryErr}</div>}
 
               <div style={{ marginBottom: 10 }}>
                 <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>Device</div>
                 <select
                   value={deviceId}
                   onChange={(e) => setDeviceId(e.target.value)}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: 10,
-                    border: "1px solid #cbd5e1",
-                    fontSize: 14,
-                    background: "white",
-                  }}
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #cbd5e1", fontSize: 14, background: "white" }}
                 >
                   <option value="">— Select device —</option>
                   {devices.map((d) => (
@@ -764,15 +764,7 @@ export default function IndicatorLightSettingsModal({
                   <div style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}>
                     Selected: <b>{selectedDevice.id}</b> {"  "}•{"  "}
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                      <span
-                        style={{
-                          width: 8,
-                          height: 8,
-                          borderRadius: 99,
-                          background: deviceDot,
-                          display: "inline-block",
-                        }}
-                      />
+                      <span style={{ width: 8, height: 8, borderRadius: 99, background: deviceDot, display: "inline-block" }} />
                       <b style={{ color: deviceIsOnline ? "#16a34a" : "#dc2626" }}>
                         {backendDeviceStatus ? backendDeviceStatus.toUpperCase() : "—"}
                       </b>
@@ -793,13 +785,7 @@ export default function IndicatorLightSettingsModal({
                   value={tagSearch}
                   onChange={(e) => setTagSearch(e.target.value)}
                   placeholder="ex: di1, di5..."
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: 10,
-                    border: "1px solid #cbd5e1",
-                    fontSize: 14,
-                  }}
+                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #cbd5e1", fontSize: 14 }}
                 />
               </div>
 
@@ -807,11 +793,11 @@ export default function IndicatorLightSettingsModal({
                 {deviceId ? (
                   <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
                     {filteredFields.map((f) => {
-                      const isSelected = normalizeDiKey(field) === normalizeDiKey(f.key); // ✅ normalize for highlight
+                      const isSelected = normalizeDiKey(field) === normalizeDiKey(f.key);
                       return (
                         <button
                           key={f.key}
-                          onClick={() => setField(normalizeDiKey(f.key))} // ✅ normalize on select
+                          onClick={() => setField(normalizeDiKey(f.key))}
                           style={{
                             padding: "6px 10px",
                             borderRadius: 8,
@@ -828,34 +814,18 @@ export default function IndicatorLightSettingsModal({
                     })}
                   </div>
                 ) : (
-                  <div style={{ color: "#64748b", fontSize: 13 }}>
-                    Select a device to choose a DI tag.
-                  </div>
+                  <div style={{ color: "#64748b", fontSize: 13 }}>Select a device to choose a DI tag.</div>
                 )}
               </div>
 
-              <div
-                style={{
-                  border: "1px solid #e5e7eb",
-                  borderRadius: 12,
-                  padding: 12,
-                  background: "#f8fafc",
-                }}
-              >
+              <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, background: "#f8fafc" }}>
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>
-                      Device Status
-                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>Device Status</div>
                     <div style={{ fontSize: 13, marginTop: 6, color: "#334155" }}>
                       {deviceId ? (
                         backendDeviceStatus ? (
-                          <span
-                            style={{
-                              fontWeight: 900,
-                              color: deviceIsOnline ? "#16a34a" : "#dc2626",
-                            }}
-                          >
+                          <span style={{ fontWeight: 900, color: deviceIsOnline ? "#16a34a" : "#dc2626" }}>
                             {deviceIsOnline ? "Online" : "Offline"}
                           </span>
                         ) : (
@@ -868,22 +838,12 @@ export default function IndicatorLightSettingsModal({
                   </div>
 
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>
-                      Selected Tag
-                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>Selected Tag</div>
 
                     <div style={{ fontSize: 13, marginTop: 6, color: "#334155" }}>
                       {deviceId && field ? (
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                          <span
-                            style={{
-                              width: 8,
-                              height: 8,
-                              borderRadius: 99,
-                              background: tagDot,
-                              display: "inline-block",
-                            }}
-                          />
+                          <span style={{ width: 8, height: 8, borderRadius: 99, background: tagDot, display: "inline-block" }} />
                           <b>{normalizeDiKey(field).toUpperCase()}</b>
                         </span>
                       ) : (
@@ -895,13 +855,10 @@ export default function IndicatorLightSettingsModal({
                       {deviceId && field ? (
                         tagIsOnline ? (
                           <span style={{ fontWeight: 900 }}>
-                            Value:{" "}
-                            <span style={{ color: "#0f172a" }}>{String(tag01 ?? "—")}</span>
+                            Value: <span style={{ color: "#0f172a" }}>{String(tag01 ?? "—")}</span>
                           </span>
                         ) : (
-                          <span style={{ fontWeight: 900, color: "#dc2626" }}>
-                            Offline / No data
-                          </span>
+                          <span style={{ fontWeight: 900, color: "#dc2626" }}>Offline / No data</span>
                         )
                       ) : (
                         <span style={{ color: "#64748b" }}>—</span>
@@ -921,29 +878,13 @@ export default function IndicatorLightSettingsModal({
         </div>
 
         {/* Footer */}
-        <div
-          style={{
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: 10,
-            padding: 14,
-            borderTop: "1px solid #e5e7eb",
-          }}
-        >
+        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: 14, borderTop: "1px solid #e5e7eb" }}>
           <button
             onClick={(e) => {
               e.stopPropagation();
               onClose?.();
             }}
-            style={{
-              padding: "9px 14px",
-              borderRadius: 10,
-              border: "1px solid #cbd5e1",
-              background: "white",
-              cursor: "pointer",
-              fontWeight: 900,
-              fontSize: 14,
-            }}
+            style={{ padding: "9px 14px", borderRadius: 10, border: "1px solid #cbd5e1", background: "white", cursor: "pointer", fontWeight: 900, fontSize: 14 }}
           >
             Cancel
           </button>
