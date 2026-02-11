@@ -232,7 +232,8 @@ export default function SidebarLeft({
               </div>
 
               {showIndicators && (
-                <div className="ml-1">
+                // ✅ Make children align flush-left like other sections
+                <div className="ml-0">
                   {/* ✅ no small icons */}
                   <div className="mb-2 text-sm flex items-center">
                     <div className="flex-1">
@@ -258,10 +259,10 @@ export default function SidebarLeft({
                     </div>
                   </div>
 
-                  {/* ✅ NEW: Counter Input (bottom of State Image DI) */}
+                  {/* ✅ Counter Input aligned + renamed */}
                   <div className="mb-2 text-sm flex items-center">
                     <div className="flex-1">
-                      <DraggableCounterInput label="Counter Input" />
+                      <DraggableCounterInput label="Counter Input (DI)" />
                     </div>
                   </div>
                 </div>

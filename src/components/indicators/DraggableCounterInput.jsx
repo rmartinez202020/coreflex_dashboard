@@ -1,9 +1,9 @@
 import React from "react";
 
-export default function DraggableCounterInput({ label = "Counter Input" }) {
+export default function DraggableCounterInput({
+  label = "Counter Input (DI)",
+}) {
   const handleDragStart = (e) => {
-    // This is the type your DashboardCanvas / drop handler should look for.
-    // If your drop handler uses a different key, tell me and I’ll match it.
     e.dataTransfer.setData("type", "counterInput");
     e.dataTransfer.setData("text/plain", "counterInput");
     e.dataTransfer.effectAllowed = "copy";
@@ -13,11 +13,16 @@ export default function DraggableCounterInput({ label = "Counter Input" }) {
     <div
       draggable
       onDragStart={handleDragStart}
-      className="select-none cursor-grab active:cursor-grabbing inline-flex items-center gap-2 w-full"
+      className="select-none cursor-grab active:cursor-grabbing flex items-center w-full gap-2"
       title="Drag to canvas"
       style={{ userSelect: "none" }}
     >
-      <span className="text-base leading-none">🧮</span>
+      {/* Fixed-width icon column to align with other indicators */}
+      <span className="w-[18px] text-center text-base leading-none">
+        🧮
+      </span>
+
+      {/* Label */}
       <span className="text-sm">{label}</span>
     </div>
   );
