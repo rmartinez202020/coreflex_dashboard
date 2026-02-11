@@ -1,38 +1,129 @@
 import React from "react";
+import { API_URL } from "../../config/api";
+import { getToken } from "../../utils/authToken";
+
+function getAuthHeaders() {
+  const token = String(getToken() || "").trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// ✅ Model meta (same system as StatusTextSettingsModal)
+const MODEL_META = {
+  zhc1921: { label: "ZHC1921 (CF-2000)", base: "zhc1921" },
+  zhc1661: { label: "ZHC1661 (CF-1600)", base: "zhc1661" },
+  tp4000: { label: "TP-4000", base: "tp4000" },
+};
+
+// ✅ DI/DO options (same as StatusTextSettingsModal / Indicator Light)
+const TAG_OPTIONS = [
+  { key: "di1", label: "DI-1" },
+  { key: "di2", label: "DI-2" },
+  { key: "di3", label: "DI-3" },
+  { key: "di4", label: "DI-4" },
+  { key: "di5", label: "DI-5" },
+  { key: "di6", label: "DI-6" },
+  { key: "do1", label: "DO-1" },
+  { key: "do2", label: "DO-2" },
+  { key: "do3", label: "DO-3" },
+  { key: "do4", label: "DO-4" },
+];
+
+// ✅ Convert anything to 0/1
+function to01(v) {
+  if (v === undefined || v === null) return null;
+  if (typeof v === "boolean") return v ? 1 : 0;
+  if (typeof v === "number") return v > 0 ? 1 : 0;
+  if (typeof v === "string") {
+    const s = v.trim().toLowerCase();
+    if (s === "1" || s === "true" || s === "on" || s === "yes") return 1;
+    if (s === "0" || s === "false" || s === "off" || s === "no") return 0;
+    const n = Number(s);
+    if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
+  }
+  return v ? 1 : 0;
+}
+
+// ✅ Read tag from backend row (same as StatusTextSettingsModal)
+function readTagFromRow(row, field) {
+  if (!row || !field) return undefined;
+
+  if (row[field] !== undefined) return row[field];
+
+  const up = String(field).toUpperCase();
+  if (row[up] !== undefined) return row[up];
+
+  // di1..di6 -> in1..in6
+  if (/^di[1-6]$/.test(field)) {
+    const n = field.replace("di", "");
+    const alt = `in${n}`;
+    if (row[alt] !== undefined) return row[alt];
+    const altUp = `IN${n}`;
+    if (row[altUp] !== undefined) return row[altUp];
+  }
+
+  // do1..do4 -> out1..out4
+  if (/^do[1-4]$/.test(field)) {
+    const n = field.replace("do", "");
+    const alt = `out${n}`;
+    if (row[alt] !== undefined) return row[alt];
+    const altUp = `OUT${n}`;
+    if (row[altUp] !== undefined) return row[altUp];
+  }
+
+  return undefined;
+}
 
 export default function BlinkingAlarmSettingsModal({
   open,
   tank,
   onClose,
   onSave,
-  sensorsData,
+  sensorsData, // kept for compatibility (not used for binding anymore)
 }) {
-  if (!open || !tank) return null;
-
-  const p = tank.properties || {};
+  // ✅ do NOT early return before hooks
+  const p = tank?.properties || {};
 
   // ✅ Modal sizing (wider + clamped)
   const MODAL_W = Math.min(980, window.innerWidth - 80);
   const MODAL_H = Math.min(640, window.innerHeight - 120);
 
-  // Tag binding
-  const initialDeviceId = p?.tag?.deviceId ?? "";
-  const initialField = p?.tag?.field ?? "";
+  // Tag binding (backward compatible)
+  const initialDeviceModel = String(p?.tag?.model || "zhc1921").trim() || "zhc1921";
+  const initialDeviceId = String(p?.tag?.deviceId ?? "");
+  const initialField = String(p?.tag?.field ?? "");
 
-  // ✅ NEW professional style selection
+  // Style selection
   const initialStyle = p?.alarmStyle ?? "annunciator";
-
-  // ✅ NEW: tone (optional but pro)
   const initialTone = p?.alarmTone ?? "critical";
 
+  const [deviceModel, setDeviceModel] = React.useState(
+    MODEL_META[initialDeviceModel] ? initialDeviceModel : "zhc1921"
+  );
   const [deviceId, setDeviceId] = React.useState(initialDeviceId);
+  const [field, setField] = React.useState(initialField);
 
-  // ✅ we will resolve the field automatically from Search Tag (no dropdown / no text box)
-  const [resolvedField, setResolvedField] = React.useState(initialField);
-
-  const [tagSearch, setTagSearch] = React.useState("");
+  const [deviceSearch, setDeviceSearch] = React.useState("");
   const [alarmStyle, setAlarmStyle] = React.useState(initialStyle);
   const [alarmTone, setAlarmTone] = React.useState(initialTone);
+
+  // =========================
+  // REHYDRATE ON OPEN
+  // =========================
+  React.useEffect(() => {
+    if (!open || !tank) return;
+
+    const pp = tank?.properties || {};
+
+    setAlarmStyle(pp?.alarmStyle ?? "annunciator");
+    setAlarmTone(pp?.alarmTone ?? "critical");
+
+    const m = String(pp?.tag?.model || "zhc1921").trim() || "zhc1921";
+    setDeviceModel(MODEL_META[m] ? m : "zhc1921");
+    setDeviceId(String(pp?.tag?.deviceId || ""));
+    setField(String(pp?.tag?.field || ""));
+
+    setDeviceSearch("");
+  }, [open, tank?.id]);
 
   // =========================
   // DRAGGABLE WINDOW
@@ -65,16 +156,9 @@ export default function BlinkingAlarmSettingsModal({
 
       const rect = modalRef.current?.getBoundingClientRect();
       const mw = rect?.width ?? MODAL_W;
-      const mh = rect?.height ?? MODAL_H;
 
-      const clampedLeft = Math.min(
-        window.innerWidth - 20,
-        Math.max(20 - (mw - 60), nextLeft)
-      );
-      const clampedTop = Math.min(
-        window.innerHeight - 20,
-        Math.max(20, nextTop)
-      );
+      const clampedLeft = Math.min(window.innerWidth - 20, Math.max(20 - (mw - 60), nextLeft));
+      const clampedTop = Math.min(window.innerHeight - 20, Math.max(20, nextTop));
 
       setPos({ left: clampedLeft, top: clampedTop });
     };
@@ -108,189 +192,205 @@ export default function BlinkingAlarmSettingsModal({
   };
 
   // =========================
-  // DEVICES / FIELDS
+  // DEVICES (BACKEND, LIKE StatusTextSettingsModal)
   // =========================
-  const devices = React.useMemo(() => {
-    const d = sensorsData?.devices;
-    return Array.isArray(d) ? d : [];
-  }, [sensorsData]);
+  const [devices, setDevices] = React.useState([]);
+  const [devicesErr, setDevicesErr] = React.useState("");
 
-  const selectedDevice = React.useMemo(() => {
-    return devices.find((d) => String(d.id) === String(deviceId)) || null;
-  }, [devices, deviceId]);
-
-  const availableFields = React.useMemo(() => {
-    const raw = selectedDevice?.fields;
-    if (!raw) return [];
-
-    if (Array.isArray(raw) && typeof raw[0] === "string") {
-      return raw.map((k) => ({ key: k, label: k }));
-    }
-    if (Array.isArray(raw) && typeof raw[0] === "object") {
-      return raw
-        .map((x) => ({
-          key: x.key ?? x.field ?? x.name ?? "",
-          label: x.label ?? x.name ?? x.field ?? x.key ?? "",
-        }))
-        .filter((x) => x.key);
-    }
-    return [];
-  }, [selectedDevice]);
-
-  const filteredFields = React.useMemo(() => {
-    const q = tagSearch.trim().toLowerCase();
-    if (!q) return availableFields;
-    return availableFields.filter(
-      (f) =>
-        f.key.toLowerCase().includes(q) || f.label.toLowerCase().includes(q)
-    );
-  }, [availableFields, tagSearch]);
-
-  // ✅ Auto-resolve field from Search Tag (first match / exact match)
   React.useEffect(() => {
-    if (!deviceId) {
-      setResolvedField("");
-      return;
+    if (!open) return;
+
+    let alive = true;
+
+    async function fetchModelDevices(modelKey) {
+      const base = MODEL_META[modelKey]?.base;
+      if (!base) return [];
+
+      const res = await fetch(`${API_URL}/${base}/my-devices`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) return [];
+
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : [];
+
+      return list
+        .map((r) => {
+          const id = String(r.deviceId ?? r.device_id ?? "").trim();
+          return {
+            id,
+            name: id,
+            model: modelKey,
+            modelLabel: MODEL_META[modelKey]?.label || modelKey,
+          };
+        })
+        .filter((x) => x.id);
     }
 
-    const q = tagSearch.trim().toLowerCase();
-    if (!q) {
-      // if user hasn't typed anything, keep current resolvedField (from saved config)
-      return;
+    async function loadDevices() {
+      setDevicesErr("");
+      try {
+        const token = String(getToken() || "").trim();
+        if (!token) throw new Error("Missing auth token. Please logout and login again.");
+
+        const [d1, d2, d3] = await Promise.all([
+          fetchModelDevices("zhc1921"),
+          fetchModelDevices("zhc1661"),
+          fetchModelDevices("tp4000"),
+        ]);
+
+        const merged = [...d1, ...d2, ...d3];
+
+        merged.sort((a, b) => {
+          const ma = String(a.model || "");
+          const mb = String(b.model || "");
+          if (ma !== mb) return ma.localeCompare(mb);
+          return String(a.id).localeCompare(String(b.id));
+        });
+
+        if (alive) setDevices(merged);
+      } catch (e) {
+        if (alive) {
+          setDevices([]);
+          setDevicesErr(e.message || "Failed to load devices");
+        }
+      }
     }
 
-    // exact match first
-    const exact =
-      availableFields.find((f) => f.key.toLowerCase() === q) ||
-      availableFields.find((f) => f.label.toLowerCase() === q);
+    loadDevices();
+    return () => {
+      alive = false;
+    };
+  }, [open]);
 
-    if (exact?.key) {
-      setResolvedField(exact.key);
-      return;
-    }
-
-    // otherwise first partial match
-    const first = filteredFields[0];
-    if (first?.key) setResolvedField(first.key);
-  }, [deviceId, tagSearch, availableFields, filteredFields]);
+  const filteredDevices = React.useMemo(() => {
+    const q = String(deviceSearch || "").trim().toLowerCase();
+    if (!q) return devices;
+    return devices.filter((d) => {
+      const id = String(d.id || "").toLowerCase();
+      const model = String(d.modelLabel || d.model || "").toLowerCase();
+      return id.includes(q) || model.includes(q);
+    });
+  }, [devices, deviceSearch]);
 
   // =========================
-  // LIVE STATUS / VALUE (robust readers)
+  // LIVE STATUS / VALUE (POLL BACKEND LIKE StatusText)
   // =========================
-  const isDeviceOnline = React.useMemo(() => {
-    if (!deviceId || !selectedDevice) return false;
+  const [telemetryRow, setTelemetryRow] = React.useState(null);
+  const telemetryRef = React.useRef({ loading: false });
 
-    const v =
-      selectedDevice.online ??
-      selectedDevice.isOnline ??
-      selectedDevice.connected ??
-      selectedDevice.isConnected ??
-      selectedDevice.status;
+  const fetchTelemetryRow = React.useCallback(async () => {
+    const id = String(deviceId || "").trim();
+    const modelKey = String(deviceModel || "").trim();
+    const base = MODEL_META[modelKey]?.base;
 
-    if (typeof v === "boolean") return v;
-    if (typeof v === "number") return v > 0;
-    if (typeof v === "string") return v.toLowerCase().includes("online");
-    return false;
-  }, [deviceId, selectedDevice]);
-
-  const getTagValue = React.useCallback(() => {
-    if (!deviceId || !resolvedField) return undefined;
-
-    // Try common shapes (super defensive so it works with your current data structure)
-    const did = String(deviceId);
-    const f = String(resolvedField);
-
-    // 1) sensorsData.values[deviceId][field]
-    const v1 = sensorsData?.values?.[did]?.[f];
-    if (v1 !== undefined) return v1;
-
-    // 2) sensorsData.tags[deviceId][field]
-    const v2 = sensorsData?.tags?.[did]?.[f];
-    if (v2 !== undefined) return v2;
-
-    // 3) sensorsData.devices[].values[field]
-    const v3 = selectedDevice?.values?.[f];
-    if (v3 !== undefined) return v3;
-
-    // 4) sensorsData.latest[deviceId][field]
-    const v4 = sensorsData?.latest?.[did]?.[f];
-    if (v4 !== undefined) return v4;
-
-    // 5) fallback: maybe field stored flat on device object
-    const v5 = selectedDevice?.[f];
-    if (v5 !== undefined) return v5;
-
-    return undefined;
-  }, [deviceId, resolvedField, sensorsData, selectedDevice]);
-
-  const tagValue = getTagValue();
-
-  const value01 = React.useMemo(() => {
-    if (!isDeviceOnline) return undefined;
-    if (tagValue === undefined || tagValue === null) return undefined;
-
-    // boolean-ish mapping
-    if (typeof tagValue === "boolean") return tagValue ? 1 : 0;
-    if (typeof tagValue === "number") return tagValue > 0 ? 1 : 0;
-    if (typeof tagValue === "string") {
-      const s = tagValue.trim().toLowerCase();
-      if (s === "1" || s === "true" || s === "on") return 1;
-      if (s === "0" || s === "false" || s === "off") return 0;
-      // if it's some other string, treat non-empty as ON
-      return s ? 1 : 0;
+    if (!id || !base) {
+      setTelemetryRow(null);
+      return;
     }
-    return 0;
-  }, [isDeviceOnline, tagValue]);
+    if (telemetryRef.current.loading) return;
+
+    telemetryRef.current.loading = true;
+    try {
+      const token = String(getToken() || "").trim();
+      if (!token) throw new Error("Missing auth token. Please logout and login again.");
+
+      const res = await fetch(`${API_URL}/${base}/my-devices`, {
+        headers: getAuthHeaders(),
+      });
+
+      if (!res.ok) {
+        setTelemetryRow(null);
+        return;
+      }
+
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : [];
+      const row = list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
+
+      setTelemetryRow(row);
+    } catch {
+      setTelemetryRow(null);
+    } finally {
+      telemetryRef.current.loading = false;
+    }
+  }, [deviceId, deviceModel]);
+
+  React.useEffect(() => {
+    if (!open) return;
+
+    fetchTelemetryRow();
+    const t = setInterval(() => {
+      if (document.hidden) return;
+      fetchTelemetryRow();
+    }, 3000);
+
+    return () => clearInterval(t);
+  }, [open, fetchTelemetryRow]);
+
+  const backendDeviceStatus = React.useMemo(() => {
+    const s = String(telemetryRow?.status || "").trim().toLowerCase();
+    if (!deviceId) return "";
+    return s || "";
+  }, [telemetryRow, deviceId]);
+
+  const deviceIsOnline = backendDeviceStatus === "online";
+
+  const effectiveField = String(field || "").trim();
+
+  const rawValue = React.useMemo(() => {
+    if (!telemetryRow || !effectiveField) return undefined;
+    return readTagFromRow(telemetryRow, effectiveField);
+  }, [telemetryRow, effectiveField]);
+
+  const isOnline = deviceIsOnline && rawValue !== undefined && rawValue !== null && !!effectiveField;
+  const as01 = React.useMemo(() => (isOnline ? to01(rawValue) : null), [isOnline, rawValue]);
 
   // =========================
-  // ✅ TONE → COLORS (THIS IS THE FIX)
+  // TONE → COLORS
   // =========================
   const toneMap = {
     critical: { on: "#ef4444", glow: "rgba(239,68,68,0.55)" },
     warning: { on: "#f59e0b", glow: "rgba(245,158,11,0.55)" },
     info: { on: "#3b82f6", glow: "rgba(59,130,246,0.45)" },
   };
-
   const tone = toneMap[alarmTone] || toneMap.critical;
-
-  // Choose a consistent "OFF" base that looks pro in all tones
   const OFF_COLOR = "#0b1220";
 
-const apply = () => {
-  const nextProps = {
-    ...(tank.properties || {}),
+  // =========================
+  // APPLY SAVE
+  // =========================
+  const apply = () => {
+    const nextProps = {
+      ...(tank?.properties || {}),
 
-    // ✅ style + tone always saved
-    alarmStyle,
-    alarmTone,
-    colorOn: tone.on,
-    colorOff: OFF_COLOR,
+      alarmStyle,
+      alarmTone,
+      colorOn: tone.on,
+      colorOff: OFF_COLOR,
+    };
+
+    // ✅ Only save tag if user picked both
+    const hasTagSelection = deviceId && effectiveField;
+    if (hasTagSelection) {
+      nextProps.tag = {
+        model: String(deviceModel || "zhc1921"),
+        deviceId: String(deviceId),
+        field: String(effectiveField),
+      };
+    }
+
+    onSave?.({
+      id: tank.id,
+      properties: nextProps,
+    });
+
+    // optional close
+    // onClose?.();
   };
 
-  // ✅ Only save tag IF user actually picked something.
-  // This prevents overwriting an existing saved tag with empty strings.
-  const hasTagSelection = deviceId && resolvedField;
-  if (hasTagSelection) {
-    nextProps.tag = {
-      deviceId,
-      field: resolvedField,
-    };
-  }
-
-  onSave?.({
-    id: tank.id,
-    properties: nextProps,
-  });
-
-  // optional: close after apply
-  // onClose?.();
-};
-
-
   const Label = ({ children }) => (
-    <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-      {children}
-    </div>
+    <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>{children}</div>
   );
 
   // =========================
@@ -306,7 +406,6 @@ const apply = () => {
   const ProPreview = ({ styleId, isOn }) => {
     const onBg = tone.on;
     const offBg = OFF_COLOR;
-
     const bg = isOn ? onBg : offBg;
 
     const card = {
@@ -329,17 +428,9 @@ const apply = () => {
 
     if (styleId === "annunciator") {
       return (
-        <div
-          style={{
-            ...card,
-            justifyContent: "space-between",
-            padding: "0 14px",
-          }}
-        >
+        <div style={{ ...card, justifyContent: "space-between", padding: "0 14px" }}>
           <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            <div style={{ fontSize: 11, opacity: 0.65, letterSpacing: 1 }}>
-              ALARM
-            </div>
+            <div style={{ fontSize: 11, opacity: 0.65, letterSpacing: 1 }}>ALARM</div>
             <div style={{ fontSize: 14 }}>{isOn ? "ACTIVE" : "NORMAL"}</div>
           </div>
           <div
@@ -357,29 +448,19 @@ const apply = () => {
     }
 
     if (styleId === "banner") {
-      const stripeColor = isOn
-  ? bg
-  : "rgba(148,163,184,0.25)";
-
-const stripe = `repeating-linear-gradient(
-  45deg,
-  ${stripeColor},
-  ${stripeColor} 10px,
-  rgba(0,0,0,0.35) 10px,
-  rgba(0,0,0,0.35) 20px
-)`;
-
+      const stripeColor = isOn ? bg : "rgba(148,163,184,0.25)";
+      const stripe = `repeating-linear-gradient(
+        45deg,
+        ${stripeColor},
+        ${stripeColor} 10px,
+        rgba(0,0,0,0.35) 10px,
+        rgba(0,0,0,0.35) 20px
+      )`;
 
       return (
         <div style={card}>
           <div style={{ width: "100%", height: "100%" }}>
-            <div
-              style={{
-                height: 12,
-                background: stripe,
-                opacity: isOn ? 1 : 0.7,
-              }}
-            />
+            <div style={{ height: 12, background: stripe, opacity: isOn ? 1 : 0.7 }} />
             <div
               style={{
                 height: "calc(100% - 12px)",
@@ -392,9 +473,7 @@ const stripe = `repeating-linear-gradient(
               }}
             >
               <span>{isOn ? "ALARM" : "OFF"}</span>
-              <span style={{ fontSize: 11, opacity: 0.7 }}>
-                {isOn ? "ACTIVE" : "NORMAL"}
-              </span>
+              <span style={{ fontSize: 11, opacity: 0.7 }}>{isOn ? "ACTIVE" : "NORMAL"}</span>
             </div>
           </div>
         </div>
@@ -403,14 +482,7 @@ const stripe = `repeating-linear-gradient(
 
     if (styleId === "stackLight") {
       return (
-        <div
-          style={{
-            ...card,
-            justifyContent: "flex-start",
-            gap: 12,
-            padding: "0 14px",
-          }}
-        >
+        <div style={{ ...card, justifyContent: "flex-start", gap: 12, padding: "0 14px" }}>
           <div
             style={{
               width: 22,
@@ -435,14 +507,10 @@ const stripe = `repeating-linear-gradient(
           ...card,
           background: "rgba(2,6,23,0.92)",
           border: `1px solid ${isOn ? tone.glow : "rgba(148,163,184,0.22)"}`,
-          boxShadow: isOn
-            ? `0 0 18px ${tone.glow}`
-            : "0 10px 25px rgba(0,0,0,0.18)",
+          boxShadow: isOn ? `0 0 18px ${tone.glow}` : "0 10px 25px rgba(0,0,0,0.18)",
         }}
       >
-        <span style={{ color: isOn ? bg : "rgba(226,232,240,0.75)" }}>
-          {isOn ? "ALARM" : "OFF"}
-        </span>
+        <span style={{ color: isOn ? bg : "rgba(226,232,240,0.75)" }}>{isOn ? "ALARM" : "OFF"}</span>
       </div>
     );
   };
@@ -463,39 +531,17 @@ const stripe = `repeating-linear-gradient(
           cursor: "pointer",
         }}
       >
-        <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 10 }}>
-          {s.name}
-        </div>
+        <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 10 }}>{s.name}</div>
 
-        <div
-          style={{
-            display: "grid",
-            gridTemplateColumns: "1fr 1fr",
-            gap: 10,
-          }}
-        >
+        <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 10 }}>
           <div>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 900,
-                color: "#64748b",
-                marginBottom: 6,
-              }}
-            >
+            <div style={{ fontSize: 11, fontWeight: 900, color: "#64748b", marginBottom: 6 }}>
               OFF
             </div>
             <ProPreview styleId={s.id} isOn={false} />
           </div>
           <div>
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 900,
-                color: "#64748b",
-                marginBottom: 6,
-              }}
-            >
+            <div style={{ fontSize: 11, fontWeight: 900, color: "#64748b", marginBottom: 6 }}>
               ON
             </div>
             <ProPreview styleId={s.id} isOn={true} />
@@ -507,14 +553,17 @@ const stripe = `repeating-linear-gradient(
 
   const statusText = !deviceId
     ? "Select a device and tag"
-    : !resolvedField
-    ? "Type a tag name in Search Tag"
-    : isDeviceOnline
+    : !effectiveField
+    ? "Select a DI/DO tag"
+    : isOnline
     ? "Online"
+    : deviceId && deviceIsOnline
+    ? "No data for tag"
     : "Offline";
 
-  const valueText =
-    isDeviceOnline && resolvedField ? (value01 === undefined ? "—" : String(value01)) : "—";
+  const valueText = isOnline ? String(as01 ?? 0) : "—";
+
+  if (!open || !tank) return null;
 
   return (
     <div
@@ -584,9 +633,7 @@ const stripe = `repeating-linear-gradient(
         <div style={{ padding: 16, overflow: "auto", flex: "1 1 auto" }}>
           {/* TONE PICKER */}
           <div style={{ marginBottom: 14 }}>
-            <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 10 }}>
-              Alarm Tone
-            </div>
+            <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 10 }}>Alarm Tone</div>
 
             <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
               {[
@@ -634,31 +681,59 @@ const stripe = `repeating-linear-gradient(
             </div>
 
             <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
-              Pick <b>one</b> professional style. The alarm will show ON/OFF automatically based on your tag.
+              Pick <b>one</b> professional style. The alarm will show ON/OFF automatically based on
+              your tag.
             </div>
           </div>
 
           {/* TAG BINDING */}
-          <div
-            style={{
-              border: "1px solid #e5e7eb",
-              borderRadius: 12,
-              padding: 14,
-            }}
-          >
+          <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 14 }}>
             <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}>
               Tag that drives alarm (ON / OFF)
             </div>
 
+            {devicesErr && (
+              <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>{devicesErr}</div>
+            )}
+
+            {/* Search Device */}
+            <div style={{ marginBottom: 10 }}>
+              <Label>Search Device</Label>
+              <input
+                value={deviceSearch}
+                onChange={(e) => setDeviceSearch(e.target.value)}
+                placeholder="Type device id or model..."
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: "1px solid #cbd5e1",
+                  fontSize: 14,
+                }}
+              />
+              <div style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}>
+                Showing <b>{filteredDevices.length}</b> device(s)
+              </div>
+            </div>
+
             <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+              {/* Device */}
               <div style={{ flex: 1 }}>
                 <Label>Device</Label>
                 <select
-                  value={deviceId}
+                  value={deviceId ? `${deviceModel}::${deviceId}` : ""}
                   onChange={(e) => {
-                    setDeviceId(e.target.value);
-                    setResolvedField("");
-                    setTagSearch("");
+                    const v = String(e.target.value || "");
+                    if (!v || !v.includes("::")) {
+                      setDeviceModel("zhc1921");
+                      setDeviceId("");
+                      setField("");
+                      return;
+                    }
+                    const [m, id] = v.split("::");
+                    setDeviceModel(MODEL_META[m] ? m : "zhc1921");
+                    setDeviceId(String(id || ""));
+                    setField("");
                   }}
                   style={{
                     width: "100%",
@@ -670,32 +745,43 @@ const stripe = `repeating-linear-gradient(
                   }}
                 >
                   <option value="">— Select device —</option>
-                  {devices.map((d) => (
-                    <option key={String(d.id)} value={String(d.id)}>
-                      {d.name || d.label || d.id}
+                  {filteredDevices.map((d) => (
+                    <option key={`${d.model}::${d.id}`} value={`${d.model}::${d.id}`}>
+                      {d.id /* ✅ ID ONLY */}
                     </option>
                   ))}
                 </select>
               </div>
 
+              {/* Tag */}
               <div style={{ flex: 1 }}>
-                <Label>Search Tag</Label>
-                <input
-                  value={tagSearch}
-                  onChange={(e) => setTagSearch(e.target.value)}
-                  placeholder="ex: DI0, alarm, fault..."
+                <Label>Select Tag</Label>
+                <select
+                  value={field}
+                  onChange={(e) => setField(String(e.target.value || ""))}
+                  disabled={!deviceId}
                   style={{
                     width: "100%",
                     padding: "10px 12px",
                     borderRadius: 10,
                     border: "1px solid #cbd5e1",
                     fontSize: 14,
+                    background: "white",
+                    opacity: deviceId ? 1 : 0.6,
+                    cursor: deviceId ? "pointer" : "not-allowed",
                   }}
-                />
+                >
+                  <option value="">— Select DI/DO —</option>
+                  {TAG_OPTIONS.map((t) => (
+                    <option key={t.key} value={t.key}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
-            {/* ✅ STATUS BAR (same idea as Indicator Light) */}
+            {/* STATUS BAR */}
             <div
               style={{
                 display: "flex",
@@ -708,17 +794,13 @@ const stripe = `repeating-linear-gradient(
               }}
             >
               <div>
-                <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>
-                  Status
-                </div>
+                <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>Status</div>
                 <div style={{ fontSize: 13, color: "#475569", marginTop: 2 }}>
-                  {resolvedField ? (
+                  {deviceId && effectiveField ? (
                     <>
-                      <span style={{ fontWeight: 900, color: "#0f172a" }}>
-                        {statusText}
-                      </span>
+                      <span style={{ fontWeight: 900, color: "#0f172a" }}>{statusText}</span>
                       <span style={{ marginLeft: 10, color: "#64748b" }}>
-                        Tag: <b>{resolvedField}</b>
+                        Bound: <b>{deviceId}</b> / <b>{effectiveField}</b>
                       </span>
                     </>
                   ) : (
@@ -728,15 +810,13 @@ const stripe = `repeating-linear-gradient(
               </div>
 
               <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>
-                  Value
-                </div>
+                <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>Value</div>
                 <div
                   style={{
                     marginTop: 2,
                     fontSize: 18,
                     fontWeight: 1000,
-                    color: isDeviceOnline ? "#0f172a" : "#94a3b8",
+                    color: isOnline ? "#0f172a" : "#94a3b8",
                     fontFamily: "monospace",
                     minWidth: 22,
                   }}
@@ -792,9 +872,7 @@ const stripe = `repeating-linear-gradient(
               fontSize: 14,
             }}
             type="button"
-            disabled={false}
             title="Apply"
-        
           >
             Apply
           </button>

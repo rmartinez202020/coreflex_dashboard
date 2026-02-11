@@ -3,7 +3,7 @@ import React from "react";
 export default function DraggableBlinkingAlarm({
   // Canvas mode
   tank,
-  sensorsData, // ✅ NEW
+  sensorsData, // ✅ live data already polled by parent (every 3s)
 
   // Palette mode
   label = "Blinking Alarm",
@@ -61,48 +61,98 @@ export default function DraggableBlinkingAlarm({
     // =========================
     // ✅ TAG-DRIVEN ACTIVE (DEFAULT OFF)
     // =========================
-    const tag = p.tag;
-    const tagDeviceId = tag?.deviceId;
-    const tagField = tag?.field;
+    const tag = p.tag || {};
+    const tagModel = String(tag?.model || "").trim(); // ✅ new
+    const tagDeviceId = String(tag?.deviceId || "").trim();
+    const tagField = String(tag?.field || "").trim();
+
+    // ---- helpers (same as modal) ----
+    const to01 = (v) => {
+      if (v === undefined || v === null) return null;
+      if (typeof v === "boolean") return v ? 1 : 0;
+      if (typeof v === "number") return v > 0 ? 1 : 0;
+      if (typeof v === "string") {
+        const s = v.trim().toLowerCase();
+        if (s === "1" || s === "true" || s === "on" || s === "yes") return 1;
+        if (s === "0" || s === "false" || s === "off" || s === "no") return 0;
+        const n = Number(s);
+        if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
+      }
+      return v ? 1 : 0;
+    };
+
+    const readTagFromRow = (row, field) => {
+      if (!row || !field) return undefined;
+
+      if (row[field] !== undefined) return row[field];
+
+      const up = String(field).toUpperCase();
+      if (row[up] !== undefined) return row[up];
+
+      // di1..di6 -> in1..in6
+      if (/^di[1-6]$/.test(field)) {
+        const n = field.replace("di", "");
+        const alt = `in${n}`;
+        if (row[alt] !== undefined) return row[alt];
+        const altUp = `IN${n}`;
+        if (row[altUp] !== undefined) return row[altUp];
+      }
+
+      // do1..do4 -> out1..out4
+      if (/^do[1-4]$/.test(field)) {
+        const n = field.replace("do", "");
+        const alt = `out${n}`;
+        if (row[alt] !== undefined) return row[alt];
+        const altUp = `OUT${n}`;
+        if (row[altUp] !== undefined) return row[altUp];
+      }
+
+      return undefined;
+    };
+
+    const findDeviceRow = () => {
+      const list = sensorsData?.devices;
+      if (!Array.isArray(list) || !tagDeviceId) return null;
+
+      // match possible shapes: deviceId / device_id / id
+      return (
+        list.find((r) => String(r?.deviceId ?? r?.device_id ?? r?.id ?? "").trim() === tagDeviceId) ||
+        null
+      );
+    };
 
     const readTagValue = () => {
       if (!tagDeviceId || !tagField) return undefined;
 
-      // Option A: sensorsData.values[deviceId][field]
+      // A) sensorsData.values[deviceId][field] (legacy/optional)
       const byDev = sensorsData?.values?.[String(tagDeviceId)];
       if (byDev && Object.prototype.hasOwnProperty.call(byDev, tagField)) {
         return byDev[tagField];
       }
 
-      // Option B: sensorsData.devices[] has .values or a direct field
-      const dev =
-        sensorsData?.devices?.find(
-          (d) => String(d.id) === String(tagDeviceId)
-        ) || null;
+      // B) read from devices row (preferred)
+      const row = findDeviceRow();
+      if (row) {
+        const v = readTagFromRow(row, tagField);
+        if (v !== undefined) return v;
+      }
 
-      if (
-        dev?.values &&
-        Object.prototype.hasOwnProperty.call(dev.values, tagField)
-      )
-        return dev.values[tagField];
-
-      if (dev && Object.prototype.hasOwnProperty.call(dev, tagField))
-        return dev[tagField];
+      // C) fallback: sensorsData.tags[deviceId][field] if exists
+      const v2 = sensorsData?.tags?.[String(tagDeviceId)]?.[tagField];
+      if (v2 !== undefined) return v2;
 
       return undefined;
     };
 
-    const v = readTagValue();
+    const deviceRow = findDeviceRow();
+    const backendStatus = String(deviceRow?.status || "").trim().toLowerCase();
+    const deviceIsOnline = backendStatus ? backendStatus === "online" : true; // if not present, don't block
 
-    const truthy =
-      v === true ||
-      v === 1 ||
-      v === "1" ||
-      String(v).toLowerCase() === "true" ||
-      String(v).toLowerCase() === "on";
+    const v = readTagValue();
+    const v01 = deviceIsOnline ? to01(v) : null;
 
     // ✅ DEFAULT OFF if tag not bound / missing / false
-    const isActive = !!(tagDeviceId && tagField && truthy);
+    const isActive = !!(tagDeviceId && tagField && deviceIsOnline && v01 === 1);
 
     // =========================
     // ✅ BLINK ENGINE (accents only)
@@ -142,10 +192,11 @@ export default function DraggableBlinkingAlarm({
       userSelect: "none",
     };
 
-    // ✅ Helpful debug tooltip
     const title = `BlinkingAlarm | ${isActive ? "ON" : "OFF"} | style=${
       alarmStyle || "annunciator"
-    } | tone=${alarmTone || "critical"}`;
+    } | tone=${alarmTone || "critical"} | bound=${tagDeviceId || "—"}/${
+      tagField || "—"
+    }`;
 
     const textLeft = {
       fontWeight: 1000,
@@ -187,13 +238,11 @@ export default function DraggableBlinkingAlarm({
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <div style={{ fontSize: 11, opacity: 0.65, letterSpacing: 1 }}>
-            ALARM
+            {String(text || "ALARM").toUpperCase()}
           </div>
-          {/* ✅ match modal preview language */}
           <div style={textLeft}>{isActive ? "ACTIVE" : "NORMAL"}</div>
         </div>
 
-        {/* ✅ blinking light */}
         <div
           style={{
             width: Math.max(12, Math.round(h * 0.22)),
@@ -211,9 +260,7 @@ export default function DraggableBlinkingAlarm({
       </div>
     );
 
-    // 2) Banner Strip (Modern): ✅ MATCH MODAL PREVIEW
-    // OFF: top bar solid subtle, text "OFF" + "NORMAL"
-    // ON : top bar hazard stripes, text "ALARM" + "ACTIVE"
+    // 2) Banner Strip (Modern)
     const Banner = () => {
       const bar = isActive
         ? `repeating-linear-gradient(
@@ -240,7 +287,6 @@ export default function DraggableBlinkingAlarm({
           }}
           title={title}
         >
-          {/* ✅ top bar */}
           <div
             style={{
               height: Math.max(10, Math.round(h * 0.22)),
@@ -250,7 +296,6 @@ export default function DraggableBlinkingAlarm({
             }}
           />
 
-          {/* ✅ labels match modal preview */}
           <div
             style={{
               flex: 1,
@@ -268,7 +313,7 @@ export default function DraggableBlinkingAlarm({
       );
     };
 
-    // 3) Stack Light (Lens + Label): lens blinks only
+    // 3) Stack Light (Lens + Label)
     const StackLight = () => (
       <div
         style={{
@@ -293,9 +338,7 @@ export default function DraggableBlinkingAlarm({
             background: accent,
             border: "2px solid rgba(255,255,255,0.10)",
             boxShadow:
-              isActive && blinkOn
-                ? `0 0 14px ${tone.glow || hexToGlow(colorOn)}`
-                : "none",
+              isActive && blinkOn ? `0 0 14px ${tone.glow || hexToGlow(colorOn)}` : "none",
             transition: "all 120ms linear",
           }}
         />
@@ -305,7 +348,7 @@ export default function DraggableBlinkingAlarm({
       </div>
     );
 
-    // 4) Minimal Outline (Clean): border glow blinks only (fill stays dark)
+    // 4) Minimal Outline (Clean)
     const Minimal = () => (
       <div
         style={{
@@ -351,7 +394,7 @@ export default function DraggableBlinkingAlarm({
       if (alarmStyle === "banner") return <Banner />;
       if (alarmStyle === "stackLight") return <StackLight />;
       if (alarmStyle === "minimal") return <Minimal />;
-      return <Annunciator />; // default
+      return <Annunciator />;
     };
 
     return (
