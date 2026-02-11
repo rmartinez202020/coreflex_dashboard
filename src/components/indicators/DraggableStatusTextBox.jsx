@@ -1,6 +1,6 @@
 import React from "react";
-import { API_URL } from "../config/api";
-import { getToken } from "../utils/authToken";
+import { API_URL } from "../../config/api";
+import { getToken } from "../../utils/authToken";
 
 /**
  * DraggableStatusTextBox
@@ -172,15 +172,11 @@ export default function DraggableStatusTextBox({
     }, [deviceId, tagModel]);
 
     React.useEffect(() => {
-      // run immediately
       fetchTelemetryRow();
-
-      // then every 3 seconds
       const t = setInterval(() => {
         if (document.hidden) return;
         fetchTelemetryRow();
       }, 3000);
-
       return () => clearInterval(t);
     }, [fetchTelemetryRow]);
 
@@ -202,20 +198,13 @@ export default function DraggableStatusTextBox({
       const safeOff = (offText || legacyText || "OFF").toString();
       const safeOn = (onText || legacyText || "ON").toString();
 
-      // if not configured -> show OFF/default
       if (!deviceId || !field) return safeOff;
-
-      // if device offline -> show OFF
       if (!deviceIsOnline) return safeOff;
-
-      // if we don't have a value -> show OFF
       if (backendTagValue === undefined || backendTagValue === null) return safeOff;
 
-      // live decision
       if (tag01 === 1) return safeOn;
       if (tag01 === 0) return safeOff;
 
-      // unknown -> OFF
       return safeOff;
     }, [
       offText,
