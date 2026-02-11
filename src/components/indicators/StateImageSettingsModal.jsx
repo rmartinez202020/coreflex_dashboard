@@ -311,7 +311,8 @@ export default function StateImageSettingsModal({
 
       const data = await res.json();
       const list = Array.isArray(data) ? data : [];
-      const row = list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
+      const row =
+        list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
 
       setTelemetryRow(row);
     } catch {
@@ -349,11 +350,7 @@ export default function StateImageSettingsModal({
   }, [telemetryRow, effectiveField]);
 
   const isOnline =
-    !!deviceId &&
-    !!effectiveField &&
-    deviceIsOnline &&
-    rawValue !== undefined &&
-    rawValue !== null;
+    !!deviceId && !!effectiveField && deviceIsOnline && rawValue !== undefined && rawValue !== null;
 
   const as01 = React.useMemo(() => (isOnline ? to01(rawValue) : null), [isOnline, rawValue]);
 
@@ -386,6 +383,35 @@ export default function StateImageSettingsModal({
     );
   };
 
+  // ✅ NEW: close the IOTs Library window right after selection
+  const closeIOTsLibraryWindow = React.useCallback(() => {
+    const tankId = tank?.id;
+
+    // Try a few likely close events (harmless if your library ignores them)
+    window.dispatchEvent(
+      new CustomEvent("coreflex-close-iots-library", {
+        detail: { tankId, from: "StateImageSettingsModal" },
+      })
+    );
+    window.dispatchEvent(
+      new CustomEvent("coreflex-iots-library-close", {
+        detail: { tankId, from: "StateImageSettingsModal" },
+      })
+    );
+    window.dispatchEvent(
+      new CustomEvent("coreflex-close-coreflex-iots-library", {
+        detail: { tankId, from: "StateImageSettingsModal" },
+      })
+    );
+
+    // Generic close (also harmless if unused)
+    window.dispatchEvent(
+      new CustomEvent("coreflex-modal-close", {
+        detail: { name: "CoreFlexIOTsLibrary", tankId, from: "StateImageSettingsModal" },
+      })
+    );
+  }, [tank?.id]);
+
   React.useEffect(() => {
     if (!tank?.id) return;
 
@@ -393,12 +419,15 @@ export default function StateImageSettingsModal({
       const url = ev?.detail?.url;
       if (!url) return;
 
+      // respect tank id if provided
       if (ev?.detail?.tankId != null && String(ev.detail.tankId) !== String(tank.id)) {
         return;
       }
 
       const fromRef =
-        pickSlotRef.current === "on" || pickSlotRef.current === "off" ? pickSlotRef.current : null;
+        pickSlotRef.current === "on" || pickSlotRef.current === "off"
+          ? pickSlotRef.current
+          : null;
 
       const fromEvent =
         ev?.detail?.which === "on" || ev?.detail?.which === "off" ? ev.detail.which : null;
@@ -410,11 +439,14 @@ export default function StateImageSettingsModal({
       if (which === "on") setOnImage(url);
 
       pickSlotRef.current = null;
+
+      // ✅ CLOSE the IOTs Library window after picking
+      closeIOTsLibraryWindow();
     };
 
     window.addEventListener("coreflex-iots-library-selected", onSelected);
     return () => window.removeEventListener("coreflex-iots-library-selected", onSelected);
-  }, [tank?.id]);
+  }, [tank?.id, closeIOTsLibraryWindow]);
 
   // =========================
   // APPLY SAVE
