@@ -1,7 +1,7 @@
 import React from "react";
 
 export default function DraggableCounterInput({
-  label = "  Counter Input (DI)",
+  label = "Counter Input (DI)",
 }) {
   const handleDragStart = (e) => {
     e.dataTransfer.setData("type", "counterInput");
@@ -13,19 +13,17 @@ export default function DraggableCounterInput({
     <div
       draggable
       onDragStart={handleDragStart}
-      className="select-none cursor-grab active:cursor-grabbing flex items-center w-full gap-1"
+      className="select-none cursor-grab active:cursor-grabbing flex items-center w-full"
       title="Drag to canvas"
       style={{ userSelect: "none" }}
     >
-      {/* narrower icon column + slightly pulled left */}
-      <span
-        className="w-[14px] text-center text-base leading-none"
-        style={{ marginLeft: -2 }}
-      >
+      {/* icon aligned left */}
+      <span className="w-[16px] text-center text-base leading-none">
         🧮
       </span>
 
-      <span className="text-sm">{label}</span>
+      {/* proper spacing from icon */}
+      <span className="text-sm ml-2">{label}</span>
     </div>
   );
 }
