@@ -7,7 +7,6 @@ export default function DraggableCounterInput({
 
   // canvas defaults
   value = 0,
-  decimals = 3,
 
   // canvas positioning (only used if you render it absolutely)
   x,
@@ -24,15 +23,11 @@ export default function DraggableCounterInput({
     e.dataTransfer.effectAllowed = "copy";
   };
 
-  // ---------- CANVAS VARIANT (the 0.000 box) ----------
+  // ---------- CANVAS VARIANT (the 0000 box) ----------
   if (variant === "canvas") {
-    const safeDecimals = Number.isFinite(Number(decimals))
-      ? Math.max(0, Math.min(6, Number(decimals)))
-      : 3;
-
     const display = Number.isFinite(Number(value))
-      ? Number(value).toFixed(safeDecimals)
-      : Number(0).toFixed(safeDecimals);
+      ? String(Math.trunc(Number(value))).padStart(4, "0")
+      : "0000";
 
     return (
       <div
@@ -78,10 +73,7 @@ export default function DraggableCounterInput({
       title="Drag to canvas"
       style={{ userSelect: "none" }}
     >
-      {/* icon aligned left */}
       <span className="w-[16px] text-center text-base leading-none">🧮</span>
-
-      {/* spacing from icon */}
       <span className="text-sm ml-2">{label}</span>
     </div>
   );
