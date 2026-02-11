@@ -259,6 +259,9 @@ export default function DraggableBlinkingAlarm({
       textTransform: "uppercase",
     };
 
+    // ✅ NEW: robust label fallback (fixes missing "ALARM" in OFF stage when text is blank)
+    const safeLabel = String((text && String(text).trim()) || "ALARM").toUpperCase();
+
     // 1) Annunciator
     const Annunciator = () => (
       <div
@@ -278,7 +281,7 @@ export default function DraggableBlinkingAlarm({
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <div style={{ fontSize: 11, opacity: 0.65, letterSpacing: 1 }}>
-            {String(text || "ALARM").toUpperCase()}
+            {safeLabel}
           </div>
           <div style={textLeft}>{isActive ? "ACTIVE" : "NORMAL"}</div>
         </div>
@@ -378,7 +381,9 @@ export default function DraggableBlinkingAlarm({
             background: accent,
             border: "2px solid rgba(255,255,255,0.10)",
             boxShadow:
-              isActive && blinkOn ? `0 0 14px ${tone.glow || hexToGlow(colorOn)}` : "none",
+              isActive && blinkOn
+                ? `0 0 14px ${tone.glow || hexToGlow(colorOn)}`
+                : "none",
             transition: "all 120ms linear",
           }}
         />
