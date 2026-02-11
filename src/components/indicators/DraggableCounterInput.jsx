@@ -13,16 +13,18 @@ export default function DraggableCounterInput({
     <div
       draggable
       onDragStart={handleDragStart}
-      className="select-none cursor-grab active:cursor-grabbing flex items-center w-full gap-2"
+      className="select-none cursor-grab active:cursor-grabbing flex items-center w-full gap-1"
       title="Drag to canvas"
       style={{ userSelect: "none" }}
     >
-      {/* Fixed-width icon column to align with other indicators */}
-      <span className="w-[18px] text-center text-base leading-none">
+      {/* narrower icon column + slightly pulled left */}
+      <span
+        className="w-[14px] text-center text-base leading-none"
+        style={{ marginLeft: -2 }}
+      >
         🧮
       </span>
 
-      {/* Label */}
       <span className="text-sm">{label}</span>
     </div>
   );
