@@ -15,6 +15,8 @@ import {
   DraggableStatusTextBox,
   DraggableBlinkingAlarm,
   DraggableStateImage,
+  // ✅ NEW
+  DraggableCounterInput,
 } from "./indicators";
 
 export default function SidebarLeft({
@@ -253,6 +255,13 @@ export default function SidebarLeft({
                   <div className="mb-2 text-sm flex items-center">
                     <div className="flex-1">
                       <DraggableStateImage label="State Image (DI)" />
+                    </div>
+                  </div>
+
+                  {/* ✅ NEW: Counter Input (bottom of State Image DI) */}
+                  <div className="mb-2 text-sm flex items-center">
+                    <div className="flex-1">
+                      <DraggableCounterInput label="Counter Input" />
                     </div>
                   </div>
                 </div>
