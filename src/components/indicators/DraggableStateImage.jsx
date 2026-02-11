@@ -1,4 +1,63 @@
 import React from "react";
+import { API_URL } from "../../config/api";
+import { getToken } from "../../utils/authToken";
+
+function getAuthHeaders() {
+  const token = String(getToken() || "").trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// ✅ Same mapping used in the modal(s)
+const MODEL_META = {
+  zhc1921: { base: "zhc1921" },
+  zhc1661: { base: "zhc1661" },
+  tp4000: { base: "tp4000" },
+};
+
+// ✅ Convert anything to 0/1 (same as modal)
+function to01(v) {
+  if (v === undefined || v === null) return null;
+  if (typeof v === "boolean") return v ? 1 : 0;
+  if (typeof v === "number") return v > 0 ? 1 : 0;
+  if (typeof v === "string") {
+    const s = v.trim().toLowerCase();
+    if (s === "1" || s === "true" || s === "on" || s === "yes") return 1;
+    if (s === "0" || s === "false" || s === "off" || s === "no") return 0;
+    const n = Number(s);
+    if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
+  }
+  return v ? 1 : 0;
+}
+
+// ✅ Read tag from backend row (same logic as modal)
+function readTagFromRow(row, field) {
+  if (!row || !field) return undefined;
+
+  if (row[field] !== undefined) return row[field];
+
+  const up = String(field).toUpperCase();
+  if (row[up] !== undefined) return row[up];
+
+  // di1..di6 -> in1..in6
+  if (/^di[1-6]$/.test(field)) {
+    const n = field.replace("di", "");
+    const alt = `in${n}`;
+    if (row[alt] !== undefined) return row[alt];
+    const altUp = `IN${n}`;
+    if (row[altUp] !== undefined) return row[altUp];
+  }
+
+  // do1..do4 -> out1..out4
+  if (/^do[1-4]$/.test(field)) {
+    const n = field.replace("do", "");
+    const alt = `out${n}`;
+    if (row[alt] !== undefined) return row[alt];
+    const altUp = `OUT${n}`;
+    if (row[altUp] !== undefined) return row[altUp];
+  }
+
+  return undefined;
+}
 
 /**
  * DraggableStateImage
@@ -11,12 +70,12 @@ import React from "react";
  * - When tag becomes ON, shows ON image
  *
  * ✅ IMPORTANT:
- * - We DO NOT open settings modal from inside this component anymore.
- *   DashboardCanvas handles double-click (same pattern as StatusTextBox).
+ * - DashboardCanvas handles double-click to open settings modal.
  */
 export default function DraggableStateImage({
   // Canvas mode
   tank,
+  sensorsData, // optional fallback
 
   // Palette mode
   label = "State Image",
@@ -36,8 +95,8 @@ export default function DraggableStateImage({
     onImage: "",
     imageFit: "contain", // contain|cover
 
-    // tag binding
-    tag: { deviceId: "", field: "" },
+    // ✅ tag binding now includes model too (same system as others)
+    tag: { model: "zhc1921", deviceId: "", field: "" },
   };
 
   // =========================
@@ -47,27 +106,101 @@ export default function DraggableStateImage({
     const w = tank.w ?? tank.width ?? payload.w;
     const h = tank.h ?? tank.height ?? payload.h;
 
-    // ✅ ON/OFF state (default OFF)
-    const isOn =
-      tank.isOn ??
-      tank.on ??
-      tank.active ??
-      tank.properties?.isOn ??
-      tank.properties?.on ??
-      tank.properties?.active ??
-      payload.isOn;
-
     // ✅ images (prefer properties)
-    const offImage =
-      tank.properties?.offImage ?? tank.offImage ?? payload.offImage;
-
+    const offImage = tank.properties?.offImage ?? tank.offImage ?? payload.offImage;
     const onImage = tank.properties?.onImage ?? tank.onImage ?? payload.onImage;
 
-    const imageFit =
-      tank.properties?.imageFit ?? tank.imageFit ?? payload.imageFit;
+    const imageFit = tank.properties?.imageFit ?? tank.imageFit ?? payload.imageFit;
+
+    // ✅ tag binding (model/device/field)
+    const tag = tank?.properties?.tag || tank?.tag || {};
+    const tagModel = String(tag?.model || "").trim();
+    const tagDeviceId = String(tag?.deviceId || "").trim();
+    const tagField = String(tag?.field || "").trim();
+
+    // =========================
+    // ✅ BACKEND POLL (SAME PATTERN AS BLINKING ALARM)
+    // =========================
+    const [telemetryRow, setTelemetryRow] = React.useState(null);
+    const telemetryRef = React.useRef({ loading: false });
+
+    const fetchTelemetryRow = React.useCallback(async () => {
+      const modelKey = String(tagModel || "").trim();
+      const id = String(tagDeviceId || "").trim();
+      const base = MODEL_META[modelKey]?.base;
+
+      if (!modelKey || !id || !base) {
+        setTelemetryRow(null);
+        return;
+      }
+      if (telemetryRef.current.loading) return;
+
+      telemetryRef.current.loading = true;
+      try {
+        const token = String(getToken() || "").trim();
+        if (!token) {
+          setTelemetryRow(null);
+          return;
+        }
+
+        const res = await fetch(`${API_URL}/${base}/my-devices`, {
+          headers: getAuthHeaders(),
+        });
+
+        if (!res.ok) {
+          setTelemetryRow(null);
+          return;
+        }
+
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : [];
+        const row =
+          list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
+
+        setTelemetryRow(row);
+      } catch {
+        setTelemetryRow(null);
+      } finally {
+        telemetryRef.current.loading = false;
+      }
+    }, [tagModel, tagDeviceId]);
+
+    React.useEffect(() => {
+      fetchTelemetryRow();
+
+      const t = setInterval(() => {
+        if (document.hidden) return;
+        fetchTelemetryRow();
+      }, 3000);
+
+      return () => clearInterval(t);
+    }, [fetchTelemetryRow]);
+
+    // ✅ read from backend row (reliable)
+    const backendStatus = String(telemetryRow?.status || "").trim().toLowerCase();
+    const deviceIsOnline = backendStatus ? backendStatus === "online" : true;
+
+    const rawValueFromBackend =
+      telemetryRow && tagField ? readTagFromRow(telemetryRow, tagField) : undefined;
+
+    // ✅ optional fallback: sensorsData
+    const rawValue =
+      rawValueFromBackend !== undefined
+        ? rawValueFromBackend
+        : sensorsData?.values?.[tagDeviceId]?.[tagField];
+
+    const v01 = deviceIsOnline ? to01(rawValue) : null;
+
+    // ✅ Determine ON/OFF from live tag (same rules as other widgets)
+    const tagReady = !!(tagModel && tagDeviceId && tagField);
+    const isOn = !!(tagReady && deviceIsOnline && v01 === 1);
 
     // ✅ choose image (OFF is default)
     const imgSrc = isOn ? onImage : offImage;
+
+    const title = `StateImage | ${isOn ? "ON" : "OFF"} | ${tagModel}:${tagDeviceId}/${tagField} | status=${
+      backendStatus || "—"
+    } | v=${String(rawValue)}`;
 
     return (
       <div
@@ -82,9 +215,9 @@ export default function DraggableStateImage({
           justifyContent: "center",
           userSelect: "none",
           overflow: "hidden",
-          pointerEvents: "none", // ✅ IMPORTANT: let DraggableDroppedTank handle clicks/doubleclick
+          pointerEvents: "none", // ✅ let DraggableDroppedTank handle clicks/doubleclick
         }}
-        title="Double click to setup"
+        title={title}
       >
         {imgSrc ? (
           <img
@@ -110,12 +243,8 @@ export default function DraggableStateImage({
                 boxShadow: "0 8px 18px rgba(0,0,0,0.10)",
               }}
             />
-            <div style={{ fontWeight: 1000, letterSpacing: 1 }}>
-              STATE IMAGE
-            </div>
-            <div style={{ fontSize: 12, marginTop: 6, opacity: 0.9 }}>
-              {isOn ? "ON" : "OFF"}
-            </div>
+            <div style={{ fontWeight: 1000, letterSpacing: 1 }}>STATE IMAGE</div>
+            <div style={{ fontSize: 12, marginTop: 6, opacity: 0.9 }}>{isOn ? "ON" : "OFF"}</div>
           </div>
         )}
       </div>
