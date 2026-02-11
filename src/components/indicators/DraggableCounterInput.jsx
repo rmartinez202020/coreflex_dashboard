@@ -1,7 +1,7 @@
 import React from "react";
 
 export default function DraggableCounterInput({
-  label = "Counter Input (DI)",
+  label = "  Counter Input (DI)",
 }) {
   const handleDragStart = (e) => {
     e.dataTransfer.setData("type", "counterInput");
