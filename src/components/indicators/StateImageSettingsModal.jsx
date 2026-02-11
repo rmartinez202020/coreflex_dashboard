@@ -1,41 +1,133 @@
 // StateImageSettingsModal.jsx
 import React from "react";
+import { API_URL } from "../../config/api";
+import { getToken } from "../../utils/authToken";
+
+function getAuthHeaders() {
+  const token = String(getToken() || "").trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// ✅ Same device system as BlinkingAlarmSettingsModal / StatusTextSettingsModal
+const MODEL_META = {
+  zhc1921: { label: "ZHC1921 (CF-2000)", base: "zhc1921" },
+  zhc1661: { label: "ZHC1661 (CF-1600)", base: "zhc1661" },
+  tp4000: { label: "TP-4000", base: "tp4000" },
+};
+
+// ✅ Same DI/DO list (simple + consistent)
+const TAG_OPTIONS = [
+  { key: "di1", label: "DI-1" },
+  { key: "di2", label: "DI-2" },
+  { key: "di3", label: "DI-3" },
+  { key: "di4", label: "DI-4" },
+  { key: "di5", label: "DI-5" },
+  { key: "di6", label: "DI-6" },
+  { key: "do1", label: "DO-1" },
+  { key: "do2", label: "DO-2" },
+  { key: "do3", label: "DO-3" },
+  { key: "do4", label: "DO-4" },
+];
+
+// ✅ Convert anything to 0/1
+function to01(v) {
+  if (v === undefined || v === null) return null;
+  if (typeof v === "boolean") return v ? 1 : 0;
+  if (typeof v === "number") return v > 0 ? 1 : 0;
+  if (typeof v === "string") {
+    const s = v.trim().toLowerCase();
+    if (s === "1" || s === "true" || s === "on" || s === "yes") return 1;
+    if (s === "0" || s === "false" || s === "off" || s === "no") return 0;
+    const n = Number(s);
+    if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
+  }
+  return v ? 1 : 0;
+}
+
+// ✅ Read tag from backend row (same mapping used elsewhere)
+function readTagFromRow(row, field) {
+  if (!row || !field) return undefined;
+
+  if (row[field] !== undefined) return row[field];
+
+  const up = String(field).toUpperCase();
+  if (row[up] !== undefined) return row[up];
+
+  // di1..di6 -> in1..in6
+  if (/^di[1-6]$/.test(field)) {
+    const n = field.replace("di", "");
+    const alt = `in${n}`;
+    if (row[alt] !== undefined) return row[alt];
+    const altUp = `IN${n}`;
+    if (row[altUp] !== undefined) return row[altUp];
+  }
+
+  // do1..do4 -> out1..out4
+  if (/^do[1-4]$/.test(field)) {
+    const n = field.replace("do", "");
+    const alt = `out${n}`;
+    if (row[alt] !== undefined) return row[alt];
+    const altUp = `OUT${n}`;
+    if (row[altUp] !== undefined) return row[altUp];
+  }
+
+  return undefined;
+}
 
 export default function StateImageSettingsModal({
   open,
   tank,
   onClose,
   onSave,
-  sensorsData,
+  sensorsData, // kept for compatibility (not used for binding anymore)
 }) {
-  if (!open || !tank) return null;
+  // ✅ do NOT early return before hooks
+  const p = tank?.properties || {};
 
-  const p = tank.properties || {};
-
-  // ✅ Modal sizing (now narrower since tag section is moved to bottom)
-  const MODAL_W = Math.min(860, window.innerWidth - 80);
+  // ✅ Modal sizing (same feel as the other)
+  const MODAL_W = Math.min(980, window.innerWidth - 80);
   const MODAL_H = Math.min(680, window.innerHeight - 120);
 
-  // Tag binding (same pattern)
-  const initialDeviceId = p?.tag?.deviceId ?? "";
-  const initialField = p?.tag?.field ?? "";
+  // ✅ Tag binding (backward compatible)
+  const initialModel = String(p?.tag?.model || "zhc1921").trim() || "zhc1921";
+  const initialDeviceId = String(p?.tag?.deviceId ?? "");
+  const initialField = String(p?.tag?.field ?? "");
 
-  // Images
+  // ✅ Images
   const initialOffImage = p?.offImage ?? "";
   const initialOnImage = p?.onImage ?? "";
 
+  const [deviceModel, setDeviceModel] = React.useState(
+    MODEL_META[initialModel] ? initialModel : "zhc1921"
+  );
   const [deviceId, setDeviceId] = React.useState(initialDeviceId);
   const [field, setField] = React.useState(initialField);
-  const [tagSearch, setTagSearch] = React.useState("");
+
+  const [deviceSearch, setDeviceSearch] = React.useState("");
 
   const [offImage, setOffImage] = React.useState(initialOffImage);
   const [onImage, setOnImage] = React.useState(initialOnImage);
 
-  // ✅ Track last clicked slot ("off" | "on")
+  // ✅ Track last clicked slot ("off" | "on") for IOTs Library
   const pickSlotRef = React.useRef(null);
 
-  const isTagAssigned =
-    Boolean(String(deviceId || "").trim()) && Boolean(String(field || "").trim());
+  // =========================
+  // REHYDRATE ON OPEN
+  // =========================
+  React.useEffect(() => {
+    if (!open || !tank) return;
+
+    const pp = tank?.properties || {};
+    setOffImage(pp?.offImage ?? "");
+    setOnImage(pp?.onImage ?? "");
+
+    const m = String(pp?.tag?.model || "zhc1921").trim() || "zhc1921";
+    setDeviceModel(MODEL_META[m] ? m : "zhc1921");
+    setDeviceId(String(pp?.tag?.deviceId || ""));
+    setField(String(pp?.tag?.field || ""));
+
+    setDeviceSearch("");
+  }, [open, tank?.id]);
 
   // =========================
   // DRAGGABLE WINDOW
@@ -68,16 +160,12 @@ export default function StateImageSettingsModal({
 
       const rect = modalRef.current?.getBoundingClientRect();
       const mw = rect?.width ?? MODAL_W;
-      const mh = rect?.height ?? MODAL_H;
 
       const clampedLeft = Math.min(
         window.innerWidth - 20,
         Math.max(20 - (mw - 60), nextLeft)
       );
-      const clampedTop = Math.min(
-        window.innerHeight - 20,
-        Math.max(20, nextTop)
-      );
+      const clampedTop = Math.min(window.innerHeight - 20, Math.max(20, nextTop));
 
       setPos({ left: clampedLeft, top: clampedTop });
     };
@@ -109,80 +197,165 @@ export default function StateImageSettingsModal({
   };
 
   // =========================
-  // DEVICES / FIELDS
+  // DEVICES (BACKEND, SAME AS OTHER MODALS)
   // =========================
-  const devices = React.useMemo(() => {
-    const d = sensorsData?.devices;
-    return Array.isArray(d) ? d : [];
-  }, [sensorsData]);
+  const [devices, setDevices] = React.useState([]);
+  const [devicesErr, setDevicesErr] = React.useState("");
 
-  const selectedDevice = React.useMemo(() => {
-    return devices.find((d) => String(d.id) === String(deviceId)) || null;
-  }, [devices, deviceId]);
+  React.useEffect(() => {
+    if (!open) return;
 
-  const availableFields = React.useMemo(() => {
-    const raw = selectedDevice?.fields;
-    if (!raw) return [];
+    let alive = true;
 
-    if (Array.isArray(raw) && typeof raw[0] === "string") {
-      return raw.map((k) => ({ key: k, label: k }));
+    async function fetchModelDevices(modelKey) {
+      const base = MODEL_META[modelKey]?.base;
+      if (!base) return [];
+
+      const res = await fetch(`${API_URL}/${base}/my-devices`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) return [];
+
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : [];
+
+      return list
+        .map((r) => {
+          const id = String(r.deviceId ?? r.device_id ?? "").trim();
+          return {
+            id,
+            name: id, // ✅ ID ONLY (simple)
+            model: modelKey,
+            modelLabel: MODEL_META[modelKey]?.label || modelKey,
+          };
+        })
+        .filter((x) => x.id);
     }
-    if (Array.isArray(raw) && typeof raw[0] === "object") {
-      return raw
-        .map((x) => ({
-          key: x.key ?? x.field ?? x.name ?? "",
-          label: x.label ?? x.name ?? x.field ?? x.key ?? "",
-        }))
-        .filter((x) => x.key);
-    }
-    return [];
-  }, [selectedDevice]);
 
-  const filteredFields = React.useMemo(() => {
-    const q = tagSearch.trim().toLowerCase();
-    if (!q) return availableFields;
-    return availableFields.filter(
-      (f) => f.key.toLowerCase().includes(q) || f.label.toLowerCase().includes(q)
-    );
-  }, [availableFields, tagSearch]);
+    async function loadDevices() {
+      setDevicesErr("");
+      try {
+        const token = String(getToken() || "").trim();
+        if (!token) throw new Error("Missing auth token. Please logout and login again.");
+
+        const [d1, d2, d3] = await Promise.all([
+          fetchModelDevices("zhc1921"),
+          fetchModelDevices("zhc1661"),
+          fetchModelDevices("tp4000"),
+        ]);
+
+        const merged = [...d1, ...d2, ...d3];
+
+        merged.sort((a, b) => {
+          const ma = String(a.model || "");
+          const mb = String(b.model || "");
+          if (ma !== mb) return ma.localeCompare(mb);
+          return String(a.id).localeCompare(String(b.id));
+        });
+
+        if (alive) setDevices(merged);
+      } catch (e) {
+        if (alive) {
+          setDevices([]);
+          setDevicesErr(e.message || "Failed to load devices");
+        }
+      }
+    }
+
+    loadDevices();
+    return () => {
+      alive = false;
+    };
+  }, [open]);
+
+  const filteredDevices = React.useMemo(() => {
+    const q = String(deviceSearch || "").trim().toLowerCase();
+    if (!q) return devices;
+    return devices.filter((d) => {
+      const id = String(d.id || "").toLowerCase();
+      const model = String(d.modelLabel || d.model || "").toLowerCase();
+      return id.includes(q) || model.includes(q);
+    });
+  }, [devices, deviceSearch]);
 
   // =========================
-  // ✅ LIVE STATUS (Offline/Online + 0/1)
+  // LIVE STATUS / VALUE (POLL BACKEND)
   // =========================
-  const getValueForField = React.useCallback((dev, fld) => {
-    if (!dev || !fld) return undefined;
+  const [telemetryRow, setTelemetryRow] = React.useState(null);
+  const telemetryRef = React.useRef({ loading: false });
 
-    const pools = [dev.values, dev.data, dev.tags, dev.latest, dev.last, dev.payload];
-    for (const pool of pools) {
-      if (pool && typeof pool === "object" && fld in pool) return pool[fld];
+  const fetchTelemetryRow = React.useCallback(async () => {
+    const id = String(deviceId || "").trim();
+    const modelKey = String(deviceModel || "").trim();
+    const base = MODEL_META[modelKey]?.base;
+
+    if (!id || !base) {
+      setTelemetryRow(null);
+      return;
     }
+    if (telemetryRef.current.loading) return;
 
-    const arrPools = [dev.values, dev.data, dev.tags, dev.latest].filter(Array.isArray);
-    for (const arr of arrPools) {
-      const hit = arr.find(
-        (x) => String(x?.key ?? x?.field ?? x?.name ?? "") === String(fld)
-      );
-      if (hit && "value" in hit) return hit.value;
+    telemetryRef.current.loading = true;
+    try {
+      const token = String(getToken() || "").trim();
+      if (!token) throw new Error("Missing auth token. Please logout and login again.");
+
+      const res = await fetch(`${API_URL}/${base}/my-devices`, {
+        headers: getAuthHeaders(),
+      });
+
+      if (!res.ok) {
+        setTelemetryRow(null);
+        return;
+      }
+
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : [];
+      const row = list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
+
+      setTelemetryRow(row);
+    } catch {
+      setTelemetryRow(null);
+    } finally {
+      telemetryRef.current.loading = false;
     }
+  }, [deviceId, deviceModel]);
 
-    return undefined;
-  }, []);
+  React.useEffect(() => {
+    if (!open) return;
+
+    fetchTelemetryRow();
+    const t = setInterval(() => {
+      if (document.hidden) return;
+      fetchTelemetryRow();
+    }, 3000);
+
+    return () => clearInterval(t);
+  }, [open, fetchTelemetryRow]);
+
+  const backendDeviceStatus = React.useMemo(() => {
+    const s = String(telemetryRow?.status || "").trim().toLowerCase();
+    if (!deviceId) return "";
+    return s || "";
+  }, [telemetryRow, deviceId]);
+
+  const deviceIsOnline = backendDeviceStatus === "online";
+
+  const effectiveField = String(field || "").trim();
 
   const rawValue = React.useMemo(() => {
-    return getValueForField(selectedDevice, field);
-  }, [getValueForField, selectedDevice, field]);
+    if (!telemetryRow || !effectiveField) return undefined;
+    return readTagFromRow(telemetryRow, effectiveField);
+  }, [telemetryRow, effectiveField]);
 
-  const isOnline = React.useMemo(() => {
-    if (!isTagAssigned) return false;
-    return rawValue !== undefined && rawValue !== null && rawValue !== "";
-  }, [isTagAssigned, rawValue]);
+  const isOnline =
+    !!deviceId &&
+    !!effectiveField &&
+    deviceIsOnline &&
+    rawValue !== undefined &&
+    rawValue !== null;
 
-  const bool01 = React.useMemo(() => {
-    if (!isOnline) return "—";
-    const n = Number(rawValue);
-    const on = Number.isFinite(n) ? n > 0 : Boolean(rawValue);
-    return on ? "1" : "0";
-  }, [isOnline, rawValue]);
+  const as01 = React.useMemo(() => (isOnline ? to01(rawValue) : null), [isOnline, rawValue]);
 
   // =========================
   // IMAGE HELPERS
@@ -194,15 +367,78 @@ export default function StateImageSettingsModal({
     reader.readAsDataURL(file);
   };
 
+  // =========================
+  // ✅ IOTs LIBRARY PICKER (EVENT-BASED)
+  // =========================
+  const openIOTsLibrary = (which) => {
+    const safeWhich = which === "on" ? "on" : "off";
+    pickSlotRef.current = safeWhich;
+
+    window.dispatchEvent(
+      new CustomEvent("coreflex-open-iots-library", {
+        detail: {
+          mode: "pickImage",
+          which: safeWhich,
+          tankId: tank?.id,
+          from: "StateImageSettingsModal",
+        },
+      })
+    );
+  };
+
+  React.useEffect(() => {
+    if (!tank?.id) return;
+
+    const onSelected = (ev) => {
+      const url = ev?.detail?.url;
+      if (!url) return;
+
+      if (ev?.detail?.tankId != null && String(ev.detail.tankId) !== String(tank.id)) {
+        return;
+      }
+
+      const fromRef =
+        pickSlotRef.current === "on" || pickSlotRef.current === "off" ? pickSlotRef.current : null;
+
+      const fromEvent =
+        ev?.detail?.which === "on" || ev?.detail?.which === "off" ? ev.detail.which : null;
+
+      const which = fromRef || fromEvent;
+      if (which !== "on" && which !== "off") return;
+
+      if (which === "off") setOffImage(url);
+      if (which === "on") setOnImage(url);
+
+      pickSlotRef.current = null;
+    };
+
+    window.addEventListener("coreflex-iots-library-selected", onSelected);
+    return () => window.removeEventListener("coreflex-iots-library-selected", onSelected);
+  }, [tank?.id]);
+
+  // =========================
+  // APPLY SAVE
+  // =========================
   const apply = () => {
+    const nextProps = {
+      ...(tank?.properties || {}),
+      offImage,
+      onImage,
+    };
+
+    // ✅ Save tag only if selected
+    const hasTagSelection = deviceId && effectiveField;
+    if (hasTagSelection) {
+      nextProps.tag = {
+        model: String(deviceModel || "zhc1921"),
+        deviceId: String(deviceId),
+        field: String(effectiveField),
+      };
+    }
+
     onSave?.({
       id: tank.id,
-      properties: {
-        ...(tank.properties || {}),
-        offImage,
-        onImage,
-        tag: { deviceId, field },
-      },
+      properties: nextProps,
     });
   };
 
@@ -245,9 +481,6 @@ export default function StateImageSettingsModal({
     </div>
   );
 
-  // =========================
-  // ✅ Button styles
-  // =========================
   const btnNeutral = {
     padding: "9px 12px",
     borderRadius: 10,
@@ -259,142 +492,19 @@ export default function StateImageSettingsModal({
     whiteSpace: "nowrap",
   };
 
-  // ✅ No green highlight
-  const offBtnStyle = btnNeutral;
-  const onBtnStyle = btnNeutral;
+  const statusText = !deviceId
+    ? "Select a device and tag"
+    : !effectiveField
+    ? "Select a DI/DO tag"
+    : isOnline
+    ? "Online"
+    : deviceId && deviceIsOnline
+    ? "No data for tag"
+    : "Offline";
 
-  // =========================
-  // ✅ IOTs LIBRARY PICKER (EVENT-BASED)
-  // =========================
-  const openIOTsLibrary = (which) => {
-    const safeWhich = which === "on" ? "on" : "off";
-    pickSlotRef.current = safeWhich;
+  const valueText = isOnline ? String(as01 ?? 0) : "—";
 
-    window.dispatchEvent(
-      new CustomEvent("coreflex-open-iots-library", {
-        detail: {
-          mode: "pickImage",
-          which: safeWhich,
-          tankId: tank.id,
-          from: "StateImageSettingsModal",
-        },
-      })
-    );
-  };
-
-  React.useEffect(() => {
-    const onSelected = (ev) => {
-      const url = ev?.detail?.url;
-      if (!url) return;
-
-      if (
-        ev?.detail?.tankId != null &&
-        String(ev.detail.tankId) !== String(tank.id)
-      ) {
-        return;
-      }
-
-      const fromRef =
-        pickSlotRef.current === "on" || pickSlotRef.current === "off"
-          ? pickSlotRef.current
-          : null;
-
-      const fromEvent =
-        ev?.detail?.which === "on" || ev?.detail?.which === "off"
-          ? ev.detail.which
-          : null;
-
-      const which = fromRef || fromEvent;
-      if (which !== "on" && which !== "off") return;
-
-      if (which === "off") setOffImage(url);
-      if (which === "on") setOnImage(url);
-
-      pickSlotRef.current = null;
-    };
-
-    window.addEventListener("coreflex-iots-library-selected", onSelected);
-    return () =>
-      window.removeEventListener("coreflex-iots-library-selected", onSelected);
-  }, [tank.id]);
-
-  // =========================
-  // ✅ Tag quick-pick list
-  // =========================
-  const TagPickList = () => {
-    if (!selectedDevice) {
-      return (
-        <div style={{ fontSize: 12, color: "#64748b" }}>
-          Select a device to see available tags.
-        </div>
-      );
-    }
-
-    const list = filteredFields.slice(0, 60);
-    if (list.length === 0) {
-      return (
-        <div style={{ fontSize: 12, color: "#64748b" }}>
-          No tags found. Try a different search.
-        </div>
-      );
-    }
-
-    return (
-      <div
-        style={{
-          marginTop: 10,
-          border: "1px solid #e5e7eb",
-          borderRadius: 12,
-          overflow: "hidden",
-        }}
-      >
-        <div
-          style={{
-            padding: "10px 12px",
-            background: "#f8fafc",
-            borderBottom: "1px solid #e5e7eb",
-            fontSize: 12,
-            fontWeight: 1000,
-            color: "#0f172a",
-            display: "flex",
-            justifyContent: "space-between",
-            gap: 10,
-          }}
-        >
-          <span>Pick Tag</span>
-          <span style={{ color: "#64748b", fontWeight: 900 }}>
-            Selected: {field ? field : "—"}
-          </span>
-        </div>
-
-        <div style={{ maxHeight: 160, overflow: "auto" }}>
-          {list.map((f) => {
-            const selected = String(f.key) === String(field);
-            return (
-              <button
-                key={f.key}
-                type="button"
-                onClick={() => setField(f.key)}
-                style={{
-                  width: "100%",
-                  textAlign: "left",
-                  padding: "10px 12px",
-                  border: "none",
-                  borderBottom: "1px solid #f1f5f9",
-                  background: selected ? "rgba(34,197,94,0.10)" : "white",
-                  cursor: "pointer",
-                  fontWeight: selected ? 1000 : 800,
-                  color: "#0f172a",
-                }}
-              >
-                {f.label}
-              </button>
-            );
-          })}
-        </div>
-      </div>
-    );
-  };
+  if (!open || !tank) return null;
 
   return (
     <div
@@ -461,7 +571,7 @@ export default function StateImageSettingsModal({
 
         {/* Body */}
         <div style={{ padding: 16, overflow: "auto", flex: "1 1 auto" }}>
-          {/* ✅ TOP: Images section (full width) */}
+          {/* ✅ TOP: Images section */}
           <div
             style={{
               border: "1px solid #e5e7eb",
@@ -474,13 +584,7 @@ export default function StateImageSettingsModal({
               State Images (OFF / ON)
             </div>
 
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 12,
-              }}
-            >
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
               {/* OFF */}
               <div>
                 <div style={{ fontSize: 12, fontWeight: 1000, marginBottom: 8 }}>
@@ -519,7 +623,7 @@ export default function StateImageSettingsModal({
                   <button
                     type="button"
                     onClick={() => openIOTsLibrary("off")}
-                    style={offBtnStyle}
+                    style={btnNeutral}
                     title="Pick OFF image from CoreFlex IOTs Library"
                   >
                     IOTs Library OFF
@@ -546,9 +650,7 @@ export default function StateImageSettingsModal({
 
               {/* ON */}
               <div>
-                <div style={{ fontSize: 12, fontWeight: 1000, marginBottom: 8 }}>
-                  ON Image
-                </div>
+                <div style={{ fontSize: 12, fontWeight: 1000, marginBottom: 8 }}>ON Image</div>
 
                 <ImgBox src={onImage} title="ON" />
 
@@ -582,7 +684,7 @@ export default function StateImageSettingsModal({
                   <button
                     type="button"
                     onClick={() => openIOTsLibrary("on")}
-                    style={onBtnStyle}
+                    style={btnNeutral}
                     title="Pick ON image from CoreFlex IOTs Library"
                   >
                     IOTs Library ON
@@ -609,32 +711,59 @@ export default function StateImageSettingsModal({
             </div>
 
             <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
-              Default state is <b>OFF</b>. If your tag becomes ON (truthy / &gt; 0),
-              the ON image will display.
+              Default state is <b>OFF</b>. If your tag becomes ON (truthy / &gt; 0), the ON image
+              will display.
             </div>
           </div>
 
-          {/* ✅ BOTTOM: Tag section (full width) */}
-          <div
-            style={{
-              border: "1px solid #e5e7eb",
-              borderRadius: 12,
-              padding: 14,
-            }}
-          >
+          {/* ✅ BOTTOM: Tag section (same pattern as Blinking Alarm) */}
+          <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 14 }}>
             <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}>
               Tag that drives state (ON / OFF)
             </div>
 
+            {devicesErr && (
+              <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>{devicesErr}</div>
+            )}
+
+            {/* Search Device */}
+            <div style={{ marginBottom: 10 }}>
+              <Label>Search Device</Label>
+              <input
+                value={deviceSearch}
+                onChange={(e) => setDeviceSearch(e.target.value)}
+                placeholder="Type device id or model..."
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: "1px solid #cbd5e1",
+                  fontSize: 14,
+                }}
+              />
+              <div style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}>
+                Showing <b>{filteredDevices.length}</b> device(s)
+              </div>
+            </div>
+
             <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+              {/* Device */}
               <div style={{ flex: 1 }}>
                 <Label>Device</Label>
                 <select
-                  value={deviceId}
+                  value={deviceId ? `${deviceModel}::${deviceId}` : ""}
                   onChange={(e) => {
-                    setDeviceId(e.target.value);
+                    const v = String(e.target.value || "");
+                    if (!v || !v.includes("::")) {
+                      setDeviceModel("zhc1921");
+                      setDeviceId("");
+                      setField("");
+                      return;
+                    }
+                    const [m, id] = v.split("::");
+                    setDeviceModel(MODEL_META[m] ? m : "zhc1921");
+                    setDeviceId(String(id || ""));
                     setField("");
-                    setTagSearch("");
                   }}
                   style={{
                     width: "100%",
@@ -646,78 +775,89 @@ export default function StateImageSettingsModal({
                   }}
                 >
                   <option value="">— Select device —</option>
-                  {devices.map((d) => (
-                    <option key={String(d.id)} value={String(d.id)}>
-                      {d.name || d.label || d.id}
+                  {filteredDevices.map((d) => (
+                    <option key={`${d.model}::${d.id}`} value={`${d.model}::${d.id}`}>
+                      {d.id}
                     </option>
                   ))}
                 </select>
               </div>
 
+              {/* Tag */}
               <div style={{ flex: 1 }}>
-                <Label>Search Tag</Label>
-                <input
-                  value={tagSearch}
-                  onChange={(e) => setTagSearch(e.target.value)}
-                  placeholder="ex: DI0, run, fault..."
+                <Label>Select Tag</Label>
+                <select
+                  value={field}
+                  onChange={(e) => setField(String(e.target.value || ""))}
+                  disabled={!deviceId}
                   style={{
                     width: "100%",
                     padding: "10px 12px",
                     borderRadius: 10,
                     border: "1px solid #cbd5e1",
                     fontSize: 14,
+                    background: "white",
+                    opacity: deviceId ? 1 : 0.6,
+                    cursor: deviceId ? "pointer" : "not-allowed",
                   }}
-                />
+                >
+                  <option value="">— Select DI/DO —</option>
+                  {TAG_OPTIONS.map((t) => (
+                    <option key={t.key} value={t.key}>
+                      {t.label}
+                    </option>
+                  ))}
+                </select>
               </div>
             </div>
 
-            <TagPickList />
-
+            {/* STATUS BAR */}
             <div
               style={{
-                marginTop: 12,
+                display: "flex",
+                justifyContent: "space-between",
+                alignItems: "center",
                 border: "1px solid #e5e7eb",
-                borderRadius: 12,
-                padding: 12,
                 background: "#f8fafc",
+                borderRadius: 12,
+                padding: "12px 14px",
               }}
             >
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
-                  marginBottom: 6,
-                }}
-              >
-                <div style={{ fontSize: 12, fontWeight: 1000, color: "#0f172a" }}>
-                  Status
-                </div>
-                <div style={{ fontSize: 12, fontWeight: 1000, color: "#0f172a" }}>
-                  Value
-                </div>
-              </div>
-
-              <div style={{ display: "flex", justifyContent: "space-between" }}>
-                <div style={{ color: "#64748b", fontSize: 12, fontWeight: 900 }}>
-                  {!deviceId || !selectedDevice
-                    ? "Select a device"
-                    : !field
-                    ? "Select a tag"
-                    : isOnline
-                    ? "Online"
-                    : "Offline"}
-                </div>
-
-                <div style={{ color: "#0f172a", fontSize: 14, fontWeight: 1000 }}>
-                  {field ? bool01 : "—"}
+              <div>
+                <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>Status</div>
+                <div style={{ fontSize: 13, color: "#475569", marginTop: 2 }}>
+                  {deviceId && effectiveField ? (
+                    <>
+                      <span style={{ fontWeight: 900, color: "#0f172a" }}>{statusText}</span>
+                      <span style={{ marginLeft: 10, color: "#64748b" }}>
+                        Bound: <b>{deviceId}</b> / <b>{effectiveField}</b>
+                      </span>
+                    </>
+                  ) : (
+                    statusText
+                  )}
                 </div>
               </div>
 
-              <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
-                Offline means there is no current value for that tag. When Online, the
-                value is shown as <b>0</b> or <b>1</b>.
+              <div style={{ textAlign: "right" }}>
+                <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>Value</div>
+                <div
+                  style={{
+                    marginTop: 2,
+                    fontSize: 18,
+                    fontWeight: 1000,
+                    color: isOnline ? "#0f172a" : "#94a3b8",
+                    fontFamily: "monospace",
+                    minWidth: 22,
+                  }}
+                >
+                  {valueText}
+                </div>
               </div>
+            </div>
+
+            <div style={{ fontSize: 12, color: "#64748b", marginTop: 10 }}>
+              Tip: ON means <b>truthy</b> (or numeric <b>&gt; 0</b>). OFF means false / 0 / empty.
             </div>
           </div>
         </div>
