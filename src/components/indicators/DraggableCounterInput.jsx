@@ -1,14 +1,71 @@
 import React from "react";
 
 export default function DraggableCounterInput({
+  // menu defaults
+  variant = "menu", // "menu" | "canvas"
   label = "Counter Input (DI)",
+
+  // canvas defaults
+  value = 0,
+  decimals = 3,
+
+  // canvas positioning (only used if you render it absolutely)
+  x,
+  y,
+  id,
+  isSelected,
+  onSelect,
+  onStartDragObject,
 }) {
   const handleDragStart = (e) => {
+    // drag payload for DashboardCanvas drop handler
     e.dataTransfer.setData("type", "counterInput");
     e.dataTransfer.setData("text/plain", "counterInput");
     e.dataTransfer.effectAllowed = "copy";
   };
 
+  // ---------- CANVAS VARIANT (the 0.000 box) ----------
+  if (variant === "canvas") {
+    const display = Number.isFinite(Number(value))
+      ? Number(value).toFixed(decimals)
+      : Number(0).toFixed(decimals);
+
+    return (
+      <div
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          onSelect?.(id);
+          onStartDragObject?.(e, id);
+        }}
+        style={{
+          position: x !== undefined && y !== undefined ? "absolute" : "relative",
+          left: x,
+          top: y,
+          width: 95,
+          height: 34,
+          borderRadius: 4,
+          border: isSelected ? "2px solid #2563eb" : "2px solid #8f8f8f",
+          background: "#f2f2f2",
+          boxShadow: "inset 0 0 6px rgba(0,0,0,0.25)",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontFamily: "monospace",
+          fontWeight: 900,
+          fontSize: 16,
+          letterSpacing: "0.5px",
+          color: "#111",
+          userSelect: "none",
+          cursor: "move",
+        }}
+        title={label}
+      >
+        {display}
+      </div>
+    );
+  }
+
+  // ---------- MENU VARIANT (left sidebar item) ----------
   return (
     <div
       draggable
@@ -17,13 +74,8 @@ export default function DraggableCounterInput({
       title="Drag to canvas"
       style={{ userSelect: "none" }}
     >
-      {/* icon aligned left */}
-      <span className="w-[16px] text-center text-base leading-none">
-        🧮
-      </span>
-
-      {/* proper spacing from icon */}
-      <span className="text-sm ml-3">{label}</span>
+      <span className="w-[16px] text-center text-base leading-none">🧮</span>
+      <span className="text-sm ml-2">{label}</span>
     </div>
   );
 }

@@ -32,6 +32,7 @@ import {
   DraggableStatusTextBox,
   DraggableBlinkingAlarm,
   DraggableStateImage,
+  DraggableCounterInput,
 } from "./indicators";
 
 // ===============================
@@ -893,6 +894,24 @@ if (tank.shape === "ledCircle") {
                 </DraggableDroppedTank>
               );
             }
+
+            // ✅ COUNTER INPUT (DI)
+if (tank.shape === "counterInput") {
+  const value = tank.value ?? tank.count ?? 0;
+  const decimals = tank.decimals ?? tank?.properties?.decimals ?? 3;
+
+  return (
+    <DraggableDroppedTank {...commonProps}>
+      <DraggableCounterInput
+        variant="canvas"
+        label="Counter Input (DI)"
+        value={value}
+        decimals={decimals}
+      />
+    </DraggableDroppedTank>
+  );
+}
+
 
             return null;
           })}
