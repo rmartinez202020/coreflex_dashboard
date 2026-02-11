@@ -20,15 +20,42 @@ export default function CoreFlexIOTsLibrary({
   // 🔒 INTERNAL ONLY (no UI)
   pickTarget = "off", // "off" | "on"
   pickTankId = null,
+
+  // Parent may or may not provide this:
   onRequestClose,
 }) {
   const safeWhich = pickTarget === "on" ? "on" : "off";
+
+  const requestGlobalClose = React.useCallback(() => {
+    // ✅ This is the important part:
+    // The window that renders the Library should listen to this and close itself.
+    window.dispatchEvent(
+      new CustomEvent("coreflex-close-iots-library", {
+        detail: {
+          tankId: pickTankId,
+          which: safeWhich,
+          reason: "picked",
+        },
+      })
+    );
+
+    // (Extra compatibility: if you had older listener names)
+    window.dispatchEvent(
+      new CustomEvent("coreflex-iots-library-request-close", {
+        detail: {
+          tankId: pickTankId,
+          which: safeWhich,
+          reason: "picked",
+        },
+      })
+    );
+  }, [pickTankId, safeWhich]);
 
   const handlePick = (url) => {
     // Optional: legacy usage
     onSelect?.(url);
 
-    // 🔥 Silent dispatch (NO UI indicator)
+    // 🔥 Dispatch selected image
     window.dispatchEvent(
       new CustomEvent("coreflex-iots-library-selected", {
         detail: {
@@ -39,7 +66,14 @@ export default function CoreFlexIOTsLibrary({
       })
     );
 
-    onRequestClose?.();
+    // ✅ CLOSE RIGHT AFTER PICK
+    requestGlobalClose();
+
+    // ✅ ALSO call direct close callback if parent wired it
+    // (Run next tick so selection handlers finish first)
+    setTimeout(() => {
+      onRequestClose?.();
+    }, 0);
   };
 
   return (
