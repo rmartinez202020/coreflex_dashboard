@@ -155,7 +155,8 @@ export default function DraggableStateImage({
         const data = await res.json();
         const list = Array.isArray(data) ? data : [];
         const row =
-          list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
+          list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) ||
+          null;
 
         setTelemetryRow(row);
       } catch {
@@ -198,14 +199,58 @@ export default function DraggableStateImage({
     // ✅ choose image (OFF is default)
     const imgSrc = isOn ? onImage : offImage;
 
-    // ✅ NO BORDER / NO BOX — image only
-    // If no image selected yet, render nothing (no placeholder box)
-    if (!imgSrc) return null;
+    // ✅ If image for the current state is missing, show placeholder (VISIBLE ON CANVAS)
+    const showPlaceholder = !imgSrc;
 
-    const title = `StateImage | ${isOn ? "ON" : "OFF"} | ${tagModel}:${tagDeviceId}/${tagField} | status=${
-      backendStatus || "—"
-    } | v=${String(rawValue)}`;
+    const title = `StateImage | ${isOn ? "ON" : "OFF"} | ${tagModel || "—"}:${
+      tagDeviceId || "—"
+    }/${tagField || "—"} | status=${backendStatus || "—"} | v=${String(rawValue)}`;
 
+    // ✅ PLACEHOLDER BOX (ONLY WHEN NOT CONFIGURED)
+    if (showPlaceholder) {
+      return (
+        <div
+          style={{
+            width: w,
+            height: h,
+            borderRadius: 12,
+            border: "1px dashed rgba(148,163,184,0.65)",
+            background: "rgba(2,6,23,0.02)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            userSelect: "none",
+            overflow: "hidden",
+            pointerEvents: "none", // let DraggableDroppedTank handle clicks/doubleclick
+          }}
+          title={title}
+        >
+          <div style={{ textAlign: "center", color: "#64748b", padding: 10 }}>
+            <div
+              style={{
+                width: Math.max(18, Math.round(Math.min(w, h) * 0.12)),
+                height: Math.max(18, Math.round(Math.min(w, h) * 0.12)),
+                borderRadius: 999,
+                background: "rgba(148,163,184,0.35)",
+                margin: "0 auto 10px auto",
+                boxShadow: "0 8px 18px rgba(0,0,0,0.10)",
+              }}
+            />
+            <div style={{ fontWeight: 1000, letterSpacing: 1 }}>
+              STATE IMAGE
+            </div>
+            <div style={{ fontSize: 12, marginTop: 6, opacity: 0.9 }}>
+              {isOn ? "ON" : "OFF"}
+            </div>
+            <div style={{ fontSize: 11, marginTop: 8, opacity: 0.75 }}>
+              Double-click to setup
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    // ✅ IMAGE MODE (NO BORDER / IMAGE ONLY)
     return (
       <div
         style={{
@@ -218,7 +263,7 @@ export default function DraggableStateImage({
           justifyContent: "center",
           userSelect: "none",
           overflow: "hidden",
-          pointerEvents: "none", // ✅ let DraggableDroppedTank handle clicks/doubleclick
+          pointerEvents: "none",
         }}
         title={title}
       >
