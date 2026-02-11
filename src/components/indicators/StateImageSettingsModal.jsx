@@ -383,41 +383,34 @@ export default function StateImageSettingsModal({
     );
   };
 
-  // ✅ NEW: hard-close the IOTs Library by clicking its X button (DOM)
-  const closeIOTsLibraryByDom = React.useCallback(() => {
-    // Delay a tick so the selection UI can finish first
-    setTimeout(() => {
-      try {
-        // Find the library window by its header text
-        const allDivs = Array.from(document.querySelectorAll("div"));
-        const headerDiv = allDivs.find((d) =>
-          String(d.textContent || "").includes("CoreFlex IOTs Library")
-        );
+  // ✅ NEW: close the IOTs Library window right after selection
+  const closeIOTsLibraryWindow = React.useCallback(() => {
+    const tankId = tank?.id;
 
-        if (!headerDiv) return;
+    // Try a few likely close events (harmless if your library ignores them)
+    window.dispatchEvent(
+      new CustomEvent("coreflex-close-iots-library", {
+        detail: { tankId, from: "StateImageSettingsModal" },
+      })
+    );
+    window.dispatchEvent(
+      new CustomEvent("coreflex-iots-library-close", {
+        detail: { tankId, from: "StateImageSettingsModal" },
+      })
+    );
+    window.dispatchEvent(
+      new CustomEvent("coreflex-close-coreflex-iots-library", {
+        detail: { tankId, from: "StateImageSettingsModal" },
+      })
+    );
 
-        // Walk up a little to reach the window container
-        const container =
-          headerDiv.closest("div") ||
-          headerDiv.parentElement ||
-          headerDiv;
-
-        if (!container) return;
-
-        // Find an X close button inside this window.
-        // Your X is a button with "✕" OR "x" in text.
-        const btns = Array.from(container.querySelectorAll("button"));
-        const closeBtn = btns.find((b) => {
-          const t = String(b.textContent || "").trim().toLowerCase();
-          return t === "✕" || t === "x" || t.includes("✕");
-        });
-
-        if (closeBtn) closeBtn.click();
-      } catch {
-        // ignore
-      }
-    }, 0);
-  }, []);
+    // Generic close (also harmless if unused)
+    window.dispatchEvent(
+      new CustomEvent("coreflex-modal-close", {
+        detail: { name: "CoreFlexIOTsLibrary", tankId, from: "StateImageSettingsModal" },
+      })
+    );
+  }, [tank?.id]);
 
   React.useEffect(() => {
     if (!tank?.id) return;
@@ -426,6 +419,7 @@ export default function StateImageSettingsModal({
       const url = ev?.detail?.url;
       if (!url) return;
 
+      // respect tank id if provided
       if (ev?.detail?.tankId != null && String(ev.detail.tankId) !== String(tank.id)) {
         return;
       }
@@ -436,9 +430,7 @@ export default function StateImageSettingsModal({
           : null;
 
       const fromEvent =
-        ev?.detail?.which === "on" || ev?.detail?.which === "off"
-          ? ev.detail.which
-          : null;
+        ev?.detail?.which === "on" || ev?.detail?.which === "off" ? ev.detail.which : null;
 
       const which = fromRef || fromEvent;
       if (which !== "on" && which !== "off") return;
@@ -448,13 +440,13 @@ export default function StateImageSettingsModal({
 
       pickSlotRef.current = null;
 
-      // ✅ CLOSE the Library window immediately after pick
-      closeIOTsLibraryByDom();
+      // ✅ CLOSE the IOTs Library window after picking
+      closeIOTsLibraryWindow();
     };
 
     window.addEventListener("coreflex-iots-library-selected", onSelected);
     return () => window.removeEventListener("coreflex-iots-library-selected", onSelected);
-  }, [tank?.id, closeIOTsLibraryByDom]);
+  }, [tank?.id, closeIOTsLibraryWindow]);
 
   // =========================
   // APPLY SAVE
@@ -466,6 +458,7 @@ export default function StateImageSettingsModal({
       onImage,
     };
 
+    // ✅ Save tag only if selected
     const hasTagSelection = deviceId && effectiveField;
     if (hasTagSelection) {
       nextProps.tag = {
@@ -755,7 +748,7 @@ export default function StateImageSettingsModal({
             </div>
           </div>
 
-          {/* ✅ BOTTOM: Tag section */}
+          {/* ✅ BOTTOM: Tag section (same pattern as Blinking Alarm) */}
           <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 14 }}>
             <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}>
               Tag that drives state (ON / OFF)
@@ -765,6 +758,7 @@ export default function StateImageSettingsModal({
               <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>{devicesErr}</div>
             )}
 
+            {/* Search Device */}
             <div style={{ marginBottom: 10 }}>
               <Label>Search Device</Label>
               <input
@@ -785,6 +779,7 @@ export default function StateImageSettingsModal({
             </div>
 
             <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+              {/* Device */}
               <div style={{ flex: 1 }}>
                 <Label>Device</Label>
                 <select
@@ -820,6 +815,7 @@ export default function StateImageSettingsModal({
                 </select>
               </div>
 
+              {/* Tag */}
               <div style={{ flex: 1 }}>
                 <Label>Select Tag</Label>
                 <select
@@ -847,6 +843,7 @@ export default function StateImageSettingsModal({
               </div>
             </div>
 
+            {/* STATUS BAR */}
             <div
               style={{
                 display: "flex",
@@ -897,6 +894,7 @@ export default function StateImageSettingsModal({
           </div>
         </div>
 
+        {/* Footer */}
         <div
           style={{
             display: "flex",
