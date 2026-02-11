@@ -18,17 +18,21 @@ export default function DraggableCounterInput({
   onStartDragObject,
 }) {
   const handleDragStart = (e) => {
-    // drag payload for DashboardCanvas drop handler
-    e.dataTransfer.setData("type", "counterInput");
+    // ✅ MUST use "shape" because useDropHandler reads e.dataTransfer.getData("shape")
+    e.dataTransfer.setData("shape", "counterInput");
     e.dataTransfer.setData("text/plain", "counterInput");
     e.dataTransfer.effectAllowed = "copy";
   };
 
   // ---------- CANVAS VARIANT (the 0.000 box) ----------
   if (variant === "canvas") {
+    const safeDecimals = Number.isFinite(Number(decimals))
+      ? Math.max(0, Math.min(6, Number(decimals)))
+      : 3;
+
     const display = Number.isFinite(Number(value))
-      ? Number(value).toFixed(decimals)
-      : Number(0).toFixed(decimals);
+      ? Number(value).toFixed(safeDecimals)
+      : Number(0).toFixed(safeDecimals);
 
     return (
       <div
@@ -74,7 +78,10 @@ export default function DraggableCounterInput({
       title="Drag to canvas"
       style={{ userSelect: "none" }}
     >
+      {/* icon aligned left */}
       <span className="w-[16px] text-center text-base leading-none">🧮</span>
+
+      {/* spacing from icon */}
       <span className="text-sm ml-2">{label}</span>
     </div>
   );
