@@ -28,7 +28,7 @@ const TAG_OPTIONS = [
   { key: "do4", label: "DO-4" },
 ];
 
-// ✅ Convert anything to 0/1 (same logic)
+// ✅ Convert anything to 0/1
 function to01(v) {
   if (v === undefined || v === null) return null;
   if (typeof v === "boolean") return v ? 1 : 0;
@@ -43,7 +43,7 @@ function to01(v) {
   return v ? 1 : 0;
 }
 
-// ✅ Read tag value from backend row (same as Indicator Light)
+// ✅ Read tag value from backend row
 function readTagFromRow(row, field) {
   if (!row || !field) return undefined;
 
@@ -78,17 +78,16 @@ export default function StatusTextSettingsModal({
   tank,
   onClose,
   onSave,
-  sensorsData, // kept for compatibility, but we now prefer backend polling (like indicator)
+  sensorsData, // kept for compatibility
 }) {
   // ✅ do NOT early return before hooks
-
   const p = tank?.properties || {};
 
-  // ✅ Responsive modal size (wider + clamped to viewport)
+  // ✅ Responsive modal size
   const MODAL_W = Math.min(1080, window.innerWidth - 80);
   const MODAL_H = Math.min(680, window.innerHeight - 120);
 
-  // Tag binding (backward compatible)
+  // Tag binding
   const initialDeviceModel = String(p?.tag?.model || "zhc1921").trim() || "zhc1921";
   const initialDeviceId = String(p?.tag?.deviceId ?? "");
   const initialField = String(p?.tag?.field ?? "");
@@ -98,17 +97,13 @@ export default function StatusTextSettingsModal({
   const initialOffText = p?.offText ?? legacyText ?? "OFF";
   const initialOnText = p?.onText ?? legacyText ?? "ON";
 
-  // Shared style
+  // Shared style (keep only what we still expose)
   const initialFontSize = p?.fontSize ?? 18;
   const initialFontWeight = p?.fontWeight ?? 800;
   const initialTextColor = p?.textColor ?? "#0f172a";
   const initialBg = p?.bgColor ?? "#ffffff";
   const initialBorderColor = p?.borderColor ?? "#cbd5e1";
   const initialBorderWidth = p?.borderWidth ?? 1;
-  const initialPaddingY = p?.paddingY ?? 10;
-  const initialPaddingX = p?.paddingX ?? 14;
-  const initialTextAlign = p?.textAlign ?? "center";
-  const initialTransform = p?.textTransform ?? "none";
 
   const [deviceModel, setDeviceModel] = React.useState(
     MODEL_META[initialDeviceModel] ? initialDeviceModel : "zhc1921"
@@ -116,7 +111,6 @@ export default function StatusTextSettingsModal({
   const [deviceId, setDeviceId] = React.useState(initialDeviceId);
   const [field, setField] = React.useState(initialField);
 
-  // ✅ Device search (same idea as Indicator Light)
   const [deviceSearch, setDeviceSearch] = React.useState("");
 
   const [offText, setOffText] = React.useState(initialOffText);
@@ -128,10 +122,6 @@ export default function StatusTextSettingsModal({
   const [bgColor, setBgColor] = React.useState(initialBg);
   const [borderColor, setBorderColor] = React.useState(initialBorderColor);
   const [borderWidth, setBorderWidth] = React.useState(initialBorderWidth);
-  const [paddingY, setPaddingY] = React.useState(initialPaddingY);
-  const [paddingX, setPaddingX] = React.useState(initialPaddingX);
-  const [textAlign, setTextAlign] = React.useState(initialTextAlign);
-  const [textTransform, setTextTransform] = React.useState(initialTransform);
 
   // =========================
   // REHYDRATE ON OPEN
@@ -150,10 +140,6 @@ export default function StatusTextSettingsModal({
     setBgColor(pp?.bgColor ?? "#ffffff");
     setBorderColor(pp?.borderColor ?? "#cbd5e1");
     setBorderWidth(pp?.borderWidth ?? 1);
-    setPaddingY(pp?.paddingY ?? 10);
-    setPaddingX(pp?.paddingX ?? 14);
-    setTextAlign(pp?.textAlign ?? "center");
-    setTextTransform(pp?.textTransform ?? "none");
 
     const m = String(pp?.tag?.model || "zhc1921").trim() || "zhc1921";
     setDeviceModel(MODEL_META[m] ? m : "zhc1921");
@@ -231,7 +217,7 @@ export default function StatusTextSettingsModal({
   };
 
   // =========================
-  // DEVICES (LIKE INDICATOR LIGHT)
+  // DEVICES
   // =========================
   const [devices, setDevices] = React.useState([]);
   const [devicesErr, setDevicesErr] = React.useState("");
@@ -313,7 +299,7 @@ export default function StatusTextSettingsModal({
   }, [devices, deviceSearch]);
 
   // =========================
-  // ✅ LIVE STATUS/VALUE (POLL TELEMETRY LIKE INDICATOR LIGHT)
+  // LIVE STATUS/VALUE
   // =========================
   const [telemetryRow, setTelemetryRow] = React.useState(null);
   const telemetryRef = React.useRef({ loading: false });
@@ -382,8 +368,7 @@ export default function StatusTextSettingsModal({
     return readTagFromRow(telemetryRow, effectiveField);
   }, [telemetryRow, effectiveField]);
 
-  const isOnline =
-    deviceIsOnline && rawValue !== undefined && rawValue !== null && !!effectiveField;
+  const isOnline = deviceIsOnline && rawValue !== undefined && rawValue !== null && !!effectiveField;
   const as01 = React.useMemo(() => (isOnline ? to01(rawValue) : null), [isOnline, rawValue]);
 
   // =========================
@@ -401,6 +386,7 @@ export default function StatusTextSettingsModal({
         offText: safeOff,
         onText: safeOn,
 
+        // legacy
         text: safeOff,
 
         fontSize: Number(fontSize) || 18,
@@ -409,15 +395,12 @@ export default function StatusTextSettingsModal({
         bgColor,
         borderColor,
         borderWidth: Number(borderWidth) || 1,
-        paddingY: Number(paddingY) || 10,
-        paddingX: Number(paddingX) || 14,
-        textAlign,
-        textTransform,
+
+        // ✅ removed: paddingY, paddingX, textAlign, textTransform
 
         borderRadius: undefined,
         letterSpacing: undefined,
 
-        // ✅ save model (hidden), save field from dropdown only
         tag: { model: String(deviceModel || "zhc1921"), deviceId, field: effectiveField },
       },
     });
@@ -425,17 +408,18 @@ export default function StatusTextSettingsModal({
     onClose?.();
   };
 
+  // preview style (use safe fixed defaults internally)
   const basePreviewStyle = {
     width: "100%",
     background: bgColor,
     color: textColor,
     border: `${borderWidth}px solid ${borderColor}`,
     borderRadius: 10,
-    padding: `${paddingY}px ${paddingX}px`,
+    padding: `10px 14px`,
     fontSize,
     fontWeight,
-    textAlign,
-    textTransform,
+    textAlign: "center",
+    textTransform: "none",
     boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
   };
 
@@ -528,7 +512,7 @@ export default function StatusTextSettingsModal({
         }}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* Header (draggable) */}
+        {/* Header */}
         <div
           onMouseDown={startDrag}
           style={{
@@ -676,59 +660,6 @@ export default function StatusTextSettingsModal({
                   <Num value={borderWidth} onChange={setBorderWidth} min={0} max={12} />
                 </div>
               </div>
-
-              <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <Label>Padding Y</Label>
-                  <Num value={paddingY} onChange={setPaddingY} min={0} max={60} />
-                </div>
-                <div style={{ flex: 1 }}>
-                  <Label>Padding X</Label>
-                  <Num value={paddingX} onChange={setPaddingX} min={0} max={80} />
-                </div>
-              </div>
-
-              <div style={{ display: "flex", gap: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <Label>Align</Label>
-                  <select
-                    value={textAlign}
-                    onChange={(e) => setTextAlign(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "10px 12px",
-                      borderRadius: 10,
-                      border: "1px solid #cbd5e1",
-                      fontSize: 14,
-                      background: "white",
-                    }}
-                  >
-                    <option value="left">Left</option>
-                    <option value="center">Center</option>
-                    <option value="right">Right</option>
-                  </select>
-                </div>
-
-                <div style={{ flex: 1 }}>
-                  <Label>Transform</Label>
-                  <select
-                    value={textTransform}
-                    onChange={(e) => setTextTransform(e.target.value)}
-                    style={{
-                      width: "100%",
-                      padding: "10px 12px",
-                      borderRadius: 10,
-                      border: "1px solid #cbd5e1",
-                      fontSize: 14,
-                      background: "white",
-                    }}
-                  >
-                    <option value="none">None</option>
-                    <option value="uppercase">UPPERCASE</option>
-                    <option value="lowercase">lowercase</option>
-                  </select>
-                </div>
-              </div>
             </div>
 
             {/* TAG */}
@@ -741,7 +672,6 @@ export default function StatusTextSettingsModal({
                 <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>{devicesErr}</div>
               )}
 
-              {/* ✅ Search Device */}
               <div style={{ marginBottom: 10 }}>
                 <Label>Search Device</Label>
                 <input
@@ -824,7 +754,7 @@ export default function StatusTextSettingsModal({
                 </div>
               </div>
 
-              {/* ✅ STATUS / VALUE PANEL */}
+              {/* STATUS / VALUE */}
               <div
                 style={{
                   border: "1px solid #e5e7eb",
