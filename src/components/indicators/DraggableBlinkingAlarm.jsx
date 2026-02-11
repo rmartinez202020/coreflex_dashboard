@@ -30,6 +30,114 @@ export default function DraggableBlinkingAlarm({
   };
 
   // =========================
+  // ✅ helpers (robust)
+  // =========================
+  const to01 = (v) => {
+    if (v === undefined || v === null) return null;
+    if (typeof v === "boolean") return v ? 1 : 0;
+    if (typeof v === "number") return v > 0 ? 1 : 0;
+    if (typeof v === "string") {
+      const s = v.trim().toLowerCase();
+      if (s === "1" || s === "true" || s === "on" || s === "yes") return 1;
+      if (s === "0" || s === "false" || s === "off" || s === "no") return 0;
+      const n = Number(s);
+      if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
+      return s ? 1 : 0;
+    }
+    return v ? 1 : 0;
+  };
+
+  // Accept di1 <-> DI-1 <-> DI1 <-> in1 etc
+  const normalizeFieldCandidates = (field) => {
+    const f = String(field || "").trim();
+    if (!f) return [];
+
+    const base = f.toLowerCase().replace(/\s+/g, "");
+    const noDash = base.replace(/-/g, "");
+
+    const out = new Set();
+    out.add(f);
+    out.add(base);
+    out.add(noDash);
+    out.add(f.toUpperCase());
+    out.add(base.toUpperCase());
+    out.add(noDash.toUpperCase());
+
+    // DI mapping
+    if (/^di[1-6]$/.test(noDash)) {
+      const n = noDash.replace("di", "");
+      out.add(`in${n}`);
+      out.add(`IN${n}`);
+      out.add(`DI-${n}`);
+      out.add(`di-${n}`);
+      out.add(`DI${n}`);
+      out.add(`di${n}`);
+    }
+
+    // DO mapping
+    if (/^do[1-4]$/.test(noDash)) {
+      const n = noDash.replace("do", "");
+      out.add(`out${n}`);
+      out.add(`OUT${n}`);
+      out.add(`DO-${n}`);
+      out.add(`do-${n}`);
+      out.add(`DO${n}`);
+      out.add(`do${n}`);
+    }
+
+    return Array.from(out);
+  };
+
+  const readFromObject = (obj, field) => {
+    if (!obj || typeof obj !== "object" || !field) return undefined;
+
+    const candidates = normalizeFieldCandidates(field);
+    for (const k of candidates) {
+      if (Object.prototype.hasOwnProperty.call(obj, k)) return obj[k];
+    }
+    return undefined;
+  };
+
+  const readTagFromRowDeep = (row, field) => {
+    if (!row || !field) return undefined;
+
+    // direct
+    const direct = readFromObject(row, field);
+    if (direct !== undefined) return direct;
+
+    // common nested containers
+    const containers = [
+      row.values,
+      row.data,
+      row.tags,
+      row.payload,
+      row.last,
+      row.latest,
+      row.lastValues,
+      row.telemetry,
+      row.state,
+    ];
+    for (const c of containers) {
+      const v = readFromObject(c, field);
+      if (v !== undefined) return v;
+    }
+
+    return undefined;
+  };
+
+  const findDeviceRow = (devicesList, tagDeviceId) => {
+    if (!Array.isArray(devicesList) || !tagDeviceId) return null;
+    const did = String(tagDeviceId).trim();
+
+    return (
+      devicesList.find((r) => {
+        const rid = String(r?.deviceId ?? r?.device_id ?? r?.id ?? "").trim();
+        return rid === did;
+      }) || null
+    );
+  };
+
+  // =========================
   // ✅ CANVAS MODE
   // =========================
   if (tank) {
@@ -39,14 +147,12 @@ export default function DraggableBlinkingAlarm({
     const h = tank.h ?? tank.height ?? payload.h;
 
     const text = tank.text ?? p.text ?? p.label ?? payload.text;
-
     const blinkMs = p.blinkMs ?? tank.blinkMs ?? payload.blinkMs;
 
     // ✅ IMPORTANT: read ONLY from properties (this matches your modal save)
     const alarmStyle = p.alarmStyle ?? payload.alarmStyle;
     const alarmTone = p.alarmTone ?? payload.alarmTone;
 
-    // ✅ tone → accent ON color (does NOT affect background)
     const toneMap = {
       critical: { on: "#ef4444", glow: "rgba(239,68,68,0.55)" },
       warning: { on: "#f59e0b", glow: "rgba(245,158,11,0.55)" },
@@ -54,104 +160,74 @@ export default function DraggableBlinkingAlarm({
     };
     const tone = toneMap[alarmTone] || toneMap.critical;
 
-    // ✅ If modal saved colorOn/colorOff, use those
     const colorOn = p.colorOn ?? tone.on ?? payload.colorOn;
     const baseBg = p.colorOff ?? payload.colorOff ?? "#0b1220";
 
     // =========================
-    // ✅ TAG-DRIVEN ACTIVE (DEFAULT OFF)
+    // ✅ TAG BINDING
     // =========================
     const tag = p.tag || {};
-    const tagModel = String(tag?.model || "").trim(); // ✅ new
     const tagDeviceId = String(tag?.deviceId || "").trim();
     const tagField = String(tag?.field || "").trim();
 
-    // ---- helpers (same as modal) ----
-    const to01 = (v) => {
-      if (v === undefined || v === null) return null;
-      if (typeof v === "boolean") return v ? 1 : 0;
-      if (typeof v === "number") return v > 0 ? 1 : 0;
-      if (typeof v === "string") {
-        const s = v.trim().toLowerCase();
-        if (s === "1" || s === "true" || s === "on" || s === "yes") return 1;
-        if (s === "0" || s === "false" || s === "off" || s === "no") return 0;
-        const n = Number(s);
-        if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
-      }
-      return v ? 1 : 0;
-    };
+    // =========================
+    // ✅ READ LIVE VALUE (FIX)
+    // =========================
+    const deviceRow = React.useMemo(() => {
+      return findDeviceRow(sensorsData?.devices, tagDeviceId);
+    }, [sensorsData?.devices, tagDeviceId]);
 
-    const readTagFromRow = (row, field) => {
-      if (!row || !field) return undefined;
+    const deviceIsOnline = React.useMemo(() => {
+      if (!tagDeviceId) return false;
 
-      if (row[field] !== undefined) return row[field];
+      // Prefer backend "status"
+      const s = String(deviceRow?.status || "").trim().toLowerCase();
+      if (s) return s === "online";
 
-      const up = String(field).toUpperCase();
-      if (row[up] !== undefined) return row[up];
+      // fallback boolean-ish
+      const v =
+        deviceRow?.online ??
+        deviceRow?.isOnline ??
+        deviceRow?.connected ??
+        deviceRow?.isConnected;
+      if (typeof v === "boolean") return v;
+      if (typeof v === "number") return v > 0;
+      if (typeof v === "string") return v.toLowerCase().includes("online");
 
-      // di1..di6 -> in1..in6
-      if (/^di[1-6]$/.test(field)) {
-        const n = field.replace("di", "");
-        const alt = `in${n}`;
-        if (row[alt] !== undefined) return row[alt];
-        const altUp = `IN${n}`;
-        if (row[altUp] !== undefined) return row[altUp];
-      }
+      // if we don't know, don't block
+      return true;
+    }, [tagDeviceId, deviceRow]);
 
-      // do1..do4 -> out1..out4
-      if (/^do[1-4]$/.test(field)) {
-        const n = field.replace("do", "");
-        const alt = `out${n}`;
-        if (row[alt] !== undefined) return row[alt];
-        const altUp = `OUT${n}`;
-        if (row[altUp] !== undefined) return row[altUp];
-      }
-
-      return undefined;
-    };
-
-    const findDeviceRow = () => {
-      const list = sensorsData?.devices;
-      if (!Array.isArray(list) || !tagDeviceId) return null;
-
-      // match possible shapes: deviceId / device_id / id
-      return (
-        list.find((r) => String(r?.deviceId ?? r?.device_id ?? r?.id ?? "").trim() === tagDeviceId) ||
-        null
-      );
-    };
-
-    const readTagValue = () => {
+    const rawValue = React.useMemo(() => {
       if (!tagDeviceId || !tagField) return undefined;
 
-      // A) sensorsData.values[deviceId][field] (legacy/optional)
+      // A) sensorsData.values[deviceId]
       const byDev = sensorsData?.values?.[String(tagDeviceId)];
-      if (byDev && Object.prototype.hasOwnProperty.call(byDev, tagField)) {
-        return byDev[tagField];
-      }
+      const vA = readTagFromRowDeep(byDev, tagField);
+      if (vA !== undefined) return vA;
 
-      // B) read from devices row (preferred)
-      const row = findDeviceRow();
-      if (row) {
-        const v = readTagFromRow(row, tagField);
-        if (v !== undefined) return v;
-      }
+      // B) sensorsData.tags[deviceId]
+      const byTags = sensorsData?.tags?.[String(tagDeviceId)];
+      const vB = readTagFromRowDeep(byTags, tagField);
+      if (vB !== undefined) return vB;
 
-      // C) fallback: sensorsData.tags[deviceId][field] if exists
-      const v2 = sensorsData?.tags?.[String(tagDeviceId)]?.[tagField];
-      if (v2 !== undefined) return v2;
+      // C) sensorsData.latest[deviceId]
+      const byLatest = sensorsData?.latest?.[String(tagDeviceId)];
+      const vC = readTagFromRowDeep(byLatest, tagField);
+      if (vC !== undefined) return vC;
+
+      // D) deviceRow (preferred)
+      const vD = readTagFromRowDeep(deviceRow, tagField);
+      if (vD !== undefined) return vD;
 
       return undefined;
-    };
+    }, [sensorsData, deviceRow, tagDeviceId, tagField]);
 
-    const deviceRow = findDeviceRow();
-    const backendStatus = String(deviceRow?.status || "").trim().toLowerCase();
-    const deviceIsOnline = backendStatus ? backendStatus === "online" : true; // if not present, don't block
+    const v01 = React.useMemo(() => {
+      if (!deviceIsOnline) return null;
+      return to01(rawValue);
+    }, [deviceIsOnline, rawValue]);
 
-    const v = readTagValue();
-    const v01 = deviceIsOnline ? to01(v) : null;
-
-    // ✅ DEFAULT OFF if tag not bound / missing / false
     const isActive = !!(tagDeviceId && tagField && deviceIsOnline && v01 === 1);
 
     // =========================
@@ -169,7 +245,6 @@ export default function DraggableBlinkingAlarm({
       return () => clearInterval(t);
     }, [isActive, blinkMs]);
 
-    // ✅ Accent blinks between ON color and dim
     const dimAccent = "rgba(148,163,184,0.22)";
     const accent = isActive ? (blinkOn ? colorOn : dimAccent) : dimAccent;
 
@@ -192,11 +267,12 @@ export default function DraggableBlinkingAlarm({
       userSelect: "none",
     };
 
-    const title = `BlinkingAlarm | ${isActive ? "ON" : "OFF"} | style=${
-      alarmStyle || "annunciator"
-    } | tone=${alarmTone || "critical"} | bound=${tagDeviceId || "—"}/${
-      tagField || "—"
-    }`;
+    // ✅ Debug tooltip shows the real problem immediately if it's not active
+    const title = `BlinkingAlarm | ${isActive ? "ON" : "OFF"} | bound=${
+      tagDeviceId || "—"
+    }/${tagField || "—"} | online=${deviceIsOnline ? "yes" : "no"} | v=${
+      rawValue === undefined ? "undefined" : String(rawValue)
+    } | v01=${v01 === null ? "null" : String(v01)}`;
 
     const textLeft = {
       fontWeight: 1000,
@@ -216,10 +292,8 @@ export default function DraggableBlinkingAlarm({
     };
 
     // =========================
-    // ✅ PRO STYLES (NO BG BLINK)
+    // ✅ PRO STYLES
     // =========================
-
-    // 1) Annunciator Tile (Industrial): dot blinks only
     const Annunciator = () => (
       <div
         style={{
@@ -250,9 +324,7 @@ export default function DraggableBlinkingAlarm({
             borderRadius: 999,
             background: accent,
             boxShadow:
-              isActive && blinkOn
-                ? `0 0 0 4px ${tone.glow || hexToGlow(colorOn)}`
-                : "none",
+              isActive && blinkOn ? `0 0 0 4px ${tone.glow || hexToGlow(colorOn)}` : "none",
             border: "2px solid rgba(255,255,255,0.10)",
             transition: "all 120ms linear",
           }}
@@ -260,7 +332,6 @@ export default function DraggableBlinkingAlarm({
       </div>
     );
 
-    // 2) Banner Strip (Modern)
     const Banner = () => {
       const bar = isActive
         ? `repeating-linear-gradient(
@@ -313,7 +384,6 @@ export default function DraggableBlinkingAlarm({
       );
     };
 
-    // 3) Stack Light (Lens + Label)
     const StackLight = () => (
       <div
         style={{
@@ -337,8 +407,7 @@ export default function DraggableBlinkingAlarm({
             borderRadius: 999,
             background: accent,
             border: "2px solid rgba(255,255,255,0.10)",
-            boxShadow:
-              isActive && blinkOn ? `0 0 14px ${tone.glow || hexToGlow(colorOn)}` : "none",
+            boxShadow: isActive && blinkOn ? `0 0 14px ${tone.glow || hexToGlow(colorOn)}` : "none",
             transition: "all 120ms linear",
           }}
         />
@@ -348,7 +417,6 @@ export default function DraggableBlinkingAlarm({
       </div>
     );
 
-    // 4) Minimal Outline (Clean)
     const Minimal = () => (
       <div
         style={{
