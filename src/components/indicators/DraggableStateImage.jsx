@@ -191,12 +191,16 @@ export default function DraggableStateImage({
 
     const v01 = deviceIsOnline ? to01(rawValue) : null;
 
-    // ✅ Determine ON/OFF from live tag (same rules as other widgets)
+    // ✅ Determine ON/OFF from live tag
     const tagReady = !!(tagModel && tagDeviceId && tagField);
     const isOn = !!(tagReady && deviceIsOnline && v01 === 1);
 
     // ✅ choose image (OFF is default)
     const imgSrc = isOn ? onImage : offImage;
+
+    // ✅ NO BORDER / NO BOX — image only
+    // If no image selected yet, render nothing (no placeholder box)
+    if (!imgSrc) return null;
 
     const title = `StateImage | ${isOn ? "ON" : "OFF"} | ${tagModel}:${tagDeviceId}/${tagField} | status=${
       backendStatus || "—"
@@ -207,9 +211,8 @@ export default function DraggableStateImage({
         style={{
           width: w,
           height: h,
-          borderRadius: 12,
-          border: "1px dashed rgba(148,163,184,0.6)",
-          background: "rgba(2,6,23,0.02)",
+          border: "none",
+          background: "transparent",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -219,34 +222,17 @@ export default function DraggableStateImage({
         }}
         title={title}
       >
-        {imgSrc ? (
-          <img
-            src={imgSrc}
-            alt={isOn ? "ON" : "OFF"}
-            style={{
-              width: "100%",
-              height: "100%",
-              objectFit: imageFit,
-              display: "block",
-            }}
-            draggable={false}
-          />
-        ) : (
-          <div style={{ textAlign: "center", color: "#64748b" }}>
-            <div
-              style={{
-                width: Math.max(20, Math.round(Math.min(w, h) * 0.12)),
-                height: Math.max(20, Math.round(Math.min(w, h) * 0.12)),
-                borderRadius: 999,
-                background: "rgba(148,163,184,0.35)",
-                margin: "0 auto 10px auto",
-                boxShadow: "0 8px 18px rgba(0,0,0,0.10)",
-              }}
-            />
-            <div style={{ fontWeight: 1000, letterSpacing: 1 }}>STATE IMAGE</div>
-            <div style={{ fontSize: 12, marginTop: 6, opacity: 0.9 }}>{isOn ? "ON" : "OFF"}</div>
-          </div>
-        )}
+        <img
+          src={imgSrc}
+          alt={isOn ? "ON" : "OFF"}
+          style={{
+            width: "100%",
+            height: "100%",
+            objectFit: imageFit,
+            display: "block",
+          }}
+          draggable={false}
+        />
       </div>
     );
   }
