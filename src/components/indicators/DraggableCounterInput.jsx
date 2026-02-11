@@ -23,7 +23,7 @@ export default function DraggableCounterInput({
       </span>
 
       {/* proper spacing from icon */}
-      <span className="text-sm ml-2">{label}</span>
+      <span className="text-sm ml-3">{label}</span>
     </div>
   );
 }
