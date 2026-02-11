@@ -1,23 +1,97 @@
 import React from "react";
+import { API_URL } from "../../config/api";
+import { getToken } from "../../utils/authToken";
+
+function getAuthHeaders() {
+  const token = String(getToken() || "").trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// ✅ Model meta (matches Indicator Light approach)
+const MODEL_META = {
+  zhc1921: { label: "ZHC1921 (CF-2000)", base: "zhc1921" },
+  zhc1661: { label: "ZHC1661 (CF-1600)", base: "zhc1661" },
+  tp4000: { label: "TP-4000", base: "tp4000" },
+};
+
+// ✅ DI/DO options (same as Indicator Light)
+const TAG_OPTIONS = [
+  { key: "di1", label: "DI-1" },
+  { key: "di2", label: "DI-2" },
+  { key: "di3", label: "DI-3" },
+  { key: "di4", label: "DI-4" },
+  { key: "di5", label: "DI-5" },
+  { key: "di6", label: "DI-6" },
+  { key: "do1", label: "DO-1" },
+  { key: "do2", label: "DO-2" },
+  { key: "do3", label: "DO-3" },
+  { key: "do4", label: "DO-4" },
+];
+
+// ✅ Convert anything to 0/1 (same logic)
+function to01(v) {
+  if (v === undefined || v === null) return null;
+  if (typeof v === "boolean") return v ? 1 : 0;
+  if (typeof v === "number") return v > 0 ? 1 : 0;
+  if (typeof v === "string") {
+    const s = v.trim().toLowerCase();
+    if (s === "1" || s === "true" || s === "on" || s === "yes") return 1;
+    if (s === "0" || s === "false" || s === "off" || s === "no") return 0;
+    const n = Number(s);
+    if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
+  }
+  return v ? 1 : 0;
+}
+
+// ✅ Read tag value from backend row (same as Indicator Light)
+function readTagFromRow(row, field) {
+  if (!row || !field) return undefined;
+
+  if (row[field] !== undefined) return row[field];
+
+  const up = String(field).toUpperCase();
+  if (row[up] !== undefined) return row[up];
+
+  // di1..di6 -> in1..in6
+  if (/^di[1-6]$/.test(field)) {
+    const n = field.replace("di", "");
+    const alt = `in${n}`;
+    if (row[alt] !== undefined) return row[alt];
+    const altUp = `IN${n}`;
+    if (row[altUp] !== undefined) return row[altUp];
+  }
+
+  // do1..do4 -> out1..out4
+  if (/^do[1-4]$/.test(field)) {
+    const n = field.replace("do", "");
+    const alt = `out${n}`;
+    if (row[alt] !== undefined) return row[alt];
+    const altUp = `OUT${n}`;
+    if (row[altUp] !== undefined) return row[altUp];
+  }
+
+  return undefined;
+}
 
 export default function StatusTextSettingsModal({
   open,
   tank,
   onClose,
   onSave,
-  sensorsData,
+  sensorsData, // kept for compatibility, but we now prefer backend polling (like indicator)
 }) {
-  if (!open || !tank) return null;
+  // ✅ do NOT early return before hooks
 
-  const p = tank.properties || {};
+  const p = tank?.properties || {};
 
   // ✅ Responsive modal size (wider + clamped to viewport)
   const MODAL_W = Math.min(1080, window.innerWidth - 80);
   const MODAL_H = Math.min(680, window.innerHeight - 120);
 
-  // Tag binding
-  const initialDeviceId = p?.tag?.deviceId ?? "";
-  const initialField = p?.tag?.field ?? "";
+  // Tag binding (backward compatible)
+  const initialDeviceModel = String(p?.tag?.model || "zhc1921").trim() || "zhc1921";
+  const initialDeviceId = String(p?.tag?.deviceId ?? "");
+  const initialField = String(p?.tag?.field ?? "");
 
   // OFF/ON texts
   const legacyText = p?.text ?? "STATUS";
@@ -36,10 +110,16 @@ export default function StatusTextSettingsModal({
   const initialTextAlign = p?.textAlign ?? "center";
   const initialTransform = p?.textTransform ?? "none";
 
+  const [deviceModel, setDeviceModel] = React.useState(
+    MODEL_META[initialDeviceModel] ? initialDeviceModel : "zhc1921"
+  );
   const [deviceId, setDeviceId] = React.useState(initialDeviceId);
   const [field, setField] = React.useState(initialField);
 
-  // ✅ We now use Search Tag as the tag input (and it drives `field`)
+  // ✅ Device search (same idea as Indicator Light)
+  const [deviceSearch, setDeviceSearch] = React.useState("");
+
+  // ✅ Tag search (same idea; filters TAG_OPTIONS)
   const [tagSearch, setTagSearch] = React.useState(initialField || "");
 
   const [offText, setOffText] = React.useState(initialOffText);
@@ -55,6 +135,37 @@ export default function StatusTextSettingsModal({
   const [paddingX, setPaddingX] = React.useState(initialPaddingX);
   const [textAlign, setTextAlign] = React.useState(initialTextAlign);
   const [textTransform, setTextTransform] = React.useState(initialTransform);
+
+  // =========================
+  // REHYDRATE ON OPEN
+  // =========================
+  React.useEffect(() => {
+    if (!open || !tank) return;
+
+    const pp = tank?.properties || {};
+
+    setOffText(String(pp?.offText ?? (pp?.text ?? "STATUS") ?? "OFF"));
+    setOnText(String(pp?.onText ?? (pp?.text ?? "STATUS") ?? "ON"));
+
+    setFontSize(pp?.fontSize ?? 18);
+    setFontWeight(pp?.fontWeight ?? 800);
+    setTextColor(pp?.textColor ?? "#0f172a");
+    setBgColor(pp?.bgColor ?? "#ffffff");
+    setBorderColor(pp?.borderColor ?? "#cbd5e1");
+    setBorderWidth(pp?.borderWidth ?? 1);
+    setPaddingY(pp?.paddingY ?? 10);
+    setPaddingX(pp?.paddingX ?? 14);
+    setTextAlign(pp?.textAlign ?? "center");
+    setTextTransform(pp?.textTransform ?? "none");
+
+    const m = String(pp?.tag?.model || "zhc1921").trim() || "zhc1921";
+    setDeviceModel(MODEL_META[m] ? m : "zhc1921");
+    setDeviceId(String(pp?.tag?.deviceId || ""));
+    setField(String(pp?.tag?.field || ""));
+
+    setDeviceSearch("");
+    setTagSearch(String(pp?.tag?.field || ""));
+  }, [open, tank?.id]);
 
   // =========================
   // DRAGGABLE WINDOW
@@ -89,14 +200,8 @@ export default function StatusTextSettingsModal({
       const mw = rect?.width ?? MODAL_W;
       const mh = rect?.height ?? MODAL_H;
 
-      const clampedLeft = Math.min(
-        window.innerWidth - 20,
-        Math.max(20 - (mw - 60), nextLeft)
-      );
-      const clampedTop = Math.min(
-        window.innerHeight - 20,
-        Math.max(20, nextTop)
-      );
+      const clampedLeft = Math.min(window.innerWidth - 20, Math.max(20 - (mw - 60), nextLeft));
+      const clampedTop = Math.min(window.innerHeight - 20, Math.max(20, nextTop));
 
       setPos({ left: clampedLeft, top: clampedTop });
     };
@@ -130,99 +235,193 @@ export default function StatusTextSettingsModal({
   };
 
   // =========================
-  // DEVICES
+  // DEVICES (LIKE INDICATOR LIGHT)
   // =========================
-  const devices = React.useMemo(() => {
-    const d = sensorsData?.devices;
-    return Array.isArray(d) ? d : [];
-  }, [sensorsData]);
+  const [devices, setDevices] = React.useState([]);
+  const [devicesErr, setDevicesErr] = React.useState("");
+
+  React.useEffect(() => {
+    if (!open) return;
+
+    let alive = true;
+
+    async function fetchModelDevices(modelKey) {
+      const base = MODEL_META[modelKey]?.base;
+      if (!base) return [];
+
+      const res = await fetch(`${API_URL}/${base}/my-devices`, {
+        headers: getAuthHeaders(),
+      });
+      if (!res.ok) return [];
+
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : [];
+
+      return list
+        .map((r) => {
+          const id = String(r.deviceId ?? r.device_id ?? "").trim();
+          return {
+            id,
+            name: id,
+            model: modelKey,
+            modelLabel: MODEL_META[modelKey]?.label || modelKey,
+          };
+        })
+        .filter((x) => x.id);
+    }
+
+    async function loadDevices() {
+      setDevicesErr("");
+      try {
+        const token = String(getToken() || "").trim();
+        if (!token) throw new Error("Missing auth token. Please logout and login again.");
+
+        const [d1, d2, d3] = await Promise.all([
+          fetchModelDevices("zhc1921"),
+          fetchModelDevices("zhc1661"),
+          fetchModelDevices("tp4000"),
+        ]);
+
+        const merged = [...d1, ...d2, ...d3];
+
+        merged.sort((a, b) => {
+          const ma = String(a.model || "");
+          const mb = String(b.model || "");
+          if (ma !== mb) return ma.localeCompare(mb);
+          return String(a.id).localeCompare(String(b.id));
+        });
+
+        if (alive) setDevices(merged);
+      } catch (e) {
+        if (alive) {
+          setDevices([]);
+          setDevicesErr(e.message || "Failed to load devices");
+        }
+      }
+    }
+
+    loadDevices();
+    return () => {
+      alive = false;
+    };
+  }, [open]);
+
+  const filteredDevices = React.useMemo(() => {
+    const q = String(deviceSearch || "").trim().toLowerCase();
+    if (!q) return devices;
+    return devices.filter((d) => {
+      const id = String(d.id || "").toLowerCase();
+      const model = String(d.modelLabel || d.model || "").toLowerCase();
+      return id.includes(q) || model.includes(q);
+    });
+  }, [devices, deviceSearch]);
 
   const selectedDevice = React.useMemo(() => {
-    return devices.find((d) => String(d.id) === String(deviceId)) || null;
-  }, [devices, deviceId]);
-
-  // Optional: we can use device.fields for suggestions in the Search box
-  const availableFields = React.useMemo(() => {
-    const raw = selectedDevice?.fields;
-    if (!raw) return [];
-
-    if (Array.isArray(raw) && typeof raw[0] === "string") {
-      return raw.map((k) => ({ key: k, label: k }));
-    }
-    if (Array.isArray(raw) && typeof raw[0] === "object") {
-      return raw
-        .map((x) => ({
-          key: x.key ?? x.field ?? x.name ?? "",
-          label: x.label ?? x.name ?? x.field ?? x.key ?? "",
-        }))
-        .filter((x) => x.key);
-    }
-    return [];
-  }, [selectedDevice]);
-
-  const filteredFields = React.useMemo(() => {
-    const q = (tagSearch || "").trim().toLowerCase();
-    if (!q) return availableFields;
-    return availableFields.filter(
-      (f) =>
-        f.key.toLowerCase().includes(q) || f.label.toLowerCase().includes(q)
+    return (
+      devices.find((d) => String(d.id) === String(deviceId) && String(d.model) === String(deviceModel)) ||
+      null
     );
-  }, [availableFields, tagSearch]);
+  }, [devices, deviceId, deviceModel]);
 
   // =========================
-  // ✅ LIVE STATUS/VALUE (same idea as Indicator modal)
+  // TAGS (SEARCH LIKE INDICATOR LIGHT)
   // =========================
-  const getTagValue = React.useCallback((dev, key) => {
-    if (!dev || !key) return undefined;
+  const filteredTags = React.useMemo(() => {
+    const q = String(tagSearch || "").trim().toLowerCase();
+    if (!q) return TAG_OPTIONS;
+    return TAG_OPTIONS.filter(
+      (t) => t.key.toLowerCase().includes(q) || t.label.toLowerCase().includes(q)
+    );
+  }, [tagSearch]);
 
-    // Try common shapes where values might live
-    const candidates = [
-      dev?.data,
-      dev?.values,
-      dev?.tags,
-      dev?.payload,
-      dev?.last,
-      dev?.latest,
-      dev?.lastValues,
-      dev?.telemetry,
-      dev?.state,
-    ];
+  // If user types exactly "DI-1" style, map it to key
+  const normalizedTypedField = React.useMemo(() => {
+    const s = String(tagSearch || "").trim().toLowerCase();
+    if (!s) return "";
+    // allow "di-1" or "di1"
+    const m = s.replace("-", "");
+    const hit =
+      TAG_OPTIONS.find((t) => t.key.toLowerCase() === m) ||
+      TAG_OPTIONS.find((t) => t.label.toLowerCase().replace("-", "") === m);
+    return hit ? hit.key : String(tagSearch || "").trim();
+  }, [tagSearch]);
 
-    for (const obj of candidates) {
-      if (obj && typeof obj === "object" && key in obj) return obj[key];
+  // =========================
+  // ✅ LIVE STATUS/VALUE (POLL TELEMETRY LIKE INDICATOR LIGHT)
+  // =========================
+  const [telemetryRow, setTelemetryRow] = React.useState(null);
+  const telemetryRef = React.useRef({ loading: false });
+
+  const fetchTelemetryRow = React.useCallback(async () => {
+    const id = String(deviceId || "").trim();
+    const modelKey = String(deviceModel || "").trim();
+    const base = MODEL_META[modelKey]?.base;
+
+    if (!id || !base) {
+      setTelemetryRow(null);
+      return;
     }
-    return undefined;
-  }, []);
+    if (telemetryRef.current.loading) return;
 
-  const effectiveField = (field || "").trim();
+    telemetryRef.current.loading = true;
+    try {
+      const token = String(getToken() || "").trim();
+      if (!token) throw new Error("Missing auth token. Please logout and login again.");
+
+      const res = await fetch(`${API_URL}/${base}/my-devices`, {
+        headers: getAuthHeaders(),
+      });
+
+      if (!res.ok) {
+        setTelemetryRow(null);
+        return;
+      }
+
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : [];
+      const row = list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
+
+      setTelemetryRow(row);
+    } catch {
+      setTelemetryRow(null);
+    } finally {
+      telemetryRef.current.loading = false;
+    }
+  }, [deviceId, deviceModel]);
+
+  React.useEffect(() => {
+    if (!open) return;
+
+    fetchTelemetryRow();
+    const t = setInterval(() => {
+      if (document.hidden) return;
+      fetchTelemetryRow();
+    }, 3000);
+
+    return () => clearInterval(t);
+  }, [open, fetchTelemetryRow]);
+
+  const backendDeviceStatus = React.useMemo(() => {
+    const s = String(telemetryRow?.status || "").trim().toLowerCase();
+    if (!deviceId) return "";
+    return s || "";
+  }, [telemetryRow, deviceId]);
+
+  const deviceIsOnline = backendDeviceStatus === "online";
+
+  const effectiveField = String(field || "").trim();
 
   const rawValue = React.useMemo(() => {
-    if (!selectedDevice || !effectiveField) return undefined;
-    return getTagValue(selectedDevice, effectiveField);
-  }, [selectedDevice, effectiveField, getTagValue]);
+    if (!telemetryRow || !effectiveField) return undefined;
+    return readTagFromRow(telemetryRow, effectiveField);
+  }, [telemetryRow, effectiveField]);
 
-  const isOnline = rawValue !== undefined && rawValue !== null && effectiveField;
+  const isOnline = deviceIsOnline && rawValue !== undefined && rawValue !== null && !!effectiveField;
+  const as01 = React.useMemo(() => (isOnline ? to01(rawValue) : null), [isOnline, rawValue]);
 
-  const as01 = React.useMemo(() => {
-    if (!isOnline) return null;
-
-    const v = rawValue;
-
-    if (typeof v === "boolean") return v ? 1 : 0;
-    if (typeof v === "number") return v > 0 ? 1 : 0;
-
-    if (typeof v === "string") {
-      const s = v.trim().toLowerCase();
-      if (s === "true" || s === "on" || s === "1" || s === "yes") return 1;
-      const n = Number(s);
-      if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
-      return 0;
-    }
-
-    // fallback truthy
-    return v ? 1 : 0;
-  }, [isOnline, rawValue]);
-
+  // =========================
+  // APPLY SAVE
+  // =========================
   const apply = () => {
     const safeOff = (offText ?? "").trim() || legacyText || "OFF";
     const safeOn = (onText ?? "").trim() || legacyText || "ON";
@@ -252,7 +451,8 @@ export default function StatusTextSettingsModal({
         borderRadius: undefined,
         letterSpacing: undefined,
 
-        tag: { deviceId, field: effectiveField },
+        // ✅ NEW: save model too (backward compatible)
+        tag: { model: String(deviceModel || "zhc1921"), deviceId, field: effectiveField },
       },
     });
   };
@@ -273,9 +473,7 @@ export default function StatusTextSettingsModal({
   };
 
   const Label = ({ children }) => (
-    <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-      {children}
-    </div>
+    <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>{children}</div>
   );
 
   const Num = ({ value, onChange, min = 0, max = 200, step = 1 }) => (
@@ -331,6 +529,8 @@ export default function StatusTextSettingsModal({
       <div style={basePreviewStyle}>{text}</div>
     </div>
   );
+
+  if (!open || !tank) return null;
 
   return (
     <div
@@ -408,46 +608,22 @@ export default function StatusTextSettingsModal({
               marginBottom: 14,
             }}
           >
-            <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 10 }}>
-              Preview
-            </div>
+            <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 10 }}>Preview</div>
 
             <div style={{ display: "flex", gap: 10 }}>
-              <MiniState
-                label="OFF"
-                dotColor="#94a3b8"
-                text={offText || "OFF"}
-                active={true}
-              />
-              <MiniState
-                label="ON"
-                dotColor="#22c55e"
-                text={onText || "ON"}
-                active={false}
-              />
+              <MiniState label="OFF" dotColor="#94a3b8" text={offText || "OFF"} active={true} />
+              <MiniState label="ON" dotColor="#22c55e" text={onText || "ON"} active={false} />
             </div>
 
             <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
-              Tip: <b>ON</b> means “truthy”. If your tag is numeric, any value{" "}
-              <b>&gt; 0</b> will be read as ON.
+              Tip: <b>ON</b> means “truthy”. If your tag is numeric, any value <b>&gt; 0</b> will
+              be read as ON.
             </div>
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "1fr 1fr",
-              gap: 14,
-            }}
-          >
+          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 14 }}>
             {/* STYLE */}
-            <div
-              style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 12,
-                padding: 14,
-              }}
-            >
+            <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 14 }}>
               <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 12 }}>
                 State Text (OFF / ON)
               </div>
@@ -484,9 +660,7 @@ export default function StatusTextSettingsModal({
                 </div>
               </div>
 
-              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 12 }}>
-                Shared Style
-              </div>
+              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 12 }}>Shared Style</div>
 
               <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
                 <div style={{ flex: 1 }}>
@@ -495,13 +669,7 @@ export default function StatusTextSettingsModal({
                 </div>
                 <div style={{ flex: 1 }}>
                   <Label>Font Weight</Label>
-                  <Num
-                    value={fontWeight}
-                    onChange={setFontWeight}
-                    min={100}
-                    max={900}
-                    step={100}
-                  />
+                  <Num value={fontWeight} onChange={setFontWeight} min={100} max={900} step={100} />
                 </div>
               </div>
 
@@ -596,25 +764,53 @@ export default function StatusTextSettingsModal({
               </div>
             </div>
 
-            {/* TAG (updated) */}
-            <div
-              style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 12,
-                padding: 14,
-              }}
-            >
+            {/* TAG (updated to match Indicator Light behavior) */}
+            <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 14 }}>
               <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 12 }}>
                 Tag that drives status (ON / OFF)
+              </div>
+
+              {devicesErr && (
+                <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>{devicesErr}</div>
+              )}
+
+              {/* ✅ Search Device */}
+              <div style={{ marginBottom: 10 }}>
+                <Label>Search Device</Label>
+                <input
+                  value={deviceSearch}
+                  onChange={(e) => setDeviceSearch(e.target.value)}
+                  placeholder="Type device id or model..."
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5e1",
+                    fontSize: 14,
+                  }}
+                />
+                <div style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}>
+                  Showing <b>{filteredDevices.length}</b> device(s)
+                </div>
               </div>
 
               <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
                 <div style={{ flex: 1 }}>
                   <Label>Device</Label>
                   <select
-                    value={deviceId}
+                    value={deviceId ? `${deviceModel}::${deviceId}` : ""}
                     onChange={(e) => {
-                      setDeviceId(e.target.value);
+                      const v = String(e.target.value || "");
+                      if (!v || !v.includes("::")) {
+                        setDeviceModel("zhc1921");
+                        setDeviceId("");
+                        setField("");
+                        setTagSearch("");
+                        return;
+                      }
+                      const [m, id] = v.split("::");
+                      setDeviceModel(MODEL_META[m] ? m : "zhc1921");
+                      setDeviceId(String(id || ""));
                       setField("");
                       setTagSearch("");
                     }}
@@ -628,9 +824,9 @@ export default function StatusTextSettingsModal({
                     }}
                   >
                     <option value="">— Select device —</option>
-                    {devices.map((d) => (
-                      <option key={String(d.id)} value={String(d.id)}>
-                        {d.name || d.label || d.id}
+                    {filteredDevices.map((d) => (
+                      <option key={`${d.model}::${d.id}`} value={`${d.model}::${d.id}`}>
+                        {d.id} — {d.modelLabel}
                       </option>
                     ))}
                   </select>
@@ -643,30 +839,70 @@ export default function StatusTextSettingsModal({
                     onChange={(e) => {
                       const v = e.target.value;
                       setTagSearch(v);
-                      setField(v.trim());
+                      // do NOT force-set field to random text; only normalize if matches
+                      const norm = String(v || "").trim();
+                      if (!norm) {
+                        setField("");
+                        return;
+                      }
+                      const hit =
+                        TAG_OPTIONS.find((t) => t.key.toLowerCase() === norm.toLowerCase()) ||
+                        TAG_OPTIONS.find((t) => t.label.toLowerCase() === norm.toLowerCase()) ||
+                        null;
+                      if (hit) setField(hit.key);
                     }}
-                    placeholder="ex: DI0, level, run..."
+                    placeholder="ex: di1, do3..."
                     list="statusTextTagList"
+                    disabled={!deviceId}
                     style={{
                       width: "100%",
                       padding: "10px 12px",
                       borderRadius: 10,
                       border: "1px solid #cbd5e1",
                       fontSize: 14,
+                      opacity: deviceId ? 1 : 0.6,
                     }}
                   />
-                  {/* suggestions (no extra UI block) */}
                   <datalist id="statusTextTagList">
-                    {filteredFields.slice(0, 80).map((f) => (
-                      <option key={f.key} value={f.key}>
-                        {f.label}
+                    {filteredTags.slice(0, 60).map((t) => (
+                      <option key={t.key} value={t.key}>
+                        {t.label}
                       </option>
                     ))}
                   </datalist>
+
+                  {/* ✅ Quick select dropdown (optional but nice) */}
+                  <select
+                    value={field}
+                    onChange={(e) => {
+                      const v = String(e.target.value || "");
+                      setField(v);
+                      setTagSearch(v);
+                    }}
+                    disabled={!deviceId}
+                    style={{
+                      width: "100%",
+                      marginTop: 8,
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #cbd5e1",
+                      fontSize: 14,
+                      background: "white",
+                      opacity: deviceId ? 1 : 0.6,
+                      cursor: deviceId ? "pointer" : "not-allowed",
+                    }}
+                  >
+                    <option value="">— Select DI/DO —</option>
+                    {filteredTags.map((t) => (
+                      <option key={t.key} value={t.key}>
+                        {t.label}
+                      </option>
+                    ))}
+                  </select>
                 </div>
               </div>
 
-              {/* ✅ STATUS / VALUE PANEL (same idea as Indicator modal) */}
+              {/* ✅ STATUS / VALUE PANEL (uses backend polling like indicator) */}
               <div
                 style={{
                   border: "1px solid #e5e7eb",
@@ -680,22 +916,27 @@ export default function StatusTextSettingsModal({
                 }}
               >
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>
-                    Status
-                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>Status</div>
                   <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
                     {!deviceId || !effectiveField
                       ? "Select a device and tag"
                       : isOnline
                       ? "Online"
+                      : deviceId && deviceIsOnline
+                      ? "No data for tag"
                       : "Offline"}
                   </div>
+
+                  {deviceId && selectedDevice && (
+                    <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
+                      Bound: <b>{selectedDevice.modelLabel}</b> / <b>{selectedDevice.id}</b> /{" "}
+                      <b>{effectiveField || "—"}</b>
+                    </div>
+                  )}
                 </div>
 
                 <div style={{ textAlign: "right", minWidth: 90 }}>
-                  <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>
-                    Value
-                  </div>
+                  <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>Value</div>
                   <div
                     style={{
                       marginTop: 6,
@@ -710,8 +951,8 @@ export default function StatusTextSettingsModal({
               </div>
 
               <div style={{ fontSize: 12, color: "#64748b", marginTop: 10 }}>
-                Offline means there is no current value for that tag. When Online, the
-                value is shown as <b>0</b> or <b>1</b>.
+                Offline means there is no current value for that tag. When Online, the value is shown
+                as <b>0</b> or <b>1</b>.
               </div>
             </div>
           </div>

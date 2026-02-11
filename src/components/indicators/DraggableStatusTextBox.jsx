@@ -1,4 +1,6 @@
 import React from "react";
+import { API_URL } from "../config/api";
+import { getToken } from "../utils/authToken";
 
 /**
  * DraggableStatusTextBox
@@ -6,10 +8,72 @@ import React from "react";
  * 1) Palette mode (Sidebar)
  * 2) Canvas mode (Dashboard)
  *
- * FINAL FIX:
- * - Remove green dot completely
- * - Text ONLY widget
+ * LIVE FIX (Platform Creation 69):
+ * - Reads tag: { model, deviceId, field }
+ * - Polls backend every 3 seconds (like Indicator Light)
+ * - Shows OFF/ON text based on live value (0/1)
+ * - Still stays a TEXT ONLY widget (no dot)
  */
+
+// ✅ Model meta (must match backend routers)
+const MODEL_META = {
+  zhc1921: { base: "zhc1921" },
+  zhc1661: { base: "zhc1661" },
+  tp4000: { base: "tp4000" },
+};
+
+function getAuthHeaders() {
+  const token = String(getToken() || "").trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// ✅ Convert anything to 0/1
+function to01(v) {
+  if (v === undefined || v === null) return null;
+  if (typeof v === "boolean") return v ? 1 : 0;
+  if (typeof v === "number") return v > 0 ? 1 : 0;
+  if (typeof v === "string") {
+    const s = v.trim().toLowerCase();
+    if (s === "1" || s === "true" || s === "on" || s === "yes") return 1;
+    if (s === "0" || s === "false" || s === "off" || s === "no") return 0;
+    const n = Number(s);
+    if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
+  }
+  return v ? 1 : 0;
+}
+
+// ✅ Read tag value from backend row (same mapping used elsewhere)
+function readTagFromRow(row, field) {
+  if (!row || !field) return undefined;
+
+  // direct
+  if (row[field] !== undefined) return row[field];
+
+  // upper-case key
+  const up = String(field).toUpperCase();
+  if (row[up] !== undefined) return row[up];
+
+  // di1..di6 -> in1..in6
+  if (/^di[1-6]$/.test(field)) {
+    const n = field.replace("di", "");
+    const alt = `in${n}`;
+    if (row[alt] !== undefined) return row[alt];
+    const altUp = `IN${n}`;
+    if (row[altUp] !== undefined) return row[altUp];
+  }
+
+  // do1..do4 -> out1..out4
+  if (/^do[1-4]$/.test(field)) {
+    const n = field.replace("do", "");
+    const alt = `out${n}`;
+    if (row[alt] !== undefined) return row[alt];
+    const altUp = `OUT${n}`;
+    if (row[altUp] !== undefined) return row[altUp];
+  }
+
+  return undefined;
+}
+
 export default function DraggableStatusTextBox({
   // Canvas mode
   tank,
@@ -30,23 +94,27 @@ export default function DraggableStatusTextBox({
   };
 
   // =========================
-  // ✅ CANVAS MODE
+  // ✅ CANVAS MODE (LIVE)
   // =========================
   if (tank) {
     const w = tank.w ?? tank.width ?? payload.w;
     const h = tank.h ?? tank.height ?? payload.h;
 
     // OFF/ON text logic
-    const offText = tank.properties?.offText ?? "";
-    const onText = tank.properties?.onText ?? "";
+    const offText = String(tank.properties?.offText ?? "");
+    const onText = String(tank.properties?.onText ?? "");
+
     const legacyText =
       tank.text ??
       tank.properties?.text ??
       tank.properties?.label ??
       payload.text;
 
-    // Default to OFF text visually
-    const displayText = (offText || legacyText || "").toString();
+    // Tag binding
+    const tagModelRaw = String(tank.properties?.tag?.model || "zhc1921").trim() || "zhc1921";
+    const tagModel = MODEL_META[tagModelRaw] ? tagModelRaw : "zhc1921";
+    const deviceId = String(tank.properties?.tag?.deviceId || "").trim();
+    const field = String(tank.properties?.tag?.field || "").trim();
 
     // Styles from settings modal
     const bg = tank.properties?.bgColor ?? payload.bg;
@@ -60,6 +128,113 @@ export default function DraggableStatusTextBox({
     const textAlign = tank.properties?.textAlign ?? "center";
     const textTransform = tank.properties?.textTransform ?? "none";
 
+    // ✅ Telemetry polling
+    const [telemetryRow, setTelemetryRow] = React.useState(null);
+    const telemetryRef = React.useRef({ loading: false });
+
+    const fetchTelemetryRow = React.useCallback(async () => {
+      if (!deviceId) {
+        setTelemetryRow(null);
+        return;
+      }
+
+      const base = MODEL_META[tagModel]?.base || "zhc1921";
+      if (telemetryRef.current.loading) return;
+
+      telemetryRef.current.loading = true;
+      try {
+        const token = String(getToken() || "").trim();
+        if (!token) {
+          setTelemetryRow(null);
+          return;
+        }
+
+        const res = await fetch(`${API_URL}/${base}/my-devices`, {
+          headers: getAuthHeaders(),
+        });
+
+        if (!res.ok) {
+          setTelemetryRow(null);
+          return;
+        }
+
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : [];
+        const row =
+          list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === deviceId) || null;
+
+        setTelemetryRow(row);
+      } catch {
+        setTelemetryRow(null);
+      } finally {
+        telemetryRef.current.loading = false;
+      }
+    }, [deviceId, tagModel]);
+
+    React.useEffect(() => {
+      // run immediately
+      fetchTelemetryRow();
+
+      // then every 3 seconds
+      const t = setInterval(() => {
+        if (document.hidden) return;
+        fetchTelemetryRow();
+      }, 3000);
+
+      return () => clearInterval(t);
+    }, [fetchTelemetryRow]);
+
+    const deviceStatus = React.useMemo(() => {
+      return String(telemetryRow?.status || "").trim().toLowerCase();
+    }, [telemetryRow]);
+
+    const deviceIsOnline = deviceStatus === "online";
+
+    const backendTagValue = React.useMemo(() => {
+      if (!telemetryRow || !field) return undefined;
+      return readTagFromRow(telemetryRow, field);
+    }, [telemetryRow, field]);
+
+    const tag01 = React.useMemo(() => to01(backendTagValue), [backendTagValue]);
+
+    // ✅ Decide which text to show
+    const displayText = React.useMemo(() => {
+      const safeOff = (offText || legacyText || "OFF").toString();
+      const safeOn = (onText || legacyText || "ON").toString();
+
+      // if not configured -> show OFF/default
+      if (!deviceId || !field) return safeOff;
+
+      // if device offline -> show OFF
+      if (!deviceIsOnline) return safeOff;
+
+      // if we don't have a value -> show OFF
+      if (backendTagValue === undefined || backendTagValue === null) return safeOff;
+
+      // live decision
+      if (tag01 === 1) return safeOn;
+      if (tag01 === 0) return safeOff;
+
+      // unknown -> OFF
+      return safeOff;
+    }, [
+      offText,
+      onText,
+      legacyText,
+      deviceId,
+      field,
+      deviceIsOnline,
+      backendTagValue,
+      tag01,
+    ]);
+
+    const titleText = React.useMemo(() => {
+      if (!deviceId || !field) return displayText;
+      const base = MODEL_META[tagModel]?.base || "zhc1921";
+      const v = backendTagValue === undefined ? "—" : String(backendTagValue);
+      return `${displayText} • ${base}/${deviceId}/${field} • status=${deviceStatus || "—"} • v=${v}`;
+    }, [displayText, deviceId, field, tagModel, backendTagValue, deviceStatus]);
+
     return (
       <div
         style={{
@@ -71,11 +246,11 @@ export default function DraggableStatusTextBox({
           boxSizing: "border-box",
           display: "flex",
           alignItems: "center",
-          justifyContent: "center", // ✅ CENTER TEXT ONLY
+          justifyContent: "center",
           padding: `${paddingY}px ${paddingX}px`,
           userSelect: "none",
         }}
-        title={displayText}
+        title={titleText}
       >
         <div
           style={{
