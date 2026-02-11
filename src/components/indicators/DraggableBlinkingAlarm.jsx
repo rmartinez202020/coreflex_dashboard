@@ -1,9 +1,80 @@
 import React from "react";
+import { API_URL } from "../../config/api";
+import { getToken } from "../../utils/authToken";
+
+function getAuthHeaders() {
+  const token = String(getToken() || "").trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// ✅ same mapping used in your modal
+const MODEL_META = {
+  zhc1921: { base: "zhc1921" },
+  zhc1661: { base: "zhc1661" },
+  tp4000: { base: "tp4000" },
+};
+
+// ✅ Convert anything to 0/1 (same as modal)
+function to01(v) {
+  if (v === undefined || v === null) return null;
+  if (typeof v === "boolean") return v ? 1 : 0;
+  if (typeof v === "number") return v > 0 ? 1 : 0;
+  if (typeof v === "string") {
+    const s = v.trim().toLowerCase();
+    if (s === "1" || s === "true" || s === "on" || s === "yes") return 1;
+    if (s === "0" || s === "false" || s === "off" || s === "no") return 0;
+    const n = Number(s);
+    if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
+  }
+  return v ? 1 : 0;
+}
+
+// ✅ Read tag from backend row (same logic as modal)
+function readTagFromRow(row, field) {
+  if (!row || !field) return undefined;
+
+  if (row[field] !== undefined) return row[field];
+
+  const up = String(field).toUpperCase();
+  if (row[up] !== undefined) return row[up];
+
+  // di1..di6 -> in1..in6
+  if (/^di[1-6]$/.test(field)) {
+    const n = field.replace("di", "");
+    const alt = `in${n}`;
+    if (row[alt] !== undefined) return row[alt];
+    const altUp = `IN${n}`;
+    if (row[altUp] !== undefined) return row[altUp];
+  }
+
+  // do1..do4 -> out1..out4
+  if (/^do[1-4]$/.test(field)) {
+    const n = field.replace("do", "");
+    const alt = `out${n}`;
+    if (row[alt] !== undefined) return row[alt];
+    const altUp = `OUT${n}`;
+    if (row[altUp] !== undefined) return row[altUp];
+  }
+
+  return undefined;
+}
+
+// ✅ helper: convert hex to a soft glow rgba-ish string
+function hexToGlow(hex) {
+  if (!hex || typeof hex !== "string") return "rgba(239,68,68,0.55)";
+  const c = hex.replace("#", "").trim();
+  if (c.length !== 6) return "rgba(239,68,68,0.55)";
+  const r = parseInt(c.slice(0, 2), 16);
+  const g = parseInt(c.slice(2, 4), 16);
+  const b = parseInt(c.slice(4, 6), 16);
+  if ([r, g, b].some((n) => Number.isNaN(n))) return "rgba(239,68,68,0.55)";
+  return `rgba(${r},${g},${b},0.55)`;
+}
 
 export default function DraggableBlinkingAlarm({
   // Canvas mode
   tank,
-  sensorsData, // ✅ live data already polled by parent (every 3s)
+  sensorsData, // optional; backend poll is the reliable source
 
   // Palette mode
   label = "Blinking Alarm",
@@ -41,11 +112,9 @@ export default function DraggableBlinkingAlarm({
     const text = tank.text ?? p.text ?? p.label ?? payload.text;
     const blinkMs = p.blinkMs ?? tank.blinkMs ?? payload.blinkMs;
 
-    // ✅ IMPORTANT: read ONLY from properties (this matches your modal save)
     const alarmStyle = p.alarmStyle ?? payload.alarmStyle;
     const alarmTone = p.alarmTone ?? payload.alarmTone;
 
-    // ✅ tone → accent ON color (does NOT affect background)
     const toneMap = {
       critical: { on: "#ef4444", glow: "rgba(239,68,68,0.55)" },
       warning: { on: "#f59e0b", glow: "rgba(245,158,11,0.55)" },
@@ -53,168 +122,89 @@ export default function DraggableBlinkingAlarm({
     };
     const tone = toneMap[alarmTone] || toneMap.critical;
 
-    // ✅ If modal saved colorOn/colorOff, use those
     const colorOn = p.colorOn ?? tone.on ?? payload.colorOn;
     const baseBg = p.colorOff ?? payload.colorOff ?? "#0b1220";
 
-    // =========================
-    // ✅ TAG-DRIVEN ACTIVE (DEFAULT OFF)
-    // =========================
+    // ✅ TAG BINDING
     const tag = p.tag || {};
-    const tagModel = String(tag?.model || "").trim(); // ✅ new (zhc1921/zhc1661/tp4000)
+    const tagModel = String(tag?.model || "").trim();
     const tagDeviceId = String(tag?.deviceId || "").trim();
     const tagField = String(tag?.field || "").trim();
 
-    // ---- helpers (same as modal) ----
-    const to01 = (v) => {
-      if (v === undefined || v === null) return null;
-      if (typeof v === "boolean") return v ? 1 : 0;
-      if (typeof v === "number") return v > 0 ? 1 : 0;
-      if (typeof v === "string") {
-        const s = v.trim().toLowerCase();
-        if (s === "1" || s === "true" || s === "on" || s === "yes") return 1;
-        if (s === "0" || s === "false" || s === "off" || s === "no") return 0;
-        const n = Number(s);
-        if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
-      }
-      return v ? 1 : 0;
-    };
+    // =========================
+    // ✅ BACKEND POLL (SAME AS MODAL)
+    // =========================
+    const [telemetryRow, setTelemetryRow] = React.useState(null);
 
-    const readTagFromRow = (row, field) => {
-      if (!row || !field) return undefined;
+    const fetchTelemetryRow = React.useCallback(async () => {
+      const modelKey = String(tagModel || "").trim();
+      const id = String(tagDeviceId || "").trim();
+      const base = MODEL_META[modelKey]?.base;
 
-      if (row[field] !== undefined) return row[field];
-
-      const up = String(field).toUpperCase();
-      if (row[up] !== undefined) return row[up];
-
-      // di1..di6 -> in1..in6
-      if (/^di[1-6]$/.test(field)) {
-        const n = field.replace("di", "");
-        const alt = `in${n}`;
-        if (row[alt] !== undefined) return row[alt];
-        const altUp = `IN${n}`;
-        if (row[altUp] !== undefined) return row[altUp];
+      if (!modelKey || !id || !base) {
+        setTelemetryRow(null);
+        return;
       }
 
-      // do1..do4 -> out1..out4
-      if (/^do[1-4]$/.test(field)) {
-        const n = field.replace("do", "");
-        const alt = `out${n}`;
-        if (row[alt] !== undefined) return row[alt];
-        const altUp = `OUT${n}`;
-        if (row[altUp] !== undefined) return row[altUp];
-      }
-
-      return undefined;
-    };
-
-    // ✅ Robust: pull device list from many possible sensorsData shapes
-    const getDeviceLists = () => {
-      const sd = sensorsData;
-
-      // Most common possibilities we support:
-      // 1) sd.devices -> merged list
-      // 2) sd[model] -> model list (zhc1921/zhc1661/tp4000)
-      // 3) sd.data?.devices / sd.data?.[model]
-      // 4) sd.rows / sd.list
-      // 5) if sd itself is already an array -> treat as list
-
-      const lists = [];
-
-      if (Array.isArray(sd)) lists.push(sd);
-
-      if (sd && Array.isArray(sd.devices)) lists.push(sd.devices);
-      if (sd && Array.isArray(sd.rows)) lists.push(sd.rows);
-      if (sd && Array.isArray(sd.list)) lists.push(sd.list);
-
-      if (sd && sd.data) {
-        if (Array.isArray(sd.data.devices)) lists.push(sd.data.devices);
-        if (Array.isArray(sd.data.rows)) lists.push(sd.data.rows);
-        if (Array.isArray(sd.data.list)) lists.push(sd.data.list);
-      }
-
-      // model-specific buckets
-      if (sd && tagModel && Array.isArray(sd[tagModel])) lists.unshift(sd[tagModel]);
-      if (sd && tagModel && sd.data && Array.isArray(sd.data[tagModel])) lists.unshift(sd.data[tagModel]);
-
-      // also try common base names (in case you store as cf2000/cf1600/etc)
-      // (safe no-op if not present)
-      const modelAliases = {
-        zhc1921: ["zhc1921", "cf2000", "ZHC1921", "CF2000"],
-        zhc1661: ["zhc1661", "cf1600", "ZHC1661", "CF1600"],
-        tp4000: ["tp4000", "TP4000", "TP-4000"],
-      };
-
-      if (sd && tagModel && modelAliases[tagModel]) {
-        for (const k of modelAliases[tagModel]) {
-          if (Array.isArray(sd[k])) lists.unshift(sd[k]);
-          if (sd.data && Array.isArray(sd.data[k])) lists.unshift(sd.data[k]);
+      try {
+        const token = String(getToken() || "").trim();
+        if (!token) {
+          setTelemetryRow(null);
+          return;
         }
-      }
 
-      // fallback: try all known model keys
-      ["zhc1921", "zhc1661", "tp4000"].forEach((mk) => {
-        if (sd && Array.isArray(sd[mk])) lists.push(sd[mk]);
-        if (sd && sd.data && Array.isArray(sd.data[mk])) lists.push(sd.data[mk]);
-      });
+        const res = await fetch(`${API_URL}/${base}/my-devices`, {
+          headers: getAuthHeaders(),
+        });
 
-      // de-dupe references
-      return Array.from(new Set(lists)).filter((x) => Array.isArray(x));
-    };
+        if (!res.ok) {
+          setTelemetryRow(null);
+          return;
+        }
 
-    const findDeviceRow = () => {
-      if (!tagDeviceId) return null;
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : [];
 
-      const lists = getDeviceLists();
-      if (!lists.length) return null;
-
-      const target = String(tagDeviceId).trim();
-
-      for (const list of lists) {
-        const hit =
-          list.find((r) => String(r?.deviceId ?? r?.device_id ?? r?.id ?? "").trim() === target) ||
+        const row =
+          list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) ||
           null;
-        if (hit) return hit;
+
+        setTelemetryRow(row);
+      } catch {
+        setTelemetryRow(null);
       }
-      return null;
-    };
+    }, [tagModel, tagDeviceId]);
 
-    const readTagValue = () => {
-      if (!tagDeviceId || !tagField) return undefined;
+    React.useEffect(() => {
+      // fetch immediately + poll
+      fetchTelemetryRow();
 
-      // A) sensorsData.values[deviceId][field] (legacy/optional)
-      const byDev = sensorsData?.values?.[String(tagDeviceId)];
-      if (byDev && Object.prototype.hasOwnProperty.call(byDev, tagField)) {
-        return byDev[tagField];
-      }
+      const t = setInterval(() => {
+        if (document.hidden) return;
+        fetchTelemetryRow();
+      }, 3000);
 
-      // B) read from devices row (preferred)
-      const row = findDeviceRow();
-      if (row) {
-        const v = readTagFromRow(row, tagField);
-        if (v !== undefined) return v;
-      }
+      return () => clearInterval(t);
+    }, [fetchTelemetryRow]);
 
-      // C) fallback: sensorsData.tags[deviceId][field] if exists
-      const v2 = sensorsData?.tags?.[String(tagDeviceId)]?.[tagField];
-      if (v2 !== undefined) return v2;
+    // ✅ read from backend row (reliable)
+    const backendStatus = String(telemetryRow?.status || "").trim().toLowerCase();
+    const deviceIsOnline = backendStatus ? backendStatus === "online" : true;
 
-      return undefined;
-    };
+    const rawValueFromBackend =
+      telemetryRow && tagField ? readTagFromRow(telemetryRow, tagField) : undefined;
 
-    const deviceRow = findDeviceRow();
-    const backendStatus = String(deviceRow?.status || "").trim().toLowerCase();
-    const deviceIsOnline = backendStatus ? backendStatus === "online" : true; // if not present, don't block
+    // ✅ optional fallback: try sensorsData too (won’t hurt)
+    const rawValue =
+      rawValueFromBackend !== undefined
+        ? rawValueFromBackend
+        : sensorsData?.values?.[tagDeviceId]?.[tagField];
 
-    const v = readTagValue();
-    const v01 = deviceIsOnline ? to01(v) : null;
-
-    // ✅ DEFAULT OFF if tag not bound / missing / false
-    const isActive = !!(tagDeviceId && tagField && deviceIsOnline && v01 === 1);
+    const v01 = deviceIsOnline ? to01(rawValue) : null;
+    const isActive = !!(tagModel && tagDeviceId && tagField && deviceIsOnline && v01 === 1);
 
     // =========================
-    // ✅ BLINK ENGINE (accents only)
+    // ✅ BLINK ENGINE
     // =========================
     const [blinkOn, setBlinkOn] = React.useState(true);
 
@@ -228,7 +218,6 @@ export default function DraggableBlinkingAlarm({
       return () => clearInterval(t);
     }, [isActive, blinkMs]);
 
-    // ✅ Accent blinks between ON color and dim
     const dimAccent = "rgba(148,163,184,0.22)";
     const accent = isActive ? (blinkOn ? colorOn : dimAccent) : dimAccent;
 
@@ -238,9 +227,7 @@ export default function DraggableBlinkingAlarm({
         : "inset 0 2px 10px rgba(0,0,0,0.45)"
       : "inset 0 2px 10px rgba(0,0,0,0.45)";
 
-    const handleDoubleClick = () => {
-      onOpenSettings?.(tank);
-    };
+    const handleDoubleClick = () => onOpenSettings?.(tank);
 
     const commonWrap = {
       width: w,
@@ -251,13 +238,8 @@ export default function DraggableBlinkingAlarm({
       userSelect: "none",
     };
 
-    // ✅ Helpful debug tooltip (so you can instantly see if row is missing)
-    const title = `BlinkingAlarm | ${isActive ? "ON" : "OFF"} | style=${
-      alarmStyle || "annunciator"
-    } | tone=${alarmTone || "critical"} | bound=${tagModel || "—"}:${
-      tagDeviceId || "—"
-    }/${tagField || "—"} | row=${deviceRow ? "FOUND" : "MISSING"} | v=${String(
-      v
+    const title = `BlinkingAlarm | ${isActive ? "ON" : "OFF"} | ${tagModel}:${tagDeviceId}/${tagField} | status=${backendStatus || "—"} | v=${String(
+      rawValue
     )}`;
 
     const textLeft = {
@@ -277,10 +259,7 @@ export default function DraggableBlinkingAlarm({
       textTransform: "uppercase",
     };
 
-    // =========================
-    // ✅ PRO STYLES (NO BG BLINK)
-    // =========================
-
+    // 1) Annunciator
     const Annunciator = () => (
       <div
         style={{
@@ -321,6 +300,7 @@ export default function DraggableBlinkingAlarm({
       </div>
     );
 
+    // 2) Banner
     const Banner = () => {
       const bar = isActive
         ? `repeating-linear-gradient(
@@ -373,6 +353,7 @@ export default function DraggableBlinkingAlarm({
       );
     };
 
+    // 3) StackLight
     const StackLight = () => (
       <div
         style={{
@@ -397,9 +378,7 @@ export default function DraggableBlinkingAlarm({
             background: accent,
             border: "2px solid rgba(255,255,255,0.10)",
             boxShadow:
-              isActive && blinkOn
-                ? `0 0 14px ${tone.glow || hexToGlow(colorOn)}`
-                : "none",
+              isActive && blinkOn ? `0 0 14px ${tone.glow || hexToGlow(colorOn)}` : "none",
             transition: "all 120ms linear",
           }}
         />
@@ -409,6 +388,7 @@ export default function DraggableBlinkingAlarm({
       </div>
     );
 
+    // 4) Minimal
     const Minimal = () => (
       <div
         style={{
@@ -501,16 +481,4 @@ export default function DraggableBlinkingAlarm({
       <span>{label}</span>
     </div>
   );
-}
-
-// ✅ helper: convert hex to a soft glow rgba-ish string
-function hexToGlow(hex) {
-  if (!hex || typeof hex !== "string") return "rgba(239,68,68,0.55)";
-  const c = hex.replace("#", "").trim();
-  if (c.length !== 6) return "rgba(239,68,68,0.55)";
-  const r = parseInt(c.slice(0, 2), 16);
-  const g = parseInt(c.slice(2, 4), 16);
-  const b = parseInt(c.slice(4, 6), 16);
-  if ([r, g, b].some((n) => Number.isNaN(n))) return "rgba(239,68,68,0.55)";
-  return `rgba(${r},${g},${b},0.55)`;
 }
