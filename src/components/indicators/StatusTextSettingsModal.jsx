@@ -318,8 +318,9 @@ export default function StatusTextSettingsModal({
 
   const selectedDevice = React.useMemo(() => {
     return (
-      devices.find((d) => String(d.id) === String(deviceId) && String(d.model) === String(deviceModel)) ||
-      null
+      devices.find(
+        (d) => String(d.id) === String(deviceId) && String(d.model) === String(deviceModel)
+      ) || null
     );
   }, [devices, deviceId, deviceModel]);
 
@@ -338,7 +339,6 @@ export default function StatusTextSettingsModal({
   const normalizedTypedField = React.useMemo(() => {
     const s = String(tagSearch || "").trim().toLowerCase();
     if (!s) return "";
-    // allow "di-1" or "di1"
     const m = s.replace("-", "");
     const hit =
       TAG_OPTIONS.find((t) => t.key.toLowerCase() === m) ||
@@ -379,7 +379,8 @@ export default function StatusTextSettingsModal({
 
       const data = await res.json();
       const list = Array.isArray(data) ? data : [];
-      const row = list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
+      const row =
+        list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
 
       setTelemetryRow(row);
     } catch {
@@ -416,7 +417,8 @@ export default function StatusTextSettingsModal({
     return readTagFromRow(telemetryRow, effectiveField);
   }, [telemetryRow, effectiveField]);
 
-  const isOnline = deviceIsOnline && rawValue !== undefined && rawValue !== null && !!effectiveField;
+  const isOnline =
+    deviceIsOnline && rawValue !== undefined && rawValue !== null && !!effectiveField;
   const as01 = React.useMemo(() => (isOnline ? to01(rawValue) : null), [isOnline, rawValue]);
 
   // =========================
@@ -451,10 +453,12 @@ export default function StatusTextSettingsModal({
         borderRadius: undefined,
         letterSpacing: undefined,
 
-        // ✅ NEW: save model too (backward compatible)
+        // ✅ save model too (hidden from UI)
         tag: { model: String(deviceModel || "zhc1921"), deviceId, field: effectiveField },
       },
     });
+
+    onClose?.();
   };
 
   // ✅ fixed safe radius for preview
@@ -616,8 +620,8 @@ export default function StatusTextSettingsModal({
             </div>
 
             <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
-              Tip: <b>ON</b> means “truthy”. If your tag is numeric, any value <b>&gt; 0</b> will
-              be read as ON.
+              Tip: <b>ON</b> means “truthy”. If your tag is numeric, any value <b>&gt; 0</b> will be
+              read as ON.
             </div>
           </div>
 
@@ -764,7 +768,7 @@ export default function StatusTextSettingsModal({
               </div>
             </div>
 
-            {/* TAG (updated to match Indicator Light behavior) */}
+            {/* TAG (updated) */}
             <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 14 }}>
               <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 12 }}>
                 Tag that drives status (ON / OFF)
@@ -824,9 +828,11 @@ export default function StatusTextSettingsModal({
                     }}
                   >
                     <option value="">— Select device —</option>
+
+                    {/* ✅ SHOW ONLY THE ID (no model text) */}
                     {filteredDevices.map((d) => (
                       <option key={`${d.model}::${d.id}`} value={`${d.model}::${d.id}`}>
-                        {d.id} — {d.modelLabel}
+                        {d.id}
                       </option>
                     ))}
                   </select>
@@ -839,16 +845,18 @@ export default function StatusTextSettingsModal({
                     onChange={(e) => {
                       const v = e.target.value;
                       setTagSearch(v);
-                      // do NOT force-set field to random text; only normalize if matches
+
                       const norm = String(v || "").trim();
                       if (!norm) {
                         setField("");
                         return;
                       }
+
                       const hit =
                         TAG_OPTIONS.find((t) => t.key.toLowerCase() === norm.toLowerCase()) ||
                         TAG_OPTIONS.find((t) => t.label.toLowerCase() === norm.toLowerCase()) ||
                         null;
+
                       if (hit) setField(hit.key);
                     }}
                     placeholder="ex: di1, do3..."
@@ -871,7 +879,7 @@ export default function StatusTextSettingsModal({
                     ))}
                   </datalist>
 
-                  {/* ✅ Quick select dropdown (optional but nice) */}
+                  {/* ✅ Quick select dropdown */}
                   <select
                     value={field}
                     onChange={(e) => {
@@ -902,7 +910,7 @@ export default function StatusTextSettingsModal({
                 </div>
               </div>
 
-              {/* ✅ STATUS / VALUE PANEL (uses backend polling like indicator) */}
+              {/* ✅ STATUS / VALUE PANEL */}
               <div
                 style={{
                   border: "1px solid #e5e7eb",
@@ -927,10 +935,10 @@ export default function StatusTextSettingsModal({
                       : "Offline"}
                   </div>
 
-                  {deviceId && selectedDevice && (
+                  {/* ✅ Bound line: ONLY show ID + tag (no model) */}
+                  {deviceId && effectiveField && (
                     <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
-                      Bound: <b>{selectedDevice.modelLabel}</b> / <b>{selectedDevice.id}</b> /{" "}
-                      <b>{effectiveField || "—"}</b>
+                      Bound: <b>{deviceId}</b> / <b>{effectiveField}</b>
                     </div>
                   )}
                 </div>
