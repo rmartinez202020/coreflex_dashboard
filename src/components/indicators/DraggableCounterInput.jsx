@@ -8,22 +8,24 @@ export default function DraggableCounterInput({
   // canvas defaults
   value = 0,
 
-  // canvas positioning (only used if you render it absolutely)
+  // canvas positioning
   x,
   y,
   id,
   isSelected,
   onSelect,
   onStartDragObject,
+  onReset, // optional reset callback
 }) {
   const handleDragStart = (e) => {
-    // ✅ MUST use "shape" because useDropHandler reads e.dataTransfer.getData("shape")
     e.dataTransfer.setData("shape", "counterInput");
     e.dataTransfer.setData("text/plain", "counterInput");
     e.dataTransfer.effectAllowed = "copy";
   };
 
-  // ---------- CANVAS VARIANT (the 0000 box) ----------
+  // ===============================
+  // ✅ CANVAS VARIANT
+  // ===============================
   if (variant === "canvas") {
     const display = Number.isFinite(Number(value))
       ? String(Math.trunc(Number(value))).padStart(4, "0")
@@ -40,31 +42,84 @@ export default function DraggableCounterInput({
           position: x !== undefined && y !== undefined ? "absolute" : "relative",
           left: x,
           top: y,
-          width: 95,
-          height: 34,
-          borderRadius: 4,
-          border: isSelected ? "2px solid #2563eb" : "2px solid #8f8f8f",
-          background: "#f2f2f2",
-          boxShadow: "inset 0 0 6px rgba(0,0,0,0.25)",
+          width: 120,
+          borderRadius: 6,
+          border: isSelected ? "2px solid #2563eb" : "2px solid #9ca3af",
+          background: "#f3f4f6",
+          boxShadow: "0 3px 8px rgba(0,0,0,0.15)",
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
-          justifyContent: "center",
-          fontFamily: "monospace",
-          fontWeight: 900,
-          fontSize: 16,
-          letterSpacing: "0.5px",
-          color: "#111",
+          padding: 8,
           userSelect: "none",
           cursor: "move",
         }}
         title={label}
       >
-        {display}
+        {/* TITLE */}
+        <div
+          style={{
+            fontWeight: 700,
+            fontSize: 14,
+            marginBottom: 6,
+            color: "#111827",
+          }}
+        >
+          Counter
+        </div>
+
+        {/* DISPLAY */}
+        <div
+          style={{
+            width: "100%",
+            height: 34,
+            borderRadius: 4,
+            border: "2px solid #8f8f8f",
+            background: "#e5e7eb",
+            boxShadow: "inset 0 0 6px rgba(0,0,0,0.25)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontFamily: "monospace",
+            fontWeight: 900,
+            fontSize: 18,
+            letterSpacing: "1px",
+            color: "#111",
+            marginBottom: 8,
+          }}
+        >
+          {display}
+        </div>
+
+        {/* RESET BUTTON */}
+        <button
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => {
+            e.stopPropagation();
+            onReset?.(id);
+          }}
+          style={{
+            width: "100%",
+            height: 28,
+            borderRadius: 4,
+            border: "none",
+            background: "#ef4444",
+            color: "white",
+            fontWeight: 700,
+            fontSize: 13,
+            cursor: "pointer",
+            boxShadow: "0 2px 0 rgba(0,0,0,0.25)",
+          }}
+        >
+          Reset
+        </button>
       </div>
     );
   }
 
-  // ---------- MENU VARIANT (left sidebar item) ----------
+  // ===============================
+  // ✅ MENU VARIANT (LEFT SIDEBAR)
+  // ===============================
   return (
     <div
       draggable
