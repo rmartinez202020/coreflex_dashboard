@@ -467,21 +467,38 @@ React.useEffect(() => {
   if (!isPlay) return;
 
   const readRowField = (row, field) => {
-    if (!row || !field) return undefined;
-    if (row[field] !== undefined) return row[field];
-    const up = String(field).toUpperCase();
-    if (row[up] !== undefined) return row[up];
+  if (!row || !field) return undefined;
 
-    // legacy DI mapping: di1..di6 -> in1..in6
-    if (/^di[1-6]$/i.test(field)) {
-      const n = String(field).toLowerCase().replace("di", "");
-      const alt = `in${n}`;
-      if (row[alt] !== undefined) return row[alt];
-      const altUp = alt.toUpperCase();
-      if (row[altUp] !== undefined) return row[altUp];
+  const f = String(field).trim();
+  const fLower = f.toLowerCase();
+
+  const m = fLower.match(/^di(\d+)$/);
+  const n = m ? m[1] : null;
+
+  const candidates = [];
+
+  // original direct forms
+  candidates.push(f);
+  candidates.push(fLower);
+  candidates.push(f.toUpperCase());
+
+  if (n) {
+    const diForms = [`di${n}`, `di_${n}`, `di-${n}`, `di ${n}`];
+    const inForms = [`in${n}`, `in_${n}`, `in-${n}`, `in ${n}`];
+
+    for (const k of [...diForms, ...inForms]) {
+      candidates.push(k);
+      candidates.push(k.toUpperCase());
     }
-    return undefined;
-  };
+  }
+
+  for (const key of candidates) {
+    if (row[key] !== undefined) return row[key];
+  }
+
+  return undefined;
+};
+
 
   const to01 = (v) => {
     if (v === undefined || v === null) return null;
