@@ -89,12 +89,7 @@ function readTagFromRow(row, field) {
   return undefined;
 }
 
-export default function IndicatorLightSettingsModal({
-  open,
-  tank,
-  onClose,
-  onSave,
-}) {
+export default function IndicatorLightSettingsModal({ open, tank, onClose, onSave }) {
   // ✅ do NOT early return before hooks
 
   // =========================
@@ -116,6 +111,102 @@ export default function IndicatorLightSettingsModal({
   const telemetryRef = React.useRef({ loading: false });
 
   // =========================
+  // ✅ DRAGGABLE MODAL STATE
+  // =========================
+  const modalRef = React.useRef(null);
+  const [pos, setPos] = React.useState(null); // {x,y} once measured
+  const [isDragging, setIsDragging] = React.useState(false);
+
+  const dragRef = React.useRef({
+    dragging: false,
+    startX: 0,
+    startY: 0,
+    originX: 0,
+    originY: 0,
+    pointerId: null,
+  });
+
+  function clamp(n, min, max) {
+    return Math.max(min, Math.min(max, n));
+  }
+
+  const centerModal = React.useCallback(() => {
+    requestAnimationFrame(() => {
+      const el = modalRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+
+      const margin = 10;
+      const x = clamp((vw - rect.width) / 2, margin, Math.max(margin, vw - rect.width - margin));
+      const y = clamp((vh - rect.height) / 2, margin, Math.max(margin, vh - rect.height - margin));
+      setPos({ x, y });
+    });
+  }, []);
+
+  const onHeaderPointerDown = (e) => {
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const el = modalRef.current;
+    if (!el) return;
+
+    const rect = el.getBoundingClientRect();
+    const current = pos ?? { x: rect.left, y: rect.top };
+
+    dragRef.current.dragging = true;
+    setIsDragging(true);
+
+    dragRef.current.startX = e.clientX;
+    dragRef.current.startY = e.clientY;
+    dragRef.current.originX = current.x;
+    dragRef.current.originY = current.y;
+    dragRef.current.pointerId = e.pointerId;
+
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {}
+  };
+
+  const onHeaderPointerMove = (e) => {
+    if (!dragRef.current.dragging) return;
+
+    const el = modalRef.current;
+    if (!el) return;
+
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+
+    const rect = el.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const margin = 10;
+
+    const maxX = Math.max(margin, vw - rect.width - margin);
+    const maxY = Math.max(margin, vh - rect.height - margin);
+
+    const nextX = clamp(dragRef.current.originX + dx, margin, maxX);
+    const nextY = clamp(dragRef.current.originY + dy, margin, maxY);
+
+    setPos({ x: nextX, y: nextY });
+  };
+
+  const onHeaderPointerUp = (e) => {
+    if (!dragRef.current.dragging) return;
+
+    dragRef.current.dragging = false;
+    setIsDragging(false);
+
+    try {
+      e.currentTarget.releasePointerCapture(dragRef.current.pointerId);
+    } catch {}
+    dragRef.current.pointerId = null;
+  };
+
+  // =========================
   // ✅ REHYDRATE ON OPEN
   // =========================
   React.useEffect(() => {
@@ -131,11 +222,42 @@ export default function IndicatorLightSettingsModal({
     setField(String(tank?.properties?.tag?.field || ""));
 
     setTelemetryRow(null);
+
+    // reset position so it recenters each open (optional)
+    setPos(null);
+    setIsDragging(false);
   }, [open, tank?.id]);
 
   // --- helpers for preview
   const previewSize = 56;
   const borderRadius = shapeStyle === "square" ? 12 : 999;
+
+  // when open, center after first paint + clamp on resize
+  React.useEffect(() => {
+    if (!open) return;
+    centerModal();
+
+    const onResize = () => {
+      requestAnimationFrame(() => {
+        const el = modalRef.current;
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const margin = 10;
+
+        setPos((p) => {
+          const cur = p ?? { x: rect.left, y: rect.top };
+          const maxX = Math.max(margin, vw - rect.width - margin);
+          const maxY = Math.max(margin, vh - rect.height - margin);
+          return { x: clamp(cur.x, margin, maxX), y: clamp(cur.y, margin, maxY) };
+        });
+      });
+    };
+
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [open, centerModal]);
 
   // =========================
   // ✅ LOAD DEVICES
@@ -252,8 +374,7 @@ export default function IndicatorLightSettingsModal({
 
   const tag01 = React.useMemo(() => to01(backendTagValue), [backendTagValue]);
 
-  const tagIsOnline =
-    deviceIsOnline && backendTagValue !== undefined && backendTagValue !== null;
+  const tagIsOnline = deviceIsOnline && backendTagValue !== undefined && backendTagValue !== null;
 
   const lastSeenText = React.useMemo(() => {
     const ts = telemetryRow?.lastSeen || telemetryRow?.last_seen || "";
@@ -311,11 +432,12 @@ export default function IndicatorLightSettingsModal({
       }}
     >
       <div
+        ref={modalRef}
         style={{
           position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -50%)",
+          left: pos ? pos.x : "50%",
+          top: pos ? pos.y : "50%",
+          transform: pos ? "none" : "translate(-50%, -50%)",
           width: 1040,
           maxWidth: "calc(100vw - 60px)",
           background: "#fff",
@@ -326,8 +448,12 @@ export default function IndicatorLightSettingsModal({
         onMouseDown={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
       >
-        {/* Header */}
+        {/* Header (DRAG HANDLE) */}
         <div
+          onPointerDown={onHeaderPointerDown}
+          onPointerMove={onHeaderPointerMove}
+          onPointerUp={onHeaderPointerUp}
+          onPointerCancel={onHeaderPointerUp}
           style={{
             background: "#0f172a",
             color: "#fff",
@@ -339,12 +465,18 @@ export default function IndicatorLightSettingsModal({
             fontSize: 16,
             letterSpacing: 0.2,
             userSelect: "none",
+            cursor: isDragging ? "grabbing" : "grab",
           }}
+          title="Drag to move"
         >
           <span>Indicator Light</span>
 
           <button
-            onClick={onClose}
+            onPointerDown={(e) => e.stopPropagation()} // ✅ prevent drag
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose?.();
+            }}
             style={{
               border: "none",
               background: "transparent",
@@ -383,13 +515,23 @@ export default function IndicatorLightSettingsModal({
                       height: previewSize,
                       borderRadius,
                       background: previewOffFill,
-                      border: previewIsOff ? "3px solid rgba(0,0,0,0.35)" : "2px solid rgba(0,0,0,0.20)",
+                      border: previewIsOff
+                        ? "3px solid rgba(0,0,0,0.35)"
+                        : "2px solid rgba(0,0,0,0.20)",
                       margin: "0 auto",
                       boxShadow: previewIsOff ? "0 0 0 4px rgba(0,0,0,0.06)" : "none",
                       transition: "all 160ms ease",
                     }}
                   />
-                  <div style={{ fontSize: 12, marginTop: 10, color: "#334155", fontWeight: previewIsOff ? 900 : 700, opacity: previewIsOff ? 1 : 0.75 }}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      marginTop: 10,
+                      color: "#334155",
+                      fontWeight: previewIsOff ? 900 : 700,
+                      opacity: previewIsOff ? 1 : 0.75,
+                    }}
+                  >
                     {offText || "OFF"}
                   </div>
                 </div>
@@ -401,13 +543,23 @@ export default function IndicatorLightSettingsModal({
                       height: previewSize,
                       borderRadius,
                       background: previewOnFill,
-                      border: previewIsOn ? "3px solid rgba(0,0,0,0.35)" : "2px solid rgba(0,0,0,0.20)",
+                      border: previewIsOn
+                        ? "3px solid rgba(0,0,0,0.35)"
+                        : "2px solid rgba(0,0,0,0.20)",
                       margin: "0 auto",
                       boxShadow: previewIsOn ? "0 0 0 4px rgba(0,0,0,0.06)" : "none",
                       transition: "all 160ms ease",
                     }}
                   />
-                  <div style={{ fontSize: 12, marginTop: 10, color: "#334155", fontWeight: previewIsOn ? 900 : 700, opacity: previewIsOn ? 1 : 0.75 }}>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      marginTop: 10,
+                      color: "#334155",
+                      fontWeight: previewIsOn ? 900 : 700,
+                      opacity: previewIsOn ? 1 : 0.75,
+                    }}
+                  >
                     {onText || "ON"}
                   </div>
                 </div>
@@ -439,11 +591,19 @@ export default function IndicatorLightSettingsModal({
               <div style={{ marginBottom: 14 }}>
                 <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>Shape</div>
                 <label style={{ marginRight: 18, fontSize: 14 }}>
-                  <input type="radio" checked={shapeStyle === "circle"} onChange={() => setShapeStyle("circle")} />{" "}
+                  <input
+                    type="radio"
+                    checked={shapeStyle === "circle"}
+                    onChange={() => setShapeStyle("circle")}
+                  />{" "}
                   Circle
                 </label>
                 <label style={{ fontSize: 14 }}>
-                  <input type="radio" checked={shapeStyle === "square"} onChange={() => setShapeStyle("square")} />{" "}
+                  <input
+                    type="radio"
+                    checked={shapeStyle === "square"}
+                    onChange={() => setShapeStyle("square")}
+                  />{" "}
                   Square
                 </label>
               </div>
@@ -455,7 +615,13 @@ export default function IndicatorLightSettingsModal({
                   <input
                     value={offText}
                     onChange={(e) => setOffText(e.target.value)}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #cbd5e1", fontSize: 14 }}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #cbd5e1",
+                      fontSize: 14,
+                    }}
                   />
                 </div>
 
@@ -464,7 +630,13 @@ export default function IndicatorLightSettingsModal({
                   <input
                     value={onText}
                     onChange={(e) => setOnText(e.target.value)}
-                    style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #cbd5e1", fontSize: 14 }}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #cbd5e1",
+                      fontSize: 14,
+                    }}
                   />
                 </div>
               </div>
@@ -479,7 +651,15 @@ export default function IndicatorLightSettingsModal({
                     onChange={(e) => setOffColor(e.target.value)}
                     style={{ width: "100%", height: 44, border: "none", cursor: "pointer" }}
                   />
-                  <div style={{ marginTop: 6, fontSize: 13, fontWeight: 600, color: "#475569", userSelect: "none" }}>
+                  <div
+                    style={{
+                      marginTop: 6,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "#475569",
+                      userSelect: "none",
+                    }}
+                  >
                     Click to select the color
                   </div>
                 </div>
@@ -492,7 +672,15 @@ export default function IndicatorLightSettingsModal({
                     onChange={(e) => setOnColor(e.target.value)}
                     style={{ width: "100%", height: 44, border: "none", cursor: "pointer" }}
                   />
-                  <div style={{ marginTop: 6, fontSize: 13, fontWeight: 600, color: "#475569", userSelect: "none" }}>
+                  <div
+                    style={{
+                      marginTop: 6,
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: "#475569",
+                      userSelect: "none",
+                    }}
+                  >
                     Click to select the color
                   </div>
                 </div>
@@ -500,17 +688,38 @@ export default function IndicatorLightSettingsModal({
             </div>
 
             {/* RIGHT SIDE (device + tag dropdown + status) */}
-            <div style={{ width: 420, border: "1px solid #e5e7eb", borderRadius: 12, padding: 14, background: "#ffffff" }}>
-              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 10 }}>Tag that drives the LED (ON/OFF)</div>
+            <div
+              style={{
+                width: 420,
+                border: "1px solid #e5e7eb",
+                borderRadius: 12,
+                padding: 14,
+                background: "#ffffff",
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 10 }}>
+                Tag that drives the LED (ON/OFF)
+              </div>
 
-              {devicesErr && <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>{devicesErr}</div>}
+              {devicesErr && (
+                <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>
+                  {devicesErr}
+                </div>
+              )}
 
               <div style={{ marginBottom: 10 }}>
                 <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>Device</div>
                 <select
                   value={deviceId}
                   onChange={(e) => setDeviceId(e.target.value)}
-                  style={{ width: "100%", padding: "10px 12px", borderRadius: 10, border: "1px solid #cbd5e1", fontSize: 14, background: "white" }}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5e1",
+                    fontSize: 14,
+                    background: "white",
+                  }}
                 >
                   <option value="">— Select device —</option>
                   {devices.map((d) => (
@@ -524,7 +733,15 @@ export default function IndicatorLightSettingsModal({
                   <div style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}>
                     Selected: <b>{selectedDevice.id}</b> {"  "}•{"  "}
                     <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                      <span style={{ width: 8, height: 8, borderRadius: 99, background: deviceDot, display: "inline-block" }} />
+                      <span
+                        style={{
+                          width: 8,
+                          height: 8,
+                          borderRadius: 99,
+                          background: deviceDot,
+                          display: "inline-block",
+                        }}
+                      />
                       <b style={{ color: deviceIsOnline ? "#16a34a" : "#dc2626" }}>
                         {backendDeviceStatus ? backendDeviceStatus.toUpperCase() : "—"}
                       </b>
@@ -566,14 +783,28 @@ export default function IndicatorLightSettingsModal({
                 </select>
               </div>
 
-              <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 12, background: "#f8fafc" }}>
+              <div
+                style={{
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 12,
+                  padding: 12,
+                  background: "#f8fafc",
+                }}
+              >
                 <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>Device Status</div>
+                    <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>
+                      Device Status
+                    </div>
                     <div style={{ fontSize: 13, marginTop: 6, color: "#334155" }}>
                       {deviceId ? (
                         backendDeviceStatus ? (
-                          <span style={{ fontWeight: 900, color: deviceIsOnline ? "#16a34a" : "#dc2626" }}>
+                          <span
+                            style={{
+                              fontWeight: 900,
+                              color: deviceIsOnline ? "#16a34a" : "#dc2626",
+                            }}
+                          >
                             {deviceIsOnline ? "Online" : "Offline"}
                           </span>
                         ) : (
@@ -586,12 +817,22 @@ export default function IndicatorLightSettingsModal({
                   </div>
 
                   <div style={{ flex: 1 }}>
-                    <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>Selected Tag</div>
+                    <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>
+                      Selected Tag
+                    </div>
 
                     <div style={{ fontSize: 13, marginTop: 6, color: "#334155" }}>
                       {deviceId && field ? (
                         <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
-                          <span style={{ width: 8, height: 8, borderRadius: 99, background: tagDot, display: "inline-block" }} />
+                          <span
+                            style={{
+                              width: 8,
+                              height: 8,
+                              borderRadius: 99,
+                              background: tagDot,
+                              display: "inline-block",
+                            }}
+                          />
                           <b>{String(field).toUpperCase()}</b>
                         </span>
                       ) : (
@@ -626,10 +867,26 @@ export default function IndicatorLightSettingsModal({
         </div>
 
         {/* Footer */}
-        <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, padding: 14, borderTop: "1px solid #e5e7eb" }}>
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 10,
+            padding: 14,
+            borderTop: "1px solid #e5e7eb",
+          }}
+        >
           <button
             onClick={onClose}
-            style={{ padding: "9px 14px", borderRadius: 10, border: "1px solid #cbd5e1", background: "white", cursor: "pointer", fontWeight: 900, fontSize: 14 }}
+            style={{
+              padding: "9px 14px",
+              borderRadius: 10,
+              border: "1px solid #cbd5e1",
+              background: "white",
+              cursor: "pointer",
+              fontWeight: 900,
+              fontSize: 14,
+            }}
           >
             Cancel
           </button>
