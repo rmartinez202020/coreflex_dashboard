@@ -52,12 +52,13 @@ function to01(v) {
  * - In PLAY mode only
  * - Reads obj.properties.tag { deviceId, field }
  * - Increments obj.properties.count when DI rises (0 -> 1)
+ *
+ * ✅ DEBUGGING:
+ * In browser console:
+ *   window.__CF_COUNTER_DEBUG = true
+ *   // set false to stop logs
  */
-export default function useCounterInputRisingEdge({
-  isPlay,
-  sensorsData,
-  setDroppedTanks,
-}) {
+export default function useCounterInputRisingEdge({ isPlay, sensorsData, setDroppedTanks }) {
   React.useEffect(() => {
     if (!isPlay) return;
 
@@ -73,13 +74,15 @@ export default function useCounterInputRisingEdge({
 
       // ✅ fast lookup by deviceId (handles deviceId vs device_id)
       const byDeviceId = new Map(
-        rows.map((r) => [String(r.deviceId ?? r.device_id ?? "").trim(), r])
+        rows
+          .map((r) => [String(r.deviceId ?? r.device_id ?? "").trim(), r])
+          .filter(([id]) => id)
       );
 
       let changed = false;
 
       const next = prev.map((obj) => {
-        if (obj.shape !== "counterInput") return obj;
+        if (obj?.shape !== "counterInput") return obj;
 
         const deviceId = String(obj?.properties?.tag?.deviceId || "").trim();
         const field = String(obj?.properties?.tag?.field || "").trim();
@@ -88,23 +91,46 @@ export default function useCounterInputRisingEdge({
         const row = byDeviceId.get(deviceId) || null;
         if (!row) return obj;
 
-        const cur01 = to01(readTagFromRow(row, field));
+        const raw = readTagFromRow(row, field);
+        const cur01 = to01(raw);
         if (cur01 === null) return obj;
 
         // ✅ IMPORTANT: init _prev01 ONLY if it doesn't exist yet
         const prev01Raw = obj?.properties?._prev01;
         const prev01 =
-          prev01Raw === undefined || prev01Raw === null
-            ? cur01
-            : Number(prev01Raw);
+          prev01Raw === undefined || prev01Raw === null ? cur01 : Number(prev01Raw);
 
         const oldCount = Number(obj?.properties?.count ?? obj?.value ?? 0) || 0;
 
+        // ✅ DEBUG TRACE (toggle in console)
+        if (window.__CF_COUNTER_DEBUG) {
+          console.log("[CF COUNTER] sample", {
+            objId: obj.id,
+            deviceId,
+            field,
+            raw,
+            prev01,
+            cur01,
+            oldCount,
+            ts: new Date().toISOString(),
+          });
+        }
+
         // ✅ rising edge 0 -> 1
         if (prev01 === 0 && cur01 === 1) {
-          changed = true;
           const nextCount = oldCount + 1;
 
+          if (window.__CF_COUNTER_DEBUG) {
+            console.log("[CF COUNTER] RISING EDGE -> INCREMENT", {
+              objId: obj.id,
+              deviceId,
+              field,
+              oldCount,
+              nextCount,
+            });
+          }
+
+          changed = true;
           return {
             ...obj,
             value: nextCount,
@@ -117,8 +143,18 @@ export default function useCounterInputRisingEdge({
           };
         }
 
-        // ✅ keep prev state synced
+        // ✅ keep prev state synced (so next rising edge can be detected)
         if (prev01 !== cur01) {
+          if (window.__CF_COUNTER_DEBUG) {
+            console.log("[CF COUNTER] prev sync", {
+              objId: obj.id,
+              deviceId,
+              field,
+              from: prev01,
+              to: cur01,
+            });
+          }
+
           changed = true;
           return {
             ...obj,
