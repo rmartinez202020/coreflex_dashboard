@@ -516,6 +516,17 @@ React.useEffect(() => {
     const rows = getRows(sensorsData);
     if (!rows.length) return prev;
 
+    // ✅ DEBUG HERE (TOP OF UPDATER)
+  console.log("[Counter] PLAY updater fired");
+  console.log("[Counter] sensorsData:", sensorsData);
+  console.log("[Counter] rows length:", rows.length);
+  if (rows.length) {
+    console.log("[Counter] first row keys:", Object.keys(rows[0] || {}).slice(0, 25));
+    console.log("[Counter] first row:", rows[0]);
+  }
+
+  if (!rows.length) return prev;
+
     let changed = false;
 
     const next = prev.map((obj) => {
