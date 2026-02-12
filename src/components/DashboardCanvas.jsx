@@ -2,16 +2,23 @@
 import React from "react";
 import { DndContext } from "@dnd-kit/core";
 import AlarmLogWindow from "./AlarmLogWindow";
+
 import DraggableDroppedTank from "./DraggableDroppedTank";
 import DraggableTextBox from "./DraggableTextBox";
 import DraggableImage from "./DraggableImage";
 import DraggableDisplayBox from "./DraggableDisplayBox";
+
+// ✅ NEW
 import DraggableGraphicDisplay from "./DraggableGraphicDisplay";
+
+// ✅ NEW: Alarm Log widget (minimized icon)
 import DraggableAlarmLog from "./DraggableAlarmLog";
+
+// ✅ Toggle switch visual
 import ToggleSwitchControl from "./controls/ToggleSwitchControl";
+
+// ✅ Push button visual
 import PushButtonControl from "./controls/PushButtonControl";
-import useCounterInputRisingEdge from "../hooks/useCounterInputRisingEdge";
-import useZOrder from "../hooks/useZOrder";
 
 import {
   StandardTank,
@@ -498,25 +505,190 @@ export default function DashboardCanvas({
   onOpenCounterInputSettings,
 }) {
   const isPlay = dashboardMode === "play";
-  
-  // ✅ COUNTER INPUT rising edge logic (moved to hook)
-  useCounterInputRisingEdge({
-    isPlay,
-    sensorsData,
-    setDroppedTanks,
-    debug: false, // turn true if you want console logs
+
+// ✅ COUNTER INPUT — increment on DI rising edge (0 -> 1) using DB rows
+React.useEffect(() => {
+  if (!isPlay) return;
+
+  setDroppedTanks((prev) => {
+    if (!Array.isArray(prev) || prev.length === 0) return prev;
+
+    const rows = getRows(sensorsData);
+    if (!rows.length) return prev;
+
+    // ✅ DEBUG HERE (TOP OF UPDATER)
+  console.log("[Counter] PLAY updater fired");
+  console.log("[Counter] sensorsData:", sensorsData);
+  console.log("[Counter] rows length:", rows.length);
+  if (rows.length) {
+    console.log("[Counter] first row keys:", Object.keys(rows[0] || {}).slice(0, 25));
+    console.log("[Counter] first row:", rows[0]);
+  }
+
+  if (!rows.length) return prev;
+
+    let changed = false;
+
+    const next = prev.map((obj) => {
+      if (obj.shape !== "counterInput") return obj;
+
+      const deviceId = String(obj?.properties?.tag?.deviceId || "").trim();
+      const field = String(obj?.properties?.tag?.field || "").trim();
+      if (!deviceId || !field) return obj;
+
+      const row =
+        rows.find(
+          (r) => String(r.deviceId ?? r.device_id ?? "").trim() === deviceId
+        ) || null;
+      if (!row) return obj;
+
+      const cur01 = to01(readTagFromRow(row, field));
+      if (cur01 === null) return obj;
+
+      // ✅ IMPORTANT: init _prev01 ONLY if it doesn't exist yet
+      const prev01Raw = obj?.properties?._prev01;
+      const prev01 =
+        prev01Raw === undefined || prev01Raw === null
+          ? cur01
+          : Number(prev01Raw);
+
+      const oldCount = Number(obj?.properties?.count ?? obj?.value ?? 0) || 0;
+
+      // ✅ rising edge 0 -> 1
+      if (prev01 === 0 && cur01 === 1) {
+        changed = true;
+        const nextCount = oldCount + 1;
+
+        return {
+          ...obj,
+          value: nextCount,
+          count: nextCount,
+          properties: {
+            ...(obj.properties || {}),
+            count: nextCount,
+            _prev01: 1,
+          },
+        };
+      }
+
+      // ✅ keep prev state synced
+      if (prev01 !== cur01) {
+        changed = true;
+        return {
+          ...obj,
+          properties: {
+            ...(obj.properties || {}),
+            _prev01: cur01,
+          },
+        };
+      }
+
+      return obj;
+    });
+
+    return changed ? next : prev;
   });
+}, [isPlay, sensorsData, setDroppedTanks]);
 
-  const { getTankZ, bringToFront, sendToBack } = useZOrder({
-  droppedTanks,
-  setDroppedTanks,
-});
 
-// temporary: remove once context menu uses these
-void bringToFront;
-void sendToBack;
+  // =====================================================
+  // ✅ Z-ORDER HELPERS (Option A) — STABLE + NO CRASH
+  // - Defines getTankZ (fixes your crash)
+  // - Works with BOTH fields: z (new) + zIndex (legacy)
+  // - No negative z; send-to-back will not "disappear"
+  // - Keeps items unique + contiguous layering
+  // =====================================================
 
-  
+  // ✅ Source of truth for z (new + legacy)
+  const getTankZ = React.useCallback((t) => {
+    return Number(t?.z ?? t?.zIndex ?? 0) || 0;
+  }, []);
+
+  // ✅ Normalize list: ensure every item has z & zIndex >= 1
+  const normalizeZ = React.useCallback(
+    (list) => {
+      const arr = Array.isArray(list) ? list : [];
+      let next = 1;
+
+      return arr.map((t) => {
+        const base =
+          t?.z !== undefined && t?.z !== null
+            ? t.z
+            : t?.zIndex !== undefined && t?.zIndex !== null
+            ? t.zIndex
+            : next++;
+
+        const safe = Math.max(1, Number(base) || 1);
+
+        return { ...t, z: safe, zIndex: safe };
+      });
+    },
+    []
+  );
+
+  // ✅ Auto-normalize once whenever we see missing z/zIndex
+  React.useEffect(() => {
+    if (!Array.isArray(droppedTanks) || droppedTanks.length === 0) return;
+
+    const missing = droppedTanks.some((t) => t?.z == null || t?.zIndex == null);
+    if (!missing) return;
+
+    setDroppedTanks((prev) => normalizeZ(prev));
+  }, [droppedTanks, setDroppedTanks, normalizeZ]);
+
+  // ✅ Stable bring front/back (reorders by shifting neighbors)
+  const bringToFront = React.useCallback(
+    (id) => {
+      setDroppedTanks((prev) => {
+        const items = normalizeZ(prev);
+        const target = items.find((t) => t.id === id);
+        if (!target) return items;
+
+        const oldZ = target.z;
+        const maxZ = Math.max(1, ...items.map((t) => t.z));
+
+        if (oldZ === maxZ) return items;
+
+        return items.map((t) => {
+          if (t.id === id) return { ...t, z: maxZ, zIndex: maxZ };
+          if (t.z > oldZ) return { ...t, z: t.z - 1, zIndex: t.z - 1 };
+          return t;
+        });
+      });
+    },
+    [setDroppedTanks, normalizeZ]
+  );
+
+  const sendToBack = React.useCallback(
+    (id) => {
+      setDroppedTanks((prev) => {
+        const items = normalizeZ(prev);
+        const target = items.find((t) => t.id === id);
+        if (!target) return items;
+
+        const oldZ = target.z;
+        const minZ = 1;
+
+        if (oldZ === minZ) return items;
+
+        return items.map((t) => {
+          if (t.id === id) return { ...t, z: minZ, zIndex: minZ };
+          if (t.z < oldZ) return { ...t, z: t.z + 1, zIndex: t.z + 1 };
+          return t;
+        });
+      });
+    },
+    [setDroppedTanks, normalizeZ]
+  );
+
+  // ✅ Bind to context menu actions if your menu calls these
+  // (If your menu uses different callback names, keep these in scope.)
+  React.useEffect(() => {
+    // no-op; just here to avoid eslint "unused" if you haven’t wired them yet
+    void bringToFront;
+    void sendToBack;
+  }, [bringToFront, sendToBack]);
+
   return (
     <DndContext
       sensors={isPlay ? [] : sensors}
