@@ -98,6 +98,7 @@ export default function CounterInputSettingsModal({ open, tank, onClose, onSave 
   // =========================
   const modalRef = React.useRef(null);
   const [pos, setPos] = React.useState(null); // {x,y} once measured
+  const [isDragging, setIsDragging] = React.useState(false);
 
   const dragRef = React.useRef({
     dragging: false,
@@ -122,8 +123,16 @@ export default function CounterInputSettingsModal({ open, tank, onClose, onSave 
       const vh = window.innerHeight;
 
       const margin = 10;
-      const x = clamp((vw - rect.width) / 2, margin, Math.max(margin, vw - rect.width - margin));
-      const y = clamp((vh - rect.height) / 2, margin, Math.max(margin, vh - rect.height - margin));
+      const x = clamp(
+        (vw - rect.width) / 2,
+        margin,
+        Math.max(margin, vw - rect.width - margin)
+      );
+      const y = clamp(
+        (vh - rect.height) / 2,
+        margin,
+        Math.max(margin, vh - rect.height - margin)
+      );
       setPos({ x, y });
     });
   }, []);
@@ -138,14 +147,12 @@ export default function CounterInputSettingsModal({ open, tank, onClose, onSave 
     const el = modalRef.current;
     if (!el) return;
 
-    // ensure we have a starting pos (center it first time)
     const rect = el.getBoundingClientRect();
-    const current = pos ?? {
-      x: rect.left,
-      y: rect.top,
-    };
+    const current = pos ?? { x: rect.left, y: rect.top };
 
     dragRef.current.dragging = true;
+    setIsDragging(true);
+
     dragRef.current.startX = e.clientX;
     dragRef.current.startY = e.clientY;
     dragRef.current.originX = current.x;
@@ -185,7 +192,9 @@ export default function CounterInputSettingsModal({ open, tank, onClose, onSave 
 
   const onHeaderPointerUp = (e) => {
     if (!dragRef.current.dragging) return;
+
     dragRef.current.dragging = false;
+    setIsDragging(false);
 
     try {
       e.currentTarget.releasePointerCapture(dragRef.current.pointerId);
@@ -213,6 +222,7 @@ export default function CounterInputSettingsModal({ open, tank, onClose, onSave 
 
     // reset position so it recenters each open (optional)
     setPos(null);
+    setIsDragging(false);
   }, [open, tank?.id]);
 
   // when open, center after first paint
@@ -360,8 +370,7 @@ export default function CounterInputSettingsModal({ open, tank, onClose, onSave 
 
   const tag01 = React.useMemo(() => to01(backendTagValue), [backendTagValue]);
 
-  const tagIsOnline =
-    deviceIsOnline && backendTagValue !== undefined && backendTagValue !== null;
+  const tagIsOnline = deviceIsOnline && backendTagValue !== undefined && backendTagValue !== null;
 
   const lastSeenText = React.useMemo(() => {
     const ts = telemetryRow?.lastSeen || telemetryRow?.last_seen || "";
@@ -457,14 +466,18 @@ export default function CounterInputSettingsModal({ open, tank, onClose, onSave 
             fontSize: 16,
             letterSpacing: 0.2,
             userSelect: "none",
-            cursor: "move", // ✅ show draggable cursor
+            cursor: isDragging ? "grabbing" : "grab", // ✅ hand cursor
           }}
           title="Drag to move"
         >
           <span>Counter Input (DI)</span>
 
           <button
-            onClick={onClose}
+            onPointerDown={(e) => e.stopPropagation()} // ✅ prevent drag
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose?.();
+            }}
             style={{
               border: "none",
               background: "transparent",
@@ -687,9 +700,7 @@ export default function CounterInputSettingsModal({ open, tank, onClose, onSave 
 
               {/* ✅ DI dropdown */}
               <div style={{ marginBottom: 12 }}>
-                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-                  Select DI
-                </div>
+                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>Select DI</div>
                 <select
                   value={field}
                   onChange={(e) => setField(e.target.value)}
