@@ -5,8 +5,10 @@ export default function DraggableCounterInput({
   variant = "menu", // "menu" | "canvas"
   label = "Counter Input (DI)",
 
-  // canvas defaults
-  value = 0,
+  // ✅ CANVAS: we support either passing `tank` OR passing value props
+  tank = null, // optional full dropped object (preferred)
+  value = 0, // legacy fallback
+  count, // optional legacy fallback
 
   // canvas positioning
   x,
@@ -27,9 +29,32 @@ export default function DraggableCounterInput({
   // ✅ CANVAS VARIANT
   // ===============================
   if (variant === "canvas") {
-    const display = Number.isFinite(Number(value))
-      ? String(Math.trunc(Number(value))).padStart(4, "0")
-      : "0000";
+    // ✅ Prefer tank.properties (this is where your modal saves data)
+    const props = tank?.properties || {};
+
+    const title = String(props?.title || label || "Counter").slice(0, 32);
+
+    const digitsRaw = Number(props?.digits ?? 4);
+    const digits = Number.isFinite(digitsRaw)
+      ? Math.max(1, Math.min(10, digitsRaw))
+      : 4;
+
+    // ✅ Read count from (best -> worst):
+    // 1) tank.properties.count (modal + your increment logic)
+    // 2) tank.value / tank.count (if you sync them)
+    // 3) explicit props: count/value (legacy)
+    // 4) default 0
+    const nRaw =
+      props?.count ??
+      tank?.value ??
+      tank?.count ??
+      count ??
+      value ??
+      0;
+
+    const n = Number(nRaw);
+    const safe = Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : 0;
+    const display = String(safe).padStart(digits, "0");
 
     return (
       <div
@@ -42,7 +67,7 @@ export default function DraggableCounterInput({
           position: x !== undefined && y !== undefined ? "absolute" : "relative",
           left: x,
           top: y,
-          width: 120,
+          width: 150,
           borderRadius: 6,
           border: isSelected ? "2px solid #2563eb" : "2px solid #9ca3af",
           background: "#f3f4f6",
@@ -54,25 +79,30 @@ export default function DraggableCounterInput({
           userSelect: "none",
           cursor: "move",
         }}
-        title={label}
+        title={title}
       >
         {/* TITLE */}
         <div
           style={{
-            fontWeight: 700,
+            fontWeight: 800,
             fontSize: 14,
             marginBottom: 6,
             color: "#111827",
+            textAlign: "center",
+            width: "100%",
+            whiteSpace: "nowrap",
+            overflow: "hidden",
+            textOverflow: "ellipsis",
           }}
         >
-          Counter
+          {title}
         </div>
 
         {/* DISPLAY */}
         <div
           style={{
             width: "100%",
-            height: 34,
+            height: 36,
             borderRadius: 4,
             border: "2px solid #8f8f8f",
             background: "#e5e7eb",
@@ -105,7 +135,7 @@ export default function DraggableCounterInput({
             border: "none",
             background: "#ef4444",
             color: "white",
-            fontWeight: 700,
+            fontWeight: 800,
             fontSize: 13,
             cursor: "pointer",
             boxShadow: "0 2px 0 rgba(0,0,0,0.25)",
