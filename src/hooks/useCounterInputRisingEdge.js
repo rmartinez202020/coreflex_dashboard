@@ -62,6 +62,21 @@ export default function useCounterInputRisingEdge({ isPlay, sensorsData, setDrop
   React.useEffect(() => {
     if (!isPlay) return;
 
+if (window.__CF_COUNTER_DEBUG) {
+  const rowsNow = getRows(sensorsData);
+  const counterLen = Array.isArray(prev)
+    ? prev.filter((o) => o?.shape === "counterInput").length
+    : 0;
+
+  console.log("[CF COUNTER] tick", {
+    rowsLen: rowsNow.length,
+    counterLen,
+    firstRow: rowsNow[0] ? { deviceId: rowsNow[0].deviceId ?? rowsNow[0].device_id } : null,
+    ts: new Date().toISOString(),
+  });
+}
+
+
     setDroppedTanks((prev) => {
 
         if (window.__CF_COUNTER_DEBUG) {
