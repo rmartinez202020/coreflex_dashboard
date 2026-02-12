@@ -416,6 +416,50 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
     </div>
   );
 }
+// ✅ always get an array of DB rows (whatever shape the parent passes)
+function getRows(sensorsData) {
+  if (Array.isArray(sensorsData)) return sensorsData;
+
+  if (sensorsData && Array.isArray(sensorsData.rows)) return sensorsData.rows;
+  if (sensorsData && Array.isArray(sensorsData.data)) return sensorsData.data;
+  if (sensorsData && Array.isArray(sensorsData.devices)) return sensorsData.devices;
+
+  return [];
+}
+
+// ✅ SAME read behavior as CounterInputSettingsModal
+function readTagFromRow(row, field) {
+  if (!row || !field) return undefined;
+
+  if (row[field] !== undefined) return row[field];
+
+  const up = String(field).toUpperCase();
+  if (row[up] !== undefined) return row[up];
+
+  if (/^di[1-6]$/i.test(field)) {
+    const n = String(field).toLowerCase().replace("di", "");
+    const alt = `in${n}`;
+    if (row[alt] !== undefined) return row[alt];
+    const altUp = alt.toUpperCase();
+    if (row[altUp] !== undefined) return row[altUp];
+  }
+
+  return undefined;
+}
+
+function to01(v) {
+  if (v === undefined || v === null) return null;
+  if (typeof v === "boolean") return v ? 1 : 0;
+  if (typeof v === "number") return v > 0 ? 1 : 0;
+  if (typeof v === "string") {
+    const s = v.trim().toLowerCase();
+    if (s === "1" || s === "true" || s === "on" || s === "yes") return 1;
+    if (s === "0" || s === "false" || s === "off" || s === "no") return 0;
+    const n = Number(s);
+    if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
+  }
+  return v ? 1 : 0;
+}
 
 export default function DashboardCanvas({
   dashboardMode,
@@ -462,61 +506,14 @@ export default function DashboardCanvas({
 }) {
   const isPlay = dashboardMode === "play";
 
-
-// ✅ COUNTER INPUT — increment on DI rising edge (0 -> 1)
+// ✅ COUNTER INPUT — increment on DI rising edge (0 -> 1) using DB rows
 React.useEffect(() => {
   if (!isPlay) return;
-
-  const readRowField = (row, field) => {
-    if (!row || !field) return undefined;
-
-    const f = String(field).trim();
-    const fLower = f.toLowerCase();
-
-    const m = fLower.match(/^di(\d+)$/);
-    const n = m ? m[1] : null;
-
-    const candidates = [];
-
-    candidates.push(f);
-    candidates.push(fLower);
-    candidates.push(f.toUpperCase());
-
-    if (n) {
-      const diForms = [`di${n}`, `di_${n}`, `di-${n}`, `di ${n}`];
-      const inForms = [`in${n}`, `in_${n}`, `in-${n}`, `in ${n}`];
-
-      for (const k of [...diForms, ...inForms]) {
-        candidates.push(k);
-        candidates.push(k.toUpperCase());
-      }
-    }
-
-    for (const key of candidates) {
-      if (row[key] !== undefined) return row[key];
-    }
-
-    return undefined;
-  };
-
-  const to01 = (v) => {
-    if (v === undefined || v === null) return null;
-    if (typeof v === "boolean") return v ? 1 : 0;
-    if (typeof v === "number") return v > 0 ? 1 : 0;
-    if (typeof v === "string") {
-      const s = v.trim().toLowerCase();
-      if (s === "1" || s === "true" || s === "on" || s === "yes") return 1;
-      if (s === "0" || s === "false" || s === "off" || s === "no") return 0;
-      const n = Number(s);
-      if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
-    }
-    return v ? 1 : 0;
-  };
 
   setDroppedTanks((prev) => {
     if (!Array.isArray(prev) || prev.length === 0) return prev;
 
-    const rows = Array.isArray(sensorsData) ? sensorsData : [];
+    const rows = getRows(sensorsData);
     if (!rows.length) return prev;
 
     let changed = false;
@@ -529,17 +526,24 @@ React.useEffect(() => {
       if (!deviceId || !field) return obj;
 
       const row =
-        rows.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === deviceId) ||
-        null;
+        rows.find(
+          (r) => String(r.deviceId ?? r.device_id ?? "").trim() === deviceId
+        ) || null;
       if (!row) return obj;
 
-      const cur01 = to01(readRowField(row, field));
+      const cur01 = to01(readTagFromRow(row, field));
       if (cur01 === null) return obj;
 
-      const prev01 = Number(obj?.properties?._prev01 ?? cur01); // ✅ init to current
+      // ✅ IMPORTANT: init _prev01 ONLY if it doesn't exist yet
+      const prev01Raw = obj?.properties?._prev01;
+      const prev01 =
+        prev01Raw === undefined || prev01Raw === null
+          ? cur01
+          : Number(prev01Raw);
+
       const oldCount = Number(obj?.properties?.count ?? obj?.value ?? 0) || 0;
 
-      // rising edge
+      // ✅ rising edge 0 -> 1
       if (prev01 === 0 && cur01 === 1) {
         changed = true;
         const nextCount = oldCount + 1;
@@ -556,7 +560,7 @@ React.useEffect(() => {
         };
       }
 
-      // keep prev state synced (so we "arm" correctly)
+      // ✅ keep prev state synced
       if (prev01 !== cur01) {
         changed = true;
         return {
