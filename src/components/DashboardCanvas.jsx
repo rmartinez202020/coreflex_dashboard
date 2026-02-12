@@ -462,43 +462,42 @@ export default function DashboardCanvas({
 }) {
   const isPlay = dashboardMode === "play";
 
-  // ✅ COUNTER INPUT — increment on DI rising edge (0 -> 1)
+
+// ✅ COUNTER INPUT — increment on DI rising edge (0 -> 1)
 React.useEffect(() => {
   if (!isPlay) return;
 
   const readRowField = (row, field) => {
-  if (!row || !field) return undefined;
+    if (!row || !field) return undefined;
 
-  const f = String(field).trim();
-  const fLower = f.toLowerCase();
+    const f = String(field).trim();
+    const fLower = f.toLowerCase();
 
-  const m = fLower.match(/^di(\d+)$/);
-  const n = m ? m[1] : null;
+    const m = fLower.match(/^di(\d+)$/);
+    const n = m ? m[1] : null;
 
-  const candidates = [];
+    const candidates = [];
 
-  // original direct forms
-  candidates.push(f);
-  candidates.push(fLower);
-  candidates.push(f.toUpperCase());
+    candidates.push(f);
+    candidates.push(fLower);
+    candidates.push(f.toUpperCase());
 
-  if (n) {
-    const diForms = [`di${n}`, `di_${n}`, `di-${n}`, `di ${n}`];
-    const inForms = [`in${n}`, `in_${n}`, `in-${n}`, `in ${n}`];
+    if (n) {
+      const diForms = [`di${n}`, `di_${n}`, `di-${n}`, `di ${n}`];
+      const inForms = [`in${n}`, `in_${n}`, `in-${n}`, `in ${n}`];
 
-    for (const k of [...diForms, ...inForms]) {
-      candidates.push(k);
-      candidates.push(k.toUpperCase());
+      for (const k of [...diForms, ...inForms]) {
+        candidates.push(k);
+        candidates.push(k.toUpperCase());
+      }
     }
-  }
 
-  for (const key of candidates) {
-    if (row[key] !== undefined) return row[key];
-  }
+    for (const key of candidates) {
+      if (row[key] !== undefined) return row[key];
+    }
 
-  return undefined;
-};
-
+    return undefined;
+  };
 
   const to01 = (v) => {
     if (v === undefined || v === null) return null;
@@ -514,77 +513,66 @@ React.useEffect(() => {
     return v ? 1 : 0;
   };
 
-  const timer = setInterval(() => {
-    if (document.hidden) return;
+  setDroppedTanks((prev) => {
+    if (!Array.isArray(prev) || prev.length === 0) return prev;
 
-    setDroppedTanks((prev) => {
-      if (!Array.isArray(prev) || prev.length === 0) return prev;
+    const rows = Array.isArray(sensorsData) ? sensorsData : [];
+    if (!rows.length) return prev;
 
-      let changed = false;
+    let changed = false;
 
-      const next = prev.map((obj) => {
-        if (obj.shape !== "counterInput") return obj;
+    const next = prev.map((obj) => {
+      if (obj.shape !== "counterInput") return obj;
 
-        const deviceId = String(obj?.properties?.tag?.deviceId || "").trim();
-        const field = String(obj?.properties?.tag?.field || "").trim();
-        if (!deviceId || !field) return obj;
+      const deviceId = String(obj?.properties?.tag?.deviceId || "").trim();
+      const field = String(obj?.properties?.tag?.field || "").trim();
+      if (!deviceId || !field) return obj;
 
-        const rows = Array.isArray(sensorsData) ? sensorsData : [];
-        const row =
-          rows.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === deviceId) || null;
+      const row =
+        rows.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === deviceId) ||
+        null;
+      if (!row) return obj;
 
-        if (!row) return obj;
+      const cur01 = to01(readRowField(row, field));
+      if (cur01 === null) return obj;
 
-        const cur01 = to01(readRowField(row, field));
-        if (cur01 === null) return obj;
+      const prev01 = Number(obj?.properties?._prev01 ?? cur01); // ✅ init to current
+      const oldCount = Number(obj?.properties?.count ?? obj?.value ?? 0) || 0;
 
-        const prev01 = Number(obj?.properties?._prev01 ?? 0);
+      // rising edge
+      if (prev01 === 0 && cur01 === 1) {
+        changed = true;
+        const nextCount = oldCount + 1;
 
-        // rising edge -> increment
-       if (prev01 === 0 && cur01 === 1) {
-  changed = true;
+        return {
+          ...obj,
+          value: nextCount,
+          count: nextCount,
+          properties: {
+            ...(obj.properties || {}),
+            count: nextCount,
+            _prev01: 1,
+          },
+        };
+      }
 
-  const oldCount =
-    Number(obj?.properties?.count ?? obj?.count ?? obj?.value ?? 0) || 0;
+      // keep prev state synced (so we "arm" correctly)
+      if (prev01 !== cur01) {
+        changed = true;
+        return {
+          ...obj,
+          properties: {
+            ...(obj.properties || {}),
+            _prev01: cur01,
+          },
+        };
+      }
 
-  const nextCount = oldCount + 1;
-
-  return {
-    ...obj,
-
-    // ✅ keep legacy/top-level fields in sync (many widgets read these)
-    count: nextCount,
-    value: nextCount,
-
-    properties: {
-      ...(obj.properties || {}),
-      count: nextCount,
-      _prev01: 1,
-    },
-  };
-}
-
-
-        // falling edge -> arm for next pulse
-        if (prev01 === 1 && cur01 === 0) {
-          changed = true;
-          return {
-            ...obj,
-            properties: {
-              ...(obj.properties || {}),
-              _prev01: 0,
-            },
-          };
-        }
-
-        return obj;
-      });
-
-      return changed ? next : prev;
+      return obj;
     });
-  }, 200); // fast enough to catch pulses
 
-  return () => clearInterval(timer);
+    return changed ? next : prev;
+  });
 }, [isPlay, sensorsData, setDroppedTanks]);
 
 
@@ -1039,16 +1027,18 @@ if (tank.shape === "counterInput") {
         decimals={0}
         isPlay={isPlay}
         onReset={() => {
-          if (!isPlay) return; // ✅ reset only in play
-          commonProps.onUpdate?.({
-            ...tank,
-            properties: {
-              ...(tank.properties || {}),
-              count: 0,
-              _prev01: 0,
-            },
-          });
-        }}
+          if (!isPlay) return;
+  commonProps.onUpdate?.({
+    ...tank,
+    value: 0,
+    count: 0,
+    properties: {
+      ...(tank.properties || {}),
+      count: 0,
+      _prev01: 0,
+    },
+  });
+}}
       />
     </DraggableDroppedTank>
   );
