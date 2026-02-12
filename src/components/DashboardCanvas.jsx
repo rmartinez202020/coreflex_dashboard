@@ -2,23 +2,16 @@
 import React from "react";
 import { DndContext } from "@dnd-kit/core";
 import AlarmLogWindow from "./AlarmLogWindow";
-
 import DraggableDroppedTank from "./DraggableDroppedTank";
 import DraggableTextBox from "./DraggableTextBox";
 import DraggableImage from "./DraggableImage";
 import DraggableDisplayBox from "./DraggableDisplayBox";
-
-// ✅ NEW
 import DraggableGraphicDisplay from "./DraggableGraphicDisplay";
-
-// ✅ NEW: Alarm Log widget (minimized icon)
 import DraggableAlarmLog from "./DraggableAlarmLog";
-
-// ✅ Toggle switch visual
 import ToggleSwitchControl from "./controls/ToggleSwitchControl";
-
-// ✅ Push button visual
 import PushButtonControl from "./controls/PushButtonControl";
+import AlarmLogResizeEdges from "./alarm/AlarmLogResizeEdges";
+
 
 import {
   StandardTank,
