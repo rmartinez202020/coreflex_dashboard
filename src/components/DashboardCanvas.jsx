@@ -524,19 +524,29 @@ React.useEffect(() => {
         const prev01 = Number(obj?.properties?._prev01 ?? 0);
 
         // rising edge -> increment
-        if (prev01 === 0 && cur01 === 1) {
-          changed = true;
-          const oldCount = Number(obj?.properties?.count ?? 0) || 0;
+       if (prev01 === 0 && cur01 === 1) {
+  changed = true;
 
-          return {
-            ...obj,
-            properties: {
-              ...(obj.properties || {}),
-              count: oldCount + 1,
-              _prev01: 1,
-            },
-          };
-        }
+  const oldCount =
+    Number(obj?.properties?.count ?? obj?.count ?? obj?.value ?? 0) || 0;
+
+  const nextCount = oldCount + 1;
+
+  return {
+    ...obj,
+
+    // ✅ keep legacy/top-level fields in sync (many widgets read these)
+    count: nextCount,
+    value: nextCount,
+
+    properties: {
+      ...(obj.properties || {}),
+      count: nextCount,
+      _prev01: 1,
+    },
+  };
+}
+
 
         // falling edge -> arm for next pulse
         if (prev01 === 1 && cur01 === 0) {
