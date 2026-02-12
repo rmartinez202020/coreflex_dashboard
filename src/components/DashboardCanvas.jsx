@@ -35,6 +35,9 @@ import {
   DraggableCounterInput,
 } from "./indicators";
 
+// ✅ NEW: extracted counter logic
+import useCounterInputRisingEdge from "../hooks/useCounterInputRisingEdge";
+
 // ===============================
 // ✅ helpers for Display Output input formatting
 // ===============================
@@ -416,50 +419,6 @@ function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
     </div>
   );
 }
-// ✅ always get an array of DB rows (whatever shape the parent passes)
-function getRows(sensorsData) {
-  if (Array.isArray(sensorsData)) return sensorsData;
-
-  if (sensorsData && Array.isArray(sensorsData.rows)) return sensorsData.rows;
-  if (sensorsData && Array.isArray(sensorsData.data)) return sensorsData.data;
-  if (sensorsData && Array.isArray(sensorsData.devices)) return sensorsData.devices;
-
-  return [];
-}
-
-// ✅ SAME read behavior as CounterInputSettingsModal
-function readTagFromRow(row, field) {
-  if (!row || !field) return undefined;
-
-  if (row[field] !== undefined) return row[field];
-
-  const up = String(field).toUpperCase();
-  if (row[up] !== undefined) return row[up];
-
-  if (/^di[1-6]$/i.test(field)) {
-    const n = String(field).toLowerCase().replace("di", "");
-    const alt = `in${n}`;
-    if (row[alt] !== undefined) return row[alt];
-    const altUp = alt.toUpperCase();
-    if (row[altUp] !== undefined) return row[altUp];
-  }
-
-  return undefined;
-}
-
-function to01(v) {
-  if (v === undefined || v === null) return null;
-  if (typeof v === "boolean") return v ? 1 : 0;
-  if (typeof v === "number") return v > 0 ? 1 : 0;
-  if (typeof v === "string") {
-    const s = v.trim().toLowerCase();
-    if (s === "1" || s === "true" || s === "on" || s === "yes") return 1;
-    if (s === "0" || s === "false" || s === "off" || s === "no") return 0;
-    const n = Number(s);
-    if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
-  }
-  return v ? 1 : 0;
-}
 
 export default function DashboardCanvas({
   dashboardMode,
@@ -506,127 +465,34 @@ export default function DashboardCanvas({
 }) {
   const isPlay = dashboardMode === "play";
 
-// ✅ COUNTER INPUT — increment on DI rising edge (0 -> 1) using DB rows
-React.useEffect(() => {
-  if (!isPlay) return;
-
-  setDroppedTanks((prev) => {
-    if (!Array.isArray(prev) || prev.length === 0) return prev;
-
-    const rows = getRows(sensorsData);
-    if (!rows.length) return prev;
-
-    // ✅ DEBUG HERE (TOP OF UPDATER)
-  console.log("[Counter] PLAY updater fired");
-  console.log("[Counter] sensorsData:", sensorsData);
-  console.log("[Counter] rows length:", rows.length);
-  if (rows.length) {
-    console.log("[Counter] first row keys:", Object.keys(rows[0] || {}).slice(0, 25));
-    console.log("[Counter] first row:", rows[0]);
-  }
-
-  if (!rows.length) return prev;
-
-    let changed = false;
-
-    const next = prev.map((obj) => {
-      if (obj.shape !== "counterInput") return obj;
-
-      const deviceId = String(obj?.properties?.tag?.deviceId || "").trim();
-      const field = String(obj?.properties?.tag?.field || "").trim();
-      if (!deviceId || !field) return obj;
-
-      const row =
-        rows.find(
-          (r) => String(r.deviceId ?? r.device_id ?? "").trim() === deviceId
-        ) || null;
-      if (!row) return obj;
-
-      const cur01 = to01(readTagFromRow(row, field));
-      if (cur01 === null) return obj;
-
-      // ✅ IMPORTANT: init _prev01 ONLY if it doesn't exist yet
-      const prev01Raw = obj?.properties?._prev01;
-      const prev01 =
-        prev01Raw === undefined || prev01Raw === null
-          ? cur01
-          : Number(prev01Raw);
-
-      const oldCount = Number(obj?.properties?.count ?? obj?.value ?? 0) || 0;
-
-      // ✅ rising edge 0 -> 1
-      if (prev01 === 0 && cur01 === 1) {
-        changed = true;
-        const nextCount = oldCount + 1;
-
-        return {
-          ...obj,
-          value: nextCount,
-          count: nextCount,
-          properties: {
-            ...(obj.properties || {}),
-            count: nextCount,
-            _prev01: 1,
-          },
-        };
-      }
-
-      // ✅ keep prev state synced
-      if (prev01 !== cur01) {
-        changed = true;
-        return {
-          ...obj,
-          properties: {
-            ...(obj.properties || {}),
-            _prev01: cur01,
-          },
-        };
-      }
-
-      return obj;
-    });
-
-    return changed ? next : prev;
-  });
-}, [isPlay, sensorsData, setDroppedTanks]);
-
+  // ✅ extracted rising-edge counter engine
+  useCounterInputRisingEdge({ isPlay, sensorsData, setDroppedTanks });
 
   // =====================================================
   // ✅ Z-ORDER HELPERS (Option A) — STABLE + NO CRASH
-  // - Defines getTankZ (fixes your crash)
-  // - Works with BOTH fields: z (new) + zIndex (legacy)
-  // - No negative z; send-to-back will not "disappear"
-  // - Keeps items unique + contiguous layering
   // =====================================================
 
-  // ✅ Source of truth for z (new + legacy)
   const getTankZ = React.useCallback((t) => {
     return Number(t?.z ?? t?.zIndex ?? 0) || 0;
   }, []);
 
-  // ✅ Normalize list: ensure every item has z & zIndex >= 1
-  const normalizeZ = React.useCallback(
-    (list) => {
-      const arr = Array.isArray(list) ? list : [];
-      let next = 1;
+  const normalizeZ = React.useCallback((list) => {
+    const arr = Array.isArray(list) ? list : [];
+    let next = 1;
 
-      return arr.map((t) => {
-        const base =
-          t?.z !== undefined && t?.z !== null
-            ? t.z
-            : t?.zIndex !== undefined && t?.zIndex !== null
-            ? t.zIndex
-            : next++;
+    return arr.map((t) => {
+      const base =
+        t?.z !== undefined && t?.z !== null
+          ? t.z
+          : t?.zIndex !== undefined && t?.zIndex !== null
+          ? t.zIndex
+          : next++;
 
-        const safe = Math.max(1, Number(base) || 1);
+      const safe = Math.max(1, Number(base) || 1);
+      return { ...t, z: safe, zIndex: safe };
+    });
+  }, []);
 
-        return { ...t, z: safe, zIndex: safe };
-      });
-    },
-    []
-  );
-
-  // ✅ Auto-normalize once whenever we see missing z/zIndex
   React.useEffect(() => {
     if (!Array.isArray(droppedTanks) || droppedTanks.length === 0) return;
 
@@ -636,7 +502,6 @@ React.useEffect(() => {
     setDroppedTanks((prev) => normalizeZ(prev));
   }, [droppedTanks, setDroppedTanks, normalizeZ]);
 
-  // ✅ Stable bring front/back (reorders by shifting neighbors)
   const bringToFront = React.useCallback(
     (id) => {
       setDroppedTanks((prev) => {
@@ -646,7 +511,6 @@ React.useEffect(() => {
 
         const oldZ = target.z;
         const maxZ = Math.max(1, ...items.map((t) => t.z));
-
         if (oldZ === maxZ) return items;
 
         return items.map((t) => {
@@ -668,7 +532,6 @@ React.useEffect(() => {
 
         const oldZ = target.z;
         const minZ = 1;
-
         if (oldZ === minZ) return items;
 
         return items.map((t) => {
@@ -681,10 +544,7 @@ React.useEffect(() => {
     [setDroppedTanks, normalizeZ]
   );
 
-  // ✅ Bind to context menu actions if your menu calls these
-  // (If your menu uses different callback names, keep these in scope.)
   React.useEffect(() => {
-    // no-op; just here to avoid eslint "unused" if you haven’t wired them yet
     void bringToFront;
     void sendToBack;
   }, [bringToFront, sendToBack]);
@@ -701,20 +561,18 @@ React.useEffect(() => {
         style={{ position: "relative", overflow: "hidden" }}
         onDragOver={(e) => !isPlay && e.preventDefault()}
         onDrop={(e) => !isPlay && handleDrop(e)}
-          onContextMenu={(e) => {
-    if (isPlay) return;          // ✅ no menu in play mode
-    e.preventDefault();          // ✅ stop browser menu
-    e.stopPropagation();         // ✅ don’t bubble
-    handleRightClick?.(e, null); // ✅ RIGHT-CLICK ON EMPTY DASHBOARD
-  }}
-
+        onContextMenu={(e) => {
+          if (isPlay) return; // ✅ no menu in play mode
+          e.preventDefault();
+          e.stopPropagation();
+          handleRightClick?.(e, null);
+        }}
         onMouseDown={(e) => !isPlay && handleCanvasMouseDown(e)}
         onMouseMove={(e) => !isPlay && handleCanvasMouseMove(e)}
         onMouseUp={(e) => !isPlay && handleCanvasMouseUp(e)}
       >
         {droppedTanks
           .slice()
-          // ✅ sort using helper (supports old + new)
           .sort((a, b) => getTankZ(a) - getTankZ(b))
           .map((tank) => {
             const isSelected = selectedIds.includes(tank.id);
@@ -727,17 +585,13 @@ React.useEffect(() => {
               dragDelta,
               dashboardMode,
               onSelect: handleSelect,
-
-              // ✅ Right-click: pass event + object (useContextMenu supports this)
               onRightClick: (e) => handleRightClick?.(e, tank),
-
               onUpdate: (updated) =>
                 setDroppedTanks((prev) =>
                   prev.map((t) => (t.id === updated.id ? updated : t))
                 ),
             };
 
-            // ✅ MINIMIZED ALARM LOG
             if (tank.shape === "alarmLog" && tank.minimized) {
               return (
                 <DraggableAlarmLog
@@ -745,15 +599,12 @@ React.useEffect(() => {
                   obj={tank}
                   selected={isSelected && !isPlay}
                   onSelect={() => handleSelect(tank.id)}
-                  onOpen={() =>
-                    commonProps.onUpdate?.({ ...tank, minimized: false })
-                  }
+                  onOpen={() => commonProps.onUpdate?.({ ...tank, minimized: false })}
                   onLaunch={() => onLaunchAlarmLog?.(tank)}
                 />
               );
             }
 
-            // IMAGE
             if (tank.shape === "img") {
               return (
                 <DraggableDroppedTank {...commonProps}>
@@ -762,7 +613,6 @@ React.useEffect(() => {
               );
             }
 
-            // DISPLAY INPUT
             if (tank.shape === "displayBox") {
               return (
                 <DraggableDroppedTank
@@ -776,7 +626,6 @@ React.useEffect(() => {
               );
             }
 
-            // DISPLAY OUTPUT
             if (tank.shape === "displayOutput") {
               return (
                 <DraggableDroppedTank
@@ -794,27 +643,24 @@ React.useEffect(() => {
               );
             }
 
-            // ✅ GRAPHIC DISPLAY
             if (tank.shape === "graphicDisplay") {
               return (
-             <DraggableGraphicDisplay
-  key={tank.id}
-  tank={tank}
-  selected={isSelected && !isPlay}
-  selectedIds={selectedIds}
-  dragDelta={dragDelta}
-  onSelect={handleSelect}
-  onUpdate={commonProps.onUpdate}
-  onRightClick={(e) => handleRightClick?.(e, tank)}
-  onDoubleClick={() => {
-    if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
-  }}
-/>
-
+                <DraggableGraphicDisplay
+                  key={tank.id}
+                  tank={tank}
+                  selected={isSelected && !isPlay}
+                  selectedIds={selectedIds}
+                  dragDelta={dragDelta}
+                  onSelect={handleSelect}
+                  onUpdate={commonProps.onUpdate}
+                  onRightClick={(e) => handleRightClick?.(e, tank)}
+                  onDoubleClick={() => {
+                    if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
+                  }}
+                />
               );
             }
 
-            // ✅ ALARM LOG (FULL WINDOW + RESIZE)
             if (tank.shape === "alarmLog") {
               const w = tank.w ?? tank.width ?? 780;
               const h = tank.h ?? tank.height ?? 360;
@@ -857,7 +703,6 @@ React.useEffect(() => {
               );
             }
 
-            // TOGGLE
             if (tank.shape === "toggleSwitch" || tank.shape === "toggleControl") {
               const w = tank.w ?? tank.width ?? 180;
               const h = tank.h ?? tank.height ?? 70;
@@ -870,7 +715,6 @@ React.useEffect(() => {
               );
             }
 
-            // PUSH BUTTON NO
             if (tank.shape === "pushButtonNO") {
               const w = tank.w ?? tank.width ?? 110;
               const h = tank.h ?? tank.height ?? 110;
@@ -878,17 +722,11 @@ React.useEffect(() => {
 
               return (
                 <DraggableDroppedTank {...commonProps}>
-                  <PushButtonControl
-                    variant="NO"
-                    width={w}
-                    height={h}
-                    pressed={pressed}
-                  />
+                  <PushButtonControl variant="NO" width={w} height={h} pressed={pressed} />
                 </DraggableDroppedTank>
               );
             }
 
-            // PUSH BUTTON NC
             if (tank.shape === "pushButtonNC") {
               const w = tank.w ?? tank.width ?? 110;
               const h = tank.h ?? tank.height ?? 110;
@@ -896,17 +734,11 @@ React.useEffect(() => {
 
               return (
                 <DraggableDroppedTank {...commonProps}>
-                  <PushButtonControl
-                    variant="NC"
-                    width={w}
-                    height={h}
-                    pressed={pressed}
-                  />
+                  <PushButtonControl variant="NC" width={w} height={h} pressed={pressed} />
                 </DraggableDroppedTank>
               );
             }
 
-            // STANDARD TANK
             if (tank.shape === "standardTank") {
               return (
                 <DraggableDroppedTank {...commonProps}>
@@ -915,7 +747,6 @@ React.useEffect(() => {
               );
             }
 
-            // HORIZONTAL TANK
             if (tank.shape === "horizontalTank") {
               return (
                 <DraggableDroppedTank {...commonProps}>
@@ -924,7 +755,6 @@ React.useEffect(() => {
               );
             }
 
-            // VERTICAL TANK
             if (tank.shape === "verticalTank") {
               return (
                 <DraggableDroppedTank {...commonProps}>
@@ -933,7 +763,6 @@ React.useEffect(() => {
               );
             }
 
-            // SILO
             if (tank.shape === "siloTank") {
               return (
                 <DraggableDroppedTank
@@ -952,7 +781,6 @@ React.useEffect(() => {
               );
             }
 
-            // TEXT BOX
             if (tank.shape === "textBox") {
               return (
                 <DraggableTextBox
@@ -965,22 +793,19 @@ React.useEffect(() => {
               );
             }
 
-           // LED CIRCLE
-if (tank.shape === "ledCircle") {
-  return (
-    <DraggableDroppedTank
-      {...commonProps}
-      onDoubleClick={() => {
-        if (!isPlay) onOpenIndicatorSettings?.(tank);
-      }}
-    >
-      <DraggableLedCircle tank={tank} sensorsData={sensorsData} />
-    </DraggableDroppedTank>
-  );
-}
+            if (tank.shape === "ledCircle") {
+              return (
+                <DraggableDroppedTank
+                  {...commonProps}
+                  onDoubleClick={() => {
+                    if (!isPlay) onOpenIndicatorSettings?.(tank);
+                  }}
+                >
+                  <DraggableLedCircle tank={tank} sensorsData={sensorsData} />
+                </DraggableDroppedTank>
+              );
+            }
 
-
-            // STATUS TEXT
             if (tank.shape === "statusTextBox") {
               return (
                 <DraggableDroppedTank
@@ -994,7 +819,6 @@ if (tank.shape === "ledCircle") {
               );
             }
 
-            // BLINKING ALARM
             if (tank.shape === "blinkingAlarm") {
               return (
                 <DraggableDroppedTank
@@ -1003,15 +827,11 @@ if (tank.shape === "ledCircle") {
                     if (!isPlay) onOpenBlinkingAlarmSettings?.(tank);
                   }}
                 >
-                  <DraggableBlinkingAlarm
-                    tank={tank}
-                    sensorsData={sensorsData}
-                  />
+                  <DraggableBlinkingAlarm tank={tank} sensorsData={sensorsData} />
                 </DraggableDroppedTank>
               );
             }
 
-            // STATE IMAGE
             if (tank.shape === "stateImage") {
               return (
                 <DraggableDroppedTank
@@ -1024,47 +844,48 @@ if (tank.shape === "ledCircle") {
                 </DraggableDroppedTank>
               );
             }
-// ✅ COUNTER INPUT (DI)
-if (tank.shape === "counterInput") {
-  const count = Number(tank?.properties?.count ?? 0) || 0;
 
-  return (
-    <DraggableDroppedTank
-      {...commonProps}
-      onDoubleClick={() => {
-        if (!isPlay) onOpenCounterInputSettings?.(tank);
-      }}
-    >
-      <DraggableCounterInput
-        variant="canvas"
-        label="Counter"
-        value={count}
-        decimals={0}
-        isPlay={isPlay}
-        onReset={() => {
-          if (!isPlay) return;
-  commonProps.onUpdate?.({
-    ...tank,
-    value: 0,
-    count: 0,
-    properties: {
-      ...(tank.properties || {}),
-      count: 0,
-      _prev01: 0,
-    },
-  });
-}}
-      />
-    </DraggableDroppedTank>
-  );
-}
+            // ✅ COUNTER INPUT (DI) (UI stays here; engine is extracted)
+            if (tank.shape === "counterInput") {
+              const count = Number(tank?.properties?.count ?? 0) || 0;
 
+              return (
+                <DraggableDroppedTank
+                  {...commonProps}
+                  onDoubleClick={() => {
+                    if (!isPlay) onOpenCounterInputSettings?.(tank);
+                  }}
+                >
+                  <DraggableCounterInput
+                    variant="canvas"
+                    label="Counter"
+                    value={count}
+                    decimals={0}
+                    isPlay={isPlay}
+                    onReset={() => {
+                      if (!isPlay) return;
 
+                      commonProps.onUpdate?.({
+                        ...tank,
+                        value: 0,
+                        count: 0,
+                        properties: {
+                          ...(tank.properties || {}),
+                          count: 0,
+                          // NOTE: if you want to avoid “instant increment” when DI is currently 1,
+                          // set this to null instead of 0.
+                          _prev01: 0,
+                        },
+                      });
+                    }}
+                  />
+                </DraggableDroppedTank>
+              );
+            }
 
             return null;
           })}
 
-        {/* Selection box */}
         {!isPlay && selectionBox && (
           <div
             style={{
@@ -1081,7 +902,6 @@ if (tank.shape === "counterInput") {
           />
         )}
 
-        {/* Alignment guides */}
         {!isPlay &&
           guides &&
           guides.map((g, i) => (
