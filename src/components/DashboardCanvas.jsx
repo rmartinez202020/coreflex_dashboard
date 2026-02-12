@@ -10,8 +10,8 @@ import DraggableGraphicDisplay from "./DraggableGraphicDisplay";
 import DraggableAlarmLog from "./DraggableAlarmLog";
 import ToggleSwitchControl from "./controls/ToggleSwitchControl";
 import PushButtonControl from "./controls/PushButtonControl";
-import useCounterInputRisingEdge from "./dashboardcanvas/hooks/useCounterInputRisingEdge";
-import useZOrder from "./dashboardcanvas/hooks/useZOrder";
+import useCounterInputRisingEdge from "./hooks/useCounterInputRisingEdge";
+import useZOrder from "./hooks/useZOrder";
 
 import {
   StandardTank,
