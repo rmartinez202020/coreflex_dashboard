@@ -229,6 +229,18 @@ export default function App() {
     closeGraphicDisplaySettings,
   } = useDashboardModalsController({ droppedTanks });
 
+  // ✅ Counter Input Settings (NEW)
+const [counterInputSettingsId, setCounterInputSettingsId] = useState(null);
+
+const openCounterInputSettings = (tank) => {
+  setCounterInputSettingsId(tank?.id ?? null);
+};
+
+const closeCounterInputSettings = () => {
+  setCounterInputSettingsId(null);
+};
+
+
   // 🚨 ALARMS LOG MODAL (AI)
   const [alarmLogOpen, setAlarmLogOpen] = useState(false);
 
@@ -524,6 +536,7 @@ const hasTarget = !!contextMenu?.targetId;
             onOpenStatusTextSettings={openStatusTextSettings}
             onOpenBlinkingAlarmSettings={openBlinkingAlarmSettings}
             onOpenStateImageSettings={openStateImageSettings}
+            onOpenCounterInputSettings={openCounterInputSettings}
           />
         ) : activePage === "deviceControls" ? (
           <div className="w-full h-full border rounded-lg bg-white p-6">
@@ -565,6 +578,8 @@ const hasTarget = !!contextMenu?.targetId;
           closeBlinkingAlarmSettings={closeBlinkingAlarmSettings}
           stateImageSettingsId={stateImageSettingsId}
           closeStateImageSettings={closeStateImageSettings}
+          counterInputSettingsId={counterInputSettingsId}
+          closeCounterInputSettings={closeCounterInputSettings}
         />
       </main>
 
