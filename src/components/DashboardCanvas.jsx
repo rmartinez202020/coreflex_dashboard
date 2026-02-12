@@ -458,6 +458,7 @@ export default function DashboardCanvas({
   onOpenStatusTextSettings,
   onOpenBlinkingAlarmSettings,
   onOpenStateImageSettings,
+  onOpenCounterInputSettings,
 }) {
   const isPlay = dashboardMode === "play";
 
@@ -993,113 +994,35 @@ if (tank.shape === "ledCircle") {
                 </DraggableDroppedTank>
               );
             }
-
- // ✅ COUNTER INPUT (DI) — title + digits + reset
+// ✅ COUNTER INPUT (DI)
 if (tank.shape === "counterInput") {
-  const w = tank.w ?? tank.width ?? 160;
-  const h = tank.h ?? tank.height ?? 130;
-
-  const title = String(tank?.properties?.title ?? "Counter");
-  const digits = Math.max(1, Math.min(10, Number(tank?.properties?.digits ?? 4)));
-  const count = Math.max(0, Number(tank?.properties?.count ?? 0) || 0);
-
-  const display = String(count).padStart(digits, "0");
+  const count = Number(tank?.properties?.count ?? 0) || 0;
 
   return (
     <DraggableDroppedTank
       {...commonProps}
       onDoubleClick={() => {
-        // later we’ll open the settings modal here
-        // if (!isPlay) onOpenCounterInputSettings?.(tank);
+        if (!isPlay) onOpenCounterInputSettings?.(tank);
       }}
     >
-      <div
-        style={{
-          width: w,
-          height: h,
-          borderRadius: 12,
-          border: isSelected && !isPlay ? "2px solid #2563eb" : "1px solid #cbd5e1",
-          background: "#f8fafc",
-          boxShadow: "0 10px 22px rgba(0,0,0,0.10)",
-          overflow: "hidden",
-          userSelect: "none",
-          display: "flex",
-          flexDirection: "column",
+      <DraggableCounterInput
+        variant="canvas"
+        label="Counter"
+        value={count}
+        decimals={0}
+        isPlay={isPlay}
+        onReset={() => {
+          if (!isPlay) return; // ✅ reset only in play
+          commonProps.onUpdate?.({
+            ...tank,
+            properties: {
+              ...(tank.properties || {}),
+              count: 0,
+              _prev01: 0,
+            },
+          });
         }}
-        onMouseDown={(e) => e.stopPropagation()}
-        onPointerDown={(e) => e.stopPropagation()}
-      >
-        {/* Title */}
-        <div
-          style={{
-            padding: "8px 10px",
-            fontWeight: 900,
-            fontSize: 14,
-            color: "#0f172a",
-            textAlign: "center",
-            background: "white",
-            borderBottom: "1px solid #e5e7eb",
-          }}
-        >
-          {title}
-        </div>
-
-        {/* Digits */}
-        <div style={{ flex: 1, display: "grid", placeItems: "center" }}>
-          <div
-            style={{
-              width: "82%",
-              height: 38,
-              borderRadius: 8,
-              border: "2px solid #8f8f8f",
-              background: "#f2f2f2",
-              boxShadow: "inset 0 0 6px rgba(0,0,0,0.25)",
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontFamily: "monospace",
-              fontWeight: 900,
-              fontSize: 20,
-              letterSpacing: 2,
-              color: "#111",
-            }}
-          >
-            {display}
-          </div>
-        </div>
-
-        {/* Reset */}
-        <button
-          type="button"
-          disabled={!isPlay}
-          onClick={(e) => {
-            e.stopPropagation();
-            if (!isPlay) return;
-
-            // ✅ reset counter
-            commonProps.onUpdate?.({
-              ...tank,
-              properties: {
-                ...(tank.properties || {}),
-                count: 0,
-                _prev01: 0,
-              },
-            });
-          }}
-          style={{
-            height: 36,
-            borderTop: "1px solid #e5e7eb",
-            background: isPlay ? "#ef4444" : "#cbd5e1",
-            color: "white",
-            fontWeight: 900,
-            cursor: isPlay ? "pointer" : "not-allowed",
-            opacity: isPlay ? 1 : 0.75,
-          }}
-          title={isPlay ? "Reset counter" : "Reset works only in Play mode"}
-        >
-          Reset
-        </button>
-      </div>
+      />
     </DraggableDroppedTank>
   );
 }

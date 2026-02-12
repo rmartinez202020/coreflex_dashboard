@@ -10,6 +10,7 @@ import DisplaySettingsModal from "./DisplaySettingsModal";
 import GraphicDisplaySettingsModal from "./GraphicDisplaySettingsModal";
 import SiloPropertiesModal from "./SiloPropertiesModal";
 import AlarmLogModal from "./AlarmLogModal";
+import CounterInputSettingsModal from "./indicators/CounterInputSettingsModal";
 
 export default function AppModals({
   droppedTanks,
@@ -52,6 +53,10 @@ export default function AppModals({
   stateImageSettingsId,
   closeStateImageSettings,
 
+  // ✅ NEW: Counter Input settings
+  counterInputSettingsId,
+  closeCounterInputSettings,
+
   // ✅ give indicator modal access to available devices/tags
   sensorsData,
 
@@ -77,8 +82,7 @@ export default function AppModals({
     };
 
     window.addEventListener("coreflex-alarm-log-open-at", onOpenAt);
-    return () =>
-      window.removeEventListener("coreflex-alarm-log-open-at", onOpenAt);
+    return () => window.removeEventListener("coreflex-alarm-log-open-at", onOpenAt);
   }, []);
 
   const displayTarget = useMemo(() => {
@@ -124,8 +128,7 @@ export default function AppModals({
   const blinkingAlarmTarget = useMemo(() => {
     if (blinkingAlarmSettingsId == null) return null;
     return droppedTanks.find(
-      (t) =>
-        isSameId(t.id, blinkingAlarmSettingsId) && t.shape === "blinkingAlarm"
+      (t) => isSameId(t.id, blinkingAlarmSettingsId) && t.shape === "blinkingAlarm"
     );
   }, [droppedTanks, blinkingAlarmSettingsId]);
 
@@ -137,6 +140,13 @@ export default function AppModals({
     );
   }, [droppedTanks, stateImageSettingsId]);
 
+  // ✅ NEW: Counter Input target
+  const counterInputTarget = useMemo(() => {
+    if (counterInputSettingsId == null) return null;
+    return droppedTanks.find(
+      (t) => isSameId(t.id, counterInputSettingsId) && t.shape === "counterInput"
+    );
+  }, [droppedTanks, counterInputSettingsId]);
 
   const alarmLogWindowProps = windowDrag?.getWindowProps
     ? windowDrag.getWindowProps("alarmLog")
@@ -230,6 +240,20 @@ export default function AppModals({
           onSave={(updated) => {
             patchTankProperties(stateImageTarget.id, updated);
             closeStateImageSettings?.();
+          }}
+        />
+      )}
+
+      {/* ✅ NEW: Counter Input Settings */}
+      {counterInputTarget && (
+        <CounterInputSettingsModal
+          open={true}
+          tank={counterInputTarget}
+          sensorsData={sensorsData}
+          onClose={() => closeCounterInputSettings?.()}
+          onSave={(updated) => {
+            patchTankProperties(counterInputTarget.id, updated);
+            closeCounterInputSettings?.();
           }}
         />
       )}
