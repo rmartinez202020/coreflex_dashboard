@@ -63,6 +63,23 @@ export default function useCounterInputRisingEdge({ isPlay, sensorsData, setDrop
     if (!isPlay) return;
 
     setDroppedTanks((prev) => {
+
+        if (window.__CF_COUNTER_DEBUG) {
+  const rowsLen = getRows(sensorsData).length;
+  const prevLen = Array.isArray(prev) ? prev.length : 0;
+  const counterLen = Array.isArray(prev)
+    ? prev.filter((o) => o?.shape === "counterInput").length
+    : 0;
+
+  console.log("[CF COUNTER] tick", {
+    isPlay,
+    prevLen,
+    counterLen,
+    rowsLen,
+    ts: new Date().toISOString(),
+  });
+}
+
       if (!Array.isArray(prev) || prev.length === 0) return prev;
 
       // quick exit if no counters exist
