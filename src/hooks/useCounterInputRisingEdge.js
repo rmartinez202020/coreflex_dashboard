@@ -1,5 +1,6 @@
 import React from "react";
-import { getRows, readTagFromRow, to01 } from "../utils/tagRead";
+import { getRows, readTagFromRow, to01 } from "../components/utils/tagRead";
+
 
 export default function useCounterInputRisingEdge({
   isPlay,
