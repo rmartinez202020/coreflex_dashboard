@@ -461,6 +461,105 @@ export default function DashboardCanvas({
 }) {
   const isPlay = dashboardMode === "play";
 
+  // ✅ COUNTER INPUT — increment on DI rising edge (0 -> 1)
+React.useEffect(() => {
+  if (!isPlay) return;
+
+  const readRowField = (row, field) => {
+    if (!row || !field) return undefined;
+    if (row[field] !== undefined) return row[field];
+    const up = String(field).toUpperCase();
+    if (row[up] !== undefined) return row[up];
+
+    // legacy DI mapping: di1..di6 -> in1..in6
+    if (/^di[1-6]$/i.test(field)) {
+      const n = String(field).toLowerCase().replace("di", "");
+      const alt = `in${n}`;
+      if (row[alt] !== undefined) return row[alt];
+      const altUp = alt.toUpperCase();
+      if (row[altUp] !== undefined) return row[altUp];
+    }
+    return undefined;
+  };
+
+  const to01 = (v) => {
+    if (v === undefined || v === null) return null;
+    if (typeof v === "boolean") return v ? 1 : 0;
+    if (typeof v === "number") return v > 0 ? 1 : 0;
+    if (typeof v === "string") {
+      const s = v.trim().toLowerCase();
+      if (s === "1" || s === "true" || s === "on" || s === "yes") return 1;
+      if (s === "0" || s === "false" || s === "off" || s === "no") return 0;
+      const n = Number(s);
+      if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
+    }
+    return v ? 1 : 0;
+  };
+
+  const timer = setInterval(() => {
+    if (document.hidden) return;
+
+    setDroppedTanks((prev) => {
+      if (!Array.isArray(prev) || prev.length === 0) return prev;
+
+      let changed = false;
+
+      const next = prev.map((obj) => {
+        if (obj.shape !== "counterInput") return obj;
+
+        const deviceId = String(obj?.properties?.tag?.deviceId || "").trim();
+        const field = String(obj?.properties?.tag?.field || "").trim();
+        if (!deviceId || !field) return obj;
+
+        const rows = Array.isArray(sensorsData) ? sensorsData : [];
+        const row =
+          rows.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === deviceId) || null;
+
+        if (!row) return obj;
+
+        const cur01 = to01(readRowField(row, field));
+        if (cur01 === null) return obj;
+
+        const prev01 = Number(obj?.properties?._prev01 ?? 0);
+
+        // rising edge -> increment
+        if (prev01 === 0 && cur01 === 1) {
+          changed = true;
+          const oldCount = Number(obj?.properties?.count ?? 0) || 0;
+
+          return {
+            ...obj,
+            properties: {
+              ...(obj.properties || {}),
+              count: oldCount + 1,
+              _prev01: 1,
+            },
+          };
+        }
+
+        // falling edge -> arm for next pulse
+        if (prev01 === 1 && cur01 === 0) {
+          changed = true;
+          return {
+            ...obj,
+            properties: {
+              ...(obj.properties || {}),
+              _prev01: 0,
+            },
+          };
+        }
+
+        return obj;
+      });
+
+      return changed ? next : prev;
+    });
+  }, 200); // fast enough to catch pulses
+
+  return () => clearInterval(timer);
+}, [isPlay, sensorsData, setDroppedTanks]);
+
+
   // =====================================================
   // ✅ Z-ORDER HELPERS (Option A) — STABLE + NO CRASH
   // - Defines getTankZ (fixes your crash)
@@ -895,22 +994,116 @@ if (tank.shape === "ledCircle") {
               );
             }
 
-            // ✅ COUNTER INPUT (DI)
+ // ✅ COUNTER INPUT (DI) — title + digits + reset
 if (tank.shape === "counterInput") {
-  const value = tank.value ?? tank.count ?? 0;
-  const decimals = tank.decimals ?? tank?.properties?.decimals ?? 3;
+  const w = tank.w ?? tank.width ?? 160;
+  const h = tank.h ?? tank.height ?? 130;
+
+  const title = String(tank?.properties?.title ?? "Counter");
+  const digits = Math.max(1, Math.min(10, Number(tank?.properties?.digits ?? 4)));
+  const count = Math.max(0, Number(tank?.properties?.count ?? 0) || 0);
+
+  const display = String(count).padStart(digits, "0");
 
   return (
-    <DraggableDroppedTank {...commonProps}>
-      <DraggableCounterInput
-        variant="canvas"
-        label="Counter Input (DI)"
-        value={value}
-        decimals={decimals}
-      />
+    <DraggableDroppedTank
+      {...commonProps}
+      onDoubleClick={() => {
+        // later we’ll open the settings modal here
+        // if (!isPlay) onOpenCounterInputSettings?.(tank);
+      }}
+    >
+      <div
+        style={{
+          width: w,
+          height: h,
+          borderRadius: 12,
+          border: isSelected && !isPlay ? "2px solid #2563eb" : "1px solid #cbd5e1",
+          background: "#f8fafc",
+          boxShadow: "0 10px 22px rgba(0,0,0,0.10)",
+          overflow: "hidden",
+          userSelect: "none",
+          display: "flex",
+          flexDirection: "column",
+        }}
+        onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
+      >
+        {/* Title */}
+        <div
+          style={{
+            padding: "8px 10px",
+            fontWeight: 900,
+            fontSize: 14,
+            color: "#0f172a",
+            textAlign: "center",
+            background: "white",
+            borderBottom: "1px solid #e5e7eb",
+          }}
+        >
+          {title}
+        </div>
+
+        {/* Digits */}
+        <div style={{ flex: 1, display: "grid", placeItems: "center" }}>
+          <div
+            style={{
+              width: "82%",
+              height: 38,
+              borderRadius: 8,
+              border: "2px solid #8f8f8f",
+              background: "#f2f2f2",
+              boxShadow: "inset 0 0 6px rgba(0,0,0,0.25)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontFamily: "monospace",
+              fontWeight: 900,
+              fontSize: 20,
+              letterSpacing: 2,
+              color: "#111",
+            }}
+          >
+            {display}
+          </div>
+        </div>
+
+        {/* Reset */}
+        <button
+          type="button"
+          disabled={!isPlay}
+          onClick={(e) => {
+            e.stopPropagation();
+            if (!isPlay) return;
+
+            // ✅ reset counter
+            commonProps.onUpdate?.({
+              ...tank,
+              properties: {
+                ...(tank.properties || {}),
+                count: 0,
+                _prev01: 0,
+              },
+            });
+          }}
+          style={{
+            height: 36,
+            borderTop: "1px solid #e5e7eb",
+            background: isPlay ? "#ef4444" : "#cbd5e1",
+            color: "white",
+            fontWeight: 900,
+            cursor: isPlay ? "pointer" : "not-allowed",
+            opacity: isPlay ? 1 : 0.75,
+          }}
+          title={isPlay ? "Reset counter" : "Reset works only in Play mode"}
+        >
+          Reset
+        </button>
+      </div>
     </DraggableDroppedTank>
   );
 }
+
 
 
             return null;

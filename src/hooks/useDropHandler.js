@@ -218,6 +218,35 @@ export default function useDropHandler({ setDroppedTanks }) {
     if (shape === "alarmLog") {
       return;
     }
+// ✅ COUNTER INPUT (DI)
+if (shape === "counterInput") {
+  setDroppedTanks((prev) => {
+    const z = nextTopZ(prev);
+    return [
+      ...prev,
+      {
+        id: makeId(),
+        shape: "counterInput",
+        x,
+        y,
+        w: 140,
+        h: 120,
+        z,
+        properties: {
+          title: "Counter",
+          count: 0,
+          digits: 4,
+          tag: {
+            deviceId: "",
+            field: "",
+          },
+          _prev01: 0, // for edge detection (0->1 increments)
+        },
+      },
+    ];
+  });
+  return;
+}
 
     // ✅ INDICATORS
     if (shape === "ledCircle") {
