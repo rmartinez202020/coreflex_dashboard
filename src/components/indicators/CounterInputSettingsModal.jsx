@@ -94,6 +94,108 @@ export default function CounterInputSettingsModal({ open, tank, onClose, onSave 
   const telemetryRef = React.useRef({ loading: false });
 
   // =========================
+  // ✅ DRAGGABLE MODAL STATE
+  // =========================
+  const modalRef = React.useRef(null);
+  const [pos, setPos] = React.useState(null); // {x,y} once measured
+
+  const dragRef = React.useRef({
+    dragging: false,
+    startX: 0,
+    startY: 0,
+    originX: 0,
+    originY: 0,
+    pointerId: null,
+  });
+
+  function clamp(n, min, max) {
+    return Math.max(min, Math.min(max, n));
+  }
+
+  const centerModal = React.useCallback(() => {
+    // measure and center after render
+    requestAnimationFrame(() => {
+      const el = modalRef.current;
+      if (!el) return;
+      const rect = el.getBoundingClientRect();
+      const vw = window.innerWidth;
+      const vh = window.innerHeight;
+
+      const margin = 10;
+      const x = clamp((vw - rect.width) / 2, margin, Math.max(margin, vw - rect.width - margin));
+      const y = clamp((vh - rect.height) / 2, margin, Math.max(margin, vh - rect.height - margin));
+      setPos({ x, y });
+    });
+  }, []);
+
+  const onHeaderPointerDown = (e) => {
+    // only primary button for mouse
+    if (e.pointerType === "mouse" && e.button !== 0) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    const el = modalRef.current;
+    if (!el) return;
+
+    // ensure we have a starting pos (center it first time)
+    const rect = el.getBoundingClientRect();
+    const current = pos ?? {
+      x: rect.left,
+      y: rect.top,
+    };
+
+    dragRef.current.dragging = true;
+    dragRef.current.startX = e.clientX;
+    dragRef.current.startY = e.clientY;
+    dragRef.current.originX = current.x;
+    dragRef.current.originY = current.y;
+    dragRef.current.pointerId = e.pointerId;
+
+    // capture pointer so it keeps dragging even if cursor leaves header
+    try {
+      e.currentTarget.setPointerCapture(e.pointerId);
+    } catch {
+      // ignore
+    }
+  };
+
+  const onHeaderPointerMove = (e) => {
+    if (!dragRef.current.dragging) return;
+
+    const el = modalRef.current;
+    if (!el) return;
+
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+
+    const rect = el.getBoundingClientRect();
+    const vw = window.innerWidth;
+    const vh = window.innerHeight;
+    const margin = 10;
+
+    const maxX = Math.max(margin, vw - rect.width - margin);
+    const maxY = Math.max(margin, vh - rect.height - margin);
+
+    const nextX = clamp(dragRef.current.originX + dx, margin, maxX);
+    const nextY = clamp(dragRef.current.originY + dy, margin, maxY);
+
+    setPos({ x: nextX, y: nextY });
+  };
+
+  const onHeaderPointerUp = (e) => {
+    if (!dragRef.current.dragging) return;
+    dragRef.current.dragging = false;
+
+    try {
+      e.currentTarget.releasePointerCapture(dragRef.current.pointerId);
+    } catch {
+      // ignore
+    }
+    dragRef.current.pointerId = null;
+  };
+
+  // =========================
   // ✅ REHYDRATE ON OPEN
   // =========================
   React.useEffect(() => {
@@ -108,7 +210,38 @@ export default function CounterInputSettingsModal({ open, tank, onClose, onSave 
     setField(String(tank?.properties?.tag?.field || ""));
 
     setTelemetryRow(null);
+
+    // reset position so it recenters each open (optional)
+    setPos(null);
   }, [open, tank?.id]);
+
+  // when open, center after first paint
+  React.useEffect(() => {
+    if (!open) return;
+    centerModal();
+
+    const onResize = () => {
+      // keep it on screen after resize
+      requestAnimationFrame(() => {
+        const el = modalRef.current;
+        if (!el) return;
+        const rect = el.getBoundingClientRect();
+        const vw = window.innerWidth;
+        const vh = window.innerHeight;
+        const margin = 10;
+
+        setPos((p) => {
+          const cur = p ?? { x: rect.left, y: rect.top };
+          const maxX = Math.max(margin, vw - rect.width - margin);
+          const maxY = Math.max(margin, vh - rect.height - margin);
+          return { x: clamp(cur.x, margin, maxX), y: clamp(cur.y, margin, maxY) };
+        });
+      });
+    };
+
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+  }, [open, centerModal]);
 
   // =========================
   // ✅ LOAD DEVICES (same endpoint as Indicator Light)
@@ -289,11 +422,14 @@ export default function CounterInputSettingsModal({ open, tank, onClose, onSave 
       }}
     >
       <div
+        ref={modalRef}
         style={{
           position: "absolute",
-          left: "50%",
-          top: "50%",
-          transform: "translate(-50%, -50%)",
+          // ✅ if pos not ready yet, keep centered (first paint)
+          left: pos ? pos.x : "50%",
+          top: pos ? pos.y : "50%",
+          transform: pos ? "none" : "translate(-50%, -50%)",
+
           width: 1040,
           maxWidth: "calc(100vw - 60px)",
           background: "#fff",
@@ -304,8 +440,12 @@ export default function CounterInputSettingsModal({ open, tank, onClose, onSave 
         onMouseDown={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
       >
-        {/* Header */}
+        {/* Header (DRAG HANDLE) */}
         <div
+          onPointerDown={onHeaderPointerDown}
+          onPointerMove={onHeaderPointerMove}
+          onPointerUp={onHeaderPointerUp}
+          onPointerCancel={onHeaderPointerUp}
           style={{
             background: "#0f172a",
             color: "#fff",
@@ -317,7 +457,9 @@ export default function CounterInputSettingsModal({ open, tank, onClose, onSave 
             fontSize: 16,
             letterSpacing: 0.2,
             userSelect: "none",
+            cursor: "move", // ✅ show draggable cursor
           }}
+          title="Drag to move"
         >
           <span>Counter Input (DI)</span>
 
@@ -633,8 +775,7 @@ export default function CounterInputSettingsModal({ open, tank, onClose, onSave 
                       {deviceId && field ? (
                         tagIsOnline ? (
                           <span style={{ fontWeight: 900 }}>
-                            Value:{" "}
-                            <span style={{ color: "#0f172a" }}>{String(tag01 ?? "—")}</span>
+                            Value: <span style={{ color: "#0f172a" }}>{String(tag01 ?? "—")}</span>
                           </span>
                         ) : (
                           <span style={{ fontWeight: 900, color: "#dc2626" }}>
