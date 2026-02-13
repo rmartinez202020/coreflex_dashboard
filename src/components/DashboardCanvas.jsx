@@ -28,9 +28,6 @@ import {
   DraggableCounterInput,
 } from "./indicators";
 
-// ✅ NEW: extracted counter logic
-import useCounterInputRisingEdge from "../hooks/useCounterInputRisingEdge";
-
 export default function DashboardCanvas({
   dashboardMode,
   sensors,
@@ -75,9 +72,6 @@ export default function DashboardCanvas({
   onOpenCounterInputSettings,
 }) {
   const isPlay = dashboardMode === "play";
-
-  // ✅ extracted rising-edge counter engine
-  useCounterInputRisingEdge({ isPlay, sensorsData, setDroppedTanks });
 
   // =====================================================
   // ✅ Z-ORDER HELPERS (Option A) — STABLE + NO CRASH
@@ -473,22 +467,13 @@ export default function DashboardCanvas({
                     value={count}
                     decimals={0}
                     isPlay={isPlay}
-                    onReset={() => {
-                      if (!isPlay) return;
 
-                      commonProps.onUpdate?.({
-                        ...tank,
-                        value: 0,
-                        count: 0,
-                        properties: {
-                          ...(tank.properties || {}),
-                          count: 0,
-                          // NOTE: if you want to avoid “instant increment” when DI is currently 1,
-                          // set this to null instead of 0.
-                          _prev01: 0,
-                        },
-                      });
-                    }}
+                onReset={() => {
+  if (!isPlay) return;
+  // TODO: call backend reset endpoint for this widget_id (tank.id)
+  console.warn("Reset requested — needs backend endpoint", { widgetId: tank.id });
+}}
+
                   />
                 </DraggableDroppedTank>
               );
