@@ -1,4 +1,26 @@
+// src/components/indicators/DraggableCounterInput.jsx
 import React from "react";
+import { API_URL } from "../../config/api";
+import { getToken } from "../../utils/authToken";
+
+function getAuthHeaders() {
+  const token = String(getToken() || "").trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// ✅ best-effort dashboard id getter (same idea as modal)
+function resolveDashboardIdFromProps({ dashboardId, tank }) {
+  const a = String(dashboardId || "").trim();
+  if (a) return a;
+
+  const b = String(tank?.dashboard_id || tank?.dashboardId || "").trim();
+  if (b) return b;
+
+  const c = String(tank?.properties?.dashboard_id || tank?.properties?.dashboardId || "").trim();
+  if (c) return c;
+
+  return null; // backend supports null
+}
 
 export default function DraggableCounterInput({
   // menu defaults
@@ -10,6 +32,9 @@ export default function DraggableCounterInput({
   value = 0, // legacy fallback
   count, // optional legacy fallback
 
+  // ✅ optional dashboard id (recommended)
+  dashboardId,
+
   // canvas positioning
   x,
   y,
@@ -17,12 +42,54 @@ export default function DraggableCounterInput({
   isSelected,
   onSelect,
   onStartDragObject,
-  onReset, // optional reset callback
 }) {
   const handleDragStart = (e) => {
     e.dataTransfer.setData("shape", "counterInput");
     e.dataTransfer.setData("text/plain", "counterInput");
     e.dataTransfer.effectAllowed = "copy";
+  };
+
+  // ===============================
+  // ✅ BACKEND RESET (real reset)
+  // ===============================
+  const [resetting, setResetting] = React.useState(false);
+
+  const onResetClick = async (e) => {
+    e.stopPropagation();
+    if (resetting) return;
+
+    const widgetId = String(id || tank?.id || "").trim();
+    if (!widgetId) return;
+
+    const dash = resolveDashboardIdFromProps({ dashboardId, tank });
+
+    setResetting(true);
+    try {
+      const token = String(getToken() || "").trim();
+      if (!token) throw new Error("Missing auth token");
+
+      const res = await fetch(`${API_URL}/device-counters/reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({
+          widget_id: widgetId,
+          dashboard_id: dash || null,
+        }),
+      });
+
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j?.detail || `Reset failed (${res.status})`);
+
+      // ✅ no need to mutate local widget state here —
+      // the canvas should be polling / refreshing from backend
+      // (we will wire that next in DashboardCanvas / play mode)
+    } catch (err) {
+      // keep UI simple; you can replace with toast later
+      console.error("❌ counter reset error:", err);
+      alert(err?.message || "Failed to reset counter");
+    } finally {
+      setResetting(false);
+    }
   };
 
   // ===============================
@@ -35,22 +102,14 @@ export default function DraggableCounterInput({
     const title = String(props?.title || label || "Counter").slice(0, 32);
 
     const digitsRaw = Number(props?.digits ?? 4);
-    const digits = Number.isFinite(digitsRaw)
-      ? Math.max(1, Math.min(10, digitsRaw))
-      : 4;
+    const digits = Number.isFinite(digitsRaw) ? Math.max(1, Math.min(10, digitsRaw)) : 4;
 
     // ✅ Read count from (best -> worst):
-    // 1) tank.properties.count (modal + your increment logic)
+    // 1) tank.properties.count (if you sync it from backend)
     // 2) tank.value / tank.count (if you sync them)
     // 3) explicit props: count/value (legacy)
     // 4) default 0
-    const nRaw =
-      props?.count ??
-      tank?.value ??
-      tank?.count ??
-      count ??
-      value ??
-      0;
+    const nRaw = props?.count ?? tank?.value ?? tank?.count ?? count ?? value ?? 0;
 
     const n = Number(nRaw);
     const safe = Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : 0;
@@ -121,27 +180,27 @@ export default function DraggableCounterInput({
           {display}
         </div>
 
-        {/* RESET BUTTON */}
+        {/* RESET BUTTON (calls backend) */}
         <button
           onMouseDown={(e) => e.stopPropagation()}
-          onClick={(e) => {
-            e.stopPropagation();
-            onReset?.(id);
-          }}
+          onClick={onResetClick}
+          disabled={resetting}
           style={{
             width: "100%",
             height: 28,
             borderRadius: 4,
             border: "none",
-            background: "#ef4444",
+            background: resetting ? "#fca5a5" : "#ef4444",
             color: "white",
             fontWeight: 800,
             fontSize: 13,
-            cursor: "pointer",
+            cursor: resetting ? "not-allowed" : "pointer",
             boxShadow: "0 2px 0 rgba(0,0,0,0.25)",
+            opacity: resetting ? 0.8 : 1,
           }}
+          title={resetting ? "Resetting…" : "Reset counter"}
         >
-          Reset
+          {resetting ? "Resetting…" : "Reset"}
         </button>
       </div>
     );

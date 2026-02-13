@@ -1,6 +1,9 @@
 // src/components/DashboardCanvas.jsx
 import React from "react";
 import { DndContext } from "@dnd-kit/core";
+import { API_URL } from "../config/api";
+import { getToken } from "../utils/authToken";
+
 import AlarmLogWindow from "./AlarmLogWindow";
 import DraggableDroppedTank from "./DraggableDroppedTank";
 import DraggableTextBox from "./DraggableTextBox";
@@ -13,12 +16,7 @@ import PushButtonControl from "./controls/PushButtonControl";
 import AlarmLogResizeEdges from "./alarm/AlarmLogResizeEdges";
 import DisplayOutputTextBoxStyle from "./display/DisplayOutputTextBoxStyle";
 
-import {
-  StandardTank,
-  HorizontalTank,
-  VerticalTank,
-  SiloTank,
-} from "./ProTankIcon";
+import { StandardTank, HorizontalTank, VerticalTank, SiloTank } from "./ProTankIcon";
 
 import {
   DraggableLedCircle,
@@ -27,6 +25,33 @@ import {
   DraggableStateImage,
   DraggableCounterInput,
 } from "./indicators";
+
+function getAuthHeaders() {
+  const token = String(getToken() || "").trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+// ✅ best-effort dashboard id resolver (safe fallbacks)
+// ✅ UPDATED: prefer activeDashboardId first, then dashboardId, then selectedTank, then first widget
+function resolveDashboardId({ activeDashboardId, dashboardId, selectedTank, droppedTanks }) {
+  const z = String(activeDashboardId || "").trim();
+  if (z) return z;
+
+  const a = String(dashboardId || "").trim();
+  if (a) return a;
+
+  const b = String(selectedTank?.dashboard_id || selectedTank?.dashboardId || "").trim();
+  if (b) return b;
+
+  // if all widgets belong to same dashboard, try first one's property
+  const first = Array.isArray(droppedTanks) ? droppedTanks[0] : null;
+  const c = String(
+    first?.dashboard_id || first?.dashboardId || first?.properties?.dashboard_id || ""
+  ).trim();
+  if (c) return c;
+
+  return null;
+}
 
 export default function DashboardCanvas({
   dashboardMode,
@@ -70,8 +95,108 @@ export default function DashboardCanvas({
   onOpenBlinkingAlarmSettings,
   onOpenStateImageSettings,
   onOpenCounterInputSettings,
+
+  // ✅ NEW: active dashboard id (preferred)
+  activeDashboardId,
+
+  // ✅ OPTIONAL: pass dashboard id from parent if you have it
+  dashboardId,
 }) {
   const isPlay = dashboardMode === "play";
+
+  // =====================================================
+  // ✅ PLAY MODE: pull live counter values from backend
+  // =====================================================
+  const countersRef = React.useRef({ loading: false });
+
+  const fetchCountersForDashboard = React.useCallback(async () => {
+    if (!isPlay) return;
+
+    const dash = resolveDashboardId({
+      activeDashboardId,
+      dashboardId,
+      selectedTank,
+      droppedTanks,
+    });
+    if (!dash) return;
+
+    if (countersRef.current.loading) return;
+    countersRef.current.loading = true;
+
+    try {
+      const token = String(getToken() || "").trim();
+      if (!token) return;
+
+      // Fast bulk endpoint
+      const res = await fetch(
+        `${API_URL}/device-counters/by-dashboard/${encodeURIComponent(dash)}`,
+        { headers: getAuthHeaders() }
+      );
+
+      if (!res.ok) return;
+
+      const rows = await res.json();
+      const list = Array.isArray(rows) ? rows : [];
+
+      // map by widget_id -> count
+      const map = {};
+      for (const r of list) {
+        const wid = String(r?.widget_id || r?.widgetId || "").trim();
+        if (!wid) continue;
+        map[wid] = Number(r?.count ?? 0) || 0;
+      }
+
+      // apply to dropped tanks
+      setDroppedTanks((prev) => {
+        const arr = Array.isArray(prev) ? prev : [];
+        let changed = false;
+
+        const next = arr.map((t) => {
+          if (!t || t.shape !== "counterInput") return t;
+
+          const wid = String(t.id || "").trim();
+          if (!wid) return t;
+
+          if (map[wid] === undefined) return t;
+
+          const current = Number(t?.properties?.count ?? 0) || 0;
+          const incoming = Number(map[wid] ?? 0) || 0;
+
+          if (current === incoming) return t;
+
+          changed = true;
+          return {
+            ...t,
+            properties: {
+              ...(t.properties || {}),
+              count: incoming,
+            },
+          };
+        });
+
+        return changed ? next : prev;
+      });
+    } catch {
+      // ignore (keep UI stable)
+    } finally {
+      countersRef.current.loading = false;
+    }
+  }, [isPlay, activeDashboardId, dashboardId, selectedTank, droppedTanks, setDroppedTanks]);
+
+  React.useEffect(() => {
+    if (!isPlay) return;
+
+    // initial fetch
+    fetchCountersForDashboard();
+
+    // ✅ poll every 1 second (your request)
+    const t = setInterval(() => {
+      if (document.hidden) return;
+      fetchCountersForDashboard();
+    }, 1000);
+
+    return () => clearInterval(t);
+  }, [isPlay, fetchCountersForDashboard]);
 
   // =====================================================
   // ✅ Z-ORDER HELPERS (Option A) — STABLE + NO CRASH
@@ -153,6 +278,42 @@ export default function DashboardCanvas({
     void bringToFront;
     void sendToBack;
   }, [bringToFront, sendToBack]);
+
+  // =====================================================
+  // ✅ RESET COUNTER (Play mode)
+  // NOTE: your backend might be:
+  //   POST /device-counters/reset           (with JSON body)
+  // or
+  //   POST /device-counters/reset/{widget}  (optional query)
+  //
+  // I am implementing the BODY version because your backend schema shows ResetCounterBody.
+  // Body: { widget_id, dashboard_id? }
+  // =====================================================
+  const resetCounterOnBackend = React.useCallback(
+    async ({ widgetId, dash }) => {
+      const token = String(getToken() || "").trim();
+      if (!token) throw new Error("Missing auth token. Please logout and login again.");
+
+      const res = await fetch(`${API_URL}/device-counters/reset`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({
+          widget_id: String(widgetId || "").trim(),
+          dashboard_id: dash || null,
+        }),
+      });
+
+      const j = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(j?.detail || `Reset failed (${res.status})`);
+      }
+
+      // refresh immediately so UI updates right away
+      await fetchCountersForDashboard();
+      return j;
+    },
+    [fetchCountersForDashboard]
+  );
 
   return (
     <DndContext
@@ -285,13 +446,9 @@ export default function DashboardCanvas({
                     <AlarmLogWindow
                       onOpenSettings={() => onOpenAlarmLog?.(tank)}
                       onLaunch={() => onLaunchAlarmLog?.(tank)}
-                      onMinimize={() =>
-                        commonProps.onUpdate?.({ ...tank, minimized: true })
-                      }
+                      onMinimize={() => commonProps.onUpdate?.({ ...tank, minimized: true })}
                       onClose={() =>
-                        setDroppedTanks((prev) =>
-                          prev.filter((t) => t.id !== tank.id)
-                        )
+                        setDroppedTanks((prev) => prev.filter((t) => t.id !== tank.id))
                       }
                     />
 
@@ -450,9 +607,14 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅ COUNTER INPUT (DI) (UI stays here; engine is extracted)
+            // ✅ COUNTER INPUT (DI) — backend-driven + play polling + ✅ reset wired
             if (tank.shape === "counterInput") {
-              const count = Number(tank?.properties?.count ?? 0) || 0;
+              const resolvedDash = resolveDashboardId({
+                activeDashboardId,
+                dashboardId,
+                selectedTank,
+                droppedTanks,
+              });
 
               return (
                 <DraggableDroppedTank
@@ -464,16 +626,18 @@ export default function DashboardCanvas({
                   <DraggableCounterInput
                     variant="canvas"
                     label="Counter"
-                    value={count}
-                    decimals={0}
-                    isPlay={isPlay}
-
-                onReset={() => {
-  if (!isPlay) return;
-  // TODO: call backend reset endpoint for this widget_id (tank.id)
-  console.warn("Reset requested — needs backend endpoint", { widgetId: tank.id });
-}}
-
+                    tank={tank}
+                    id={tank.id}
+                    dashboardId={resolvedDash}
+                    onReset={async (widgetId) => {
+                      if (!isPlay) return;
+                      try {
+                        await resetCounterOnBackend({ widgetId, dash: resolvedDash });
+                      } catch (e) {
+                        console.error("Reset failed:", e);
+                        alert(e?.message || "Reset failed");
+                      }
+                    }}
                   />
                 </DraggableDroppedTank>
               );

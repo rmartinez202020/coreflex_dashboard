@@ -2,7 +2,7 @@ import { API_URL } from "./config/api";
 import { PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import LaunchedMainDashboard from "./pages/LaunchedMainDashboard";
 import useDashboardHistory from "./hooks/useDashboardHistory";
-import { useEffect, useState, useRef, useCallback } from "react";
+import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import Header from "./components/Header";
 import AppTopBar from "./components/AppTopBar";
@@ -186,6 +186,15 @@ export default function App() {
     }
   }, [currentUserKey, setActiveDashboard]);
 
+  // ✅ IMPORTANT: stable dashboard id for counters
+  // - customer dashboards use activeDashboard.dashboardId
+  // - main dashboard MUST NOT be null → use "main"
+  const effectiveDashboardId = useMemo(() => {
+    if (activeDashboard?.type === "main") return "main";
+    const id = String(activeDashboard?.dashboardId || "").trim();
+    return id || null;
+  }, [activeDashboard]);
+
   // SIDEBARS
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
   const [isRightCollapsed, setIsRightCollapsed] = useState(false);
@@ -205,7 +214,7 @@ export default function App() {
   const [activeSiloId, setActiveSiloId] = useState(null);
   const [showSiloProps, setShowSiloProps] = useState(false);
 
-    // ✅ MODALS (extracted)
+  // ✅ MODALS (extracted)
   const {
     displaySettingsId,
     indicatorSettingsId,
@@ -230,16 +239,15 @@ export default function App() {
   } = useDashboardModalsController({ droppedTanks });
 
   // ✅ Counter Input Settings (NEW)
-const [counterInputSettingsId, setCounterInputSettingsId] = useState(null);
+  const [counterInputSettingsId, setCounterInputSettingsId] = useState(null);
 
-const openCounterInputSettings = (tank) => {
-  setCounterInputSettingsId(tank?.id ?? null);
-};
+  const openCounterInputSettings = (tank) => {
+    setCounterInputSettingsId(tank?.id ?? null);
+  };
 
-const closeCounterInputSettings = () => {
-  setCounterInputSettingsId(null);
-};
-
+  const closeCounterInputSettings = () => {
+    setCounterInputSettingsId(null);
+  };
 
   // 🚨 ALARMS LOG MODAL (AI)
   const [alarmLogOpen, setAlarmLogOpen] = useState(false);
@@ -278,6 +286,7 @@ const closeCounterInputSettings = () => {
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 3 } })
   );
+
   // ✅ Z-ORDER (extracted)
   const { getTankZ, getLayerScore, bringToFront, sendToBack } =
     useDashboardZOrder({
@@ -286,29 +295,29 @@ const closeCounterInputSettings = () => {
     });
 
   // ✅ Delete selected items OR the right-click target
-const deleteSelectionOrTarget = useCallback(() => {
-  const idsToDelete =
-    (selectedIds?.length || 0) > 0
-      ? selectedIds
-      : contextMenu?.targetId
-      ? [contextMenu.targetId]
-      : [];
+  const deleteSelectionOrTarget = useCallback(() => {
+    const idsToDelete =
+      (selectedIds?.length || 0) > 0
+        ? selectedIds
+        : contextMenu?.targetId
+        ? [contextMenu.targetId]
+        : [];
 
-  if (!idsToDelete.length) return;
+    if (!idsToDelete.length) return;
 
-  setDroppedTanks((prev) => prev.filter((t) => !idsToDelete.includes(t.id)));
-  clearSelection();
-}, [selectedIds, contextMenu, setDroppedTanks]);
+    setDroppedTanks((prev) => prev.filter((t) => !idsToDelete.includes(t.id)));
+    clearSelection();
+  }, [selectedIds, contextMenu, setDroppedTanks]);
 
-const { copyFromContext, pasteAtContext, hasClipboard } =
-  useDashboardCanvasClipboard({
-    droppedTanks,
-    selectedIds,
-    contextMenu,
-    setDroppedTanks,
-    getTankZ,
-    canvasRootId: "coreflex-canvas-root",
-  });
+  const { copyFromContext, pasteAtContext, hasClipboard } =
+    useDashboardCanvasClipboard({
+      droppedTanks,
+      selectedIds,
+      contextMenu,
+      setDroppedTanks,
+      getTankZ,
+      canvasRootId: "coreflex-canvas-root",
+    });
 
   const { goHomeHard } = useHomeReset({
     navigate,
@@ -392,12 +401,11 @@ const { copyFromContext, pasteAtContext, hasClipboard } =
     return <LaunchedMainDashboard />;
   }
 
-// ✅ ALARM LOG LAUNCH PAGE — render full-page Alarm Log
-const isLaunchAlarmLog = location.pathname === "/launchAlarmLog";
-if (isLaunchAlarmLog) {
-  return <AlarmLogPage />;
-}
-
+  // ✅ ALARM LOG LAUNCH PAGE — render full-page Alarm Log
+  const isLaunchAlarmLog = location.pathname === "/launchAlarmLog";
+  if (isLaunchAlarmLog) {
+    return <AlarmLogPage />;
+  }
 
   // ✅ show our context menu only in EDIT + only on dashboard page
   const showCtx =
@@ -405,7 +413,7 @@ if (isLaunchAlarmLog) {
     activePage === "dashboard" &&
     dashboardMode !== "play";
 
-const hasTarget = !!contextMenu?.targetId;
+  const hasTarget = !!contextMenu?.targetId;
 
   return (
     <div
@@ -466,19 +474,20 @@ const hasTarget = !!contextMenu?.targetId;
             if (key === "alarmLog") closeAlarmLog();
           }}
         />
-<DashboardCanvasContextMenu
-  show={showCtx}
-  x={contextMenu?.x ?? 0}
-  y={contextMenu?.y ?? 0}
-  hasTarget={hasTarget}
-  hasClipboard={hasClipboard}
-  onCopy={copyFromContext}
-  onBringToFront={() => bringToFront(contextMenu?.targetId)}
-  onSendToBack={() => sendToBack(contextMenu?.targetId)}
-  onDelete={deleteSelectionOrTarget}
-  onPaste={pasteAtContext}
-  onClose={hideContextMenu}
-/>
+
+        <DashboardCanvasContextMenu
+          show={showCtx}
+          x={contextMenu?.x ?? 0}
+          y={contextMenu?.y ?? 0}
+          hasTarget={hasTarget}
+          hasClipboard={hasClipboard}
+          onCopy={copyFromContext}
+          onBringToFront={() => bringToFront(contextMenu?.targetId)}
+          onSendToBack={() => sendToBack(contextMenu?.targetId)}
+          onDelete={deleteSelectionOrTarget}
+          onPaste={pasteAtContext}
+          onClose={hideContextMenu}
+        />
 
         {activePage === "home" ? (
           <div className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg bg-white">
@@ -500,6 +509,7 @@ const hasTarget = !!contextMenu?.targetId;
           </div>
         ) : activePage === "dashboard" ? (
           <DashboardCanvas
+            dashboardId={effectiveDashboardId} // ✅ THE KEY FIX
             dashboardMode={dashboardMode}
             sensors={sensors}
             sensorsData={sensorsData}
@@ -537,6 +547,7 @@ const hasTarget = !!contextMenu?.targetId;
             onOpenBlinkingAlarmSettings={openBlinkingAlarmSettings}
             onOpenStateImageSettings={openStateImageSettings}
             onOpenCounterInputSettings={openCounterInputSettings}
+            activeDashboardId={activeDashboard?.dashboardId || null}
           />
         ) : activePage === "deviceControls" ? (
           <div className="w-full h-full border rounded-lg bg-white p-6">
@@ -551,6 +562,7 @@ const hasTarget = !!contextMenu?.targetId;
         ) : null}
 
         <AppModals
+          dashboardId={effectiveDashboardId} // ✅ pass into modals (upsert/reset must match)
           droppedTanks={droppedTanks}
           setDroppedTanks={setDroppedTanks}
           showRestoreWarning={showRestoreWarning}
@@ -592,4 +604,3 @@ const hasTarget = !!contextMenu?.targetId;
     </div>
   );
 }
-

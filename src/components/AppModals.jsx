@@ -13,6 +13,9 @@ import AlarmLogModal from "./AlarmLogModal";
 import CounterInputSettingsModal from "./indicators/CounterInputSettingsModal";
 
 export default function AppModals({
+  // ✅ NEW: required for Counter API (upsert/reset/poll by dashboard)
+  dashboardId = null,
+
   droppedTanks,
   setDroppedTanks,
 
@@ -68,6 +71,12 @@ export default function AppModals({
 }) {
   const isSameId = (a, b) => String(a) === String(b);
 
+  // ✅ normalize dashboardId (string or null)
+  const safeDashboardId = useMemo(() => {
+    const s = String(dashboardId || "").trim();
+    return s ? s : null;
+  }, [dashboardId]);
+
   // ✅ Fallback position (only used if windowDrag isn't provided yet)
   const [alarmLogPos, setAlarmLogPos] = useState({ x: 140, y: 90 });
 
@@ -82,7 +91,8 @@ export default function AppModals({
     };
 
     window.addEventListener("coreflex-alarm-log-open-at", onOpenAt);
-    return () => window.removeEventListener("coreflex-alarm-log-open-at", onOpenAt);
+    return () =>
+      window.removeEventListener("coreflex-alarm-log-open-at", onOpenAt);
   }, []);
 
   const displayTarget = useMemo(() => {
@@ -128,7 +138,8 @@ export default function AppModals({
   const blinkingAlarmTarget = useMemo(() => {
     if (blinkingAlarmSettingsId == null) return null;
     return droppedTanks.find(
-      (t) => isSameId(t.id, blinkingAlarmSettingsId) && t.shape === "blinkingAlarm"
+      (t) =>
+        isSameId(t.id, blinkingAlarmSettingsId) && t.shape === "blinkingAlarm"
     );
   }, [droppedTanks, blinkingAlarmSettingsId]);
 
@@ -157,7 +168,8 @@ export default function AppModals({
   // 2) onSave({ ...flatProps })       (fallback - we wrap into properties)
   const normalizeUpdated = (updated) => {
     if (!updated || typeof updated !== "object") return { properties: {} };
-    if (updated.properties && typeof updated.properties === "object") return updated;
+    if (updated.properties && typeof updated.properties === "object")
+      return updated;
 
     // Fallback: treat the whole object as properties
     const { id, shape, x, y, w, h, width, height, ...rest } = updated;
@@ -170,6 +182,7 @@ export default function AppModals({
     if (debug) {
       console.log("🧩 MODAL SAVE (raw):", updated);
       console.log("🧩 MODAL SAVE (normalized):", normalized);
+      console.log("🧩 DASHBOARD ID:", safeDashboardId);
     }
 
     setDroppedTanks((prev) =>
@@ -250,6 +263,8 @@ export default function AppModals({
           open={true}
           tank={counterInputTarget}
           sensorsData={sensorsData}
+          // ✅ this is the missing piece:
+          dashboardId={safeDashboardId}
           onClose={() => closeCounterInputSettings?.()}
           onSave={(updated) => {
             patchTankProperties(counterInputTarget.id, updated);
