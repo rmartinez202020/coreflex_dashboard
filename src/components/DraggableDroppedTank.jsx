@@ -8,7 +8,7 @@ export default function DraggableDroppedTank({
   dragDelta = { x: 0, y: 0 },
   onSelect,
   onDoubleClick,
-  onRightClick, // ✅ context menu handler
+  onRightClick,
   children,
   onUpdate,
   dashboardMode = "edit",
@@ -20,10 +20,8 @@ export default function DraggableDroppedTank({
   const isPlay = dashboardMode === "play";
   const [resizing, setResizing] = useState(false);
 
-  // ✅ measure actual rendered size
   const elRef = useRef(null);
 
-  // combine refs
   const setRefs = useCallback(
     (node) => {
       elRef.current = node;
@@ -69,16 +67,16 @@ export default function DraggableDroppedTank({
         tank.scale || 1
       })`;
 
-  // ✅ prefer new z, fallback to legacy zIndex
   const effectiveZ = tank.z ?? tank.zIndex ?? 1;
 
+  // ✅ FIX: Cursor only active in EDIT mode
   const outerStyle = {
     position: "absolute",
     left: tank.x,
     top: tank.y,
     transform: liveTransform,
     transformOrigin: "top left",
-    cursor: selected ? "grab" : "pointer",
+    cursor: !isPlay ? (selected ? "grab" : "move") : "default",
     zIndex: effectiveZ,
   };
 
@@ -87,7 +85,7 @@ export default function DraggableDroppedTank({
     alignItems: "center",
     justifyContent: "center",
     borderRadius: 8,
-    border: selected ? "1px solid #2563eb" : "1px solid transparent",
+    border: selected && !isPlay ? "1px solid #2563eb" : "1px solid transparent",
   };
 
   const isToggle =
@@ -137,7 +135,7 @@ export default function DraggableDroppedTank({
 
   const dragListeners = isPlay && isDisplayOutput ? undefined : listeners;
 
-  // ✅ auto-measure size
+  // Auto measure size
   useEffect(() => {
     const el = elRef.current;
     if (!el) return;
@@ -193,7 +191,7 @@ export default function DraggableDroppedTank({
       className="draggable-item"
       style={outerStyle}
       {...attributes}
-      {...(dragListeners || {})}
+      {...(!isPlay ? dragListeners : {})}
       onClick={(e) => {
         if (!isPlay) {
           e.stopPropagation();
@@ -207,7 +205,7 @@ export default function DraggableDroppedTank({
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        if (!isPlay) onRightClick?.(e, tank); // ✅ FIX
+        if (!isPlay) onRightClick?.(e, tank);
       }}
     >
       <div style={visualWrapperStyle}>
