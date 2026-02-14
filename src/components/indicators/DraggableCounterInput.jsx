@@ -21,7 +21,7 @@ function resolveDashboardIdFromProps({ dashboardId, tank }) {
   ).trim();
   if (c) return c;
 
-  return null; // backend supports null, but for reset we should send "main"
+  return null;
 }
 
 export default function DraggableCounterInput({
@@ -29,15 +29,12 @@ export default function DraggableCounterInput({
   variant = "menu", // "menu" | "canvas"
   label = "Counter Input (DI)",
 
-  // ✅ CANVAS: we support either passing `tank` OR passing value props
-  tank = null, // optional full dropped object (preferred)
-  value = 0, // legacy fallback
-  count, // optional legacy fallback
+  tank = null,
+  value = 0,
+  count,
 
-  // ✅ optional dashboard id (recommended)
   dashboardId,
 
-  // canvas positioning
   x,
   y,
   id,
@@ -56,24 +53,42 @@ export default function DraggableCounterInput({
   // ===============================
   const [resetting, setResetting] = React.useState(false);
 
+  // ✅ Local UI override so you SEE the reset immediately,
+  // while still confirming backend actually reset.
+  const [overrideCount, setOverrideCount] = React.useState(null);
+
+  const widgetId = String(id || tank?.id || "").trim();
+
+  // ✅ ALWAYS send dashboard_id string.
+  // For main dashboard, backend normalizes "main" -> NULL (correct)
+  const dash = resolveDashboardIdFromProps({ dashboardId, tank });
+  const dashForBackend = String(dash || "main").trim();
+
+  const confirmBackendRow = async () => {
+    // Use your existing backend route
+    const url = `${API_URL}/device-counters/by-widget/${encodeURIComponent(
+      widgetId
+    )}?dashboard_id=${encodeURIComponent(dashForBackend)}`;
+
+    const res = await fetch(url, { headers: { ...getAuthHeaders() } });
+    const j = await res.json().catch(() => ({}));
+    return { ok: res.ok, status: res.status, json: j };
+  };
+
   const onResetClick = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-    if (resetting) return;
 
-    const widgetId = String(id || tank?.id || "").trim();
+    if (resetting) return;
     if (!widgetId) return;
 
-    // ✅ ALWAYS send dashboard_id so backend resets the correct row
-    // main dashboard should be "main" (backend converts "main" -> NULL)
-    const dash = resolveDashboardIdFromProps({ dashboardId, tank });
-    const dashForBackend = String(dash || "main").trim();
-
     setResetting(true);
+
     try {
       const token = String(getToken() || "").trim();
       if (!token) throw new Error("Missing auth token");
 
+      // 1) Call reset
       const res = await fetch(`${API_URL}/device-counters/reset`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
@@ -84,13 +99,42 @@ export default function DraggableCounterInput({
       });
 
       const j = await res.json().catch(() => ({}));
-      if (!res.ok) throw new Error(j?.detail || `Reset failed (${res.status})`);
 
-      // ✅ Do NOT fake UI here — backend row is reset.
-      // Your polling (LaunchMainDashboard) will update the displayed count on the next tick.
+      if (!res.ok) {
+        console.error("❌ Reset failed:", res.status, j);
+        throw new Error(j?.detail || `Reset failed (${res.status})`);
+      }
+
+      // 2) Immediately show 0000 in UI (user feedback)
+      setOverrideCount(0);
+
+      // 3) Confirm backend row really reset (no guessing)
+      const check = await confirmBackendRow();
+
+      if (!check.ok) {
+        console.error("❌ Confirm GET failed:", check.status, check.json);
+        throw new Error(
+          check?.json?.detail || `Confirm failed (${check.status})`
+        );
+      }
+
+      const backendCount = Number(check?.json?.count ?? 0);
+      if (Number.isFinite(backendCount) && backendCount !== 0) {
+        console.warn(
+          "⚠️ Backend count is not zero after reset. Row:",
+          check.json
+        );
+      } else {
+        console.log("✅ Reset confirmed. Row:", check.json);
+      }
+
+      // Let polling take over after confirmation
+      setTimeout(() => setOverrideCount(null), 300);
     } catch (err) {
       console.error("❌ counter reset error:", err);
       alert(err?.message || "Failed to reset counter");
+      // remove override if we failed
+      setOverrideCount(null);
     } finally {
       setResetting(false);
     }
@@ -100,9 +144,7 @@ export default function DraggableCounterInput({
   // ✅ CANVAS VARIANT
   // ===============================
   if (variant === "canvas") {
-    // ✅ Prefer tank.properties (this is where your modal saves data)
     const props = tank?.properties || {};
-
     const title = String(props?.title || label || "Counter").slice(0, 32);
 
     const digitsRaw = Number(props?.digits ?? 4);
@@ -110,16 +152,19 @@ export default function DraggableCounterInput({
       ? Math.max(1, Math.min(10, digitsRaw))
       : 4;
 
-    const nRaw = props?.count ?? tank?.value ?? tank?.count ?? count ?? value ?? 0;
+    const nRaw =
+      props?.count ?? tank?.value ?? tank?.count ?? count ?? value ?? 0;
 
     const n = Number(nRaw);
     const safe = Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : 0;
-    const display = String(safe).padStart(digits, "0");
+
+    const effective = overrideCount !== null ? overrideCount : safe;
+    const display = String(effective).padStart(digits, "0");
 
     return (
       <div
         onMouseDown={(e) => {
-          // ✅ If user clicks the Reset button, don't trigger select/drag
+          // ✅ If user clicks the button, do NOT trigger drag/select
           if (e.target?.closest?.("button")) return;
 
           e.stopPropagation();
@@ -184,9 +229,14 @@ export default function DraggableCounterInput({
           {display}
         </div>
 
-        {/* RESET BUTTON (calls backend) */}
+        {/* RESET BUTTON */}
         <button
           type="button"
+          // ✅ Use pointer events (strongest) to stop drag stealing clicks
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
           onMouseDown={(e) => {
             e.preventDefault();
             e.stopPropagation();
