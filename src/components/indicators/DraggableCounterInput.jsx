@@ -25,8 +25,7 @@ function resolveDashboardIdFromProps({ dashboardId, tank }) {
 }
 
 export default function DraggableCounterInput({
-  // menu defaults
-  variant = "menu", // "menu" | "canvas"
+  variant = "menu",
   label = "Counter Input (DI)",
 
   tank = null,
@@ -49,92 +48,68 @@ export default function DraggableCounterInput({
   };
 
   // ===============================
-  // ✅ BACKEND RESET (real reset)
+  // ✅ UI feedback state
   // ===============================
   const [resetting, setResetting] = React.useState(false);
+  const [flash, setFlash] = React.useState(false);
+  const [statusMsg, setStatusMsg] = React.useState(""); // "Reset!" | "Failed"
 
-  // ✅ Local UI override so you SEE the reset immediately,
-  // while still confirming backend actually reset.
+  // ✅ override display so user sees immediate effect
   const [overrideCount, setOverrideCount] = React.useState(null);
 
   const widgetId = String(id || tank?.id || "").trim();
 
-  // ✅ ALWAYS send dashboard_id string.
-  // For main dashboard, backend normalizes "main" -> NULL (correct)
+  // ✅ Always send dashboard_id string (main dashboard -> "main")
   const dash = resolveDashboardIdFromProps({ dashboardId, tank });
   const dashForBackend = String(dash || "main").trim();
 
-  const confirmBackendRow = async () => {
-    // Use your existing backend route
-    const url = `${API_URL}/device-counters/by-widget/${encodeURIComponent(
-      widgetId
-    )}?dashboard_id=${encodeURIComponent(dashForBackend)}`;
+  const triggerFlash = () => {
+    setFlash(true);
+    window.setTimeout(() => setFlash(false), 350);
+  };
 
-    const res = await fetch(url, { headers: { ...getAuthHeaders() } });
-    const j = await res.json().catch(() => ({}));
-    return { ok: res.ok, status: res.status, json: j };
+  const showStatus = (msg) => {
+    setStatusMsg(msg);
+    window.setTimeout(() => setStatusMsg(""), 800);
   };
 
   const onResetClick = async (e) => {
     e.preventDefault();
     e.stopPropagation();
-
     if (resetting) return;
     if (!widgetId) return;
 
     setResetting(true);
 
+    // ✅ immediate “feel” effect
+    setOverrideCount(0);
+    triggerFlash();
+    showStatus("Reset!");
+
     try {
       const token = String(getToken() || "").trim();
       if (!token) throw new Error("Missing auth token");
 
-      // 1) Call reset
       const res = await fetch(`${API_URL}/device-counters/reset`, {
         method: "POST",
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify({
           widget_id: widgetId,
-          dashboard_id: dashForBackend, // ✅ IMPORTANT
+          dashboard_id: dashForBackend,
         }),
       });
 
       const j = await res.json().catch(() => ({}));
+      if (!res.ok) throw new Error(j?.detail || `Reset failed (${res.status})`);
 
-      if (!res.ok) {
-        console.error("❌ Reset failed:", res.status, j);
-        throw new Error(j?.detail || `Reset failed (${res.status})`);
-      }
-
-      // 2) Immediately show 0000 in UI (user feedback)
-      setOverrideCount(0);
-
-      // 3) Confirm backend row really reset (no guessing)
-      const check = await confirmBackendRow();
-
-      if (!check.ok) {
-        console.error("❌ Confirm GET failed:", check.status, check.json);
-        throw new Error(
-          check?.json?.detail || `Confirm failed (${check.status})`
-        );
-      }
-
-      const backendCount = Number(check?.json?.count ?? 0);
-      if (Number.isFinite(backendCount) && backendCount !== 0) {
-        console.warn(
-          "⚠️ Backend count is not zero after reset. Row:",
-          check.json
-        );
-      } else {
-        console.log("✅ Reset confirmed. Row:", check.json);
-      }
-
-      // Let polling take over after confirmation
-      setTimeout(() => setOverrideCount(null), 300);
+      // ✅ keep override briefly; polling will update real value
+      window.setTimeout(() => setOverrideCount(null), 400);
     } catch (err) {
       console.error("❌ counter reset error:", err);
+      showStatus("Failed");
+      // revert override if failed
+      window.setTimeout(() => setOverrideCount(null), 300);
       alert(err?.message || "Failed to reset counter");
-      // remove override if we failed
-      setOverrideCount(null);
     } finally {
       setResetting(false);
     }
@@ -152,9 +127,7 @@ export default function DraggableCounterInput({
       ? Math.max(1, Math.min(10, digitsRaw))
       : 4;
 
-    const nRaw =
-      props?.count ?? tank?.value ?? tank?.count ?? count ?? value ?? 0;
-
+    const nRaw = props?.count ?? tank?.value ?? tank?.count ?? count ?? value ?? 0;
     const n = Number(nRaw);
     const safe = Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : 0;
 
@@ -164,7 +137,7 @@ export default function DraggableCounterInput({
     return (
       <div
         onMouseDown={(e) => {
-          // ✅ If user clicks the button, do NOT trigger drag/select
+          // ✅ avoid drag/select when pressing button
           if (e.target?.closest?.("button")) return;
 
           e.stopPropagation();
@@ -212,8 +185,8 @@ export default function DraggableCounterInput({
             width: "100%",
             height: 36,
             borderRadius: 4,
-            border: "2px solid #8f8f8f",
-            background: "#e5e7eb",
+            border: flash ? "2px solid #22c55e" : "2px solid #8f8f8f",
+            background: flash ? "#dcfce7" : "#e5e7eb",
             boxShadow: "inset 0 0 6px rgba(0,0,0,0.25)",
             display: "flex",
             alignItems: "center",
@@ -223,16 +196,32 @@ export default function DraggableCounterInput({
             fontSize: 18,
             letterSpacing: "1px",
             color: "#111",
-            marginBottom: 8,
+            marginBottom: 6,
+            transition: "all 120ms ease",
           }}
         >
           {display}
         </div>
 
+        {/* STATUS (small feedback) */}
+        {statusMsg ? (
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 800,
+              color: statusMsg === "Failed" ? "#b91c1c" : "#166534",
+              marginBottom: 6,
+            }}
+          >
+            {statusMsg}
+          </div>
+        ) : (
+          <div style={{ height: 16, marginBottom: 6 }} />
+        )}
+
         {/* RESET BUTTON */}
         <button
           type="button"
-          // ✅ Use pointer events (strongest) to stop drag stealing clicks
           onPointerDown={(e) => {
             e.preventDefault();
             e.stopPropagation();
@@ -254,7 +243,7 @@ export default function DraggableCounterInput({
             fontSize: 13,
             cursor: resetting ? "not-allowed" : "pointer",
             boxShadow: "0 2px 0 rgba(0,0,0,0.25)",
-            opacity: resetting ? 0.8 : 1,
+            opacity: resetting ? 0.85 : 1,
           }}
           title={resetting ? "Resetting…" : "Reset counter"}
         >
@@ -265,7 +254,7 @@ export default function DraggableCounterInput({
   }
 
   // ===============================
-  // ✅ MENU VARIANT (LEFT SIDEBAR)
+  // ✅ MENU VARIANT
   // ===============================
   return (
     <div
