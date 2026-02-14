@@ -387,8 +387,14 @@ export default function App() {
 
   // ✅ DROP HANDLER
   const { handleDrop } = useDropHandler({
-    setDroppedTanks,
-  });
+  setDroppedTanks,
+
+  // ✅ give the hook dashboard context for the create-placeholder call
+  activeDashboardId: activeDashboard?.dashboardId || null,
+  dashboardId: effectiveDashboardId, // "main" or UUID
+  selectedTank,
+});
+
 
   const handleSelect = (id) => {
     setSelectedTank(id);

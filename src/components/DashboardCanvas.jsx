@@ -3,7 +3,6 @@ import React from "react";
 import { DndContext } from "@dnd-kit/core";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
-
 import AlarmLogWindow from "./AlarmLogWindow";
 import DraggableDroppedTank from "./DraggableDroppedTank";
 import DraggableTextBox from "./DraggableTextBox";
@@ -15,9 +14,7 @@ import ToggleSwitchControl from "./controls/ToggleSwitchControl";
 import PushButtonControl from "./controls/PushButtonControl";
 import AlarmLogResizeEdges from "./alarm/AlarmLogResizeEdges";
 import DisplayOutputTextBoxStyle from "./display/DisplayOutputTextBoxStyle";
-
 import { StandardTank, HorizontalTank, VerticalTank, SiloTank } from "./ProTankIcon";
-
 import {
   DraggableLedCircle,
   DraggableStatusTextBox,

@@ -1,5 +1,15 @@
 // src/hooks/useDropHandler.js
-export default function useDropHandler({ setDroppedTanks }) {
+import { API_URL } from "../config/api";
+import { getToken } from "../utils/authToken";
+
+export default function useDropHandler({
+  setDroppedTanks,
+
+  // ✅ add these 3 from the caller so we can attach to correct dashboard
+  activeDashboardId,
+  dashboardId,
+  selectedTank,
+}) {
   const makeId = () => {
     try {
       return crypto.randomUUID();
@@ -7,6 +17,47 @@ export default function useDropHandler({ setDroppedTanks }) {
       return Date.now().toString() + Math.random().toString(16).slice(2);
     }
   };
+
+  function getAuthHeaders() {
+    const token = String(getToken() || "").trim();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  // ✅ resolve dashboard id (prefer activeDashboardId, then dashboardId, then selectedTank, else "main")
+  function resolveDash() {
+    const a = String(activeDashboardId || "").trim();
+    if (a) return a;
+
+    const b = String(dashboardId || "").trim();
+    if (b) return b;
+
+    const c = String(selectedTank?.dashboard_id || selectedTank?.dashboardId || "").trim();
+    if (c) return c;
+
+    return "main";
+  }
+
+  // ✅ Create DB row ONLY for counter drops
+  async function createCounterPlaceholder(widgetId) {
+    try {
+      const token = String(getToken() || "").trim();
+      if (!token) return;
+
+      const dash = resolveDash();
+
+      await fetch(`${API_URL}/device-counters/create-placeholder`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+        body: JSON.stringify({
+          widget_id: String(widgetId || "").trim(),
+          dashboard_id: dash, // "main" allowed
+        }),
+      });
+    } catch (err) {
+      // never break the UI on drop
+      console.warn("create-placeholder failed:", err);
+    }
+  }
 
   // ✅ Only accept actual image URLs / data URLs as "image drops"
   const isLikelyImageUrl = (s) => {
@@ -218,35 +269,42 @@ export default function useDropHandler({ setDroppedTanks }) {
     if (shape === "alarmLog") {
       return;
     }
-// ✅ COUNTER INPUT (DI)
-if (shape === "counterInput") {
-  setDroppedTanks((prev) => {
-    const z = nextTopZ(prev);
-    return [
-      ...prev,
-      {
-        id: makeId(),
-        shape: "counterInput",
-        x,
-        y,
-        w: 140,
-        h: 120,
-        z,
-        properties: {
-          title: "Counter",
-          count: 0,
-          digits: 4,
-          tag: {
-            deviceId: "",
-            field: "",
+
+    // ✅ COUNTER INPUT (DI) — CREATE DB ROW ONLY HERE
+    if (shape === "counterInput") {
+      const newId = makeId(); // ✅ use same ID for widget_id
+
+      setDroppedTanks((prev) => {
+        const z = nextTopZ(prev);
+        return [
+          ...prev,
+          {
+            id: newId,
+            shape: "counterInput",
+            x,
+            y,
+            w: 140,
+            h: 120,
+            z,
+            properties: {
+              title: "Counter",
+              count: 0,
+              digits: 4,
+              tag: {
+                deviceId: "",
+                field: "",
+              },
+              _prev01: 0,
+            },
           },
-          _prev01: 0, // for edge detection (0->1 increments)
-        },
-      },
-    ];
-  });
-  return;
-}
+        ];
+      });
+
+      // ✅ create device_counters row ONLY for this shape
+      createCounterPlaceholder(newId);
+
+      return;
+    }
 
     // ✅ INDICATORS
     if (shape === "ledCircle") {
@@ -311,21 +369,12 @@ if (shape === "counterInput") {
             h: 70,
             z,
             properties: {
-              // label text
               label: "ALARM",
-
-              // blink timing
               blinkMs: 500,
-
-              // ✅ STYLE (this is what your modal edits)
-              alarmStyle: "annunciator", // annunciator | banner | stackLight | minimal
-              alarmTone: "critical", // critical | warning | info
-
-              // colors used by renderer
+              alarmStyle: "annunciator",
+              alarmTone: "critical",
               colorOn: "#ef4444",
               colorOff: "#0b1220",
-
-              // ✅ REQUIRED so isActive logic works
               tag: {
                 deviceId: "",
                 field: "",
