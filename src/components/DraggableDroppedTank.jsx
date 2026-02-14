@@ -69,7 +69,7 @@ export default function DraggableDroppedTank({
 
   const effectiveZ = tank.z ?? tank.zIndex ?? 1;
 
-  // ✅ FIX: Cursor only active in EDIT mode
+  // ✅ FIX: Cursor only active in EDIT mode. In play mode default cursor.
   const outerStyle = {
     position: "absolute",
     left: tank.x,
@@ -99,10 +99,13 @@ export default function DraggableDroppedTank({
   const isGraphicDisplay = tank.shape === "graphicDisplay";
   const isDisplayOutput = tank.shape === "displayOutput";
 
+  // ✅ NEW: treat counterInput as interactive in play mode so its internal button can show pointer
+  const isCounterInput = tank.shape === "counterInput";
+
   const contentStyle = {
     display: "inline-block",
     pointerEvents: isPlay
-      ? isToggle || isPushButton || isDisplayOutput
+      ? isToggle || isPushButton || isDisplayOutput || isCounterInput
         ? "auto"
         : "none"
       : isGraphicDisplay
@@ -133,6 +136,7 @@ export default function DraggableDroppedTank({
     }
   };
 
+  // allow dragging only when NOT in play mode (except display output special case)
   const dragListeners = isPlay && isDisplayOutput ? undefined : listeners;
 
   // Auto measure size
