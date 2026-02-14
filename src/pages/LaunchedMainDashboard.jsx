@@ -118,6 +118,111 @@ export default function LaunchedMainDashboard() {
   }, []);
 
   // --------------------------------------------------------------
+  // ✅ STEP 2B — Poll COUNTERS every 1 second and inject into droppedTanks
+  //
+  // Why:
+  // - Your DraggableCounterInput reads from tank.properties.count (or tank.value/tank.count).
+  // - In Launch mode nothing updates those fields unless we inject the backend count.
+  //
+  // IMPORTANT:
+  // - This expects an endpoint that returns an array of counters with:
+  //   { widget_id: "...", count: 123 } (or value)
+  // - If your backend uses a different path, change COUNTERS_URL below.
+  // --------------------------------------------------------------
+  useEffect(() => {
+    let alive = true;
+    const controller = new AbortController();
+
+    const COUNTERS_URL = `${API_URL}/device-counters`; // 👈 change if needed
+
+    const toInt0 = (v) => {
+      const n = Number(v);
+      return Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : 0;
+    };
+
+    const fetchCounters = async () => {
+      try {
+        const token = String(getToken() || "").trim();
+        if (!token) return;
+
+        const res = await fetch(COUNTERS_URL, {
+          headers: { Authorization: `Bearer ${token}` },
+          signal: controller.signal,
+        });
+
+        if (!res.ok) return;
+
+        const rows = await res.json().catch(() => []);
+        if (!alive) return;
+
+        const arr = Array.isArray(rows) ? rows : [];
+        if (arr.length === 0) return;
+
+        // map widget_id -> count
+        const map = new Map();
+        for (const r of arr) {
+          const wid = String(r?.widget_id || r?.widgetId || r?.id || "").trim();
+          if (!wid) continue;
+          const c = r?.count ?? r?.value ?? r?.data?.count ?? r?.data?.value ?? 0;
+          map.set(wid, toInt0(c));
+        }
+
+        if (map.size === 0) return;
+
+        setDroppedTanks((prev) => {
+          if (!Array.isArray(prev) || prev.length === 0) return prev;
+
+          let changed = false;
+
+          const next = prev.map((o) => {
+            const oid = String(o?.id || "").trim();
+            if (!oid) return o;
+
+            // only update counter widgets (optional, but reduces work)
+            const shape = String(o?.shape || o?.type || "").toLowerCase();
+            const looksLikeCounter =
+              shape.includes("counter") ||
+              o?.kind === "counter" ||
+              o?.properties?.widgetType === "counter";
+
+            if (!looksLikeCounter && !map.has(oid)) return o;
+            if (!map.has(oid)) return o;
+
+            const newCount = map.get(oid);
+            const props = o?.properties || {};
+            const oldCount = toInt0(props?.count);
+
+            if (oldCount === newCount) return o;
+
+            changed = true;
+            return {
+              ...o,
+              properties: {
+                ...props,
+                count: newCount, // ✅ THIS is what your widget displays
+              },
+            };
+          });
+
+          return changed ? next : prev;
+        });
+      } catch (err) {
+        if (err?.name === "AbortError") return;
+        // stay quiet in launch mode
+      }
+    };
+
+    fetchCounters();
+    const timer = setInterval(fetchCounters, 1000); // ✅ 1 second
+
+    return () => {
+      alive = false;
+      clearInterval(timer);
+      controller.abort();
+    };
+  }, []);
+
+  // --------------------------------------------------------------
   // ✅ UI: never show a “mystery blank” page
   // --------------------------------------------------------------
   if (loading) {
