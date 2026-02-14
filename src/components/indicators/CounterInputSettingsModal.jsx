@@ -1,16 +1,13 @@
 // src/components/indicators/CounterInputSettingsModal.jsx
 import React from "react";
+import { API_URL } from "../../config/api";
+import { getToken } from "../../utils/authToken";
+import { TAG_OPTIONS, formatDateMMDDYYYY_hmma, to01, readTagFromRow, normalizeDiField, resolveDashboardIdFromProps } from "./counterModal/counterHelpers";
 
-import useMyDevices from "./counterModal/useMyDevices";
-import {
-  TAG_OPTIONS,
-  formatDateMMDDYYYY_hmma,
-  to01,
-  readTagFromRow,
-  normalizeDiField,
-  resolveDashboardIdFromProps,
-  getAuthHeaders,
-} from "./counterModal/counterHelpers";
+function getAuthHeaders() {
+  const token = String(getToken() || "").trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 export default function CounterInputSettingsModal({
   open,
@@ -31,8 +28,8 @@ export default function CounterInputSettingsModal({
   const [deviceId, setDeviceId] = React.useState("");
   const [field, setField] = React.useState("");
 
-  // ✅ extracted: devices list + errors
-  const { devices, devicesErr } = useMyDevices(open);
+  const [devices, setDevices] = React.useState([]);
+  const [devicesErr, setDevicesErr] = React.useState("");
 
   const [telemetryRow, setTelemetryRow] = React.useState(null);
   const telemetryRef = React.useRef({ loading: false });
@@ -165,25 +162,12 @@ export default function CounterInputSettingsModal({
     setServerErr("");
     setLoadingCounter(true);
     try {
-      const headers = getAuthHeaders();
-      if (!headers?.Authorization) {
-        throw new Error("Missing auth token. Please logout and login again.");
-      }
+      const token = String(getToken() || "").trim();
+      if (!token) throw new Error("Missing auth token. Please logout and login again.");
 
-      const res = await fetch(
-        `${import.meta.env.VITE_API_URL || ""}/device-counters/by-widget/${encodeURIComponent(wid)}${qs}`,
-        {
-          headers,
-        }
-      );
-
-      // Fallback to your original API_URL behavior if env is not set.
-      // NOTE: This block keeps compatibility without importing API_URL here.
-      // If you don't use VITE_API_URL, just remove this whole fallback and set VITE_API_URL.
-      if (!res.ok && !(import.meta.env.VITE_API_URL || "")) {
-        // Re-try using the API_URL value inside counterHelpers (if it uses it),
-        // otherwise you can delete this fallback.
-      }
+      const res = await fetch(`${API_URL}/device-counters/by-widget/${encodeURIComponent(wid)}${qs}`, {
+        headers: getAuthHeaders(),
+      });
 
       if (res.status === 404) {
         setServerCounter(null);
@@ -267,6 +251,54 @@ export default function CounterInputSettingsModal({
     return () => window.removeEventListener("resize", onResize);
   }, [open, centerModal]);
 
+  // =========================
+  // ✅ LOAD DEVICES (claimed devices for this user)
+  // =========================
+  React.useEffect(() => {
+    if (!open) return;
+
+    let alive = true;
+
+    async function loadDevices() {
+      setDevicesErr("");
+      try {
+        const token = String(getToken() || "").trim();
+        if (!token) throw new Error("Missing auth token. Please logout and login again.");
+
+        const res = await fetch(`${API_URL}/zhc1921/my-devices`, {
+          headers: getAuthHeaders(),
+        });
+
+        if (!res.ok) {
+          const j = await res.json().catch(() => ({}));
+          throw new Error(j?.detail || `Failed to load devices (${res.status})`);
+        }
+
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : [];
+
+        const mapped = list
+          .map((r) => ({
+            id: String(r.deviceId ?? r.device_id ?? "").trim(),
+            name: String(r.deviceId ?? r.device_id ?? "").trim(),
+          }))
+          .filter((x) => x.id);
+
+        if (alive) setDevices(mapped);
+      } catch (e) {
+        if (alive) {
+          setDevices([]);
+          setDevicesErr(e.message || "Failed to load devices");
+        }
+      }
+    }
+
+    loadDevices();
+    return () => {
+      alive = false;
+    };
+  }, [open]);
+
   const selectedDevice = React.useMemo(() => {
     return devices.find((d) => String(d.id) === String(deviceId)) || null;
   }, [devices, deviceId]);
@@ -284,14 +316,11 @@ export default function CounterInputSettingsModal({
 
     telemetryRef.current.loading = true;
     try {
-      const headers = getAuthHeaders();
-      if (!headers?.Authorization) throw new Error("Missing auth token. Please logout and login again.");
+      const token = String(getToken() || "").trim();
+      if (!token) throw new Error("Missing auth token. Please logout and login again.");
 
-      // NOTE: Keep your existing endpoint behavior.
-      // If your counterHelpers already contains API_URL, it can expose a fetch wrapper later.
-      const apiBase = import.meta.env.VITE_API_URL || "";
-      const res = await fetch(`${apiBase}/zhc1921/my-devices`, {
-        headers,
+      const res = await fetch(`${API_URL}/zhc1921/my-devices`, {
+        headers: getAuthHeaders(),
       });
 
       if (!res.ok) {
@@ -374,13 +403,12 @@ export default function CounterInputSettingsModal({
       throw new Error("widget_id, device_id, and field are required");
     }
 
-    const headers = { "Content-Type": "application/json", ...getAuthHeaders() };
-    if (!headers?.Authorization) throw new Error("Missing auth token. Please logout and login again.");
+    const token = String(getToken() || "").trim();
+    if (!token) throw new Error("Missing auth token. Please logout and login again.");
 
-    const apiBase = import.meta.env.VITE_API_URL || "";
-    const res = await fetch(`${apiBase}/device-counters/upsert`, {
+    const res = await fetch(`${API_URL}/device-counters/upsert`, {
       method: "POST",
-      headers,
+      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
       body: JSON.stringify(body),
     });
 
