@@ -34,6 +34,9 @@ export default function DraggableCounterInput({
 
   dashboardId,
 
+  // ✅ NEW: allow canvas to control edit/play behavior
+  dashboardMode = "edit", // "edit" | "play" (launch also uses play)
+
   x,
   y,
   id,
@@ -46,6 +49,8 @@ export default function DraggableCounterInput({
     e.dataTransfer.setData("text/plain", "counterInput");
     e.dataTransfer.effectAllowed = "copy";
   };
+
+  const isEdit = dashboardMode === "edit";
 
   // ===============================
   // ✅ UI feedback state
@@ -140,6 +145,9 @@ export default function DraggableCounterInput({
           // ✅ avoid drag/select when pressing button
           if (e.target?.closest?.("button")) return;
 
+          // ✅ drag cursor + drag action ONLY in edit mode
+          if (!isEdit) return;
+
           e.stopPropagation();
           onSelect?.(id);
           onStartDragObject?.(e, id);
@@ -158,7 +166,9 @@ export default function DraggableCounterInput({
           alignItems: "center",
           padding: 8,
           userSelect: "none",
-          cursor: "move",
+
+          // ✅ IMPORTANT: no "move" cursor in play/launch
+          cursor: "default",
         }}
         title={title}
       >
@@ -174,6 +184,9 @@ export default function DraggableCounterInput({
             whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
+
+            // ✅ cursor move ONLY in edit mode
+            cursor: isEdit ? "move" : "default",
           }}
         >
           {title}
@@ -198,6 +211,7 @@ export default function DraggableCounterInput({
             color: "#111",
             marginBottom: 6,
             transition: "all 120ms ease",
+            cursor: "default",
           }}
         >
           {display}
@@ -211,6 +225,7 @@ export default function DraggableCounterInput({
               fontWeight: 800,
               color: statusMsg === "Failed" ? "#b91c1c" : "#166534",
               marginBottom: 6,
+              cursor: "default",
             }}
           >
             {statusMsg}
@@ -241,7 +256,10 @@ export default function DraggableCounterInput({
             color: "white",
             fontWeight: 800,
             fontSize: 13,
+
+            // ✅ pointer ONLY on reset button
             cursor: resetting ? "not-allowed" : "pointer",
+
             boxShadow: "0 2px 0 rgba(0,0,0,0.25)",
             opacity: resetting ? 0.85 : 1,
           }}

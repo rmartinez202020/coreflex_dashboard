@@ -620,22 +620,24 @@ export default function DashboardCanvas({
                     if (!isPlay) onOpenCounterInputSettings?.(tank);
                   }}
                 >
-                  <DraggableCounterInput
-                    variant="canvas"
-                    label="Counter"
-                    tank={tank}
-                    id={tank.id}
-                    dashboardId={resolvedDash}
-                    onReset={async (widgetId) => {
-                      if (!isPlay) return;
-                      try {
-                        await resetCounterOnBackend({ widgetId, dash: resolvedDash });
-                      } catch (e) {
-                        console.error("Reset failed:", e);
-                        alert(e?.message || "Reset failed");
-                      }
-                    }}
-                  />
+              <DraggableCounterInput
+  variant="canvas"
+  label="Counter"
+  tank={tank}
+  id={tank.id}
+  dashboardId={resolvedDash}
+  dashboardMode={dashboardMode}   // ✅ ADD THIS
+  onReset={async (widgetId) => {
+    if (!isPlay) return;
+    try {
+      await resetCounterOnBackend({ widgetId, dash: resolvedDash });
+    } catch (e) {
+      console.error("Reset failed:", e);
+      alert(e?.message || "Reset failed");
+    }
+  }}
+/>
+
                 </DraggableDroppedTank>
               );
             }
