@@ -16,10 +16,12 @@ function resolveDashboardIdFromProps({ dashboardId, tank }) {
   const b = String(tank?.dashboard_id || tank?.dashboardId || "").trim();
   if (b) return b;
 
-  const c = String(tank?.properties?.dashboard_id || tank?.properties?.dashboardId || "").trim();
+  const c = String(
+    tank?.properties?.dashboard_id || tank?.properties?.dashboardId || ""
+  ).trim();
   if (c) return c;
 
-  return null; // backend supports null
+  return null; // backend supports null, but we'll send "main" when null
 }
 
 export default function DraggableCounterInput({
@@ -55,13 +57,16 @@ export default function DraggableCounterInput({
   const [resetting, setResetting] = React.useState(false);
 
   const onResetClick = async (e) => {
+    e.preventDefault();
     e.stopPropagation();
     if (resetting) return;
 
     const widgetId = String(id || tank?.id || "").trim();
     if (!widgetId) return;
 
+    // ✅ IMPORTANT: for main dashboard send "main" so backend normalizes to NULL
     const dash = resolveDashboardIdFromProps({ dashboardId, tank });
+    const dashForBackend = String(dash || "main").trim();
 
     setResetting(true);
     try {
@@ -73,18 +78,20 @@ export default function DraggableCounterInput({
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify({
           widget_id: widgetId,
-          dashboard_id: dash || null,
+          dashboard_id: dashForBackend,
         }),
       });
 
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j?.detail || `Reset failed (${res.status})`);
 
-      // ✅ no need to mutate local widget state here —
-      // the canvas should be polling / refreshing from backend
-      // (we will wire that next in DashboardCanvas / play mode)
+      // ✅ optimistic UI update so user instantly sees 0000
+      // (your polling will overwrite with backend value next tick anyway)
+      if (tank) {
+        tank.properties = tank.properties || {};
+        tank.properties.count = 0;
+      }
     } catch (err) {
-      // keep UI simple; you can replace with toast later
       console.error("❌ counter reset error:", err);
       alert(err?.message || "Failed to reset counter");
     } finally {
@@ -102,13 +109,11 @@ export default function DraggableCounterInput({
     const title = String(props?.title || label || "Counter").slice(0, 32);
 
     const digitsRaw = Number(props?.digits ?? 4);
-    const digits = Number.isFinite(digitsRaw) ? Math.max(1, Math.min(10, digitsRaw)) : 4;
+    const digits = Number.isFinite(digitsRaw)
+      ? Math.max(1, Math.min(10, digitsRaw))
+      : 4;
 
-    // ✅ Read count from (best -> worst):
-    // 1) tank.properties.count (if you sync it from backend)
-    // 2) tank.value / tank.count (if you sync them)
-    // 3) explicit props: count/value (legacy)
-    // 4) default 0
+    // ✅ Read count from (best -> worst)
     const nRaw = props?.count ?? tank?.value ?? tank?.count ?? count ?? value ?? 0;
 
     const n = Number(nRaw);
@@ -118,6 +123,9 @@ export default function DraggableCounterInput({
     return (
       <div
         onMouseDown={(e) => {
+          // ✅ If user clicks the button, DO NOT trigger select/drag
+          if (e.target?.closest?.("button")) return;
+
           e.stopPropagation();
           onSelect?.(id);
           onStartDragObject?.(e, id);
@@ -182,7 +190,12 @@ export default function DraggableCounterInput({
 
         {/* RESET BUTTON (calls backend) */}
         <button
-          onMouseDown={(e) => e.stopPropagation()}
+          type="button"
+          onMouseDown={(e) => {
+            // ✅ prevent parent drag/select on press
+            e.preventDefault();
+            e.stopPropagation();
+          }}
           onClick={onResetClick}
           disabled={resetting}
           style={{
