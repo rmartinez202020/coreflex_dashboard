@@ -486,16 +486,22 @@ const deleteSelectionOrTarget = useCallback(() => {
           activeDashboard={activeDashboard}
           dashboardMode={dashboardMode}
           setDashboardMode={setDashboardMode}
+       
           onLaunch={() => {
-            if (activeDashboard?.type === "main") {
-              window.open("/launchMainDashboard", "_blank");
-            } else {
-              window.open(
-                `/launchDashboard/${activeDashboard?.dashboardId}`,
-                "_blank"
-              );
-            }
-          }}
+  // ✅ If app is hosted under /app, keep launch inside /app
+  const base = window.location.pathname.startsWith("/app") ? "/app" : "";
+
+  if (activeDashboard?.type === "main") {
+    window.open(`${base}/launchMainDashboard`, "_blank");
+  } else {
+    window.open(
+      `${base}/launchDashboard/${activeDashboard?.dashboardId}`,
+      "_blank"
+    );
+  }
+}}
+
+
           onUndo={handleUndo}
           onRedo={handleRedo}
           canUndo={canUndo}
