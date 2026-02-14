@@ -3,7 +3,7 @@ import React from "react";
 import { API_URL } from "../../config/api";
 import { getToken } from "../../utils/authToken";
 import { TAG_OPTIONS, formatDateMMDDYYYY_hmma, to01, readTagFromRow, normalizeDiField, resolveDashboardIdFromProps } from "./counterModal/counterHelpers";
-
+import useCounterBackend from "./counterModal/useCounterBackend";
 
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
@@ -35,11 +35,18 @@ export default function CounterInputSettingsModal({
   const [telemetryRow, setTelemetryRow] = React.useState(null);
   const telemetryRef = React.useRef({ loading: false });
 
-  // ✅ backend counter state (server is source of truth)
-  const [serverCounter, setServerCounter] = React.useState(null);
-  const [serverErr, setServerErr] = React.useState("");
-  const [saving, setSaving] = React.useState(false);
-  const [loadingCounter, setLoadingCounter] = React.useState(false);
+  /* 🔥 ADD THIS RIGHT HERE */
+  const {
+  serverCounter,
+  serverErr,
+  saving,
+  loadingCounter,
+  setServerCounter,
+  setServerErr,
+  fetchCounter,
+  upsertCounterOnBackend,
+} = useCounterBackend({ tank, dashboardId });
+
 
   // =========================
   // ✅ DRAGGABLE MODAL STATE
@@ -149,52 +156,6 @@ export default function CounterInputSettingsModal({
     }
     dragRef.current.pointerId = null;
   };
-
-  // =========================
-  // ✅ BACKEND: fetch counter by widget_id (optional dashboard_id)
-  // =========================
-  const fetchCounter = React.useCallback(async () => {
-    const wid = String(tank?.id || "").trim();
-    if (!wid) return;
-
-    const did = resolveDashboardIdFromProps({ dashboardId, tank });
-    const qs = did ? `?dashboard_id=${encodeURIComponent(did)}` : "";
-
-    setServerErr("");
-    setLoadingCounter(true);
-    try {
-      const token = String(getToken() || "").trim();
-      if (!token) throw new Error("Missing auth token. Please logout and login again.");
-
-      const res = await fetch(`${API_URL}/device-counters/by-widget/${encodeURIComponent(wid)}${qs}`, {
-        headers: getAuthHeaders(),
-      });
-
-      if (res.status === 404) {
-        setServerCounter(null);
-        return;
-      }
-
-      if (!res.ok) {
-        const j = await res.json().catch(() => ({}));
-        throw new Error(j?.detail || `Failed to load counter (${res.status})`);
-      }
-
-      const data = await res.json();
-      setServerCounter(data || null);
-
-      // if server has config, prefer it
-      const srvDevice = String(data?.device_id || "").trim();
-      const srvField = String(data?.field || "").trim();
-      if (srvDevice) setDeviceId(srvDevice);
-      if (srvField) setField(srvField);
-    } catch (e) {
-      setServerCounter(null);
-      setServerErr(e?.message || "Failed to load counter");
-    } finally {
-      setLoadingCounter(false);
-    }
-  }, [tank?.id, dashboardId, tank]);
 
   // =========================
   // ✅ REHYDRATE ON OPEN
@@ -385,40 +346,6 @@ export default function CounterInputSettingsModal({
 
   const deviceDot = deviceId ? (deviceIsOnline ? "#16a34a" : "#dc2626") : "#94a3b8";
   const tagDot = deviceId && field ? (tagIsOnline ? "#16a34a" : "#dc2626") : "#94a3b8";
-
-  // =========================
-  // ✅ BACKEND: upsert counter (THIS makes counting work)
-  // =========================
-  async function upsertCounterOnBackend({ widgetId, deviceId: did, field: fld }) {
-    const dashboard_id = resolveDashboardIdFromProps({ dashboardId, tank });
-
-    const body = {
-      widget_id: String(widgetId || "").trim(),
-      device_id: String(did || "").trim(),
-      field: normalizeDiField(fld),
-      dashboard_id: dashboard_id || null,
-      enabled: true,
-    };
-
-    if (!body.widget_id || !body.device_id || !body.field) {
-      throw new Error("widget_id, device_id, and field are required");
-    }
-
-    const token = String(getToken() || "").trim();
-    if (!token) throw new Error("Missing auth token. Please logout and login again.");
-
-    const res = await fetch(`${API_URL}/device-counters/upsert`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json", ...getAuthHeaders() },
-      body: JSON.stringify(body),
-    });
-
-    const j = await res.json().catch(() => ({}));
-    if (!res.ok) {
-      throw new Error(j?.detail || `Upsert failed (${res.status})`);
-    }
-    return j;
-  }
 
   const apply = async () => {
     const nextDeviceId = String(deviceId || "").trim();
