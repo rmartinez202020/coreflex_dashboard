@@ -21,7 +21,7 @@ function resolveDashboardIdFromProps({ dashboardId, tank }) {
   ).trim();
   if (c) return c;
 
-  return null; // backend supports null, but we'll send "main" when null
+  return null; // backend supports null, but for reset we should send "main"
 }
 
 export default function DraggableCounterInput({
@@ -64,7 +64,8 @@ export default function DraggableCounterInput({
     const widgetId = String(id || tank?.id || "").trim();
     if (!widgetId) return;
 
-    // ✅ IMPORTANT: for main dashboard send "main" so backend normalizes to NULL
+    // ✅ ALWAYS send dashboard_id so backend resets the correct row
+    // main dashboard should be "main" (backend converts "main" -> NULL)
     const dash = resolveDashboardIdFromProps({ dashboardId, tank });
     const dashForBackend = String(dash || "main").trim();
 
@@ -78,19 +79,15 @@ export default function DraggableCounterInput({
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify({
           widget_id: widgetId,
-          dashboard_id: dashForBackend,
+          dashboard_id: dashForBackend, // ✅ IMPORTANT
         }),
       });
 
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j?.detail || `Reset failed (${res.status})`);
 
-      // ✅ optimistic UI update so user instantly sees 0000
-      // (your polling will overwrite with backend value next tick anyway)
-      if (tank) {
-        tank.properties = tank.properties || {};
-        tank.properties.count = 0;
-      }
+      // ✅ Do NOT fake UI here — backend row is reset.
+      // Your polling (LaunchMainDashboard) will update the displayed count on the next tick.
     } catch (err) {
       console.error("❌ counter reset error:", err);
       alert(err?.message || "Failed to reset counter");
@@ -113,7 +110,6 @@ export default function DraggableCounterInput({
       ? Math.max(1, Math.min(10, digitsRaw))
       : 4;
 
-    // ✅ Read count from (best -> worst)
     const nRaw = props?.count ?? tank?.value ?? tank?.count ?? count ?? value ?? 0;
 
     const n = Number(nRaw);
@@ -123,7 +119,7 @@ export default function DraggableCounterInput({
     return (
       <div
         onMouseDown={(e) => {
-          // ✅ If user clicks the button, DO NOT trigger select/drag
+          // ✅ If user clicks the Reset button, don't trigger select/drag
           if (e.target?.closest?.("button")) return;
 
           e.stopPropagation();
@@ -192,7 +188,6 @@ export default function DraggableCounterInput({
         <button
           type="button"
           onMouseDown={(e) => {
-            // ✅ prevent parent drag/select on press
             e.preventDefault();
             e.stopPropagation();
           }}
