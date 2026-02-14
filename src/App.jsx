@@ -27,6 +27,8 @@ import useDashboardCanvasClipboard from "./hooks/useDashboardCanvasClipboard";
 import useDashboardZOrder from "./hooks/useDashboardZOrder";
 import useDashboardModalsController from "./hooks/useDashboardModalsController";
 import AlarmLogPage from "./pages/AlarmLogPage";
+import { API_URL } from "./config/api";
+import useDeleteSelected from "./hooks/useDeleteSelected";
 
 export default function App() {
   const navigate = useNavigate();
@@ -195,6 +197,20 @@ export default function App() {
     return id || null;
   }, [activeDashboard]);
 
+  // ===============================
+// ✅ Delete hook (UI + backend for counters)
+// ===============================
+const { deleteSelected } = useDeleteSelected({
+  activePage,
+  dashboardMode,
+  selectedIds,
+  droppedTanks,
+  setDroppedTanks,
+  clearSelection,
+  activeDashboardId: activeDashboard?.dashboardId || null,
+  dashboardId: effectiveDashboardId, // "main" or UUID
+});
+
   // SIDEBARS
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
   const [isRightCollapsed, setIsRightCollapsed] = useState(false);
@@ -294,20 +310,37 @@ export default function App() {
       setDroppedTanks,
     });
 
-  // ✅ Delete selected items OR the right-click target
-  const deleteSelectionOrTarget = useCallback(() => {
-    const idsToDelete =
-      (selectedIds?.length || 0) > 0
-        ? selectedIds
-        : contextMenu?.targetId
-        ? [contextMenu.targetId]
-        : [];
+  // ✅ Delete selected items OR right-click target
+// (uses hook so counter rows are also deleted in backend)
+const deleteSelectionOrTarget = useCallback(() => {
+  const idsToDelete =
+    (selectedIds?.length || 0) > 0
+      ? selectedIds
+      : contextMenu?.targetId
+      ? [contextMenu.targetId]
+      : [];
 
-    if (!idsToDelete.length) return;
+  if (!idsToDelete.length) return;
 
-    setDroppedTanks((prev) => prev.filter((t) => !idsToDelete.includes(t.id)));
-    clearSelection();
-  }, [selectedIds, contextMenu, setDroppedTanks]);
+  // If deleting from right-click and nothing is selected yet
+  if ((selectedIds?.length || 0) === 0 && contextMenu?.targetId) {
+    setSelectedIds([contextMenu.targetId]);
+    setSelectedTank(contextMenu.targetId);
+  } else {
+    setSelectedIds(idsToDelete);
+    setSelectedTank(idsToDelete[0] || null);
+  }
+
+  // ✅ This calls your hook (which deletes backend rows for counterInput)
+  void deleteSelected();
+}, [
+  selectedIds,
+  contextMenu,
+  setSelectedIds,
+  setSelectedTank,
+  deleteSelected,
+]);
+
 
   const { copyFromContext, pasteAtContext, hasClipboard } =
     useDashboardCanvasClipboard({
