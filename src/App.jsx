@@ -27,7 +27,6 @@ import useDashboardCanvasClipboard from "./hooks/useDashboardCanvasClipboard";
 import useDashboardZOrder from "./hooks/useDashboardZOrder";
 import useDashboardModalsController from "./hooks/useDashboardModalsController";
 import AlarmLogPage from "./pages/AlarmLogPage";
-import { API_URL } from "./config/api";
 import useDeleteSelected from "./hooks/useDeleteSelected";
 
 export default function App() {
