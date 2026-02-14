@@ -61,36 +61,60 @@ export default function LaunchedMainDashboard() {
   }, []);
 
   // --------------------------------------------------------------
-  // ✅ STEP 2 — Load live sensor/device data
+  // ✅ STEP 2 — Load live sensor/device data (poll every 1 second)
   // --------------------------------------------------------------
   useEffect(() => {
-    fetch(`${API_URL}/devices`)
-      .then((res) => {
+    let alive = true;
+    const controller = new AbortController();
+
+    const normalize = (data) =>
+      (data || []).map((s) => ({
+        ...s,
+        level_percent: Math.min(
+          100,
+          Math.round((Number(s.level || 0) / 55) * 100)
+        ),
+        date_received: s.last_update?.split?.("T")?.[0] || "",
+        time_received: s.last_update
+          ? new Date(s.last_update).toLocaleTimeString([], {
+              hour: "2-digit",
+              minute: "2-digit",
+            })
+          : "",
+      }));
+
+    const fetchDevices = async () => {
+      try {
+        const token = getToken();
+        const headers = {};
+        if (token) headers.Authorization = `Bearer ${token}`; // safe if endpoint requires auth
+
+        const res = await fetch(`${API_URL}/devices`, {
+          headers,
+          signal: controller.signal,
+        });
+
         if (!res.ok) throw new Error("Failed to load devices");
-        return res.json();
-      })
-      .then((data) =>
-        setSensorsData(
-          (data || []).map((s) => ({
-            ...s,
-            level_percent: Math.min(
-              100,
-              Math.round((Number(s.level || 0) / 55) * 100)
-            ),
-            date_received: s.last_update?.split?.("T")?.[0] || "",
-            time_received: s.last_update
-              ? new Date(s.last_update).toLocaleTimeString([], {
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
-              : "",
-          }))
-        )
-      )
-      .catch((err) => {
+        const data = await res.json();
+
+        if (!alive) return;
+        setSensorsData(normalize(data));
+      } catch (err) {
+        if (err?.name === "AbortError") return;
         console.error("❌ Sensor API error:", err);
-        setSensorsData([]);
-      });
+        if (alive) setSensorsData([]);
+      }
+    };
+
+    // initial + 1s polling
+    fetchDevices();
+    const timer = setInterval(fetchDevices, 1000);
+
+    return () => {
+      alive = false;
+      clearInterval(timer);
+      controller.abort();
+    };
   }, []);
 
   // --------------------------------------------------------------
@@ -142,9 +166,6 @@ export default function LaunchedMainDashboard() {
 
   // --------------------------------------------------------------
   // ✅ STEP 3 — Render DashboardCanvas in PLAY mode
-  //    IMPORTANT:
-  //    - We allow setDroppedTanks so toggle/pushbutton can update state
-  //    - We still block drag/edit via play mode + empty handlers
   // --------------------------------------------------------------
   return (
     <div
@@ -158,15 +179,12 @@ export default function LaunchedMainDashboard() {
       <DashboardCanvas
         dashboardMode="play"
         embedMode={true}
-
         /* ----- Layout Objects ----- */
         droppedTanks={droppedTanks}
-        setDroppedTanks={setDroppedTanks} // ✅ allow controls to update their own state in play
-
+        setDroppedTanks={setDroppedTanks}
         /* ----- Sensor Data ----- */
         sensorsData={sensorsData}
-        sensors={[]} // ✅ no drag items in launched mode
-
+        sensors={[]}
         /* ----- Disable editing UI / interactions ----- */
         selectedIds={[]}
         setSelectedIds={() => {}}
@@ -179,8 +197,6 @@ export default function LaunchedMainDashboard() {
         activeSiloId={null}
         setActiveSiloId={() => {}}
         setShowSiloProps={() => {}}
-
-        // ✅ disable selection + drag actions in launched mode
         handleSelect={() => {}}
         handleRightClick={() => {}}
         handleDrop={() => {}}
@@ -189,13 +205,10 @@ export default function LaunchedMainDashboard() {
         handleCanvasMouseDown={() => {}}
         handleCanvasMouseMove={() => {}}
         handleCanvasMouseUp={() => {}}
-
         getLayerScore={(o) => o.zIndex || 1}
         selectionBox={null}
         hideContextMenu={() => {}}
         guides={[]}
-
-        // ✅ no property modals in launch mode
         onOpenDisplaySettings={() => {}}
         onOpenGraphicDisplaySettings={() => {}}
       />
