@@ -16,7 +16,9 @@ function resolveDashboardIdFromProps({ dashboardId, tank }) {
   const b = String(tank?.dashboard_id || tank?.dashboardId || "").trim();
   if (b) return b;
 
-  const c = String(tank?.properties?.dashboard_id || tank?.properties?.dashboardId || "").trim();
+  const c = String(
+    tank?.properties?.dashboard_id || tank?.properties?.dashboardId || ""
+  ).trim();
   if (c) return c;
 
   return null; // backend supports null
@@ -54,14 +56,84 @@ export default function DraggableCounterInput({
   // ===============================
   const [resetting, setResetting] = React.useState(false);
 
+  // ===============================
+  // ✅ LIVE COUNT (poll backend)
+  // ===============================
+  const [liveCount, setLiveCount] = React.useState(null);
+  const [pollError, setPollError] = React.useState(false);
+
+  const widgetId = React.useMemo(() => {
+    const wid = String(id || tank?.id || "").trim();
+    return wid || null;
+  }, [id, tank?.id]);
+
+  const dash = React.useMemo(() => {
+    return resolveDashboardIdFromProps({ dashboardId, tank });
+  }, [dashboardId, tank]);
+
+  // ✅ Poll backend every 1 second in canvas mode
+  React.useEffect(() => {
+    if (variant !== "canvas") return;
+    if (!widgetId) return;
+
+    let alive = true;
+    const controller = new AbortController();
+
+    const fetchCount = async () => {
+      try {
+        const token = String(getToken() || "").trim();
+        if (!token) {
+          // In launch, you should still have token, but if not, just stop updating
+          return;
+        }
+
+        // ✅ preferred endpoint (adjust if your backend uses a different path)
+        const qs = new URLSearchParams();
+        qs.set("widget_id", widgetId);
+        if (dash) qs.set("dashboard_id", dash);
+
+        const res = await fetch(`${API_URL}/device-counters/value?${qs.toString()}`, {
+          headers: { ...getAuthHeaders() },
+          signal: controller.signal,
+        });
+
+        if (!res.ok) {
+          setPollError(true);
+          return;
+        }
+
+        const j = await res.json().catch(() => ({}));
+        const raw = j?.count ?? j?.value ?? j?.data?.count ?? j?.data?.value;
+
+        const n = Number(raw);
+        if (!alive) return;
+
+        if (Number.isFinite(n)) {
+          setLiveCount(Math.max(0, Math.trunc(n)));
+          setPollError(false);
+        }
+      } catch (err) {
+        if (err?.name === "AbortError") return;
+        setPollError(true);
+      }
+    };
+
+    // initial + interval
+    fetchCount();
+    const timer = setInterval(fetchCount, 1000); // ✅ 1 second
+
+    return () => {
+      alive = false;
+      clearInterval(timer);
+      controller.abort();
+    };
+  }, [variant, widgetId, dash]);
+
   const onResetClick = async (e) => {
     e.stopPropagation();
     if (resetting) return;
 
-    const widgetId = String(id || tank?.id || "").trim();
     if (!widgetId) return;
-
-    const dash = resolveDashboardIdFromProps({ dashboardId, tank });
 
     setResetting(true);
     try {
@@ -80,11 +152,9 @@ export default function DraggableCounterInput({
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j?.detail || `Reset failed (${res.status})`);
 
-      // ✅ no need to mutate local widget state here —
-      // the canvas should be polling / refreshing from backend
-      // (we will wire that next in DashboardCanvas / play mode)
+      // ✅ Immediately reflect reset in UI
+      setLiveCount(0);
     } catch (err) {
-      // keep UI simple; you can replace with toast later
       console.error("❌ counter reset error:", err);
       alert(err?.message || "Failed to reset counter");
     } finally {
@@ -96,22 +166,24 @@ export default function DraggableCounterInput({
   // ✅ CANVAS VARIANT
   // ===============================
   if (variant === "canvas") {
-    // ✅ Prefer tank.properties (this is where your modal saves data)
     const props = tank?.properties || {};
 
     const title = String(props?.title || label || "Counter").slice(0, 32);
 
     const digitsRaw = Number(props?.digits ?? 4);
-    const digits = Number.isFinite(digitsRaw) ? Math.max(1, Math.min(10, digitsRaw)) : 4;
+    const digits = Number.isFinite(digitsRaw)
+      ? Math.max(1, Math.min(10, digitsRaw))
+      : 4;
 
-    // ✅ Read count from (best -> worst):
-    // 1) tank.properties.count (if you sync it from backend)
-    // 2) tank.value / tank.count (if you sync them)
-    // 3) explicit props: count/value (legacy)
-    // 4) default 0
-    const nRaw = props?.count ?? tank?.value ?? tank?.count ?? count ?? value ?? 0;
+    // ✅ display count priority:
+    // 1) liveCount (polled from backend)
+    // 2) saved layout fields (legacy)
+    const fallbackRaw =
+      props?.count ?? tank?.value ?? tank?.count ?? count ?? value ?? 0;
 
-    const n = Number(nRaw);
+    const base = liveCount !== null ? liveCount : fallbackRaw;
+
+    const n = Number(base);
     const safe = Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : 0;
     const display = String(safe).padStart(digits, "0");
 
@@ -178,6 +250,11 @@ export default function DraggableCounterInput({
           }}
         >
           {display}
+        </div>
+
+        {/* small status line (optional) */}
+        <div style={{ fontSize: 11, marginBottom: 6, opacity: 0.7 }}>
+          {pollError ? "offline" : "live"}
         </div>
 
         {/* RESET BUTTON (calls backend) */}
