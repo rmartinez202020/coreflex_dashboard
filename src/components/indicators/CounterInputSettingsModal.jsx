@@ -4,6 +4,7 @@ import { API_URL } from "../../config/api";
 import { getToken } from "../../utils/authToken";
 import { TAG_OPTIONS, formatDateMMDDYYYY_hmma, to01, readTagFromRow, normalizeDiField, resolveDashboardIdFromProps } from "./counterModal/counterHelpers";
 
+
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
