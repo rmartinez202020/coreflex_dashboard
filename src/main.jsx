@@ -2,7 +2,7 @@
 import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import "leaflet/dist/leaflet.css";
-
+import LaunchedCustomerDashboard from "./pages/LaunchedCustomerDashboard.jsx";
 import "./index.css";
 import App from "./App.jsx";
 import LoginPage from "./pages/LoginPage.jsx";
@@ -46,6 +46,16 @@ createRoot(document.getElementById("root")).render(
           </RequireAuth>
         }
       />
+
+      {/* 🚀 LAUNCH CUSTOMER DASHBOARD */}
+<Route
+  path="/launchDashboard/:dashboardId"
+  element={
+    <RequireAuth>
+      <LaunchedCustomerDashboard />
+    </RequireAuth>
+  }
+/>
 
       {/* 🚀 LAUNCH ALARM LOG (protected) */}
       <Route

@@ -427,7 +427,6 @@ const deleteSelectionOrTarget = useCallback(() => {
   selectedTank,
 });
 
-
   const handleSelect = (id) => {
     setSelectedTank(id);
     setSelectedIds([id]);
