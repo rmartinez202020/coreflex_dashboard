@@ -1,11 +1,16 @@
-import React from "react";
+import React, { useMemo } from "react";
 
 /**
  * GraphicDisplay
  * - uses tank settings: title, timeUnit, sampleMs, window
- * - NEW: yMin, yMax, yUnits, graphStyle
- * - FIX: chart border doesn't overlap content (flex layout)
- * - FIX: chart frame always closes clean on RIGHT + BOTTOM when resizing
+ * - yMin, yMax, yUnits, graphStyle
+ *
+ * ✅ UPGRADE: professional grid
+ *   - major + minor grid lines
+ *   - configurable divisions (tank.yDivs, tank.xDivs)
+ *   - tick labels on Y axis (not just min/max)
+ *
+ * NOTE: this is still a placeholder chart frame (no real plotting yet).
  */
 export default function GraphicDisplay({ tank }) {
   const title = tank?.title ?? "Graphic Display";
@@ -19,6 +24,14 @@ export default function GraphicDisplay({ tank }) {
 
   const graphStyle = tank?.graphStyle ?? "line";
 
+  // ✅ NEW: grid divisions (professional defaults)
+  const yDivs = Number.isFinite(tank?.yDivs) ? Math.max(2, tank.yDivs) : 10; // horizontal major divisions
+  const xDivs = Number.isFinite(tank?.xDivs) ? Math.max(2, tank.xDivs) : 12; // vertical major divisions
+
+  // minor subdivisions between majors (SCADA look)
+  const yMinor = Number.isFinite(tank?.yMinor) ? Math.max(1, tank.yMinor) : 2;
+  const xMinor = Number.isFinite(tank?.xMinor) ? Math.max(1, tank.xMinor) : 2;
+
   const styleBadge = (() => {
     if (graphStyle === "line") return "LINE";
     if (graphStyle === "area") return "AREA";
@@ -27,13 +40,55 @@ export default function GraphicDisplay({ tank }) {
     return "LINE";
   })();
 
+  // ✅ derived Y ticks (labels)
+  const yTicks = useMemo(() => {
+    const min = Number(yMin);
+    const max = Number(yMax);
+    if (!Number.isFinite(min) || !Number.isFinite(max) || max === min) {
+      return [];
+    }
+    const step = (max - min) / yDivs;
+    const arr = [];
+    for (let i = 0; i <= yDivs; i++) {
+      arr.push(min + step * i);
+    }
+    return arr;
+  }, [yMin, yMax, yDivs]);
+
+  // ✅ background grid (major + minor) using layered gradients
+  const gridBackground = useMemo(() => {
+    // major grid size in px
+    const majorX = Math.max(24, Math.round(520 / xDivs)); // keep it sensible on resize
+    const majorY = Math.max(20, Math.round(260 / yDivs));
+
+    // minor grid size in px (split majors)
+    const minorX = Math.max(8, Math.round(majorX / (xMinor + 1)));
+    const minorY = Math.max(8, Math.round(majorY / (yMinor + 1)));
+
+    // ✅ 4 layers:
+    // 1) minor vertical, 2) minor horizontal, 3) major vertical, 4) major horizontal
+    return {
+      backgroundImage: `
+        linear-gradient(to right, rgba(0,0,0,0.035) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0,0,0,0.035) 1px, transparent 1px),
+        linear-gradient(to right, rgba(0,0,0,0.085) 1px, transparent 1px),
+        linear-gradient(to bottom, rgba(0,0,0,0.085) 1px, transparent 1px)
+      `,
+      backgroundSize: `
+        ${minorX}px ${minorY}px,
+        ${minorX}px ${minorY}px,
+        ${majorX}px ${majorY}px,
+        ${majorX}px ${majorY}px
+      `,
+      backgroundPosition: `0 0, 0 0, 0 0, 0 0`,
+    };
+  }, [xDivs, yDivs, xMinor, yMinor]);
+
   return (
     <div
       style={{
-        // ✅ IMPORTANT: fill the draggable container (no hard pixels here)
         width: "100%",
         height: "100%",
-
         background: "#fff",
         borderRadius: 10,
         border: "1px solid #cfcfcf",
@@ -166,7 +221,6 @@ export default function GraphicDisplay({ tank }) {
       {/* BODY / CHART AREA */}
       <div
         style={{
-          // ✅ chart area must fill remaining height perfectly
           flex: "1 1 auto",
           minHeight: 0,
           minWidth: 0,
@@ -176,65 +230,62 @@ export default function GraphicDisplay({ tank }) {
       >
         <div
           style={{
-            // ✅ this is the "frame" — it now ALWAYS closes on right/bottom
             flex: "1 1 auto",
             minWidth: 0,
             minHeight: 0,
             width: "100%",
             height: "100%",
-
             borderRadius: 10,
             background: "linear-gradient(180deg,#ffffff,#fbfbfb)",
             position: "relative",
             overflow: "hidden",
-
-            // ✅ real border (no outline tricks) so edges look clean
             border: "1px solid #d9d9d9",
           }}
         >
-          {/* grid */}
+          {/* ✅ upgraded grid */}
           <div
             style={{
               position: "absolute",
               inset: 0,
-              backgroundImage:
-                "linear-gradient(to right, rgba(0,0,0,0.05) 1px, transparent 1px), linear-gradient(to bottom, rgba(0,0,0,0.05) 1px, transparent 1px)",
-              backgroundSize: "40px 30px",
+              ...gridBackground,
               pointerEvents: "none",
             }}
           />
 
-          {/* Y labels */}
-          <div
-            style={{
-              position: "absolute",
-              left: 10,
-              bottom: 10,
-              fontFamily: "monospace",
-              fontSize: 12,
-              color: "#555",
-              background: "rgba(255,255,255,0.75)",
-              padding: "2px 6px",
-              borderRadius: 6,
-            }}
-          >
-            {yMin.toFixed(2)}
-          </div>
-          <div
-            style={{
-              position: "absolute",
-              left: 10,
-              top: 10,
-              fontFamily: "monospace",
-              fontSize: 12,
-              color: "#555",
-              background: "rgba(255,255,255,0.75)",
-              padding: "2px 6px",
-              borderRadius: 6,
-            }}
-          >
-            {yMax.toFixed(2)}
-          </div>
+          {/* ✅ Y ticks (left side), evenly spaced */}
+          {yTicks.length > 0 && (
+            <div
+              style={{
+                position: "absolute",
+                left: 8,
+                top: 8,
+                bottom: 8,
+                width: 64,
+                pointerEvents: "none",
+                display: "flex",
+                flexDirection: "column",
+                justifyContent: "space-between",
+              }}
+            >
+              {/* top -> bottom */}
+              {[...yTicks].reverse().map((v, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    fontFamily: "monospace",
+                    fontSize: 11,
+                    color: "#555",
+                    background: "rgba(255,255,255,0.78)",
+                    padding: "1px 6px",
+                    borderRadius: 6,
+                    alignSelf: "flex-start",
+                  }}
+                >
+                  {Number(v).toFixed(2)}
+                </div>
+              ))}
+            </div>
+          )}
 
           {/* placeholder “style” visual */}
           <div
