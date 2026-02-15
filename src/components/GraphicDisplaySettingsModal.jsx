@@ -2,7 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 
-const SAMPLE_OPTIONS = [200, 500, 700, 1000, 2000, 5000];
+// ✅ Updated sampling options (ms)
+// 1s, 3s, 6s, 30s, 1min, 5min, 10min
+const SAMPLE_OPTIONS = [1000, 3000, 6000, 30000, 60000, 300000, 600000];
+
 const TIME_UNITS = ["seconds", "minutes", "hours", "days"];
 
 const GRAPH_STYLES = [
@@ -185,6 +188,25 @@ function readAiField(row, bindField) {
   return null;
 }
 
+// ✅ label helper for the new sample options
+function formatSampleLabel(ms) {
+  const sec = ms / 1000;
+
+  // exact labels requested
+  if (ms === 1000) return "1s";
+  if (ms === 3000) return "3s";
+  if (ms === 6000) return "6s";
+  if (ms === 30000) return "30s";
+  if (ms === 60000) return "1 min";
+  if (ms === 300000) return "5 min";
+  if (ms === 600000) return "10 min";
+
+  // fallback
+  if (ms % 60000 === 0) return `${ms / 60000} min`;
+  if (ms % 1000 === 0) return `${sec}s`;
+  return `${ms} ms`;
+}
+
 export default function GraphicDisplaySettingsModal({
   open,
   tank,
@@ -199,6 +221,8 @@ export default function GraphicDisplaySettingsModal({
   const [title, setTitle] = useState("Graphic Display");
   const [timeUnit, setTimeUnit] = useState("seconds");
   const [windowSize, setWindowSize] = useState(60);
+
+  // ✅ default stays 1s
   const [sampleMs, setSampleMs] = useState(1000);
 
   const [yMin, setYMin] = useState(0);
@@ -217,7 +241,7 @@ export default function GraphicDisplaySettingsModal({
   const [loadingDevices, setLoadingDevices] = useState(false);
   const [deviceErr, setDeviceErr] = useState("");
 
-  // ✅ current value polling (every 3s)
+  // ✅ current value polling (uses sampleMs now)
   const [currentValue, setCurrentValue] = useState(null);
   const [currentUpdatedAt, setCurrentUpdatedAt] = useState("");
   const [valueErr, setValueErr] = useState("");
@@ -229,7 +253,10 @@ export default function GraphicDisplaySettingsModal({
     setTitle(tank.title ?? "Graphic Display");
     setTimeUnit(tank.timeUnit ?? "seconds");
     setWindowSize(tank.window ?? 60);
-    setSampleMs(tank.sampleMs ?? 1000);
+
+    // ✅ accept old values, but if not in the list, fall back to 1s
+    const incomingSample = Number(tank.sampleMs ?? 1000);
+    setSampleMs(SAMPLE_OPTIONS.includes(incomingSample) ? incomingSample : 1000);
 
     setYMin(Number.isFinite(tank.yMin) ? tank.yMin : 0);
     setYMax(Number.isFinite(tank.yMax) ? tank.yMax : 100);
@@ -283,13 +310,6 @@ export default function GraphicDisplaySettingsModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bindModel]);
 
-  const formatSampleLabel = (ms) => {
-    if (ms === 1000) return "1s (1000 ms)";
-    if (ms === 2000) return "2s (2000 ms)";
-    if (ms === 5000) return "5s (5000 ms)";
-    return `${ms} ms`;
-  };
-
   const safeWindow = Number.isFinite(windowSize) ? windowSize : 0;
   const safeYMin = Number.isFinite(yMin) ? yMin : 0;
   const safeYMax = Number.isFinite(yMax) ? yMax : 0;
@@ -316,7 +336,7 @@ export default function GraphicDisplaySettingsModal({
     return "#6b7280";
   }, [deviceStatusLabel]);
 
-  // ✅ Poll current value every 3 seconds (NO-CACHE)
+  // ✅ Poll current value using the selected sampleMs
   useEffect(() => {
     if (!open) return;
     if (!bindDeviceId || !bindField || !bindModel) {
@@ -345,14 +365,25 @@ export default function GraphicDisplaySettingsModal({
 
         if (row) {
           value = readAiField(row, bindField);
-          updatedAt = row.updatedAt ?? row.updated_at ?? row.lastSeen ?? row.last_seen;
+          updatedAt =
+            row.updatedAt ?? row.updated_at ?? row.lastSeen ?? row.last_seen;
         } else {
           // fallback: call the “devices” list endpoint raw and search by id
           const base = MODEL_META[bindModel]?.base || bindModel;
           const rawCandidates =
             base === "zhc1921"
-              ? ["/zhc1921/devices", "/zhc1921/my-devices", "/zhc1921/list", "/zhc1921"]
-              : ["/zhc1661/devices", "/zhc1661/my-devices", "/zhc1661/list", "/zhc1661"];
+              ? [
+                  "/zhc1921/devices",
+                  "/zhc1921/my-devices",
+                  "/zhc1921/list",
+                  "/zhc1921",
+                ]
+              : [
+                  "/zhc1661/devices",
+                  "/zhc1661/my-devices",
+                  "/zhc1661/list",
+                  "/zhc1661",
+                ];
 
           let rawArr = [];
           for (const p of rawCandidates) {
@@ -423,21 +454,20 @@ export default function GraphicDisplaySettingsModal({
       }
     };
 
-    // run immediately, then every 3s
+    // run immediately, then every sampleMs
     tick();
-    const id = window.setInterval(tick, 3000);
+    const id = window.setInterval(tick, Math.max(250, Number(sampleMs) || 1000));
 
     return () => {
       cancelled = true;
       ctrl.abort();
       window.clearInterval(id);
     };
-  }, [open, bindModel, bindDeviceId, bindField]);
+  }, [open, bindModel, bindDeviceId, bindField, sampleMs]);
 
   const currentValueLabel = useMemo(() => {
     if (currentValue === null || currentValue === undefined) return "—";
     if (typeof currentValue === "number") return currentValue.toFixed(2);
-    // if backend sends string, show as-is
     return String(currentValue);
   }, [currentValue]);
 
@@ -867,7 +897,7 @@ export default function GraphicDisplaySettingsModal({
                 </div>
               </div>
 
-              {/* ✅ Current Value (polls every 3s) */}
+              {/* ✅ Current Value (polls every sampleMs) */}
               <div style={{ marginTop: 10 }}>
                 <div style={{ fontSize: 12, fontWeight: 900, color: "#111827" }}>
                   Current Value
@@ -899,7 +929,7 @@ export default function GraphicDisplaySettingsModal({
                       background: "#dff7e6",
                       color: "#0b3b18",
                     }}
-                    title="Live value (polling every 3 seconds)"
+                    title={`Live value (polling every ${formatSampleLabel(sampleMs)})`}
                   >
                     {currentValueLabel}
                   </div>
