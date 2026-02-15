@@ -1,5 +1,5 @@
 // src/components/GraphicDisplay.jsx
-import React, { useEffect, useMemo, useRef, recognized, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 
@@ -249,6 +249,12 @@ export default function GraphicDisplay({ tank }) {
     return Math.max(2, Math.round(totalMs / smp));
   }, [windowSize, sampleMs, timeUnit]);
 
+  // ✅ avoid stale maxPoints in interval closure
+  const maxPointsRef = useRef(maxPoints);
+  useEffect(() => {
+    maxPointsRef.current = maxPoints;
+  }, [maxPoints]);
+
   useEffect(() => {
     // reset points if binding missing
     if (!bindDeviceId || !bindField) {
@@ -291,8 +297,8 @@ export default function GraphicDisplay({ tank }) {
           const t = Date.now();
           setPoints((prev) => {
             const next = [...prev, { t, y: out }];
-            // keep last N samples
-            if (next.length > maxPoints) next.splice(0, next.length - maxPoints);
+            const limit = maxPointsRef.current || 2;
+            if (next.length > limit) next.splice(0, next.length - limit);
             return next;
           });
         }
@@ -311,13 +317,12 @@ export default function GraphicDisplay({ tank }) {
       ctrl.abort();
       window.clearInterval(id);
     };
-  }, [bindModel, bindDeviceId, bindField, sampleMs, mathFormula, maxPoints]);
+  }, [bindModel, bindDeviceId, bindField, sampleMs, mathFormula]);
 
   // ===============================
   // ✅ SVG PATH from points
   // ===============================
   const svg = useMemo(() => {
-    // Chart inner box dimensions (virtual)
     const W = 1000;
     const H = 360;
 
@@ -339,7 +344,6 @@ export default function GraphicDisplay({ tank }) {
     const coords = points.map((p, i) => {
       const x = n === 1 ? 0 : (i / (n - 1)) * W;
       const yy = clamp(p.y, minY, maxY);
-      // invert Y for SVG
       const y = H - ((yy - minY) / ySpan) * H;
       return `${x.toFixed(2)},${y.toFixed(2)}`;
     });
@@ -435,7 +439,6 @@ export default function GraphicDisplay({ tank }) {
             Y: <b>{yMin}</b> → <b>{yMax}</b> {yUnits ? `(${yUnits})` : ""}
           </span>
 
-          {/* ✅ quick debug readout */}
           <span style={{ marginLeft: "auto" }}>
             Output:{" "}
             <b>
@@ -469,7 +472,6 @@ export default function GraphicDisplay({ tank }) {
             border: "1px solid #d9d9d9",
           }}
         >
-          {/* grid */}
           <div
             style={{
               position: "absolute",
@@ -479,7 +481,6 @@ export default function GraphicDisplay({ tank }) {
             }}
           />
 
-          {/* Y ticks */}
           {yTicks.length > 0 && (
             <div
               style={{
@@ -513,7 +514,6 @@ export default function GraphicDisplay({ tank }) {
             </div>
           )}
 
-          {/* ✅ Trend SVG */}
           <div
             style={{
               position: "absolute",
@@ -529,7 +529,6 @@ export default function GraphicDisplay({ tank }) {
               preserveAspectRatio="none"
               style={{ width: "100%", height: "100%", display: "block" }}
             >
-              {/* line */}
               {svg.poly ? (
                 <polyline
                   fill="none"
@@ -540,7 +539,6 @@ export default function GraphicDisplay({ tank }) {
               ) : null}
             </svg>
 
-            {/* value overlay */}
             <div
               style={{
                 position: "absolute",
@@ -579,7 +577,6 @@ export default function GraphicDisplay({ tank }) {
             ) : null}
           </div>
 
-          {/* badge */}
           <div
             style={{
               position: "absolute",
