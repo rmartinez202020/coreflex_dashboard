@@ -1,7 +1,6 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
-
 import GraphicDisplaySettingsPanel from "./GraphicDisplaySettingsPanel";
 import GraphicDisplayMathPanel from "./GraphicDisplayMathPanel";
 import GraphicDisplayBindingPanel from "./GraphicDisplayBindingPanel";
@@ -171,6 +170,20 @@ function formatSampleLabel(ms) {
   return `${ms} ms`;
 }
 
+// ✅ normalize to #RRGGBB-ish default
+function normalizeHexColor(v, fallback = "#0c5ac8") {
+  const s = String(v || "").trim();
+  if (!s) return fallback;
+
+  // allow #RGB / #RRGGBB
+  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(s)) return s;
+
+  // allow bare hex "0c5ac8"
+  if (/^[0-9a-f]{6}$/i.test(s)) return `#${s}`;
+
+  return fallback;
+}
+
 export default function GraphicDisplaySettingsModal({
   open,
   tank,
@@ -190,6 +203,9 @@ export default function GraphicDisplaySettingsModal({
   const [yMin, setYMin] = useState(0);
   const [yMax, setYMax] = useState(100);
   const [yUnits, setYUnits] = useState("");
+
+  // ✅ NEW: line color (saved into tank.lineColor)
+  const [lineColor, setLineColor] = useState("#0c5ac8");
 
   // -------------------------
   // MIDDLE: math
@@ -263,6 +279,9 @@ export default function GraphicDisplaySettingsModal({
     setYMax(Number.isFinite(tank.yMax) ? tank.yMax : 100);
     setYUnits(tank.yUnits ?? "");
 
+    // ✅ NEW: line color from tank
+    setLineColor(normalizeHexColor(tank.lineColor ?? "#0c5ac8"));
+
     setMathFormula(tank.mathFormula ?? "");
 
     setBindModel(tank.bindModel ?? "zhc1921");
@@ -273,6 +292,8 @@ export default function GraphicDisplaySettingsModal({
   const safeWindow = Number.isFinite(windowSize) ? windowSize : 0;
   const safeYMin = Number.isFinite(yMin) ? yMin : 0;
   const safeYMax = Number.isFinite(yMax) ? yMax : 0;
+
+  const safeLineColor = normalizeHexColor(lineColor);
 
   const yRangeValid = safeYMax > safeYMin;
 
@@ -420,7 +441,9 @@ export default function GraphicDisplaySettingsModal({
     if (e.button !== 0) return;
 
     const t = e.target;
-    if (t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")) {
+    if (
+      t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")
+    ) {
       return;
     }
 
@@ -534,6 +557,9 @@ export default function GraphicDisplaySettingsModal({
             setYMax={setYMax}
             yUnits={yUnits}
             setYUnits={setYUnits}
+            // ✅ NEW
+            lineColor={safeLineColor}
+            setLineColor={setLineColor}
           />
 
           {/* MIDDLE: Math */}
@@ -610,6 +636,9 @@ export default function GraphicDisplaySettingsModal({
                     yMax: safeYMax,
                     yUnits,
                     graphStyle: FIXED_GRAPH_STYLE,
+
+                    // ✅ NEW: line color persisted on the widget
+                    lineColor: safeLineColor,
 
                     // ✅ math
                     mathFormula,
