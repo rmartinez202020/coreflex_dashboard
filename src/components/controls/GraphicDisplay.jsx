@@ -2,14 +2,13 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 // ✅ extracted utilities
-import {
-  computeMathOutput,
-  msPerUnit,
-  fmtTimeWithDate,
-} from "./graphicDisplay/utils";
+import { computeMathOutput, msPerUnit, fmtTimeWithDate } from "./graphicDisplay/utils";
 
 // ✅ extracted loader (API + row loader + field reader)
 import { loadLiveRowForDevice, readAiField } from "./graphicDisplay/loader";
+
+// ✅ NEW: extracted ping/zoom hook
+import usePingZoom from "./graphicDisplay/hooks/usePingZoom";
 
 export default function GraphicDisplay({ tank }) {
   const title = tank?.title ?? "Graphic Display";
@@ -165,169 +164,14 @@ export default function GraphicDisplay({ tank }) {
   }, [bindModel, bindDeviceId, bindField, sampleMs, mathFormula]);
 
   // ===============================
-  // ✅ INTERACTION: ping + zoom (timeline)
+  // ✅ INTERACTION: ping + zoom (timeline) via hook
   // ===============================
-  const plotRef = useRef(null);
-
-  const [zoom, setZoom] = useState(null); // {t0, t1} | null
-
-  const selRef = useRef({
-    dragging: false,
-    x0: 0,
-    x1: 0,
+  const { plotRef, sel, hover, timeTicks, pointsForView, handlers } = usePingZoom({
+    points,
+    yMin: Number(yMin),
+    yMax: Number(yMax),
+    fmtTimeWithDate,
   });
-  const [sel, setSel] = useState(null); // {x0, x1} in px within plot
-
-  const [hover, setHover] = useState(null); // {xPx, yPx, t, y}
-
-  useEffect(() => {
-    setZoom(null);
-    setSel(null);
-    setHover(null);
-  }, [bindModel, bindDeviceId, bindField]);
-
-  const pointsForView = useMemo(() => {
-    if (!zoom) return points;
-    const a = Math.min(zoom.t0, zoom.t1);
-    const b = Math.max(zoom.t0, zoom.t1);
-    return points.filter((p) => p.t >= a && p.t <= b);
-  }, [points, zoom]);
-
-  const timeRange = useMemo(() => {
-    const arr = pointsForView.length ? pointsForView : points;
-    if (!arr.length) return { tMin: null, tMax: null };
-    const tMin = arr[0].t;
-    const tMax = arr[arr.length - 1].t;
-    return { tMin, tMax };
-  }, [pointsForView, points]);
-
-  const timeTicks = useMemo(() => {
-    const { tMin, tMax } = timeRange;
-    if (!Number.isFinite(tMin) || !Number.isFinite(tMax) || tMax <= tMin)
-      return [];
-    const N = 5;
-    const span = tMax - tMin;
-    const out = [];
-    for (let i = 0; i < N; i++) {
-      const t = tMin + (span * i) / (N - 1);
-      out.push({ t, label: fmtTimeWithDate(t), frac: i / (N - 1) });
-    }
-    return out;
-  }, [timeRange]);
-
-  function pxToTime(xPx) {
-    const el = plotRef.current;
-    const { tMin, tMax } = timeRange;
-    if (!el || !Number.isFinite(tMin) || !Number.isFinite(tMax) || tMax <= tMin)
-      return null;
-    const rect = el.getBoundingClientRect();
-    const frac = Math.min(Math.max(xPx / Math.max(1, rect.width), 0), 1);
-    return tMin + frac * (tMax - tMin);
-  }
-
-  function findNearestPointByTime(t) {
-    const arr = pointsForView.length ? pointsForView : points;
-    if (!arr.length || !Number.isFinite(t)) return null;
-    let lo = 0;
-    let hi = arr.length - 1;
-    while (lo < hi) {
-      const mid = Math.floor((lo + hi) / 2);
-      if (arr[mid].t < t) lo = mid + 1;
-      else hi = mid;
-    }
-    const i = lo;
-    const p1 = arr[i];
-    const p0 = i > 0 ? arr[i - 1] : null;
-    if (!p0) return p1;
-    return Math.abs(p1.t - t) < Math.abs(p0.t - t) ? p1 : p0;
-  }
-
-  function handlePointerMove(e) {
-    const el = plotRef.current;
-    if (!el) return;
-
-    const rect = el.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-
-    if (selRef.current.dragging) {
-      selRef.current.x1 = x;
-      setSel({ x0: selRef.current.x0, x1: selRef.current.x1 });
-      return;
-    }
-
-    const t = pxToTime(x);
-    const p = findNearestPointByTime(t);
-    if (!p) {
-      setHover(null);
-      return;
-    }
-
-    const minY = Number(yMin);
-    const maxY = Number(yMax);
-    const span = maxY - minY;
-    const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
-    const yy = clamp(p.y, minY, maxY);
-    const yPx = rect.height - ((yy - minY) / Math.max(1e-9, span)) * rect.height;
-
-    setHover({
-      xPx: x,
-      yPx,
-      t: p.t,
-      y: p.y,
-    });
-  }
-
-  function handlePointerLeave() {
-    if (!selRef.current.dragging) setHover(null);
-  }
-
-  function handlePointerDown(e) {
-    if (e.button !== 0) return;
-    const el = plotRef.current;
-    if (!el) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    const rect = el.getBoundingClientRect();
-    const x = e.clientX - rect.left;
-
-    selRef.current.dragging = true;
-    selRef.current.x0 = x;
-    selRef.current.x1 = x;
-    setSel({ x0: x, x1: x });
-  }
-
-  function handlePointerUp(e) {
-    const el = plotRef.current;
-    if (!el) return;
-    if (!selRef.current.dragging) return;
-
-    e.preventDefault();
-    e.stopPropagation();
-
-    selRef.current.dragging = false;
-
-    const x0 = selRef.current.x0;
-    const x1 = selRef.current.x1;
-
-    setSel(null);
-
-    if (Math.abs(x1 - x0) < 8) return;
-
-    const t0 = pxToTime(x0);
-    const t1 = pxToTime(x1);
-    if (!Number.isFinite(t0) || !Number.isFinite(t1)) return;
-
-    setZoom({ t0, t1 });
-  }
-
-  function handleDoubleClick(e) {
-    e.preventDefault();
-    e.stopPropagation();
-    setZoom(null);
-    setSel(null);
-  }
 
   // ===============================
   // ✅ SVG PATH from points (TIME-BASED X so it always moves LEFT -> RIGHT)
@@ -344,7 +188,7 @@ export default function GraphicDisplay({ tank }) {
       return { poly: "", W, H, tMin: null, tMax: null };
     }
 
-    const arr = pointsForView.length ? pointsForView : points;
+    const arr = pointsForView?.length ? pointsForView : points;
     if (!arr.length) {
       return { poly: "", W, H, tMin: null, tMax: null };
     }
@@ -454,8 +298,7 @@ export default function GraphicDisplay({ tank }) {
           </span>
 
           <span style={{ marginLeft: "auto" }} title="Math Output">
-            Output:{" "}
-            <b>{Number.isFinite(mathOutput) ? mathOutput.toFixed(2) : "--"}</b>
+            Output: <b>{Number.isFinite(mathOutput) ? mathOutput.toFixed(2) : "--"}</b>
           </span>
         </div>
       </div>
@@ -530,11 +373,7 @@ export default function GraphicDisplay({ tank }) {
           {/* PLOT AREA (interactive) */}
           <div
             ref={plotRef}
-            onPointerMove={handlePointerMove}
-            onPointerLeave={handlePointerLeave}
-            onPointerDown={handlePointerDown}
-            onPointerUp={handlePointerUp}
-            onDoubleClick={handleDoubleClick}
+            {...handlers}
             onPointerDownCapture={(e) => e.stopPropagation()}
             onPointerMoveCapture={(e) => e.stopPropagation()}
             style={{
@@ -543,7 +382,7 @@ export default function GraphicDisplay({ tank }) {
               right: 10,
               top: 10,
               bottom: 36,
-              cursor: selRef.current.dragging ? "crosshair" : "default",
+              cursor: sel ? "crosshair" : "default",
               touchAction: "none",
             }}
             title="Move mouse to ping time/value. Drag to zoom. Double-click to reset zoom."
@@ -599,13 +438,11 @@ export default function GraphicDisplay({ tank }) {
                     position: "absolute",
                     left: Math.min(
                       Math.max(hover.xPx + 10, 8),
-                      (plotRef.current?.getBoundingClientRect?.().width || 0) -
-                        260
+                      (plotRef.current?.getBoundingClientRect?.().width || 0) - 260
                     ),
                     top: Math.min(
                       Math.max(hover.yPx - 26, 8),
-                      (plotRef.current?.getBoundingClientRect?.().height || 0) -
-                        60
+                      (plotRef.current?.getBoundingClientRect?.().height || 0) - 60
                     ),
                     fontFamily: "monospace",
                     fontSize: 11,
@@ -627,9 +464,7 @@ export default function GraphicDisplay({ tank }) {
                   <div>
                     Y:{" "}
                     <span style={{ color: "#0b3b18" }}>
-                      {Number.isFinite(hover.y)
-                        ? Number(hover.y).toFixed(2)
-                        : "--"}
+                      {Number.isFinite(hover.y) ? Number(hover.y).toFixed(2) : "--"}
                     </span>
                   </div>
                 </div>
