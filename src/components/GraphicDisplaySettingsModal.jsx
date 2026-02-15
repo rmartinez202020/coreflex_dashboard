@@ -19,10 +19,10 @@ const AI_OPTIONS = [
   { key: "ai4", label: "AI-4" },
 ];
 
-// ✅ Models allowed for this widget
+// ✅ Models allowed for this widget (labels WITHOUT ZHCxxxx)
 const MODEL_META = {
-  zhc1921: { label: "CF-2000 (ZHC1921)", base: "zhc1921" },
-  zhc1661: { label: "CF-1600 (ZHC1661)", base: "zhc1661" },
+  zhc1921: { label: "CF-2000", base: "zhc1921" },
+  zhc1661: { label: "CF-1600", base: "zhc1661" },
 };
 
 function getAuthHeaders() {
@@ -238,7 +238,6 @@ export default function GraphicDisplaySettingsModal({
 
   // ✅ current value polling (uses sampleMs now)
   const [currentValue, setCurrentValue] = useState(null);
-  const [currentUpdatedAt, setCurrentUpdatedAt] = useState("");
   const [valueErr, setValueErr] = useState("");
 
   // Load from tank when opening/editing
@@ -264,7 +263,6 @@ export default function GraphicDisplaySettingsModal({
 
     // reset value preview
     setCurrentValue(null);
-    setCurrentUpdatedAt("");
     setValueErr("");
   }, [tank]);
 
@@ -335,7 +333,6 @@ export default function GraphicDisplaySettingsModal({
     if (!open) return;
     if (!bindDeviceId || !bindField || !bindModel) {
       setCurrentValue(null);
-      setCurrentUpdatedAt("");
       setValueErr("");
       return;
     }
@@ -353,19 +350,26 @@ export default function GraphicDisplaySettingsModal({
         });
 
         let value = null;
-        let updatedAt = null;
 
         if (row) {
           value = readAiField(row, bindField);
-          updatedAt =
-            row.updatedAt ?? row.updated_at ?? row.lastSeen ?? row.last_seen;
         } else {
           // fallback: call the “devices” list endpoint raw and search by id
           const base = MODEL_META[bindModel]?.base || bindModel;
           const rawCandidates =
             base === "zhc1921"
-              ? ["/zhc1921/devices", "/zhc1921/my-devices", "/zhc1921/list", "/zhc1921"]
-              : ["/zhc1661/devices", "/zhc1661/my-devices", "/zhc1661/list", "/zhc1661"];
+              ? [
+                  "/zhc1921/devices",
+                  "/zhc1921/my-devices",
+                  "/zhc1921/list",
+                  "/zhc1921",
+                ]
+              : [
+                  "/zhc1661/devices",
+                  "/zhc1661/my-devices",
+                  "/zhc1661/list",
+                  "/zhc1661",
+                ];
 
           let rawArr = [];
           for (const p of rawCandidates) {
@@ -397,14 +401,7 @@ export default function GraphicDisplaySettingsModal({
               return String(id) === String(bindDeviceId);
             }) || null;
 
-          if (rawRow) {
-            value = readAiField(rawRow, bindField);
-            updatedAt =
-              rawRow.updatedAt ??
-              rawRow.updated_at ??
-              rawRow.lastSeen ??
-              rawRow.last_seen;
-          }
+          if (rawRow) value = readAiField(rawRow, bindField);
         }
 
         if (cancelled) return;
@@ -417,18 +414,10 @@ export default function GraphicDisplaySettingsModal({
             : Number(value);
 
         setCurrentValue(Number.isFinite(num) ? num : value ?? null);
-
-        const ts =
-          updatedAt && !Number.isNaN(new Date(updatedAt).getTime())
-            ? new Date(updatedAt).toLocaleTimeString()
-            : new Date().toLocaleTimeString();
-
-        setCurrentUpdatedAt(ts);
       } catch (e) {
         if (cancelled) return;
         if (String(e?.name || "").toLowerCase().includes("abort")) return;
         setValueErr("Could not read current value (check API endpoint / fields).");
-        setCurrentUpdatedAt(new Date().toLocaleTimeString());
       }
     };
 
@@ -461,7 +450,7 @@ export default function GraphicDisplaySettingsModal({
         zIndex: 999999,
       }}
     >
-      {/* MAIN PANEL (same vibe as Indicator Light modal) */}
+      {/* MAIN PANEL */}
       <div
         style={{
           width: 980,
@@ -726,7 +715,6 @@ export default function GraphicDisplaySettingsModal({
                   setBindModel(e.target.value);
                   setBindDeviceId("");
                   setCurrentValue(null);
-                  setCurrentUpdatedAt("");
                   setValueErr("");
                 }}
                 style={{
@@ -754,7 +742,6 @@ export default function GraphicDisplaySettingsModal({
                 onChange={(e) => {
                   setBindDeviceId(e.target.value);
                   setCurrentValue(null);
-                  setCurrentUpdatedAt("");
                   setValueErr("");
                 }}
                 disabled={loadingDevices}
@@ -787,7 +774,6 @@ export default function GraphicDisplaySettingsModal({
                 onChange={(e) => {
                   setBindField(e.target.value);
                   setCurrentValue(null);
-                  setCurrentUpdatedAt("");
                   setValueErr("");
                 }}
                 style={{
@@ -863,14 +849,10 @@ export default function GraphicDisplaySettingsModal({
                     marginTop: 6,
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "space-between",
+                    justifyContent: "flex-end",
                     gap: 10,
                   }}
                 >
-                  <div style={{ fontSize: 12, color: "#374151" }}>
-                    Updated: {currentUpdatedAt || "—"}
-                  </div>
-
                   <div
                     style={{
                       minWidth: 110,
