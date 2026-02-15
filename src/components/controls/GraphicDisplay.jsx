@@ -148,7 +148,6 @@ function computeMathOutput(liveValue, formula) {
   const expr = f.replace(/\bVALUE\b/g, "value");
 
   try {
-    // sandbox-ish: only "value" is provided (no window, no document)
     // eslint-disable-next-line no-new-func
     const fn = new Function("value", `"use strict"; return (${expr});`);
     const out = fn(v);
@@ -164,6 +163,22 @@ function msPerUnit(timeUnit) {
   if (u === "minutes" || u === "minute" || u === "min") return 60000;
   if (u === "hours" || u === "hour" || u === "hr") return 3600000;
   return 1000; // seconds default
+}
+
+function fmtTimeWithDate(ts) {
+  if (!Number.isFinite(ts)) return "";
+  try {
+    return new Date(ts).toLocaleString(undefined, {
+      year: "numeric",
+      month: "2-digit",
+      day: "2-digit",
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    });
+  } catch {
+    return String(ts);
+  }
 }
 
 export default function GraphicDisplay({ tank }) {
@@ -320,6 +335,182 @@ export default function GraphicDisplay({ tank }) {
   }, [bindModel, bindDeviceId, bindField, sampleMs, mathFormula]);
 
   // ===============================
+  // ✅ INTERACTION: ping + zoom (timeline)
+  // ===============================
+  const plotRef = useRef(null);
+
+  // zoom range in timestamps (inclusive)
+  const [zoom, setZoom] = useState(null); // {t0, t1} | null
+
+  // selection while dragging to zoom
+  const selRef = useRef({
+    dragging: false,
+    x0: 0,
+    x1: 0,
+  });
+  const [sel, setSel] = useState(null); // {x0, x1} in px within plot
+
+  // hover ping
+  const [hover, setHover] = useState(null); // {xPx, yPx, t, y}
+
+  // if data changed a lot (new binding), clear zoom
+  useEffect(() => {
+    setZoom(null);
+    setSel(null);
+    setHover(null);
+  }, [bindModel, bindDeviceId, bindField]);
+
+  const pointsForView = useMemo(() => {
+    if (!zoom) return points;
+    const a = Math.min(zoom.t0, zoom.t1);
+    const b = Math.max(zoom.t0, zoom.t1);
+    return points.filter((p) => p.t >= a && p.t <= b);
+  }, [points, zoom]);
+
+  const timeRange = useMemo(() => {
+    const arr = pointsForView.length ? pointsForView : points;
+    if (!arr.length) return { tMin: null, tMax: null };
+    const tMin = arr[0].t;
+    const tMax = arr[arr.length - 1].t;
+    return { tMin, tMax };
+  }, [pointsForView, points]);
+
+  const timeTicks = useMemo(() => {
+    const { tMin, tMax } = timeRange;
+    if (!Number.isFinite(tMin) || !Number.isFinite(tMax) || tMax <= tMin) return [];
+    const N = 5; // 5 labels
+    const span = tMax - tMin;
+    const out = [];
+    for (let i = 0; i < N; i++) {
+      const t = tMin + (span * i) / (N - 1);
+      out.push({ t, label: fmtTimeWithDate(t), frac: i / (N - 1) });
+    }
+    return out;
+  }, [timeRange]);
+
+  function pxToTime(xPx) {
+    const el = plotRef.current;
+    const { tMin, tMax } = timeRange;
+    if (!el || !Number.isFinite(tMin) || !Number.isFinite(tMax) || tMax <= tMin) return null;
+    const rect = el.getBoundingClientRect();
+    const frac = Math.min(Math.max(xPx / Math.max(1, rect.width), 0), 1);
+    return tMin + frac * (tMax - tMin);
+  }
+
+  function findNearestPointByTime(t) {
+    const arr = pointsForView.length ? pointsForView : points;
+    if (!arr.length || !Number.isFinite(t)) return null;
+    // arr is time-ordered
+    let lo = 0;
+    let hi = arr.length - 1;
+    while (lo < hi) {
+      const mid = Math.floor((lo + hi) / 2);
+      if (arr[mid].t < t) lo = mid + 1;
+      else hi = mid;
+    }
+    const i = lo;
+    const p1 = arr[i];
+    const p0 = i > 0 ? arr[i - 1] : null;
+    if (!p0) return p1;
+    return Math.abs(p1.t - t) < Math.abs(p0.t - t) ? p1 : p0;
+  }
+
+  function handlePointerMove(e) {
+    const el = plotRef.current;
+    if (!el) return;
+
+    const rect = el.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
+
+    if (selRef.current.dragging) {
+      selRef.current.x1 = x;
+      setSel({ x0: selRef.current.x0, x1: selRef.current.x1 });
+      return;
+    }
+
+    const t = pxToTime(x);
+    const p = findNearestPointByTime(t);
+    if (!p) {
+      setHover(null);
+      return;
+    }
+
+    // map point y -> pixel for tooltip positioning
+    const minY = Number(yMin);
+    const maxY = Number(yMax);
+    const span = maxY - minY;
+    const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
+    const yy = clamp(p.y, minY, maxY);
+    const yPx = rect.height - ((yy - minY) / Math.max(1e-9, span)) * rect.height;
+
+    setHover({
+      xPx: x,
+      yPx,
+      t: p.t,
+      y: p.y,
+      mouseY: y,
+    });
+  }
+
+  function handlePointerLeave() {
+    if (!selRef.current.dragging) setHover(null);
+  }
+
+  function handlePointerDown(e) {
+    // left button only
+    if (e.button !== 0) return;
+    const el = plotRef.current;
+    if (!el) return;
+
+    // prevent canvas drag while interacting with chart
+    e.preventDefault();
+    e.stopPropagation();
+
+    const rect = el.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+
+    selRef.current.dragging = true;
+    selRef.current.x0 = x;
+    selRef.current.x1 = x;
+    setSel({ x0: x, x1: x });
+  }
+
+  function handlePointerUp(e) {
+    const el = plotRef.current;
+    if (!el) return;
+    if (!selRef.current.dragging) return;
+
+    e.preventDefault();
+    e.stopPropagation();
+
+    selRef.current.dragging = false;
+
+    const rect = el.getBoundingClientRect();
+    const x0 = selRef.current.x0;
+    const x1 = selRef.current.x1;
+
+    setSel(null);
+
+    // small drag => treat as "ping only"
+    if (Math.abs(x1 - x0) < 8) return;
+
+    const t0 = pxToTime(x0);
+    const t1 = pxToTime(x1);
+    if (!Number.isFinite(t0) || !Number.isFinite(t1)) return;
+
+    setZoom({ t0, t1 });
+  }
+
+  function handleDoubleClick(e) {
+    // reset zoom
+    e.preventDefault();
+    e.stopPropagation();
+    setZoom(null);
+    setSel(null);
+  }
+
+  // ===============================
   // ✅ SVG PATH from points (TIME-BASED X so it always moves LEFT -> RIGHT)
   // ===============================
   const svg = useMemo(() => {
@@ -331,29 +522,30 @@ export default function GraphicDisplay({ tank }) {
     const ySpan = maxY - minY;
 
     if (!Number.isFinite(minY) || !Number.isFinite(maxY) || ySpan <= 0) {
-      return { poly: "", W, H };
+      return { poly: "", W, H, tMin: null, tMax: null };
     }
 
-    if (!points.length) {
-      return { poly: "", W, H };
+    const arr = pointsForView.length ? pointsForView : points;
+    if (!arr.length) {
+      return { poly: "", W, H, tMin: null, tMax: null };
     }
 
     const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 
-    // ✅ time scale: oldest at left, newest at right
-    const tMin = points[0]?.t ?? Date.now();
-    const tMax = points[points.length - 1]?.t ?? tMin;
+    // ✅ time scale
+    const tMin = arr[0]?.t ?? Date.now();
+    const tMax = arr[arr.length - 1]?.t ?? tMin;
     const tSpan = Math.max(1, tMax - tMin);
 
-    const coords = points.map((p) => {
+    const coords = arr.map((p) => {
       const x = ((p.t - tMin) / tSpan) * W;
       const yy = clamp(p.y, minY, maxY);
       const y = H - ((yy - minY) / ySpan) * H;
       return `${x.toFixed(2)},${y.toFixed(2)}`;
     });
 
-    return { poly: coords.join(" "), W, H };
-  }, [points, yMin, yMax]);
+    return { poly: coords.join(" "), W, H, tMin, tMax };
+  }, [points, pointsForView, yMin, yMax]);
 
   return (
     <div
@@ -366,7 +558,8 @@ export default function GraphicDisplay({ tank }) {
         boxShadow: "0 10px 22px rgba(0,0,0,0.10)",
         overflow: "hidden",
         userSelect: "none",
-        pointerEvents: "none", // ✅ passive so dragging works
+        // ✅ allow interactions; we block drag via stopPropagation on the plot area
+        pointerEvents: "auto",
         display: "flex",
         flexDirection: "column",
         minWidth: 0,
@@ -443,7 +636,7 @@ export default function GraphicDisplay({ tank }) {
             Y: <b>{yMin}</b> → <b>{yMax}</b> {yUnits ? `(${yUnits})` : ""}
           </span>
 
-          <span style={{ marginLeft: "auto" }}>
+          <span style={{ marginLeft: "auto" }} title="Math Output">
             Output:{" "}
             <b>{Number.isFinite(mathOutput) ? mathOutput.toFixed(2) : "--"}</b>
           </span>
@@ -483,13 +676,14 @@ export default function GraphicDisplay({ tank }) {
             }}
           />
 
+          {/* Y ticks */}
           {yTicks.length > 0 && (
             <div
               style={{
                 position: "absolute",
                 left: 8,
                 top: 8,
-                bottom: 8,
+                bottom: 36, // leave space for X timeline
                 width: 64,
                 pointerEvents: "none",
                 display: "flex",
@@ -516,15 +710,26 @@ export default function GraphicDisplay({ tank }) {
             </div>
           )}
 
+          {/* PLOT AREA (interactive) */}
           <div
+            ref={plotRef}
+            onPointerMove={handlePointerMove}
+            onPointerLeave={handlePointerLeave}
+            onPointerDown={handlePointerDown}
+            onPointerUp={handlePointerUp}
+            onDoubleClick={handleDoubleClick}
+            onPointerDownCapture={(e) => e.stopPropagation()} // ✅ block canvas drag
+            onPointerMoveCapture={(e) => e.stopPropagation()}
             style={{
               position: "absolute",
               left: 84,
               right: 10,
               top: 10,
-              bottom: 10,
-              pointerEvents: "none",
+              bottom: 36, // ✅ reserve space for timeline labels
+              cursor: selRef.current.dragging ? "crosshair" : "default",
+              touchAction: "none",
             }}
+            title="Move mouse to ping time/value. Drag to zoom. Double-click to reset zoom."
           >
             <svg
               viewBox={`0 0 ${svg.W} ${svg.H}`}
@@ -541,6 +746,73 @@ export default function GraphicDisplay({ tank }) {
               ) : null}
             </svg>
 
+            {/* Selection rectangle (zoom) */}
+            {sel ? (
+              <div
+                style={{
+                  position: "absolute",
+                  top: 0,
+                  bottom: 0,
+                  left: Math.min(sel.x0, sel.x1),
+                  width: Math.max(1, Math.abs(sel.x1 - sel.x0)),
+                  background: "rgba(59, 130, 246, 0.12)",
+                  border: "1px solid rgba(59, 130, 246, 0.35)",
+                  borderRadius: 6,
+                  pointerEvents: "none",
+                }}
+              />
+            ) : null}
+
+            {/* Crosshair + tooltip (ping) */}
+            {hover ? (
+              <>
+                <div
+                  style={{
+                    position: "absolute",
+                    left: hover.xPx,
+                    top: 0,
+                    bottom: 0,
+                    width: 1,
+                    background: "rgba(0,0,0,0.18)",
+                    pointerEvents: "none",
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    left: Math.min(
+                      Math.max(hover.xPx + 10, 8),
+                      (plotRef.current?.getBoundingClientRect?.().width || 0) - 260
+                    ),
+                    top: Math.min(Math.max(hover.yPx - 26, 8), (plotRef.current?.getBoundingClientRect?.().height || 0) - 60),
+                    fontFamily: "monospace",
+                    fontSize: 11,
+                    fontWeight: 900,
+                    color: "#111",
+                    background: "rgba(255,255,255,0.92)",
+                    padding: "6px 10px",
+                    borderRadius: 10,
+                    border: "1px solid rgba(0,0,0,0.10)",
+                    boxShadow: "0 8px 18px rgba(0,0,0,0.10)",
+                    pointerEvents: "none",
+                    maxWidth: 260,
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                  }}
+                >
+                  <div>{fmtTimeWithDate(hover.t)}</div>
+                  <div>
+                    Y:{" "}
+                    <span style={{ color: "#0b3b18" }}>
+                      {Number.isFinite(hover.y) ? Number(hover.y).toFixed(2) : "--"}
+                    </span>
+                  </div>
+                </div>
+              </>
+            ) : null}
+
+            {/* Value overlay (top-right) */}
             <div
               style={{
                 position: "absolute",
@@ -554,7 +826,9 @@ export default function GraphicDisplay({ tank }) {
                 padding: "6px 10px",
                 borderRadius: 10,
                 border: "1px solid rgba(0,0,0,0.08)",
+                pointerEvents: "none",
               }}
+              title="Current math output"
             >
               {Number.isFinite(mathOutput) ? mathOutput.toFixed(2) : "--"}
             </div>
@@ -572,6 +846,7 @@ export default function GraphicDisplay({ tank }) {
                   border: "1px solid #fecaca",
                   padding: "6px 10px",
                   borderRadius: 10,
+                  pointerEvents: "none",
                 }}
               >
                 {err}
@@ -579,21 +854,59 @@ export default function GraphicDisplay({ tank }) {
             ) : null}
           </div>
 
+          {/* ✅ X TIMELINE (date + time) */}
           <div
             style={{
               position: "absolute",
-              right: 12,
-              bottom: 12,
-              fontSize: 11,
+              left: 84,
+              right: 10,
+              bottom: 10,
+              height: 22,
+              display: "flex",
+              alignItems: "flex-end",
+              justifyContent: "space-between",
+              gap: 8,
+              pointerEvents: "none",
+              fontFamily: "monospace",
+              fontSize: 10,
               fontWeight: 900,
-              color: "#666",
-              background: "rgba(255,255,255,0.75)",
-              padding: "2px 8px",
-              borderRadius: 999,
+              color: "#444",
             }}
           >
-            {styleBadge} MODE
+            {timeTicks.length ? (
+              timeTicks.map((tk, idx) => (
+                <div
+                  key={idx}
+                  style={{
+                    maxWidth: "22%",
+                    whiteSpace: "nowrap",
+                    overflow: "hidden",
+                    textOverflow: "ellipsis",
+                    background: "rgba(255,255,255,0.78)",
+                    border: "1px solid rgba(0,0,0,0.06)",
+                    padding: "2px 6px",
+                    borderRadius: 8,
+                  }}
+                  title={tk.label}
+                >
+                  {tk.label}
+                </div>
+              ))
+            ) : (
+              <div
+                style={{
+                  background: "rgba(255,255,255,0.78)",
+                  border: "1px solid rgba(0,0,0,0.06)",
+                  padding: "2px 6px",
+                  borderRadius: 8,
+                }}
+              >
+                --
+              </div>
+            )}
           </div>
+
+          {/* ✅ Removed "LINE MODE" badge (as requested) */}
         </div>
       </div>
     </div>
