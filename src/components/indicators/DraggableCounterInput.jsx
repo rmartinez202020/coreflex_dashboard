@@ -2,14 +2,26 @@
 import React from "react";
 import { API_URL } from "../../config/api";
 import { getToken } from "../../utils/authToken";
+import {
+  formatRunSecondsToHrsMin,
+  resolveDashboardIdFromProps as resolveDashFromHelpers,
+} from "./counterModal/counterHelpers";
 
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-// ✅ best-effort dashboard id getter (same idea as modal)
+// ✅ keep local fallback (in case you still want it here)
 function resolveDashboardIdFromProps({ dashboardId, tank }) {
+  // Prefer shared helper if available
+  try {
+    const v = resolveDashFromHelpers?.({ dashboardId, tank });
+    if (v !== undefined) return v;
+  } catch {
+    // ignore
+  }
+
   const a = String(dashboardId || "").trim();
   if (a) return a;
 
@@ -62,6 +74,10 @@ export default function DraggableCounterInput({
   // ✅ override display so user sees immediate effect
   const [overrideCount, setOverrideCount] = React.useState(null);
 
+  // ✅ NEW: backend counter row (includes count + run_seconds)
+  const [serverCounter, setServerCounter] = React.useState(null);
+  const serverRef = React.useRef({ loading: false });
+
   const widgetId = String(id || tank?.id || "").trim();
 
   // ✅ Always send dashboard_id string (main dashboard -> "main")
@@ -77,6 +93,57 @@ export default function DraggableCounterInput({
     setStatusMsg(msg);
     window.setTimeout(() => setStatusMsg(""), 800);
   };
+
+  // ===============================
+  // ✅ NEW: Poll backend counter row (count + run_seconds)
+  // ===============================
+  const fetchServerCounter = React.useCallback(async () => {
+    if (!widgetId) return;
+    if (serverRef.current.loading) return;
+
+    serverRef.current.loading = true;
+    try {
+      const token = String(getToken() || "").trim();
+      if (!token) throw new Error("Missing auth token");
+
+      const qs = dashForBackend ? `?dashboard_id=${encodeURIComponent(dashForBackend)}` : "";
+      const res = await fetch(
+        `${API_URL}/device-counters/by-widget/${encodeURIComponent(widgetId)}${qs}`,
+        { headers: getAuthHeaders() }
+      );
+
+      if (res.status === 404) {
+        setServerCounter(null);
+        return;
+      }
+
+      if (!res.ok) {
+        // don't spam alerts in play mode; just keep last known state
+        return;
+      }
+
+      const data = await res.json();
+      setServerCounter(data || null);
+    } catch (e) {
+      // silent; keep last
+    } finally {
+      serverRef.current.loading = false;
+    }
+  }, [widgetId, dashForBackend]);
+
+  React.useEffect(() => {
+    // Only poll when widget exists AND dashboard is in play mode
+    if (!widgetId) return;
+    if (dashboardMode !== "play") return;
+
+    fetchServerCounter();
+    const t = setInterval(() => {
+      if (document.hidden) return;
+      fetchServerCounter();
+    }, 2000); // matches your backend tick default (2s)
+
+    return () => clearInterval(t);
+  }, [widgetId, dashboardMode, fetchServerCounter]);
 
   const onResetClick = async (e) => {
     e.preventDefault();
@@ -107,6 +174,13 @@ export default function DraggableCounterInput({
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j?.detail || `Reset failed (${res.status})`);
 
+      // ✅ update local serverCounter immediately (count + run_seconds reset)
+      setServerCounter((prev) =>
+        prev
+          ? { ...prev, count: 0, run_seconds: 0, prev01: j?.prev01 ?? prev.prev01 }
+          : prev
+      );
+
       // ✅ keep override briefly; polling will update real value
       window.setTimeout(() => setOverrideCount(null), 400);
     } catch (err) {
@@ -132,12 +206,25 @@ export default function DraggableCounterInput({
       ? Math.max(1, Math.min(10, digitsRaw))
       : 4;
 
-    const nRaw = props?.count ?? tank?.value ?? tank?.count ?? count ?? value ?? 0;
+    // ✅ Prefer backend count in PLAY mode
+    const serverCount = Number(serverCounter?.count ?? NaN);
+
+    const nRaw =
+      Number.isFinite(serverCount) && dashboardMode === "play"
+        ? serverCount
+        : props?.count ?? tank?.value ?? tank?.count ?? count ?? value ?? 0;
+
     const n = Number(nRaw);
     const safe = Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : 0;
 
     const effective = overrideCount !== null ? overrideCount : safe;
     const display = String(effective).padStart(digits, "0");
+
+    // ✅ Running hours line (backend seconds)
+    const runLine =
+      dashboardMode === "play"
+        ? `Running Hours ${formatRunSecondsToHrsMin(serverCounter?.run_seconds)}`
+        : null;
 
     return (
       <div
@@ -216,6 +303,27 @@ export default function DraggableCounterInput({
         >
           {display}
         </div>
+
+        {/* ✅ NEW: RUNNING HOURS LINE */}
+        {runLine ? (
+          <div
+            style={{
+              width: "100%",
+              fontSize: 10,
+              fontWeight: 900,
+              color: "#111827",
+              textAlign: "center",
+              marginBottom: 6,
+              lineHeight: 1.1,
+              cursor: "default",
+            }}
+            title="Running time (accumulates while DI=1)"
+          >
+            {runLine}
+          </div>
+        ) : (
+          <div style={{ height: 14, marginBottom: 6 }} />
+        )}
 
         {/* STATUS (small feedback) */}
         {statusMsg ? (

@@ -89,3 +89,11 @@ export function resolveDashboardIdFromProps({ dashboardId, tank }) {
 
   return null; // backend supports null dashboard_id
 }
+
+// ✅ Format backend run_seconds into: 0000(Hrs):00(minutes)
+export function formatRunSecondsToHrsMin(runSeconds) {
+  const s = Math.max(0, Number(runSeconds || 0));
+  const hrs = Math.floor(s / 3600);
+  const mins = Math.floor((s % 3600) / 60);
+  return `${String(hrs).padStart(4, "0")}(Hrs):${String(mins).padStart(2, "0")}(minutes)`;
+}

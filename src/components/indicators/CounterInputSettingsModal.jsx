@@ -6,7 +6,6 @@ import { TAG_OPTIONS, formatDateMMDDYYYY_hmma, to01, readTagFromRow, normalizeDi
 import useCounterBackend from "./counterModal/useCounterBackend";
 import useDraggableModal from "./counterModal/useDraggableModal";
 
-
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -70,15 +69,11 @@ const {
 
     const safeDigits = Number(tank?.properties?.digits ?? 4);
     setDigits(Number.isFinite(safeDigits) ? Math.max(1, Math.min(10, safeDigits)) : 4);
-
     setDeviceId(String(tank?.properties?.tag?.deviceId || ""));
     setField(String(tank?.properties?.tag?.field || ""));
-
     setTelemetryRow(null);
     setServerCounter(null);
     setServerErr("");
-
-    // reset position so it recenters each open (optional)
     resetPosition();
 
   }, [open, tank?.id]);
