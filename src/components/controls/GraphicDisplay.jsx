@@ -320,7 +320,7 @@ export default function GraphicDisplay({ tank }) {
   }, [bindModel, bindDeviceId, bindField, sampleMs, mathFormula]);
 
   // ===============================
-  // ✅ SVG PATH from points
+  // ✅ SVG PATH from points (TIME-BASED X so it always moves LEFT -> RIGHT)
   // ===============================
   const svg = useMemo(() => {
     const W = 1000;
@@ -338,11 +338,15 @@ export default function GraphicDisplay({ tank }) {
       return { poly: "", W, H };
     }
 
-    const n = points.length;
     const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 
-    const coords = points.map((p, i) => {
-      const x = n === 1 ? 0 : (i / (n - 1)) * W;
+    // ✅ time scale: oldest at left, newest at right
+    const tMin = points[0]?.t ?? Date.now();
+    const tMax = points[points.length - 1]?.t ?? tMin;
+    const tSpan = Math.max(1, tMax - tMin);
+
+    const coords = points.map((p) => {
+      const x = ((p.t - tMin) / tSpan) * W;
       const yy = clamp(p.y, minY, maxY);
       const y = H - ((yy - minY) / ySpan) * H;
       return `${x.toFixed(2)},${y.toFixed(2)}`;
@@ -441,9 +445,7 @@ export default function GraphicDisplay({ tank }) {
 
           <span style={{ marginLeft: "auto" }}>
             Output:{" "}
-            <b>
-              {Number.isFinite(mathOutput) ? mathOutput.toFixed(2) : "--"}
-            </b>
+            <b>{Number.isFinite(mathOutput) ? mathOutput.toFixed(2) : "--"}</b>
           </span>
         </div>
       </div>
