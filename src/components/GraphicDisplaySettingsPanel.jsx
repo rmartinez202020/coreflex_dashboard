@@ -23,6 +23,14 @@ function formatSampleLabel(ms) {
   return `${ms} ms`;
 }
 
+// ✅ small helper: safe hex-ish default
+function normalizeColor(c, fallback = "#0c5ac8") {
+  const s = String(c || "").trim();
+  if (!s) return fallback;
+  // allow #RGB/#RRGGBB or any valid css color keyword
+  return s;
+}
+
 export default function GraphicDisplaySettingsPanel({
   title,
   setTitle,
@@ -38,10 +46,28 @@ export default function GraphicDisplaySettingsPanel({
   setYMax,
   yUnits,
   setYUnits,
+
+  // ✅ NEW (optional): line color
+  // Pass these from parent: tank.lineColor + setter
+  lineColor,
+  setLineColor,
 }) {
   const safeWindow = Number.isFinite(windowSize) ? windowSize : 0;
   const safeYMin = Number.isFinite(yMin) ? yMin : 0;
   const safeYMax = Number.isFinite(yMax) ? yMax : 0;
+
+  const canEditColor = typeof setLineColor === "function";
+  const safeLineColor = normalizeColor(lineColor, "#0c5ac8");
+
+  const COLOR_PRESETS = [
+    { label: "Blue", value: "#0c5ac8" },
+    { label: "Green", value: "#16a34a" },
+    { label: "Red", value: "#dc2626" },
+    { label: "Orange", value: "#f97316" },
+    { label: "Purple", value: "#7c3aed" },
+    { label: "Gray", value: "#374151" },
+    { label: "Black", value: "#111827" },
+  ];
 
   return (
     <div
@@ -142,6 +168,127 @@ export default function GraphicDisplaySettingsPanel({
             ))}
           </select>
         </label>
+
+        {/* ✅ NEW: Line color */}
+        {canEditColor ? (
+          <div
+            style={{
+              border: "1px solid #e5e7eb",
+              borderRadius: 12,
+              padding: 12,
+              display: "grid",
+              gap: 10,
+              background: "#f9fafb",
+            }}
+          >
+            <div style={{ fontWeight: 900, fontSize: 13, color: "#111827" }}>
+              Line color
+            </div>
+
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr auto",
+                gap: 12,
+                alignItems: "center",
+              }}
+            >
+              <label style={{ display: "grid", gap: 6 }}>
+                <span
+                  style={{ fontSize: 12, fontWeight: 800, color: "#374151" }}
+                >
+                  Color
+                </span>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "44px 1fr",
+                    gap: 10,
+                    alignItems: "center",
+                  }}
+                >
+                  <input
+                    type="color"
+                    value={safeLineColor}
+                    onChange={(e) => setLineColor(e.target.value)}
+                    style={{
+                      width: 44,
+                      height: 42,
+                      border: "1px solid #d1d5db",
+                      borderRadius: 10,
+                      padding: 0,
+                      background: "#fff",
+                      cursor: "pointer",
+                    }}
+                    title="Pick line color"
+                  />
+
+                  <input
+                    value={safeLineColor}
+                    onChange={(e) => setLineColor(e.target.value)}
+                    placeholder="#0c5ac8"
+                    style={{
+                      border: "1px solid #d1d5db",
+                      borderRadius: 10,
+                      padding: "10px 10px",
+                      fontSize: 14,
+                      fontFamily: "monospace",
+                    }}
+                  />
+                </div>
+              </label>
+
+              <div
+                style={{
+                  width: 90,
+                  height: 14,
+                  borderRadius: 999,
+                  border: "1px solid rgba(0,0,0,0.10)",
+                  background: safeLineColor,
+                  boxShadow: "0 6px 14px rgba(0,0,0,0.08)",
+                }}
+                title="Preview"
+              />
+            </div>
+
+            <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+              {COLOR_PRESETS.map((c) => (
+                <button
+                  key={c.value}
+                  type="button"
+                  onClick={() => setLineColor(c.value)}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    gap: 8,
+                    border: "1px solid rgba(0,0,0,0.12)",
+                    borderRadius: 999,
+                    padding: "6px 10px",
+                    background: "#fff",
+                    cursor: "pointer",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    color: "#111827",
+                  }}
+                  title={c.value}
+                >
+                  <span
+                    style={{
+                      width: 12,
+                      height: 12,
+                      borderRadius: 999,
+                      background: c.value,
+                      border: "1px solid rgba(0,0,0,0.12)",
+                      display: "inline-block",
+                    }}
+                  />
+                  {c.label}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : null}
 
         {/* Vertical axis */}
         <div

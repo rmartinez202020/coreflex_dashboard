@@ -2,13 +2,25 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 // ✅ extracted utilities
-import { computeMathOutput, msPerUnit, fmtTimeWithDate } from "./graphicDisplay/utils";
+import {
+  computeMathOutput,
+  msPerUnit,
+  fmtTimeWithDate,
+} from "./graphicDisplay/utils";
 
 // ✅ extracted loader (API + row loader + field reader)
 import { loadLiveRowForDevice, readAiField } from "./graphicDisplay/loader";
 
 // ✅ NEW: extracted ping/zoom hook
 import usePingZoom from "./graphicDisplay/hooks/usePingZoom";
+
+// ✅ line color fallback
+const DEFAULT_LINE_COLOR = "#0c5ac8";
+
+function normalizeLineColor(c) {
+  const s = String(c || "").trim();
+  return s || DEFAULT_LINE_COLOR;
+}
 
 export default function GraphicDisplay({ tank }) {
   const title = tank?.title ?? "Graphic Display";
@@ -26,6 +38,10 @@ export default function GraphicDisplay({ tank }) {
   const bindDeviceId = String(tank?.bindDeviceId ?? "").trim();
   const bindField = String(tank?.bindField ?? "ai1").trim();
   const mathFormula = tank?.mathFormula ?? "";
+
+  // ✅ NEW: line color from settings panel (saved on tank)
+  // (Settings panel uses `lineColor` prop name)
+  const lineColor = normalizeLineColor(tank?.lineColor);
 
   // ✅ grid divisions
   const yDivs = Number.isFinite(tank?.yDivs) ? Math.max(2, tank.yDivs) : 10;
@@ -263,8 +279,21 @@ export default function GraphicDisplay({ tank }) {
               background: "#fff",
               color: "#333",
               flex: "0 0 auto",
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 8,
             }}
+            title={`Line color: ${lineColor}`}
           >
+            <span
+              style={{
+                width: 10,
+                height: 10,
+                borderRadius: 999,
+                background: lineColor,
+                border: "1px solid rgba(0,0,0,0.15)",
+              }}
+            />
             {styleBadge}
           </div>
         </div>
@@ -298,7 +327,8 @@ export default function GraphicDisplay({ tank }) {
           </span>
 
           <span style={{ marginLeft: "auto" }} title="Math Output">
-            Output: <b>{Number.isFinite(mathOutput) ? mathOutput.toFixed(2) : "--"}</b>
+            Output:{" "}
+            <b>{Number.isFinite(mathOutput) ? mathOutput.toFixed(2) : "--"}</b>
           </span>
         </div>
       </div>
@@ -395,7 +425,7 @@ export default function GraphicDisplay({ tank }) {
               {svg.poly ? (
                 <polyline
                   fill="none"
-                  stroke="rgba(12, 90, 200, 0.95)"
+                  stroke={lineColor}   // ✅ NEW: uses selected color
                   strokeWidth="3"
                   points={svg.poly}
                 />
