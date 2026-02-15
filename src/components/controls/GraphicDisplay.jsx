@@ -3,6 +3,13 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { API_URL } from "../../config/api";
 import { getToken } from "../../utils/authToken";
 
+// ✅ extracted utilities
+import {
+  computeMathOutput,
+  msPerUnit,
+  fmtTimeWithDate,
+} from "./graphicDisplay/utils";
+
 const MODEL_META = {
   zhc1921: { base: "zhc1921" },
   zhc1661: { base: "zhc1661" },
@@ -128,57 +135,6 @@ async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
   }
 
   return null;
-}
-
-// ✅ compute math output safely (VALUE or value)
-function computeMathOutput(liveValue, formula) {
-  const v =
-    liveValue === null || liveValue === undefined || liveValue === ""
-      ? null
-      : typeof liveValue === "number"
-      ? liveValue
-      : Number(liveValue);
-
-  if (!Number.isFinite(v)) return null;
-
-  const f = String(formula || "").trim();
-  if (!f) return v; // no formula => output = live value
-
-  // allow VALUE / value
-  const expr = f.replace(/\bVALUE\b/g, "value");
-
-  try {
-    // eslint-disable-next-line no-new-func
-    const fn = new Function("value", `"use strict"; return (${expr});`);
-    const out = fn(v);
-    const num = typeof out === "number" ? out : Number(out);
-    return Number.isFinite(num) ? num : null;
-  } catch (e) {
-    return null;
-  }
-}
-
-function msPerUnit(timeUnit) {
-  const u = String(timeUnit || "").toLowerCase();
-  if (u === "minutes" || u === "minute" || u === "min") return 60000;
-  if (u === "hours" || u === "hour" || u === "hr") return 3600000;
-  return 1000; // seconds default
-}
-
-function fmtTimeWithDate(ts) {
-  if (!Number.isFinite(ts)) return "";
-  try {
-    return new Date(ts).toLocaleString(undefined, {
-      year: "numeric",
-      month: "2-digit",
-      day: "2-digit",
-      hour: "2-digit",
-      minute: "2-digit",
-      second: "2-digit",
-    });
-  } catch {
-    return String(ts);
-  }
 }
 
 export default function GraphicDisplay({ tank }) {
@@ -391,7 +347,8 @@ export default function GraphicDisplay({ tank }) {
   function pxToTime(xPx) {
     const el = plotRef.current;
     const { tMin, tMax } = timeRange;
-    if (!el || !Number.isFinite(tMin) || !Number.isFinite(tMax) || tMax <= tMin) return null;
+    if (!el || !Number.isFinite(tMin) || !Number.isFinite(tMax) || tMax <= tMin)
+      return null;
     const rect = el.getBoundingClientRect();
     const frac = Math.min(Math.max(xPx / Math.max(1, rect.width), 0), 1);
     return tMin + frac * (tMax - tMin);
@@ -421,7 +378,6 @@ export default function GraphicDisplay({ tank }) {
 
     const rect = el.getBoundingClientRect();
     const x = e.clientX - rect.left;
-    const y = e.clientY - rect.top;
 
     if (selRef.current.dragging) {
       selRef.current.x1 = x;
@@ -449,7 +405,6 @@ export default function GraphicDisplay({ tank }) {
       yPx,
       t: p.t,
       y: p.y,
-      mouseY: y,
     });
   }
 
@@ -458,12 +413,10 @@ export default function GraphicDisplay({ tank }) {
   }
 
   function handlePointerDown(e) {
-    // left button only
     if (e.button !== 0) return;
     const el = plotRef.current;
     if (!el) return;
 
-    // prevent canvas drag while interacting with chart
     e.preventDefault();
     e.stopPropagation();
 
@@ -486,13 +439,11 @@ export default function GraphicDisplay({ tank }) {
 
     selRef.current.dragging = false;
 
-    const rect = el.getBoundingClientRect();
     const x0 = selRef.current.x0;
     const x1 = selRef.current.x1;
 
     setSel(null);
 
-    // small drag => treat as "ping only"
     if (Math.abs(x1 - x0) < 8) return;
 
     const t0 = pxToTime(x0);
@@ -503,7 +454,6 @@ export default function GraphicDisplay({ tank }) {
   }
 
   function handleDoubleClick(e) {
-    // reset zoom
     e.preventDefault();
     e.stopPropagation();
     setZoom(null);
@@ -532,7 +482,6 @@ export default function GraphicDisplay({ tank }) {
 
     const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 
-    // ✅ time scale
     const tMin = arr[0]?.t ?? Date.now();
     const tMax = arr[arr.length - 1]?.t ?? tMin;
     const tSpan = Math.max(1, tMax - tMin);
@@ -558,7 +507,6 @@ export default function GraphicDisplay({ tank }) {
         boxShadow: "0 10px 22px rgba(0,0,0,0.10)",
         overflow: "hidden",
         userSelect: "none",
-        // ✅ allow interactions; we block drag via stopPropagation on the plot area
         pointerEvents: "auto",
         display: "flex",
         flexDirection: "column",
@@ -683,7 +631,7 @@ export default function GraphicDisplay({ tank }) {
                 position: "absolute",
                 left: 8,
                 top: 8,
-                bottom: 36, // leave space for X timeline
+                bottom: 36,
                 width: 64,
                 pointerEvents: "none",
                 display: "flex",
@@ -718,14 +666,14 @@ export default function GraphicDisplay({ tank }) {
             onPointerDown={handlePointerDown}
             onPointerUp={handlePointerUp}
             onDoubleClick={handleDoubleClick}
-            onPointerDownCapture={(e) => e.stopPropagation()} // ✅ block canvas drag
+            onPointerDownCapture={(e) => e.stopPropagation()}
             onPointerMoveCapture={(e) => e.stopPropagation()}
             style={{
               position: "absolute",
               left: 84,
               right: 10,
               top: 10,
-              bottom: 36, // ✅ reserve space for timeline labels
+              bottom: 36,
               cursor: selRef.current.dragging ? "crosshair" : "default",
               touchAction: "none",
             }}
@@ -782,9 +730,14 @@ export default function GraphicDisplay({ tank }) {
                     position: "absolute",
                     left: Math.min(
                       Math.max(hover.xPx + 10, 8),
-                      (plotRef.current?.getBoundingClientRect?.().width || 0) - 260
+                      (plotRef.current?.getBoundingClientRect?.().width || 0) -
+                        260
                     ),
-                    top: Math.min(Math.max(hover.yPx - 26, 8), (plotRef.current?.getBoundingClientRect?.().height || 0) - 60),
+                    top: Math.min(
+                      Math.max(hover.yPx - 26, 8),
+                      (plotRef.current?.getBoundingClientRect?.().height || 0) -
+                        60
+                    ),
                     fontFamily: "monospace",
                     fontSize: 11,
                     fontWeight: 900,
@@ -805,7 +758,9 @@ export default function GraphicDisplay({ tank }) {
                   <div>
                     Y:{" "}
                     <span style={{ color: "#0b3b18" }}>
-                      {Number.isFinite(hover.y) ? Number(hover.y).toFixed(2) : "--"}
+                      {Number.isFinite(hover.y)
+                        ? Number(hover.y).toFixed(2)
+                        : "--"}
                     </span>
                   </div>
                 </div>
