@@ -36,6 +36,22 @@ function resolveDashboardIdFromProps({ dashboardId, tank }) {
   return null;
 }
 
+// ✅ NEW: format run_seconds into HHHH : MM (for the UI you showed)
+function runSecondsToHrsMinParts(runSeconds) {
+  const s = Number(runSeconds);
+  if (!Number.isFinite(s) || s <= 0) {
+    return { hrs: 0, mins: 0, hrsStr: "0000", minsStr: "00" };
+  }
+  const hrs = Math.floor(s / 3600);
+  const mins = Math.floor((s % 3600) / 60);
+  return {
+    hrs,
+    mins,
+    hrsStr: String(Math.max(0, hrs)).padStart(4, "0"),
+    minsStr: String(Math.max(0, mins)).padStart(2, "0"),
+  };
+}
+
 export default function DraggableCounterInput({
   variant = "menu",
   label = "Counter Input (DI)",
@@ -106,7 +122,9 @@ export default function DraggableCounterInput({
       const token = String(getToken() || "").trim();
       if (!token) throw new Error("Missing auth token");
 
-      const qs = dashForBackend ? `?dashboard_id=${encodeURIComponent(dashForBackend)}` : "";
+      const qs = dashForBackend
+        ? `?dashboard_id=${encodeURIComponent(dashForBackend)}`
+        : "";
       const res = await fetch(
         `${API_URL}/device-counters/by-widget/${encodeURIComponent(widgetId)}${qs}`,
         { headers: getAuthHeaders() }
@@ -220,11 +238,13 @@ export default function DraggableCounterInput({
     const effective = overrideCount !== null ? overrideCount : safe;
     const display = String(effective).padStart(digits, "0");
 
-    // ✅ Running hours line (backend seconds)
-    const runLine =
-      dashboardMode === "play"
-        ? `Running Hours ${formatRunSecondsToHrsMin(serverCounter?.run_seconds)}`
-        : null;
+    // ✅ Running Hours (PLAY): show "Hrs : Minutes" then values under it (like your photo)
+    const runSeconds = Number(serverCounter?.run_seconds ?? 0);
+    const showRun = dashboardMode === "play";
+    const { hrsStr, minsStr } = runSecondsToHrsMinParts(runSeconds);
+
+    // (keep old helper for tooltip / consistency)
+    const legacyRunText = formatRunSecondsToHrsMin(serverCounter?.run_seconds);
 
     return (
       <div
@@ -304,25 +324,54 @@ export default function DraggableCounterInput({
           {display}
         </div>
 
-        {/* ✅ NEW: RUNNING HOURS LINE */}
-        {runLine ? (
+        {/* ✅ UPDATED: RUNNING HOURS BLOCK (Hrs : Minutes + values under) */}
+        {showRun ? (
           <div
             style={{
               width: "100%",
-              fontSize: 10,
-              fontWeight: 900,
-              color: "#111827",
               textAlign: "center",
               marginBottom: 6,
-              lineHeight: 1.1,
+              lineHeight: 1.05,
               cursor: "default",
             }}
-            title="Running time (accumulates while DI=1)"
+            title={`Running time (accumulates while DI=1)\n${legacyRunText}`}
           >
-            {runLine}
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 900,
+                color: "#111827",
+                marginBottom: 2,
+              }}
+            >
+              Running Hours
+            </div>
+
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 900,
+                color: "#111827",
+                marginBottom: 2,
+              }}
+            >
+              Hrs : Minutes
+            </div>
+
+            <div
+              style={{
+                fontFamily: "monospace",
+                fontSize: 12,
+                fontWeight: 900,
+                color: "#111",
+                letterSpacing: "0.5px",
+              }}
+            >
+              {hrsStr} : {minsStr}
+            </div>
           </div>
         ) : (
-          <div style={{ height: 14, marginBottom: 6 }} />
+          <div style={{ height: 36, marginBottom: 6 }} />
         )}
 
         {/* STATUS (small feedback) */}
