@@ -22,8 +22,8 @@ const AI_OPTIONS = [
 
 // ✅ Models allowed for this widget
 const MODEL_META = {
-  zhc1921: { label: "CF-2000 (ZHC1921)" },
-  zhc1661: { label: "CF-1600 (ZHC1661)" },
+  zhc1921: { label: "CF-2000 (ZHC1921)", base: "zhc1921" },
+  zhc1661: { label: "CF-1600 (ZHC1661)", base: "zhc1661" },
 };
 
 function getAuthHeaders() {
@@ -44,10 +44,14 @@ async function apiGet(path) {
 // ✅ Try multiple endpoints because projects evolve.
 // You can keep only the correct ones later.
 async function loadDevicesForModel(modelKey) {
-  const candidates =
-    modelKey === "zhc1921"
-      ? ["/zhc1921/my-devices", "/zhc1921/devices", "/zhc1921/list", "/zhc1921"]
-      : ["/zhc1661/my-devices", "/zhc1661/devices", "/zhc1661/list", "/zhc1661"];
+  const base = MODEL_META[modelKey]?.base || modelKey;
+
+  const candidates = [
+    `/${base}/my-devices`,
+    `/${base}/devices`,
+    `/${base}/list`,
+    `/${base}`,
+  ];
 
   let lastErr = null;
 
@@ -55,10 +59,6 @@ async function loadDevicesForModel(modelKey) {
     try {
       const data = await apiGet(p);
 
-      // Accept common shapes:
-      // - array
-      // - { devices: [...] }
-      // - { rows: [...] }
       const arr = Array.isArray(data)
         ? data
         : Array.isArray(data?.devices)
@@ -67,7 +67,6 @@ async function loadDevicesForModel(modelKey) {
         ? data.rows
         : [];
 
-      // normalize to { deviceId, status, lastSeen }
       const out = arr
         .map((r) => {
           const deviceId =
@@ -85,17 +84,109 @@ async function loadDevicesForModel(modelKey) {
             deviceId: String(deviceId),
             status: String(r.status ?? r.online ?? "").toLowerCase(),
             lastSeen: r.lastSeen ?? r.last_seen ?? r.updatedAt ?? r.updated_at,
+            // keep raw row in case it already contains values
+            _raw: r,
           };
         })
         .filter(Boolean);
 
-      return out; // ✅ endpoint worked
+      return out;
     } catch (e) {
       lastErr = e;
     }
   }
 
   throw lastErr || new Error("No device endpoint matched");
+}
+
+// ✅ Read a single device row/value (best-effort across endpoints)
+async function loadDeviceRow(modelKey, deviceId) {
+  const base = MODEL_META[modelKey]?.base || modelKey;
+  const id = encodeURIComponent(String(deviceId || "").trim());
+
+  const candidates = [
+    // common "single device" patterns
+    `/${base}/${id}`,
+    `/${base}/device/${id}`,
+    `/${base}/devices/${id}`,
+    `/${base}/my-devices/${id}`,
+    `/${base}/status/${id}`,
+    `/${base}/values/${id}`,
+
+    // fallback: list endpoints (we'll search inside)
+    `/${base}/my-devices`,
+    `/${base}/devices`,
+    `/${base}/list`,
+    `/${base}`,
+  ];
+
+  let lastErr = null;
+
+  for (const p of candidates) {
+    try {
+      const data = await apiGet(p);
+
+      // if endpoint returns a single object
+      if (data && !Array.isArray(data) && typeof data === "object") {
+        // sometimes wrapped: { device: {...} }
+        const obj = data.device ?? data.row ?? data.data ?? data;
+        if (obj && typeof obj === "object") return obj;
+      }
+
+      // if endpoint returns list, find device
+      const arr = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.devices)
+        ? data.devices
+        : Array.isArray(data?.rows)
+        ? data.rows
+        : [];
+
+      if (arr.length) {
+        const found = arr.find((r) => {
+          const rid =
+            r.deviceId ??
+            r.device_id ??
+            r.id ??
+            r.imei ??
+            r.IMEI ??
+            r.DEVICE_ID ??
+            "";
+          return String(rid) === String(deviceId);
+        });
+        if (found) return found;
+      }
+    } catch (e) {
+      lastErr = e;
+    }
+  }
+
+  throw lastErr || new Error("No value endpoint matched");
+}
+
+// ✅ read a field robustly (ai1 / AI1 / etc.)
+function readRowField(row, field) {
+  if (!row || !field) return undefined;
+
+  // exact
+  if (row[field] !== undefined) return row[field];
+
+  // case variants
+  const up = String(field).toUpperCase();
+  if (row[up] !== undefined) return row[up];
+
+  const cap = String(field).slice(0, 1).toUpperCase() + String(field).slice(1);
+  if (row[cap] !== undefined) return row[cap];
+
+  // sometimes like "AI_1" or "ai_1"
+  const underscored = String(field)
+    .toLowerCase()
+    .replace(/^ai([1-4])$/, "ai_$1");
+  if (row[underscored] !== undefined) return row[underscored];
+  const underscoredUp = underscored.toUpperCase();
+  if (row[underscoredUp] !== undefined) return row[underscoredUp];
+
+  return undefined;
 }
 
 export default function GraphicDisplaySettingsModal({
@@ -130,6 +221,12 @@ export default function GraphicDisplaySettingsModal({
   const [loadingDevices, setLoadingDevices] = useState(false);
   const [deviceErr, setDeviceErr] = useState("");
 
+  // ✅ NEW: current value preview
+  const [currentValue, setCurrentValue] = useState(null);
+  const [valueLoading, setValueLoading] = useState(false);
+  const [valueErr, setValueErr] = useState("");
+  const [valueUpdatedAt, setValueUpdatedAt] = useState(null);
+
   // Load from tank when opening/editing
   useEffect(() => {
     if (!tank) return;
@@ -144,7 +241,6 @@ export default function GraphicDisplaySettingsModal({
     setYUnits(tank.yUnits ?? "");
     setGraphStyle(tank.graphStyle ?? "line");
 
-    // ✅ persisted binding
     setBindModel(tank.bindModel ?? "zhc1921");
     setBindDeviceId(tank.bindDeviceId ?? "");
     setBindField(tank.bindField ?? "ai1");
@@ -162,7 +258,6 @@ export default function GraphicDisplaySettingsModal({
         if (cancelled) return;
         setDevices(list);
 
-        // auto-pick first device if empty
         if (!bindDeviceId && list.length > 0) {
           setBindDeviceId(list[0].deviceId);
         }
@@ -183,6 +278,70 @@ export default function GraphicDisplaySettingsModal({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bindModel]);
+
+  // ✅ NEW: poll current value for selected AI
+  useEffect(() => {
+    let cancelled = false;
+    let timer = null;
+
+    async function fetchOnce() {
+      if (!bindDeviceId || !bindField) return;
+
+      setValueLoading(true);
+      setValueErr("");
+
+      try {
+        // Try to reuse the row from devices list first (sometimes includes AI values)
+        const fromList = devices.find((d) => d.deviceId === bindDeviceId)?._raw;
+        let row = fromList;
+
+        if (!row) {
+          row = await loadDeviceRow(bindModel, bindDeviceId);
+        }
+
+        if (cancelled) return;
+
+        const rawVal = readRowField(row, bindField);
+        const numVal =
+          rawVal === null || rawVal === undefined || rawVal === ""
+            ? null
+            : typeof rawVal === "number"
+            ? rawVal
+            : Number(rawVal);
+
+        // accept non-number too, but prefer numeric
+        const finalVal =
+          Number.isFinite(numVal) || numVal === 0 ? numVal : rawVal ?? null;
+
+        setCurrentValue(finalVal);
+        setValueUpdatedAt(new Date().toISOString());
+      } catch (e) {
+        if (cancelled) return;
+        setCurrentValue(null);
+        setValueErr(
+          "Could not read the current value. Add/confirm an endpoint that returns live tag values for the selected device."
+        );
+      } finally {
+        if (!cancelled) setValueLoading(false);
+      }
+    }
+
+    // reset when selection changes
+    setCurrentValue(null);
+    setValueUpdatedAt(null);
+    setValueErr("");
+
+    if (open && bindDeviceId && bindField) {
+      fetchOnce();
+      // poll every 3s (like other live widgets)
+      timer = window.setInterval(fetchOnce, 3000);
+    }
+
+    return () => {
+      cancelled = true;
+      if (timer) window.clearInterval(timer);
+    };
+  }, [open, bindModel, bindDeviceId, bindField, devices]);
 
   const formatSampleLabel = (ms) => {
     if (ms === 1000) return "1s (1000 ms)";
@@ -217,6 +376,42 @@ export default function GraphicDisplaySettingsModal({
     return "#6b7280";
   }, [deviceStatusLabel]);
 
+  const selectedAiLabel =
+    AI_OPTIONS.find((x) => x.key === bindField)?.label || bindField;
+
+  const valueText = useMemo(() => {
+    if (!bindDeviceId) return "—";
+    if (valueLoading) return "Loading…";
+    if (currentValue === null || currentValue === undefined || currentValue === "")
+      return "—";
+    // format number nicely
+    if (typeof currentValue === "number" && Number.isFinite(currentValue)) {
+      return currentValue.toFixed(2);
+    }
+    return String(currentValue);
+  }, [bindDeviceId, valueLoading, currentValue]);
+
+  const valuePillBg = useMemo(() => {
+    if (!bindDeviceId) return "#e5e7eb";
+    if (valueLoading) return "#e5e7eb";
+    if (valueErr) return "#fee2e2";
+    return "#dcfce7";
+  }, [bindDeviceId, valueLoading, valueErr]);
+
+  const valuePillBorder = useMemo(() => {
+    if (!bindDeviceId) return "#d1d5db";
+    if (valueLoading) return "#d1d5db";
+    if (valueErr) return "#fecaca";
+    return "#bbf7d0";
+  }, [bindDeviceId, valueLoading, valueErr]);
+
+  const valuePillColor = useMemo(() => {
+    if (!bindDeviceId) return "#374151";
+    if (valueLoading) return "#374151";
+    if (valueErr) return "#7f1d1d";
+    return "#14532d";
+  }, [bindDeviceId, valueLoading, valueErr]);
+
   return (
     <div
       onMouseDown={(e) => e.stopPropagation()}
@@ -230,7 +425,6 @@ export default function GraphicDisplaySettingsModal({
         zIndex: 999999,
       }}
     >
-      {/* MAIN PANEL (same vibe as Indicator Light modal) */}
       <div
         style={{
           width: 980,
@@ -275,7 +469,7 @@ export default function GraphicDisplaySettingsModal({
           </button>
         </div>
 
-        {/* BODY: 2 columns */}
+        {/* BODY */}
         <div
           style={{
             display: "grid",
@@ -285,7 +479,7 @@ export default function GraphicDisplaySettingsModal({
             background: "#f8fafc",
           }}
         >
-          {/* LEFT: DISPLAY SETTINGS */}
+          {/* LEFT */}
           <div
             style={{
               borderRadius: 12,
@@ -407,7 +601,6 @@ export default function GraphicDisplaySettingsModal({
                 </select>
               </label>
 
-              {/* Vertical axis */}
               <div
                 style={{
                   border: "1px solid #e5e7eb",
@@ -490,7 +683,7 @@ export default function GraphicDisplaySettingsModal({
             </div>
           </div>
 
-          {/* RIGHT: TAG BINDING */}
+          {/* RIGHT */}
           <div
             style={{
               borderRadius: 12,
@@ -506,7 +699,6 @@ export default function GraphicDisplaySettingsModal({
               Tag that drives the Trend (AI)
             </div>
 
-            {/* Model */}
             <label style={{ display: "grid", gap: 6 }}>
               <span style={{ fontSize: 12, fontWeight: 800, color: "#374151" }}>
                 Model
@@ -532,7 +724,6 @@ export default function GraphicDisplaySettingsModal({
               </select>
             </label>
 
-            {/* Device */}
             <label style={{ display: "grid", gap: 6 }}>
               <span style={{ fontSize: 12, fontWeight: 800, color: "#374151" }}>
                 Device
@@ -560,7 +751,6 @@ export default function GraphicDisplaySettingsModal({
               </select>
             </label>
 
-            {/* Tag (AI only) */}
             <label style={{ display: "grid", gap: 6 }}>
               <span style={{ fontSize: 12, fontWeight: 800, color: "#374151" }}>
                 Analog Input (AI)
@@ -624,13 +814,55 @@ export default function GraphicDisplaySettingsModal({
                   <div style={{ fontSize: 12, fontWeight: 900, color: "#111827" }}>
                     Selected AI
                   </div>
-                  <div style={{ fontSize: 12, color: "#374151" }}>
-                    {AI_OPTIONS.find((x) => x.key === bindField)?.label || bindField}
-                  </div>
+                  <div style={{ fontSize: 12, color: "#374151" }}>{selectedAiLabel}</div>
                 </div>
               </div>
 
-              {deviceErr && (
+              {/* ✅ NEW: Current value */}
+              <div
+                style={{
+                  marginTop: 10,
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 10,
+                }}
+              >
+                <div style={{ fontSize: 12, fontWeight: 900, color: "#111827" }}>
+                  Current Value
+                </div>
+
+                <div
+                  style={{
+                    marginLeft: "auto",
+                    border: `1px solid ${valuePillBorder}`,
+                    background: valuePillBg,
+                    color: valuePillColor,
+                    fontWeight: 900,
+                    borderRadius: 999,
+                    padding: "4px 10px",
+                    fontFamily: "monospace",
+                    fontSize: 12,
+                    minWidth: 90,
+                    textAlign: "center",
+                  }}
+                  title={
+                    valueUpdatedAt
+                      ? `Last updated: ${new Date(valueUpdatedAt).toLocaleString()}`
+                      : ""
+                  }
+                >
+                  {valueText}
+                  {yUnits ? ` ${yUnits}` : ""}
+                </div>
+              </div>
+
+              {valueUpdatedAt && !valueErr && (
+                <div style={{ marginTop: 6, fontSize: 11, color: "#6b7280" }}>
+                  Updated: {new Date(valueUpdatedAt).toLocaleTimeString()}
+                </div>
+              )}
+
+              {(deviceErr || valueErr) && (
                 <div
                   style={{
                     marginTop: 10,
@@ -639,7 +871,7 @@ export default function GraphicDisplaySettingsModal({
                     fontSize: 12,
                   }}
                 >
-                  {deviceErr}
+                  {deviceErr || valueErr}
                 </div>
               )}
             </div>
@@ -682,7 +914,7 @@ export default function GraphicDisplaySettingsModal({
                     yUnits,
                     graphStyle,
 
-                    // ✅ binding for trend source
+                    // binding for trend source
                     bindModel,
                     bindDeviceId,
                     bindField,
