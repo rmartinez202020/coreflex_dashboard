@@ -1,7 +1,7 @@
-// src/components/GraphicDisplay.jsx
+// src/components/controls/GraphicDisplay.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { API_URL } from "../config/api";
-import { getToken } from "../utils/authToken";
+import { API_URL } from "../../config/api";
+import { getToken } from "../../utils/authToken";
 
 const MODEL_META = {
   zhc1921: { base: "zhc1921" },
