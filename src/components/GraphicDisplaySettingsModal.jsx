@@ -31,11 +31,24 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-// ✅ resilient JSON fetch
-async function apiGet(path) {
-  const res = await fetch(`${API_URL}${path}`, {
+// ✅ add cache-buster so Vercel/CDN/browser never serves a cached JSON
+function withNoCache(path) {
+  const sep = path.includes("?") ? "&" : "?";
+  return `${path}${sep}_ts=${Date.now()}`;
+}
+
+// ✅ resilient JSON fetch (NO-CACHE)
+async function apiGet(path, { signal } = {}) {
+  const res = await fetch(`${API_URL}${withNoCache(path)}`, {
     method: "GET",
-    headers: { ...getAuthHeaders() },
+    headers: {
+      ...getAuthHeaders(),
+      // best-effort cache busting
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    },
+    cache: "no-store",
+    signal,
   });
   if (!res.ok) throw new Error(`GET ${path} failed (${res.status})`);
   return res.json();
@@ -43,22 +56,23 @@ async function apiGet(path) {
 
 // ✅ Try multiple endpoints because projects evolve.
 // You can keep only the correct ones later.
-async function loadDevicesForModel(modelKey) {
+async function loadDevicesForModel(modelKey, { signal } = {}) {
   const base = MODEL_META[modelKey]?.base || modelKey;
-
-  const candidates = [
-    `/${base}/my-devices`,
-    `/${base}/devices`,
-    `/${base}/list`,
-    `/${base}`,
-  ];
+  const candidates =
+    base === "zhc1921"
+      ? ["/zhc1921/my-devices", "/zhc1921/devices", "/zhc1921/list", "/zhc1921"]
+      : ["/zhc1661/my-devices", "/zhc1661/devices", "/zhc1661/list", "/zhc1661"];
 
   let lastErr = null;
 
   for (const p of candidates) {
     try {
-      const data = await apiGet(p);
+      const data = await apiGet(p, { signal });
 
+      // Accept common shapes:
+      // - array
+      // - { devices: [...] }
+      // - { rows: [...] }
       const arr = Array.isArray(data)
         ? data
         : Array.isArray(data?.devices)
@@ -67,6 +81,7 @@ async function loadDevicesForModel(modelKey) {
         ? data.rows
         : [];
 
+      // normalize to { deviceId, status, lastSeen }
       const out = arr
         .map((r) => {
           const deviceId =
@@ -84,13 +99,11 @@ async function loadDevicesForModel(modelKey) {
             deviceId: String(deviceId),
             status: String(r.status ?? r.online ?? "").toLowerCase(),
             lastSeen: r.lastSeen ?? r.last_seen ?? r.updatedAt ?? r.updated_at,
-            // keep raw row in case it already contains values
-            _raw: r,
           };
         })
         .filter(Boolean);
 
-      return out;
+      return out; // ✅ endpoint worked
     } catch (e) {
       lastErr = e;
     }
@@ -99,94 +112,77 @@ async function loadDevicesForModel(modelKey) {
   throw lastErr || new Error("No device endpoint matched");
 }
 
-// ✅ Read a single device row/value (best-effort across endpoints)
-async function loadDeviceRow(modelKey, deviceId) {
+// ✅ Live row poll (tries “single device” endpoints first, then falls back to list endpoint + find)
+async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
   const base = MODEL_META[modelKey]?.base || modelKey;
-  const id = encodeURIComponent(String(deviceId || "").trim());
 
-  const candidates = [
-    // common "single device" patterns
-    `/${base}/${id}`,
-    `/${base}/device/${id}`,
-    `/${base}/devices/${id}`,
-    `/${base}/my-devices/${id}`,
-    `/${base}/status/${id}`,
-    `/${base}/values/${id}`,
+  // Try “single device row” style endpoints first (these are most likely to be live DB reads)
+  const directCandidates =
+    base === "zhc1921"
+      ? [
+          `/zhc1921/device/${deviceId}`,
+          `/zhc1921/devices/${deviceId}`,
+          `/zhc1921/${deviceId}`,
+          `/zhc1921/one/${deviceId}`,
+        ]
+      : [
+          `/zhc1661/device/${deviceId}`,
+          `/zhc1661/devices/${deviceId}`,
+          `/zhc1661/${deviceId}`,
+          `/zhc1661/one/${deviceId}`,
+        ];
 
-    // fallback: list endpoints (we'll search inside)
-    `/${base}/my-devices`,
-    `/${base}/devices`,
-    `/${base}/list`,
-    `/${base}`,
-  ];
-
-  let lastErr = null;
-
-  for (const p of candidates) {
+  for (const p of directCandidates) {
     try {
-      const data = await apiGet(p);
-
-      // if endpoint returns a single object
-      if (data && !Array.isArray(data) && typeof data === "object") {
-        // sometimes wrapped: { device: {...} }
-        const obj = data.device ?? data.row ?? data.data ?? data;
-        if (obj && typeof obj === "object") return obj;
-      }
-
-      // if endpoint returns list, find device
-      const arr = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.devices)
-        ? data.devices
-        : Array.isArray(data?.rows)
-        ? data.rows
-        : [];
-
-      if (arr.length) {
-        const found = arr.find((r) => {
-          const rid =
-            r.deviceId ??
-            r.device_id ??
-            r.id ??
-            r.imei ??
-            r.IMEI ??
-            r.DEVICE_ID ??
-            "";
-          return String(rid) === String(deviceId);
-        });
-        if (found) return found;
-      }
+      const r = await apiGet(p, { signal });
+      // normalize to a row object
+      return r?.row ?? r?.device ?? r;
     } catch (e) {
-      lastErr = e;
+      // ignore and continue
     }
   }
 
-  throw lastErr || new Error("No value endpoint matched");
+  // Fallback: load list and find device (still no-cache)
+  const list = await loadDevicesForModel(modelKey, { signal });
+  const found = list.find((d) => String(d.deviceId) === String(deviceId));
+  if (!found) return null;
+
+  // Some list endpoints might also include AI fields; try returning raw match from list source:
+  // (we can't get raw row here because list is normalized, so return null and let caller handle)
+  return null;
 }
 
-// ✅ read a field robustly (ai1 / AI1 / etc.)
-function readRowField(row, field) {
-  if (!row || !field) return undefined;
+// ✅ read AI field from row, accept multiple naming styles
+function readAiField(row, bindField) {
+  if (!row || !bindField) return null;
+  const f = String(bindField).toLowerCase();
 
-  // exact
-  if (row[field] !== undefined) return row[field];
+  // possible keys:
+  // ai1..ai4
+  // AI1..AI4
+  // a1..a4 (legacy)
+  // analog1..analog4 (legacy)
+  const candidates = [
+    f,
+    f.toUpperCase(),
+    f.replace("ai", "a"),
+    f.replace("ai", "A"),
+    f.replace("ai", "analog"),
+    f.replace("ai", "ANALOG"),
+  ];
 
-  // case variants
-  const up = String(field).toUpperCase();
-  if (row[up] !== undefined) return row[up];
+  for (const k of candidates) {
+    if (row[k] !== undefined) return row[k];
+  }
 
-  const cap = String(field).slice(0, 1).toUpperCase() + String(field).slice(1);
-  if (row[cap] !== undefined) return row[cap];
+  // also try ai_1 / ai-1
+  const n = f.replace("ai", "");
+  const extra = [`ai_${n}`, `AI_${n}`, `ai-${n}`, `AI-${n}`];
+  for (const k of extra) {
+    if (row[k] !== undefined) return row[k];
+  }
 
-  // sometimes like "AI_1" or "ai_1"
-  const underscored = String(field)
-    .toLowerCase()
-    .replace(/^ai([1-4])$/, "ai_$1");
-  if (row[underscored] !== undefined) return row[underscored];
-  const underscoredUp = underscored.toUpperCase();
-  if (row[underscoredUp] !== undefined) return row[underscoredUp];
-
-  return undefined;
+  return null;
 }
 
 export default function GraphicDisplaySettingsModal({
@@ -221,11 +217,10 @@ export default function GraphicDisplaySettingsModal({
   const [loadingDevices, setLoadingDevices] = useState(false);
   const [deviceErr, setDeviceErr] = useState("");
 
-  // ✅ NEW: current value preview
+  // ✅ current value polling (every 3s)
   const [currentValue, setCurrentValue] = useState(null);
-  const [valueLoading, setValueLoading] = useState(false);
+  const [currentUpdatedAt, setCurrentUpdatedAt] = useState("");
   const [valueErr, setValueErr] = useState("");
-  const [valueUpdatedAt, setValueUpdatedAt] = useState(null);
 
   // Load from tank when opening/editing
   useEffect(() => {
@@ -241,23 +236,31 @@ export default function GraphicDisplaySettingsModal({
     setYUnits(tank.yUnits ?? "");
     setGraphStyle(tank.graphStyle ?? "line");
 
+    // ✅ persisted binding
     setBindModel(tank.bindModel ?? "zhc1921");
     setBindDeviceId(tank.bindDeviceId ?? "");
     setBindField(tank.bindField ?? "ai1");
+
+    // reset value preview
+    setCurrentValue(null);
+    setCurrentUpdatedAt("");
+    setValueErr("");
   }, [tank]);
 
   // Load devices when model changes
   useEffect(() => {
     let cancelled = false;
+    const ctrl = new AbortController();
 
     async function run() {
       setLoadingDevices(true);
       setDeviceErr("");
       try {
-        const list = await loadDevicesForModel(bindModel);
+        const list = await loadDevicesForModel(bindModel, { signal: ctrl.signal });
         if (cancelled) return;
         setDevices(list);
 
+        // auto-pick first device if empty
         if (!bindDeviceId && list.length > 0) {
           setBindDeviceId(list[0].deviceId);
         }
@@ -275,73 +278,10 @@ export default function GraphicDisplaySettingsModal({
     run();
     return () => {
       cancelled = true;
+      ctrl.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bindModel]);
-
-  // ✅ NEW: poll current value for selected AI
-  useEffect(() => {
-    let cancelled = false;
-    let timer = null;
-
-    async function fetchOnce() {
-      if (!bindDeviceId || !bindField) return;
-
-      setValueLoading(true);
-      setValueErr("");
-
-      try {
-        // Try to reuse the row from devices list first (sometimes includes AI values)
-        const fromList = devices.find((d) => d.deviceId === bindDeviceId)?._raw;
-        let row = fromList;
-
-        if (!row) {
-          row = await loadDeviceRow(bindModel, bindDeviceId);
-        }
-
-        if (cancelled) return;
-
-        const rawVal = readRowField(row, bindField);
-        const numVal =
-          rawVal === null || rawVal === undefined || rawVal === ""
-            ? null
-            : typeof rawVal === "number"
-            ? rawVal
-            : Number(rawVal);
-
-        // accept non-number too, but prefer numeric
-        const finalVal =
-          Number.isFinite(numVal) || numVal === 0 ? numVal : rawVal ?? null;
-
-        setCurrentValue(finalVal);
-        setValueUpdatedAt(new Date().toISOString());
-      } catch (e) {
-        if (cancelled) return;
-        setCurrentValue(null);
-        setValueErr(
-          "Could not read the current value. Add/confirm an endpoint that returns live tag values for the selected device."
-        );
-      } finally {
-        if (!cancelled) setValueLoading(false);
-      }
-    }
-
-    // reset when selection changes
-    setCurrentValue(null);
-    setValueUpdatedAt(null);
-    setValueErr("");
-
-    if (open && bindDeviceId && bindField) {
-      fetchOnce();
-      // poll every 3s (like other live widgets)
-      timer = window.setInterval(fetchOnce, 3000);
-    }
-
-    return () => {
-      cancelled = true;
-      if (timer) window.clearInterval(timer);
-    };
-  }, [open, bindModel, bindDeviceId, bindField, devices]);
 
   const formatSampleLabel = (ms) => {
     if (ms === 1000) return "1s (1000 ms)";
@@ -376,41 +316,130 @@ export default function GraphicDisplaySettingsModal({
     return "#6b7280";
   }, [deviceStatusLabel]);
 
-  const selectedAiLabel =
-    AI_OPTIONS.find((x) => x.key === bindField)?.label || bindField;
-
-  const valueText = useMemo(() => {
-    if (!bindDeviceId) return "—";
-    if (valueLoading) return "Loading…";
-    if (currentValue === null || currentValue === undefined || currentValue === "")
-      return "—";
-    // format number nicely
-    if (typeof currentValue === "number" && Number.isFinite(currentValue)) {
-      return currentValue.toFixed(2);
+  // ✅ Poll current value every 3 seconds (NO-CACHE)
+  useEffect(() => {
+    if (!open) return;
+    if (!bindDeviceId || !bindField || !bindModel) {
+      setCurrentValue(null);
+      setCurrentUpdatedAt("");
+      setValueErr("");
+      return;
     }
+
+    let cancelled = false;
+    const ctrl = new AbortController();
+
+    const tick = async () => {
+      try {
+        setValueErr("");
+
+        // Try to fetch a live row for this device (best effort)
+        const row = await loadLiveRowForDevice(bindModel, bindDeviceId, {
+          signal: ctrl.signal,
+        });
+
+        // If we didn't get a direct row, fall back to calling the list endpoint RAW
+        // (some APIs return AI fields inside the list rows)
+        let value = null;
+        let updatedAt = null;
+
+        if (row) {
+          value = readAiField(row, bindField);
+          updatedAt = row.updatedAt ?? row.updated_at ?? row.lastSeen ?? row.last_seen;
+        } else {
+          // fallback: call the “devices” list endpoint raw and search by id
+          const base = MODEL_META[bindModel]?.base || bindModel;
+          const rawCandidates =
+            base === "zhc1921"
+              ? ["/zhc1921/devices", "/zhc1921/my-devices", "/zhc1921/list", "/zhc1921"]
+              : ["/zhc1661/devices", "/zhc1661/my-devices", "/zhc1661/list", "/zhc1661"];
+
+          let rawArr = [];
+          for (const p of rawCandidates) {
+            try {
+              const data = await apiGet(p, { signal: ctrl.signal });
+              rawArr = Array.isArray(data)
+                ? data
+                : Array.isArray(data?.devices)
+                ? data.devices
+                : Array.isArray(data?.rows)
+                ? data.rows
+                : [];
+              if (rawArr.length) break;
+            } catch (e) {
+              // continue
+            }
+          }
+
+          const rawRow =
+            rawArr.find((r) => {
+              const id =
+                r.deviceId ??
+                r.device_id ??
+                r.id ??
+                r.imei ??
+                r.IMEI ??
+                r.DEVICE_ID ??
+                "";
+              return String(id) === String(bindDeviceId);
+            }) || null;
+
+          if (rawRow) {
+            value = readAiField(rawRow, bindField);
+            updatedAt =
+              rawRow.updatedAt ??
+              rawRow.updated_at ??
+              rawRow.lastSeen ??
+              rawRow.last_seen;
+          }
+        }
+
+        if (cancelled) return;
+
+        // normalize numeric display
+        const num =
+          value === null || value === undefined || value === ""
+            ? null
+            : typeof value === "number"
+            ? value
+            : Number(value);
+
+        setCurrentValue(Number.isFinite(num) ? num : value ?? null);
+
+        // always update time so you can see polling working
+        const ts =
+          updatedAt && !Number.isNaN(new Date(updatedAt).getTime())
+            ? new Date(updatedAt).toLocaleTimeString()
+            : new Date().toLocaleTimeString();
+
+        setCurrentUpdatedAt(ts);
+      } catch (e) {
+        if (cancelled) return;
+        // If request aborted, ignore
+        if (String(e?.name || "").toLowerCase().includes("abort")) return;
+        setValueErr("Could not read current value (check API endpoint / fields).");
+        // still update time so you can see it polling
+        setCurrentUpdatedAt(new Date().toLocaleTimeString());
+      }
+    };
+
+    // run immediately, then every 3s
+    tick();
+    const id = window.setInterval(tick, 3000);
+
+    return () => {
+      cancelled = true;
+      ctrl.abort();
+      window.clearInterval(id);
+    };
+  }, [open, bindModel, bindDeviceId, bindField]);
+
+  const currentValueLabel = useMemo(() => {
+    if (currentValue === null || currentValue === undefined) return "—";
+    if (typeof currentValue === "number") return currentValue.toFixed(2);
+    // if backend sends string, show as-is
     return String(currentValue);
-  }, [bindDeviceId, valueLoading, currentValue]);
-
-  const valuePillBg = useMemo(() => {
-    if (!bindDeviceId) return "#e5e7eb";
-    if (valueLoading) return "#e5e7eb";
-    if (valueErr) return "#fee2e2";
-    return "#dcfce7";
-  }, [bindDeviceId, valueLoading, valueErr]);
-
-  const valuePillBorder = useMemo(() => {
-    if (!bindDeviceId) return "#d1d5db";
-    if (valueLoading) return "#d1d5db";
-    if (valueErr) return "#fecaca";
-    return "#bbf7d0";
-  }, [bindDeviceId, valueLoading, valueErr]);
-
-  const valuePillColor = useMemo(() => {
-    if (!bindDeviceId) return "#374151";
-    if (valueLoading) return "#374151";
-    if (valueErr) return "#7f1d1d";
-    return "#14532d";
-  }, [bindDeviceId, valueLoading, valueErr]);
+  }, [currentValue]);
 
   return (
     <div
@@ -425,6 +454,7 @@ export default function GraphicDisplaySettingsModal({
         zIndex: 999999,
       }}
     >
+      {/* MAIN PANEL (same vibe as Indicator Light modal) */}
       <div
         style={{
           width: 980,
@@ -469,7 +499,7 @@ export default function GraphicDisplaySettingsModal({
           </button>
         </div>
 
-        {/* BODY */}
+        {/* BODY: 2 columns */}
         <div
           style={{
             display: "grid",
@@ -479,7 +509,7 @@ export default function GraphicDisplaySettingsModal({
             background: "#f8fafc",
           }}
         >
-          {/* LEFT */}
+          {/* LEFT: DISPLAY SETTINGS */}
           <div
             style={{
               borderRadius: 12,
@@ -601,6 +631,7 @@ export default function GraphicDisplaySettingsModal({
                 </select>
               </label>
 
+              {/* Vertical axis */}
               <div
                 style={{
                   border: "1px solid #e5e7eb",
@@ -674,7 +705,7 @@ export default function GraphicDisplaySettingsModal({
                   />
                 </label>
 
-                {!yRangeValid && (
+                {safeYMax <= safeYMin && (
                   <div style={{ color: "#b42318", fontWeight: 800, fontSize: 12 }}>
                     Y Max must be greater than Y Min.
                   </div>
@@ -683,7 +714,7 @@ export default function GraphicDisplaySettingsModal({
             </div>
           </div>
 
-          {/* RIGHT */}
+          {/* RIGHT: TAG BINDING */}
           <div
             style={{
               borderRadius: 12,
@@ -699,6 +730,7 @@ export default function GraphicDisplaySettingsModal({
               Tag that drives the Trend (AI)
             </div>
 
+            {/* Model */}
             <label style={{ display: "grid", gap: 6 }}>
               <span style={{ fontSize: 12, fontWeight: 800, color: "#374151" }}>
                 Model
@@ -708,6 +740,9 @@ export default function GraphicDisplaySettingsModal({
                 onChange={(e) => {
                   setBindModel(e.target.value);
                   setBindDeviceId("");
+                  setCurrentValue(null);
+                  setCurrentUpdatedAt("");
+                  setValueErr("");
                 }}
                 style={{
                   border: "1px solid #d1d5db",
@@ -724,13 +759,19 @@ export default function GraphicDisplaySettingsModal({
               </select>
             </label>
 
+            {/* Device */}
             <label style={{ display: "grid", gap: 6 }}>
               <span style={{ fontSize: 12, fontWeight: 800, color: "#374151" }}>
                 Device
               </span>
               <select
                 value={bindDeviceId}
-                onChange={(e) => setBindDeviceId(e.target.value)}
+                onChange={(e) => {
+                  setBindDeviceId(e.target.value);
+                  setCurrentValue(null);
+                  setCurrentUpdatedAt("");
+                  setValueErr("");
+                }}
                 disabled={loadingDevices}
                 style={{
                   border: "1px solid #d1d5db",
@@ -751,13 +792,19 @@ export default function GraphicDisplaySettingsModal({
               </select>
             </label>
 
+            {/* Tag (AI only) */}
             <label style={{ display: "grid", gap: 6 }}>
               <span style={{ fontSize: 12, fontWeight: 800, color: "#374151" }}>
                 Analog Input (AI)
               </span>
               <select
                 value={bindField}
-                onChange={(e) => setBindField(e.target.value)}
+                onChange={(e) => {
+                  setBindField(e.target.value);
+                  setCurrentValue(null);
+                  setCurrentUpdatedAt("");
+                  setValueErr("");
+                }}
                 style={{
                   border: "1px solid #d1d5db",
                   borderRadius: 10,
@@ -814,66 +861,76 @@ export default function GraphicDisplaySettingsModal({
                   <div style={{ fontSize: 12, fontWeight: 900, color: "#111827" }}>
                     Selected AI
                   </div>
-                  <div style={{ fontSize: 12, color: "#374151" }}>{selectedAiLabel}</div>
+                  <div style={{ fontSize: 12, color: "#374151" }}>
+                    {AI_OPTIONS.find((x) => x.key === bindField)?.label || bindField}
+                  </div>
                 </div>
               </div>
 
-              {/* ✅ NEW: Current value */}
-              <div
-                style={{
-                  marginTop: 10,
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 10,
-                }}
-              >
+              {/* ✅ Current Value (polls every 3s) */}
+              <div style={{ marginTop: 10 }}>
                 <div style={{ fontSize: 12, fontWeight: 900, color: "#111827" }}>
                   Current Value
                 </div>
 
                 <div
                   style={{
-                    marginLeft: "auto",
-                    border: `1px solid ${valuePillBorder}`,
-                    background: valuePillBg,
-                    color: valuePillColor,
-                    fontWeight: 900,
-                    borderRadius: 999,
-                    padding: "4px 10px",
-                    fontFamily: "monospace",
-                    fontSize: 12,
-                    minWidth: 90,
-                    textAlign: "center",
+                    marginTop: 6,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "space-between",
+                    gap: 10,
                   }}
-                  title={
-                    valueUpdatedAt
-                      ? `Last updated: ${new Date(valueUpdatedAt).toLocaleString()}`
-                      : ""
-                  }
                 >
-                  {valueText}
-                  {yUnits ? ` ${yUnits}` : ""}
+                  <div style={{ fontSize: 12, color: "#374151" }}>
+                    Updated: {currentUpdatedAt || "—"}
+                  </div>
+
+                  <div
+                    style={{
+                      minWidth: 110,
+                      textAlign: "center",
+                      borderRadius: 999,
+                      padding: "6px 10px",
+                      fontFamily: "monospace",
+                      fontWeight: 900,
+                      fontSize: 12,
+                      border: "1px solid #c7e7d1",
+                      background: "#dff7e6",
+                      color: "#0b3b18",
+                    }}
+                    title="Live value (polling every 3 seconds)"
+                  >
+                    {currentValueLabel}
+                  </div>
                 </div>
+
+                {valueErr && (
+                  <div
+                    style={{
+                      marginTop: 8,
+                      color: "#b42318",
+                      fontWeight: 800,
+                      fontSize: 12,
+                    }}
+                  >
+                    {valueErr}
+                  </div>
+                )}
+
+                {deviceErr && (
+                  <div
+                    style={{
+                      marginTop: 8,
+                      color: "#b42318",
+                      fontWeight: 800,
+                      fontSize: 12,
+                    }}
+                  >
+                    {deviceErr}
+                  </div>
+                )}
               </div>
-
-              {valueUpdatedAt && !valueErr && (
-                <div style={{ marginTop: 6, fontSize: 11, color: "#6b7280" }}>
-                  Updated: {new Date(valueUpdatedAt).toLocaleTimeString()}
-                </div>
-              )}
-
-              {(deviceErr || valueErr) && (
-                <div
-                  style={{
-                    marginTop: 10,
-                    color: "#b42318",
-                    fontWeight: 800,
-                    fontSize: 12,
-                  }}
-                >
-                  {deviceErr || valueErr}
-                </div>
-              )}
             </div>
 
             {/* Actions */}
@@ -914,7 +971,7 @@ export default function GraphicDisplaySettingsModal({
                     yUnits,
                     graphStyle,
 
-                    // binding for trend source
+                    // ✅ binding for trend source
                     bindModel,
                     bindDeviceId,
                     bindField,
