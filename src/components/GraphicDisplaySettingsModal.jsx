@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import GraphicDisplaySettingsPanel from "./GraphicDisplaySettingsPanel";
 import GraphicDisplayBindingPanel from "./GraphicDisplayBindingPanel";
 
@@ -35,6 +35,46 @@ export default function GraphicDisplaySettingsModal({
   const [bindDeviceId, setBindDeviceId] = useState("");
   const [bindField, setBindField] = useState("ai1");
 
+  // -------------------------
+  // ✅ DRAG STATE
+  // -------------------------
+  const PANEL_W = 980;
+  const dragRef = useRef({
+    dragging: false,
+    startX: 0,
+    startY: 0,
+    startLeft: 0,
+    startTop: 0,
+  });
+
+  const [pos, setPos] = useState({ left: 0, top: 0 });
+  const [didInitPos, setDidInitPos] = useState(false);
+
+  // ✅ center on open (only once per open)
+  useEffect(() => {
+    if (!open) return;
+
+    // reset the init flag whenever modal opens
+    setDidInitPos(false);
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+    if (didInitPos) return;
+
+    const w = window.innerWidth || 1200;
+    const h = window.innerHeight || 800;
+
+    const width = Math.min(PANEL_W, Math.floor(w * 0.96));
+    const estHeight = 640; // good enough for centering; real height varies
+
+    const left = Math.max(12, Math.floor((w - width) / 2));
+    const top = Math.max(12, Math.floor((h - estHeight) / 2));
+
+    setPos({ left, top });
+    setDidInitPos(true);
+  }, [open, didInitPos]);
+
   // Load from tank when opening/editing
   useEffect(() => {
     if (!tank) return;
@@ -65,6 +105,70 @@ export default function GraphicDisplaySettingsModal({
     return yRangeValid && !!bindDeviceId && !!bindField;
   }, [yRangeValid, bindDeviceId, bindField]);
 
+  // ✅ DRAG handlers
+  const startDrag = (e) => {
+    // only left click
+    if (e.button !== 0) return;
+
+    // don't start drag if click is on interactive elements
+    const t = e.target;
+    if (
+      t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")
+    ) {
+      return;
+    }
+
+    e.preventDefault();
+
+    dragRef.current.dragging = true;
+    dragRef.current.startX = e.clientX;
+    dragRef.current.startY = e.clientY;
+    dragRef.current.startLeft = pos.left;
+    dragRef.current.startTop = pos.top;
+
+    // add global listeners so dragging still works even if cursor leaves header
+    window.addEventListener("mousemove", onDragMove);
+    window.addEventListener("mouseup", endDrag);
+  };
+
+  const onDragMove = (e) => {
+    if (!dragRef.current.dragging) return;
+
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+
+    const nextLeft = dragRef.current.startLeft + dx;
+    const nextTop = dragRef.current.startTop + dy;
+
+    // keep it inside viewport with a small margin
+    const margin = 8;
+    const w = window.innerWidth || 1200;
+    const h = window.innerHeight || 800;
+
+    const maxLeft = Math.max(margin, w - margin - 200); // keep some part visible
+    const maxTop = Math.max(margin, h - margin - 120);
+
+    setPos({
+      left: Math.min(Math.max(margin, nextLeft), maxLeft),
+      top: Math.min(Math.max(margin, nextTop), maxTop),
+    });
+  };
+
+  const endDrag = () => {
+    dragRef.current.dragging = false;
+    window.removeEventListener("mousemove", onDragMove);
+    window.removeEventListener("mouseup", endDrag);
+  };
+
+  // cleanup on unmount
+  useEffect(() => {
+    return () => {
+      window.removeEventListener("mousemove", onDragMove);
+      window.removeEventListener("mouseup", endDrag);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   return (
     <div
       onMouseDown={(e) => e.stopPropagation()}
@@ -72,15 +176,15 @@ export default function GraphicDisplaySettingsModal({
         position: "fixed",
         inset: 0,
         background: "rgba(0,0,0,0.35)",
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
         zIndex: 999999,
       }}
     >
-      {/* MAIN PANEL */}
+      {/* MAIN PANEL (now draggable via left/top) */}
       <div
         style={{
+          position: "fixed",
+          left: pos.left,
+          top: pos.top,
           width: 980,
           maxWidth: "96vw",
           borderRadius: 12,
@@ -89,8 +193,9 @@ export default function GraphicDisplaySettingsModal({
           overflow: "hidden",
         }}
       >
-        {/* HEADER BAR */}
+        {/* HEADER BAR (DRAG HANDLE) */}
         <div
+          onMouseDown={startDrag}
           style={{
             padding: "14px 18px",
             borderBottom: "1px solid #e5e7eb",
@@ -102,10 +207,14 @@ export default function GraphicDisplaySettingsModal({
             justifyContent: "space-between",
             background: "linear-gradient(180deg,#0b1b33,#0a1730)",
             color: "#fff",
+            cursor: "move",
+            userSelect: "none",
           }}
+          title="Drag to move"
         >
           <div>Graphic Display</div>
           <button
+            data-no-drag="true"
             onClick={onClose}
             style={{
               width: 34,
@@ -161,7 +270,6 @@ export default function GraphicDisplaySettingsModal({
               bindField={bindField}
               setBindField={setBindField}
               sampleMs={sampleMs}
-              // keep label text inside child tooltip
               formatSampleLabel={(ms) => {
                 if (ms === 1000) return "1s";
                 if (ms === 3000) return "3s";
