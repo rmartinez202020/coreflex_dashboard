@@ -25,7 +25,9 @@ function exportPointsCsv({
   fmt = (t) => new Date(t).toISOString(),
   filePrefix = "graphic-display",
 } = {}) {
-  const safeTitle = String(title || "Graphic Display").replace(/[^\w\- ]+/g, "").trim() || "Graphic Display";
+  const safeTitle =
+    String(title || "Graphic Display").replace(/[^\w\- ]+/g, "").trim() ||
+    "Graphic Display";
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const filename = `${filePrefix}-${safeTitle}-${stamp}.csv`;
 
@@ -128,7 +130,7 @@ export default function GraphicDisplay({ tank }) {
 
   const [points, setPoints] = useState([]); // [{t:number, y:number}]
 
-  // ✅ NEW: local playback controls
+  // ✅ local playback controls
   const [isPlaying, setIsPlaying] = useState(true);
 
   const maxPoints = useMemo(() => {
@@ -254,25 +256,28 @@ export default function GraphicDisplay({ tank }) {
     return { poly: coords.join(" "), W, H, tMin, tMax };
   }, [points, pointsForView, yMin, yMax]);
 
-  // ✅ top-right button styles
+  // ✅ BIGGER top-right button styles (as in your screenshot)
   const topBtnBase = {
-    height: 22,
-    padding: "0 10px",
+    height: 30, // ✅ bigger
+    padding: "0 14px", // ✅ bigger
     borderRadius: 999,
-    border: "1px solid #ddd",
+    border: "1px solid #d1d5db",
     background: "#fff",
     color: "#111",
-    fontSize: 10,
+    fontSize: 12, // ✅ bigger
     fontWeight: 900,
     cursor: "pointer",
-    lineHeight: "22px",
+    lineHeight: "30px", // ✅ match height
     userSelect: "none",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
   };
 
   const topBtnDisabled = {
     ...topBtnBase,
     cursor: "not-allowed",
-    opacity: 0.6,
+    opacity: 0.55,
   };
 
   return (
@@ -296,14 +301,14 @@ export default function GraphicDisplay({ tank }) {
       {/* HEADER */}
       <div
         style={{
-          padding: "6px 10px",
+          padding: "8px 10px", // ✅ a bit taller so buttons fit nicely
           borderBottom: "1px solid #e6e6e6",
           background: "linear-gradient(180deg, #ffffff 0%, #f4f4f4 100%)",
           flex: "0 0 auto",
           minWidth: 0,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div
             style={{
               fontWeight: 800,
@@ -318,38 +323,34 @@ export default function GraphicDisplay({ tank }) {
             {title}
           </div>
 
-          {/* ✅ TOP-RIGHT: Play / Pause / Export */}
+          {/* ✅ TOP-RIGHT: Play / Pause / Export (bigger + placed here) */}
           <div
             style={{
               marginLeft: "auto",
               display: "inline-flex",
               alignItems: "center",
-              gap: 8,
+              gap: 10, // ✅ more spacing
               flex: "0 0 auto",
             }}
           >
             <button
               type="button"
               onClick={() => setIsPlaying(true)}
-              style={{
-                ...(isPlaying ? topBtnDisabled : topBtnBase),
-              }}
+              style={isPlaying ? topBtnDisabled : topBtnBase}
               disabled={isPlaying}
               title="Resume polling"
             >
-              ▶ Play
+              ▶ <span>Play</span>
             </button>
 
             <button
               type="button"
               onClick={() => setIsPlaying(false)}
-              style={{
-                ...(!isPlaying ? topBtnDisabled : topBtnBase),
-              }}
+              style={!isPlaying ? topBtnDisabled : topBtnBase}
               disabled={!isPlaying}
               title="Pause polling"
             >
-              ⏸ Pause
+              ⏸ <span>Pause</span>
             </button>
 
             <button
@@ -364,30 +365,31 @@ export default function GraphicDisplay({ tank }) {
               style={topBtnBase}
               title="Export visible points to CSV"
             >
-              ⬇ Export
+              ⬇ <span>Export</span>
             </button>
 
             {/* existing style badge */}
             <div
               style={{
-                fontSize: 10,
-                fontWeight: 800,
+                fontSize: 11,
+                fontWeight: 900,
                 border: "1px solid #ddd",
                 borderRadius: 999,
-                padding: "2px 8px",
+                padding: "4px 10px",
                 background: "#fff",
                 color: "#333",
                 flex: "0 0 auto",
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 8,
+                height: 30, // ✅ align with buttons
               }}
               title={`Line color: ${lineColor}`}
             >
               <span
                 style={{
-                  width: 10,
-                  height: 10,
+                  width: 12,
+                  height: 12,
                   borderRadius: 999,
                   background: lineColor,
                   border: "1px solid rgba(0,0,0,0.15)",
@@ -427,7 +429,8 @@ export default function GraphicDisplay({ tank }) {
           </span>
 
           <span style={{ marginLeft: "auto" }} title="Math Output">
-            Output: <b>{Number.isFinite(mathOutput) ? mathOutput.toFixed(2) : "--"}</b>
+            Output:{" "}
+            <b>{Number.isFinite(mathOutput) ? mathOutput.toFixed(2) : "--"}</b>
           </span>
         </div>
       </div>
