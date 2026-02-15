@@ -1,22 +1,191 @@
-import React, { useMemo } from "react";
+// src/components/GraphicDisplay.jsx
+import React, { useEffect, useMemo, useRef, recognized, useState } from "react";
+import { API_URL } from "../config/api";
+import { getToken } from "../utils/authToken";
+
+const MODEL_META = {
+  zhc1921: { base: "zhc1921" },
+  zhc1661: { base: "zhc1661" },
+  tp4000: { base: "tp4000" }, // safe if you later add
+};
+
+function getAuthHeaders() {
+  const token = String(getToken() || "").trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function withNoCache(path) {
+  const sep = path.includes("?") ? "&" : "?";
+  return `${path}${sep}_ts=${Date.now()}`;
+}
+
+async function apiGet(path, { signal } = {}) {
+  const res = await fetch(`${API_URL}${withNoCache(path)}`, {
+    method: "GET",
+    headers: {
+      ...getAuthHeaders(),
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    },
+    cache: "no-store",
+    signal,
+  });
+  if (!res.ok) throw new Error(`GET ${path} failed (${res.status})`);
+  return res.json();
+}
+
+function readAiField(row, bindField) {
+  if (!row || !bindField) return null;
+  const f = String(bindField).toLowerCase();
+
+  const candidates = [
+    f,
+    f.toUpperCase(),
+    f.replace("ai", "a"),
+    f.replace("ai", "A"),
+    f.replace("ai", "analog"),
+    f.replace("ai", "ANALOG"),
+  ];
+
+  for (const k of candidates) {
+    if (row[k] !== undefined) return row[k];
+  }
+
+  const n = f.replace("ai", "");
+  const extra = [`ai_${n}`, `AI_${n}`, `ai-${n}`, `AI-${n}`];
+  for (const k of extra) {
+    if (row[k] !== undefined) return row[k];
+  }
+
+  return null;
+}
+
+async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
+  const base = MODEL_META[modelKey]?.base || modelKey;
+
+  const directCandidates =
+    base === "zhc1921"
+      ? [
+          `/zhc1921/device/${deviceId}`,
+          `/zhc1921/devices/${deviceId}`,
+          `/zhc1921/${deviceId}`,
+          `/zhc1921/one/${deviceId}`,
+        ]
+      : base === "zhc1661"
+      ? [
+          `/zhc1661/device/${deviceId}`,
+          `/zhc1661/devices/${deviceId}`,
+          `/zhc1661/${deviceId}`,
+          `/zhc1661/one/${deviceId}`,
+        ]
+      : [];
+
+  for (const p of directCandidates) {
+    try {
+      const r = await apiGet(p, { signal });
+      return r?.row ?? r?.device ?? r;
+    } catch (e) {
+      // continue
+    }
+  }
+
+  // fallback list scan (some endpoints only give live in list)
+  const rawCandidates =
+    base === "zhc1921"
+      ? ["/zhc1921/devices", "/zhc1921/my-devices", "/zhc1921/list", "/zhc1921"]
+      : base === "zhc1661"
+      ? ["/zhc1661/devices", "/zhc1661/my-devices", "/zhc1661/list", "/zhc1661"]
+      : [];
+
+  for (const p of rawCandidates) {
+    try {
+      const data = await apiGet(p, { signal });
+      const arr = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.devices)
+        ? data.devices
+        : Array.isArray(data?.rows)
+        ? data.rows
+        : [];
+
+      const rawRow =
+        arr.find((r) => {
+          const id =
+            r.deviceId ??
+            r.device_id ??
+            r.id ??
+            r.imei ??
+            r.IMEI ??
+            r.DEVICE_ID ??
+            "";
+          return String(id) === String(deviceId);
+        }) || null;
+
+      if (rawRow) return rawRow;
+    } catch (e) {
+      // continue
+    }
+  }
+
+  return null;
+}
+
+// ✅ compute math output safely (VALUE or value)
+function computeMathOutput(liveValue, formula) {
+  const v =
+    liveValue === null || liveValue === undefined || liveValue === ""
+      ? null
+      : typeof liveValue === "number"
+      ? liveValue
+      : Number(liveValue);
+
+  if (!Number.isFinite(v)) return null;
+
+  const f = String(formula || "").trim();
+  if (!f) return v; // no formula => output = live value
+
+  // allow VALUE / value
+  const expr = f.replace(/\bVALUE\b/g, "value");
+
+  try {
+    // sandbox-ish: only "value" is provided (no window, no document)
+    // eslint-disable-next-line no-new-func
+    const fn = new Function("value", `"use strict"; return (${expr});`);
+    const out = fn(v);
+    const num = typeof out === "number" ? out : Number(out);
+    return Number.isFinite(num) ? num : null;
+  } catch (e) {
+    return null;
+  }
+}
+
+function msPerUnit(timeUnit) {
+  const u = String(timeUnit || "").toLowerCase();
+  if (u === "minutes" || u === "minute" || u === "min") return 60000;
+  if (u === "hours" || u === "hour" || u === "hr") return 3600000;
+  return 1000; // seconds default
+}
 
 export default function GraphicDisplay({ tank }) {
   const title = tank?.title ?? "Graphic Display";
   const timeUnit = tank?.timeUnit ?? "seconds";
-  const windowSize = tank?.window ?? 60;
-  const sampleMs = tank?.sampleMs ?? 1000;
+  const windowSize = Number(tank?.window ?? 60);
+  const sampleMs = Number(tank?.sampleMs ?? 1000);
 
   const yMin = Number.isFinite(tank?.yMin) ? tank.yMin : 0;
   const yMax = Number.isFinite(tank?.yMax) ? tank.yMax : 100;
   const yUnits = tank?.yUnits ?? "";
-
   const graphStyle = tank?.graphStyle ?? "line";
 
-  // ✅ grid divisions (professional defaults)
+  // ✅ binding + math
+  const bindModel = tank?.bindModel ?? "zhc1921";
+  const bindDeviceId = String(tank?.bindDeviceId ?? "").trim();
+  const bindField = String(tank?.bindField ?? "ai1").trim();
+  const mathFormula = tank?.mathFormula ?? "";
+
+  // ✅ grid divisions
   const yDivs = Number.isFinite(tank?.yDivs) ? Math.max(2, tank.yDivs) : 10;
   const xDivs = Number.isFinite(tank?.xDivs) ? Math.max(2, tank.xDivs) : 12;
-
-  // minor subdivisions between majors (SCADA look)
   const yMinor = Number.isFinite(tank?.yMinor) ? Math.max(1, tank.yMinor) : 2;
   const xMinor = Number.isFinite(tank?.xMinor) ? Math.max(1, tank.xMinor) : 2;
 
@@ -28,26 +197,21 @@ export default function GraphicDisplay({ tank }) {
     return "LINE";
   })();
 
-  // ✅ derived Y ticks (labels)
+  // ✅ derived Y ticks
   const yTicks = useMemo(() => {
     const min = Number(yMin);
     const max = Number(yMax);
-    if (!Number.isFinite(min) || !Number.isFinite(max) || max === min) {
-      return [];
-    }
+    if (!Number.isFinite(min) || !Number.isFinite(max) || max === min) return [];
     const step = (max - min) / yDivs;
     const arr = [];
     for (let i = 0; i <= yDivs; i++) arr.push(min + step * i);
     return arr;
   }, [yMin, yMax, yDivs]);
 
-  // ✅ background grid (major + minor) using layered gradients
+  // ✅ background grid (major + minor)
   const gridBackground = useMemo(() => {
-    // major grid size in px
     const majorX = Math.max(24, Math.round(520 / xDivs));
     const majorY = Math.max(20, Math.round(260 / yDivs));
-
-    // minor grid size in px (split majors)
     const minorX = Math.max(8, Math.round(majorX / (xMinor + 1)));
     const minorY = Math.max(8, Math.round(majorY / (yMinor + 1)));
 
@@ -68,6 +232,121 @@ export default function GraphicDisplay({ tank }) {
     };
   }, [xDivs, yDivs, xMinor, yMinor]);
 
+  // ===============================
+  // ✅ LIVE POLL + MATH OUTPUT + TREND POINTS
+  // ===============================
+  const [liveValue, setLiveValue] = useState(null);
+  const [mathOutput, setMathOutput] = useState(null);
+  const [err, setErr] = useState("");
+
+  const [points, setPoints] = useState([]); // [{t:number, y:number}]
+
+  const maxPoints = useMemo(() => {
+    const win = Number.isFinite(windowSize) ? Math.max(2, windowSize) : 60;
+    const smp = Number.isFinite(sampleMs) ? Math.max(250, sampleMs) : 1000;
+    const units = msPerUnit(timeUnit);
+    const totalMs = win * units;
+    return Math.max(2, Math.round(totalMs / smp));
+  }, [windowSize, sampleMs, timeUnit]);
+
+  useEffect(() => {
+    // reset points if binding missing
+    if (!bindDeviceId || !bindField) {
+      setLiveValue(null);
+      setMathOutput(null);
+      setErr("");
+      setPoints([]);
+      return;
+    }
+
+    let cancelled = false;
+    const ctrl = new AbortController();
+
+    const tick = async () => {
+      try {
+        setErr("");
+
+        const row = await loadLiveRowForDevice(bindModel, bindDeviceId, {
+          signal: ctrl.signal,
+        });
+
+        const raw = row ? readAiField(row, bindField) : null;
+
+        const num =
+          raw === null || raw === undefined || raw === ""
+            ? null
+            : typeof raw === "number"
+            ? raw
+            : Number(raw);
+
+        const safeLive = Number.isFinite(num) ? num : null;
+        const out = computeMathOutput(safeLive, mathFormula);
+
+        if (cancelled) return;
+
+        setLiveValue(safeLive);
+        setMathOutput(out);
+
+        if (Number.isFinite(out)) {
+          const t = Date.now();
+          setPoints((prev) => {
+            const next = [...prev, { t, y: out }];
+            // keep last N samples
+            if (next.length > maxPoints) next.splice(0, next.length - maxPoints);
+            return next;
+          });
+        }
+      } catch (e) {
+        if (cancelled) return;
+        if (String(e?.name || "").toLowerCase().includes("abort")) return;
+        setErr("Trend read failed (device endpoint / tag field).");
+      }
+    };
+
+    tick();
+    const id = window.setInterval(tick, Math.max(250, Number(sampleMs) || 1000));
+
+    return () => {
+      cancelled = true;
+      ctrl.abort();
+      window.clearInterval(id);
+    };
+  }, [bindModel, bindDeviceId, bindField, sampleMs, mathFormula, maxPoints]);
+
+  // ===============================
+  // ✅ SVG PATH from points
+  // ===============================
+  const svg = useMemo(() => {
+    // Chart inner box dimensions (virtual)
+    const W = 1000;
+    const H = 360;
+
+    const minY = Number(yMin);
+    const maxY = Number(yMax);
+    const ySpan = maxY - minY;
+
+    if (!Number.isFinite(minY) || !Number.isFinite(maxY) || ySpan <= 0) {
+      return { poly: "", W, H };
+    }
+
+    if (!points.length) {
+      return { poly: "", W, H };
+    }
+
+    const n = points.length;
+    const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
+
+    const coords = points.map((p, i) => {
+      const x = n === 1 ? 0 : (i / (n - 1)) * W;
+      const yy = clamp(p.y, minY, maxY);
+      // invert Y for SVG
+      const y = H - ((yy - minY) / ySpan) * H;
+      return `${x.toFixed(2)},${y.toFixed(2)}`;
+    });
+
+    return { poly: coords.join(" "), W, H };
+  }, [points, yMin, yMax]);
+
   return (
     <div
       style={{
@@ -86,7 +365,7 @@ export default function GraphicDisplay({ tank }) {
         minHeight: 0,
       }}
     >
-      {/* HEADER — COMPACT */}
+      {/* HEADER */}
       <div
         style={{
           padding: "6px 10px",
@@ -96,7 +375,6 @@ export default function GraphicDisplay({ tank }) {
           minWidth: 0,
         }}
       >
-        {/* TOP ROW */}
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div
             style={{
@@ -129,7 +407,6 @@ export default function GraphicDisplay({ tank }) {
           </div>
         </div>
 
-        {/* SECOND ROW */}
         <div
           style={{
             display: "flex",
@@ -158,51 +435,17 @@ export default function GraphicDisplay({ tank }) {
             Y: <b>{yMin}</b> → <b>{yMax}</b> {yUnits ? `(${yUnits})` : ""}
           </span>
 
-          <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
-            <button
-              style={{
-                border: "1px solid #bfe6c8",
-                background: "linear-gradient(180deg,#bff2c7,#6fdc89)",
-                color: "#0b3b18",
-                fontWeight: 800,
-                borderRadius: 6,
-                padding: "4px 8px",
-                fontSize: 11,
-              }}
-            >
-              RECORD
-            </button>
-            <button
-              style={{
-                border: "1px solid #ddd",
-                background: "#f3f3f3",
-                color: "#555",
-                fontWeight: 700,
-                borderRadius: 6,
-                padding: "4px 8px",
-                fontSize: 11,
-              }}
-            >
-              EXPORT
-            </button>
-            <button
-              style={{
-                border: "1px solid #ddd",
-                background: "#f3f3f3",
-                color: "#555",
-                fontWeight: 700,
-                borderRadius: 6,
-                padding: "4px 8px",
-                fontSize: 11,
-              }}
-            >
-              CLEAR
-            </button>
-          </div>
+          {/* ✅ quick debug readout */}
+          <span style={{ marginLeft: "auto" }}>
+            Output:{" "}
+            <b>
+              {Number.isFinite(mathOutput) ? mathOutput.toFixed(2) : "--"}
+            </b>
+          </span>
         </div>
       </div>
 
-      {/* BODY / CHART AREA */}
+      {/* BODY */}
       <div
         style={{
           flex: "1 1 auto",
@@ -226,7 +469,7 @@ export default function GraphicDisplay({ tank }) {
             border: "1px solid #d9d9d9",
           }}
         >
-          {/* ✅ upgraded grid */}
+          {/* grid */}
           <div
             style={{
               position: "absolute",
@@ -236,7 +479,7 @@ export default function GraphicDisplay({ tank }) {
             }}
           />
 
-          {/* ✅ Y ticks (left side), evenly spaced */}
+          {/* Y ticks */}
           {yTicks.length > 0 && (
             <div
               style={{
@@ -270,7 +513,73 @@ export default function GraphicDisplay({ tank }) {
             </div>
           )}
 
-          {/* placeholder “style” visual */}
+          {/* ✅ Trend SVG */}
+          <div
+            style={{
+              position: "absolute",
+              left: 84,
+              right: 10,
+              top: 10,
+              bottom: 10,
+              pointerEvents: "none",
+            }}
+          >
+            <svg
+              viewBox={`0 0 ${svg.W} ${svg.H}`}
+              preserveAspectRatio="none"
+              style={{ width: "100%", height: "100%", display: "block" }}
+            >
+              {/* line */}
+              {svg.poly ? (
+                <polyline
+                  fill="none"
+                  stroke="rgba(12, 90, 200, 0.95)"
+                  strokeWidth="3"
+                  points={svg.poly}
+                />
+              ) : null}
+            </svg>
+
+            {/* value overlay */}
+            <div
+              style={{
+                position: "absolute",
+                right: 10,
+                top: 10,
+                fontFamily: "monospace",
+                fontSize: 12,
+                fontWeight: 900,
+                color: "#0b3b18",
+                background: "rgba(255,255,255,0.85)",
+                padding: "6px 10px",
+                borderRadius: 10,
+                border: "1px solid rgba(0,0,0,0.08)",
+              }}
+            >
+              {Number.isFinite(mathOutput) ? mathOutput.toFixed(2) : "--"}
+            </div>
+
+            {err ? (
+              <div
+                style={{
+                  position: "absolute",
+                  left: 10,
+                  bottom: 10,
+                  fontSize: 12,
+                  fontWeight: 900,
+                  color: "#991b1b",
+                  background: "rgba(255,241,242,0.92)",
+                  border: "1px solid #fecaca",
+                  padding: "6px 10px",
+                  borderRadius: 10,
+                }}
+              >
+                {err}
+              </div>
+            ) : null}
+          </div>
+
+          {/* badge */}
           <div
             style={{
               position: "absolute",
