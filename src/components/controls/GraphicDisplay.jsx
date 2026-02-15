@@ -2,11 +2,7 @@
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
 // ✅ extracted utilities
-import {
-  computeMathOutput,
-  msPerUnit,
-  fmtTimeWithDate,
-} from "./graphicDisplay/utils";
+import { computeMathOutput, msPerUnit, fmtTimeWithDate } from "./graphicDisplay/utils";
 
 // ✅ extracted loader (API + row loader + field reader)
 import { loadLiveRowForDevice, readAiField } from "./graphicDisplay/loader";
@@ -22,12 +18,44 @@ function normalizeLineColor(c) {
   return s || DEFAULT_LINE_COLOR;
 }
 
+// ✅ CSV export helper
+function exportPointsCsv({
+  title = "Graphic Display",
+  points = [],
+  fmt = (t) => new Date(t).toISOString(),
+  filePrefix = "graphic-display",
+} = {}) {
+  const safeTitle = String(title || "Graphic Display").replace(/[^\w\- ]+/g, "").trim() || "Graphic Display";
+  const stamp = new Date().toISOString().replace(/[:.]/g, "-");
+  const filename = `${filePrefix}-${safeTitle}-${stamp}.csv`;
+
+  const header = "timestamp_iso,epoch_ms,y\n";
+  const rows = (points || []).map((p) => {
+    const t = Number(p?.t);
+    const y = p?.y;
+    const iso = Number.isFinite(t) ? fmt(t) : "";
+    const yy = y === null || y === undefined ? "" : String(y);
+    return `${iso},${Number.isFinite(t) ? t : ""},${yy}`;
+  });
+
+  const csv = header + rows.join("\n") + (rows.length ? "\n" : "");
+  const blob = new Blob([csv], { type: "text/csv;charset=utf-8" });
+
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = filename;
+  document.body.appendChild(a);
+  a.click();
+  a.remove();
+  URL.revokeObjectURL(url);
+}
+
 export default function GraphicDisplay({ tank }) {
   const title = tank?.title ?? "Graphic Display";
   const timeUnit = tank?.timeUnit ?? "seconds";
   const windowSize = Number(tank?.window ?? 60);
   const sampleMs = Number(tank?.sampleMs ?? 1000);
-
   const yMin = Number.isFinite(tank?.yMin) ? tank.yMin : 0;
   const yMax = Number.isFinite(tank?.yMax) ? tank.yMax : 100;
   const yUnits = tank?.yUnits ?? "";
@@ -40,7 +68,6 @@ export default function GraphicDisplay({ tank }) {
   const mathFormula = tank?.mathFormula ?? "";
 
   // ✅ NEW: line color from settings panel (saved on tank)
-  // (Settings panel uses `lineColor` prop name)
   const lineColor = normalizeLineColor(tank?.lineColor);
 
   // ✅ grid divisions
@@ -101,6 +128,9 @@ export default function GraphicDisplay({ tank }) {
 
   const [points, setPoints] = useState([]); // [{t:number, y:number}]
 
+  // ✅ NEW: local playback controls
+  const [isPlaying, setIsPlaying] = useState(true);
+
   const maxPoints = useMemo(() => {
     const win = Number.isFinite(windowSize) ? Math.max(2, windowSize) : 60;
     const smp = Number.isFinite(sampleMs) ? Math.max(250, sampleMs) : 1000;
@@ -124,6 +154,9 @@ export default function GraphicDisplay({ tank }) {
       setPoints([]);
       return;
     }
+
+    // ✅ if paused, do not poll (but keep chart visible)
+    if (!isPlaying) return;
 
     let cancelled = false;
     const ctrl = new AbortController();
@@ -177,7 +210,7 @@ export default function GraphicDisplay({ tank }) {
       ctrl.abort();
       window.clearInterval(id);
     };
-  }, [bindModel, bindDeviceId, bindField, sampleMs, mathFormula]);
+  }, [bindModel, bindDeviceId, bindField, sampleMs, mathFormula, isPlaying]);
 
   // ===============================
   // ✅ INTERACTION: ping + zoom (timeline) via hook
@@ -189,13 +222,10 @@ export default function GraphicDisplay({ tank }) {
     fmtTimeWithDate,
   });
 
-  // ===============================
   // ✅ SVG PATH from points (TIME-BASED X so it always moves LEFT -> RIGHT)
-  // ===============================
   const svg = useMemo(() => {
     const W = 1000;
     const H = 360;
-
     const minY = Number(yMin);
     const maxY = Number(yMax);
     const ySpan = maxY - minY;
@@ -210,7 +240,6 @@ export default function GraphicDisplay({ tank }) {
     }
 
     const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
-
     const tMin = arr[0]?.t ?? Date.now();
     const tMax = arr[arr.length - 1]?.t ?? tMin;
     const tSpan = Math.max(1, tMax - tMin);
@@ -224,6 +253,27 @@ export default function GraphicDisplay({ tank }) {
 
     return { poly: coords.join(" "), W, H, tMin, tMax };
   }, [points, pointsForView, yMin, yMax]);
+
+  // ✅ top-right button styles
+  const topBtnBase = {
+    height: 22,
+    padding: "0 10px",
+    borderRadius: 999,
+    border: "1px solid #ddd",
+    background: "#fff",
+    color: "#111",
+    fontSize: 10,
+    fontWeight: 900,
+    cursor: "pointer",
+    lineHeight: "22px",
+    userSelect: "none",
+  };
+
+  const topBtnDisabled = {
+    ...topBtnBase,
+    cursor: "not-allowed",
+    opacity: 0.6,
+  };
 
   return (
     <div
@@ -268,33 +318,83 @@ export default function GraphicDisplay({ tank }) {
             {title}
           </div>
 
+          {/* ✅ TOP-RIGHT: Play / Pause / Export */}
           <div
             style={{
               marginLeft: "auto",
-              fontSize: 10,
-              fontWeight: 800,
-              border: "1px solid #ddd",
-              borderRadius: 999,
-              padding: "2px 8px",
-              background: "#fff",
-              color: "#333",
-              flex: "0 0 auto",
               display: "inline-flex",
               alignItems: "center",
               gap: 8,
+              flex: "0 0 auto",
             }}
-            title={`Line color: ${lineColor}`}
           >
-            <span
+            <button
+              type="button"
+              onClick={() => setIsPlaying(true)}
               style={{
-                width: 10,
-                height: 10,
-                borderRadius: 999,
-                background: lineColor,
-                border: "1px solid rgba(0,0,0,0.15)",
+                ...(isPlaying ? topBtnDisabled : topBtnBase),
               }}
-            />
-            {styleBadge}
+              disabled={isPlaying}
+              title="Resume polling"
+            >
+              ▶ Play
+            </button>
+
+            <button
+              type="button"
+              onClick={() => setIsPlaying(false)}
+              style={{
+                ...(!isPlaying ? topBtnDisabled : topBtnBase),
+              }}
+              disabled={!isPlaying}
+              title="Pause polling"
+            >
+              ⏸ Pause
+            </button>
+
+            <button
+              type="button"
+              onClick={() =>
+                exportPointsCsv({
+                  title,
+                  points: pointsForView?.length ? pointsForView : points,
+                  fmt: fmtTimeWithDate,
+                })
+              }
+              style={topBtnBase}
+              title="Export visible points to CSV"
+            >
+              ⬇ Export
+            </button>
+
+            {/* existing style badge */}
+            <div
+              style={{
+                fontSize: 10,
+                fontWeight: 800,
+                border: "1px solid #ddd",
+                borderRadius: 999,
+                padding: "2px 8px",
+                background: "#fff",
+                color: "#333",
+                flex: "0 0 auto",
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+              }}
+              title={`Line color: ${lineColor}`}
+            >
+              <span
+                style={{
+                  width: 10,
+                  height: 10,
+                  borderRadius: 999,
+                  background: lineColor,
+                  border: "1px solid rgba(0,0,0,0.15)",
+                }}
+              />
+              {styleBadge}
+            </div>
           </div>
         </div>
 
@@ -327,8 +427,7 @@ export default function GraphicDisplay({ tank }) {
           </span>
 
           <span style={{ marginLeft: "auto" }} title="Math Output">
-            Output:{" "}
-            <b>{Number.isFinite(mathOutput) ? mathOutput.toFixed(2) : "--"}</b>
+            Output: <b>{Number.isFinite(mathOutput) ? mathOutput.toFixed(2) : "--"}</b>
           </span>
         </div>
       </div>
@@ -423,12 +522,7 @@ export default function GraphicDisplay({ tank }) {
               style={{ width: "100%", height: "100%", display: "block" }}
             >
               {svg.poly ? (
-                <polyline
-                  fill="none"
-                  stroke={lineColor}   // ✅ NEW: uses selected color
-                  strokeWidth="3"
-                  points={svg.poly}
-                />
+                <polyline fill="none" stroke={lineColor} strokeWidth="3" points={svg.poly} />
               ) : null}
             </svg>
 
