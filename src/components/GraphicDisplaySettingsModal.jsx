@@ -212,7 +212,7 @@ export default function GraphicDisplaySettingsModal({
   // -------------------------
   // ✅ DRAG STATE
   // -------------------------
-  const PANEL_W = 980;
+  const PANEL_W = 1180; // ✅ wider window
   const dragRef = useRef({
     dragging: false,
     startX: 0,
@@ -400,7 +400,7 @@ export default function GraphicDisplaySettingsModal({
     const w = window.innerWidth || 1200;
     const h = window.innerHeight || 800;
 
-    const maxLeft = Math.max(margin, w - margin - 200);
+    const maxLeft = Math.max(margin, w - margin - 240); // ✅ keep some width visible
     const maxTop = Math.max(margin, h - margin - 120);
 
     setPos({
@@ -461,7 +461,7 @@ export default function GraphicDisplaySettingsModal({
           position: "fixed",
           left: pos.left,
           top: pos.top,
-          width: 980,
+          width: PANEL_W, // ✅ wider
           maxWidth: "96vw",
           borderRadius: 12,
           background: "#fff",
@@ -483,7 +483,7 @@ export default function GraphicDisplaySettingsModal({
             justifyContent: "space-between",
             background: "linear-gradient(180deg,#0b1b33,#0a1730)",
             color: "#fff",
-            cursor: isDragging ? "grabbing" : "grab", // ✅ hand grab instead of arrows
+            cursor: isDragging ? "grabbing" : "grab", // ✅ hand grab
             userSelect: "none",
           }}
           title="Drag to move"
@@ -512,7 +512,7 @@ export default function GraphicDisplaySettingsModal({
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1.15fr 0.95fr 1fr", // ✅ left / middle / right
+            gridTemplateColumns: "1.15fr 0.95fr 1fr",
             gap: 14,
             padding: 14,
             background: "#f8fafc",
@@ -572,8 +572,6 @@ export default function GraphicDisplaySettingsModal({
               setBindField={setBindField}
               sampleMs={sampleMs}
               formatSampleLabel={formatSampleLabel}
-              // optional: if your binding panel supports showing value, you can wire this later:
-              // currentValue={liveValue}
             />
 
             {/* Actions */}
