@@ -8,12 +8,8 @@ const SAMPLE_OPTIONS = [1000, 3000, 6000, 30000, 60000, 300000, 600000];
 
 const TIME_UNITS = ["seconds", "minutes", "hours", "days"];
 
-const GRAPH_STYLES = [
-  { value: "line", label: "Line" },
-  { value: "area", label: "Area" },
-  { value: "bar", label: "Bar" },
-  { value: "step", label: "Step" },
-];
+// ✅ Graph style is FIXED to LINE (no UI)
+const FIXED_GRAPH_STYLE = "line";
 
 // ✅ Only analog inputs for CF-2000 + CF-1600
 const AI_OPTIONS = [
@@ -228,7 +224,6 @@ export default function GraphicDisplaySettingsModal({
   const [yMin, setYMin] = useState(0);
   const [yMax, setYMax] = useState(100);
   const [yUnits, setYUnits] = useState("");
-  const [graphStyle, setGraphStyle] = useState("line");
 
   // -------------------------
   // RIGHT: tag binding
@@ -261,7 +256,6 @@ export default function GraphicDisplaySettingsModal({
     setYMin(Number.isFinite(tank.yMin) ? tank.yMin : 0);
     setYMax(Number.isFinite(tank.yMax) ? tank.yMax : 100);
     setYUnits(tank.yUnits ?? "");
-    setGraphStyle(tank.graphStyle ?? "line");
 
     // ✅ persisted binding
     setBindModel(tank.bindModel ?? "zhc1921");
@@ -358,8 +352,6 @@ export default function GraphicDisplaySettingsModal({
           signal: ctrl.signal,
         });
 
-        // If we didn't get a direct row, fall back to calling the list endpoint RAW
-        // (some APIs return AI fields inside the list rows)
         let value = null;
         let updatedAt = null;
 
@@ -372,18 +364,8 @@ export default function GraphicDisplaySettingsModal({
           const base = MODEL_META[bindModel]?.base || bindModel;
           const rawCandidates =
             base === "zhc1921"
-              ? [
-                  "/zhc1921/devices",
-                  "/zhc1921/my-devices",
-                  "/zhc1921/list",
-                  "/zhc1921",
-                ]
-              : [
-                  "/zhc1661/devices",
-                  "/zhc1661/my-devices",
-                  "/zhc1661/list",
-                  "/zhc1661",
-                ];
+              ? ["/zhc1921/devices", "/zhc1921/my-devices", "/zhc1921/list", "/zhc1921"]
+              : ["/zhc1661/devices", "/zhc1661/my-devices", "/zhc1661/list", "/zhc1661"];
 
           let rawArr = [];
           for (const p of rawCandidates) {
@@ -427,7 +409,6 @@ export default function GraphicDisplaySettingsModal({
 
         if (cancelled) return;
 
-        // normalize numeric display
         const num =
           value === null || value === undefined || value === ""
             ? null
@@ -437,7 +418,6 @@ export default function GraphicDisplaySettingsModal({
 
         setCurrentValue(Number.isFinite(num) ? num : value ?? null);
 
-        // always update time so you can see polling working
         const ts =
           updatedAt && !Number.isNaN(new Date(updatedAt).getTime())
             ? new Date(updatedAt).toLocaleTimeString()
@@ -446,15 +426,12 @@ export default function GraphicDisplaySettingsModal({
         setCurrentUpdatedAt(ts);
       } catch (e) {
         if (cancelled) return;
-        // If request aborted, ignore
         if (String(e?.name || "").toLowerCase().includes("abort")) return;
         setValueErr("Could not read current value (check API endpoint / fields).");
-        // still update time so you can see it polling
         setCurrentUpdatedAt(new Date().toLocaleTimeString());
       }
     };
 
-    // run immediately, then every sampleMs
     tick();
     const id = window.setInterval(tick, Math.max(250, Number(sampleMs) || 1000));
 
@@ -634,28 +611,6 @@ export default function GraphicDisplaySettingsModal({
                   {SAMPLE_OPTIONS.map((ms) => (
                     <option key={ms} value={ms}>
                       {formatSampleLabel(ms)}
-                    </option>
-                  ))}
-                </select>
-              </label>
-
-              <label style={{ display: "grid", gap: 6 }}>
-                <span style={{ fontSize: 12, fontWeight: 800, color: "#374151" }}>
-                  Graph style
-                </span>
-                <select
-                  value={graphStyle}
-                  onChange={(e) => setGraphStyle(e.target.value)}
-                  style={{
-                    border: "1px solid #d1d5db",
-                    borderRadius: 10,
-                    padding: "10px 10px",
-                    fontSize: 14,
-                  }}
-                >
-                  {GRAPH_STYLES.map((s) => (
-                    <option key={s.value} value={s.value}>
-                      {s.label}
                     </option>
                   ))}
                 </select>
@@ -999,7 +954,7 @@ export default function GraphicDisplaySettingsModal({
                     yMin: safeYMin,
                     yMax: safeYMax,
                     yUnits,
-                    graphStyle,
+                    graphStyle: FIXED_GRAPH_STYLE, // ✅ always LINE
 
                     // ✅ binding for trend source
                     bindModel,
