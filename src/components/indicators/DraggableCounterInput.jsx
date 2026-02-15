@@ -338,7 +338,7 @@ export default function DraggableCounterInput({
           >
             <div
               style={{
-                fontSize: 10,
+                fontSize: 12,
                 fontWeight: 900,
                 color: "#111827",
                 marginBottom: 2,
@@ -349,7 +349,7 @@ export default function DraggableCounterInput({
 
             <div
               style={{
-                fontSize: 10,
+                fontSize: 12,
                 fontWeight: 900,
                 color: "#111827",
                 marginBottom: 2,
@@ -361,7 +361,7 @@ export default function DraggableCounterInput({
             <div
               style={{
                 fontFamily: "monospace",
-                fontSize: 12,
+                fontSize: 14,
                 fontWeight: 900,
                 color: "#111",
                 letterSpacing: "0.5px",
