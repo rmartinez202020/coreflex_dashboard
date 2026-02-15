@@ -50,11 +50,12 @@ export default function GraphicDisplaySettingsModal({
   const [pos, setPos] = useState({ left: 0, top: 0 });
   const [didInitPos, setDidInitPos] = useState(false);
 
+  // ✅ for grab/grabbing cursor
+  const [isDragging, setIsDragging] = useState(false);
+
   // ✅ center on open (only once per open)
   useEffect(() => {
     if (!open) return;
-
-    // reset the init flag whenever modal opens
     setDidInitPos(false);
   }, [open]);
 
@@ -121,6 +122,8 @@ export default function GraphicDisplaySettingsModal({
     e.preventDefault();
 
     dragRef.current.dragging = true;
+    setIsDragging(true);
+
     dragRef.current.startX = e.clientX;
     dragRef.current.startY = e.clientY;
     dragRef.current.startLeft = pos.left;
@@ -156,6 +159,8 @@ export default function GraphicDisplaySettingsModal({
 
   const endDrag = () => {
     dragRef.current.dragging = false;
+    setIsDragging(false);
+
     window.removeEventListener("mousemove", onDragMove);
     window.removeEventListener("mouseup", endDrag);
   };
@@ -207,7 +212,7 @@ export default function GraphicDisplaySettingsModal({
             justifyContent: "space-between",
             background: "linear-gradient(180deg,#0b1b33,#0a1730)",
             color: "#fff",
-            cursor: "move",
+            cursor: isDragging ? "grabbing" : "grab",
             userSelect: "none",
           }}
           title="Drag to move"
