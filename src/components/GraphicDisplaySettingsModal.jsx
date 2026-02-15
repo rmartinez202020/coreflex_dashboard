@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { API_URL } from "../../config/api";
-import { getToken } from "../../utils/authToken";
+import { API_URL } from "../config/api";
+import { getToken } from "../utils/authToken";
 
 const SAMPLE_OPTIONS = [200, 500, 700, 1000, 2000, 5000];
 const TIME_UNITS = ["seconds", "minutes", "hours", "days"];
@@ -46,18 +46,8 @@ async function apiGet(path) {
 async function loadDevicesForModel(modelKey) {
   const candidates =
     modelKey === "zhc1921"
-      ? [
-          "/zhc1921/my-devices",
-          "/zhc1921/devices",
-          "/zhc1921/list",
-          "/zhc1921",
-        ]
-      : [
-          "/zhc1661/my-devices",
-          "/zhc1661/devices",
-          "/zhc1661/list",
-          "/zhc1661",
-        ];
+      ? ["/zhc1921/my-devices", "/zhc1921/devices", "/zhc1921/list", "/zhc1921"]
+      : ["/zhc1661/my-devices", "/zhc1661/devices", "/zhc1661/list", "/zhc1661"];
 
   let lastErr = null;
 
@@ -99,14 +89,12 @@ async function loadDevicesForModel(modelKey) {
         })
         .filter(Boolean);
 
-      // if endpoint worked, return it
-      return out;
+      return out; // ✅ endpoint worked
     } catch (e) {
       lastErr = e;
     }
   }
 
-  // nothing worked
   throw lastErr || new Error("No device endpoint matched");
 }
 
@@ -297,7 +285,7 @@ export default function GraphicDisplaySettingsModal({
             background: "#f8fafc",
           }}
         >
-          {/* LEFT: DISPLAY PREVIEW + SETTINGS */}
+          {/* LEFT: DISPLAY SETTINGS */}
           <div
             style={{
               borderRadius: 12,
@@ -502,7 +490,7 @@ export default function GraphicDisplaySettingsModal({
             </div>
           </div>
 
-          {/* RIGHT: TAG BINDING (LIKE Indicator Light) */}
+          {/* RIGHT: TAG BINDING */}
           <div
             style={{
               borderRadius: 12,
@@ -527,7 +515,7 @@ export default function GraphicDisplaySettingsModal({
                 value={bindModel}
                 onChange={(e) => {
                   setBindModel(e.target.value);
-                  setBindDeviceId(""); // reset on model change
+                  setBindDeviceId("");
                 }}
                 style={{
                   border: "1px solid #d1d5db",
@@ -595,7 +583,7 @@ export default function GraphicDisplaySettingsModal({
               </select>
             </label>
 
-            {/* Status panel (like indicator modal) */}
+            {/* Status panel */}
             <div
               style={{
                 border: "1px solid #e5e7eb",
@@ -609,8 +597,7 @@ export default function GraphicDisplaySettingsModal({
               </div>
 
               <div style={{ fontSize: 12, color: "#374151", marginBottom: 6 }}>
-                Selected:{" "}
-                <b>{bindDeviceId || "—"}</b>{" "}
+                Selected: <b>{bindDeviceId || "—"}</b>{" "}
                 <span style={{ color: deviceStatusColor, fontWeight: 900 }}>
                   {bindDeviceId ? `• ${deviceStatusLabel.toUpperCase()}` : ""}
                 </span>
@@ -644,7 +631,14 @@ export default function GraphicDisplaySettingsModal({
               </div>
 
               {deviceErr && (
-                <div style={{ marginTop: 10, color: "#b42318", fontWeight: 800, fontSize: 12 }}>
+                <div
+                  style={{
+                    marginTop: 10,
+                    color: "#b42318",
+                    fontWeight: 800,
+                    fontSize: 12,
+                  }}
+                >
                   {deviceErr}
                 </div>
               )}
