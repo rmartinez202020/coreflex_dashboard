@@ -1,17 +1,5 @@
 import React, { useMemo } from "react";
 
-/**
- * GraphicDisplay
- * - uses tank settings: title, timeUnit, sampleMs, window
- * - yMin, yMax, yUnits, graphStyle
- *
- * ✅ UPGRADE: professional grid
- *   - major + minor grid lines
- *   - configurable divisions (tank.yDivs, tank.xDivs)
- *   - tick labels on Y axis (not just min/max)
- *
- * NOTE: this is still a placeholder chart frame (no real plotting yet).
- */
 export default function GraphicDisplay({ tank }) {
   const title = tank?.title ?? "Graphic Display";
   const timeUnit = tank?.timeUnit ?? "seconds";
@@ -24,9 +12,9 @@ export default function GraphicDisplay({ tank }) {
 
   const graphStyle = tank?.graphStyle ?? "line";
 
-  // ✅ NEW: grid divisions (professional defaults)
-  const yDivs = Number.isFinite(tank?.yDivs) ? Math.max(2, tank.yDivs) : 10; // horizontal major divisions
-  const xDivs = Number.isFinite(tank?.xDivs) ? Math.max(2, tank.xDivs) : 12; // vertical major divisions
+  // ✅ grid divisions (professional defaults)
+  const yDivs = Number.isFinite(tank?.yDivs) ? Math.max(2, tank.yDivs) : 10;
+  const xDivs = Number.isFinite(tank?.xDivs) ? Math.max(2, tank.xDivs) : 12;
 
   // minor subdivisions between majors (SCADA look)
   const yMinor = Number.isFinite(tank?.yMinor) ? Math.max(1, tank.yMinor) : 2;
@@ -49,24 +37,20 @@ export default function GraphicDisplay({ tank }) {
     }
     const step = (max - min) / yDivs;
     const arr = [];
-    for (let i = 0; i <= yDivs; i++) {
-      arr.push(min + step * i);
-    }
+    for (let i = 0; i <= yDivs; i++) arr.push(min + step * i);
     return arr;
   }, [yMin, yMax, yDivs]);
 
   // ✅ background grid (major + minor) using layered gradients
   const gridBackground = useMemo(() => {
     // major grid size in px
-    const majorX = Math.max(24, Math.round(520 / xDivs)); // keep it sensible on resize
+    const majorX = Math.max(24, Math.round(520 / xDivs));
     const majorY = Math.max(20, Math.round(260 / yDivs));
 
     // minor grid size in px (split majors)
     const minorX = Math.max(8, Math.round(majorX / (xMinor + 1)));
     const minorY = Math.max(8, Math.round(majorY / (yMinor + 1)));
 
-    // ✅ 4 layers:
-    // 1) minor vertical, 2) minor horizontal, 3) major vertical, 4) major horizontal
     return {
       backgroundImage: `
         linear-gradient(to right, rgba(0,0,0,0.035) 1px, transparent 1px),
@@ -95,38 +79,34 @@ export default function GraphicDisplay({ tank }) {
         boxShadow: "0 10px 22px rgba(0,0,0,0.10)",
         overflow: "hidden",
         userSelect: "none",
-
-        // keep passive so dragging works (DraggableGraphicDisplay controls events)
-        pointerEvents: "none",
-
+        pointerEvents: "none", // ✅ passive so dragging works
         display: "flex",
         flexDirection: "column",
         minWidth: 0,
         minHeight: 0,
       }}
     >
-      {/* HEADER */}
+      {/* HEADER — COMPACT */}
       <div
         style={{
-          padding: "10px 12px 8px 12px",
+          padding: "6px 10px",
           borderBottom: "1px solid #e6e6e6",
-          background: "linear-gradient(180deg, #ffffff 0%, #f6f6f6 100%)",
+          background: "linear-gradient(180deg, #ffffff 0%, #f4f4f4 100%)",
           flex: "0 0 auto",
           minWidth: 0,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {/* TOP ROW */}
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <div
             style={{
-              fontWeight: 900,
-              fontSize: 16,
+              fontWeight: 800,
+              fontSize: 14,
               color: "#111",
-              lineHeight: 1.2,
-              marginBottom: 6,
-              minWidth: 0,
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
+              minWidth: 0,
             }}
           >
             {title}
@@ -135,11 +115,11 @@ export default function GraphicDisplay({ tank }) {
           <div
             style={{
               marginLeft: "auto",
-              fontSize: 11,
-              fontWeight: 900,
+              fontSize: 10,
+              fontWeight: 800,
               border: "1px solid #ddd",
               borderRadius: 999,
-              padding: "3px 10px",
+              padding: "2px 8px",
               background: "#fff",
               color: "#333",
               flex: "0 0 auto",
@@ -149,13 +129,15 @@ export default function GraphicDisplay({ tank }) {
           </div>
         </div>
 
+        {/* SECOND ROW */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
-            gap: 10,
+            gap: 8,
             color: "#444",
-            fontSize: 12,
+            fontSize: 11,
+            marginTop: 4,
             minWidth: 0,
             flexWrap: "wrap",
           }}
@@ -171,21 +153,21 @@ export default function GraphicDisplay({ tank }) {
           <span>
             Window: <b>{windowSize}</b>
           </span>
-
-          <span style={{ marginLeft: 10 }}>•</span>
+          <span>•</span>
           <span>
             Y: <b>{yMin}</b> → <b>{yMax}</b> {yUnits ? `(${yUnits})` : ""}
           </span>
 
-          <div style={{ marginLeft: "auto", display: "flex", gap: 8 }}>
+          <div style={{ marginLeft: "auto", display: "flex", gap: 6 }}>
             <button
               style={{
                 border: "1px solid #bfe6c8",
                 background: "linear-gradient(180deg,#bff2c7,#6fdc89)",
                 color: "#0b3b18",
-                fontWeight: 900,
-                borderRadius: 8,
-                padding: "6px 12px",
+                fontWeight: 800,
+                borderRadius: 6,
+                padding: "4px 8px",
+                fontSize: 11,
               }}
             >
               RECORD
@@ -195,9 +177,10 @@ export default function GraphicDisplay({ tank }) {
                 border: "1px solid #ddd",
                 background: "#f3f3f3",
                 color: "#555",
-                fontWeight: 800,
-                borderRadius: 8,
-                padding: "6px 12px",
+                fontWeight: 700,
+                borderRadius: 6,
+                padding: "4px 8px",
+                fontSize: 11,
               }}
             >
               EXPORT
@@ -207,9 +190,10 @@ export default function GraphicDisplay({ tank }) {
                 border: "1px solid #ddd",
                 background: "#f3f3f3",
                 color: "#555",
-                fontWeight: 800,
-                borderRadius: 8,
-                padding: "6px 12px",
+                fontWeight: 700,
+                borderRadius: 6,
+                padding: "4px 8px",
+                fontSize: 11,
               }}
             >
               CLEAR
@@ -267,7 +251,6 @@ export default function GraphicDisplay({ tank }) {
                 justifyContent: "space-between",
               }}
             >
-              {/* top -> bottom */}
               {[...yTicks].reverse().map((v, idx) => (
                 <div
                   key={idx}
