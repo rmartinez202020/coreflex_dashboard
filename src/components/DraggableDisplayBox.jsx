@@ -246,35 +246,29 @@ function getStyleConfig(displayStyle, legacyTheme) {
 export default function DraggableDisplayBox({ tank }) {
   const props = tank?.properties || {};
 
-  // ✅ NEW: title at top (supports title or displayTitle)
+  // ✅ title at top
   const title = String(props.title ?? props.displayTitle ?? "").trim();
 
-  // FORMAT like "000.00", "00", "0000", etc.
+  // format
   const numberFormat = props.numberFormat || "00000";
   const label = props.label || "";
-  const theme = props.theme || "gray"; // legacy theme ID
+  const theme = props.theme || "gray";
   const scale = tank?.scale || 1;
 
-  // ✅ NEW: style picker (4 styles)
+  // style
   const displayStyle = props.displayStyle || "classic";
-  const styleCfg = useMemo(
-    () => getStyleConfig(displayStyle, theme),
-    [displayStyle, theme]
-  );
+  const styleCfg = useMemo(() => getStyleConfig(displayStyle, theme), [displayStyle, theme]);
 
-  // ✅ binding + math
+  // binding + math
   const bindModel = props.bindModel || "zhc1921";
   const bindDeviceId = String(props.bindDeviceId || "").trim();
   const bindField = String(props.bindField || "ai1").trim();
   const formula = props.formula || "";
-
   const hasBinding = !!bindDeviceId && !!bindField;
 
-  // ✅ live raw + computed output
   const [liveValue, setLiveValue] = useState(null);
   const [outputValue, setOutputValue] = useState(null);
 
-  // ✅ Poll fixed every 2 seconds (as requested)
   useEffect(() => {
     if (!hasBinding) {
       setLiveValue(null);
@@ -287,9 +281,7 @@ export default function DraggableDisplayBox({ tank }) {
 
     const tick = async () => {
       try {
-        const row = await loadLiveRowForDevice(bindModel, bindDeviceId, {
-          signal: ctrl.signal,
-        });
+        const row = await loadLiveRowForDevice(bindModel, bindDeviceId, { signal: ctrl.signal });
 
         const raw = row ? readAiField(row, bindField) : null;
 
@@ -309,7 +301,6 @@ export default function DraggableDisplayBox({ tank }) {
       } catch (e) {
         if (cancelled) return;
         if (String(e?.name || "").toLowerCase().includes("abort")) return;
-        // keep last value, do not hard fail UI
       }
     };
 
@@ -323,20 +314,14 @@ export default function DraggableDisplayBox({ tank }) {
     };
   }, [hasBinding, bindModel, bindDeviceId, bindField, formula]);
 
-  // Extract integer + decimal pattern
   const [intPart, decPart] = String(numberFormat).split(".");
   const totalInt = Math.max(1, (intPart || "0").length);
   const totalDec = decPart ? decPart.length : 0;
 
-  // ✅ choose what to show:
-  // - if bound: show math output
-  // - if not bound: fallback to props.value / tank.value (legacy)
   const displayText = useMemo(() => {
     const v = hasBinding ? outputValue : props.value ?? tank?.value ?? 0;
 
     if (v === null || v === undefined || v === "") return "--";
-
-    // string output (CONCAT) => show as-is
     if (typeof v === "string") return v;
 
     const n = typeof v === "number" ? v : Number(v);
@@ -356,41 +341,42 @@ export default function DraggableDisplayBox({ tank }) {
     return formatted;
   }, [hasBinding, outputValue, props.value, tank?.value, totalDec, totalInt]);
 
+  // ✅ style like your screenshot: NOT BOLD for title/label, tighter spacing
+  const titleFontW = 500; // no bold
+  const labelFontW = 500; // no bold
+
   return (
     <div style={{ textAlign: "center", pointerEvents: "none" }}>
-      {/* ✅ TITLE (TOP) */}
       {title ? (
         <div
           style={{
-            marginBottom: 6,
+            marginBottom: 2,
             fontSize: `${18 * scale}px`,
-            fontWeight: 800,
+            fontWeight: titleFontW,
             color: styleCfg.labelColor,
             pointerEvents: "none",
-            lineHeight: 1.1,
+            lineHeight: 1.05,
           }}
         >
           {title}
         </div>
       ) : null}
 
-      {/* LABEL (SUBTITLE) */}
       {label ? (
         <div
           style={{
             marginBottom: 4,
-            fontSize: `${16 * scale}px`,
-            fontWeight: 600,
+            fontSize: `${14 * scale}px`,
+            fontWeight: labelFontW,
             color: styleCfg.labelColor,
             pointerEvents: "none",
-            lineHeight: 1.1,
+            lineHeight: 1.05,
           }}
         >
           {label}
         </div>
       ) : null}
 
-      {/* DIGITAL DISPLAY */}
       <div
         style={{
           width: `${160 * scale}px`,
