@@ -76,6 +76,7 @@ function prunePointsByWindow(points, windowSize, timeUnit) {
     .map((p) => ({
       t: Number(p?.t),
       y: p?.y,
+      gap: !!p?.gap,
     }))
     .filter((p) => Number.isFinite(p.t))
     .sort((a, b) => a.t - b.t)
@@ -169,10 +170,30 @@ export default function GraphicDisplay({ tank }) {
   const [mathOutput, setMathOutput] = useState(null);
   const [err, setErr] = useState("");
 
-  const [points, setPoints] = useState([]); // [{t:number, y:number}]
+  // points: {t:number, y:number, gap?:boolean}
+  const [points, setPoints] = useState([]);
 
   // ✅ local playback controls
   const [isPlaying, setIsPlaying] = useState(true);
+  const isPlayingRef = useRef(true);
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
+
+  // ✅ insert a "gap marker" point when pausing so the line breaks
+  useEffect(() => {
+    if (!bindDeviceId || !bindField) return;
+
+    if (!isPlaying) {
+      setPoints((prev) => {
+        const t = Date.now();
+        // avoid stacking multiple gap points if user clicks pause repeatedly
+        const last = prev.length ? prev[prev.length - 1] : null;
+        if (last?.gap) return prev;
+        return [...prev, { t, y: null, gap: true }];
+      });
+    }
+  }, [isPlaying, bindDeviceId, bindField]);
 
   const maxPoints = useMemo(() => {
     const win = Number.isFinite(windowSize) ? Math.max(2, windowSize) : 60;
@@ -210,10 +231,10 @@ export default function GraphicDisplay({ tank }) {
 
     setPoints(pruned);
 
-    // best effort: restore last values for display
-    const last = pruned.length ? pruned[pruned.length - 1] : null;
-    if (last && Number.isFinite(Number(last.y))) {
-      setMathOutput(Number(last.y));
+    // best effort: restore last numeric values for display
+    const lastNumeric = [...pruned].reverse().find((p) => Number.isFinite(Number(p?.y)));
+    if (lastNumeric) {
+      setMathOutput(Number(lastNumeric.y));
     }
   }, [storageKey, bindDeviceId, bindField, windowSize, timeUnit]);
 
@@ -352,7 +373,7 @@ export default function GraphicDisplay({ tank }) {
     fmtTimeWithDate,
   });
 
-  // ✅ SVG PATH from points (TIME-BASED X so it always moves LEFT -> RIGHT)
+  // ✅ build MULTI polyline segments so gaps do NOT connect
   const svg = useMemo(() => {
     const W = 1000;
     const H = 360;
@@ -361,27 +382,53 @@ export default function GraphicDisplay({ tank }) {
     const ySpan = maxY - minY;
 
     if (!Number.isFinite(minY) || !Number.isFinite(maxY) || ySpan <= 0) {
-      return { poly: "", W, H, tMin: null, tMax: null };
+      return { segs: [], W, H };
     }
 
-    const arr = pointsForView?.length ? pointsForView : points;
-    if (!arr.length) {
-      return { poly: "", W, H, tMin: null, tMax: null };
+    const arrRaw = pointsForView?.length ? pointsForView : points;
+    if (!arrRaw.length) {
+      return { segs: [], W, H };
     }
 
-    const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
-    const tMin = arr[0]?.t ?? Date.now();
-    const tMax = arr[arr.length - 1]?.t ?? tMin;
+    // keep only valid time points (but allow y=null for gaps)
+    const arr = arrRaw
+      .map((p) => ({
+        t: Number(p?.t),
+        y: p?.y,
+        gap: !!p?.gap || p?.y === null || p?.y === undefined,
+      }))
+      .filter((p) => Number.isFinite(p.t))
+      .sort((a, b) => a.t - b.t);
+
+    if (!arr.length) return { segs: [], W, H };
+
+    // time range from first to last (even if last is a gap marker)
+    const tMin = arr[0].t;
+    const tMax = arr[arr.length - 1].t;
     const tSpan = Math.max(1, tMax - tMin);
 
-    const coords = arr.map((p) => {
-      const x = ((p.t - tMin) / tSpan) * W;
-      const yy = clamp(p.y, minY, maxY);
-      const y = H - ((yy - minY) / ySpan) * H;
-      return `${x.toFixed(2)},${y.toFixed(2)}`;
-    });
+    const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 
-    return { poly: coords.join(" "), W, H, tMin, tMax };
+    // build segments separated by "gap" markers
+    const segs = [];
+    let current = [];
+
+    for (const p of arr) {
+      if (p.gap) {
+        if (current.length >= 2) segs.push(current);
+        current = [];
+        continue;
+      }
+
+      const x = ((p.t - tMin) / tSpan) * W;
+      const yy = clamp(Number(p.y), minY, maxY);
+      const y = H - ((yy - minY) / ySpan) * H;
+      current.push(`${x.toFixed(2)},${y.toFixed(2)}`);
+    }
+
+    if (current.length >= 2) segs.push(current);
+
+    return { segs, W, H };
   }, [points, pointsForView, yMin, yMax]);
 
   // ✅ BIGGER top button styles + keep rectangle (not pill)
@@ -508,7 +555,6 @@ export default function GraphicDisplay({ tank }) {
               flex: "0 0 auto",
             }}
           >
-            {/* Play / Pause / Export (bigger) */}
             <button
               type="button"
               onClick={() => setIsPlaying(true)}
@@ -544,10 +590,8 @@ export default function GraphicDisplay({ tank }) {
               ⬇ <span>Export</span>
             </button>
 
-            {/* NO pill/oval: just dot + LINE */}
             {styleIndicator}
 
-            {/* Output on the far right */}
             <div style={outputBoxStyle} title="Math Output">
               <span style={{ color: "#555" }}>Output:</span>
               <span style={{ color: "#0b3b18" }}>
@@ -557,7 +601,7 @@ export default function GraphicDisplay({ tank }) {
           </div>
         </div>
 
-        {/* SECOND ROW: info only (no Output here anymore) */}
+        {/* SECOND ROW: info only */}
         <div
           style={{
             display: "flex",
@@ -677,14 +721,15 @@ export default function GraphicDisplay({ tank }) {
               preserveAspectRatio="none"
               style={{ width: "100%", height: "100%", display: "block" }}
             >
-              {svg.poly ? (
+              {svg.segs.map((pts, idx) => (
                 <polyline
+                  key={idx}
                   fill="none"
                   stroke={lineColor}
                   strokeWidth="3"
-                  points={svg.poly}
+                  points={pts.join(" ")}
                 />
-              ) : null}
+              ))}
             </svg>
 
             {/* Selection rectangle (zoom) */}
