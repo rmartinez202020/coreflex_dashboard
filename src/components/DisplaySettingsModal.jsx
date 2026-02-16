@@ -59,72 +59,86 @@ async function apiGet(path, { signal } = {}) {
 }
 
 /* ===========================================
-   DEVICE LOADER (same logic as GraphicDisplay)
+   DEVICE LOADER (standalone in this file)
+   ✅ IMPORTANT: avoid endpoints that cause 403/405 in your screenshots
 =========================================== */
 
+function normalizeDeviceList(data) {
+  const arr = Array.isArray(data)
+    ? data
+    : Array.isArray(data?.devices)
+    ? data.devices
+    : Array.isArray(data?.rows)
+    ? data.rows
+    : [];
+
+  return arr
+    .map((r) => {
+      const deviceId =
+        r.deviceId ??
+        r.device_id ??
+        r.id ??
+        r.imei ??
+        r.IMEI ??
+        r.DEVICE_ID ??
+        "";
+      if (!deviceId) return null;
+
+      return {
+        deviceId: String(deviceId),
+        status: String(r.status ?? r.online ?? "").toLowerCase(),
+        lastSeen: r.lastSeen ?? r.last_seen ?? r.updatedAt ?? r.updated_at,
+        _raw: r,
+      };
+    })
+    .filter(Boolean);
+}
+
+// ✅ only endpoints that should be allowed for normal users (no /devices)
 async function loadDevicesForModel(modelKey, { signal } = {}) {
   const base = MODEL_META[modelKey]?.base || modelKey;
 
   const candidates =
     base === "zhc1921"
-      ? ["/zhc1921/my-devices", "/zhc1921/devices", "/zhc1921/list", "/zhc1921"]
-      : ["/zhc1661/my-devices", "/zhc1661/devices", "/zhc1661/list", "/zhc1661"];
+      ? ["/zhc1921/my-devices", "/zhc1921/list", "/zhc1921"]
+      : ["/zhc1661/my-devices", "/zhc1661/list", "/zhc1661"];
+
+  let lastErr = null;
 
   for (const p of candidates) {
     try {
       const data = await apiGet(p, { signal });
-
-      const arr = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.devices)
-        ? data.devices
-        : Array.isArray(data?.rows)
-        ? data.rows
-        : [];
-
-      return arr
-        .map((r) => {
-          const deviceId =
-            r.deviceId ?? r.device_id ?? r.id ?? r.imei ?? r.IMEI ?? r.DEVICE_ID ?? "";
-          if (!deviceId) return null;
-
-          return {
-            deviceId: String(deviceId),
-            status: String(r.status ?? r.online ?? "").toLowerCase(),
-            lastSeen: r.lastSeen ?? r.last_seen ?? r.updatedAt ?? r.updated_at,
-          };
-        })
-        .filter(Boolean);
-    } catch {
-      continue;
+      const list = normalizeDeviceList(data);
+      if (list.length) return list;
+      // if endpoint works but returns empty, continue trying others
+    } catch (e) {
+      lastErr = e;
     }
   }
 
+  // if all failed, return empty (UI will show no devices)
+  if (lastErr) {
+    // optional: console.debug for you
+    // console.debug("loadDevicesForModel failed:", lastErr);
+  }
   return [];
 }
 
+// ✅ Prefer list-scan for live value to avoid 404/405 noisy endpoints
 async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
   const base = MODEL_META[modelKey]?.base || modelKey;
 
-  const directCandidates =
+  const listCandidates =
     base === "zhc1921"
-      ? [
-          `/zhc1921/device/${deviceId}`,
-          `/zhc1921/devices/${deviceId}`,
-          `/zhc1921/${deviceId}`,
-          `/zhc1921/one/${deviceId}`,
-        ]
-      : [
-          `/zhc1661/device/${deviceId}`,
-          `/zhc1661/devices/${deviceId}`,
-          `/zhc1661/${deviceId}`,
-          `/zhc1661/one/${deviceId}`,
-        ];
+      ? ["/zhc1921/my-devices", "/zhc1921/list", "/zhc1921"]
+      : ["/zhc1661/my-devices", "/zhc1661/list", "/zhc1661"];
 
-  for (const p of directCandidates) {
+  for (const p of listCandidates) {
     try {
-      const r = await apiGet(p, { signal });
-      return r?.row ?? r?.device ?? r;
+      const data = await apiGet(p, { signal });
+      const arr = normalizeDeviceList(data);
+      const hit = arr.find((d) => String(d.deviceId) === String(deviceId));
+      if (hit?._raw) return hit._raw;
     } catch {
       // continue
     }
@@ -283,7 +297,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
     setDidInitPos(true);
   }, [open, didInitPos]);
 
-  // ✅ Load from tank whenever tank changes (this fixes “Apply not saving” when reopening)
+  // ✅ Load from tank whenever tank changes
   useEffect(() => {
     if (!tank) return;
 
@@ -355,44 +369,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
           signal: ctrl.signal,
         });
 
-        let value = null;
-
-        if (row) {
-          value = readAiField(row, bindField);
-        } else {
-          // fallback: some list endpoints include AI fields
-          const base = MODEL_META[bindModel]?.base || bindModel;
-
-          const rawCandidates =
-            base === "zhc1921"
-              ? ["/zhc1921/devices", "/zhc1921/my-devices", "/zhc1921/list", "/zhc1921"]
-              : ["/zhc1661/devices", "/zhc1661/my-devices", "/zhc1661/list", "/zhc1661"];
-
-          let rawArr = [];
-          for (const p of rawCandidates) {
-            try {
-              const data = await apiGet(p, { signal: ctrl.signal });
-              rawArr = Array.isArray(data)
-                ? data
-                : Array.isArray(data?.devices)
-                ? data.devices
-                : Array.isArray(data?.rows)
-                ? data.rows
-                : [];
-              if (rawArr.length) break;
-            } catch {
-              // continue
-            }
-          }
-
-          const rawRow =
-            rawArr.find((r) => {
-              const id = r.deviceId ?? r.device_id ?? r.id ?? r.imei ?? r.IMEI ?? r.DEVICE_ID ?? "";
-              return String(id) === String(bindDeviceId);
-            }) || null;
-
-          if (rawRow) value = readAiField(rawRow, bindField);
-        }
+        const value = row ? readAiField(row, bindField) : null;
 
         if (cancelled) return;
 
@@ -496,20 +473,23 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
   }, [bindDeviceId, bindField]);
 
   // -------------------------
-  // ✅ UI
-  // ✅ change: remove bold look from right section (use normal fontWeight)
+  // ✅ UI (remove bold on the right section)
   // -------------------------
-  const labelStyle = { fontSize: 12, fontWeight: 600, color: "#111827" }; // less bold
-  const sectionTitleStyle = { fontWeight: 700, fontSize: 16 }; // less bold than 900
+  const labelStyle = { fontSize: 12, fontWeight: 500, color: "#111827" };
+  const sectionTitleStyle = { fontWeight: 600, fontSize: 16 };
   const fieldSelectStyle = {
     height: 38,
     borderRadius: 10,
     border: "1px solid #d1d5db",
     padding: "0 10px",
-    fontWeight: 500, // ✅ remove bold
+    fontWeight: 400,
     background: "#fff",
     outline: "none",
   };
+
+  const previewTitleStyle = { fontWeight: 600, marginBottom: 8, fontSize: 13 };
+  const previewTextStyle = { fontSize: 12, fontWeight: 400, color: "#111827" };
+  const previewMutedStyle = { color: "#6b7280", fontWeight: 400, fontSize: 12 };
 
   return (
     <div
@@ -606,7 +586,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                 }}
               >
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#111827" }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>
                     Live VALUE
                   </div>
                   <div
@@ -622,7 +602,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                       background: "rgba(187,247,208,0.55)",
                       border: "1px solid rgba(22,163,74,0.25)",
                       fontFamily: "monospace",
-                      fontWeight: 800,
+                      fontWeight: 700,
                       color: "#0b3b18",
                     }}
                   >
@@ -631,7 +611,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                 </div>
 
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 12, fontWeight: 700, color: "#111827" }}>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>
                     Output
                   </div>
                   <div
@@ -647,7 +627,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                       background: "#f3f4f6",
                       border: "1px solid #d1d5db",
                       fontFamily: "monospace",
-                      fontWeight: 800,
+                      fontWeight: 700,
                       color: "#111827",
                     }}
                   >
@@ -661,7 +641,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
               </div>
 
               <div>
-                <div style={{ fontSize: 12, fontWeight: 700, color: "#111827" }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>
                   Formula
                 </div>
                 <textarea
@@ -694,7 +674,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                   lineHeight: 1.35,
                 }}
               >
-                <div style={{ fontWeight: 700, marginBottom: 8 }}>Supported Operators</div>
+                <div style={{ fontWeight: 600, marginBottom: 8 }}>Supported Operators</div>
                 <div style={{ display: "grid", gap: 4 }}>
                   <div>VALUE + 10 → add</div>
                   <div>VALUE - 3 → subtract</div>
@@ -703,13 +683,13 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                   <div>VALUE % 60 → modulo</div>
                 </div>
 
-                <div style={{ fontWeight: 700, margin: "10px 0 6px" }}>Combined Examples</div>
+                <div style={{ fontWeight: 600, margin: "10px 0 6px" }}>Combined Examples</div>
                 <div style={{ display: "grid", gap: 4 }}>
                   <div>(VALUE * 1.5) + 5 → scale &amp; offset</div>
                   <div>(VALUE / 4095) * 20 - 4 → ADC → 4–20 mA</div>
                 </div>
 
-                <div style={{ fontWeight: 700, margin: "10px 0 6px" }}>
+                <div style={{ fontWeight: 600, margin: "10px 0 6px" }}>
                   String Output Examples
                 </div>
                 <div style={{ display: "grid", gap: 4 }}>
@@ -728,7 +708,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                     borderRadius: 10,
                     padding: 10,
                     fontSize: 12,
-                    fontWeight: 700,
+                    fontWeight: 600,
                   }}
                 >
                   {liveErr}
@@ -751,7 +731,11 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
 
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Model</div>
-                <select value={bindModel} onChange={(e) => setBindModel(e.target.value)} style={fieldSelectStyle}>
+                <select
+                  value={bindModel}
+                  onChange={(e) => setBindModel(e.target.value)}
+                  style={fieldSelectStyle}
+                >
                   {Object.entries(MODEL_META).map(([k, v]) => (
                     <option key={k} value={k}>
                       {v.label}
@@ -762,7 +746,11 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
 
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Device</div>
-                <select value={bindDeviceId} onChange={(e) => setBindDeviceId(e.target.value)} style={fieldSelectStyle}>
+                <select
+                  value={bindDeviceId}
+                  onChange={(e) => setBindDeviceId(e.target.value)}
+                  style={fieldSelectStyle}
+                >
                   <option value="">Select device...</option>
                   {devices.map((d) => (
                     <option key={d.deviceId} value={d.deviceId}>
@@ -774,7 +762,11 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
 
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Analog Input (AI)</div>
-                <select value={bindField} onChange={(e) => setBindField(e.target.value)} style={fieldSelectStyle}>
+                <select
+                  value={bindField}
+                  onChange={(e) => setBindField(e.target.value)}
+                  style={fieldSelectStyle}
+                >
                   <option value="ai1">AI-1</option>
                   <option value="ai2">AI-2</option>
                   <option value="ai3">AI-3</option>
@@ -788,7 +780,11 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
 
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Sample</div>
-                <select value={sampleMs} onChange={(e) => setSampleMs(Number(e.target.value))} style={fieldSelectStyle}>
+                <select
+                  value={sampleMs}
+                  onChange={(e) => setSampleMs(Number(e.target.value))}
+                  style={fieldSelectStyle}
+                >
                   {SAMPLE_OPTIONS.map((ms) => (
                     <option key={ms} value={ms}>
                       {formatSampleLabel(ms)}
@@ -806,9 +802,9 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                   padding: 12,
                 }}
               >
-                <div style={{ fontWeight: 700, marginBottom: 8 }}>Binding Preview</div>
+                <div style={previewTitleStyle}>Binding Preview</div>
 
-                <div style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>
+                <div style={previewTextStyle}>
                   Selected:{" "}
                   <span style={{ fontFamily: "monospace" }}>{bindDeviceId || "--"}</span> ·{" "}
                   {selectedDevice?.status === "online" ? (
@@ -825,22 +821,26 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                     gap: 10,
                     marginTop: 10,
                     fontSize: 12,
-                    fontWeight: 600,
+                    fontWeight: 400,
                   }}
                 >
                   <div>
-                    <div style={{ color: "#6b7280", fontWeight: 600 }}>Model</div>
-                    <div style={{ marginTop: 2 }}>{MODEL_META[bindModel]?.label || "—"}</div>
+                    <div style={previewMutedStyle}>Model</div>
+                    <div style={{ marginTop: 2, fontWeight: 400 }}>
+                      {MODEL_META[bindModel]?.label || "—"}
+                    </div>
                   </div>
 
                   <div>
-                    <div style={{ color: "#6b7280", fontWeight: 600 }}>Selected AI</div>
-                    <div style={{ marginTop: 2 }}>{String(bindField || "").toUpperCase().replace("AI", "AI-")}</div>
+                    <div style={previewMutedStyle}>Selected AI</div>
+                    <div style={{ marginTop: 2, fontWeight: 400 }}>
+                      {String(bindField || "").toUpperCase().replace("AI", "AI-")}
+                    </div>
                   </div>
                 </div>
 
                 <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between" }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>Current Value</div>
+                  <div style={previewTextStyle}>Current Value</div>
 
                   <div
                     style={{
@@ -854,7 +854,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                       background: "rgba(187,247,208,0.55)",
                       border: "1px solid rgba(22,163,74,0.25)",
                       fontFamily: "monospace",
-                      fontWeight: 700,
+                      fontWeight: 600,
                       color: "#0b3b18",
                     }}
                   >
@@ -872,7 +872,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                     borderRadius: 10,
                     border: "1px solid #d1d5db",
                     background: "#fff",
-                    fontWeight: 700,
+                    fontWeight: 600,
                     cursor: "pointer",
                   }}
                 >
@@ -882,21 +882,31 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                 <button
                   disabled={!canApply}
                   onClick={() => {
-                    // ✅ IMPORTANT FIX:
-                    // Save into tank.properties (your DraggableDisplayBox reads tank.properties)
+                    // ✅ SAVE BULLETPROOF:
+                    // 1) Save into tank.properties (what the widget reads)
+                    // 2) Mirror at top-level too, in case parent merge drops properties
+                    const nextProps = {
+                      ...(tank?.properties || {}),
+                      bindModel,
+                      bindDeviceId,
+                      bindField,
+                      formula,
+                      sampleMs,
+                    };
+
                     const nextTank = {
                       ...tank,
-                      properties: {
-                        ...(tank?.properties || {}),
-                        bindModel,
-                        bindDeviceId,
-                        bindField,
-                        formula,
-                        sampleMs,
-                      },
+                      // mirror (fallback)
+                      bindModel,
+                      bindDeviceId,
+                      bindField,
+                      formula,
+                      sampleMs,
+                      // source of truth for widget
+                      properties: nextProps,
                     };
-                    onSave(nextTank);
-                    // close after apply (matches your expected UX)
+
+                    onSave?.(nextTank);
                     onClose?.();
                   }}
                   style={{
@@ -907,7 +917,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                       ? "linear-gradient(180deg,#bff2c7,#6fdc89)"
                       : "#e5e7eb",
                     color: "#0b3b18",
-                    fontWeight: 800,
+                    fontWeight: 700,
                     cursor: canApply ? "pointer" : "not-allowed",
                   }}
                 >
