@@ -6,6 +6,8 @@ import {
   useDisplaySettingLiveValue,
 } from "./DisplaysettingsmodalTelemetry";
 
+import DisplaysettingsmodalMathHelp from "./DisplaysettingsmodalMathHelp";
+
 const MODEL_META = {
   zhc1921: { label: "CF-2000", base: "zhc1921" },
   zhc1661: { label: "CF-1600", base: "zhc1661" },
@@ -361,9 +363,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                 </div>
 
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>
-                    Output
-                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>Output</div>
                   <div
                     style={{
                       marginTop: 6,
@@ -391,9 +391,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
               </div>
 
               <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>
-                  Formula
-                </div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>Formula</div>
                 <textarea
                   value={formula}
                   onChange={(e) => setFormula(e.target.value)}
@@ -413,42 +411,8 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                 />
               </div>
 
-              {/* ✅ RESTORED: Supported Operators / Examples panel */}
-              <div
-                style={{
-                  background: "#f1f5f9",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 10,
-                  padding: 12,
-                  fontSize: 11,
-                  color: "#1e293b",
-                  lineHeight: 1.35,
-                }}
-              >
-                <div style={{ fontWeight: 600, marginBottom: 8 }}>Supported Operators</div>
-                <div style={{ display: "grid", gap: 4 }}>
-                  <div>VALUE + 10 → add</div>
-                  <div>VALUE - 3 → subtract</div>
-                  <div>VALUE * 2 → multiply</div>
-                  <div>VALUE / 5 → divide</div>
-                  <div>VALUE % 60 → modulo</div>
-                </div>
-
-                <div style={{ fontWeight: 600, margin: "10px 0 6px" }}>Combined Examples</div>
-                <div style={{ display: "grid", gap: 4 }}>
-                  <div>(VALUE * 1.5) + 5 → scale &amp; offset</div>
-                  <div>(VALUE / 4095) * 20 - 4 → ADC → 4–20 mA</div>
-                </div>
-
-                <div style={{ fontWeight: 600, margin: "10px 0 6px" }}>
-                  String Output Examples
-                </div>
-                <div style={{ display: "grid", gap: 4 }}>
-                  <div>CONCAT("Temp=", VALUE)</div>
-                  <div>CONCAT("Level=", VALUE, " %")</div>
-                  <div>CONCAT("Vol=", VALUE * 2, " Gal")</div>
-                </div>
-              </div>
+              {/* ✅ EXTRACTED SECTION */}
+              <DisplaysettingsmodalMathHelp />
 
               {liveErr ? (
                 <div
@@ -529,8 +493,6 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                 </select>
               </div>
 
-              {/* ✅ Sample dropdown REMOVED */}
-
               <div
                 style={{
                   marginTop: 4,
@@ -550,31 +512,6 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                   ) : (
                     <span style={{ color: "#dc2626" }}>OFFLINE</span>
                   )}
-                </div>
-
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 10,
-                    marginTop: 10,
-                    fontSize: 12,
-                    fontWeight: 400,
-                  }}
-                >
-                  <div>
-                    <div style={previewMutedStyle}>Model</div>
-                    <div style={{ marginTop: 2, fontWeight: 400 }}>
-                      {MODEL_META[bindModel]?.label || "—"}
-                    </div>
-                  </div>
-
-                  <div>
-                    <div style={previewMutedStyle}>Selected AI</div>
-                    <div style={{ marginTop: 2, fontWeight: 400 }}>
-                      {String(bindField || "").toUpperCase().replace("AI", "AI-")}
-                    </div>
-                  </div>
                 </div>
 
                 <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between" }}>
