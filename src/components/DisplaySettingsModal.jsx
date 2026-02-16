@@ -1,126 +1,229 @@
-import React, { useState, useEffect } from "react";
+// src/components/DisplaySettingModal.jsx
+import React, { useEffect, useMemo, useRef, useState } from "react";
+import { API_URL } from "../config/api";
+import { getToken } from "../utils/authToken";
 
-// 🔁 TEMP: replace with your real API call later
-async function fetchTagsForImei(imei) {
-  if (!imei) return [];
+/* ===========================================
+   MODELS
+=========================================== */
 
-  return [
-    { name: "LEVEL", type: "string" },
-    { name: "TEMPERATURE", type: "string" },
-    { name: "HOUR_RECEIVED", type: "string" },
-    { name: "DI1", type: "boolean" },
-    { name: "ANALOG1", type: "number" },
-  ];
-}
-
-const THEME_MAP = {
-  "LCD Grey": "gray",
-  "LCD Blue": "blue",
-  "LED Green": "green",
-  "Alert Red": "red",
-  "Industrial Dark": "dark",
+const MODEL_META = {
+  zhc1921: { label: "CF-2000", base: "zhc1921" },
+  zhc1661: { label: "CF-1600", base: "zhc1661" },
 };
 
-const REVERSE_THEME_MAP = Object.fromEntries(
-  Object.entries(THEME_MAP).map(([label, key]) => [key, label])
-);
+/* ===========================================
+   AUTH HELPERS (same as GraphicDisplay)
+=========================================== */
 
-export default function DisplaySettingsModal({ tank, onClose, onSave }) {
-  const props = tank.properties || {};
+function getAuthHeaders() {
+  const token = String(getToken() || "").trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
-  const [activeTab, setActiveTab] = useState("display");
+function withNoCache(path) {
+  const sep = path.includes("?") ? "&" : "?";
+  return `${path}${sep}_ts=${Date.now()}`;
+}
 
-  // Display settings
-  const [label, setLabel] = useState(props.label || "");
-  const [numberFormat, setNumberFormat] = useState(props.numberFormat || "00000");
-  const [theme, setTheme] = useState(REVERSE_THEME_MAP[props.theme] || "LCD Grey");
+async function apiGet(path, { signal } = {}) {
+  const res = await fetch(`${API_URL}${withNoCache(path)}`, {
+    method: "GET",
+    headers: {
+      ...getAuthHeaders(),
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    },
+    cache: "no-store",
+    signal,
+  });
 
-  // Register Tag
-  const [imei, setImei] = useState(props.imei || "");
-  const [availableTags, setAvailableTags] = useState([]);
-  const [selectedTag, setSelectedTag] = useState(props.tag || "");
+  if (!res.ok) throw new Error(`GET ${path} failed (${res.status})`);
+  return res.json();
+}
 
-  // Math
-  const [formula, setFormula] = useState(props.formula || "");
+/* ===========================================
+   DEVICE LOADER (same logic as GraphicDisplay)
+=========================================== */
 
-  // ⭐ MODAL DRAGGING STATE
-  const [modalPos, setModalPos] = useState({ x: window.innerWidth / 2 - 240, y: 120 });
-  const [isDragging, setIsDragging] = useState(false);
-  const [dragOffset, setDragOffset] = useState({ x: 0, y: 0 });
+async function loadDevicesForModel(modelKey, { signal } = {}) {
+  const base = MODEL_META[modelKey]?.base || modelKey;
 
-  // LOAD TAGS WHEN IMEI CHANGES
+  const candidates =
+    base === "zhc1921"
+      ? ["/zhc1921/my-devices", "/zhc1921/devices", "/zhc1921/list", "/zhc1921"]
+      : ["/zhc1661/my-devices", "/zhc1661/devices", "/zhc1661/list", "/zhc1661"];
+
+  for (const p of candidates) {
+    try {
+      const data = await apiGet(p, { signal });
+
+      const arr = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.devices)
+        ? data.devices
+        : Array.isArray(data?.rows)
+        ? data.rows
+        : [];
+
+      return arr.map((r) => ({
+        deviceId:
+          r.deviceId ??
+          r.device_id ??
+          r.id ??
+          r.imei ??
+          r.IMEI ??
+          r.DEVICE_ID ??
+          "",
+        status: String(r.status ?? r.online ?? "").toLowerCase(),
+      }));
+    } catch {
+      continue;
+    }
+  }
+
+  return [];
+}
+
+async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
+  const base = MODEL_META[modelKey]?.base || modelKey;
+
+  const direct =
+    base === "zhc1921"
+      ? [
+          `/zhc1921/device/${deviceId}`,
+          `/zhc1921/devices/${deviceId}`,
+          `/zhc1921/${deviceId}`,
+        ]
+      : [
+          `/zhc1661/device/${deviceId}`,
+          `/zhc1661/devices/${deviceId}`,
+          `/zhc1661/${deviceId}`,
+        ];
+
+  for (const p of direct) {
+    try {
+      const r = await apiGet(p, { signal });
+      return r?.row ?? r?.device ?? r;
+    } catch {
+      continue;
+    }
+  }
+
+  return null;
+}
+
+function readAiField(row, bindField) {
+  if (!row || !bindField) return null;
+  const f = String(bindField).toLowerCase();
+
+  const candidates = [
+    f,
+    f.toUpperCase(),
+    f.replace("ai", "analog"),
+    f.replace("ai", "ANALOG"),
+  ];
+
+  for (const k of candidates) {
+    if (row[k] !== undefined) return row[k];
+  }
+
+  return null;
+}
+
+/* ===========================================
+   COMPONENT
+=========================================== */
+
+export default function DisplaySettingModal({ tank, onClose, onSave }) {
+  const props = tank?.properties || {};
+
+  const [bindModel, setBindModel] = useState(props.bindModel || "zhc1921");
+  const [bindDeviceId, setBindDeviceId] = useState(props.bindDeviceId || "");
+  const [bindField, setBindField] = useState(props.bindField || "ai1");
+
+  const [devices, setDevices] = useState([]);
+  const [liveValue, setLiveValue] = useState(null);
+  const [liveErr, setLiveErr] = useState("");
+
+  /* ===========================================
+     LOAD DEVICES
+  =========================================== */
+
   useEffect(() => {
     let cancelled = false;
+    const ctrl = new AbortController();
 
     const load = async () => {
-      if (!imei) {
-        setAvailableTags([]);
-        return;
-      }
-
-      const tags = await fetchTagsForImei(imei);
+      const list = await loadDevicesForModel(bindModel, {
+        signal: ctrl.signal,
+      });
       if (cancelled) return;
-
-      const stringTags = tags.filter((t) => t.type === "string");
-      setAvailableTags(stringTags);
-
-      if (!selectedTag && stringTags.length > 0) {
-        setSelectedTag(stringTags[0].name);
-      }
+      setDevices(list);
     };
 
     load();
-    return () => (cancelled = true);
-  }, [imei]);
-
-  // ⭐ DRAGGING EVENT HANDLERS
-  const startDrag = (e) => {
-    e.stopPropagation();
-    setIsDragging(true);
-    setDragOffset({
-      x: e.clientX - modalPos.x,
-      y: e.clientY - modalPos.y,
-    });
-  };
-
-  const stopDrag = () => {
-    setIsDragging(false);
-  };
-
-  const onDrag = (e) => {
-    if (!isDragging) return;
-
-    setModalPos({
-      x: Math.max(20, Math.min(window.innerWidth - 500, e.clientX - dragOffset.x)),
-      y: Math.max(20, Math.min(window.innerHeight - 200, e.clientY - dragOffset.y)),
-    });
-  };
-
-  useEffect(() => {
-    window.addEventListener("mousemove", onDrag);
-    window.addEventListener("mouseup", stopDrag);
 
     return () => {
-      window.removeEventListener("mousemove", onDrag);
-      window.removeEventListener("mouseup", stopDrag);
+      cancelled = true;
+      ctrl.abort();
     };
-  });
+  }, [bindModel]);
 
-  // SAVE
-  const handleSave = () => {
-    const themeKey = THEME_MAP[theme];
+  /* ===========================================
+     LIVE POLL (same style as GraphicDisplay)
+  =========================================== */
 
-    onSave({
-      label,
-      numberFormat,
-      theme: themeKey,
-      imei,
-      tag: selectedTag,
-      formula,
-    });
+  useEffect(() => {
+    if (!bindModel || !bindDeviceId || !bindField) {
+      setLiveValue(null);
+      return;
+    }
 
-    onClose();
-  };
+    let cancelled = false;
+    const ctrl = new AbortController();
+
+    const tick = async () => {
+      try {
+        setLiveErr("");
+
+        const row = await loadLiveRowForDevice(bindModel, bindDeviceId, {
+          signal: ctrl.signal,
+        });
+
+        const raw = readAiField(row, bindField);
+        const num =
+          raw === null || raw === undefined
+            ? null
+            : typeof raw === "number"
+            ? raw
+            : Number(raw);
+
+        if (cancelled) return;
+        setLiveValue(Number.isFinite(num) ? num : null);
+      } catch {
+        if (cancelled) return;
+        setLiveErr("Could not read live value.");
+      }
+    };
+
+    tick();
+    const id = window.setInterval(tick, 3000);
+
+    return () => {
+      cancelled = true;
+      ctrl.abort();
+      window.clearInterval(id);
+    };
+  }, [bindModel, bindDeviceId, bindField]);
+
+  const selectedDevice = devices.find(
+    (d) => String(d.deviceId) === String(bindDeviceId)
+  );
+
+  /* ===========================================
+     UI
+  =========================================== */
 
   return (
     <div
@@ -131,228 +234,128 @@ export default function DisplaySettingsModal({ tank, onClose, onSave }) {
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        zIndex: 999999999,
+        zIndex: 999999,
       }}
       onClick={onClose}
     >
-      {/* ⭐ DRAGGABLE MODAL CONTAINER */}
       <div
         onClick={(e) => e.stopPropagation()}
         style={{
-          position: "absolute",
-          left: modalPos.x,
-          top: modalPos.y,
-          width: 650,
-          background: "#f9fafb",
-          borderRadius: 10,
-          boxShadow: "0 18px 40px rgba(0,0,0,0.45)",
-          border: "1px solid #d1d5db",
-          padding: 16,
-          display: "flex",
-          flexDirection: "column",
-          cursor: isDragging ? "grabbing" : "default",
+          width: 820,
+          background: "#f8fafc",
+          borderRadius: 12,
+          boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
+          padding: 20,
         }}
       >
-        {/* ⭐ DRAG HANDLE: TABS AREA */}
-        <div
-          onMouseDown={startDrag}
-          style={{
-            display: "flex",
-            marginBottom: 12,
-            borderBottom: "1px solid #e5e7eb",
-            cursor: "grab",
-            userSelect: "none",
-          }}
-        >
-          {[
-            { id: "display", label: "Display Settings" },
-            { id: "tag", label: "Register Tag" },
-            { id: "math", label: "Math" },
-          ].map((tab) => (
-            <button
-              key={tab.id}
-              onClick={() => setActiveTab(tab.id)}
-              style={{
-                flex: 1,
-                padding: "8px 0",
-                border: "none",
-                borderBottom:
-                  activeTab === tab.id ? "3px solid #2563eb" : "3px solid transparent",
-                background: "transparent",
-                cursor: "pointer",
-                fontWeight: activeTab === tab.id ? "700" : "500",
-                color: activeTab === tab.id ? "#111827" : "#6b7280",
-              }}
-            >
-              {tab.label}
-            </button>
-          ))}
+        <h2 style={{ fontWeight: 900, marginBottom: 16 }}>
+          Tag that drives the Output (AI)
+        </h2>
+
+        {/* MODEL */}
+        <div style={{ marginBottom: 12 }}>
+          <label>Model</label>
+          <select
+            value={bindModel}
+            onChange={(e) => setBindModel(e.target.value)}
+          >
+            {Object.entries(MODEL_META).map(([k, v]) => (
+              <option key={k} value={k}>
+                {v.label}
+              </option>
+            ))}
+          </select>
         </div>
 
-        {/* CONTENT AREA */}
-        <div style={{ flex: 1, overflowY: "auto", paddingRight: 4, maxHeight: "60vh" }}>
-          {/* DISPLAY TAB ----------------------------- */}
-          {activeTab === "display" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Label</label>
-                <input
-                  value={label}
-                  onChange={(e) => setLabel(e.target.value)}
-                  className="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
-                />
-              </div>
+        {/* DEVICE */}
+        <div style={{ marginBottom: 12 }}>
+          <label>Device</label>
+          <select
+            value={bindDeviceId}
+            onChange={(e) => setBindDeviceId(e.target.value)}
+          >
+            <option value="">Select device...</option>
+            {devices.map((d) => (
+              <option key={d.deviceId} value={d.deviceId}>
+                {d.deviceId}
+              </option>
+            ))}
+          </select>
+        </div>
 
-              <div>
-                <label className="block text-sm font-medium text-gray-700">
-                  Number Format
-                </label>
-                <select
-                  value={numberFormat}
-                  onChange={(e) => setNumberFormat(e.target.value)}
-                  className="mt-1 block w-40 border border-gray-300 rounded-md px-2 py-1 text-sm"
-                >
-                  <option value="00">00</option>
-                  <option value="000">000</option>
-                  <option value="0000">0000</option>
-                  <option value="00000">00000</option>
+        {/* AI */}
+        <div style={{ marginBottom: 12 }}>
+          <label>Analog Input (AI)</label>
+          <select
+            value={bindField}
+            onChange={(e) => setBindField(e.target.value)}
+          >
+            <option value="ai1">AI-1</option>
+            <option value="ai2">AI-2</option>
+            <option value="ai3">AI-3</option>
+            <option value="ai4">AI-4</option>
+          </select>
+        </div>
 
-                  <option value="00.0">00.0</option>
-                  <option value="00.00">00.00</option>
-                  <option value="000.00">000.00</option>
-                  <option value="0000.00">0000.00</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-sm font-medium text-gray-700">Theme</label>
-                <select
-                  value={theme}
-                  onChange={(e) => setTheme(e.target.value)}
-                  className="mt-1 block w-44 border border-gray-300 rounded-md px-2 py-1 text-sm"
-                >
-                  <option>LCD Grey</option>
-                  <option>LCD Blue</option>
-                  <option>LED Green</option>
-                  <option>Alert Red</option>
-                  <option>Industrial Dark</option>
-                </select>
-              </div>
+        {/* PREVIEW */}
+        {selectedDevice && (
+          <div
+            style={{
+              marginTop: 20,
+              padding: 14,
+              borderRadius: 10,
+              background: "#ffffff",
+              border: "1px solid #e5e7eb",
+            }}
+          >
+            <div style={{ fontWeight: 700, marginBottom: 6 }}>
+              Binding Preview
             </div>
-          )}
 
-          {/* TAG TAB ----------------------------- */}
-          {activeTab === "tag" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <label className="block text-sm font-medium text-gray-700">IMEI</label>
-              <input
-                value={imei}
-                onChange={(e) => setImei(e.target.value)}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
-              />
-
-              <label className="block text-sm font-medium text-gray-700">STRING Tags</label>
-              <select
-                value={selectedTag}
-                onChange={(e) => setSelectedTag(e.target.value)}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
-              >
-                <option value="">Select a STRING tag…</option>
-                {availableTags.map((tag) => (
-                  <option key={tag.name} value={tag.name}>
-                    {tag.name}
-                  </option>
-                ))}
-              </select>
+            <div>
+              Selected: {selectedDevice.deviceId} ·{" "}
+              {selectedDevice.status === "online" ? (
+                <span style={{ color: "green" }}>ONLINE</span>
+              ) : (
+                <span style={{ color: "gray" }}>OFFLINE</span>
+              )}
             </div>
-          )}
 
-          {/* MATH TAB ----------------------------- */}
-          {activeTab === "math" && (
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <label className="block text-sm font-medium text-gray-700">Formula</label>
-
-              <textarea
-                value={formula}
-                onChange={(e) => setFormula(e.target.value)}
-                className="mt-1 block w-full border border-gray-300 rounded-md px-2 py-1 text-sm"
-                rows={3}
-                placeholder="Example: VALUE * 2"
-              />
-
-              {/* EXAMPLE PANEL */}
-              <div
+            <div style={{ marginTop: 10 }}>
+              <strong>Current Value:</strong>{" "}
+              <span
                 style={{
-                  marginTop: 6,
-                  padding: 14,
-                  background: "#f1f5f9",
-                  borderRadius: 6,
-                  fontSize: "11px",
-                  color: "#1e293b",
-                  border: "1px solid #e2e8f0",
-                  lineHeight: "1.25",
+                  background: "#c7f9cc",
+                  padding: "4px 10px",
+                  borderRadius: 20,
+                  fontWeight: 900,
                 }}
               >
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                  Supported Operators
-                </div>
-
-                <ul className="text-xs space-y-1 mb-3">
-                  <li><strong>VALUE + 10</strong> → add 10</li>
-                  <li><strong>VALUE - 3</strong> → subtract</li>
-                  <li><strong>VALUE * 2</strong> → multiply</li>
-                  <li><strong>VALUE / 5</strong> → divide</li>
-                  <li><strong>VALUE % 60</strong> → modulo</li>
-                  <li><strong>VALUE = 100</strong> → compare</li>
-                </ul>
-
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                  Combined Examples
-                </div>
-
-                <ul className="text-xs space-y-1 mb-3">
-                  <li><strong>(VALUE * 1.5) + 5</strong> → scale & offset</li>
-                  <li><strong>(VALUE - 4) / 2</strong> → normalize</li>
-                  <li><strong>((VALUE * 9/5) + 32)</strong> → °C → °F</li>
-                  <li><strong>((VALUE - 32) * 5/9)</strong> → °F → °C</li>
-                  <li><strong>((VALUE / 4095) * 20) - 4</strong> → ADC → 4–20 mA</li>
-                </ul>
-
-                <div style={{ fontWeight: 700, marginBottom: 6 }}>
-                  String Output Examples
-                </div>
-
-                <ul className="text-xs space-y-1">
-                  <li><strong>CONCAT("Temp=", VALUE)</strong></li>
-                  <li><strong>CONCAT("Level=", VALUE, " %")</strong></li>
-                  <li><strong>CONCAT("Vol=", VALUE * 2, " Gal")</strong></li>
-                </ul>
-              </div>
+                {Number.isFinite(liveValue)
+                  ? liveValue.toFixed(2)
+                  : "--"}
+              </span>
             </div>
-          )}
-        </div>
+          </div>
+        )}
 
-        {/* --------- BUTTONS --------- */}
-        <div
-          style={{
-            marginTop: 12,
-            display: "flex",
-            justifyContent: "flex-end",
-            gap: 8,
-          }}
-        >
-          <button
-            onClick={onClose}
-            className="px-3 py-1 text-sm rounded-md border border-gray-300 bg-white hover:bg-gray-50"
-          >
+        {/* ACTIONS */}
+        <div style={{ marginTop: 20, textAlign: "right" }}>
+          <button onClick={onClose} style={{ marginRight: 10 }}>
             Cancel
           </button>
 
           <button
-            onClick={handleSave}
-            className="px-3 py-1 text-sm rounded-md bg-blue-600 text-white hover:bg-blue-700"
+            onClick={() =>
+              onSave({
+                ...tank,
+                bindModel,
+                bindDeviceId,
+                bindField,
+              })
+            }
           >
-            Save
+            Apply
           </button>
         </div>
       </div>
