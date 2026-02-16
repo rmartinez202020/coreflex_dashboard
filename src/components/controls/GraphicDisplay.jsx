@@ -107,7 +107,9 @@ export default function GraphicDisplay({ tank }) {
   const storageKey = useMemo(() => {
     const widgetId =
       tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
-    const base = widgetId ? `widget:${widgetId}` : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
+    const base = widgetId
+      ? `widget:${widgetId}`
+      : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
     return `coreflex:graphicDisplay:points:${base}`;
   }, [tank, bindModel, bindDeviceId, bindField]);
 
@@ -199,7 +201,11 @@ export default function GraphicDisplay({ tank }) {
     const raw = localStorage.getItem(storageKey);
     const parsed = raw ? safeJsonParse(raw) : null;
 
-    const loaded = Array.isArray(parsed?.points) ? parsed.points : Array.isArray(parsed) ? parsed : [];
+    const loaded = Array.isArray(parsed?.points)
+      ? parsed.points
+      : Array.isArray(parsed)
+      ? parsed
+      : [];
     const pruned = prunePointsByWindow(loaded, windowSize, timeUnit);
 
     setPoints(pruned);
@@ -227,7 +233,8 @@ export default function GraphicDisplay({ tank }) {
       const pruned = prunePointsByWindow(points, windowSize, timeUnit);
       // keep it compact (avoid runaway)
       const limit = Math.max(50, Number(maxPointsRef.current || 200));
-      const finalPoints = pruned.length > limit ? pruned.slice(pruned.length - limit) : pruned;
+      const finalPoints =
+        pruned.length > limit ? pruned.slice(pruned.length - limit) : pruned;
 
       try {
         localStorage.setItem(
@@ -247,7 +254,17 @@ export default function GraphicDisplay({ tank }) {
     return () => {
       if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
     };
-  }, [points, storageKey, bindDeviceId, bindField, windowSize, timeUnit, bindModel, bindField, bindDeviceId]);
+  }, [
+    points,
+    storageKey,
+    bindDeviceId,
+    bindField,
+    windowSize,
+    timeUnit,
+    bindModel,
+    bindField,
+    bindDeviceId,
+  ]);
 
   // ===============================
   // ✅ LIVE POLL
@@ -367,22 +384,22 @@ export default function GraphicDisplay({ tank }) {
     return { poly: coords.join(" "), W, H, tMin, tMax };
   }, [points, pointsForView, yMin, yMax]);
 
-  // ✅ BIGGER top-right button styles
+  // ✅ BIGGER top button styles + keep rectangle (not pill)
   const topBtnBase = {
-    height: 30,
-    padding: "0 14px",
-    borderRadius: 999,
+    height: 36,
+    padding: "0 18px",
+    borderRadius: 10,
     border: "1px solid #d1d5db",
     background: "#fff",
     color: "#111",
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: 900,
     cursor: "pointer",
-    lineHeight: "30px",
+    lineHeight: "36px",
     userSelect: "none",
     display: "inline-flex",
     alignItems: "center",
-    gap: 8,
+    gap: 10,
   };
 
   const topBtnDisabled = {
@@ -390,6 +407,52 @@ export default function GraphicDisplay({ tank }) {
     cursor: "not-allowed",
     opacity: 0.55,
   };
+
+  // ✅ Output box (top-right, after buttons)
+  const outputBoxStyle = {
+    height: 36,
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    padding: "0 12px",
+    borderRadius: 10,
+    border: "1px solid rgba(0,0,0,0.10)",
+    background: "rgba(255,255,255,0.92)",
+    fontFamily: "monospace",
+    fontSize: 12,
+    fontWeight: 900,
+    color: "#111",
+    whiteSpace: "nowrap",
+  };
+
+  // ✅ Style indicator (NO oval/pill; just color dot + LINE text)
+  const styleIndicator = (
+    <div
+      style={{
+        display: "inline-flex",
+        alignItems: "center",
+        gap: 8,
+        height: 36,
+        padding: "0 6px",
+        fontSize: 12,
+        fontWeight: 900,
+        color: "#111",
+        whiteSpace: "nowrap",
+      }}
+      title={`Line color: ${lineColor}`}
+    >
+      <span
+        style={{
+          width: 12,
+          height: 12,
+          borderRadius: 999,
+          background: lineColor,
+          border: "1px solid rgba(0,0,0,0.15)",
+        }}
+      />
+      <span>{styleBadge}</span>
+    </div>
+  );
 
   return (
     <div
@@ -419,6 +482,7 @@ export default function GraphicDisplay({ tank }) {
           minWidth: 0,
         }}
       >
+        {/* TOP ROW: Title + (Buttons + style) on LEFT of Output */}
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div
             style={{
@@ -434,16 +498,17 @@ export default function GraphicDisplay({ tank }) {
             {title}
           </div>
 
-          {/* TOP-RIGHT: Play / Pause / Export */}
+          {/* RIGHT SIDE: buttons + style indicator + output (output last) */}
           <div
             style={{
               marginLeft: "auto",
               display: "inline-flex",
               alignItems: "center",
-              gap: 10,
+              gap: 12,
               flex: "0 0 auto",
             }}
           >
+            {/* Play / Pause / Export (bigger) */}
             <button
               type="button"
               onClick={() => setIsPlaying(true)}
@@ -479,38 +544,20 @@ export default function GraphicDisplay({ tank }) {
               ⬇ <span>Export</span>
             </button>
 
-            {/* style badge */}
-            <div
-              style={{
-                fontSize: 11,
-                fontWeight: 900,
-                border: "1px solid #ddd",
-                borderRadius: 999,
-                padding: "4px 10px",
-                background: "#fff",
-                color: "#333",
-                flex: "0 0 auto",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                height: 30,
-              }}
-              title={`Line color: ${lineColor}`}
-            >
-              <span
-                style={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: 999,
-                  background: lineColor,
-                  border: "1px solid rgba(0,0,0,0.15)",
-                }}
-              />
-              {styleBadge}
+            {/* NO pill/oval: just dot + LINE */}
+            {styleIndicator}
+
+            {/* Output on the far right */}
+            <div style={outputBoxStyle} title="Math Output">
+              <span style={{ color: "#555" }}>Output:</span>
+              <span style={{ color: "#0b3b18" }}>
+                {Number.isFinite(mathOutput) ? mathOutput.toFixed(2) : "--"}
+              </span>
             </div>
           </div>
         </div>
 
+        {/* SECOND ROW: info only (no Output here anymore) */}
         <div
           style={{
             display: "flex",
@@ -518,7 +565,7 @@ export default function GraphicDisplay({ tank }) {
             gap: 8,
             color: "#444",
             fontSize: 11,
-            marginTop: 4,
+            marginTop: 6,
             minWidth: 0,
             flexWrap: "wrap",
           }}
@@ -537,11 +584,6 @@ export default function GraphicDisplay({ tank }) {
           <span>•</span>
           <span>
             Y: <b>{yMin}</b> → <b>{yMax}</b> {yUnits ? `(${yUnits})` : ""}
-          </span>
-
-          <span style={{ marginLeft: "auto" }} title="Math Output">
-            Output:{" "}
-            <b>{Number.isFinite(mathOutput) ? mathOutput.toFixed(2) : "--"}</b>
           </span>
         </div>
       </div>
@@ -636,7 +678,12 @@ export default function GraphicDisplay({ tank }) {
               style={{ width: "100%", height: "100%", display: "block" }}
             >
               {svg.poly ? (
-                <polyline fill="none" stroke={lineColor} strokeWidth="3" points={svg.poly} />
+                <polyline
+                  fill="none"
+                  stroke={lineColor}
+                  strokeWidth="3"
+                  points={svg.poly}
+                />
               ) : null}
             </svg>
 
