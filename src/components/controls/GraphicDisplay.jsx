@@ -7,7 +7,7 @@ import { computeMathOutput, msPerUnit, fmtTimeWithDate } from "./graphicDisplay/
 // ✅ extracted loader (API + row loader + field reader)
 import { loadLiveRowForDevice, readAiField } from "./graphicDisplay/loader";
 
-// ✅ NEW: extracted ping/zoom hook
+// ✅ extracted ping/zoom hook
 import usePingZoom from "./graphicDisplay/hooks/usePingZoom";
 
 // ✅ line color fallback
@@ -53,6 +53,37 @@ function exportPointsCsv({
   URL.revokeObjectURL(url);
 }
 
+// ✅ localStorage helpers
+function safeJsonParse(s) {
+  try {
+    return JSON.parse(s);
+  } catch {
+    return null;
+  }
+}
+
+function prunePointsByWindow(points, windowSize, timeUnit) {
+  const arr = Array.isArray(points) ? points : [];
+  const win = Number.isFinite(windowSize) ? Math.max(1, Number(windowSize)) : 60;
+  const unitMs = msPerUnit(timeUnit || "seconds");
+  const keepMs = win * unitMs;
+
+  // small buffer so timeline doesn’t look “empty” on edge
+  const bufferMs = Math.min(keepMs * 0.15, 30_000); // up to 30s buffer
+  const cutoff = Date.now() - (keepMs + bufferMs);
+
+  const cleaned = arr
+    .map((p) => ({
+      t: Number(p?.t),
+      y: p?.y,
+    }))
+    .filter((p) => Number.isFinite(p.t))
+    .sort((a, b) => a.t - b.t)
+    .filter((p) => p.t >= cutoff);
+
+  return cleaned;
+}
+
 export default function GraphicDisplay({ tank }) {
   const title = tank?.title ?? "Graphic Display";
   const timeUnit = tank?.timeUnit ?? "seconds";
@@ -69,8 +100,16 @@ export default function GraphicDisplay({ tank }) {
   const bindField = String(tank?.bindField ?? "ai1").trim();
   const mathFormula = tank?.mathFormula ?? "";
 
-  // ✅ NEW: line color from settings panel (saved on tank)
+  // ✅ line color from settings panel (saved on tank)
   const lineColor = normalizeLineColor(tank?.lineColor);
+
+  // ✅ stable storage key (per widget if possible, otherwise per binding)
+  const storageKey = useMemo(() => {
+    const widgetId =
+      tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
+    const base = widgetId ? `widget:${widgetId}` : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
+    return `coreflex:graphicDisplay:points:${base}`;
+  }, [tank, bindModel, bindDeviceId, bindField]);
 
   // ✅ grid divisions
   const yDivs = Number.isFinite(tank?.yDivs) ? Math.max(2, tank.yDivs) : 10;
@@ -147,6 +186,72 @@ export default function GraphicDisplay({ tank }) {
     maxPointsRef.current = maxPoints;
   }, [maxPoints]);
 
+  // ===============================
+  // ✅ LOAD points from localStorage when binding/widget changes
+  // ===============================
+  useEffect(() => {
+    // if binding missing, clear + don't load
+    if (!bindDeviceId || !bindField) {
+      setPoints([]);
+      return;
+    }
+
+    const raw = localStorage.getItem(storageKey);
+    const parsed = raw ? safeJsonParse(raw) : null;
+
+    const loaded = Array.isArray(parsed?.points) ? parsed.points : Array.isArray(parsed) ? parsed : [];
+    const pruned = prunePointsByWindow(loaded, windowSize, timeUnit);
+
+    setPoints(pruned);
+
+    // best effort: restore last values for display
+    const last = pruned.length ? pruned[pruned.length - 1] : null;
+    if (last && Number.isFinite(Number(last.y))) {
+      setMathOutput(Number(last.y));
+    }
+  }, [storageKey, bindDeviceId, bindField, windowSize, timeUnit]);
+
+  // ===============================
+  // ✅ SAVE points to localStorage (debounced)
+  // ===============================
+  const saveTimerRef = useRef(null);
+
+  useEffect(() => {
+    // only save when we have a binding
+    if (!bindDeviceId || !bindField) return;
+
+    // debounce writes
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+
+    saveTimerRef.current = window.setTimeout(() => {
+      const pruned = prunePointsByWindow(points, windowSize, timeUnit);
+      // keep it compact (avoid runaway)
+      const limit = Math.max(50, Number(maxPointsRef.current || 200));
+      const finalPoints = pruned.length > limit ? pruned.slice(pruned.length - limit) : pruned;
+
+      try {
+        localStorage.setItem(
+          storageKey,
+          JSON.stringify({
+            v: 1,
+            savedAt: Date.now(),
+            bind: { bindModel, bindDeviceId, bindField },
+            points: finalPoints,
+          })
+        );
+      } catch {
+        // ignore quota errors
+      }
+    }, 350);
+
+    return () => {
+      if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+    };
+  }, [points, storageKey, bindDeviceId, bindField, windowSize, timeUnit, bindModel, bindField, bindDeviceId]);
+
+  // ===============================
+  // ✅ LIVE POLL
+  // ===============================
   useEffect(() => {
     // reset points if binding missing
     if (!bindDeviceId || !bindField) {
@@ -192,9 +297,15 @@ export default function GraphicDisplay({ tank }) {
           const t = Date.now();
           setPoints((prev) => {
             const next = [...prev, { t, y: out }];
+
+            // prune by time window first (so reopen looks correct)
+            const pruned = prunePointsByWindow(next, windowSize, timeUnit);
+
+            // also enforce max points based on sample/window
             const limit = maxPointsRef.current || 2;
-            if (next.length > limit) next.splice(0, next.length - limit);
-            return next;
+            if (pruned.length > limit) pruned.splice(0, pruned.length - limit);
+
+            return pruned;
           });
         }
       } catch (e) {
@@ -212,7 +323,7 @@ export default function GraphicDisplay({ tank }) {
       ctrl.abort();
       window.clearInterval(id);
     };
-  }, [bindModel, bindDeviceId, bindField, sampleMs, mathFormula, isPlaying]);
+  }, [bindModel, bindDeviceId, bindField, sampleMs, mathFormula, isPlaying, windowSize, timeUnit]);
 
   // ===============================
   // ✅ INTERACTION: ping + zoom (timeline) via hook
@@ -256,18 +367,18 @@ export default function GraphicDisplay({ tank }) {
     return { poly: coords.join(" "), W, H, tMin, tMax };
   }, [points, pointsForView, yMin, yMax]);
 
-  // ✅ BIGGER top-right button styles (as in your screenshot)
+  // ✅ BIGGER top-right button styles
   const topBtnBase = {
-    height: 30, // ✅ bigger
-    padding: "0 14px", // ✅ bigger
+    height: 30,
+    padding: "0 14px",
     borderRadius: 999,
     border: "1px solid #d1d5db",
     background: "#fff",
     color: "#111",
-    fontSize: 12, // ✅ bigger
+    fontSize: 12,
     fontWeight: 900,
     cursor: "pointer",
-    lineHeight: "30px", // ✅ match height
+    lineHeight: "30px",
     userSelect: "none",
     display: "inline-flex",
     alignItems: "center",
@@ -301,7 +412,7 @@ export default function GraphicDisplay({ tank }) {
       {/* HEADER */}
       <div
         style={{
-          padding: "8px 10px", // ✅ a bit taller so buttons fit nicely
+          padding: "8px 10px",
           borderBottom: "1px solid #e6e6e6",
           background: "linear-gradient(180deg, #ffffff 0%, #f4f4f4 100%)",
           flex: "0 0 auto",
@@ -323,13 +434,13 @@ export default function GraphicDisplay({ tank }) {
             {title}
           </div>
 
-          {/* ✅ TOP-RIGHT: Play / Pause / Export (bigger + placed here) */}
+          {/* TOP-RIGHT: Play / Pause / Export */}
           <div
             style={{
               marginLeft: "auto",
               display: "inline-flex",
               alignItems: "center",
-              gap: 10, // ✅ more spacing
+              gap: 10,
               flex: "0 0 auto",
             }}
           >
@@ -368,7 +479,7 @@ export default function GraphicDisplay({ tank }) {
               ⬇ <span>Export</span>
             </button>
 
-            {/* existing style badge */}
+            {/* style badge */}
             <div
               style={{
                 fontSize: 11,
@@ -382,7 +493,7 @@ export default function GraphicDisplay({ tank }) {
                 display: "inline-flex",
                 alignItems: "center",
                 gap: 8,
-                height: 30, // ✅ align with buttons
+                height: 30,
               }}
               title={`Line color: ${lineColor}`}
             >
@@ -640,7 +751,7 @@ export default function GraphicDisplay({ tank }) {
             ) : null}
           </div>
 
-          {/* ✅ X TIMELINE (date + time) */}
+          {/* X TIMELINE */}
           <div
             style={{
               position: "absolute",
