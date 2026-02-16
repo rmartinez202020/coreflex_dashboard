@@ -59,69 +59,50 @@ export function readAiField(row, bindField) {
   return null;
 }
 
+function normalizeArray(data) {
+  return Array.isArray(data)
+    ? data
+    : Array.isArray(data?.devices)
+    ? data.devices
+    : Array.isArray(data?.rows)
+    ? data.rows
+    : [];
+}
+
+function readDeviceId(row) {
+  return (
+    row?.deviceId ??
+    row?.device_id ??
+    row?.id ??
+    row?.imei ??
+    row?.IMEI ??
+    row?.DEVICE_ID ??
+    ""
+  );
+}
+
+function listCandidatesForBase(base) {
+  // ✅ Use only tenant-safe endpoints (no /devices, no /device/:id, no /one/:id)
+  if (base === "zhc1921") return ["/zhc1921/my-devices", "/zhc1921/list", "/zhc1921"];
+  if (base === "zhc1661") return ["/zhc1661/my-devices", "/zhc1661/list", "/zhc1661"];
+  if (base === "tp4000") return ["/tp4000/my-devices", "/tp4000/list", "/tp4000"];
+  return [`/${base}/my-devices`, `/${base}/list`, `/${base}`];
+}
+
 export async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
   const base = MODEL_META[modelKey]?.base || modelKey;
+  const candidates = listCandidatesForBase(base);
 
-  const directCandidates =
-    base === "zhc1921"
-      ? [
-          `/zhc1921/device/${deviceId}`,
-          `/zhc1921/devices/${deviceId}`,
-          `/zhc1921/${deviceId}`,
-          `/zhc1921/one/${deviceId}`,
-        ]
-      : base === "zhc1661"
-      ? [
-          `/zhc1661/device/${deviceId}`,
-          `/zhc1661/devices/${deviceId}`,
-          `/zhc1661/${deviceId}`,
-          `/zhc1661/one/${deviceId}`,
-        ]
-      : [];
-
-  for (const p of directCandidates) {
-    try {
-      const r = await apiGet(p, { signal });
-      return r?.row ?? r?.device ?? r;
-    } catch (e) {
-      // continue
-    }
-  }
-
-  // fallback list scan (some endpoints only give live in list)
-  const rawCandidates =
-    base === "zhc1921"
-      ? ["/zhc1921/devices", "/zhc1921/my-devices", "/zhc1921/list", "/zhc1921"]
-      : base === "zhc1661"
-      ? ["/zhc1661/devices", "/zhc1661/my-devices", "/zhc1661/list", "/zhc1661"]
-      : [];
-
-  for (const p of rawCandidates) {
+  for (const p of candidates) {
     try {
       const data = await apiGet(p, { signal });
-      const arr = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.devices)
-        ? data.devices
-        : Array.isArray(data?.rows)
-        ? data.rows
-        : [];
+      const arr = normalizeArray(data);
 
-      const rawRow =
-        arr.find((r) => {
-          const id =
-            r.deviceId ??
-            r.device_id ??
-            r.id ??
-            r.imei ??
-            r.IMEI ??
-            r.DEVICE_ID ??
-            "";
-          return String(id) === String(deviceId);
-        }) || null;
+      const found =
+        arr.find((r) => String(readDeviceId(r)) === String(deviceId)) || null;
 
-      if (rawRow) return rawRow;
-    } catch (e) {
+      if (found) return found;
+    } catch {
       // continue
     }
   }
