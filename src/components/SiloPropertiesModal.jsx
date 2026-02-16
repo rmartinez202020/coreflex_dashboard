@@ -1,10 +1,91 @@
 // src/components/SiloPropertiesModal.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
+import { API_URL } from "../config/api";
+import { getToken } from "../utils/authToken";
 
 const MODEL_META = {
   zhc1921: { label: "CF-2000", base: "zhc1921" },
   zhc1661: { label: "CF-1600", base: "zhc1661" },
 };
+
+// -------------------------
+// ✅ auth + no-cache fetch helpers (same idea as DisplayBox)
+function getAuthHeaders() {
+  const token = String(getToken() || "").trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function withNoCache(path) {
+  const sep = path.includes("?") ? "&" : "?";
+  return `${path}${sep}_ts=${Date.now()}`;
+}
+
+async function apiGet(path, { signal } = {}) {
+  const res = await fetch(`${API_URL}${withNoCache(path)}`, {
+    method: "GET",
+    headers: {
+      ...getAuthHeaders(),
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    },
+    cache: "no-store",
+    signal,
+  });
+  if (!res.ok) throw new Error(`GET ${path} failed (${res.status})`);
+  return res.json();
+}
+
+function normalizeList(data) {
+  return Array.isArray(data)
+    ? data
+    : Array.isArray(data?.devices)
+    ? data.devices
+    : Array.isArray(data?.rows)
+    ? data.rows
+    : [];
+}
+
+// ✅ IMPORTANT: avoid /devices (can be 403/405). Use user-safe list endpoints.
+async function loadDeviceListForModel(modelKey, { signal } = {}) {
+  const base = MODEL_META[modelKey]?.base || modelKey;
+
+  const listCandidates =
+    base === "zhc1661"
+      ? ["/zhc1661/my-devices", "/zhc1661/list", "/zhc1661"]
+      : ["/zhc1921/my-devices", "/zhc1921/list", "/zhc1921"];
+
+  for (const p of listCandidates) {
+    try {
+      const data = await apiGet(p, { signal });
+      const arr = normalizeList(data);
+
+      const out = arr
+        .map((r) => {
+          const id =
+            r.deviceId ??
+            r.device_id ??
+            r.id ??
+            r.imei ??
+            r.IMEI ??
+            r.DEVICE_ID ??
+            "";
+          const status = String(r.status || r.deviceStatus || r.state || "").toLowerCase();
+          return {
+            deviceId: String(id),
+            status: status || "offline",
+            raw: r,
+          };
+        })
+        .filter((x) => x.deviceId);
+
+      if (out.length) return out;
+    } catch {
+      // continue
+    }
+  }
+
+  return [];
+}
 
 function toNum(v) {
   if (v === "" || v === null || v === undefined) return "";
@@ -17,42 +98,128 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
 
   const props = silo?.properties || {};
 
-  // ✅ LEFT SECTION (same “Math” card layout/spacing)
+  // -------------------------
+  // ✅ LEFT: helper card (math helper)
+  // -------------------------
+  const helperCard = (
+    <div
+      style={{
+        background: "#ffffff",
+        border: "1px solid #e5e7eb",
+        borderRadius: 12,
+        padding: 14,
+      }}
+    >
+      <div style={{ fontWeight: 600, fontSize: 16, marginBottom: 12 }}>Math Helper</div>
+
+      <div
+        style={{
+          background: "#f1f5f9",
+          border: "1px solid #e2e8f0",
+          borderRadius: 10,
+          padding: 12,
+          fontSize: 11,
+          color: "#1e293b",
+          lineHeight: 1.35,
+        }}
+      >
+        <div style={{ fontWeight: 600, marginBottom: 8 }}>Supported Operators</div>
+        <div style={{ display: "grid", gap: 4 }}>
+          <div>VALUE + 10 → add</div>
+          <div>VALUE - 3 → subtract</div>
+          <div>VALUE * 2 → multiply</div>
+          <div>VALUE / 5 → divide</div>
+          <div>VALUE % 60 → modulo</div>
+        </div>
+
+        <div style={{ fontWeight: 600, margin: "10px 0 6px" }}>Combined Examples</div>
+        <div style={{ display: "grid", gap: 4 }}>
+          <div>(VALUE * 1.5) + 5 → scale &amp; offset</div>
+          <div>(VALUE / 4095) * 20 - 4 → ADC → 4–20 mA</div>
+        </div>
+
+        <div style={{ fontWeight: 600, margin: "10px 0 6px" }}>String Output Examples</div>
+        <div style={{ display: "grid", gap: 4 }}>
+          <div>CONCAT("Temp=", VALUE)</div>
+          <div>CONCAT("Level=", VALUE, " %")</div>
+          <div>CONCAT("Vol=", VALUE * 2, " Gal")</div>
+        </div>
+      </div>
+    </div>
+  );
+
+  // -------------------------
+  // ✅ MIDDLE: “Math” card (same exact UI)
+  // -------------------------
   const [name, setName] = useState(props.name ?? "");
   const [contents, setContents] = useState(props.contents ?? "");
   const [density, setDensity] = useState(
     props.density === undefined || props.density === null ? "" : Number(props.density)
   );
 
-  // ✅ fake “live value / output” pills (same UI)
   const [liveValue] = useState(0);
   const outputValue = useMemo(() => {
     const d = Number(density);
     return Number.isFinite(d) ? d : 0;
   }, [density]);
 
-  // ✅ RIGHT SECTION (same “Tag that drives the Trend (AI)” card layout)
+  // -------------------------
+  // ✅ RIGHT: device binding with SEARCH (like DisplayBox)
+  // -------------------------
   const [bindModel, setBindModel] = useState(props.bindModel || "zhc1921");
   const [bindDeviceId, setBindDeviceId] = useState(props.bindDeviceId || "");
   const [bindField, setBindField] = useState(props.bindField || "ai1");
 
-  // ✅ devices list placeholder (UI exact; hook later if you want)
-  const devices = useMemo(() => {
-    // keep backwards compatibility if you already store a list inside properties
-    const arr = Array.isArray(props.devices) ? props.devices : [];
-    return arr.map((d) => ({
-      deviceId: String(d?.deviceId ?? d?.device_id ?? d?.id ?? d ?? "").trim(),
-      status: String(d?.status ?? "offline").toLowerCase(),
-    }));
-  }, [props.devices]);
+  const [devices, setDevices] = useState([]);
+  const [deviceQuery, setDeviceQuery] = useState(""); // ✅ search box
+  const [devicesLoading, setDevicesLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+
+    let cancelled = false;
+    const ctrl = new AbortController();
+
+    (async () => {
+      try {
+        setDevicesLoading(true);
+        const list = await loadDeviceListForModel(bindModel, { signal: ctrl.signal });
+        if (cancelled) return;
+        setDevices(list || []);
+
+        // if current bind id is empty but there is a selected device in list, keep empty (user choice)
+      } catch {
+        if (cancelled) return;
+        setDevices([]);
+      } finally {
+        if (cancelled) return;
+        setDevicesLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+      ctrl.abort();
+    };
+  }, [open, bindModel]);
+
+  const filteredDevices = useMemo(() => {
+    const q = String(deviceQuery || "").trim().toLowerCase();
+    if (!q) return devices;
+    return devices.filter((d) => String(d.deviceId || "").toLowerCase().includes(q));
+  }, [devices, deviceQuery]);
 
   const selectedDevice = useMemo(() => {
     const hit = devices.find((d) => String(d.deviceId) === String(bindDeviceId));
-    return hit || { deviceId: bindDeviceId || "", status: "offline" };
+    return hit || null;
   }, [devices, bindDeviceId]);
 
+  const canApply = useMemo(() => {
+    return !!String(bindDeviceId || "").trim() && !!String(bindField || "").trim();
+  }, [bindDeviceId, bindField]);
+
   // -------------------------
-  // ✅ DRAG STATE (EXACT like DisplaySettingModal)
+  // ✅ DRAG STATE (exact same)
   // -------------------------
   const PANEL_W = 1240;
   const dragRef = useRef({
@@ -89,15 +256,20 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
     setDidInitPos(true);
   }, [open, didInitPos]);
 
+  // Load from silo whenever it changes
   useEffect(() => {
     if (!silo) return;
     const p = silo?.properties || {};
+
     setName(p.name ?? "");
     setContents(p.contents ?? "");
     setDensity(p.density === undefined || p.density === null ? "" : Number(p.density));
+
     setBindModel(p.bindModel ?? "zhc1921");
     setBindDeviceId(p.bindDeviceId ?? "");
     setBindField(p.bindField ?? "ai1");
+
+    setDeviceQuery("");
   }, [silo]);
 
   const onDragMove = (e) => {
@@ -155,13 +327,6 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
-
-  // -------------------------
-  // ✅ can apply (match: require device + field)
-  // -------------------------
-  const canApply = useMemo(() => {
-    return !!String(bindDeviceId || "").trim() && !!String(bindField || "").trim();
-  }, [bindDeviceId, bindField]);
 
   // -------------------------
   // ✅ UI styles (same as DisplaySettingModal)
@@ -256,10 +421,10 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
               alignItems: "start",
             }}
           >
-            {/* LEFT: (kept empty to match “3 column” exact grid) */}
-            <div />
+            {/* ✅ LEFT: MATH HELPER */}
+            {helperCard}
 
-            {/* MIDDLE: same “Math” card design */}
+            {/* ✅ MIDDLE: MATH CARD */}
             <div
               style={{
                 background: "#ffffff",
@@ -367,43 +532,9 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                   placeholder="Example: 52.4"
                 />
               </div>
-
-              <div
-                style={{
-                  background: "#f1f5f9",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 10,
-                  padding: 12,
-                  fontSize: 11,
-                  color: "#1e293b",
-                  lineHeight: 1.35,
-                }}
-              >
-                <div style={{ fontWeight: 600, marginBottom: 8 }}>Supported Operators</div>
-                <div style={{ display: "grid", gap: 4 }}>
-                  <div>DENSITY + 10 → add</div>
-                  <div>DENSITY - 3 → subtract</div>
-                  <div>DENSITY * 2 → multiply</div>
-                  <div>DENSITY / 5 → divide</div>
-                  <div>DENSITY % 60 → modulo</div>
-                </div>
-
-                <div style={{ fontWeight: 600, margin: "10px 0 6px" }}>Combined Examples</div>
-                <div style={{ display: "grid", gap: 4 }}>
-                  <div>(DENSITY * 1.5) + 5 → scale &amp; offset</div>
-                  <div>(DENSITY / 4095) * 20 - 4 → ADC → 4–20 mA</div>
-                </div>
-
-                <div style={{ fontWeight: 600, margin: "10px 0 6px" }}>String Output Examples</div>
-                <div style={{ display: "grid", gap: 4 }}>
-                  <div>CONCAT("Material=", DENSITY)</div>
-                  <div>CONCAT("Bulk=", DENSITY, " lbs/ft³")</div>
-                  <div>CONCAT("D=", DENSITY * 2, " units")</div>
-                </div>
-              </div>
             </div>
 
-            {/* RIGHT: same “Tag that drives the Trend (AI)” card design */}
+            {/* ✅ RIGHT: BINDING + SEARCH */}
             <div
               style={{
                 background: "#ffffff",
@@ -427,11 +558,22 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                 </select>
               </div>
 
+              {/* ✅ search input (like displaybox experience) */}
+              <div style={{ display: "grid", gap: 6 }}>
+                <div style={labelStyle}>Device Search</div>
+                <input
+                  value={deviceQuery}
+                  onChange={(e) => setDeviceQuery(e.target.value)}
+                  style={fieldInputStyle}
+                  placeholder={devicesLoading ? "Loading devices..." : "Type to filter devices..."}
+                />
+              </div>
+
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Device</div>
                 <select value={bindDeviceId} onChange={(e) => setBindDeviceId(e.target.value)} style={fieldSelectStyle}>
-                  <option value="">Select device...</option>
-                  {devices.map((d) => (
+                  <option value="">{devicesLoading ? "Loading..." : "Select device..."}</option>
+                  {filteredDevices.map((d) => (
                     <option key={d.deviceId} value={d.deviceId}>
                       {d.deviceId}
                     </option>
@@ -465,9 +607,8 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                 <div style={previewTitleStyle}>Binding Preview</div>
 
                 <div style={previewTextStyle}>
-                  Selected:{" "}
-                  <span style={{ fontFamily: "monospace" }}>{bindDeviceId || "--"}</span> ·{" "}
-                  {selectedDevice?.status === "online" ? (
+                  Selected: <span style={{ fontFamily: "monospace" }}>{bindDeviceId || "--"}</span> ·{" "}
+                  {String(selectedDevice?.status || "").toLowerCase() === "online" ? (
                     <span style={{ color: "#16a34a" }}>ONLINE</span>
                   ) : (
                     <span style={{ color: "#dc2626" }}>OFFLINE</span>
@@ -498,7 +639,7 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                 </div>
               </div>
 
-              {/* ACTIONS (exact: Cancel / Apply) */}
+              {/* ACTIONS */}
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 4 }}>
                 <button
                   onClick={onClose}
