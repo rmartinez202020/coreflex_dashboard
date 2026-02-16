@@ -1,16 +1,16 @@
-// DraggableDisplayBox.jsx
+// src/components/DraggableDisplayBox.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 
-// ✅ Models allowed (same idea as GraphicDisplay)
+// ✅ Models allowed
 const MODEL_META = {
   zhc1921: { base: "zhc1921" },
   zhc1661: { base: "zhc1661" },
 };
 
 // -------------------------
-// ✅ auth + no-cache fetch helpers (same style)
+// ✅ auth + no-cache fetch helpers
 // -------------------------
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
@@ -47,7 +47,7 @@ function normalizeList(data) {
     : [];
 }
 
-// ✅ IMPORTANT: avoid /devices (can be 403/405 in your logs). Use user-safe list endpoints.
+// ✅ IMPORTANT: avoid /devices (can be 403/405). Use user-safe list endpoints.
 async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
   const base = MODEL_META[modelKey]?.base || modelKey;
 
@@ -167,21 +167,99 @@ function computeMathOutput(liveValue, formula) {
   }
 }
 
+// ==============================
+// ✅ DISPLAY STYLE THEMES (4 styles)
+// Saved as props.displayStyle by DisplaySettingModal
+// ==============================
+function getStyleConfig(displayStyle, legacyTheme) {
+  const styleId = String(displayStyle || "classic").trim() || "classic";
+
+  // legacy theme colors (used as fallback for classic)
+  const legacyThemes = {
+    green: { bg: "#d9ffe0", text: "#005500", border: "#00aa33" },
+    red: { bg: "#ffe5e5", text: "#8b0000", border: "#cc0000" },
+    blue: { bg: "#e0f0ff", text: "#003c77", border: "#0077cc" },
+    gray: { bg: "#f3f4f6", text: "#111827", border: "#6b7280" },
+    dark: { bg: "#1f2937", text: "#22d3ee", border: "#0ea5e9" },
+  };
+
+  const legacy = legacyThemes[legacyTheme] || legacyThemes.gray;
+
+  const byId = {
+    // ✅ Original look (classic)
+    classic: {
+      bg: legacy.bg,
+      text: legacy.text,
+      border: legacy.border,
+      radius: 8,
+      borderW: 3,
+      letterSpacing: 6,
+      fontWeight: 700,
+      shadow: "inset 0 0 8px rgba(0,0,0,0.35)",
+      labelColor: "#374151",
+    },
+
+    // ✅ Minimal
+    minimal: {
+      bg: "#ffffff",
+      text: "#0f172a",
+      border: "#cbd5e1",
+      radius: 10,
+      borderW: 2,
+      letterSpacing: 4,
+      fontWeight: 700,
+      shadow: "none",
+      labelColor: "#334155",
+    },
+
+    // ✅ Dark digital
+    darkDigital: {
+      bg: "#0b1220",
+      text: "#22c55e",
+      border: "#1d4ed8",
+      radius: 10,
+      borderW: 2,
+      letterSpacing: 6,
+      fontWeight: 900,
+      shadow: "inset 0 0 12px rgba(0,0,0,0.55)",
+      labelColor: "#e2e8f0",
+    },
+
+    // ✅ Glass rounded
+    glassRounded: {
+      bg: "rgba(255,255,255,0.65)",
+      text: "#0f172a",
+      border: "rgba(59,130,246,0.55)",
+      radius: 16,
+      borderW: 2,
+      letterSpacing: 4,
+      fontWeight: 800,
+      shadow: "0 8px 18px rgba(2, 6, 23, 0.18), inset 0 0 10px rgba(255,255,255,0.35)",
+      labelColor: "#334155",
+    },
+  };
+
+  return byId[styleId] || byId.classic;
+}
+
 export default function DraggableDisplayBox({ tank }) {
   const props = tank?.properties || {};
 
   // FORMAT like "000.00", "00", "0000", etc.
   const numberFormat = props.numberFormat || "00000";
   const label = props.label || "";
-  const theme = props.theme || "gray"; // internal theme ID
+  const theme = props.theme || "gray"; // legacy theme ID
   const scale = tank?.scale || 1;
 
-  // ✅ binding + math (saved from DisplaySettingModal)
+  // ✅ NEW: style picker (4 styles)
+  const displayStyle = props.displayStyle || "classic";
+  const styleCfg = useMemo(() => getStyleConfig(displayStyle, theme), [displayStyle, theme]);
+
+  // ✅ binding + math
   const bindModel = props.bindModel || "zhc1921";
   const bindDeviceId = String(props.bindDeviceId || "").trim();
   const bindField = String(props.bindField || "ai1").trim();
   const formula = props.formula || "";
-  const sampleMs = Number(props.sampleMs || 3000);
 
   const hasBinding = !!bindDeviceId && !!bindField;
 
@@ -189,7 +267,7 @@ export default function DraggableDisplayBox({ tank }) {
   const [liveValue, setLiveValue] = useState(null);
   const [outputValue, setOutputValue] = useState(null);
 
-  // ✅ poll like modal (sampleMs)
+  // ✅ Poll fixed every 2 seconds (as requested)
   useEffect(() => {
     if (!hasBinding) {
       setLiveValue(null);
@@ -229,14 +307,14 @@ export default function DraggableDisplayBox({ tank }) {
     };
 
     tick();
-    const id = window.setInterval(tick, Math.max(250, sampleMs || 3000));
+    const id = window.setInterval(tick, 2000);
 
     return () => {
       cancelled = true;
       ctrl.abort();
       window.clearInterval(id);
     };
-  }, [hasBinding, bindModel, bindDeviceId, bindField, formula, sampleMs]);
+  }, [hasBinding, bindModel, bindDeviceId, bindField, formula]);
 
   // Extract integer + decimal pattern
   const [intPart, decPart] = String(numberFormat).split(".");
@@ -257,8 +335,7 @@ export default function DraggableDisplayBox({ tank }) {
     const n = typeof v === "number" ? v : Number(v);
     if (!Number.isFinite(n)) return String(v);
 
-    let formatted =
-      totalDec > 0 ? Number(n).toFixed(totalDec) : String(Math.round(n));
+    let formatted = totalDec > 0 ? Number(n).toFixed(totalDec) : String(Math.round(n));
 
     if (totalDec > 0) {
       let [i, d] = formatted.split(".");
@@ -272,56 +349,47 @@ export default function DraggableDisplayBox({ tank }) {
     return formatted;
   }, [hasBinding, outputValue, props.value, tank?.value, totalDec, totalInt]);
 
-  // THEMES
-  const themes = {
-    green: { bg: "#d9ffe0", text: "#005500", border: "#00aa33" },
-    red: { bg: "#ffe5e5", text: "#8b0000", border: "#cc0000" },
-    blue: { bg: "#e0f0ff", text: "#003c77", border: "#0077cc" },
-    gray: { bg: "#f3f4f6", text: "#111827", border: "#6b7280" },
-    dark: { bg: "#1f2937", text: "#22d3ee", border: "#0ea5e9" },
-  };
-
-  const colors = themes[theme] || themes.gray;
-
   return (
     <div style={{ textAlign: "center", pointerEvents: "none" }}>
       {/* LABEL ABOVE DISPLAY */}
-      {label && (
+      {label ? (
         <div
           style={{
             marginBottom: 4,
             fontSize: `${16 * scale}px`,
-            fontWeight: "600",
-            color: "#374151",
+            fontWeight: 600,
+            color: styleCfg.labelColor,
             pointerEvents: "none",
           }}
         >
           {label}
         </div>
-      )}
+      ) : null}
 
       {/* DIGITAL DISPLAY */}
       <div
         style={{
           width: `${160 * scale}px`,
           height: `${65 * scale}px`,
-          background: colors.bg,
-          color: colors.text,
+          background: styleCfg.bg,
+          color: styleCfg.text,
           fontFamily: "monospace",
           fontSize: `${28 * scale}px`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          borderRadius: 8,
-          border: `3px solid ${colors.border}`,
-          boxShadow: "inset 0 0 8px rgba(0,0,0,0.35)",
-          letterSpacing: "6px",
+          borderRadius: styleCfg.radius,
+          border: `${styleCfg.borderW}px solid ${styleCfg.border}`,
+          boxShadow: styleCfg.shadow,
+          letterSpacing: `${styleCfg.letterSpacing}px`,
           padding: "0 8px",
-          fontWeight: "700",
+          fontWeight: String(styleCfg.fontWeight),
           pointerEvents: "none",
           whiteSpace: "nowrap",
           overflow: "hidden",
           textOverflow: "ellipsis",
+          // a little “glass” polish for glassRounded only (harmless for others)
+          backdropFilter: displayStyle === "glassRounded" ? "blur(6px)" : undefined,
         }}
         title={
           typeof outputValue === "string"

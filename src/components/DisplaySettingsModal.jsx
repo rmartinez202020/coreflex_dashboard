@@ -1,21 +1,12 @@
 // src/components/DisplaySettingModal.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-
-import {
-  useDisplaySettingDevices,
-  useDisplaySettingLiveValue,
-} from "./DisplaysettingsmodalTelemetry";
-
-import DisplaysettingsmodalMathHelp from "./DisplaysettingsmodalMathHelp";
+import {useDisplaySettingDevices,useDisplaySettingLiveValue,} from "./DisplaysettingsmodalTelemetry";
+import DisplaySettingsmodalOptions from "./DisplaySettingsmodalOptions";
 
 const MODEL_META = {
   zhc1921: { label: "CF-2000", base: "zhc1921" },
   zhc1661: { label: "CF-1600", base: "zhc1661" },
 };
-
-/* ===========================================
-   MATH (stays inside this modal)
-=========================================== */
 
 function computeMathOutput(liveValue, formula) {
   const f = String(formula || "").trim();
@@ -72,10 +63,6 @@ function computeMathOutput(liveValue, formula) {
   }
 }
 
-/* ===========================================
-   COMPONENT
-=========================================== */
-
 export default function DisplaySettingModal({ open = true, tank, onClose, onSave }) {
   if (!open) return null;
 
@@ -89,8 +76,11 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
   const [bindDeviceId, setBindDeviceId] = useState(props.bindDeviceId || "");
   const [bindField, setBindField] = useState(props.bindField || "ai1");
 
+  // ✅ NEW: display style (4 options)
+  const [displayStyle, setDisplayStyle] = useState(props.displayStyle || "classic");
+
   // -------------------------
-  // ✅ TELEMETRY (EXTRACTED) - fixed 2s poll
+  // ✅ TELEMETRY (EXTRACTED) - fixed 2s poll inside hook
   // -------------------------
   const { devices, selectedDevice } = useDisplaySettingDevices({
     open,
@@ -112,7 +102,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
   // -------------------------
   // ✅ DRAG STATE
   // -------------------------
-  const PANEL_W = 1000;
+  const PANEL_W = 1240; // wider now since we added a left column
   const dragRef = useRef({
     dragging: false,
     startX: 0,
@@ -156,6 +146,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
     setBindModel(p.bindModel ?? "zhc1921");
     setBindDeviceId(p.bindDeviceId ?? "");
     setBindField(p.bindField ?? "ai1");
+    setDisplayStyle(p.displayStyle ?? "classic");
   }, [tank]);
 
   // -------------------------
@@ -241,7 +232,6 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
 
   const previewTitleStyle = { fontWeight: 600, marginBottom: 8, fontSize: 13 };
   const previewTextStyle = { fontSize: 12, fontWeight: 400, color: "#111827" };
-  const previewMutedStyle = { color: "#6b7280", fontWeight: 400, fontSize: 12 };
 
   return (
     <div
@@ -311,12 +301,26 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 1fr",
+              gridTemplateColumns: "320px 1fr 1fr",
               gap: 16,
               alignItems: "start",
             }}
           >
-            {/* LEFT: MATH */}
+            {/* LEFT: OPTIONS (NEW) */}
+            <DisplaySettingsmodalOptions
+              value={displayStyle}
+              onChange={setDisplayStyle}
+              previewLabel={tank?.properties?.label || "Temp"}
+              previewValue={
+                typeof outputValue === "string"
+                  ? outputValue || "12068"
+                  : Number.isFinite(Number(outputValue))
+                  ? String(Math.round(Number(outputValue)))
+                  : "12068"
+              }
+            />
+
+            {/* MIDDLE: MATH */}
             <div
               style={{
                 background: "#ffffff",
@@ -338,9 +342,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                 }}
               >
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>
-                    Live VALUE
-                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>Live VALUE</div>
                   <div
                     style={{
                       marginTop: 6,
@@ -411,8 +413,40 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                 />
               </div>
 
-              {/* ✅ EXTRACTED SECTION */}
-              <DisplaysettingsmodalMathHelp />
+              {/* keep the “formula samples” section */}
+              <div
+                style={{
+                  background: "#f1f5f9",
+                  border: "1px solid #e2e8f0",
+                  borderRadius: 10,
+                  padding: 12,
+                  fontSize: 11,
+                  color: "#1e293b",
+                  lineHeight: 1.35,
+                }}
+              >
+                <div style={{ fontWeight: 600, marginBottom: 8 }}>Supported Operators</div>
+                <div style={{ display: "grid", gap: 4 }}>
+                  <div>VALUE + 10 → add</div>
+                  <div>VALUE - 3 → subtract</div>
+                  <div>VALUE * 2 → multiply</div>
+                  <div>VALUE / 5 → divide</div>
+                  <div>VALUE % 60 → modulo</div>
+                </div>
+
+                <div style={{ fontWeight: 600, margin: "10px 0 6px" }}>Combined Examples</div>
+                <div style={{ display: "grid", gap: 4 }}>
+                  <div>(VALUE * 1.5) + 5 → scale &amp; offset</div>
+                  <div>(VALUE / 4095) * 20 - 4 → ADC → 4–20 mA</div>
+                </div>
+
+                <div style={{ fontWeight: 600, margin: "10px 0 6px" }}>String Output Examples</div>
+                <div style={{ display: "grid", gap: 4 }}>
+                  <div>CONCAT("Temp=", VALUE)</div>
+                  <div>CONCAT("Level=", VALUE, " %")</div>
+                  <div>CONCAT("Vol=", VALUE * 2, " Gal")</div>
+                </div>
+              </div>
 
               {liveErr ? (
                 <div
@@ -563,6 +597,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                       bindDeviceId,
                       bindField,
                       formula,
+                      displayStyle, // ✅ NEW
                     };
 
                     const nextTank = {
@@ -571,6 +606,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                       bindDeviceId,
                       bindField,
                       formula,
+                      displayStyle, // mirror (fallback)
                       properties: nextProps,
                     };
 
@@ -581,9 +617,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                     padding: "10px 14px",
                     borderRadius: 10,
                     border: "1px solid #bfe6c8",
-                    background: canApply
-                      ? "linear-gradient(180deg,#bff2c7,#6fdc89)"
-                      : "#e5e7eb",
+                    background: canApply ? "linear-gradient(180deg,#bff2c7,#6fdc89)" : "#e5e7eb",
                     color: "#0b3b18",
                     fontWeight: 700,
                     cursor: canApply ? "pointer" : "not-allowed",
@@ -593,6 +627,11 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                 </button>
               </div>
             </div>
+          </div>
+
+          {/* responsive fallback if screen is narrow */}
+          <div style={{ marginTop: 10, fontSize: 11, color: "#64748b" }}>
+            Tip: if it feels tight on smaller screens, we can auto-switch to stacked layout.
           </div>
         </div>
       </div>
