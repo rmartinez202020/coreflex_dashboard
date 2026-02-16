@@ -64,7 +64,8 @@ const STYLES = [
       border: "rgba(59,130,246,0.55)",
       text: "#0f172a",
       radius: 16,
-      shadow: "0 8px 18px rgba(2, 6, 23, 0.18), inset 0 0 10px rgba(255,255,255,0.35)",
+      shadow:
+        "0 8px 18px rgba(2, 6, 23, 0.18), inset 0 0 10px rgba(255,255,255,0.35)",
       letterSpacing: 4,
       fontWeight: 800,
     },
@@ -127,12 +128,103 @@ function SampleDisplay({ label = "Temp", value = "12068", styleId = "classic" })
   );
 }
 
+// ✅ card renderer (reused for single + compact grid)
+function StyleCard({
+  s,
+  active,
+  onPick,
+  previewValue,
+  compact = false,
+}) {
+  return (
+    <button
+      type="button"
+      onClick={() => onPick?.(s.id)}
+      style={{
+        width: "100%",
+        textAlign: "left",
+        borderRadius: 12,
+        border: active ? "2px solid #22c55e" : "1px solid #e5e7eb",
+        background: active ? "rgba(187,247,208,0.35)" : "#fff",
+        padding: compact ? 10 : 12,
+        cursor: "pointer",
+        display: "grid",
+        gap: compact ? 6 : 6,
+        minWidth: 0,
+      }}
+      title="Select style"
+    >
+      <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
+        <div
+          style={{
+            fontWeight: 800,
+            color: "#0f172a",
+            fontSize: compact ? 13 : 14,
+            lineHeight: 1.15,
+          }}
+        >
+          {s.title}
+        </div>
+        {active ? (
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 900,
+              color: "#16a34a",
+              border: "1px solid rgba(22,163,74,0.35)",
+              background: "rgba(187,247,208,0.55)",
+              padding: "2px 10px",
+              borderRadius: 999,
+              alignSelf: "center",
+              whiteSpace: "nowrap",
+            }}
+          >
+            Selected
+          </div>
+        ) : null}
+      </div>
+
+      <div style={{ fontSize: 12, color: "#475569" }}>{s.desc}</div>
+
+      {/* tiny mini-preview bar */}
+      <div
+        style={{
+          height: compact ? 34 : 36,
+          borderRadius: s.sample.radius,
+          border: `2px solid ${s.sample.border}`,
+          background: s.sample.bg,
+          boxShadow: s.sample.shadow,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontFamily: "monospace",
+          fontWeight: s.sample.fontWeight,
+          color: s.sample.text,
+          letterSpacing: s.sample.letterSpacing,
+          overflow: "hidden",
+          whiteSpace: "nowrap",
+          textOverflow: "ellipsis",
+          padding: "0 8px",
+        }}
+      >
+        {previewValue}
+      </div>
+    </button>
+  );
+}
+
 export default function DisplaySettingsmodalOptions({
   value = "classic",
   onChange,
   previewLabel = "Temp",
   previewValue = "12068",
 }) {
+  // ✅ top two full width, bottom two side-by-side
+  const classic = STYLES.find((s) => s.id === "classic");
+  const minimal = STYLES.find((s) => s.id === "minimal");
+  const darkDigital = STYLES.find((s) => s.id === "darkDigital");
+  const glassRounded = STYLES.find((s) => s.id === "glassRounded");
+
   return (
     <div
       style={{
@@ -149,72 +241,54 @@ export default function DisplaySettingsmodalOptions({
       <SampleDisplay label={previewLabel} value={previewValue} styleId={value} />
 
       <div style={{ display: "grid", gap: 10 }}>
-        {STYLES.map((s) => {
-          const active = s.id === value;
+        {/* ✅ Full-width top two */}
+        {classic ? (
+          <StyleCard
+            s={classic}
+            active={classic.id === value}
+            onPick={onChange}
+            previewValue={previewValue}
+          />
+        ) : null}
 
-          return (
-            <button
-              key={s.id}
-              type="button"
-              onClick={() => onChange?.(s.id)}
-              style={{
-                width: "100%",
-                textAlign: "left",
-                borderRadius: 12,
-                border: active ? "2px solid #22c55e" : "1px solid #e5e7eb",
-                background: active ? "rgba(187,247,208,0.35)" : "#fff",
-                padding: 12,
-                cursor: "pointer",
-                display: "grid",
-                gap: 6,
-              }}
-              title="Select style"
-            >
-              <div style={{ display: "flex", justifyContent: "space-between", gap: 10 }}>
-                <div style={{ fontWeight: 800, color: "#0f172a" }}>{s.title}</div>
-                {active ? (
-                  <div
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 900,
-                      color: "#16a34a",
-                      border: "1px solid rgba(22,163,74,0.35)",
-                      background: "rgba(187,247,208,0.55)",
-                      padding: "2px 10px",
-                      borderRadius: 999,
-                      alignSelf: "center",
-                    }}
-                  >
-                    Selected
-                  </div>
-                ) : null}
-              </div>
+        {minimal ? (
+          <StyleCard
+            s={minimal}
+            active={minimal.id === value}
+            onPick={onChange}
+            previewValue={previewValue}
+          />
+        ) : null}
 
-              <div style={{ fontSize: 12, color: "#475569" }}>{s.desc}</div>
+        {/* ✅ Bottom two in 2 columns */}
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "1fr 1fr",
+            gap: 10,
+            alignItems: "stretch",
+          }}
+        >
+          {darkDigital ? (
+            <StyleCard
+              s={darkDigital}
+              active={darkDigital.id === value}
+              onPick={onChange}
+              previewValue={previewValue}
+              compact
+            />
+          ) : null}
 
-              {/* tiny mini-preview bar */}
-              <div
-                style={{
-                  height: 36,
-                  borderRadius: s.sample.radius,
-                  border: `2px solid ${s.sample.border}`,
-                  background: s.sample.bg,
-                  boxShadow: s.sample.shadow,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontFamily: "monospace",
-                  fontWeight: s.sample.fontWeight,
-                  color: s.sample.text,
-                  letterSpacing: s.sample.letterSpacing,
-                  overflow: "hidden",
-                }}
-              >
-                {previewValue}
-              </div>
-            </button>
-          );
-        })}
+          {glassRounded ? (
+            <StyleCard
+              s={glassRounded}
+              active={glassRounded.id === value}
+              onPick={onChange}
+              previewValue={previewValue}
+              compact
+            />
+          ) : null}
+        </div>
       </div>
 
       <div style={{ fontSize: 11, color: "#64748b", lineHeight: 1.35 }}>
