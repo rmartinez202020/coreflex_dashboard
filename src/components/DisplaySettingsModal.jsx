@@ -1,180 +1,18 @@
 // src/components/DisplaySettingModal.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { API_URL } from "../config/api";
-import { getToken } from "../utils/authToken";
 
-/* ===========================================
-   MODELS
-=========================================== */
+import {
+  useDisplaySettingDevices,
+  useDisplaySettingLiveValue,
+} from "./DisplaysettingsmodalTelemetry";
 
 const MODEL_META = {
   zhc1921: { label: "CF-2000", base: "zhc1921" },
   zhc1661: { label: "CF-1600", base: "zhc1661" },
 };
 
-// ✅ Sampling options (same spirit as GraphicDisplaySettingsModal)
-const SAMPLE_OPTIONS = [1000, 3000, 6000, 30000, 60000, 300000, 600000];
-
-function formatSampleLabel(ms) {
-  if (ms === 1000) return "1s";
-  if (ms === 3000) return "3s";
-  if (ms === 6000) return "6s";
-  if (ms === 30000) return "30s";
-  if (ms === 60000) return "1 min";
-  if (ms === 300000) return "5 min";
-  if (ms === 600000) return "10 min";
-  if (ms % 60000 === 0) return `${ms / 60000} min`;
-  if (ms % 1000 === 0) return `${ms / 1000}s`;
-  return `${ms} ms`;
-}
-
 /* ===========================================
-   AUTH HELPERS (same as GraphicDisplay)
-=========================================== */
-
-function getAuthHeaders() {
-  const token = String(getToken() || "").trim();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-function withNoCache(path) {
-  const sep = path.includes("?") ? "&" : "?";
-  return `${path}${sep}_ts=${Date.now()}`;
-}
-
-async function apiGet(path, { signal } = {}) {
-  const res = await fetch(`${API_URL}${withNoCache(path)}`, {
-    method: "GET",
-    headers: {
-      ...getAuthHeaders(),
-      "Cache-Control": "no-cache",
-      Pragma: "no-cache",
-    },
-    cache: "no-store",
-    signal,
-  });
-
-  if (!res.ok) throw new Error(`GET ${path} failed (${res.status})`);
-  return res.json();
-}
-
-/* ===========================================
-   DEVICE LOADER (standalone in this file)
-   ✅ IMPORTANT: avoid endpoints that cause 403/405 in your screenshots
-=========================================== */
-
-function normalizeDeviceList(data) {
-  const arr = Array.isArray(data)
-    ? data
-    : Array.isArray(data?.devices)
-    ? data.devices
-    : Array.isArray(data?.rows)
-    ? data.rows
-    : [];
-
-  return arr
-    .map((r) => {
-      const deviceId =
-        r.deviceId ??
-        r.device_id ??
-        r.id ??
-        r.imei ??
-        r.IMEI ??
-        r.DEVICE_ID ??
-        "";
-      if (!deviceId) return null;
-
-      return {
-        deviceId: String(deviceId),
-        status: String(r.status ?? r.online ?? "").toLowerCase(),
-        lastSeen: r.lastSeen ?? r.last_seen ?? r.updatedAt ?? r.updated_at,
-        _raw: r,
-      };
-    })
-    .filter(Boolean);
-}
-
-// ✅ only endpoints that should be allowed for normal users (no /devices)
-async function loadDevicesForModel(modelKey, { signal } = {}) {
-  const base = MODEL_META[modelKey]?.base || modelKey;
-
-  const candidates =
-    base === "zhc1921"
-      ? ["/zhc1921/my-devices", "/zhc1921/list", "/zhc1921"]
-      : ["/zhc1661/my-devices", "/zhc1661/list", "/zhc1661"];
-
-  let lastErr = null;
-
-  for (const p of candidates) {
-    try {
-      const data = await apiGet(p, { signal });
-      const list = normalizeDeviceList(data);
-      if (list.length) return list;
-      // if endpoint works but returns empty, continue trying others
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-
-  // if all failed, return empty (UI will show no devices)
-  if (lastErr) {
-    // optional: console.debug for you
-    // console.debug("loadDevicesForModel failed:", lastErr);
-  }
-  return [];
-}
-
-// ✅ Prefer list-scan for live value to avoid 404/405 noisy endpoints
-async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
-  const base = MODEL_META[modelKey]?.base || modelKey;
-
-  const listCandidates =
-    base === "zhc1921"
-      ? ["/zhc1921/my-devices", "/zhc1921/list", "/zhc1921"]
-      : ["/zhc1661/my-devices", "/zhc1661/list", "/zhc1661"];
-
-  for (const p of listCandidates) {
-    try {
-      const data = await apiGet(p, { signal });
-      const arr = normalizeDeviceList(data);
-      const hit = arr.find((d) => String(d.deviceId) === String(deviceId));
-      if (hit?._raw) return hit._raw;
-    } catch {
-      // continue
-    }
-  }
-
-  return null;
-}
-
-function readAiField(row, bindField) {
-  if (!row || !bindField) return null;
-  const f = String(bindField).toLowerCase();
-
-  const candidates = [
-    f,
-    f.toUpperCase(),
-    f.replace("ai", "a"),
-    f.replace("ai", "A"),
-    f.replace("ai", "analog"),
-    f.replace("ai", "ANALOG"),
-  ];
-
-  for (const k of candidates) {
-    if (row[k] !== undefined) return row[k];
-  }
-
-  const n = f.replace("ai", "");
-  const extra = [`ai_${n}`, `AI_${n}`, `ai-${n}`, `AI-${n}`];
-  for (const k of extra) {
-    if (row[k] !== undefined) return row[k];
-  }
-
-  return null;
-}
-
-/* ===========================================
-   MATH
+   MATH (stays inside this modal)
 =========================================== */
 
 function computeMathOutput(liveValue, formula) {
@@ -249,15 +87,25 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
   const [bindDeviceId, setBindDeviceId] = useState(props.bindDeviceId || "");
   const [bindField, setBindField] = useState(props.bindField || "ai1");
 
-  // ✅ poll / sampling
-  const [sampleMs, setSampleMs] = useState(
-    SAMPLE_OPTIONS.includes(Number(props.sampleMs)) ? Number(props.sampleMs) : 3000
-  );
+  // -------------------------
+  // ✅ TELEMETRY (EXTRACTED) - fixed 2s poll
+  // -------------------------
+  const { devices, selectedDevice } = useDisplaySettingDevices({
+    open,
+    bindModel,
+    bindDeviceId,
+    setBindDeviceId,
+  });
 
-  const [devices, setDevices] = useState([]);
-  const [liveValue, setLiveValue] = useState(null);
-  const [outputValue, setOutputValue] = useState(null);
-  const [liveErr, setLiveErr] = useState("");
+  const { liveValue, pollError } = useDisplaySettingLiveValue({
+    open,
+    bindModel,
+    bindDeviceId,
+    bindField,
+  });
+
+  const outputValue = useMemo(() => computeMathOutput(liveValue, formula), [liveValue, formula]);
+  const liveErr = pollError;
 
   // -------------------------
   // ✅ DRAG STATE
@@ -306,105 +154,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
     setBindModel(p.bindModel ?? "zhc1921");
     setBindDeviceId(p.bindDeviceId ?? "");
     setBindField(p.bindField ?? "ai1");
-
-    const incomingSample = Number(p.sampleMs ?? 3000);
-    setSampleMs(SAMPLE_OPTIONS.includes(incomingSample) ? incomingSample : 3000);
   }, [tank]);
-
-  // -------------------------
-  // ✅ LOAD DEVICES
-  // -------------------------
-  useEffect(() => {
-    if (!open) return;
-
-    let cancelled = false;
-    const ctrl = new AbortController();
-
-    const load = async () => {
-      try {
-        const list = await loadDevicesForModel(bindModel, { signal: ctrl.signal });
-        if (cancelled) return;
-        setDevices(list);
-
-        // keep selection if still exists
-        if (bindDeviceId && !list.find((d) => String(d.deviceId) === String(bindDeviceId))) {
-          setBindDeviceId("");
-        }
-      } catch {
-        if (cancelled) return;
-        setDevices([]);
-      }
-    };
-
-    load();
-
-    return () => {
-      cancelled = true;
-      ctrl.abort();
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, bindModel]);
-
-  // -------------------------
-  // ✅ LIVE VALUE POLL (for Math + Preview)
-  // -------------------------
-  useEffect(() => {
-    if (!open) return;
-
-    if (!bindModel || !bindDeviceId || !bindField) {
-      setLiveValue(null);
-      setOutputValue(null);
-      setLiveErr("");
-      return;
-    }
-
-    let cancelled = false;
-    const ctrl = new AbortController();
-
-    const tick = async () => {
-      try {
-        setLiveErr("");
-
-        const row = await loadLiveRowForDevice(bindModel, bindDeviceId, {
-          signal: ctrl.signal,
-        });
-
-        const value = row ? readAiField(row, bindField) : null;
-
-        if (cancelled) return;
-
-        const num =
-          value === null || value === undefined || value === ""
-            ? null
-            : typeof value === "number"
-            ? value
-            : Number(value);
-
-        const safeLive = Number.isFinite(num) ? num : null;
-        setLiveValue(safeLive);
-
-        const out = computeMathOutput(safeLive, formula);
-        setOutputValue(out);
-      } catch (e) {
-        if (cancelled) return;
-        if (String(e?.name || "").toLowerCase().includes("abort")) return;
-        setLiveErr("Could not read live value (check API endpoint / fields).");
-      }
-    };
-
-    tick();
-    const id = window.setInterval(tick, Math.max(250, Number(sampleMs) || 3000));
-
-    return () => {
-      cancelled = true;
-      ctrl.abort();
-      window.clearInterval(id);
-    };
-  }, [open, bindModel, bindDeviceId, bindField, sampleMs, formula]);
-
-  const selectedDevice = useMemo(() => {
-    return devices.find((d) => String(d.deviceId) === String(bindDeviceId)) || null;
-  }, [devices, bindDeviceId]);
 
   // -------------------------
   // ✅ DRAG handlers
@@ -473,7 +223,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
   }, [bindDeviceId, bindField]);
 
   // -------------------------
-  // ✅ UI (remove bold on the right section)
+  // ✅ UI
   // -------------------------
   const labelStyle = { fontSize: 12, fontWeight: 500, color: "#111827" };
   const sectionTitleStyle = { fontWeight: 600, fontSize: 16 };
@@ -663,42 +413,6 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                 />
               </div>
 
-              <div
-                style={{
-                  background: "#f1f5f9",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 10,
-                  padding: 12,
-                  fontSize: 11,
-                  color: "#1e293b",
-                  lineHeight: 1.35,
-                }}
-              >
-                <div style={{ fontWeight: 600, marginBottom: 8 }}>Supported Operators</div>
-                <div style={{ display: "grid", gap: 4 }}>
-                  <div>VALUE + 10 → add</div>
-                  <div>VALUE - 3 → subtract</div>
-                  <div>VALUE * 2 → multiply</div>
-                  <div>VALUE / 5 → divide</div>
-                  <div>VALUE % 60 → modulo</div>
-                </div>
-
-                <div style={{ fontWeight: 600, margin: "10px 0 6px" }}>Combined Examples</div>
-                <div style={{ display: "grid", gap: 4 }}>
-                  <div>(VALUE * 1.5) + 5 → scale &amp; offset</div>
-                  <div>(VALUE / 4095) * 20 - 4 → ADC → 4–20 mA</div>
-                </div>
-
-                <div style={{ fontWeight: 600, margin: "10px 0 6px" }}>
-                  String Output Examples
-                </div>
-                <div style={{ display: "grid", gap: 4 }}>
-                  <div>CONCAT("Temp=", VALUE)</div>
-                  <div>CONCAT("Level=", VALUE, " %")</div>
-                  <div>CONCAT("Vol=", VALUE * 2, " Gal")</div>
-                </div>
-              </div>
-
               {liveErr ? (
                 <div
                   style={{
@@ -775,21 +489,6 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                   <option value="ai6">AI-6</option>
                   <option value="ai7">AI-7</option>
                   <option value="ai8">AI-8</option>
-                </select>
-              </div>
-
-              <div style={{ display: "grid", gap: 6 }}>
-                <div style={labelStyle}>Sample</div>
-                <select
-                  value={sampleMs}
-                  onChange={(e) => setSampleMs(Number(e.target.value))}
-                  style={fieldSelectStyle}
-                >
-                  {SAMPLE_OPTIONS.map((ms) => (
-                    <option key={ms} value={ms}>
-                      {formatSampleLabel(ms)}
-                    </option>
-                  ))}
                 </select>
               </div>
 
@@ -882,27 +581,21 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                 <button
                   disabled={!canApply}
                   onClick={() => {
-                    // ✅ SAVE BULLETPROOF:
-                    // 1) Save into tank.properties (what the widget reads)
-                    // 2) Mirror at top-level too, in case parent merge drops properties
+                    // ✅ Save only what matters (no sampleMs)
                     const nextProps = {
                       ...(tank?.properties || {}),
                       bindModel,
                       bindDeviceId,
                       bindField,
                       formula,
-                      sampleMs,
                     };
 
                     const nextTank = {
                       ...tank,
-                      // mirror (fallback)
                       bindModel,
                       bindDeviceId,
                       bindField,
                       formula,
-                      sampleMs,
-                      // source of truth for widget
                       properties: nextProps,
                     };
 
