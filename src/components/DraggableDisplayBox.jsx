@@ -1,5 +1,5 @@
 // DraggableDisplayBox.jsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 
@@ -37,28 +37,44 @@ async function apiGet(path, { signal } = {}) {
   return res.json();
 }
 
+function normalizeList(data) {
+  return Array.isArray(data)
+    ? data
+    : Array.isArray(data?.devices)
+    ? data.devices
+    : Array.isArray(data?.rows)
+    ? data.rows
+    : [];
+}
+
+// ✅ IMPORTANT: avoid /devices (can be 403/405 in your logs). Use user-safe list endpoints.
 async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
   const base = MODEL_META[modelKey]?.base || modelKey;
 
-  const directCandidates =
-    base === "zhc1921"
-      ? [
-          `/zhc1921/device/${deviceId}`,
-          `/zhc1921/devices/${deviceId}`,
-          `/zhc1921/${deviceId}`,
-          `/zhc1921/one/${deviceId}`,
-        ]
-      : [
-          `/zhc1661/device/${deviceId}`,
-          `/zhc1661/devices/${deviceId}`,
-          `/zhc1661/${deviceId}`,
-          `/zhc1661/one/${deviceId}`,
-        ];
+  const listCandidates =
+    base === "zhc1661"
+      ? ["/zhc1661/my-devices", "/zhc1661/list", "/zhc1661"]
+      : ["/zhc1921/my-devices", "/zhc1921/list", "/zhc1921"];
 
-  for (const p of directCandidates) {
+  for (const p of listCandidates) {
     try {
-      const r = await apiGet(p, { signal });
-      return r?.row ?? r?.device ?? r;
+      const data = await apiGet(p, { signal });
+      const arr = normalizeList(data);
+
+      const hit =
+        arr.find((r) => {
+          const id =
+            r.deviceId ??
+            r.device_id ??
+            r.id ??
+            r.imei ??
+            r.IMEI ??
+            r.DEVICE_ID ??
+            "";
+          return String(id) === String(deviceId);
+        }) || null;
+
+      if (hit) return hit;
     } catch {
       // continue
     }
@@ -152,27 +168,30 @@ function computeMathOutput(liveValue, formula) {
 }
 
 export default function DraggableDisplayBox({ tank }) {
-  const props = tank.properties || {};
+  const props = tank?.properties || {};
 
   // FORMAT like "000.00", "00", "0000", etc.
   const numberFormat = props.numberFormat || "00000";
   const label = props.label || "";
   const theme = props.theme || "gray"; // internal theme ID
-  const scale = tank.scale || 1;
+  const scale = tank?.scale || 1;
 
   // ✅ binding + math (saved from DisplaySettingModal)
   const bindModel = props.bindModel || "zhc1921";
   const bindDeviceId = String(props.bindDeviceId || "").trim();
   const bindField = String(props.bindField || "ai1").trim();
   const formula = props.formula || "";
+  const sampleMs = Number(props.sampleMs || 3000);
+
+  const hasBinding = !!bindDeviceId && !!bindField;
 
   // ✅ live raw + computed output
   const [liveValue, setLiveValue] = useState(null);
   const [outputValue, setOutputValue] = useState(null);
 
-  // ✅ poll every 3s like graphic
+  // ✅ poll like modal (sampleMs)
   useEffect(() => {
-    if (!bindDeviceId || !bindField) {
+    if (!hasBinding) {
       setLiveValue(null);
       setOutputValue(null);
       return;
@@ -210,14 +229,14 @@ export default function DraggableDisplayBox({ tank }) {
     };
 
     tick();
-    const id = window.setInterval(tick, 3000);
+    const id = window.setInterval(tick, Math.max(250, sampleMs || 3000));
 
     return () => {
       cancelled = true;
       ctrl.abort();
       window.clearInterval(id);
     };
-  }, [bindModel, bindDeviceId, bindField, formula]);
+  }, [hasBinding, bindModel, bindDeviceId, bindField, formula, sampleMs]);
 
   // Extract integer + decimal pattern
   const [intPart, decPart] = String(numberFormat).split(".");
@@ -225,13 +244,14 @@ export default function DraggableDisplayBox({ tank }) {
   const totalDec = decPart ? decPart.length : 0;
 
   // ✅ choose what to show:
-  // - if formula produces a string => show as-is (no number formatting)
-  // - if formula produces number => format with pattern
+  // - if bound: show math output
+  // - if not bound: fallback to props.value / tank.value (legacy)
   const displayText = useMemo(() => {
-    const v = outputValue;
+    const v = hasBinding ? outputValue : props.value ?? tank?.value ?? 0;
 
     if (v === null || v === undefined || v === "") return "--";
 
+    // string output (CONCAT) => show as-is
     if (typeof v === "string") return v;
 
     const n = typeof v === "number" ? v : Number(v);
@@ -250,7 +270,7 @@ export default function DraggableDisplayBox({ tank }) {
     }
 
     return formatted;
-  }, [outputValue, totalDec, totalInt]);
+  }, [hasBinding, outputValue, props.value, tank?.value, totalDec, totalInt]);
 
   // THEMES
   const themes = {
@@ -307,7 +327,7 @@ export default function DraggableDisplayBox({ tank }) {
           typeof outputValue === "string"
             ? outputValue
             : Number.isFinite(Number(outputValue))
-            ? String(outputValue)
+            ? `OUT=${String(outputValue)}  LIVE=${Number.isFinite(liveValue) ? liveValue : "--"}`
             : ""
         }
       >
