@@ -70,8 +70,6 @@ async function loadDevicesForModel(modelKey, { signal } = {}) {
       ? ["/zhc1921/my-devices", "/zhc1921/devices", "/zhc1921/list", "/zhc1921"]
       : ["/zhc1661/my-devices", "/zhc1661/devices", "/zhc1661/list", "/zhc1661"];
 
-  let lastErr = null;
-
   for (const p of candidates) {
     try {
       const data = await apiGet(p, { signal });
@@ -87,14 +85,7 @@ async function loadDevicesForModel(modelKey, { signal } = {}) {
       return arr
         .map((r) => {
           const deviceId =
-            r.deviceId ??
-            r.device_id ??
-            r.id ??
-            r.imei ??
-            r.IMEI ??
-            r.DEVICE_ID ??
-            "";
-
+            r.deviceId ?? r.device_id ?? r.id ?? r.imei ?? r.IMEI ?? r.DEVICE_ID ?? "";
           if (!deviceId) return null;
 
           return {
@@ -104,12 +95,11 @@ async function loadDevicesForModel(modelKey, { signal } = {}) {
           };
         })
         .filter(Boolean);
-    } catch (e) {
-      lastErr = e;
+    } catch {
+      continue;
     }
   }
 
-  // if nothing worked, return empty
   return [];
 }
 
@@ -139,11 +129,6 @@ async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
       // continue
     }
   }
-
-  // fallback: confirm device exists
-  const list = await loadDevicesForModel(modelKey, { signal });
-  const found = list.find((d) => String(d.deviceId) === String(deviceId));
-  if (!found) return null;
 
   return null;
 }
@@ -175,7 +160,7 @@ function readAiField(row, bindField) {
 }
 
 /* ===========================================
-   MATH (same behavior style as GraphicDisplay)
+   MATH
 =========================================== */
 
 function computeMathOutput(liveValue, formula) {
@@ -261,7 +246,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
   const [liveErr, setLiveErr] = useState("");
 
   // -------------------------
-  // ✅ DRAG STATE (same style)
+  // ✅ DRAG STATE
   // -------------------------
   const PANEL_W = 1000;
   const dragRef = useRef({
@@ -298,18 +283,18 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
     setDidInitPos(true);
   }, [open, didInitPos]);
 
-  // Load from tank when opening/editing
+  // ✅ Load from tank whenever tank changes (this fixes “Apply not saving” when reopening)
   useEffect(() => {
     if (!tank) return;
 
-    setFormula(props.formula ?? "");
-    setBindModel(props.bindModel ?? "zhc1921");
-    setBindDeviceId(props.bindDeviceId ?? "");
-    setBindField(props.bindField ?? "ai1");
+    const p = tank?.properties || {};
+    setFormula(p.formula ?? "");
+    setBindModel(p.bindModel ?? "zhc1921");
+    setBindDeviceId(p.bindDeviceId ?? "");
+    setBindField(p.bindField ?? "ai1");
 
-    const incomingSample = Number(props.sampleMs ?? 3000);
+    const incomingSample = Number(p.sampleMs ?? 3000);
     setSampleMs(SAMPLE_OPTIONS.includes(incomingSample) ? incomingSample : 3000);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tank]);
 
   // -------------------------
@@ -327,7 +312,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
         if (cancelled) return;
         setDevices(list);
 
-        // if current device missing, clear
+        // keep selection if still exists
         if (bindDeviceId && !list.find((d) => String(d.deviceId) === String(bindDeviceId))) {
           setBindDeviceId("");
         }
@@ -343,7 +328,8 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
       cancelled = true;
       ctrl.abort();
     };
-  }, [open, bindModel]); // eslint-disable-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, bindModel]);
 
   // -------------------------
   // ✅ LIVE VALUE POLL (for Math + Preview)
@@ -510,8 +496,21 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
   }, [bindDeviceId, bindField]);
 
   // -------------------------
-  // ✅ UI (EXACT 2-column layout like your screenshot)
+  // ✅ UI
+  // ✅ change: remove bold look from right section (use normal fontWeight)
   // -------------------------
+  const labelStyle = { fontSize: 12, fontWeight: 600, color: "#111827" }; // less bold
+  const sectionTitleStyle = { fontWeight: 700, fontSize: 16 }; // less bold than 900
+  const fieldSelectStyle = {
+    height: 38,
+    borderRadius: 10,
+    border: "1px solid #d1d5db",
+    padding: "0 10px",
+    fontWeight: 500, // ✅ remove bold
+    background: "#fff",
+    outline: "none",
+  };
+
   return (
     <div
       onMouseDown={(e) => e.stopPropagation()}
@@ -576,12 +575,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
         </div>
 
         {/* BODY */}
-        <div
-          style={{
-            padding: 18,
-            background: "#f8fafc",
-          }}
-        >
+        <div style={{ padding: 18, background: "#f8fafc" }}>
           <div
             style={{
               display: "grid",
@@ -601,7 +595,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                 gap: 12,
               }}
             >
-              <div style={{ fontWeight: 900, fontSize: 16 }}>Math</div>
+              <div style={sectionTitleStyle}>Math</div>
 
               <div
                 style={{
@@ -612,7 +606,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                 }}
               >
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 900, color: "#111827" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#111827" }}>
                     Live VALUE
                   </div>
                   <div
@@ -628,17 +622,16 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                       background: "rgba(187,247,208,0.55)",
                       border: "1px solid rgba(22,163,74,0.25)",
                       fontFamily: "monospace",
-                      fontWeight: 900,
+                      fontWeight: 800,
                       color: "#0b3b18",
                     }}
-                    title="Live tag value"
                   >
                     {Number.isFinite(liveValue) ? liveValue.toFixed(2) : "--"}
                   </div>
                 </div>
 
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 12, fontWeight: 900, color: "#111827" }}>
+                  <div style={{ fontSize: 12, fontWeight: 700, color: "#111827" }}>
                     Output
                   </div>
                   <div
@@ -654,22 +647,21 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                       background: "#f3f4f6",
                       border: "1px solid #d1d5db",
                       fontFamily: "monospace",
-                      fontWeight: 900,
+                      fontWeight: 800,
                       color: "#111827",
                     }}
-                    title="Math result"
                   >
                     {typeof outputValue === "string"
                       ? outputValue
                       : Number.isFinite(Number(outputValue))
                       ? Number(outputValue).toFixed(2)
-                      : "--"}
+                      : "0.00"}
                   </div>
                 </div>
               </div>
 
               <div>
-                <div style={{ fontSize: 12, fontWeight: 900, color: "#111827" }}>
+                <div style={{ fontSize: 12, fontWeight: 700, color: "#111827" }}>
                   Formula
                 </div>
                 <textarea
@@ -691,7 +683,6 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                 />
               </div>
 
-              {/* Supported operators panel (as screenshot) */}
               <div
                 style={{
                   background: "#f1f5f9",
@@ -703,8 +694,8 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                   lineHeight: 1.35,
                 }}
               >
-                <div style={{ fontWeight: 900, marginBottom: 8 }}>Supported Operators</div>
-                <div style={{ display: "grid", gap: 4, fontWeight: 800 }}>
+                <div style={{ fontWeight: 700, marginBottom: 8 }}>Supported Operators</div>
+                <div style={{ display: "grid", gap: 4 }}>
                   <div>VALUE + 10 → add</div>
                   <div>VALUE - 3 → subtract</div>
                   <div>VALUE * 2 → multiply</div>
@@ -712,18 +703,16 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                   <div>VALUE % 60 → modulo</div>
                 </div>
 
-                <div style={{ fontWeight: 900, margin: "10px 0 6px" }}>
-                  Combined Examples
-                </div>
-                <div style={{ display: "grid", gap: 4, fontWeight: 800 }}>
+                <div style={{ fontWeight: 700, margin: "10px 0 6px" }}>Combined Examples</div>
+                <div style={{ display: "grid", gap: 4 }}>
                   <div>(VALUE * 1.5) + 5 → scale &amp; offset</div>
                   <div>(VALUE / 4095) * 20 - 4 → ADC → 4–20 mA</div>
                 </div>
 
-                <div style={{ fontWeight: 900, margin: "10px 0 6px" }}>
+                <div style={{ fontWeight: 700, margin: "10px 0 6px" }}>
                   String Output Examples
                 </div>
-                <div style={{ display: "grid", gap: 4, fontWeight: 800 }}>
+                <div style={{ display: "grid", gap: 4 }}>
                   <div>CONCAT("Temp=", VALUE)</div>
                   <div>CONCAT("Level=", VALUE, " %")</div>
                   <div>CONCAT("Vol=", VALUE * 2, " Gal")</div>
@@ -739,7 +728,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                     borderRadius: 10,
                     padding: 10,
                     fontSize: 12,
-                    fontWeight: 900,
+                    fontWeight: 700,
                   }}
                 >
                   {liveErr}
@@ -758,26 +747,11 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                 gap: 12,
               }}
             >
-              <div style={{ fontWeight: 900, fontSize: 16 }}>
-                Tag that drives the Trend (AI)
-              </div>
+              <div style={sectionTitleStyle}>Tag that drives the Trend (AI)</div>
 
-              {/* Model */}
               <div style={{ display: "grid", gap: 6 }}>
-                <div style={{ fontSize: 12, fontWeight: 900, color: "#111827" }}>Model</div>
-                <select
-                  value={bindModel}
-                  onChange={(e) => setBindModel(e.target.value)}
-                  style={{
-                    height: 38,
-                    borderRadius: 10,
-                    border: "1px solid #d1d5db",
-                    padding: "0 10px",
-                    fontWeight: 800,
-                    background: "#fff",
-                    outline: "none",
-                  }}
-                >
+                <div style={labelStyle}>Model</div>
+                <select value={bindModel} onChange={(e) => setBindModel(e.target.value)} style={fieldSelectStyle}>
                   {Object.entries(MODEL_META).map(([k, v]) => (
                     <option key={k} value={k}>
                       {v.label}
@@ -786,22 +760,9 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                 </select>
               </div>
 
-              {/* Device */}
               <div style={{ display: "grid", gap: 6 }}>
-                <div style={{ fontSize: 12, fontWeight: 900, color: "#111827" }}>Device</div>
-                <select
-                  value={bindDeviceId}
-                  onChange={(e) => setBindDeviceId(e.target.value)}
-                  style={{
-                    height: 38,
-                    borderRadius: 10,
-                    border: "1px solid #d1d5db",
-                    padding: "0 10px",
-                    fontWeight: 800,
-                    background: "#fff",
-                    outline: "none",
-                  }}
-                >
+                <div style={labelStyle}>Device</div>
+                <select value={bindDeviceId} onChange={(e) => setBindDeviceId(e.target.value)} style={fieldSelectStyle}>
                   <option value="">Select device...</option>
                   {devices.map((d) => (
                     <option key={d.deviceId} value={d.deviceId}>
@@ -811,24 +772,9 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                 </select>
               </div>
 
-              {/* AI Field */}
               <div style={{ display: "grid", gap: 6 }}>
-                <div style={{ fontSize: 12, fontWeight: 900, color: "#111827" }}>
-                  Analog Input (AI)
-                </div>
-                <select
-                  value={bindField}
-                  onChange={(e) => setBindField(e.target.value)}
-                  style={{
-                    height: 38,
-                    borderRadius: 10,
-                    border: "1px solid #d1d5db",
-                    padding: "0 10px",
-                    fontWeight: 800,
-                    background: "#fff",
-                    outline: "none",
-                  }}
-                >
+                <div style={labelStyle}>Analog Input (AI)</div>
+                <select value={bindField} onChange={(e) => setBindField(e.target.value)} style={fieldSelectStyle}>
                   <option value="ai1">AI-1</option>
                   <option value="ai2">AI-2</option>
                   <option value="ai3">AI-3</option>
@@ -840,24 +786,9 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                 </select>
               </div>
 
-              {/* Sample */}
               <div style={{ display: "grid", gap: 6 }}>
-                <div style={{ fontSize: 12, fontWeight: 900, color: "#111827" }}>
-                  Sample
-                </div>
-                <select
-                  value={sampleMs}
-                  onChange={(e) => setSampleMs(Number(e.target.value))}
-                  style={{
-                    height: 38,
-                    borderRadius: 10,
-                    border: "1px solid #d1d5db",
-                    padding: "0 10px",
-                    fontWeight: 800,
-                    background: "#fff",
-                    outline: "none",
-                  }}
-                >
+                <div style={labelStyle}>Sample</div>
+                <select value={sampleMs} onChange={(e) => setSampleMs(Number(e.target.value))} style={fieldSelectStyle}>
                   {SAMPLE_OPTIONS.map((ms) => (
                     <option key={ms} value={ms}>
                       {formatSampleLabel(ms)}
@@ -866,7 +797,6 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                 </select>
               </div>
 
-              {/* Binding Preview */}
               <div
                 style={{
                   marginTop: 4,
@@ -876,18 +806,15 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                   padding: 12,
                 }}
               >
-                <div style={{ fontWeight: 900, marginBottom: 8 }}>Binding Preview</div>
+                <div style={{ fontWeight: 700, marginBottom: 8 }}>Binding Preview</div>
 
-                <div style={{ fontSize: 12, fontWeight: 800, color: "#111827" }}>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>
                   Selected:{" "}
-                  <span style={{ fontFamily: "monospace" }}>
-                    {bindDeviceId || "--"}
-                  </span>{" "}
-                  ·{" "}
+                  <span style={{ fontFamily: "monospace" }}>{bindDeviceId || "--"}</span> ·{" "}
                   {selectedDevice?.status === "online" ? (
-                    <span style={{ color: "#16a34a", fontWeight: 900 }}>ONLINE</span>
+                    <span style={{ color: "#16a34a" }}>ONLINE</span>
                   ) : (
-                    <span style={{ color: "#dc2626", fontWeight: 900 }}>OFFLINE</span>
+                    <span style={{ color: "#dc2626" }}>OFFLINE</span>
                   )}
                 </div>
 
@@ -898,28 +825,22 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                     gap: 10,
                     marginTop: 10,
                     fontSize: 12,
-                    fontWeight: 900,
+                    fontWeight: 600,
                   }}
                 >
                   <div>
-                    <div style={{ color: "#6b7280", fontWeight: 900 }}>Model</div>
-                    <div style={{ marginTop: 2, fontWeight: 900 }}>
-                      {MODEL_META[bindModel]?.label || "—"}
-                    </div>
+                    <div style={{ color: "#6b7280", fontWeight: 600 }}>Model</div>
+                    <div style={{ marginTop: 2 }}>{MODEL_META[bindModel]?.label || "—"}</div>
                   </div>
 
                   <div>
-                    <div style={{ color: "#6b7280", fontWeight: 900 }}>Selected AI</div>
-                    <div style={{ marginTop: 2, fontWeight: 900 }}>
-                      {String(bindField || "").toUpperCase().replace("AI", "AI-")}
-                    </div>
+                    <div style={{ color: "#6b7280", fontWeight: 600 }}>Selected AI</div>
+                    <div style={{ marginTop: 2 }}>{String(bindField || "").toUpperCase().replace("AI", "AI-")}</div>
                   </div>
                 </div>
 
                 <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between" }}>
-                  <div style={{ fontSize: 12, fontWeight: 900, color: "#111827" }}>
-                    Current Value
-                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>Current Value</div>
 
                   <div
                     style={{
@@ -933,25 +854,17 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                       background: "rgba(187,247,208,0.55)",
                       border: "1px solid rgba(22,163,74,0.25)",
                       fontFamily: "monospace",
-                      fontWeight: 900,
+                      fontWeight: 700,
                       color: "#0b3b18",
                     }}
-                    title="Current live value"
                   >
                     {Number.isFinite(liveValue) ? liveValue.toFixed(2) : "--"}
                   </div>
                 </div>
               </div>
 
-              {/* ACTIONS (bottom-right) */}
-              <div
-                style={{
-                  display: "flex",
-                  justifyContent: "flex-end",
-                  gap: 10,
-                  marginTop: 4,
-                }}
-              >
+              {/* ACTIONS */}
+              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 4 }}>
                 <button
                   onClick={onClose}
                   style={{
@@ -959,7 +872,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                     borderRadius: 10,
                     border: "1px solid #d1d5db",
                     background: "#fff",
-                    fontWeight: 900,
+                    fontWeight: 700,
                     cursor: "pointer",
                   }}
                 >
@@ -968,20 +881,24 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
 
                 <button
                   disabled={!canApply}
-                  onClick={() =>
-                    onSave({
+                  onClick={() => {
+                    // ✅ IMPORTANT FIX:
+                    // Save into tank.properties (your DraggableDisplayBox reads tank.properties)
+                    const nextTank = {
                       ...tank,
                       properties: {
                         ...(tank?.properties || {}),
-                        // ✅ save binding + math into properties
                         bindModel,
                         bindDeviceId,
                         bindField,
                         formula,
                         sampleMs,
                       },
-                    })
-                  }
+                    };
+                    onSave(nextTank);
+                    // close after apply (matches your expected UX)
+                    onClose?.();
+                  }}
                   style={{
                     padding: "10px 14px",
                     borderRadius: 10,
@@ -990,7 +907,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                       ? "linear-gradient(180deg,#bff2c7,#6fdc89)"
                       : "#e5e7eb",
                     color: "#0b3b18",
-                    fontWeight: 900,
+                    fontWeight: 800,
                     cursor: canApply ? "pointer" : "not-allowed",
                   }}
                 >
