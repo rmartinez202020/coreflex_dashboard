@@ -3,13 +3,6 @@ import React from "react";
 
 /**
  * Display style picker for Display Output widget.
- * Saves a simple string key (styleId) into tank.properties.displayStyle.
- *
- * 4 styles (includes the current/original one):
- * - classic (original)
- * - minimal
- * - darkDigital
- * - glassRounded
  */
 
 const STYLES = [
@@ -72,7 +65,7 @@ const STYLES = [
   },
 ];
 
-function StyleCard({ s, active, onPick, previewValue, compact = false }) {
+function StyleCard({ s, active, onPick, previewValue }) {
   return (
     <button
       type="button"
@@ -83,7 +76,7 @@ function StyleCard({ s, active, onPick, previewValue, compact = false }) {
         borderRadius: 12,
         border: active ? "2px solid #22c55e" : "1px solid #e5e7eb",
         background: active ? "rgba(187,247,208,0.35)" : "#fff",
-        padding: compact ? 10 : 12,
+        padding: 12,
         cursor: "pointer",
         display: "grid",
         gap: 6,
@@ -111,10 +104,10 @@ function StyleCard({ s, active, onPick, previewValue, compact = false }) {
 
       <div style={{ fontSize: 12, color: "#475569" }}>{s.desc}</div>
 
-      {/* mini-preview inside card */}
+      {/* Mini preview */}
       <div
         style={{
-          height: compact ? 34 : 36,
+          height: 36,
           borderRadius: s.sample.radius,
           border: `2px solid ${s.sample.border}`,
           background: s.sample.bg,
@@ -126,7 +119,6 @@ function StyleCard({ s, active, onPick, previewValue, compact = false }) {
           fontWeight: s.sample.fontWeight,
           color: s.sample.text,
           letterSpacing: s.sample.letterSpacing,
-          overflow: "hidden",
           padding: "0 8px",
         }}
       >
@@ -141,11 +133,6 @@ export default function DisplaySettingsmodalOptions({
   onChange,
   previewValue = "12068",
 }) {
-  const classic = STYLES.find((s) => s.id === "classic");
-  const minimal = STYLES.find((s) => s.id === "minimal");
-  const darkDigital = STYLES.find((s) => s.id === "darkDigital");
-  const glassRounded = STYLES.find((s) => s.id === "glassRounded");
-
   return (
     <div
       style={{
@@ -159,53 +146,16 @@ export default function DisplaySettingsmodalOptions({
     >
       <div style={{ fontWeight: 600, fontSize: 16 }}>Display Style</div>
 
-      {/* Classic + Minimal full width */}
-      {classic && (
+      {/* All styles now stacked vertically (horizontal full width cards) */}
+      {STYLES.map((s) => (
         <StyleCard
-          s={classic}
-          active={value === classic.id}
+          key={s.id}
+          s={s}
+          active={value === s.id}
           onPick={onChange}
           previewValue={previewValue}
         />
-      )}
-
-      {minimal && (
-        <StyleCard
-          s={minimal}
-          active={value === minimal.id}
-          onPick={onChange}
-          previewValue={previewValue}
-        />
-      )}
-
-      {/* Dark + Glass side by side */}
-      <div
-        style={{
-          display: "grid",
-          gridTemplateColumns: "1fr 1fr",
-          gap: 10,
-        }}
-      >
-        {darkDigital && (
-          <StyleCard
-            s={darkDigital}
-            active={value === darkDigital.id}
-            onPick={onChange}
-            previewValue={previewValue}
-            compact
-          />
-        )}
-
-        {glassRounded && (
-          <StyleCard
-            s={glassRounded}
-            active={value === glassRounded.id}
-            onPick={onChange}
-            previewValue={previewValue}
-            compact
-          />
-        )}
-      </div>
+      ))}
     </div>
   );
 }
