@@ -234,7 +234,8 @@ function getStyleConfig(displayStyle, legacyTheme) {
       borderW: 2,
       letterSpacing: 4,
       fontWeight: 800,
-      shadow: "0 8px 18px rgba(2, 6, 23, 0.18), inset 0 0 10px rgba(255,255,255,0.35)",
+      shadow:
+        "0 8px 18px rgba(2, 6, 23, 0.18), inset 0 0 10px rgba(255,255,255,0.35)",
       labelColor: "#334155",
     },
   };
@@ -245,6 +246,9 @@ function getStyleConfig(displayStyle, legacyTheme) {
 export default function DraggableDisplayBox({ tank }) {
   const props = tank?.properties || {};
 
+  // ✅ NEW: title at top (supports title or displayTitle)
+  const title = String(props.title ?? props.displayTitle ?? "").trim();
+
   // FORMAT like "000.00", "00", "0000", etc.
   const numberFormat = props.numberFormat || "00000";
   const label = props.label || "";
@@ -253,7 +257,10 @@ export default function DraggableDisplayBox({ tank }) {
 
   // ✅ NEW: style picker (4 styles)
   const displayStyle = props.displayStyle || "classic";
-  const styleCfg = useMemo(() => getStyleConfig(displayStyle, theme), [displayStyle, theme]);
+  const styleCfg = useMemo(
+    () => getStyleConfig(displayStyle, theme),
+    [displayStyle, theme]
+  );
 
   // ✅ binding + math
   const bindModel = props.bindModel || "zhc1921";
@@ -351,7 +358,23 @@ export default function DraggableDisplayBox({ tank }) {
 
   return (
     <div style={{ textAlign: "center", pointerEvents: "none" }}>
-      {/* LABEL ABOVE DISPLAY */}
+      {/* ✅ TITLE (TOP) */}
+      {title ? (
+        <div
+          style={{
+            marginBottom: 6,
+            fontSize: `${18 * scale}px`,
+            fontWeight: 800,
+            color: styleCfg.labelColor,
+            pointerEvents: "none",
+            lineHeight: 1.1,
+          }}
+        >
+          {title}
+        </div>
+      ) : null}
+
+      {/* LABEL (SUBTITLE) */}
       {label ? (
         <div
           style={{
@@ -360,6 +383,7 @@ export default function DraggableDisplayBox({ tank }) {
             fontWeight: 600,
             color: styleCfg.labelColor,
             pointerEvents: "none",
+            lineHeight: 1.1,
           }}
         >
           {label}
@@ -388,7 +412,6 @@ export default function DraggableDisplayBox({ tank }) {
           whiteSpace: "nowrap",
           overflow: "hidden",
           textOverflow: "ellipsis",
-          // a little “glass” polish for glassRounded only (harmless for others)
           backdropFilter: displayStyle === "glassRounded" ? "blur(6px)" : undefined,
         }}
         title={

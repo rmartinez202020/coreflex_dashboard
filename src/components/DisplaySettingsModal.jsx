@@ -1,6 +1,9 @@
 // src/components/DisplaySettingModal.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import {useDisplaySettingDevices,useDisplaySettingLiveValue,} from "./DisplaysettingsmodalTelemetry";
+import {
+  useDisplaySettingDevices,
+  useDisplaySettingLiveValue,
+} from "./DisplaysettingsmodalTelemetry";
 import DisplaySettingsmodalOptions from "./DisplaySettingsmodalOptions";
 
 const MODEL_META = {
@@ -68,6 +71,9 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
 
   const props = tank?.properties || {};
 
+  // ✅ NEW: TITLE (top of display)
+  const [title, setTitle] = useState(props.title ?? props.displayTitle ?? "");
+
   // ✅ math
   const [formula, setFormula] = useState(props.formula ?? "");
 
@@ -76,7 +82,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
   const [bindDeviceId, setBindDeviceId] = useState(props.bindDeviceId || "");
   const [bindField, setBindField] = useState(props.bindField || "ai1");
 
-  // ✅ NEW: display style (4 options)
+  // ✅ display style (4 options)
   const [displayStyle, setDisplayStyle] = useState(props.displayStyle || "classic");
 
   // -------------------------
@@ -102,7 +108,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
   // -------------------------
   // ✅ DRAG STATE
   // -------------------------
-  const PANEL_W = 1240; // wider now since we added a left column
+  const PANEL_W = 1240;
   const dragRef = useRef({
     dragging: false,
     startX: 0,
@@ -142,6 +148,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
     if (!tank) return;
 
     const p = tank?.properties || {};
+    setTitle(p.title ?? p.displayTitle ?? "");
     setFormula(p.formula ?? "");
     setBindModel(p.bindModel ?? "zhc1921");
     setBindDeviceId(p.bindDeviceId ?? "");
@@ -306,7 +313,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
               alignItems: "start",
             }}
           >
-            {/* LEFT: OPTIONS (NEW) */}
+            {/* LEFT: OPTIONS */}
             <DisplaySettingsmodalOptions
               value={displayStyle}
               onChange={setDisplayStyle}
@@ -332,6 +339,28 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
               }}
             >
               <div style={sectionTitleStyle}>Math</div>
+
+              {/* ✅ NEW: TITLE INPUT */}
+              <div style={{ display: "grid", gap: 6 }}>
+                <div style={labelStyle}>Title (Top of Display)</div>
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  placeholder="Example: Water Tank #1"
+                  style={{
+                    height: 38,
+                    borderRadius: 10,
+                    border: "1px solid #d1d5db",
+                    padding: "0 10px",
+                    fontWeight: 500,
+                    background: "#fff",
+                    outline: "none",
+                  }}
+                />
+                <div style={{ fontSize: 11, color: "#64748b" }}>
+                  This shows above the label on the widget.
+                </div>
+              </div>
 
               <div
                 style={{
@@ -413,7 +442,6 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                 />
               </div>
 
-              {/* keep the “formula samples” section */}
               <div
                 style={{
                   background: "#f1f5f9",
@@ -591,22 +619,26 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                 <button
                   disabled={!canApply}
                   onClick={() => {
+                    const cleanTitle = String(title || "").trim();
+
                     const nextProps = {
                       ...(tank?.properties || {}),
+                      title: cleanTitle, // ✅ NEW
                       bindModel,
                       bindDeviceId,
                       bindField,
                       formula,
-                      displayStyle, // ✅ NEW
+                      displayStyle,
                     };
 
                     const nextTank = {
                       ...tank,
+                      title: cleanTitle, // mirror (fallback)
                       bindModel,
                       bindDeviceId,
                       bindField,
                       formula,
-                      displayStyle, // mirror (fallback)
+                      displayStyle,
                       properties: nextProps,
                     };
 
@@ -629,7 +661,6 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
             </div>
           </div>
 
-          {/* responsive fallback if screen is narrow */}
           <div style={{ marginTop: 10, fontSize: 11, color: "#64748b" }}>
             Tip: if it feels tight on smaller screens, we can auto-switch to stacked layout.
           </div>
