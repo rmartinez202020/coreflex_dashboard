@@ -520,7 +520,7 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
               </div>
 
               <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>Density</div>
+                <div style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>Math</div>
                 <textarea
                   value={density}
                   onChange={(e) => setDensity(toNum(e.target.value))}
