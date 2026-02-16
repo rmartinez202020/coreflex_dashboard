@@ -149,13 +149,19 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
   );
 
   // -------------------------
-  // ✅ MIDDLE: “Math” card (same exact UI)
+  // ✅ MIDDLE: “Math” card
   // -------------------------
   const [name, setName] = useState(props.name ?? "");
   const [contents, setContents] = useState(props.contents ?? "");
   const [density, setDensity] = useState(
     props.density === undefined || props.density === null ? "" : Number(props.density)
   );
+
+  // ✅ NEW: Capacity + Material Color
+  const [maxCapacity, setMaxCapacity] = useState(
+    props.maxCapacity === undefined || props.maxCapacity === null ? "" : Number(props.maxCapacity)
+  );
+  const [materialColor, setMaterialColor] = useState(props.materialColor || "#00ff00");
 
   const [liveValue] = useState(0);
   const outputValue = useMemo(() => {
@@ -164,7 +170,7 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
   }, [density]);
 
   // -------------------------
-  // ✅ RIGHT: device binding with SEARCH (like DisplayBox)
+  // ✅ RIGHT: device binding with SEARCH
   // -------------------------
   const [bindModel, setBindModel] = useState(props.bindModel || "zhc1921");
   const [bindDeviceId, setBindDeviceId] = useState(props.bindDeviceId || "");
@@ -186,8 +192,6 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
         const list = await loadDeviceListForModel(bindModel, { signal: ctrl.signal });
         if (cancelled) return;
         setDevices(list || []);
-
-        // if current bind id is empty but there is a selected device in list, keep empty (user choice)
       } catch {
         if (cancelled) return;
         setDevices([]);
@@ -264,6 +268,9 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
     setName(p.name ?? "");
     setContents(p.contents ?? "");
     setDensity(p.density === undefined || p.density === null ? "" : Number(p.density));
+
+    setMaxCapacity(p.maxCapacity === undefined || p.maxCapacity === null ? "" : Number(p.maxCapacity));
+    setMaterialColor(p.materialColor || "#00ff00");
 
     setBindModel(p.bindModel ?? "zhc1921");
     setBindDeviceId(p.bindDeviceId ?? "");
@@ -424,7 +431,7 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
             {/* ✅ LEFT: MATH HELPER */}
             {helperCard}
 
-            {/* ✅ MIDDLE: MATH CARD */}
+            {/* ✅ MIDDLE: MATH CARD + NEW SECTION */}
             <div
               style={{
                 background: "#ffffff",
@@ -532,6 +539,56 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                   placeholder="Example: 52.4"
                 />
               </div>
+
+              {/* ✅ NEW: Capacity + Material/Liquid Color */}
+              <div
+                style={{
+                  borderTop: "1px dashed #e5e7eb",
+                  paddingTop: 12,
+                  marginTop: 4,
+                  display: "grid",
+                  gap: 10,
+                }}
+              >
+                <div style={sectionTitleStyle}>Capacity &amp; Color</div>
+
+                <div style={{ display: "grid", gap: 6 }}>
+                  <div style={labelStyle}>Max Capacity</div>
+                  <input
+                    type="number"
+                    value={maxCapacity}
+                    onChange={(e) => setMaxCapacity(toNum(e.target.value))}
+                    style={fieldInputStyle}
+                    placeholder="Example: 5000"
+                  />
+                </div>
+
+                <div style={{ display: "grid", gap: 6 }}>
+                  <div style={labelStyle}>Material / Liquid Color</div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+                    <input
+                      type="color"
+                      value={materialColor}
+                      onChange={(e) => setMaterialColor(e.target.value)}
+                      style={{
+                        width: 44,
+                        height: 38,
+                        borderRadius: 10,
+                        border: "1px solid #d1d5db",
+                        background: "#fff",
+                        padding: 4,
+                        cursor: "pointer",
+                      }}
+                    />
+                    <input
+                      value={materialColor}
+                      onChange={(e) => setMaterialColor(e.target.value)}
+                      style={fieldInputStyle}
+                      placeholder="#00ff00"
+                    />
+                  </div>
+                </div>
+              </div>
             </div>
 
             {/* ✅ RIGHT: BINDING + SEARCH */}
@@ -558,7 +615,6 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                 </select>
               </div>
 
-              {/* ✅ search input (like displaybox experience) */}
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Device Search</div>
                 <input
@@ -663,6 +719,10 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                       name: String(name || "").trim(),
                       contents: String(contents || "").trim(),
                       density: density === "" ? "" : Number(density),
+
+                      // ✅ NEW fields saved
+                      maxCapacity: maxCapacity === "" ? "" : Number(maxCapacity),
+                      materialColor: String(materialColor || "#00ff00"),
 
                       bindModel,
                       bindDeviceId,
