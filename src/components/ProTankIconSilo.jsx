@@ -1,5 +1,5 @@
 // src/components/ProTankIconSilo.jsx
-import React from "react";
+import React, { useId } from "react";
 
 const svgStyle = {
   width: "100%",
@@ -9,37 +9,46 @@ const svgStyle = {
 
 // ⭐ SILO TANK (Dashboard)
 export function SiloTank({
-  level = 0,
-  primaryValue,
-  secondaryValue,
+  level = 0, // 0..100
   fillColor = "#fde04788",
   alarm = false,
+
+  // ✅ NEW: show percent text inside the silo
+  showPercentText = false,
+  percentText = "",
+  percentTextColor = "#111827",
 }) {
-  const clampedLevel = Math.max(0, Math.min(100, level));
+  const clipId = useId();
+
+  const clampedLevel = Math.max(0, Math.min(100, Number(level) || 0));
+
   const topY = 30;
   const bottomY = 140;
   const filledHeight = (bottomY - topY) * (clampedLevel / 100);
   const fillY = bottomY - filledHeight;
+
   const effectiveFill = alarm ? "#ff4d4d88" : fillColor;
 
   return (
     <div style={{ display: "inline-block" }}>
       <svg viewBox="0 0 160 200" preserveAspectRatio="xMidYMid meet" style={svgStyle}>
         <defs>
-          <clipPath id="siloClip">
+          <clipPath id={clipId}>
             <path d="M 20 30 A 40 12 0 0 1 100 30 L 100 140 L 20 140 Z" />
           </clipPath>
         </defs>
 
+        {/* liquid fill */}
         <rect
           x="20"
           y={fillY}
           width="80"
           height={filledHeight}
           fill={effectiveFill}
-          clipPath="url(#siloClip)"
+          clipPath={`url(#${clipId})`}
         />
 
+        {/* tank outline */}
         <path
           d="M 20 30 A 40 12 0 0 1 100 30 L 100 140 L 20 140 Z"
           fill="none"
@@ -52,11 +61,29 @@ export function SiloTank({
           stroke="#555"
           strokeWidth="2"
         />
+
+        {/* ✅ percent text inside */}
+        {showPercentText ? (
+          <text
+            x="60"
+            y="95"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontFamily="system-ui, -apple-system, Segoe UI, Roboto, Arial"
+            fontSize="18"
+            fontWeight="600"
+            fill={percentTextColor}
+            style={{ userSelect: "none" }}
+          >
+            {percentText || `${Math.round(clampedLevel)}%`}
+          </text>
+        ) : null}
       </svg>
     </div>
   );
 }
 
+// WHITE ICON (LEFT MENU)
 export function SiloTankIcon() {
   return (
     <svg width="35" height="80" viewBox="0 0 160 200">
