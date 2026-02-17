@@ -15,6 +15,10 @@ import PushButtonControl from "./controls/PushButtonControl";
 import AlarmLogResizeEdges from "./alarm/AlarmLogResizeEdges";
 import DisplayOutputTextBoxStyle from "./display/DisplayOutputTextBoxStyle";
 import { StandardTank, HorizontalTank, VerticalTank, SiloTank } from "./ProTankIcon";
+import DraggableHorizontalTank from "./DraggableHorizontalTank";
+import DraggableVerticalTank from "./DraggableVerticalTank";
+import DraggableStandardTank from "./DraggableStandardTank"; // only if you have it
+
 import {
   DraggableLedCircle,
   DraggableStatusTextBox,
@@ -498,29 +502,38 @@ export default function DashboardCanvas({
               );
             }
 
-            if (tank.shape === "standardTank") {
-              return (
-                <DraggableDroppedTank {...commonProps}>
-                  <StandardTank level={0} />
-                </DraggableDroppedTank>
-              );
-            }
+          if (tank.shape === "standardTank") {
+  return (
+    <DraggableStandardTank
+      key={tank.id}
+      tank={tank}
+      onUpdate={commonProps.onUpdate}
+    />
+  );
+}
 
-            if (tank.shape === "horizontalTank") {
-              return (
-                <DraggableDroppedTank {...commonProps}>
-                  <HorizontalTank level={0} />
-                </DraggableDroppedTank>
-              );
-            }
+
+          if (tank.shape === "horizontalTank") {
+  return (
+    <DraggableHorizontalTank
+      key={tank.id}
+      tank={tank}
+      onUpdate={commonProps.onUpdate}
+    />
+  );
+}
+
 
             if (tank.shape === "verticalTank") {
-              return (
-                <DraggableDroppedTank {...commonProps}>
-                  <VerticalTank level={0} />
-                </DraggableDroppedTank>
-              );
-            }
+  return (
+    <DraggableVerticalTank
+      key={tank.id}
+      tank={tank}
+      onUpdate={commonProps.onUpdate}
+    />
+  );
+}
+
 
             if (tank.shape === "siloTank") {
               return (
