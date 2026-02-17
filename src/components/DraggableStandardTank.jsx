@@ -4,6 +4,9 @@ import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 import { StandardTank } from "./ProTankIconStandard";
 
+// ✅ ADD THIS
+import StandardTankPropertiesModal from "./StandardTankPropertiesModal";
+
 // ✅ Models allowed
 const MODEL_META = {
   zhc1921: { base: "zhc1921" }, // CF-2000
@@ -181,9 +184,12 @@ function formatOutput(v, digits = 2) {
   return n.toFixed(Math.max(0, Number(digits) || 0));
 }
 
-export default function DraggableStandardTank({ tank }) {
+export default function DraggableStandardTank({ tank, onUpdate }) {
   const props = tank?.properties || {};
   const scale = tank?.scale || 1;
+
+  // ✅ modal open/close
+  const [openProps, setOpenProps] = useState(false);
 
   // ✅ saved from your modal
   const name = String(props.name || "").trim();
@@ -194,21 +200,20 @@ export default function DraggableStandardTank({ tank }) {
   const bindModel = props.bindModel || "zhc1921";
   const bindDeviceId = String(props.bindDeviceId || "").trim();
   const bindField = String(props.bindField || "ai1").trim();
-  const formula = String(props.formula || props.math || "").trim(); // supports either key
+
+  // ✅ IMPORTANT: match the modal key
+  const formula = String(props.mathExpr || props.formula || props.math || "").trim();
   const digits = props.outputDigits ?? 2;
 
   const hasBinding = !!bindDeviceId && !!bindField;
 
-  // ✅ optional alarm thresholds (if you decide to add later)
   const alarmEnabled = !!props.alarmEnabled;
   const alarmHigh = toNumberOrNull(props.alarmHigh);
   const alarmLow = toNumberOrNull(props.alarmLow);
 
-  // ✅ live raw + computed output
   const [liveValue, setLiveValue] = useState(null);
   const [outputValue, setOutputValue] = useState(null);
 
-  // ✅ Poll fixed every 2 seconds
   useEffect(() => {
     if (!hasBinding) {
       setLiveValue(null);
@@ -236,7 +241,6 @@ export default function DraggableStandardTank({ tank }) {
       } catch (e) {
         if (cancelled) return;
         if (String(e?.name || "").toLowerCase().includes("abort")) return;
-        // keep last value
       }
     };
 
@@ -250,7 +254,6 @@ export default function DraggableStandardTank({ tank }) {
     };
   }, [hasBinding, bindModel, bindDeviceId, bindField, formula]);
 
-  // ✅ numeric output for % fill
   const outNum = useMemo(() => {
     if (!hasBinding) return toNumberOrNull(props.value ?? tank?.value ?? 0);
     return toNumberOrNull(outputValue);
@@ -273,90 +276,99 @@ export default function DraggableStandardTank({ tank }) {
   }, [alarmEnabled, outNum, alarmHigh, alarmLow]);
 
   const outputText = useMemo(() => {
-    // if CONCAT => string allowed
     if (hasBinding) return formatOutput(outputValue, digits);
     return formatOutput(props.value ?? tank?.value ?? 0, digits);
   }, [hasBinding, outputValue, digits, props.value, tank?.value]);
 
-  // ✅ size (you can adjust if your dropped tank uses explicit w/h)
   const w = (tank?.w || tank?.width || 120) * scale;
   const h = (tank?.h || tank?.height || 160) * scale;
 
   return (
-    <div
-      style={{
-        width: w,
-        height: h + 34 * scale, // extra space for number below
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "flex-start",
-        pointerEvents: "none", // draggable handled by parent wrapper
-      }}
-    >
-      {/* optional name above (keep subtle) */}
-      {name ? (
+    <>
+      {/* ✅ DOUBLE CLICK OPENS MODAL */}
+      <div
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          setOpenProps(true);
+        }}
+        style={{
+          width: w,
+          height: h + 34 * scale,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "flex-start",
+          pointerEvents: "auto", // ✅ allow double click
+          cursor: "default",
+        }}
+      >
+        {name ? (
+          <div
+            style={{
+              marginBottom: 6 * scale,
+              fontSize: 12 * scale,
+              fontWeight: 600,
+              color: "#111827",
+              lineHeight: 1.1,
+              textAlign: "center",
+              maxWidth: "100%",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+          >
+            {name}
+          </div>
+        ) : null}
+
+        <div style={{ width: w, height: h, pointerEvents: "none" }}>
+          {/* if you haven't added liquid fill to StandardTank yet, this still renders the outline.
+              once you upgrade ProTankIconStandard to support fill, these props will take effect. */}
+          <StandardTank
+            level={percent}
+            fillColor={materialColor}
+            alarm={alarm}
+            showPercentText={true}
+            percentText={`${Math.round(percent)}%`}
+          />
+        </div>
+
         <div
           style={{
-            marginBottom: 6 * scale,
-            fontSize: 12 * scale,
-            fontWeight: 600,
-            color: "#111827",
-            lineHeight: 1.1,
-            textAlign: "center",
-            maxWidth: "100%",
+            marginTop: 6 * scale,
+            minWidth: 90 * scale,
+            height: 26 * scale,
+            padding: `0 ${10 * scale}px`,
+            borderRadius: 10 * scale,
+            border: "1px solid #cbd5e1",
+            background: "#ffffff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontFamily: "monospace",
+            fontSize: 14 * scale,
+            fontWeight: 700,
+            color: "#0f172a",
+            boxShadow: "0 2px 10px rgba(2,6,23,0.08)",
+            whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
           }}
         >
-          {name}
+          {outputText}
         </div>
-      ) : null}
-
-      {/* tank with liquid fill + percent inside */}
-      <div style={{ width: w, height: h }}>
-        <StandardTank
-          level={percent}
-          fillColor={materialColor}
-          alarm={alarm}
-          showPercentText={true}
-          percentText={`${Math.round(percent)}%`}
-        />
       </div>
 
-      {/* output number below */}
-      <div
-        style={{
-          marginTop: 6 * scale,
-          minWidth: 90 * scale,
-          height: 26 * scale,
-          padding: `0 ${10 * scale}px`,
-          borderRadius: 10 * scale,
-          border: "1px solid #cbd5e1",
-          background: "#ffffff",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          fontFamily: "monospace",
-          fontSize: 14 * scale,
-          fontWeight: 700,
-          color: "#0f172a",
-          boxShadow: "0 2px 10px rgba(2,6,23,0.08)",
-          whiteSpace: "nowrap",
-          overflow: "hidden",
-          textOverflow: "ellipsis",
+      {/* ✅ PROPERTIES MODAL */}
+      <StandardTankPropertiesModal
+        open={openProps}
+        tank={tank}
+        onClose={() => setOpenProps(false)}
+        onSave={(updatedTank) => {
+          // parent should update tank in state (same pattern as your other widgets)
+          if (typeof onUpdate === "function") onUpdate(updatedTank);
         }}
-        title={
-          typeof outputValue === "string"
-            ? outputValue
-            : Number.isFinite(Number(outputValue))
-            ? `OUT=${String(outputValue)}  LIVE=${Number.isFinite(liveValue) ? liveValue : "--"}`
-            : ""
-        }
-      >
-        {outputText}
-      </div>
-    </div>
+      />
+    </>
   );
 }

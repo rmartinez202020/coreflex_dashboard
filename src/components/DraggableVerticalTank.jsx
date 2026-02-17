@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 import { VerticalTank } from "./ProTankIconVertical";
+import VerticalTankSettingsModal from "./VerticalTankSettingsModal"; // ✅ NEW
 
 // ✅ Models allowed
 const MODEL_META = {
@@ -182,9 +183,12 @@ function ensureAlpha(color) {
   return c;
 }
 
-export default function DraggableVerticalTank({ tank }) {
+export default function DraggableVerticalTank({ tank, onChange }) {
   const props = tank?.properties || {};
   const scale = tank?.scale || 1;
+
+  // ✅ modal open state
+  const [openModal, setOpenModal] = useState(false);
 
   // Saved from modal
   const title = String(props.name || props.title || "").trim();
@@ -296,52 +300,78 @@ export default function DraggableVerticalTank({ tank }) {
   }, [outputValue]);
 
   return (
-    <div style={{ textAlign: "center", pointerEvents: "none" }}>
-      {title ? (
-        <div
-          style={{
-            marginBottom: 6,
-            fontSize: `${14 * scale}px`,
-            fontWeight: 600,
-            color: "#0f172a",
-            lineHeight: 1.1,
-            pointerEvents: "none",
-          }}
-        >
-          {title}
+    <>
+      {/* ✅ DOUBLE CLICK target wrapper */}
+      <div
+        onDoubleClick={(e) => {
+          e.stopPropagation();
+          setOpenModal(true);
+        }}
+        style={{
+          display: "inline-block",
+          cursor: "pointer",
+          pointerEvents: "auto", // ✅ allow double click
+          userSelect: "none",
+        }}
+        title="Double click to edit"
+      >
+        <div style={{ textAlign: "center", pointerEvents: "none" }}>
+          {title ? (
+            <div
+              style={{
+                marginBottom: 6,
+                fontSize: `${14 * scale}px`,
+                fontWeight: 600,
+                color: "#0f172a",
+                lineHeight: 1.1,
+              }}
+            >
+              {title}
+            </div>
+          ) : null}
+
+          <div
+            style={{
+              width: `${120 * scale}px`,
+              height: `${160 * scale}px`,
+              margin: "0 auto",
+            }}
+          >
+            <VerticalTank
+              level={levelPercent}
+              fillColor={materialColor}
+              alarm={false}
+              showPercentText={true}
+              percentText={percentText}
+            />
+          </div>
+
+          {/* OUTPUT NUMBER BELOW FIGURE */}
+          <div
+            style={{
+              marginTop: 6,
+              fontFamily: "monospace",
+              fontSize: `${14 * scale}px`,
+              fontWeight: 700,
+              color: "#111827",
+            }}
+          >
+            {bottomValueText}
+          </div>
         </div>
-      ) : null}
-
-      <div
-        style={{
-          width: `${120 * scale}px`,
-          height: `${160 * scale}px`,
-          margin: "0 auto",
-          pointerEvents: "none",
-        }}
-      >
-        <VerticalTank
-          level={levelPercent}
-          fillColor={materialColor}
-          alarm={false}
-          showPercentText={true}
-          percentText={percentText}
-        />
       </div>
 
-      {/* OUTPUT NUMBER BELOW FIGURE (like your photo) */}
-      <div
-        style={{
-          marginTop: 6,
-          fontFamily: "monospace",
-          fontSize: `${14 * scale}px`,
-          fontWeight: 700,
-          color: "#111827",
-          pointerEvents: "none",
+      {/* ✅ MODAL */}
+      <VerticalTankSettingsModal
+        open={openModal}
+        tank={tank}
+        onClose={() => setOpenModal(false)}
+        onSave={(nextTank) => {
+          // prefer onChange (common pattern), fallback to mutating parent via onSave on modal if you pass it
+          if (typeof onChange === "function") onChange(nextTank);
+          setOpenModal(false);
         }}
-      >
-        {bottomValueText}
-      </div>
-    </div>
+      />
+    </>
   );
 }
