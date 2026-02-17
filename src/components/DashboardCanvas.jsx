@@ -17,8 +17,6 @@ import DisplayOutputTextBoxStyle from "./display/DisplayOutputTextBoxStyle";
 import { StandardTank, HorizontalTank, VerticalTank, SiloTank } from "./ProTankIcon";
 import DraggableHorizontalTank from "./DraggableHorizontalTank";
 import DraggableVerticalTank from "./DraggableVerticalTank";
-import DraggableStandardTank from "./DraggableStandardTank";
-import StandardTankPropertiesModal from "./StandardTankPropertiesModal";
 import {DraggableLedCircle,DraggableStatusTextBox,DraggableBlinkingAlarm,DraggableStateImage,DraggableCounterInput,} from "./indicators";
 
 function getAuthHeaders() {
@@ -504,7 +502,7 @@ setShowStandardTankProps,
               );
             }
 
-          if (tank.shape === "standardTank") {
+     if (tank.shape === "standardTank") {
   return (
     <DraggableDroppedTank
       {...commonProps}
@@ -515,7 +513,7 @@ setShowStandardTankProps,
         }
       }}
     >
-      <DraggableStandardTank tank={tank} onUpdate={commonProps.onUpdate} />
+      <StandardTank level={tank.level ?? 0} />
     </DraggableDroppedTank>
   );
 }
