@@ -1,5 +1,5 @@
 // src/components/SiloPropertiesModal.jsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 
@@ -91,6 +91,18 @@ function toNum(v) {
   if (v === "" || v === null || v === undefined) return "";
   const n = Number(v);
   return Number.isFinite(n) ? n : "";
+}
+
+// ✅ center helper (prevents “flash in corner then move”)
+function computeCenteredPos({ panelW = 1240, estH = 640 } = {}) {
+  const w = window.innerWidth || 1200;
+  const h = window.innerHeight || 800;
+
+  const width = Math.min(panelW, Math.floor(w * 0.96));
+  const left = Math.max(12, Math.floor((w - width) / 2));
+  const top = Math.max(12, Math.floor((h - estH) / 2));
+
+  return { left, top };
 }
 
 export default function SiloPropertiesModal({ open = true, silo, onSave, onClose }) {
@@ -226,7 +238,7 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
   }, [bindDeviceId, bindField]);
 
   // -------------------------
-  // ✅ DRAG STATE (exact same)
+  // ✅ DRAG STATE (NO FLASH)
   // -------------------------
   const PANEL_W = 1240;
   const dragRef = useRef({
@@ -237,31 +249,19 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
     startTop: 0,
   });
 
-  const [pos, setPos] = useState({ left: 0, top: 0 });
-  const [didInitPos, setDidInitPos] = useState(false);
+  // ✅ start centered on FIRST render (prevents corner flash)
+  const [pos, setPos] = useState(() => {
+    if (typeof window === "undefined") return { left: 12, top: 12 };
+    return computeCenteredPos({ panelW: PANEL_W, estH: 640 });
+  });
+
   const [isDragging, setIsDragging] = useState(false);
 
-  useEffect(() => {
+  // ✅ center BEFORE paint each time it opens (professional, no jump)
+  useLayoutEffect(() => {
     if (!open) return;
-    setDidInitPos(false);
+    setPos(computeCenteredPos({ panelW: PANEL_W, estH: 640 }));
   }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    if (didInitPos) return;
-
-    const w = window.innerWidth || 1200;
-    const h = window.innerHeight || 800;
-
-    const width = Math.min(PANEL_W, Math.floor(w * 0.96));
-    const estHeight = 640;
-
-    const left = Math.max(12, Math.floor((w - width) / 2));
-    const top = Math.max(12, Math.floor((h - estHeight) / 2));
-
-    setPos({ left, top });
-    setDidInitPos(true);
-  }, [open, didInitPos]);
 
   // Load from silo whenever it changes
   useEffect(() => {
@@ -275,7 +275,9 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
 
     setDensity(p.density === undefined || p.density === null ? "" : Number(p.density));
 
-    setMaxCapacity(p.maxCapacity === undefined || p.maxCapacity === null ? "" : Number(p.maxCapacity));
+    setMaxCapacity(
+      p.maxCapacity === undefined || p.maxCapacity === null ? "" : Number(p.maxCapacity)
+    );
     setMaterialColor(p.materialColor || "#00ff00");
 
     setBindModel(p.bindModel ?? "zhc1921");
@@ -604,7 +606,11 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
 
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Model</div>
-                <select value={bindModel} onChange={(e) => setBindModel(e.target.value)} style={fieldSelectStyle}>
+                <select
+                  value={bindModel}
+                  onChange={(e) => setBindModel(e.target.value)}
+                  style={fieldSelectStyle}
+                >
                   {Object.entries(MODEL_META).map(([k, v]) => (
                     <option key={k} value={k}>
                       {v.label}
@@ -625,7 +631,11 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
 
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Device</div>
-                <select value={bindDeviceId} onChange={(e) => setBindDeviceId(e.target.value)} style={fieldSelectStyle}>
+                <select
+                  value={bindDeviceId}
+                  onChange={(e) => setBindDeviceId(e.target.value)}
+                  style={fieldSelectStyle}
+                >
                   <option value="">{devicesLoading ? "Loading..." : "Select device..."}</option>
                   {filteredDevices.map((d) => (
                     <option key={d.deviceId} value={d.deviceId}>
@@ -637,7 +647,11 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
 
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Analog Input (AI)</div>
-                <select value={bindField} onChange={(e) => setBindField(e.target.value)} style={fieldSelectStyle}>
+                <select
+                  value={bindField}
+                  onChange={(e) => setBindField(e.target.value)}
+                  style={fieldSelectStyle}
+                >
                   <option value="ai1">AI-1</option>
                   <option value="ai2">AI-2</option>
                   <option value="ai3">AI-3</option>
@@ -661,7 +675,8 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                 <div style={previewTitleStyle}>Binding Preview</div>
 
                 <div style={previewTextStyle}>
-                  Selected: <span style={{ fontFamily: "monospace" }}>{bindDeviceId || "--"}</span> ·{" "}
+                  Selected: <span style={{ fontFamily: "monospace" }}>{bindDeviceId || "--"}</span>{" "}
+                  ·{" "}
                   {String(selectedDevice?.status || "").toLowerCase() === "online" ? (
                     <span style={{ color: "#16a34a" }}>ONLINE</span>
                   ) : (
