@@ -372,6 +372,8 @@ const deleteSelectionOrTarget = useCallback(() => {
     setSelectedTank,
     setActiveSiloId,
     setActiveDashboard,
+    setShowHorizontalTankProps,
+    setActiveHorizontalTankId,
   });
 
   // ⭐ COLLAPSE BOTH SIDEBARS WHEN IN PLAY
@@ -591,6 +593,10 @@ const deleteSelectionOrTarget = useCallback(() => {
             onOpenStateImageSettings={openStateImageSettings}
             onOpenCounterInputSettings={openCounterInputSettings}
             activeDashboardId={activeDashboard?.dashboardId || null}
+            activeHorizontalTankId={activeHorizontalTankId}
+            setActiveHorizontalTankId={setActiveHorizontalTankId}
+            setShowHorizontalTankProps={setShowHorizontalTankProps}
+
           />
         ) : activePage === "deviceControls" ? (
           <div className="w-full h-full border rounded-lg bg-white p-6">
@@ -635,6 +641,10 @@ const deleteSelectionOrTarget = useCallback(() => {
           closeStateImageSettings={closeStateImageSettings}
           counterInputSettingsId={counterInputSettingsId}
           closeCounterInputSettings={closeCounterInputSettings}
+          showHorizontalTankProps={showHorizontalTankProps}
+          setShowHorizontalTankProps={setShowHorizontalTankProps}
+          activeHorizontalTankId={activeHorizontalTankId}
+          
         />
       </main>
 

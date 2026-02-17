@@ -12,6 +12,9 @@ import SiloPropertiesModal from "./SiloPropertiesModal";
 import AlarmLogModal from "./AlarmLogModal";
 import CounterInputSettingsModal from "./indicators/CounterInputSettingsModal";
 
+// ✅ NEW
+import HorizontalTankPropertiesModal from "./HorizontalTankPropertiesModal";
+
 export default function AppModals({
   // ✅ NEW: required for Counter API (upsert/reset/poll by dashboard)
   dashboardId = null,
@@ -33,6 +36,11 @@ export default function AppModals({
   showSiloProps,
   setShowSiloProps,
   activeSiloId,
+
+  // ✅ NEW: Horizontal Tank (same pattern as silo)
+  showHorizontalTankProps,
+  setShowHorizontalTankProps,
+  activeHorizontalTankId,
 
   alarmLogOpen,
   closeAlarmLog,
@@ -117,6 +125,14 @@ export default function AppModals({
       (t) => isSameId(t.id, activeSiloId) && t.shape === "siloTank"
     );
   }, [droppedTanks, activeSiloId]);
+
+  // ✅ NEW: Horizontal Tank active target (same pattern as silo)
+  const activeHorizontalTank = useMemo(() => {
+    if (activeHorizontalTankId == null) return null;
+    return droppedTanks.find(
+      (t) => isSameId(t.id, activeHorizontalTankId) && t.shape === "horizontalTank"
+    );
+  }, [droppedTanks, activeHorizontalTankId]);
 
   // ✅ LED Indicator target
   const indicatorTarget = useMemo(() => {
@@ -316,6 +332,21 @@ export default function AppModals({
               prev.map((t) => (isSameId(t.id, updatedSilo.id) ? updatedSilo : t))
             )
           }
+        />
+      )}
+
+      {/* ✅ NEW: Horizontal Tank Properties (same pattern as Silo) */}
+      {showHorizontalTankProps && activeHorizontalTank && (
+        <HorizontalTankPropertiesModal
+          open={showHorizontalTankProps}
+          tank={activeHorizontalTank}
+          onClose={() => setShowHorizontalTankProps(false)}
+          onSave={(updatedTank) => {
+            setDroppedTanks((prev) =>
+              prev.map((t) => (isSameId(t.id, updatedTank.id) ? updatedTank : t))
+            );
+            setShowHorizontalTankProps(false);
+          }}
         />
       )}
 
