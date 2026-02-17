@@ -502,38 +502,29 @@ export default function DashboardCanvas({
               );
             }
 
-          if (tank.shape === "standardTank") {
-  return (
-    <DraggableStandardTank
-      key={tank.id}
-      tank={tank}
-      onUpdate={commonProps.onUpdate}
-    />
-  );
-}
+            if (tank.shape === "standardTank") {
+              return (
+                <DraggableDroppedTank {...commonProps}>
+                  <StandardTank level={0} />
+                </DraggableDroppedTank>
+              );
+            }
 
-
-          if (tank.shape === "horizontalTank") {
-  return (
-    <DraggableHorizontalTank
-      key={tank.id}
-      tank={tank}
-      onUpdate={commonProps.onUpdate}
-    />
-  );
-}
-
+            if (tank.shape === "horizontalTank") {
+              return (
+                <DraggableDroppedTank {...commonProps}>
+                  <HorizontalTank level={0} />
+                </DraggableDroppedTank>
+              );
+            }
 
             if (tank.shape === "verticalTank") {
-  return (
-    <DraggableVerticalTank
-      key={tank.id}
-      tank={tank}
-      onUpdate={commonProps.onUpdate}
-    />
-  );
-}
-
+              return (
+                <DraggableDroppedTank {...commonProps}>
+                  <VerticalTank level={0} />
+                </DraggableDroppedTank>
+              );
+            }
 
             if (tank.shape === "siloTank") {
               return (
