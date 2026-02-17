@@ -1,5 +1,5 @@
 // src/components/StandardTankPropertiesModal.jsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 
@@ -92,6 +92,18 @@ function toNum(v) {
   if (v === "" || v === null || v === undefined) return "";
   const n = Number(v);
   return Number.isFinite(n) ? n : "";
+}
+
+// ✅ center helper (prevents “flash in corner then move”)
+function computeCenteredPos({ panelW = 1240, estH = 640 } = {}) {
+  const w = window.innerWidth || 1200;
+  const h = window.innerHeight || 800;
+
+  const width = Math.min(panelW, Math.floor(w * 0.96));
+  const left = Math.max(12, Math.floor((w - width) / 2));
+  const top = Math.max(12, Math.floor((h - estH) / 2));
+
+  return { left, top };
 }
 
 /**
@@ -249,7 +261,7 @@ export default function StandardTankPropertiesModal({ open = true, tank, onSave,
   }, [bindDeviceId, bindField]);
 
   // -------------------------
-  // ✅ DRAG STATE (same as silo modal)
+  // ✅ DRAG STATE (NO FLASH)
   // -------------------------
   const PANEL_W = 1240;
   const dragRef = useRef({
@@ -260,31 +272,19 @@ export default function StandardTankPropertiesModal({ open = true, tank, onSave,
     startTop: 0,
   });
 
-  const [pos, setPos] = useState({ left: 0, top: 0 });
-  const [didInitPos, setDidInitPos] = useState(false);
+  // ✅ start centered on FIRST render (prevents corner flash)
+  const [pos, setPos] = useState(() => {
+    if (typeof window === "undefined") return { left: 12, top: 12 };
+    return computeCenteredPos({ panelW: PANEL_W, estH: 640 });
+  });
+
   const [isDragging, setIsDragging] = useState(false);
 
-  useEffect(() => {
+  // ✅ center BEFORE paint each time it opens (professional, no jump)
+  useLayoutEffect(() => {
     if (!open) return;
-    setDidInitPos(false);
+    setPos(computeCenteredPos({ panelW: PANEL_W, estH: 640 }));
   }, [open]);
-
-  useEffect(() => {
-    if (!open) return;
-    if (didInitPos) return;
-
-    const w = window.innerWidth || 1200;
-    const h = window.innerHeight || 800;
-
-    const width = Math.min(PANEL_W, Math.floor(w * 0.96));
-    const estHeight = 640;
-
-    const left = Math.max(12, Math.floor((w - width) / 2));
-    const top = Math.max(12, Math.floor((h - estHeight) / 2));
-
-    setPos({ left, top });
-    setDidInitPos(true);
-  }, [open, didInitPos]);
 
   // Load from tank whenever it changes
   useEffect(() => {
@@ -465,7 +465,7 @@ export default function StandardTankPropertiesModal({ open = true, tank, onSave,
             {/* LEFT: MATH HELPER */}
             {helperCard}
 
-            {/* MIDDLE: MATH CARD + CAPACITY/COLOR */}
+            {/* MIDDLE */}
             <div
               style={{
                 background: "#ffffff",
@@ -564,7 +564,6 @@ export default function StandardTankPropertiesModal({ open = true, tank, onSave,
                 />
               </div>
 
-              {/* Capacity + Material/Liquid Color */}
               <div
                 style={{
                   borderTop: "1px dashed #e5e7eb",
@@ -615,7 +614,7 @@ export default function StandardTankPropertiesModal({ open = true, tank, onSave,
               </div>
             </div>
 
-            {/* RIGHT: BINDING + SEARCH */}
+            {/* RIGHT */}
             <div
               style={{
                 background: "#ffffff",
@@ -630,11 +629,7 @@ export default function StandardTankPropertiesModal({ open = true, tank, onSave,
 
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Model</div>
-                <select
-                  value={bindModel}
-                  onChange={(e) => setBindModel(e.target.value)}
-                  style={fieldSelectStyle}
-                >
+                <select value={bindModel} onChange={(e) => setBindModel(e.target.value)} style={fieldSelectStyle}>
                   {Object.entries(MODEL_META).map(([k, v]) => (
                     <option key={k} value={k}>
                       {v.label}
@@ -655,11 +650,7 @@ export default function StandardTankPropertiesModal({ open = true, tank, onSave,
 
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Device</div>
-                <select
-                  value={bindDeviceId}
-                  onChange={(e) => setBindDeviceId(e.target.value)}
-                  style={fieldSelectStyle}
-                >
+                <select value={bindDeviceId} onChange={(e) => setBindDeviceId(e.target.value)} style={fieldSelectStyle}>
                   <option value="">{devicesLoading ? "Loading..." : "Select device..."}</option>
                   {filteredDevices.map((d) => (
                     <option key={d.deviceId} value={d.deviceId}>
@@ -727,7 +718,6 @@ export default function StandardTankPropertiesModal({ open = true, tank, onSave,
                 </div>
               </div>
 
-              {/* ACTIONS */}
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 4 }}>
                 <button
                   onClick={onClose}
