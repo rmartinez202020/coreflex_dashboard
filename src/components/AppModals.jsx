@@ -4,16 +4,17 @@ import IndicatorLightSettingsModal from "./indicators/IndicatorLightSettingsModa
 import StatusTextSettingsModal from "./indicators/StatusTextSettingsModal";
 import BlinkingAlarmSettingsModal from "./indicators/BlinkingAlarmSettingsModal";
 import StateImageSettingsModal from "./indicators/StateImageSettingsModal";
-
 import RestoreWarningModal from "./RestoreWarningModal";
 import DisplaySettingsModal from "./DisplaySettingsModal";
 import GraphicDisplaySettingsModal from "./GraphicDisplaySettingsModal";
 import SiloPropertiesModal from "./SiloPropertiesModal";
 import AlarmLogModal from "./AlarmLogModal";
 import CounterInputSettingsModal from "./indicators/CounterInputSettingsModal";
+import HorizontalTankPropertiesModal from "./HorizontalTankPropertiesModal";
 
 // ✅ NEW
-import HorizontalTankPropertiesModal from "./HorizontalTankPropertiesModal";
+import VerticalTankSettingsModal from "./VerticalTankSettingsModal";
+import StandardTankPropertiesModal from "./StandardTankPropertiesModal";
 
 export default function AppModals({
   // ✅ NEW: required for Counter API (upsert/reset/poll by dashboard)
@@ -41,6 +42,16 @@ export default function AppModals({
   showHorizontalTankProps,
   setShowHorizontalTankProps,
   activeHorizontalTankId,
+
+  // ✅ NEW: Vertical Tank (same idea)
+  showVerticalTankProps,
+  setShowVerticalTankProps,
+  activeVerticalTankId,
+
+  // ✅ NEW: Standard Tank (same idea)
+  showStandardTankProps,
+  setShowStandardTankProps,
+  activeStandardTankId,
 
   alarmLogOpen,
   closeAlarmLog,
@@ -99,8 +110,7 @@ export default function AppModals({
     };
 
     window.addEventListener("coreflex-alarm-log-open-at", onOpenAt);
-    return () =>
-      window.removeEventListener("coreflex-alarm-log-open-at", onOpenAt);
+    return () => window.removeEventListener("coreflex-alarm-log-open-at", onOpenAt);
   }, []);
 
   const displayTarget = useMemo(() => {
@@ -114,16 +124,12 @@ export default function AppModals({
 
   const graphicTarget = useMemo(() => {
     if (graphicSettingsId == null) return null;
-    return droppedTanks.find(
-      (t) => isSameId(t.id, graphicSettingsId) && t.shape === "graphicDisplay"
-    );
+    return droppedTanks.find((t) => isSameId(t.id, graphicSettingsId) && t.shape === "graphicDisplay");
   }, [droppedTanks, graphicSettingsId]);
 
   const activeSilo = useMemo(() => {
     if (activeSiloId == null) return null;
-    return droppedTanks.find(
-      (t) => isSameId(t.id, activeSiloId) && t.shape === "siloTank"
-    );
+    return droppedTanks.find((t) => isSameId(t.id, activeSiloId) && t.shape === "siloTank");
   }, [droppedTanks, activeSiloId]);
 
   // ✅ NEW: Horizontal Tank active target (same pattern as silo)
@@ -134,58 +140,56 @@ export default function AppModals({
     );
   }, [droppedTanks, activeHorizontalTankId]);
 
+  // ✅ NEW: Vertical Tank active target
+  const activeVerticalTank = useMemo(() => {
+    if (activeVerticalTankId == null) return null;
+    return droppedTanks.find((t) => isSameId(t.id, activeVerticalTankId) && t.shape === "verticalTank");
+  }, [droppedTanks, activeVerticalTankId]);
+
+  // ✅ NEW: Standard Tank active target
+  const activeStandardTank = useMemo(() => {
+    if (activeStandardTankId == null) return null;
+    return droppedTanks.find((t) => isSameId(t.id, activeStandardTankId) && t.shape === "standardTank");
+  }, [droppedTanks, activeStandardTankId]);
+
   // ✅ LED Indicator target
   const indicatorTarget = useMemo(() => {
     if (indicatorSettingsId == null) return null;
-    return droppedTanks.find(
-      (t) => isSameId(t.id, indicatorSettingsId) && t.shape === "ledCircle"
-    );
+    return droppedTanks.find((t) => isSameId(t.id, indicatorSettingsId) && t.shape === "ledCircle");
   }, [droppedTanks, indicatorSettingsId]);
 
   // ✅ Status Text target
   const statusTextTarget = useMemo(() => {
     if (statusTextSettingsId == null) return null;
-    return droppedTanks.find(
-      (t) => isSameId(t.id, statusTextSettingsId) && t.shape === "statusTextBox"
-    );
+    return droppedTanks.find((t) => isSameId(t.id, statusTextSettingsId) && t.shape === "statusTextBox");
   }, [droppedTanks, statusTextSettingsId]);
 
   // ✅ NEW: Blinking Alarm target
   const blinkingAlarmTarget = useMemo(() => {
     if (blinkingAlarmSettingsId == null) return null;
-    return droppedTanks.find(
-      (t) =>
-        isSameId(t.id, blinkingAlarmSettingsId) && t.shape === "blinkingAlarm"
-    );
+    return droppedTanks.find((t) => isSameId(t.id, blinkingAlarmSettingsId) && t.shape === "blinkingAlarm");
   }, [droppedTanks, blinkingAlarmSettingsId]);
 
   // ✅ NEW: State Image target
   const stateImageTarget = useMemo(() => {
     if (stateImageSettingsId == null) return null;
-    return droppedTanks.find(
-      (t) => isSameId(t.id, stateImageSettingsId) && t.shape === "stateImage"
-    );
+    return droppedTanks.find((t) => isSameId(t.id, stateImageSettingsId) && t.shape === "stateImage");
   }, [droppedTanks, stateImageSettingsId]);
 
   // ✅ NEW: Counter Input target
   const counterInputTarget = useMemo(() => {
     if (counterInputSettingsId == null) return null;
-    return droppedTanks.find(
-      (t) => isSameId(t.id, counterInputSettingsId) && t.shape === "counterInput"
-    );
+    return droppedTanks.find((t) => isSameId(t.id, counterInputSettingsId) && t.shape === "counterInput");
   }, [droppedTanks, counterInputSettingsId]);
 
-  const alarmLogWindowProps = windowDrag?.getWindowProps
-    ? windowDrag.getWindowProps("alarmLog")
-    : null;
+  const alarmLogWindowProps = windowDrag?.getWindowProps ? windowDrag.getWindowProps("alarmLog") : null;
 
   // ✅ Accept either:
   // 1) onSave({ properties: {...} })  (preferred)
   // 2) onSave({ ...flatProps })       (fallback - we wrap into properties)
   const normalizeUpdated = (updated) => {
     if (!updated || typeof updated !== "object") return { properties: {} };
-    if (updated.properties && typeof updated.properties === "object")
-      return updated;
+    if (updated.properties && typeof updated.properties === "object") return updated;
 
     // Fallback: treat the whole object as properties
     const { id, shape, x, y, w, h, width, height, ...rest } = updated;
@@ -297,10 +301,7 @@ export default function AppModals({
             setDroppedTanks((prev) =>
               prev.map((t) =>
                 isSameId(t.id, displayTarget.id)
-                  ? {
-                      ...t,
-                      properties: { ...(t.properties || {}), ...updatedProps },
-                    }
+                  ? { ...t, properties: { ...(t.properties || {}), ...updatedProps } }
                   : t
               )
             );
@@ -314,9 +315,7 @@ export default function AppModals({
           tank={graphicTarget}
           onClose={closeGraphicDisplaySettings}
           onSave={(updatedTank) => {
-            setDroppedTanks((prev) =>
-              prev.map((t) => (isSameId(t.id, updatedTank.id) ? updatedTank : t))
-            );
+            setDroppedTanks((prev) => prev.map((t) => (isSameId(t.id, updatedTank.id) ? updatedTank : t)));
             closeGraphicDisplaySettings?.();
           }}
         />
@@ -328,9 +327,7 @@ export default function AppModals({
           silo={activeSilo}
           onClose={() => setShowSiloProps(false)}
           onSave={(updatedSilo) =>
-            setDroppedTanks((prev) =>
-              prev.map((t) => (isSameId(t.id, updatedSilo.id) ? updatedSilo : t))
-            )
+            setDroppedTanks((prev) => prev.map((t) => (isSameId(t.id, updatedSilo.id) ? updatedSilo : t)))
           }
         />
       )}
@@ -342,10 +339,34 @@ export default function AppModals({
           tank={activeHorizontalTank}
           onClose={() => setShowHorizontalTankProps(false)}
           onSave={(updatedTank) => {
-            setDroppedTanks((prev) =>
-              prev.map((t) => (isSameId(t.id, updatedTank.id) ? updatedTank : t))
-            );
+            setDroppedTanks((prev) => prev.map((t) => (isSameId(t.id, updatedTank.id) ? updatedTank : t)));
             setShowHorizontalTankProps(false);
+          }}
+        />
+      )}
+
+      {/* ✅ NEW: Vertical Tank Properties */}
+      {showVerticalTankProps && activeVerticalTank && (
+        <VerticalTankSettingsModal
+          open={showVerticalTankProps}
+          tank={activeVerticalTank}
+          onClose={() => setShowVerticalTankProps(false)}
+          onSave={(updatedTank) => {
+            setDroppedTanks((prev) => prev.map((t) => (isSameId(t.id, updatedTank.id) ? updatedTank : t)));
+            setShowVerticalTankProps(false);
+          }}
+        />
+      )}
+
+      {/* ✅ NEW: Standard Tank Properties */}
+      {showStandardTankProps && activeStandardTank && (
+        <StandardTankPropertiesModal
+          open={showStandardTankProps}
+          tank={activeStandardTank}
+          onClose={() => setShowStandardTankProps(false)}
+          onSave={(updatedTank) => {
+            setDroppedTanks((prev) => prev.map((t) => (isSameId(t.id, updatedTank.id) ? updatedTank : t)));
+            setShowStandardTankProps(false);
           }}
         />
       )}

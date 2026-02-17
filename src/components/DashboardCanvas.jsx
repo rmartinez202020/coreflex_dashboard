@@ -18,6 +18,7 @@ import { StandardTank, HorizontalTank, VerticalTank, SiloTank } from "./ProTankI
 import DraggableHorizontalTank from "./DraggableHorizontalTank";
 import DraggableVerticalTank from "./DraggableVerticalTank";
 import DraggableStandardTank from "./DraggableStandardTank";
+import StandardTankPropertiesModal from "./StandardTankPropertiesModal";
 import {DraggableLedCircle,DraggableStatusTextBox,DraggableBlinkingAlarm,DraggableStateImage,DraggableCounterInput,} from "./indicators";
 
 function getAuthHeaders() {
@@ -67,8 +68,9 @@ export default function DashboardCanvas({
 activeHorizontalTankId,
 setActiveHorizontalTankId,
 setShowHorizontalTankProps,
-
-
+activeStandardTankId,
+setActiveStandardTankId,
+setShowStandardTankProps,
 
   handleSelect,
   handleRightClick,
@@ -502,13 +504,22 @@ setShowHorizontalTankProps,
               );
             }
 
-            if (tank.shape === "standardTank") {
-              return (
-                <DraggableDroppedTank {...commonProps}>
-                  <StandardTank level={0} />
-                </DraggableDroppedTank>
-              );
-            }
+          if (tank.shape === "standardTank") {
+  return (
+    <DraggableDroppedTank
+      {...commonProps}
+      onDoubleClick={() => {
+        if (!isPlay) {
+          setActiveStandardTankId?.(tank.id);
+          setShowStandardTankProps?.(true);
+        }
+      }}
+    >
+      <DraggableStandardTank tank={tank} onUpdate={commonProps.onUpdate} />
+    </DraggableDroppedTank>
+  );
+}
+
 
            if (tank.shape === "horizontalTank") {
   return (

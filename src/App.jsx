@@ -233,6 +233,10 @@ const { deleteSelected } = useDeleteSelected({
   const [activeHorizontalTankId, setActiveHorizontalTankId] = useState(null);
   const [showHorizontalTankProps, setShowHorizontalTankProps] = useState(false);
 
+  // ✅ ACTIVE STANDARD TANK (same pattern as silo + horizontal)
+const [activeStandardTankId, setActiveStandardTankId] = useState(null);
+const [showStandardTankProps, setShowStandardTankProps] = useState(false);
+
 
   // ✅ MODALS (extracted)
   const {
@@ -596,6 +600,9 @@ const deleteSelectionOrTarget = useCallback(() => {
             activeHorizontalTankId={activeHorizontalTankId}
             setActiveHorizontalTankId={setActiveHorizontalTankId}
             setShowHorizontalTankProps={setShowHorizontalTankProps}
+            activeStandardTankId={activeStandardTankId}
+            setActiveStandardTankId={setActiveStandardTankId}
+            setShowStandardTankProps={setShowStandardTankProps}
 
           />
         ) : activePage === "deviceControls" ? (
@@ -644,7 +651,12 @@ const deleteSelectionOrTarget = useCallback(() => {
           showHorizontalTankProps={showHorizontalTankProps}
           setShowHorizontalTankProps={setShowHorizontalTankProps}
           activeHorizontalTankId={activeHorizontalTankId}
-          
+          setActiveHorizontalTankId={setActiveHorizontalTankId}
+          showStandardTankProps={showStandardTankProps}
+          setShowStandardTankProps={setShowStandardTankProps}
+          activeStandardTankId={activeStandardTankId}
+          setActiveStandardTankId={setActiveStandardTankId}
+
         />
       </main>
 
