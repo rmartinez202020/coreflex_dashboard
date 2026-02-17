@@ -29,27 +29,20 @@ export function HorizontalTank({
   const fillW = w * (clampedLevel / 100);
   const effectiveFill = alarm ? "#ff4d4d88" : fillColor;
 
-  const clipId = "horizontalTankClip";
+  // ✅ unique clipPath id per instance (prevents SVG id collisions)
+  const clipId = React.useId();
 
   return (
     <div style={{ display: "inline-block" }}>
       <svg viewBox="0 0 160 110" preserveAspectRatio="xMidYMid meet" style={svgStyle}>
         <defs>
-          {/* clip path for the “capsule” body */}
           <clipPath id={clipId}>
             <path d="M 35 37 H 125 A 35 18 0 1 1 125 73 H 35 A 35 18 0 1 1 35 37" />
           </clipPath>
         </defs>
 
         {/* LIQUID FILL */}
-        <rect
-          x={x1}
-          y={topY}
-          width={fillW}
-          height={h}
-          fill={effectiveFill}
-          clipPath={`url(#${clipId})`}
-        />
+        <rect x={x1} y={topY} width={fillW} height={h} fill={effectiveFill} clipPath={`url(#${clipId})`} />
 
         {/* OUTLINE (same as original) */}
         <path
