@@ -17,15 +17,8 @@ import DisplayOutputTextBoxStyle from "./display/DisplayOutputTextBoxStyle";
 import { StandardTank, HorizontalTank, VerticalTank, SiloTank } from "./ProTankIcon";
 import DraggableHorizontalTank from "./DraggableHorizontalTank";
 import DraggableVerticalTank from "./DraggableVerticalTank";
-import DraggableStandardTank from "./DraggableStandardTank"; // only if you have it
-
-import {
-  DraggableLedCircle,
-  DraggableStatusTextBox,
-  DraggableBlinkingAlarm,
-  DraggableStateImage,
-  DraggableCounterInput,
-} from "./indicators";
+import DraggableStandardTank from "./DraggableStandardTank";
+import {DraggableLedCircle,DraggableStatusTextBox,DraggableBlinkingAlarm,DraggableStateImage,DraggableCounterInput,} from "./indicators";
 
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
@@ -71,6 +64,12 @@ export default function DashboardCanvas({
   activeSiloId,
   setActiveSiloId,
   setShowSiloProps,
+activeHorizontalTankId,
+setActiveHorizontalTankId,
+setShowHorizontalTankProps,
+
+
+
   handleSelect,
   handleRightClick,
   handleDrop,
@@ -85,6 +84,7 @@ export default function DashboardCanvas({
   guides,
   onOpenDisplaySettings,
   onOpenGraphicDisplaySettings,
+
 
   // ✅ NEW
   onOpenAlarmLog,
@@ -510,13 +510,22 @@ export default function DashboardCanvas({
               );
             }
 
-            if (tank.shape === "horizontalTank") {
-              return (
-                <DraggableDroppedTank {...commonProps}>
-                  <HorizontalTank level={0} />
-                </DraggableDroppedTank>
-              );
-            }
+           if (tank.shape === "horizontalTank") {
+  return (
+    <DraggableDroppedTank
+      {...commonProps}
+      onDoubleClick={() => {
+        if (!isPlay) {
+          setActiveHorizontalTankId?.(tank.id);
+          setShowHorizontalTankProps?.(true);
+        }
+      }}
+    >
+      <HorizontalTank level={tank.level ?? 0} />
+    </DraggableDroppedTank>
+  );
+}
+
 
             if (tank.shape === "verticalTank") {
               return (

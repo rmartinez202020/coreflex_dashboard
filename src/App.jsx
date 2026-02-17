@@ -229,6 +229,11 @@ const { deleteSelected } = useDeleteSelected({
   const [activeSiloId, setActiveSiloId] = useState(null);
   const [showSiloProps, setShowSiloProps] = useState(false);
 
+    // ✅ ACTIVE HORIZONTAL TANK (same pattern as silo)
+  const [activeHorizontalTankId, setActiveHorizontalTankId] = useState(null);
+  const [showHorizontalTankProps, setShowHorizontalTankProps] = useState(false);
+
+
   // ✅ MODALS (extracted)
   const {
     displaySettingsId,
