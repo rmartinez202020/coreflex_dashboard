@@ -152,12 +152,15 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
   // ✅ MIDDLE: “Math” card
   // -------------------------
   const [name, setName] = useState(props.name ?? "");
-  const [contents, setContents] = useState(props.contents ?? "");
+
+  // ✅ REMOVED: contents
+  // const [contents, setContents] = useState(props.contents ?? "");
+
   const [density, setDensity] = useState(
     props.density === undefined || props.density === null ? "" : Number(props.density)
   );
 
-  // ✅ NEW: Capacity + Material Color
+  // ✅ Capacity + Material Color
   const [maxCapacity, setMaxCapacity] = useState(
     props.maxCapacity === undefined || props.maxCapacity === null ? "" : Number(props.maxCapacity)
   );
@@ -266,7 +269,10 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
     const p = silo?.properties || {};
 
     setName(p.name ?? "");
-    setContents(p.contents ?? "");
+
+    // ✅ REMOVED: contents
+    // setContents(p.contents ?? "");
+
     setDensity(p.density === undefined || p.density === null ? "" : Number(p.density));
 
     setMaxCapacity(p.maxCapacity === undefined || p.maxCapacity === null ? "" : Number(p.maxCapacity));
@@ -454,15 +460,7 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                 />
               </div>
 
-              <div style={{ display: "grid", gap: 6 }}>
-                <div style={labelStyle}>Contents</div>
-                <input
-                  value={contents}
-                  onChange={(e) => setContents(e.target.value)}
-                  style={fieldInputStyle}
-                  placeholder="Example: Plastic Pellets"
-                />
-              </div>
+              {/* ✅ REMOVED: Contents block */}
 
               <div
                 style={{
@@ -536,11 +534,11 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                     outline: "none",
                     background: "#fff",
                   }}
-                  placeholder="Example: 52.4"
+                  placeholder='Example: VALUE*1.5  or  CONCAT("Temp=", VALUE)'
                 />
               </div>
 
-              {/* ✅ NEW: Capacity + Material/Liquid Color */}
+              {/* ✅ Capacity + Material/Liquid Color */}
               <div
                 style={{
                   borderTop: "1px dashed #e5e7eb",
@@ -717,10 +715,12 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                     const nextProps = {
                       ...(silo?.properties || {}),
                       name: String(name || "").trim(),
-                      contents: String(contents || "").trim(),
+
+                      // ✅ REMOVED: contents
+                      // contents: String(contents || "").trim(),
+
                       density: density === "" ? "" : Number(density),
 
-                      // ✅ NEW fields saved
                       maxCapacity: maxCapacity === "" ? "" : Number(maxCapacity),
                       materialColor: String(materialColor || "#00ff00"),
 
