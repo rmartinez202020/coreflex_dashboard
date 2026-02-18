@@ -1,4 +1,4 @@
-// src/components/SiloPropertiesModalTelemetric.js
+// src/components/VerticalTankSettingsModalTelemetric.js
 import React from "react";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
@@ -29,8 +29,7 @@ function modelMyDevicesEndpoint(modelKey) {
   return base === "zhc1661" ? "/zhc1661/my-devices" : "/zhc1921/my-devices";
 }
 
-// ✅ Similar spirit to readTagFromRow() but for AI fields (ai1..ai8)
-// Handles ai1 / AI1 / ai_1 / AI_1 / ai-1 / AI-1
+// ✅ Same as Silo: handles ai1 / AI1 / ai_1 / AI_1 / ai-1 / AI-1
 export function readAiFromRow(row, field) {
   if (!row || !field) return undefined;
 
@@ -52,9 +51,9 @@ export function readAiFromRow(row, field) {
  * Hook that polls the user's "my-devices" endpoint to fetch a telemetry row for a selected device,
  * then derives a numeric liveValue from a selected AI field.
  *
- * Mirrors the style used in CounterInput modal: 3s polling, skip when tab hidden, safe guards.
+ * Mirrors SiloPropertiesModalTelemetric exactly.
  */
-export default function useSiloPropertiesModalTelemetric({
+export default function useVerticalTankSettingsModalTelemetric({
   open,
   bindModel,
   bindDeviceId,
@@ -98,7 +97,8 @@ export default function useSiloPropertiesModalTelemetric({
 
       const data = await res.json();
       const list = Array.isArray(data) ? data : [];
-      const row = list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
+      const row =
+        list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
 
       setTelemetryRow(row);
     } catch {
@@ -108,7 +108,7 @@ export default function useSiloPropertiesModalTelemetric({
     }
   }, [bindDeviceId, bindModel]);
 
-  // ✅ Poll telemetry like Counter modal (preview only)
+  // ✅ Poll telemetry like Silo (preview only)
   React.useEffect(() => {
     if (!open) return;
 
@@ -147,7 +147,7 @@ export default function useSiloPropertiesModalTelemetric({
     backendDeviceStatus,
     deviceIsOnline,
     refetch: fetchTelemetryRow,
-    setTelemetryRow, // optional escape hatch
-    setLiveValue, // optional escape hatch
+    setTelemetryRow,
+    setLiveValue,
   };
 }
