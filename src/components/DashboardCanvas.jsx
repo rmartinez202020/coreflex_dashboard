@@ -15,8 +15,7 @@ import PushButtonControl from "./controls/PushButtonControl";
 import AlarmLogResizeEdges from "./alarm/AlarmLogResizeEdges";
 import DisplayOutputTextBoxStyle from "./display/DisplayOutputTextBoxStyle";
 import { StandardTank, HorizontalTank, VerticalTank } from "./ProTankIcon";
-
-// ✅ IMPORTANT: use the real silo widget (polling + fill + output)
+import DraggableVerticalTank from "./DraggableVerticalTank";
 import DraggableSiloTank from "./DraggableSiloTank";
 
 import {
@@ -517,13 +516,19 @@ export default function DashboardCanvas({
               );
             }
 
-            if (tank.shape === "verticalTank") {
-              return (
-                <DraggableDroppedTank {...commonProps}>
-                  <VerticalTank level={0} />
-                </DraggableDroppedTank>
-              );
-            }
+          if (tank.shape === "verticalTank") {
+  return (
+    <DraggableDroppedTank {...commonProps}>
+      <div className="flex flex-col items-center">
+        <DraggableVerticalTank
+          tank={tank}
+          onChange={(nextTank) => commonProps.onUpdate?.(nextTank)}
+        />
+      </div>
+    </DraggableDroppedTank>
+  );
+}
+
 
             // ✅ FIXED: render the real silo widget
             if (tank.shape === "siloTank") {
