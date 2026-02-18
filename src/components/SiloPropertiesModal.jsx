@@ -2,69 +2,15 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
-
-// ✅ extracted telemetry (polling + read AI + online status)
 import useSiloPropertiesModalTelemetric from "./SiloPropertiesModalTelemetric";
-
-// ✅ extracted MIDDLE card
 import SiloPropertiesModalMath from "./SiloPropertiesModalMath";
+import { SiloPropertiesModalUnitOptions } from "./SiloPropertiesModalUnitOptions";
 
 const MODEL_META = {
   zhc1921: { label: "CF-2000", base: "zhc1921" },
   zhc1661: { label: "CF-1600", base: "zhc1661" },
 };
 
-// ✅ Final Combined UNIT_OPTIONS (Weight + Volume + Pressure + Vacuum)
-const UNIT_OPTIONS = [
-  { key: "", label: "(none)" },
-
-  // -------------------
-  // 🔹 WEIGHT
-  // -------------------
-  { key: "lb", label: "lb (pounds)" },
-  { key: "kg", label: "kg (kilograms)" },
-  { key: "g", label: "g (grams)" },
-  { key: "oz", label: "oz (ounces)" },
-  { key: "ton", label: "ton (US short ton)" },
-  { key: "tonne", label: "tonne (metric ton)" },
-
-  // -------------------
-  // 🔹 VOLUME
-  // -------------------
-  { key: "gal", label: "gal (US gallons)" },
-  { key: "L", label: "L (liters)" },
-  { key: "mL", label: "mL (milliliters)" },
-  // use safe keys (avoid unicode in keys); label keeps the symbol
-  { key: "m3", label: "m³ (cubic meters)" },
-  { key: "ft3", label: "ft³ (cubic feet)" },
-  { key: "in3", label: "in³ (cubic inches)" },
-
-  // -------------------
-  // 🔹 PRESSURE – US
-  // -------------------
-  { key: "psi", label: "psi (pounds per square inch)" },
-  { key: "psig", label: "psig (psi gauge)" },
-  { key: "psia", label: "psia (psi absolute)" },
-  { key: "inH2O", label: "inH₂O (inches of water column)" },
-
-  // -------------------
-  // 🔹 PRESSURE – METRIC
-  // -------------------
-  { key: "bar", label: "bar" },
-  { key: "mbar", label: "mbar (millibar)" },
-  { key: "kPa", label: "kPa (kilopascal)" },
-  { key: "Pa", label: "Pa (pascal)" },
-  { key: "MPa", label: "MPa (megapascal)" },
-
-  // -------------------
-  // 🔹 VACUUM
-  // -------------------
-  { key: "inHg", label: "inHg (inches of mercury)" },
-  { key: "mmHg", label: "mmHg (millimeters of mercury)" },
-  { key: "Torr", label: "Torr" },
-];
-
-// -------------------------
 // ✅ auth + no-cache fetch helpers (same idea as DisplayBox)
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
@@ -557,7 +503,7 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
               labelStyle={labelStyle}
               fieldInputStyle={fieldInputStyle}
               fieldSelectStyle={fieldSelectStyle}
-              UNIT_OPTIONS={UNIT_OPTIONS}
+              UNIT_OPTIONS={SiloPropertiesModalUnitOptions}
               title={title}
               setTitle={setTitle}
               unit={unit}
