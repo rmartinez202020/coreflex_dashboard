@@ -45,7 +45,14 @@ export function VerticalTank({
   const shouldShowBottom = showBottomText || String(bottomText || "").trim() !== "";
 
   return (
-    <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center" }}>
+    <div
+      style={{
+        width: "100%", // ✅ allow true centering under tank
+        display: "flex",
+        flexDirection: "column",
+        alignItems: "center",
+      }}
+    >
       <svg viewBox="0 0 160 180" preserveAspectRatio="xMidYMid meet" style={svgStyle}>
         <defs>
           {/* ✅ Clip matches the inside including the rounded bottom */}
@@ -103,45 +110,53 @@ export function VerticalTank({
         ) : null}
       </svg>
 
-      {/* 🔥 Bottom label (same UI idea as SiloTank) */}
+      {/* 🔥 Bottom label (centered under tank) */}
       {shouldShowBottom ? (
         <div
           style={{
+            width: "100%", // ✅ center within full available width
+            display: "flex",
+            justifyContent: "center",
             marginTop: 6,
-            padding: "6px 14px",
-            borderRadius: 8,
-            background: "#eef2f7",
-            border: "1px solid rgba(17,24,39,0.25)",
-            fontFamily: "monospace",
-            lineHeight: 1,
-            color: bottomTextColor,
-            userSelect: "none",
-            display: "inline-flex",
-            alignItems: "baseline",
-            gap: 8,
           }}
         >
-          <span
+          <div
             style={{
-              fontSize: 18,
-              fontWeight: 900,
-              letterSpacing: 0.3,
+              padding: "6px 14px",
+              borderRadius: 8,
+              background: "#eef2f7",
+              border: "1px solid rgba(17,24,39,0.25)",
+              fontFamily: "monospace",
+              lineHeight: 1,
+              color: bottomTextColor,
+              userSelect: "none",
+              display: "inline-flex",
+              alignItems: "baseline",
+              gap: 8,
             }}
           >
-            {String(bottomText || "").trim() || "--"}
-          </span>
-
-          {String(bottomUnit || "").trim() ? (
             <span
               style={{
-                fontSize: 14,
-                fontWeight: 800,
-                opacity: 0.95,
+                fontSize: 18,
+                fontWeight: 900,
+                letterSpacing: 0.3,
               }}
             >
-              {String(bottomUnit).trim()}
+              {String(bottomText || "").trim() || "--"}
             </span>
-          ) : null}
+
+            {String(bottomUnit || "").trim() ? (
+              <span
+                style={{
+                  fontSize: 14,
+                  fontWeight: 800,
+                  opacity: 0.95,
+                }}
+              >
+                {String(bottomUnit).trim()}
+              </span>
+            ) : null}
+          </div>
         </div>
       ) : null}
     </div>
