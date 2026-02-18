@@ -3,13 +3,19 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "re
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 
+// ✅ extracted telemetry (polling + read AI + online status)
+import useVerticalTankSettingsModalTelemetric from "./VerticalTankSettingsModalTelemetric";
+
+// ✅ extracted MIDDLE card
+import VerticalTankSettingsModalMath from "./VerticalTankSettingsModalMath";
+
 const MODEL_META = {
   zhc1921: { label: "CF-2000", base: "zhc1921" },
   zhc1661: { label: "CF-1600", base: "zhc1661" },
 };
 
 // -------------------------
-// ✅ auth + no-cache fetch helpers (same idea as DisplayBox)
+// ✅ auth + no-cache fetch helpers (same idea as SiloPropertiesModal)
 // -------------------------
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
@@ -114,6 +120,64 @@ function computeCenteredPos({ panelW = 1240, estH = 640 } = {}) {
   return { left, top };
 }
 
+// ✅ SAME math engine pattern used in SiloPropertiesModal
+function computeMathOutput(liveValue, formula) {
+  const f = String(formula || "").trim();
+  if (!f) return liveValue;
+
+  const VALUE = liveValue;
+
+  // CONCAT support
+  const upper = f.toUpperCase();
+  if (upper.startsWith("CONCAT(") && f.endsWith(")")) {
+    const inner = f.slice(7, -1);
+    const parts = [];
+    let cur = "";
+    let inQ = false;
+
+    for (let i = 0; i < inner.length; i++) {
+      const ch = inner[i];
+      if (ch === '"' && inner[i - 1] !== "\\") inQ = !inQ;
+
+      if (ch === "," && !inQ) {
+        parts.push(cur.trim());
+        cur = "";
+      } else {
+        cur += ch;
+      }
+    }
+    if (cur.trim()) parts.push(cur.trim());
+
+    return parts
+      .map((p) => {
+        if (!p) return "";
+        if (p === "VALUE" || p === "value") return VALUE ?? "";
+        if (p.startsWith('"') && p.endsWith('"')) return p.slice(1, -1);
+
+        try {
+          const expr = p.replace(/\bVALUE\b/gi, "VALUE");
+          // eslint-disable-next-line no-new-func
+          const fn = new Function("VALUE", `return (${expr});`);
+          const r = fn(VALUE);
+          return r ?? "";
+        } catch {
+          return "";
+        }
+      })
+      .join("");
+  }
+
+  // Numeric expression
+  try {
+    const expr = f.replace(/\bVALUE\b/gi, "VALUE");
+    // eslint-disable-next-line no-new-func
+    const fn = new Function("VALUE", `return (${expr});`);
+    return fn(VALUE);
+  } catch {
+    return liveValue;
+  }
+}
+
 /**
  * Props:
  *  - open (bool)
@@ -127,7 +191,7 @@ export default function VerticalTankSettingsModal({ open = true, tank, onSave, o
   const props = tank?.properties || {};
 
   // -------------------------
-  // ✅ LEFT: helper card (math helper)
+  // ✅ LEFT: helper card (math helper) — SAME as Silo/Vertical original
   // -------------------------
   const helperCard = (
     <div
@@ -177,7 +241,7 @@ export default function VerticalTankSettingsModal({ open = true, tank, onSave, o
   );
 
   // -------------------------
-  // ✅ MIDDLE: “Math” card
+  // ✅ MIDDLE: “Math” card state (now extracted)
   // -------------------------
   const [name, setName] = useState(props.name ?? props.title ?? "");
 
@@ -191,15 +255,7 @@ export default function VerticalTankSettingsModal({ open = true, tank, onSave, o
   const [maxCapacity, setMaxCapacity] = useState(
     props.maxCapacity === undefined || props.maxCapacity === null ? "" : Number(props.maxCapacity)
   );
-
   const [materialColor, setMaterialColor] = useState(ensureAlpha(props.materialColor || "#00ff00"));
-
-  // placeholder preview only (UI)
-  const [liveValue] = useState(0);
-  const outputValue = useMemo(() => {
-    const v = Number(density);
-    return Number.isFinite(v) ? v : 0;
-  }, [density]);
 
   // -------------------------
   // ✅ RIGHT: device binding with SEARCH
@@ -212,6 +268,30 @@ export default function VerticalTankSettingsModal({ open = true, tank, onSave, o
   const [deviceQuery, setDeviceQuery] = useState("");
   const [devicesLoading, setDevicesLoading] = useState(false);
 
+  // ✅ extracted telemetry hook (polling + AI read + ONLINE status) — MATCH Silo pattern
+  const { liveValue, deviceIsOnline } = useVerticalTankSettingsModalTelemetric({
+    open,
+    bindModel,
+    bindDeviceId,
+    bindField,
+    pollMs: 3000,
+  });
+
+  // ✅ Output preview (same style logic as Silo)
+  const outputValue = useMemo(() => {
+    const lv = Number(liveValue);
+    const safeLive = Number.isFinite(lv) ? lv : null;
+
+    const out = computeMathOutput(safeLive, density);
+
+    if (out === null || out === undefined || out === "") return safeLive ?? 0;
+    if (typeof out === "number") return out;
+
+    const n = Number(out);
+    return Number.isFinite(n) ? n : out;
+  }, [density, liveValue]);
+
+  // Load device list once when open/model changes
   useEffect(() => {
     if (!open) return;
 
@@ -245,17 +325,12 @@ export default function VerticalTankSettingsModal({ open = true, tank, onSave, o
     return devices.filter((d) => String(d.deviceId || "").toLowerCase().includes(q));
   }, [devices, deviceQuery]);
 
-  const selectedDevice = useMemo(() => {
-    const hit = devices.find((d) => String(d.deviceId) === String(bindDeviceId));
-    return hit || null;
-  }, [devices, bindDeviceId]);
-
   const canApply = useMemo(() => {
     return !!String(bindDeviceId || "").trim() && !!String(bindField || "").trim();
   }, [bindDeviceId, bindField]);
 
   // -------------------------
-  // ✅ DRAG STATE (NO FLASH)
+  // ✅ DRAG STATE (NO FLASH) — EXACT same structure as Silo
   // -------------------------
   const PANEL_W = 1240;
   const dragRef = useRef({
@@ -355,7 +430,7 @@ export default function VerticalTankSettingsModal({ open = true, tank, onSave, o
   }, []);
 
   // -------------------------
-  // ✅ UI styles
+  // ✅ UI styles — same as Silo
   // -------------------------
   const labelStyle = { fontSize: 12, fontWeight: 500, color: "#111827" };
   const sectionTitleStyle = { fontWeight: 600, fontSize: 16 };
@@ -450,154 +525,25 @@ export default function VerticalTankSettingsModal({ open = true, tank, onSave, o
             {/* LEFT: MATH HELPER */}
             {helperCard}
 
-            {/* MIDDLE: MATH + CAPACITY & COLOR */}
-            <div
-              style={{
-                background: "#ffffff",
-                border: "1px solid #e5e7eb",
-                borderRadius: 12,
-                padding: 14,
-                display: "grid",
-                gap: 12,
-              }}
-            >
-              <div style={sectionTitleStyle}>Math</div>
-
-              <div style={{ display: "grid", gap: 6 }}>
-                <div style={labelStyle}>Name</div>
-                <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
-                  style={fieldInputStyle}
-                  placeholder="Example: Vertical Tank #1"
-                />
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 10,
-                  alignItems: "start",
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>Live VALUE</div>
-                  <div
-                    style={{
-                      marginTop: 6,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      minWidth: 120,
-                      height: 34,
-                      padding: "0 14px",
-                      borderRadius: 999,
-                      background: "rgba(187,247,208,0.55)",
-                      border: "1px solid rgba(22,163,74,0.25)",
-                      fontFamily: "monospace",
-                      fontWeight: 700,
-                      color: "#0b3b18",
-                    }}
-                  >
-                    {Number.isFinite(liveValue) ? liveValue.toFixed(2) : "--"}
-                  </div>
-                </div>
-
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>Output</div>
-                  <div
-                    style={{
-                      marginTop: 6,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      minWidth: 120,
-                      height: 34,
-                      padding: "0 14px",
-                      borderRadius: 999,
-                      background: "#f3f4f6",
-                      border: "1px solid #d1d5db",
-                      fontFamily: "monospace",
-                      fontWeight: 700,
-                      color: "#111827",
-                    }}
-                  >
-                    {Number.isFinite(Number(outputValue)) ? Number(outputValue).toFixed(2) : "0.00"}
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>Math</div>
-                <textarea
-                  value={density}
-                  onChange={(e) => setDensity(String(e.target.value))}
-                  rows={4}
-                  style={{
-                    marginTop: 6,
-                    width: "100%",
-                    borderRadius: 10,
-                    border: "1px solid #d1d5db",
-                    padding: 10,
-                    fontFamily: "monospace",
-                    fontSize: 12,
-                    outline: "none",
-                    background: "#fff",
-                  }}
-                  placeholder='Example: VALUE*1.5  or  CONCAT("Temp=", VALUE)'
-                />
-              </div>
-
-              <div
-                style={{
-                  borderTop: "1px dashed #e5e7eb",
-                  paddingTop: 12,
-                  marginTop: 4,
-                  display: "grid",
-                  gap: 10,
-                }}
-              >
-                <div style={sectionTitleStyle}>Capacity &amp; Color</div>
-
-                <div style={{ display: "grid", gap: 6 }}>
-                  <div style={labelStyle}>Max Capacity</div>
-                  <input
-                    type="number"
-                    value={maxCapacity}
-                    onChange={(e) => setMaxCapacity(toNum(e.target.value))}
-                    style={fieldInputStyle}
-                    placeholder="Example: 5000"
-                  />
-                </div>
-
-                <div style={{ display: "grid", gap: 6 }}>
-                  <div style={labelStyle}>Material / Liquid Color</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <input
-                      type="color"
-                      value={materialColor.slice(0, 7)}
-                      onChange={(e) => setMaterialColor(ensureAlpha(e.target.value))}
-                      style={{
-                        width: 44,
-                        height: 38,
-                        borderRadius: 10,
-                        border: "1px solid #d1d5db",
-                        background: "#fff",
-                        padding: 4,
-                        cursor: "pointer",
-                      }}
-                    />
-                    <input
-                      value={materialColor}
-                      onChange={(e) => setMaterialColor(ensureAlpha(e.target.value))}
-                      style={fieldInputStyle}
-                      placeholder="#00ff00"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* ✅ MIDDLE: extracted component */}
+            <VerticalTankSettingsModalMath
+              sectionTitleStyle={sectionTitleStyle}
+              labelStyle={labelStyle}
+              fieldInputStyle={fieldInputStyle}
+              fieldSelectStyle={fieldSelectStyle}
+              name={name}
+              setName={setName}
+              liveValue={liveValue}
+              outputValue={outputValue}
+              density={density}
+              setDensity={setDensity}
+              maxCapacity={maxCapacity}
+              setMaxCapacity={setMaxCapacity}
+              materialColor={materialColor}
+              setMaterialColor={setMaterialColor}
+              toNum={toNum}
+              ensureAlpha={ensureAlpha}
+            />
 
             {/* RIGHT: BINDING + SEARCH */}
             <div
@@ -672,10 +618,14 @@ export default function VerticalTankSettingsModal({ open = true, tank, onSave, o
 
                 <div style={previewTextStyle}>
                   Selected: <span style={{ fontFamily: "monospace" }}>{bindDeviceId || "--"}</span> ·{" "}
-                  {String(selectedDevice?.status || "").toLowerCase() === "online" ? (
-                    <span style={{ color: "#16a34a" }}>ONLINE</span>
+                  {bindDeviceId ? (
+                    deviceIsOnline ? (
+                      <span style={{ color: "#16a34a" }}>ONLINE</span>
+                    ) : (
+                      <span style={{ color: "#dc2626" }}>OFFLINE</span>
+                    )
                   ) : (
-                    <span style={{ color: "#dc2626" }}>OFFLINE</span>
+                    <span style={{ color: "#64748b" }}>—</span>
                   )}
                 </div>
 
@@ -698,7 +648,7 @@ export default function VerticalTankSettingsModal({ open = true, tank, onSave, o
                       color: "#0b3b18",
                     }}
                   >
-                    {Number.isFinite(liveValue) ? liveValue.toFixed(2) : "--"}
+                    {Number.isFinite(Number(liveValue)) ? `${Number(liveValue).toFixed(2)}` : "--"}
                   </div>
                 </div>
               </div>

@@ -3,7 +3,6 @@ import React, { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 import { VerticalTank } from "./ProTankIconVertical";
-import VerticalTankSettingsModal from "./VerticalTankSettingsModal"; // ✅ NEW
 
 // ✅ Models allowed
 const MODEL_META = {
@@ -11,19 +10,14 @@ const MODEL_META = {
   zhc1661: { base: "zhc1661" }, // CF-1600
 };
 
-// -------------------------
-// ✅ auth + no-cache fetch helpers (same idea as DisplayBox)
-// -------------------------
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
-
 function withNoCache(path) {
   const sep = path.includes("?") ? "&" : "?";
   return `${path}${sep}_ts=${Date.now()}`;
 }
-
 async function apiGet(path, { signal } = {}) {
   const res = await fetch(`${API_URL}${withNoCache(path)}`, {
     method: "GET",
@@ -38,7 +32,6 @@ async function apiGet(path, { signal } = {}) {
   if (!res.ok) throw new Error(`GET ${path} failed (${res.status})`);
   return res.json();
 }
-
 function normalizeList(data) {
   return Array.isArray(data)
     ? data
@@ -49,7 +42,6 @@ function normalizeList(data) {
     : [];
 }
 
-// ✅ IMPORTANT: avoid /devices (can be 403/405). Use user-safe list endpoints.
 async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
   const base = MODEL_META[modelKey]?.base || modelKey;
 
@@ -111,14 +103,13 @@ function readAiField(row, bindField) {
   return null;
 }
 
-// ✅ small math evaluator: supports VALUE and CONCAT("a", VALUE, "b")
+// ✅ empty math => output == liveValue
 function computeMathOutput(liveValue, formula) {
   const f = String(formula || "").trim();
   if (!f) return liveValue;
 
   const VALUE = liveValue;
 
-  // CONCAT support
   const upper = f.toUpperCase();
   if (upper.startsWith("CONCAT(") && f.endsWith(")")) {
     const inner = f.slice(7, -1);
@@ -158,7 +149,6 @@ function computeMathOutput(liveValue, formula) {
       .join("");
   }
 
-  // Numeric expression
   try {
     const expr = f.replace(/\bVALUE\b/gi, "VALUE");
     // eslint-disable-next-line no-new-func
@@ -169,51 +159,48 @@ function computeMathOutput(liveValue, formula) {
   }
 }
 
-function clamp(n, a, b) {
-  const x = Number(n);
-  if (!Number.isFinite(x)) return a;
-  return Math.min(b, Math.max(a, x));
+function clamp01(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(1, n));
 }
 
-function ensureAlpha(color) {
-  const c = String(color || "").trim();
-  if (!c) return "#60a5fa88";
-  // if user gives #RRGGBB, add 88 alpha
-  if (/^#[0-9a-fA-F]{6}$/.test(c)) return `${c}88`;
-  return c;
+function ensureAlphaHex(hex, alphaHex = "88") {
+  const s = String(hex || "").trim();
+  if (!s) return `#00ff00${alphaHex}`;
+  if (s.startsWith("#") && (s.length === 9 || s.length === 5)) return s;
+  if (s.startsWith("#") && s.length === 7) return `${s}${alphaHex}`;
+  return s;
 }
 
-export default function DraggableVerticalTank({ tank, onChange }) {
+export default function DraggableVerticalTank({ tank }) {
   const props = tank?.properties || {};
   const scale = tank?.scale || 1;
 
-  // ✅ modal open state
-  const [openModal, setOpenModal] = useState(false);
+  const name = String(props.name || props.title || "").trim();
 
-  // Saved from modal
-  const title = String(props.name || props.title || "").trim();
-  const maxCapacityRaw = props.maxCapacity;
+  // (optional) unit — vertical modal doesn’t have it, but allow if you add later
+  const unit = String(props.unit || "").trim();
+
   const maxCapacity =
-    maxCapacityRaw === "" || maxCapacityRaw === null || maxCapacityRaw === undefined
+    props.maxCapacity === "" || props.maxCapacity === null || props.maxCapacity === undefined
       ? 0
-      : Number(maxCapacityRaw);
+      : Number(props.maxCapacity);
 
-  const materialColor = ensureAlpha(props.materialColor || "#00ff00");
+  const materialColor = ensureAlphaHex(props.materialColor || "#00ff00", "88");
 
-  // Binding + math
   const bindModel = props.bindModel || "zhc1921";
   const bindDeviceId = String(props.bindDeviceId || "").trim();
   const bindField = String(props.bindField || "ai1").trim();
 
-  // IMPORTANT: you’re using "density" as the Math field in the modal
-  const formula = String(props.density || "").trim();
+  // match Silo: accept multiple keys but keep density as primary
+  const formula = String(props.formula ?? props.mathFormula ?? props.math ?? props.density ?? "").trim();
 
   const hasBinding = !!bindDeviceId && !!bindField;
 
   const [liveValue, setLiveValue] = useState(null);
   const [outputValue, setOutputValue] = useState(null);
 
-  // ✅ Poll every 2s
   useEffect(() => {
     if (!hasBinding) {
       setLiveValue(null);
@@ -240,8 +227,6 @@ export default function DraggableVerticalTank({ tank, onChange }) {
             : Number(raw);
 
         const safeLive = Number.isFinite(num) ? num : null;
-
-        // output can be string (CONCAT) or number
         const out = computeMathOutput(safeLive, formula);
 
         if (cancelled) return;
@@ -263,115 +248,85 @@ export default function DraggableVerticalTank({ tank, onChange }) {
     };
   }, [hasBinding, bindModel, bindDeviceId, bindField, formula]);
 
-  // Numeric output used for % + numeric label
-  const numericOut = useMemo(() => {
-    if (outputValue === null || outputValue === undefined || outputValue === "") return null;
-    if (typeof outputValue === "string") {
-      const n = Number(outputValue);
+  const numericOutput = useMemo(() => {
+    const v = outputValue;
+    if (v === null || v === undefined || v === "") return null;
+
+    if (typeof v === "string") {
+      const n = Number(v);
       return Number.isFinite(n) ? n : null;
     }
-    const n = Number(outputValue);
+
+    const n = typeof v === "number" ? v : Number(v);
     return Number.isFinite(n) ? n : null;
   }, [outputValue]);
 
-  // Level % logic
-  const levelPercent = useMemo(() => {
-    if (!Number.isFinite(numericOut)) return 0;
+  // ✅ match Silo: if capacity not valid => level = 0
+  const levelPct = useMemo(() => {
+    if (!Number.isFinite(Number(maxCapacity)) || Number(maxCapacity) <= 0) return 0;
+    const frac = clamp01((numericOutput ?? 0) / Number(maxCapacity));
+    return frac * 100;
+  }, [numericOutput, maxCapacity]);
 
-    // if capacity set => output is amount (0..capacity)
-    if (Number.isFinite(maxCapacity) && maxCapacity > 0) {
-      return clamp((numericOut / maxCapacity) * 100, 0, 100);
-    }
+  // ✅ match Silo output text: integer, no decimals
+  const outputText = useMemo(() => {
+    if (!hasBinding) return "--";
+    if (typeof outputValue === "string") return outputValue || "--";
 
-    // else assume output already is % (0..100)
-    return clamp(numericOut, 0, 100);
-  }, [numericOut, maxCapacity]);
-
-  // Text inside tank: show percent
-  const percentText = `${Math.round(levelPercent)}%`;
-
-  // Bottom number under tank (output)
-  const bottomValueText = useMemo(() => {
-    if (outputValue === null || outputValue === undefined || outputValue === "") return "--";
-    if (typeof outputValue === "string") return outputValue;
     const n = Number(outputValue);
-    if (!Number.isFinite(n)) return String(outputValue);
-    return n.toFixed(2);
-  }, [outputValue]);
+    if (!Number.isFinite(n)) return "--";
+    return String(Math.round(n));
+  }, [hasBinding, outputValue]);
 
   return (
-    <>
-      {/* ✅ DOUBLE CLICK target wrapper */}
-      <div
-        onDoubleClick={(e) => {
-          e.stopPropagation();
-          setOpenModal(true);
-        }}
-        style={{
-          display: "inline-block",
-          cursor: "pointer",
-          pointerEvents: "auto", // ✅ allow double click
-          userSelect: "none",
-        }}
-        title="Double click to edit"
-      >
-        <div style={{ textAlign: "center", pointerEvents: "none" }}>
-          {title ? (
-            <div
-              style={{
-                marginBottom: 6,
-                fontSize: `${14 * scale}px`,
-                fontWeight: 600,
-                color: "#0f172a",
-                lineHeight: 1.1,
-              }}
-            >
-              {title}
-            </div>
-          ) : null}
+    <div style={{ textAlign: "center", pointerEvents: "none" }}>
+      {name ? (
+        <div
+          style={{
+            marginBottom: 4,
+            fontSize: `${16 * scale}px`,
+            fontWeight: 600,
+            color: "#111827",
+            lineHeight: 1.1,
+          }}
+        >
+          {name}
+        </div>
+      ) : null}
 
-          <div
-            style={{
-              width: `${120 * scale}px`,
-              height: `${160 * scale}px`,
-              margin: "0 auto",
-            }}
-          >
-            <VerticalTank
-              level={levelPercent}
-              fillColor={materialColor}
-              alarm={false}
-              showPercentText={true}
-              percentText={percentText}
-            />
-          </div>
-
-          {/* OUTPUT NUMBER BELOW FIGURE */}
-          <div
-            style={{
-              marginTop: 6,
-              fontFamily: "monospace",
-              fontSize: `${14 * scale}px`,
-              fontWeight: 700,
-              color: "#111827",
-            }}
-          >
-            {bottomValueText}
-          </div>
+      {/* ✅ VERTICAL TANK (now supports bottom label like SiloTank) */}
+      <div style={{ display: "inline-block" }}>
+        <div style={{ width: `${120 * scale}px`, height: `${160 * scale}px` }}>
+          <VerticalTank
+            level={levelPct}
+            fillColor={materialColor}
+            alarm={false}
+            showPercentText={true}
+            percentText={`${Math.round(levelPct)}%`}
+            percentTextColor="#111827"
+            // ✅ bottom output (value + unit)
+            showBottomText={true}
+            bottomText={outputText}
+            bottomUnit={unit}
+            bottomTextColor="#111827"
+          />
         </div>
       </div>
 
-      {/* ✅ MODAL */}
-      <VerticalTankSettingsModal
-        open={openModal}
-        tank={tank}
-        onClose={() => setOpenModal(false)}
-        onSave={(nextTank) => {
-          // prefer onChange (common pattern), fallback to mutating parent via onSave on modal if you pass it
-          if (typeof onChange === "function") onChange(nextTank);
-          setOpenModal(false);
+      {/* keep hidden (same as Silo) */}
+      <div
+        style={{
+          marginTop: 2,
+          fontFamily: "monospace",
+          fontSize: `${18 * scale}px`,
+          fontWeight: 700,
+          color: "#111827",
+          display: "none",
         }}
-      />
-    </>
+      >
+        {outputText}
+        {unit ? ` ${unit}` : ""}
+      </div>
+    </div>
   );
 }
