@@ -280,11 +280,12 @@ export default function DraggableSiloTank({ tank }) {
       {name ? (
         <div
           style={{
-            marginBottom: 4,
-            fontSize: `${16 * scale}px`,
-            fontWeight: 600,
+            marginBottom: 6,
+            fontSize: `${22 * scale}px`, // ✅ BIGGER TITLE
+            fontWeight: 800, // ✅ BOLDER
             color: "#111827",
             lineHeight: 1.1,
+            letterSpacing: 0.2,
           }}
         >
           {name}
