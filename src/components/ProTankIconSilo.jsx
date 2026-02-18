@@ -7,13 +7,10 @@ const svgStyle = {
   display: "block",
 };
 
-// ⭐ SILO TANK (Dashboard)
 export function SiloTank({
   level = 0, // 0..100
   fillColor = "#fde04788",
   alarm = false,
-
-  // ✅ show percent text inside the silo
   showPercentText = false,
   percentText = "",
   percentTextColor = "#111827",
@@ -22,39 +19,45 @@ export function SiloTank({
 
   const clampedLevel = Math.max(0, Math.min(100, Number(level) || 0));
 
-  // ✅ our drawing is from x=20..100 (width 80) and y=30..140
+  // ⭐ IMPORTANT: full tank height including cone
   const topY = 30;
-  const bottomY = 140;
+  const bottomY = 194; // ← was 140 before (WRONG)
 
-  const filledHeight = (bottomY - topY) * (clampedLevel / 100);
+  const totalHeight = bottomY - topY;
+  const filledHeight = totalHeight * (clampedLevel / 100);
   const fillY = bottomY - filledHeight;
 
   const effectiveFill = alarm ? "#ff4d4d88" : fillColor;
 
   return (
     <div style={{ display: "inline-block" }}>
-      {/* ✅ IMPORTANT FIX:
-          viewBox width must match the drawing so it is visually centered.
-          The tank is centered around x=60 (20..100), so viewBox should be 0..120 (center=60).
-      */}
       <svg viewBox="0 0 120 200" preserveAspectRatio="xMidYMid meet" style={svgStyle}>
         <defs>
+          {/* ✅ CLIP PATH NOW INCLUDES CONE */}
           <clipPath id={clipId}>
-            <path d="M 20 30 A 40 12 0 0 1 100 30 L 100 140 L 20 140 Z" />
+            <path d="
+              M 20 30
+              A 40 12 0 0 1 100 30
+              L 100 140
+              L 70 194
+              L 50 194
+              L 20 140
+              Z
+            " />
           </clipPath>
         </defs>
 
-        {/* liquid fill */}
+        {/* Liquid fill */}
         <rect
-          x="20"
+          x="0"
           y={fillY}
-          width="80"
+          width="120"
           height={filledHeight}
           fill={effectiveFill}
           clipPath={`url(#${clipId})`}
         />
 
-        {/* tank outline */}
+        {/* Tank outline */}
         <path
           d="M 20 30 A 40 12 0 0 1 100 30 L 100 140 L 20 140 Z"
           fill="none"
@@ -68,11 +71,11 @@ export function SiloTank({
           strokeWidth="2"
         />
 
-        {/* percent text inside */}
-        {showPercentText ? (
+        {/* Percent text */}
+        {showPercentText && (
           <text
             x="60"
-            y="95"
+            y="100"
             textAnchor="middle"
             dominantBaseline="middle"
             fontFamily="system-ui, -apple-system, Segoe UI, Roboto, Arial"
@@ -83,28 +86,8 @@ export function SiloTank({
           >
             {percentText || `${Math.round(clampedLevel)}%`}
           </text>
-        ) : null}
+        )}
       </svg>
     </div>
-  );
-}
-
-// WHITE ICON (LEFT MENU)
-export function SiloTankIcon() {
-  return (
-    <svg width="35" height="80" viewBox="0 0 120 200">
-      <path
-        d="M 20 30 A 40 12 0 0 1 100 30 L 100 140 L 20 140 Z"
-        fill="none"
-        stroke="#ffffff"
-        strokeWidth="2"
-      />
-      <path
-        d="M 20 140 L 100 140 L 70 194 L 50 194 Z"
-        fill="none"
-        stroke="#ffffff"
-        strokeWidth="2"
-      />
-    </svg>
   );
 }
