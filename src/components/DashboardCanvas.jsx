@@ -516,9 +516,17 @@ export default function DashboardCanvas({
               );
             }
 
-          if (tank.shape === "verticalTank") {
+if (tank.shape === "verticalTank") {
   return (
-    <DraggableDroppedTank {...commonProps}>
+    <DraggableDroppedTank
+      {...commonProps}
+      onDoubleClick={() => {
+        if (!isPlay) {
+          setActiveVerticalTankId?.(tank.id);
+          setShowVerticalTankProps?.(true);
+        }
+      }}
+    >
       <div className="flex flex-col items-center">
         <DraggableVerticalTank
           tank={tank}
