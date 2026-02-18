@@ -170,12 +170,19 @@ function clamp01(v) {
   return Math.max(0, Math.min(1, n));
 }
 
-// ✅ add alpha if user selected solid hex like "#00ff00"
-function ensureAlphaHex(hex, alphaHex = "88") {
+// ✅ SVG-safe color normalizer (avoid 8-digit hex that can break some SVG fills)
+function normalizeHexColor(hex, fallback = "#00ff00") {
   const s = String(hex || "").trim();
-  if (!s) return `#00ff00${alphaHex}`;
-  if (s.startsWith("#") && (s.length === 9 || s.length === 5)) return s; // already has alpha
-  if (s.startsWith("#") && s.length === 7) return `${s}${alphaHex}`;
+  if (!s) return fallback;
+
+  // strip alpha if provided (#RRGGBBAA or #RGBA)
+  if (s.startsWith("#") && s.length === 9) return s.slice(0, 7);
+  if (s.startsWith("#") && s.length === 5) {
+    // #RGBA -> #RGB
+    return `#${s[1]}${s[2]}${s[3]}`;
+  }
+
+  // accept #RRGGBB or named colors / rgb() etc
   return s;
 }
 
@@ -186,11 +193,13 @@ export default function DraggableSiloTank({ tank }) {
   // ✅ user settings from modal
   const name = String(props.name || "").trim();
 
-  const maxCapacity = props.maxCapacity === "" || props.maxCapacity === null || props.maxCapacity === undefined
-    ? 0
-    : Number(props.maxCapacity);
+  const maxCapacity =
+    props.maxCapacity === "" || props.maxCapacity === null || props.maxCapacity === undefined
+      ? 0
+      : Number(props.maxCapacity);
 
-  const materialColor = ensureAlphaHex(props.materialColor || "#00ff00", "88");
+  // ✅ IMPORTANT: keep it SVG-safe (no #RRGGBBAA)
+  const materialColor = normalizeHexColor(props.materialColor || "#00ff00", "#00ff00");
 
   // ✅ binding + math (same idea as DisplayBox)
   const bindModel = props.bindModel || "zhc1921";
@@ -198,8 +207,7 @@ export default function DraggableSiloTank({ tank }) {
   const bindField = String(props.bindField || "ai1").trim();
 
   // support old key names if any
-  const formula =
-    String(props.formula ?? props.mathFormula ?? props.math ?? props.density ?? "").trim();
+  const formula = String(props.formula ?? props.mathFormula ?? props.math ?? props.density ?? "").trim();
 
   const hasBinding = !!bindDeviceId && !!bindField;
 
@@ -267,12 +275,19 @@ export default function DraggableSiloTank({ tank }) {
     return Number.isFinite(n) ? n : null;
   }, [outputValue]);
 
-  // ✅ compute level from capacity
+  // ✅ use numeric output; if not numeric, fall back to live numeric (prevents 0 level)
+  const levelSource = useMemo(() => {
+    if (Number.isFinite(Number(numericOutput))) return Number(numericOutput);
+    if (Number.isFinite(Number(liveValue))) return Number(liveValue);
+    return 0;
+  }, [numericOutput, liveValue]);
+
+  // ✅ compute level from capacity (0..100)
   const levelPct = useMemo(() => {
     if (!Number.isFinite(Number(maxCapacity)) || Number(maxCapacity) <= 0) return 0;
-    const frac = clamp01((numericOutput ?? 0) / Number(maxCapacity));
+    const frac = clamp01(levelSource / Number(maxCapacity));
     return frac * 100;
-  }, [numericOutput, maxCapacity]);
+  }, [levelSource, maxCapacity]);
 
   // ✅ text below (show the same output value the silo is using)
   const outputText = useMemo(() => {
