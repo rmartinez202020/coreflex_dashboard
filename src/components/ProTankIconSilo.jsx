@@ -22,36 +22,34 @@ export function SiloTank({
 
   const clampedLevel = Math.max(0, Math.min(100, Number(level) || 0));
 
-  // ✅ FULL interior bounds (TOP of cylinder -> BOTTOM of cone)
+  // ✅ our drawing is from x=20..100 (width 80) and y=30..140
   const topY = 30;
-  const bottomY = 194;
+  const bottomY = 140;
 
-  // Fill from bottom upward
   const filledHeight = (bottomY - topY) * (clampedLevel / 100);
   const fillY = bottomY - filledHeight;
 
   const effectiveFill = alarm ? "#ff4d4d88" : fillColor;
 
-  // ✅ One interior path that includes BOTH the cylinder + cone
-  // Cylinder: 20..100 from y=30..140
-  // Cone: down to (70,194) and (50,194)
-  const interiorPath = "M 20 30 A 40 12 0 0 1 100 30 L 100 140 L 70 194 L 50 194 L 20 140 Z";
-
   return (
     <div style={{ display: "inline-block" }}>
-      <svg viewBox="0 0 160 200" preserveAspectRatio="xMidYMid meet" style={svgStyle}>
+      {/* ✅ IMPORTANT FIX:
+          viewBox width must match the drawing so it is visually centered.
+          The tank is centered around x=60 (20..100), so viewBox should be 0..120 (center=60).
+      */}
+      <svg viewBox="0 0 120 200" preserveAspectRatio="xMidYMid meet" style={svgStyle}>
         <defs>
           <clipPath id={clipId}>
-            <path d={interiorPath} />
+            <path d="M 20 30 A 40 12 0 0 1 100 30 L 100 140 L 20 140 Z" />
           </clipPath>
         </defs>
 
-        {/* ✅ liquid fill (now fills from cone bottom up) */}
+        {/* liquid fill */}
         <rect
           x="20"
           y={fillY}
           width="80"
-          height={Math.max(0, filledHeight)}
+          height={filledHeight}
           fill={effectiveFill}
           clipPath={`url(#${clipId})`}
         />
@@ -70,7 +68,7 @@ export function SiloTank({
           strokeWidth="2"
         />
 
-        {/* percent text */}
+        {/* percent text inside */}
         {showPercentText ? (
           <text
             x="60"
@@ -94,7 +92,7 @@ export function SiloTank({
 // WHITE ICON (LEFT MENU)
 export function SiloTankIcon() {
   return (
-    <svg width="35" height="80" viewBox="0 0 160 200">
+    <svg width="35" height="80" viewBox="0 0 120 200">
       <path
         d="M 20 30 A 40 12 0 0 1 100 30 L 100 140 L 20 140 Z"
         fill="none"

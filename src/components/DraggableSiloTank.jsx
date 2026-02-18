@@ -10,9 +10,6 @@ const MODEL_META = {
   zhc1661: { base: "zhc1661" },
 };
 
-// -------------------------
-// auth + no-cache fetch helpers
-// -------------------------
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -45,7 +42,6 @@ function normalizeList(data) {
     : [];
 }
 
-// ✅ IMPORTANT: avoid /devices. Use user-safe list endpoints.
 async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
   const base = MODEL_META[modelKey]?.base || modelKey;
 
@@ -106,11 +102,9 @@ function readAiField(row, bindField) {
   return null;
 }
 
-// ✅ small math evaluator: supports VALUE and CONCAT("a", VALUE, "b")
+// ✅ empty math => output == liveValue
 function computeMathOutput(liveValue, formula) {
   const f = String(formula || "").trim();
-
-  // ✅ empty math => output == liveValue
   if (!f) return liveValue;
 
   const VALUE = liveValue;
@@ -170,11 +164,10 @@ function clamp01(v) {
   return Math.max(0, Math.min(1, n));
 }
 
-// ✅ add alpha if user selected solid hex like "#00ff00"
 function ensureAlphaHex(hex, alphaHex = "88") {
   const s = String(hex || "").trim();
   if (!s) return `#00ff00${alphaHex}`;
-  if (s.startsWith("#") && (s.length === 9 || s.length === 5)) return s; // already has alpha
+  if (s.startsWith("#") && (s.length === 9 || s.length === 5)) return s;
   if (s.startsWith("#") && s.length === 7) return `${s}${alphaHex}`;
   return s;
 }
@@ -182,10 +175,6 @@ function ensureAlphaHex(hex, alphaHex = "88") {
 export default function DraggableSiloTank({ tank }) {
   const props = tank?.properties || {};
   const scale = tank?.scale || 1;
-
-  // ✅ SVG viewBox 160x200 => aspect = 1.25
-  const siloW = 140 * scale;
-  const siloH = Math.round(siloW * 1.25);
 
   const name = String(props.name || "").trim();
 
@@ -267,62 +256,41 @@ export default function DraggableSiloTank({ tank }) {
     return Number.isFinite(n) ? n : null;
   }, [outputValue]);
 
-  // ✅ 0..maxCapacity => 0..100%
   const levelPct = useMemo(() => {
     if (!Number.isFinite(Number(maxCapacity)) || Number(maxCapacity) <= 0) return 0;
     const frac = clamp01((numericOutput ?? 0) / Number(maxCapacity));
     return frac * 100;
   }, [numericOutput, maxCapacity]);
 
-  // ✅ NO decimals (remove .00)
+  // ✅ remove .00 (always)
   const outputText = useMemo(() => {
     if (!hasBinding) return "--";
-
-    // if string output (CONCAT), show as-is
     if (typeof outputValue === "string") return outputValue || "--";
 
     const n = Number(outputValue);
     if (!Number.isFinite(n)) return "--";
-
-    return String(Math.round(n)); // ✅ no .00 ever
+    return String(Math.round(n));
   }, [hasBinding, outputValue]);
 
   return (
-    <div style={{ width: "100%", pointerEvents: "none" }}>
-      {/* ✅ fixed-width inner column centered */}
-      <div
-        style={{
-          width: `${siloW}px`,
-          margin: "0 auto",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-        }}
-      >
-        {/* ✅ TITLE: centered EXACTLY with silo width */}
-        {name ? (
-          <div
-            style={{
-              width: `${siloW}px`,
-              display: "flex",
-              justifyContent: "center",
-              marginBottom: 4,
-              fontSize: `${16 * scale}px`,
-              fontWeight: 600,
-              color: "#111827",
-              lineHeight: 1.1,
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-            }}
-            title={name}
-          >
-            {name}
-          </div>
-        ) : null}
+    <div style={{ textAlign: "center", pointerEvents: "none" }}>
+      {name ? (
+        <div
+          style={{
+            marginBottom: 4,
+            fontSize: `${16 * scale}px`,
+            fontWeight: 600,
+            color: "#111827",
+            lineHeight: 1.1,
+          }}
+        >
+          {name}
+        </div>
+      ) : null}
 
-        {/* ✅ SILO */}
-        <div style={{ width: `${siloW}px`, height: `${siloH}px` }}>
+      {/* ✅ SILO */}
+      <div style={{ display: "inline-block" }}>
+        <div style={{ width: `${140 * scale}px`, height: `${220 * scale}px` }}>
           <SiloTank
             level={levelPct}
             fillColor={materialColor}
@@ -332,28 +300,19 @@ export default function DraggableSiloTank({ tank }) {
             percentTextColor="#111827"
           />
         </div>
+      </div>
 
-        {/* ✅ OUTPUT tight under cone */}
-        <div
-          style={{
-            width: `${siloW}px`,
-            display: "flex",
-            justifyContent: "center",
-            marginTop: 2,
-            fontFamily: "monospace",
-            fontSize: `${18 * scale}px`,
-            fontWeight: 700,
-            color: "#111827",
-          }}
-        >
-          {outputText}
-        </div>
-
-        {!Number.isFinite(Number(maxCapacity)) || Number(maxCapacity) <= 0 ? (
-          <div style={{ width: `${siloW}px`, marginTop: 2, fontSize: `${11 * scale}px`, color: "#64748b", textAlign: "center" }}>
-            Set Max Capacity to enable level %
-          </div>
-        ) : null}
+      {/* ✅ OUTPUT: tight to the bottom */}
+      <div
+        style={{
+          marginTop: 2,
+          fontFamily: "monospace",
+          fontSize: `${18 * scale}px`,
+          fontWeight: 700,
+          color: "#111827",
+        }}
+      >
+        {outputText}
       </div>
     </div>
   );
