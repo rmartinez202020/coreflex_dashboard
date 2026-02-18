@@ -122,7 +122,6 @@ function readAiFromRow(row, field) {
   if (!/^ai[1-8]$/.test(f)) return undefined;
 
   const n = f.replace("ai", ""); // "1"
-
   const candidates = [f, f.toUpperCase(), `ai_${n}`, `AI_${n}`, `ai-${n}`, `AI-${n}`];
 
   for (const k of candidates) {
@@ -131,6 +130,67 @@ function readAiFromRow(row, field) {
   }
 
   return undefined;
+}
+
+// -------------------------
+// ✅ SAME math behavior as DraggableSiloTank (VALUE + CONCAT support)
+// IMPORTANT: if formula is empty => output == liveValue
+// -------------------------
+function computeMathOutput(liveValue, formula) {
+  const f = String(formula || "").trim();
+  if (!f) return liveValue;
+
+  const VALUE = liveValue;
+
+  // CONCAT support
+  const upper = f.toUpperCase();
+  if (upper.startsWith("CONCAT(") && f.endsWith(")")) {
+    const inner = f.slice(7, -1);
+    const parts = [];
+    let cur = "";
+    let inQ = false;
+
+    for (let i = 0; i < inner.length; i++) {
+      const ch = inner[i];
+      if (ch === '"' && inner[i - 1] !== "\\") inQ = !inQ;
+
+      if (ch === "," && !inQ) {
+        parts.push(cur.trim());
+        cur = "";
+      } else {
+        cur += ch;
+      }
+    }
+    if (cur.trim()) parts.push(cur.trim());
+
+    return parts
+      .map((p) => {
+        if (!p) return "";
+        if (p === "VALUE" || p === "value") return VALUE ?? "";
+        if (p.startsWith('"') && p.endsWith('"')) return p.slice(1, -1);
+
+        try {
+          const expr = p.replace(/\bVALUE\b/gi, "VALUE");
+          // eslint-disable-next-line no-new-func
+          const fn = new Function("VALUE", `return (${expr});`);
+          const r = fn(VALUE);
+          return r ?? "";
+        } catch {
+          return "";
+        }
+      })
+      .join("");
+  }
+
+  // Numeric expression
+  try {
+    const expr = f.replace(/\bVALUE\b/gi, "VALUE");
+    // eslint-disable-next-line no-new-func
+    const fn = new Function("VALUE", `return (${expr});`);
+    return fn(VALUE);
+  } catch {
+    return liveValue;
+  }
 }
 
 export default function SiloPropertiesModal({ open = true, silo, onSave, onClose }) {
@@ -207,18 +267,21 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
   // ✅ live value (now real, comes from telemetry like Counter modal)
   const [liveValue, setLiveValue] = useState(null);
 
-  // ✅ Output: if Math empty => output == liveValue
+  // ✅ Output preview: EXACTLY like DraggableSiloTank
+  // If Math empty => output == liveValue
   const outputValue = useMemo(() => {
-    const expr = String(density || "").trim();
+    const lv = Number(liveValue);
+    const safeLive = Number.isFinite(lv) ? lv : null;
 
-    if (!expr) {
-      const lv = Number(liveValue);
-      return Number.isFinite(lv) ? lv : 0;
-    }
+    const out = computeMathOutput(safeLive, density);
 
-    // for now: numeric math entry (same as old behavior)
-    const d = Number(expr);
-    return Number.isFinite(d) ? d : 0;
+    // Try to show numeric nicely if possible, otherwise show string result
+    if (out === null || out === undefined || out === "") return safeLive ?? 0;
+
+    if (typeof out === "number") return out;
+
+    const n = Number(out);
+    return Number.isFinite(n) ? n : out; // keep string output if it's CONCAT text
   }, [density, liveValue]);
 
   // -------------------------
@@ -631,7 +694,11 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                       color: "#111827",
                     }}
                   >
-                    {Number.isFinite(Number(outputValue)) ? Number(outputValue).toFixed(2) : "0.00"}
+                    {typeof outputValue === "string"
+                      ? outputValue || "--"
+                      : Number.isFinite(Number(outputValue))
+                      ? Number(outputValue).toFixed(2)
+                      : "0.00"}
                   </div>
                 </div>
               </div>
@@ -851,7 +918,10 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                     const nextProps = {
                       ...(silo?.properties || {}),
                       name: String(name || "").trim(),
+
+                      // ✅ store the math formula as STRING (empty allowed)
                       density: String(density || "").trim(),
+
                       maxCapacity: maxCapacity === "" ? "" : Number(maxCapacity),
                       materialColor: String(materialColor || "#00ff00"),
                       bindModel,
