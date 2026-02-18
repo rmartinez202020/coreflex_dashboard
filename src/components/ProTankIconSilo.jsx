@@ -7,10 +7,13 @@ const svgStyle = {
   display: "block",
 };
 
+// ⭐ SILO TANK (Dashboard)
 export function SiloTank({
   level = 0, // 0..100
   fillColor = "#fde04788",
   alarm = false,
+
+  // ✅ show percent text inside the silo
   showPercentText = false,
   percentText = "",
   percentTextColor = "#111827",
@@ -19,35 +22,38 @@ export function SiloTank({
 
   const clampedLevel = Math.max(0, Math.min(100, Number(level) || 0));
 
-  // ⭐ IMPORTANT: full tank height including cone
+  // ✅ FULL tank height INCLUDING the cone
+  // body starts at y=30, cone tip ends at y=194
   const topY = 30;
-  const bottomY = 194; // ← was 140 before (WRONG)
+  const bottomY = 194;
 
-  const totalHeight = bottomY - topY;
-  const filledHeight = totalHeight * (clampedLevel / 100);
+  const filledHeight = (bottomY - topY) * (clampedLevel / 100);
   const fillY = bottomY - filledHeight;
 
   const effectiveFill = alarm ? "#ff4d4d88" : fillColor;
 
   return (
     <div style={{ display: "inline-block" }}>
+      {/* viewBox is 0..120 (tank centered at x=60) */}
       <svg viewBox="0 0 120 200" preserveAspectRatio="xMidYMid meet" style={svgStyle}>
         <defs>
-          {/* ✅ CLIP PATH NOW INCLUDES CONE */}
+          {/* ✅ clip path includes BOTH body + cone so fill starts at cone bottom */}
           <clipPath id={clipId}>
-            <path d="
-              M 20 30
-              A 40 12 0 0 1 100 30
-              L 100 140
-              L 70 194
-              L 50 194
-              L 20 140
-              Z
-            " />
+            <path
+              d="
+                M 20 30
+                A 40 12 0 0 1 100 30
+                L 100 140
+                L 70 194
+                L 50 194
+                L 20 140
+                Z
+              "
+            />
           </clipPath>
         </defs>
 
-        {/* Liquid fill */}
+        {/* ✅ liquid fill (use wide rect and clip it) */}
         <rect
           x="0"
           y={fillY}
@@ -57,7 +63,7 @@ export function SiloTank({
           clipPath={`url(#${clipId})`}
         />
 
-        {/* Tank outline */}
+        {/* tank outline */}
         <path
           d="M 20 30 A 40 12 0 0 1 100 30 L 100 140 L 20 140 Z"
           fill="none"
@@ -71,8 +77,8 @@ export function SiloTank({
           strokeWidth="2"
         />
 
-        {/* Percent text */}
-        {showPercentText && (
+        {/* percent text inside */}
+        {showPercentText ? (
           <text
             x="60"
             y="100"
@@ -86,8 +92,28 @@ export function SiloTank({
           >
             {percentText || `${Math.round(clampedLevel)}%`}
           </text>
-        )}
+        ) : null}
       </svg>
     </div>
+  );
+}
+
+// WHITE ICON (LEFT MENU)
+export function SiloTankIcon() {
+  return (
+    <svg width="35" height="80" viewBox="0 0 120 200">
+      <path
+        d="M 20 30 A 40 12 0 0 1 100 30 L 100 140 L 20 140 Z"
+        fill="none"
+        stroke="#ffffff"
+        strokeWidth="2"
+      />
+      <path
+        d="M 20 140 L 100 140 L 70 194 L 50 194 Z"
+        fill="none"
+        stroke="#ffffff"
+        strokeWidth="2"
+      />
+    </svg>
   );
 }
