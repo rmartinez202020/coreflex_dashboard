@@ -275,17 +275,21 @@ export default function DraggableSiloTank({ tank }) {
     return String(Math.round(n));
   }, [hasBinding, outputValue]);
 
+  // ✅ bigger number (this affects the bottom label size because ProTankIconSilo uses the text you pass)
+  // We pass a "styled" version by padding with spaces? NO — better: keep value same and let SVG handle size.
+  // So we do NOT change title here; we just keep title normal.
+  // (Your bottom number size should be changed in ProTankIconSilo.jsx fontSize, but leaving this file clean.)
+
   return (
     <div style={{ textAlign: "center", pointerEvents: "none" }}>
       {name ? (
         <div
           style={{
-            marginBottom: 6,
-            fontSize: `${22 * scale}px`, // ✅ BIGGER TITLE
-            fontWeight: 800, // ✅ BOLDER
+            marginBottom: 4,
+            fontSize: `${16 * scale}px`, // ✅ keep title NOT bigger
+            fontWeight: 600,
             color: "#111827",
             lineHeight: 1.1,
-            letterSpacing: 0.2,
           }}
         >
           {name}
