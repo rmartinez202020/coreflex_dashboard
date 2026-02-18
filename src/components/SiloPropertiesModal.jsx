@@ -132,10 +132,6 @@ function readAiFromRow(row, field) {
   return undefined;
 }
 
-// -------------------------
-// ✅ SAME math behavior as DraggableSiloTank (VALUE + CONCAT support)
-// IMPORTANT: if formula is empty => output == liveValue
-// -------------------------
 function computeMathOutput(liveValue, formula) {
   const f = String(formula || "").trim();
   if (!f) return liveValue;
@@ -192,6 +188,24 @@ function computeMathOutput(liveValue, formula) {
     return liveValue;
   }
 }
+
+// ✅ Unit options (simple + editable)
+const UNIT_OPTIONS = [
+  { key: "", label: "(none)" },
+  { key: "%", label: "%" },
+  { key: "psi", label: "PSI" },
+  { key: "bar", label: "bar" },
+  { key: "kpa", label: "kPa" },
+  { key: "c", label: "°C" },
+  { key: "f", label: "°F" },
+  { key: "gal", label: "gal" },
+  { key: "l", label: "L" },
+  { key: "ft", label: "ft" },
+  { key: "in", label: "in" },
+  { key: "mm", label: "mm" },
+  { key: "cm", label: "cm" },
+  { key: "m", label: "m" },
+];
 
 export default function SiloPropertiesModal({ open = true, silo, onSave, onClose }) {
   if (!open || !silo) return null;
@@ -251,7 +265,11 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
   // -------------------------
   // ✅ MIDDLE: “Math” card
   // -------------------------
-  const [name, setName] = useState(props.name ?? "");
+  // ✅ rename Name -> Title (keep stored as props.name for backwards compatibility)
+  const [title, setTitle] = useState(props.name ?? "");
+
+  // ✅ Unit selection (stored as props.unit)
+  const [unit, setUnit] = useState(props.unit ?? "");
 
   // ✅ Math should start EMPTY (string), not 0
   const [density, setDensity] = useState(
@@ -268,7 +286,6 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
   const [liveValue, setLiveValue] = useState(null);
 
   // ✅ Output preview: EXACTLY like DraggableSiloTank
-  // If Math empty => output == liveValue
   const outputValue = useMemo(() => {
     const lv = Number(liveValue);
     const safeLive = Number.isFinite(lv) ? lv : null;
@@ -333,8 +350,7 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
 
       const data = await res.json();
       const list = Array.isArray(data) ? data : [];
-      const row =
-        list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
+      const row = list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
 
       setTelemetryRow(row);
     } catch {
@@ -402,11 +418,6 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
     return devices.filter((d) => String(d.deviceId || "").toLowerCase().includes(q));
   }, [devices, deviceQuery]);
 
-  const selectedDevice = useMemo(() => {
-    const hit = devices.find((d) => String(d.deviceId) === String(bindDeviceId));
-    return hit || null;
-  }, [devices, bindDeviceId]);
-
   // ✅ prefer backend status from telemetryRow (like Counter modal)
   const backendDeviceStatus = useMemo(() => {
     const s = String(telemetryRow?.status || "").trim().toLowerCase();
@@ -451,7 +462,9 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
     if (!silo) return;
     const p = silo?.properties || {};
 
-    setName(p.name ?? "");
+    setTitle(p.name ?? "");
+    setUnit(p.unit ?? "");
+
     setDensity(p.density === undefined || p.density === null ? "" : String(p.density));
 
     setMaxCapacity(
@@ -525,9 +538,6 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // -------------------------
-  // ✅ UI styles (same as DisplaySettingModal)
-  // -------------------------
   const labelStyle = { fontSize: 12, fontWeight: 500, color: "#111827" };
   const sectionTitleStyle = { fontWeight: 600, fontSize: 16 };
   const fieldInputStyle = {
@@ -634,14 +644,27 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
             >
               <div style={sectionTitleStyle}>Math</div>
 
+              {/* ✅ Title */}
               <div style={{ display: "grid", gap: 6 }}>
-                <div style={labelStyle}>Name</div>
+                <div style={labelStyle}>Title</div>
                 <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
                   style={fieldInputStyle}
                   placeholder="Example: Silo #1"
                 />
+              </div>
+
+              {/* ✅ Unit picker */}
+              <div style={{ display: "grid", gap: 6 }}>
+                <div style={labelStyle}>Unit</div>
+                <select value={unit} onChange={(e) => setUnit(e.target.value)} style={fieldSelectStyle}>
+                  {UNIT_OPTIONS.map((u) => (
+                    <option key={u.key} value={u.key}>
+                      {u.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div
@@ -671,7 +694,9 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                       color: "#0b3b18",
                     }}
                   >
-                    {Number.isFinite(Number(liveValue)) ? Number(liveValue).toFixed(2) : "--"}
+                    {Number.isFinite(Number(liveValue))
+                      ? `${Number(liveValue).toFixed(2)}${unit ? ` ${unit}` : ""}`
+                      : "--"}
                   </div>
                 </div>
 
@@ -695,10 +720,10 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                     }}
                   >
                     {typeof outputValue === "string"
-                      ? outputValue || "--"
+                      ? `${outputValue || "--"}${unit ? ` ${unit}` : ""}`
                       : Number.isFinite(Number(outputValue))
-                      ? Number(outputValue).toFixed(2)
-                      : "0.00"}
+                      ? `${Number(outputValue).toFixed(2)}${unit ? ` ${unit}` : ""}`
+                      : `0.00${unit ? ` ${unit}` : ""}`}
                   </div>
                 </div>
               </div>
@@ -790,11 +815,7 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
 
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Model</div>
-                <select
-                  value={bindModel}
-                  onChange={(e) => setBindModel(e.target.value)}
-                  style={fieldSelectStyle}
-                >
+                <select value={bindModel} onChange={(e) => setBindModel(e.target.value)} style={fieldSelectStyle}>
                   {Object.entries(MODEL_META).map(([k, v]) => (
                     <option key={k} value={k}>
                       {v.label}
@@ -815,11 +836,7 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
 
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Device</div>
-                <select
-                  value={bindDeviceId}
-                  onChange={(e) => setBindDeviceId(e.target.value)}
-                  style={fieldSelectStyle}
-                >
+                <select value={bindDeviceId} onChange={(e) => setBindDeviceId(e.target.value)} style={fieldSelectStyle}>
                   <option value="">{devicesLoading ? "Loading..." : "Select device..."}</option>
                   {filteredDevices.map((d) => (
                     <option key={d.deviceId} value={d.deviceId}>
@@ -831,11 +848,7 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
 
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Analog Input (AI)</div>
-                <select
-                  value={bindField}
-                  onChange={(e) => setBindField(e.target.value)}
-                  style={fieldSelectStyle}
-                >
+                <select value={bindField} onChange={(e) => setBindField(e.target.value)} style={fieldSelectStyle}>
                   <option value="ai1">AI-1</option>
                   <option value="ai2">AI-2</option>
                   <option value="ai3">AI-3</option>
@@ -859,8 +872,7 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                 <div style={previewTitleStyle}>Binding Preview</div>
 
                 <div style={previewTextStyle}>
-                  Selected: <span style={{ fontFamily: "monospace" }}>{bindDeviceId || "--"}</span>{" "}
-                  ·{" "}
+                  Selected: <span style={{ fontFamily: "monospace" }}>{bindDeviceId || "--"}</span> ·{" "}
                   {bindDeviceId ? (
                     deviceIsOnline ? (
                       <span style={{ color: "#16a34a" }}>ONLINE</span>
@@ -891,7 +903,9 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                       color: "#0b3b18",
                     }}
                   >
-                    {Number.isFinite(Number(liveValue)) ? Number(liveValue).toFixed(2) : "--"}
+                    {Number.isFinite(Number(liveValue))
+                      ? `${Number(liveValue).toFixed(2)}${unit ? ` ${unit}` : ""}`
+                      : "--"}
                   </div>
                 </div>
               </div>
@@ -917,7 +931,12 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                   onClick={() => {
                     const nextProps = {
                       ...(silo?.properties || {}),
-                      name: String(name || "").trim(),
+
+                      // ✅ keep property name as "name" so existing widgets keep working
+                      name: String(title || "").trim(),
+
+                      // ✅ store unit
+                      unit: String(unit || "").trim(),
 
                       // ✅ store the math formula as STRING (empty allowed)
                       density: String(density || "").trim(),
