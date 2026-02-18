@@ -11,8 +11,6 @@ import SiloPropertiesModal from "./SiloPropertiesModal";
 import AlarmLogModal from "./AlarmLogModal";
 import CounterInputSettingsModal from "./indicators/CounterInputSettingsModal";
 import HorizontalTankPropertiesModal from "./HorizontalTankPropertiesModal";
-
-// ✅ NEW
 import VerticalTankSettingsModal from "./VerticalTankSettingsModal";
 import StandardTankPropertiesModal from "./StandardTankPropertiesModal";
 
@@ -47,11 +45,15 @@ export default function AppModals({
   showVerticalTankProps,
   setShowVerticalTankProps,
   activeVerticalTankId,
+  // ✅ optional (if you pass it from App) – prevents stale active id after closing
+  setActiveVerticalTankId,
 
   // ✅ NEW: Standard Tank (same idea)
   showStandardTankProps,
   setShowStandardTankProps,
   activeStandardTankId,
+  // ✅ optional (if you pass it from App) – prevents stale active id after closing
+  setActiveStandardTankId,
 
   alarmLogOpen,
   closeAlarmLog,
@@ -143,13 +145,17 @@ export default function AppModals({
   // ✅ NEW: Vertical Tank active target
   const activeVerticalTank = useMemo(() => {
     if (activeVerticalTankId == null) return null;
-    return droppedTanks.find((t) => isSameId(t.id, activeVerticalTankId) && t.shape === "verticalTank");
+    return droppedTanks.find(
+      (t) => isSameId(t.id, activeVerticalTankId) && t.shape === "verticalTank"
+    );
   }, [droppedTanks, activeVerticalTankId]);
 
   // ✅ NEW: Standard Tank active target
   const activeStandardTank = useMemo(() => {
     if (activeStandardTankId == null) return null;
-    return droppedTanks.find((t) => isSameId(t.id, activeStandardTankId) && t.shape === "standardTank");
+    return droppedTanks.find(
+      (t) => isSameId(t.id, activeStandardTankId) && t.shape === "standardTank"
+    );
   }, [droppedTanks, activeStandardTankId]);
 
   // ✅ LED Indicator target
@@ -217,6 +223,17 @@ export default function AppModals({
         return { ...t, properties: nextProps };
       })
     );
+  };
+
+  // ✅ close helpers (also clear active ids if setter exists)
+  const closeVerticalTankModal = () => {
+    setShowVerticalTankProps?.(false);
+    if (typeof setActiveVerticalTankId === "function") setActiveVerticalTankId(null);
+  };
+
+  const closeStandardTankModal = () => {
+    setShowStandardTankProps?.(false);
+    if (typeof setActiveStandardTankId === "function") setActiveStandardTankId(null);
   };
 
   return (
@@ -350,10 +367,10 @@ export default function AppModals({
         <VerticalTankSettingsModal
           open={showVerticalTankProps}
           tank={activeVerticalTank}
-          onClose={() => setShowVerticalTankProps(false)}
+          onClose={closeVerticalTankModal}
           onSave={(updatedTank) => {
             setDroppedTanks((prev) => prev.map((t) => (isSameId(t.id, updatedTank.id) ? updatedTank : t)));
-            setShowVerticalTankProps(false);
+            closeVerticalTankModal();
           }}
         />
       )}
@@ -363,10 +380,10 @@ export default function AppModals({
         <StandardTankPropertiesModal
           open={showStandardTankProps}
           tank={activeStandardTank}
-          onClose={() => setShowStandardTankProps(false)}
+          onClose={closeStandardTankModal}
           onSave={(updatedTank) => {
             setDroppedTanks((prev) => prev.map((t) => (isSameId(t.id, updatedTank.id) ? updatedTank : t)));
-            setShowStandardTankProps(false);
+            closeStandardTankModal();
           }}
         />
       )}
