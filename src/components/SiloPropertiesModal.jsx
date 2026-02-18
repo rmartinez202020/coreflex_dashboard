@@ -3,6 +3,12 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "re
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 
+// ✅ extracted telemetry (polling + read AI + online status)
+import useSiloPropertiesModalTelemetric from "./SiloPropertiesModalTelemetric";
+
+// ✅ extracted MIDDLE card
+import SiloPropertiesModalMath from "./SiloPropertiesModalMath";
+
 const MODEL_META = {
   zhc1921: { label: "CF-2000", base: "zhc1921" },
   zhc1661: { label: "CF-1600", base: "zhc1661" },
@@ -155,33 +161,6 @@ function computeCenteredPos({ panelW = 1240, estH = 640 } = {}) {
   return { left, top };
 }
 
-// -------------------------
-// ✅ CounterModal-style telemetry helpers
-// -------------------------
-function modelMyDevicesEndpoint(modelKey) {
-  const base = MODEL_META[modelKey]?.base || modelKey;
-  return base === "zhc1661" ? "/zhc1661/my-devices" : "/zhc1921/my-devices";
-}
-
-// ✅ Similar spirit to readTagFromRow() but for AI fields (ai1..ai8)
-// Handles ai1 / AI1 / ai_1 / AI_1 / ai-1 / AI-1
-function readAiFromRow(row, field) {
-  if (!row || !field) return undefined;
-
-  const f = String(field || "").trim().toLowerCase(); // ai1..ai8
-  if (!/^ai[1-8]$/.test(f)) return undefined;
-
-  const n = f.replace("ai", ""); // "1"
-  const candidates = [f, f.toUpperCase(), `ai_${n}`, `AI_${n}`, `ai-${n}`, `AI-${n}`];
-
-  for (const k of candidates) {
-    const v = row?.[k];
-    if (v !== undefined && v !== null && v !== "") return v;
-  }
-
-  return undefined;
-}
-
 function computeMathOutput(liveValue, formula) {
   const f = String(formula || "").trim();
   if (!f) return liveValue;
@@ -295,43 +274,18 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
   );
 
   // -------------------------
-  // ✅ MIDDLE: “Math” card
+  // ✅ MIDDLE: “Math” card state
   // -------------------------
-  // ✅ rename Name -> Title (keep stored as props.name for backwards compatibility)
   const [title, setTitle] = useState(props.name ?? "");
-
-  // ✅ Unit selection (stored as props.unit)
   const [unit, setUnit] = useState(props.unit ?? "");
-
-  // ✅ Math should start EMPTY (string), not 0
   const [density, setDensity] = useState(
     props.density === undefined || props.density === null ? "" : String(props.density)
   );
 
-  // ✅ Capacity + Material Color
   const [maxCapacity, setMaxCapacity] = useState(
     props.maxCapacity === undefined || props.maxCapacity === null ? "" : Number(props.maxCapacity)
   );
   const [materialColor, setMaterialColor] = useState(props.materialColor || "#00ff00");
-
-  // ✅ live value (now real, comes from telemetry like Counter modal)
-  const [liveValue, setLiveValue] = useState(null);
-
-  // ✅ Output preview: EXACTLY like DraggableSiloTank
-  const outputValue = useMemo(() => {
-    const lv = Number(liveValue);
-    const safeLive = Number.isFinite(lv) ? lv : null;
-
-    const out = computeMathOutput(safeLive, density);
-
-    // Try to show numeric nicely if possible, otherwise show string result
-    if (out === null || out === undefined || out === "") return safeLive ?? 0;
-
-    if (typeof out === "number") return out;
-
-    const n = Number(out);
-    return Number.isFinite(n) ? n : out; // keep string output if it's CONCAT text
-  }, [density, liveValue]);
 
   // -------------------------
   // ✅ RIGHT: device binding with SEARCH
@@ -341,58 +295,33 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
   const [bindField, setBindField] = useState(props.bindField || "ai1");
 
   const [devices, setDevices] = useState([]);
-  const [deviceQuery, setDeviceQuery] = useState(""); // ✅ search box
+  const [deviceQuery, setDeviceQuery] = useState("");
   const [devicesLoading, setDevicesLoading] = useState(false);
 
-  // -------------------------
-  // ✅ Counter-modal style telemetry row polling
-  // -------------------------
-  const [telemetryRow, setTelemetryRow] = useState(null);
-  const telemetryRef = useRef({ loading: false });
+  // ✅ extracted telemetry hook (polling + AI read + ONLINE status)
+  const { liveValue, deviceIsOnline } = useSiloPropertiesModalTelemetric({
+    open,
+    bindModel,
+    bindDeviceId,
+    bindField,
+    pollMs: 3000,
+  });
 
-  const fetchTelemetryRow = React.useCallback(async () => {
-    const id = String(bindDeviceId || "").trim();
-    if (!id) {
-      setTelemetryRow(null);
-      return;
-    }
-    if (telemetryRef.current.loading) return;
+  // ✅ Output preview
+  const outputValue = useMemo(() => {
+    const lv = Number(liveValue);
+    const safeLive = Number.isFinite(lv) ? lv : null;
 
-    telemetryRef.current.loading = true;
-    try {
-      const token = String(getToken() || "").trim();
-      if (!token) throw new Error("Missing auth token. Please logout and login again.");
+    const out = computeMathOutput(safeLive, density);
 
-      const endpoint = modelMyDevicesEndpoint(bindModel);
+    if (out === null || out === undefined || out === "") return safeLive ?? 0;
+    if (typeof out === "number") return out;
 
-      const res = await fetch(`${API_URL}${withNoCache(endpoint)}`, {
-        method: "GET",
-        headers: {
-          ...getAuthHeaders(),
-          "Cache-Control": "no-cache",
-          Pragma: "no-cache",
-        },
-        cache: "no-store",
-      });
+    const n = Number(out);
+    return Number.isFinite(n) ? n : out;
+  }, [density, liveValue]);
 
-      if (!res.ok) {
-        setTelemetryRow(null);
-        return;
-      }
-
-      const data = await res.json();
-      const list = Array.isArray(data) ? data : [];
-      const row = list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
-
-      setTelemetryRow(row);
-    } catch {
-      setTelemetryRow(null);
-    } finally {
-      telemetryRef.current.loading = false;
-    }
-  }, [bindDeviceId, bindModel]);
-
-  // Load device list once when open/model changes (existing logic)
+  // Load device list once when open/model changes
   useEffect(() => {
     if (!open) return;
 
@@ -420,44 +349,11 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
     };
   }, [open, bindModel]);
 
-  // ✅ Poll telemetry like Counter modal (preview only)
-  useEffect(() => {
-    if (!open) return;
-
-    fetchTelemetryRow();
-    const t = setInterval(() => {
-      if (document.hidden) return;
-      fetchTelemetryRow();
-    }, 3000);
-
-    return () => clearInterval(t);
-  }, [open, fetchTelemetryRow]);
-
-  // ✅ compute live value from telemetryRow + bindField
-  useEffect(() => {
-    if (!telemetryRow || !bindField) {
-      setLiveValue(null);
-      return;
-    }
-    const v = readAiFromRow(telemetryRow, bindField);
-    const num = Number(v);
-    setLiveValue(Number.isFinite(num) ? num : null);
-  }, [telemetryRow, bindField]);
-
   const filteredDevices = useMemo(() => {
     const q = String(deviceQuery || "").trim().toLowerCase();
     if (!q) return devices;
     return devices.filter((d) => String(d.deviceId || "").toLowerCase().includes(q));
   }, [devices, deviceQuery]);
-
-  // ✅ prefer backend status from telemetryRow (like Counter modal)
-  const backendDeviceStatus = useMemo(() => {
-    const s = String(telemetryRow?.status || "").trim().toLowerCase();
-    if (!bindDeviceId) return "";
-    return s || "";
-  }, [telemetryRow, bindDeviceId]);
-
-  const deviceIsOnline = backendDeviceStatus === "online";
 
   const canApply = useMemo(() => {
     return !!String(bindDeviceId || "").trim() && !!String(bindField || "").trim();
@@ -475,7 +371,6 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
     startTop: 0,
   });
 
-  // ✅ start centered on FIRST render (prevents corner flash)
   const [pos, setPos] = useState(() => {
     if (typeof window === "undefined") return { left: 12, top: 12 };
     return computeCenteredPos({ panelW: PANEL_W, estH: 640 });
@@ -483,7 +378,6 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
 
   const [isDragging, setIsDragging] = useState(false);
 
-  // ✅ center BEFORE paint each time it opens (professional, no jump)
   useLayoutEffect(() => {
     if (!open) return;
     setPos(computeCenteredPos({ panelW: PANEL_W, estH: 640 }));
@@ -496,7 +390,6 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
 
     setTitle(p.name ?? "");
     setUnit(p.unit ?? "");
-
     setDensity(p.density === undefined || p.density === null ? "" : String(p.density));
 
     setMaxCapacity(p.maxCapacity === undefined || p.maxCapacity === null ? "" : Number(p.maxCapacity));
@@ -505,9 +398,6 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
     setBindModel(p.bindModel ?? "zhc1921");
     setBindDeviceId(p.bindDeviceId ?? "");
     setBindField(p.bindField ?? "ai1");
-
-    setTelemetryRow(null);
-    setLiveValue(null);
 
     setDeviceQuery("");
   }, [silo]);
@@ -661,174 +551,27 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
             {/* ✅ LEFT: MATH HELPER */}
             {helperCard}
 
-            {/* ✅ MIDDLE: MATH CARD + NEW SECTION */}
-            <div
-              style={{
-                background: "#ffffff",
-                border: "1px solid #e5e7eb",
-                borderRadius: 12,
-                padding: 14,
-                display: "grid",
-                gap: 12,
-              }}
-            >
-              <div style={sectionTitleStyle}>Math</div>
-
-              {/* ✅ Title */}
-              <div style={{ display: "grid", gap: 6 }}>
-                <div style={labelStyle}>Title</div>
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  style={fieldInputStyle}
-                  placeholder="Example: Silo #1"
-                />
-              </div>
-
-              {/* ✅ Unit picker */}
-              <div style={{ display: "grid", gap: 6 }}>
-                <div style={labelStyle}>Unit</div>
-                <select value={unit} onChange={(e) => setUnit(e.target.value)} style={fieldSelectStyle}>
-                  {UNIT_OPTIONS.map((u) => (
-                    <option key={u.key} value={u.key}>
-                      {u.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 10,
-                  alignItems: "start",
-                }}
-              >
-                <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>Live VALUE</div>
-                  <div
-                    style={{
-                      marginTop: 6,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      minWidth: 120,
-                      height: 34,
-                      padding: "0 14px",
-                      borderRadius: 999,
-                      background: "rgba(187,247,208,0.55)",
-                      border: "1px solid rgba(22,163,74,0.25)",
-                      fontFamily: "monospace",
-                      fontWeight: 700,
-                      color: "#0b3b18",
-                    }}
-                  >
-                    {Number.isFinite(Number(liveValue))
-                      ? `${Number(liveValue).toFixed(2)}${unit ? ` ${unit}` : ""}`
-                      : "--"}
-                  </div>
-                </div>
-
-                <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>Output</div>
-                  <div
-                    style={{
-                      marginTop: 6,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      minWidth: 120,
-                      height: 34,
-                      padding: "0 14px",
-                      borderRadius: 999,
-                      background: "#f3f4f6",
-                      border: "1px solid #d1d5db",
-                      fontFamily: "monospace",
-                      fontWeight: 700,
-                      color: "#111827",
-                    }}
-                  >
-                    {typeof outputValue === "string"
-                      ? `${outputValue || "--"}${unit ? ` ${unit}` : ""}`
-                      : Number.isFinite(Number(outputValue))
-                      ? `${Number(outputValue).toFixed(2)}${unit ? ` ${unit}` : ""}`
-                      : `0.00${unit ? ` ${unit}` : ""}`}
-                  </div>
-                </div>
-              </div>
-
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>Math</div>
-                <textarea
-                  value={density}
-                  onChange={(e) => setDensity(e.target.value)}
-                  rows={4}
-                  style={{
-                    marginTop: 6,
-                    width: "100%",
-                    borderRadius: 10,
-                    border: "1px solid #d1d5db",
-                    padding: 10,
-                    fontFamily: "monospace",
-                    fontSize: 12,
-                    outline: "none",
-                    background: "#fff",
-                  }}
-                  placeholder='Example: VALUE*1.5  or  CONCAT("Temp=", VALUE)'
-                />
-              </div>
-
-              {/* ✅ Capacity + Material/Liquid Color */}
-              <div
-                style={{
-                  borderTop: "1px dashed #e5e7eb",
-                  paddingTop: 12,
-                  marginTop: 4,
-                  display: "grid",
-                  gap: 10,
-                }}
-              >
-                <div style={sectionTitleStyle}>Capacity &amp; Color</div>
-
-                <div style={{ display: "grid", gap: 6 }}>
-                  <div style={labelStyle}>Max Capacity</div>
-                  <input
-                    type="number"
-                    value={maxCapacity}
-                    onChange={(e) => setMaxCapacity(toNum(e.target.value))}
-                    style={fieldInputStyle}
-                    placeholder="Example: 5000"
-                  />
-                </div>
-
-                <div style={{ display: "grid", gap: 6 }}>
-                  <div style={labelStyle}>Material / Liquid Color</div>
-                  <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-                    <input
-                      type="color"
-                      value={materialColor}
-                      onChange={(e) => setMaterialColor(e.target.value)}
-                      style={{
-                        width: 44,
-                        height: 38,
-                        borderRadius: 10,
-                        border: "1px solid #d1d5db",
-                        background: "#fff",
-                        padding: 4,
-                        cursor: "pointer",
-                      }}
-                    />
-                    <input
-                      value={materialColor}
-                      onChange={(e) => setMaterialColor(e.target.value)}
-                      style={fieldInputStyle}
-                      placeholder="#00ff00"
-                    />
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* ✅ MIDDLE: extracted component */}
+            <SiloPropertiesModalMath
+              sectionTitleStyle={sectionTitleStyle}
+              labelStyle={labelStyle}
+              fieldInputStyle={fieldInputStyle}
+              fieldSelectStyle={fieldSelectStyle}
+              UNIT_OPTIONS={UNIT_OPTIONS}
+              title={title}
+              setTitle={setTitle}
+              unit={unit}
+              setUnit={setUnit}
+              liveValue={liveValue}
+              outputValue={outputValue}
+              density={density}
+              setDensity={setDensity}
+              maxCapacity={maxCapacity}
+              setMaxCapacity={setMaxCapacity}
+              materialColor={materialColor}
+              setMaterialColor={setMaterialColor}
+              toNum={toNum}
+            />
 
             {/* ✅ RIGHT: BINDING + SEARCH */}
             <div
@@ -962,13 +705,8 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                     const nextProps = {
                       ...(silo?.properties || {}),
 
-                      // ✅ keep property name as "name" so existing widgets keep working
                       name: String(title || "").trim(),
-
-                      // ✅ store unit
                       unit: String(unit || "").trim(),
-
-                      // ✅ store the math formula as STRING (empty allowed)
                       density: String(density || "").trim(),
 
                       maxCapacity: maxCapacity === "" ? "" : Number(maxCapacity),
