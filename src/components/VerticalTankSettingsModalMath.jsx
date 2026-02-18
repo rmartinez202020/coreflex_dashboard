@@ -1,28 +1,29 @@
 // src/components/VerticalTankSettingsModalMath.jsx
 import React from "react";
 
+function ensureAlpha(color) {
+  const c = String(color || "").trim();
+  if (!c) return "#60a5fa88";
+  if (/^#[0-9a-fA-F]{6}$/.test(c)) return `${c}88`;
+  return c;
+}
+
 export default function VerticalTankSettingsModalMath({
   sectionTitleStyle,
   labelStyle,
   fieldInputStyle,
-
+  // values + setters
   name,
   setName,
-
   liveValue,
   outputValue,
-
   density,
   setDensity,
-
   maxCapacity,
   setMaxCapacity,
-
   materialColor,
   setMaterialColor,
-
   toNum,
-  ensureAlpha,
 }) {
   return (
     <div
@@ -43,7 +44,7 @@ export default function VerticalTankSettingsModalMath({
           value={name}
           onChange={(e) => setName(e.target.value)}
           style={fieldInputStyle}
-          placeholder="Example: Vertical Tank #1"
+          placeholder="Example: Tank #1"
         />
       </div>
 
@@ -98,10 +99,10 @@ export default function VerticalTankSettingsModalMath({
             }}
           >
             {typeof outputValue === "number"
-              ? Number.isFinite(outputValue)
-                ? outputValue.toFixed(2)
-                : "0.00"
-              : outputValue ?? "0.00"}
+              ? Number(outputValue).toFixed(2)
+              : Number.isFinite(Number(outputValue))
+              ? Number(outputValue).toFixed(2)
+              : String(outputValue ?? "0.00")}
           </div>
         </div>
       </div>
@@ -154,7 +155,7 @@ export default function VerticalTankSettingsModalMath({
           <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
             <input
               type="color"
-              value={String(materialColor || "#00ff00").slice(0, 7)}
+              value={String(materialColor || "#60a5fa").slice(0, 7)}
               onChange={(e) => setMaterialColor(ensureAlpha(e.target.value))}
               style={{
                 width: 44,

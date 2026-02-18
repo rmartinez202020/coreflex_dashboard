@@ -14,9 +14,6 @@ const MODEL_META = {
   zhc1661: { label: "CF-1600", base: "zhc1661" },
 };
 
-// -------------------------
-// ✅ auth + no-cache fetch helpers (same idea as SiloPropertiesModal)
-// -------------------------
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -52,7 +49,6 @@ function normalizeList(data) {
     : [];
 }
 
-// ✅ IMPORTANT: avoid /devices (can be 403/405). Use user-safe list endpoints.
 async function loadDeviceListForModel(modelKey, { signal } = {}) {
   const base = MODEL_META[modelKey]?.base || modelKey;
 
@@ -90,7 +86,6 @@ async function loadDeviceListForModel(modelKey, { signal } = {}) {
       // continue
     }
   }
-
   return [];
 }
 
@@ -100,7 +95,6 @@ function toNum(v) {
   return Number.isFinite(n) ? n : "";
 }
 
-// ✅ keep alpha for liquid fill (so it looks like liquid)
 function ensureAlpha(color) {
   const c = String(color || "").trim();
   if (!c) return "#60a5fa88";
@@ -108,7 +102,6 @@ function ensureAlpha(color) {
   return c;
 }
 
-// ✅ center helper (prevents “flash in corner then move”)
 function computeCenteredPos({ panelW = 1240, estH = 640 } = {}) {
   const w = window.innerWidth || 1200;
   const h = window.innerHeight || 800;
@@ -120,14 +113,12 @@ function computeCenteredPos({ panelW = 1240, estH = 640 } = {}) {
   return { left, top };
 }
 
-// ✅ SAME math engine pattern used in SiloPropertiesModal
 function computeMathOutput(liveValue, formula) {
   const f = String(formula || "").trim();
   if (!f) return liveValue;
 
   const VALUE = liveValue;
 
-  // CONCAT support
   const upper = f.toUpperCase();
   if (upper.startsWith("CONCAT(") && f.endsWith(")")) {
     const inner = f.slice(7, -1);
@@ -167,7 +158,6 @@ function computeMathOutput(liveValue, formula) {
       .join("");
   }
 
-  // Numeric expression
   try {
     const expr = f.replace(/\bVALUE\b/gi, "VALUE");
     // eslint-disable-next-line no-new-func
@@ -178,20 +168,13 @@ function computeMathOutput(liveValue, formula) {
   }
 }
 
-/**
- * Props:
- *  - open (bool)
- *  - tank (vertical tank widget object)
- *  - onSave(updatedTank)
- *  - onClose()
- */
 export default function VerticalTankSettingsModal({ open = true, tank, onSave, onClose }) {
   if (!open || !tank) return null;
 
   const props = tank?.properties || {};
 
   // -------------------------
-  // ✅ LEFT: helper card (math helper) — SAME as Silo/Vertical original
+  // ✅ LEFT: helper card
   // -------------------------
   const helperCard = (
     <div
@@ -241,24 +224,21 @@ export default function VerticalTankSettingsModal({ open = true, tank, onSave, o
   );
 
   // -------------------------
-  // ✅ MIDDLE: “Math” card state (now extracted)
+  // ✅ MIDDLE state
   // -------------------------
   const [name, setName] = useState(props.name ?? props.title ?? "");
-
-  // ✅ IMPORTANT:
-  // DraggableVerticalTank reads formula from props.density
   const [density, setDensity] = useState(
     props.density === undefined || props.density === null ? "" : String(props.density)
   );
 
-  // ✅ Capacity + Material Color
   const [maxCapacity, setMaxCapacity] = useState(
     props.maxCapacity === undefined || props.maxCapacity === null ? "" : Number(props.maxCapacity)
   );
+
   const [materialColor, setMaterialColor] = useState(ensureAlpha(props.materialColor || "#00ff00"));
 
   // -------------------------
-  // ✅ RIGHT: device binding with SEARCH
+  // ✅ RIGHT binding state
   // -------------------------
   const [bindModel, setBindModel] = useState(props.bindModel || "zhc1921");
   const [bindDeviceId, setBindDeviceId] = useState(props.bindDeviceId || "");
@@ -268,7 +248,7 @@ export default function VerticalTankSettingsModal({ open = true, tank, onSave, o
   const [deviceQuery, setDeviceQuery] = useState("");
   const [devicesLoading, setDevicesLoading] = useState(false);
 
-  // ✅ extracted telemetry hook (polling + AI read + ONLINE status) — MATCH Silo pattern
+  // ✅ IMPORTANT: REAL telemetry value (not placeholder!)
   const { liveValue, deviceIsOnline } = useVerticalTankSettingsModalTelemetric({
     open,
     bindModel,
@@ -277,7 +257,7 @@ export default function VerticalTankSettingsModal({ open = true, tank, onSave, o
     pollMs: 3000,
   });
 
-  // ✅ Output preview (same style logic as Silo)
+  // ✅ Output preview (same idea as silo)
   const outputValue = useMemo(() => {
     const lv = Number(liveValue);
     const safeLive = Number.isFinite(lv) ? lv : null;
@@ -291,7 +271,7 @@ export default function VerticalTankSettingsModal({ open = true, tank, onSave, o
     return Number.isFinite(n) ? n : out;
   }, [density, liveValue]);
 
-  // Load device list once when open/model changes
+  // load device list
   useEffect(() => {
     if (!open) return;
 
@@ -330,7 +310,7 @@ export default function VerticalTankSettingsModal({ open = true, tank, onSave, o
   }, [bindDeviceId, bindField]);
 
   // -------------------------
-  // ✅ DRAG STATE (NO FLASH) — EXACT same structure as Silo
+  // ✅ DRAG state
   // -------------------------
   const PANEL_W = 1240;
   const dragRef = useRef({
@@ -341,7 +321,6 @@ export default function VerticalTankSettingsModal({ open = true, tank, onSave, o
     startTop: 0,
   });
 
-  // ✅ start centered on FIRST render (prevents corner flash)
   const [pos, setPos] = useState(() => {
     if (typeof window === "undefined") return { left: 12, top: 12 };
     return computeCenteredPos({ panelW: PANEL_W, estH: 640 });
@@ -349,13 +328,11 @@ export default function VerticalTankSettingsModal({ open = true, tank, onSave, o
 
   const [isDragging, setIsDragging] = useState(false);
 
-  // ✅ center BEFORE paint each time it opens (professional, no jump)
   useLayoutEffect(() => {
     if (!open) return;
     setPos(computeCenteredPos({ panelW: PANEL_W, estH: 640 }));
   }, [open]);
 
-  // Load from tank whenever it changes
   useEffect(() => {
     if (!tank) return;
     const p = tank?.properties || {};
@@ -430,7 +407,7 @@ export default function VerticalTankSettingsModal({ open = true, tank, onSave, o
   }, []);
 
   // -------------------------
-  // ✅ UI styles — same as Silo
+  // styles
   // -------------------------
   const labelStyle = { fontSize: 12, fontWeight: 500, color: "#111827" };
   const sectionTitleStyle = { fontWeight: 600, fontSize: 16 };
@@ -473,7 +450,7 @@ export default function VerticalTankSettingsModal({ open = true, tank, onSave, o
         }}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* HEADER BAR (DRAG HANDLE) */}
+        {/* HEADER BAR */}
         <div
           onMouseDown={startDrag}
           style={{
@@ -522,15 +499,14 @@ export default function VerticalTankSettingsModal({ open = true, tank, onSave, o
               alignItems: "start",
             }}
           >
-            {/* LEFT: MATH HELPER */}
+            {/* LEFT */}
             {helperCard}
 
-            {/* ✅ MIDDLE: extracted component */}
+            {/* MIDDLE */}
             <VerticalTankSettingsModalMath
               sectionTitleStyle={sectionTitleStyle}
               labelStyle={labelStyle}
               fieldInputStyle={fieldInputStyle}
-              fieldSelectStyle={fieldSelectStyle}
               name={name}
               setName={setName}
               liveValue={liveValue}
@@ -542,10 +518,9 @@ export default function VerticalTankSettingsModal({ open = true, tank, onSave, o
               materialColor={materialColor}
               setMaterialColor={setMaterialColor}
               toNum={toNum}
-              ensureAlpha={ensureAlpha}
             />
 
-            {/* RIGHT: BINDING + SEARCH */}
+            {/* RIGHT */}
             <div
               style={{
                 background: "#ffffff",
@@ -648,7 +623,7 @@ export default function VerticalTankSettingsModal({ open = true, tank, onSave, o
                       color: "#0b3b18",
                     }}
                   >
-                    {Number.isFinite(Number(liveValue)) ? `${Number(liveValue).toFixed(2)}` : "--"}
+                    {Number.isFinite(Number(liveValue)) ? Number(liveValue).toFixed(2) : "--"}
                   </div>
                 </div>
               </div>
@@ -676,12 +651,8 @@ export default function VerticalTankSettingsModal({ open = true, tank, onSave, o
                       ...(tank?.properties || {}),
                       name: String(name || "").trim(),
                       density: String(density || "").trim(),
-
                       maxCapacity: maxCapacity === "" ? "" : Number(maxCapacity),
-
-                      // ✅ keep alpha so liquid looks like liquid
                       materialColor: ensureAlpha(materialColor || "#00ff00"),
-
                       bindModel,
                       bindDeviceId,
                       bindField,
