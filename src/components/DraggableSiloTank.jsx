@@ -178,6 +178,9 @@ export default function DraggableSiloTank({ tank }) {
 
   const name = String(props.name || "").trim();
 
+  // ✅ unit saved by SiloPropertiesModal
+  const unit = String(props.unit || "").trim();
+
   const maxCapacity =
     props.maxCapacity === "" || props.maxCapacity === null || props.maxCapacity === undefined
       ? 0
@@ -298,11 +301,17 @@ export default function DraggableSiloTank({ tank }) {
             showPercentText={true}
             percentText={`${Math.round(levelPct)}%`}
             percentTextColor="#111827"
+            // ✅ bottom output (value + unit)
+            showBottomText={true}
+            bottomText={outputText}
+            bottomUnit={unit}
+            bottomTextColor="#111827"
           />
         </div>
       </div>
 
-      {/* ✅ OUTPUT: tight to the bottom */}
+      {/* ✅ OUTPUT: keep (optional) */}
+      {/* If you ONLY want the bottom label, delete this block. */}
       <div
         style={{
           marginTop: 2,
@@ -310,9 +319,11 @@ export default function DraggableSiloTank({ tank }) {
           fontSize: `${18 * scale}px`,
           fontWeight: 700,
           color: "#111827",
+          display: "none", // ✅ hide because we show it on the bottom label now
         }}
       >
         {outputText}
+        {unit ? ` ${unit}` : ""}
       </div>
     </div>
   );
