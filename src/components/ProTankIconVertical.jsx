@@ -47,13 +47,14 @@ export function VerticalTank({
   return (
     <div
       style={{
-        width: "100%", // ✅ allow true centering under tank
+        width: "100%",
         display: "flex",
         flexDirection: "column",
         alignItems: "center",
       }}
     >
-      <svg viewBox="0 0 160 180" preserveAspectRatio="xMidYMid meet" style={svgStyle}>
+      {/* ✅ IMPORTANT: tighter viewBox so the tank is centered (no huge right whitespace) */}
+      <svg viewBox="0 0 80 180" preserveAspectRatio="xMidYMid meet" style={svgStyle}>
         <defs>
           {/* ✅ Clip matches the inside including the rounded bottom */}
           <clipPath id={clipId}>
@@ -110,53 +111,45 @@ export function VerticalTank({
         ) : null}
       </svg>
 
-      {/* 🔥 Bottom label (centered under tank) */}
+      {/* 🔥 Bottom label (centered under tank now) */}
       {shouldShowBottom ? (
         <div
           style={{
-            width: "100%", // ✅ center within full available width
-            display: "flex",
-            justifyContent: "center",
             marginTop: 6,
+            padding: "6px 14px",
+            borderRadius: 8,
+            background: "#eef2f7",
+            border: "1px solid rgba(17,24,39,0.25)",
+            fontFamily: "monospace",
+            lineHeight: 1,
+            color: bottomTextColor,
+            userSelect: "none",
+            display: "inline-flex",
+            alignItems: "baseline",
+            gap: 8,
           }}
         >
-          <div
+          <span
             style={{
-              padding: "6px 14px",
-              borderRadius: 8,
-              background: "#eef2f7",
-              border: "1px solid rgba(17,24,39,0.25)",
-              fontFamily: "monospace",
-              lineHeight: 1,
-              color: bottomTextColor,
-              userSelect: "none",
-              display: "inline-flex",
-              alignItems: "baseline",
-              gap: 8,
+              fontSize: 18,
+              fontWeight: 900,
+              letterSpacing: 0.3,
             }}
           >
+            {String(bottomText || "").trim() || "--"}
+          </span>
+
+          {String(bottomUnit || "").trim() ? (
             <span
               style={{
-                fontSize: 18,
-                fontWeight: 900,
-                letterSpacing: 0.3,
+                fontSize: 14,
+                fontWeight: 800,
+                opacity: 0.95,
               }}
             >
-              {String(bottomText || "").trim() || "--"}
+              {String(bottomUnit).trim()}
             </span>
-
-            {String(bottomUnit || "").trim() ? (
-              <span
-                style={{
-                  fontSize: 14,
-                  fontWeight: 800,
-                  opacity: 0.95,
-                }}
-              >
-                {String(bottomUnit).trim()}
-              </span>
-            ) : null}
-          </div>
+          ) : null}
         </div>
       ) : null}
     </div>
