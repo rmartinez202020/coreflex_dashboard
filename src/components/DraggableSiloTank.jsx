@@ -170,27 +170,34 @@ function clamp01(v) {
   return Math.max(0, Math.min(1, n));
 }
 
-// ✅ SVG-safe color normalizer (avoid 8-digit hex that can break some SVG fills)
-function normalizeHexColor(hex, fallback = "#00ff00") {
+// ✅ Convert hex to rgba for transparency (SVG-safe)
+function hexToRgba(hex, alpha = 0.55) {
   const s = String(hex || "").trim();
-  if (!s) return fallback;
+  if (!s) return `rgba(0,255,0,${alpha})`;
 
-  // strip alpha if provided (#RRGGBBAA or #RGBA)
-  if (s.startsWith("#") && s.length === 9) return s.slice(0, 7);
-  if (s.startsWith("#") && s.length === 5) {
-    // #RGBA -> #RGB
-    return `#${s[1]}${s[2]}${s[3]}`;
-  }
+  // allow already rgba()/rgb()/named colors
+  if (!s.startsWith("#")) return s;
 
-  // accept #RRGGBB or named colors / rgb() etc
-  return s;
+  let h = s.slice(1);
+
+  // #RGB
+  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
+
+  // #RRGGBB
+  if (h.length !== 6) return `rgba(0,255,0,${alpha})`;
+
+  const r = parseInt(h.slice(0, 2), 16);
+  const g = parseInt(h.slice(2, 4), 16);
+  const b = parseInt(h.slice(4, 6), 16);
+
+  if (![r, g, b].every((x) => Number.isFinite(x))) return `rgba(0,255,0,${alpha})`;
+  return `rgba(${r},${g},${b},${alpha})`;
 }
 
 export default function DraggableSiloTank({ tank }) {
   const props = tank?.properties || {};
   const scale = tank?.scale || 1;
 
-  // ✅ user settings from modal
   const name = String(props.name || "").trim();
 
   const maxCapacity =
@@ -198,13 +205,19 @@ export default function DraggableSiloTank({ tank }) {
       ? 0
       : Number(props.maxCapacity);
 
-  // ✅ IMPORTANT: keep it SVG-safe (no #RRGGBBAA)
-  const materialColor = normalizeHexColor(props.materialColor || "#00ff00", "#00ff00");
+  // ✅ transparent fill (SVG-safe)
+  const materialColor = hexToRgba(props.materialColor || "#00ff00", 0.55);
 
-  // ✅ binding + math (same idea as DisplayBox)
-  const bindModel = props.bindModel || "zhc1921";
-  const bindDeviceId = String(props.bindDeviceId || "").trim();
-  const bindField = String(props.bindField || "ai1").trim();
+  // ✅ binding: support BOTH new + legacy styles
+  const bindModel = props.bindModel || props.tag?.model || "zhc1921";
+
+  const bindDeviceId = String(
+    props.bindDeviceId || props.tag?.deviceId || props.tag?.id || ""
+  ).trim();
+
+  const bindField = String(
+    props.bindField || props.tag?.field || ""
+  ).trim() || "ai1";
 
   // support old key names if any
   const formula = String(props.formula ?? props.mathFormula ?? props.math ?? props.density ?? "").trim();
@@ -249,7 +262,6 @@ export default function DraggableSiloTank({ tank }) {
       } catch (e) {
         if (cancelled) return;
         if (String(e?.name || "").toLowerCase().includes("abort")) return;
-        // keep last values
       }
     };
 
@@ -263,7 +275,7 @@ export default function DraggableSiloTank({ tank }) {
     };
   }, [hasBinding, bindModel, bindDeviceId, bindField, formula]);
 
-  // ✅ output numeric
+  // ✅ numeric output
   const numericOutput = useMemo(() => {
     const v = outputValue;
     if (v === null || v === undefined || v === "") return null;
@@ -282,14 +294,15 @@ export default function DraggableSiloTank({ tank }) {
     return 0;
   }, [numericOutput, liveValue]);
 
-  // ✅ compute level from capacity (0..100)
-  const levelPct = useMemo(() => {
+  // ✅ fraction 0..1 (most tank SVGs expect this)
+  const levelFrac = useMemo(() => {
     if (!Number.isFinite(Number(maxCapacity)) || Number(maxCapacity) <= 0) return 0;
-    const frac = clamp01(levelSource / Number(maxCapacity));
-    return frac * 100;
+    return clamp01(levelSource / Number(maxCapacity));
   }, [levelSource, maxCapacity]);
 
-  // ✅ text below (show the same output value the silo is using)
+  // ✅ percent for display only
+  const levelPct = useMemo(() => Math.round(levelFrac * 100), [levelFrac]);
+
   const outputText = useMemo(() => {
     if (!hasBinding) return "--";
     if (typeof outputValue === "string") return outputValue || "--";
@@ -317,11 +330,12 @@ export default function DraggableSiloTank({ tank }) {
       <div style={{ display: "inline-block" }}>
         <div style={{ width: `${140 * scale}px`, height: `${220 * scale}px` }}>
           <SiloTank
-            level={levelPct}
-            fillColor={materialColor}
+            level={levelFrac}              // ✅ 0..1
+            levelPct={levelPct}            // ✅ harmless extra (if component supports)
+            fillColor={materialColor}      // ✅ rgba transparency
             alarm={false}
             showPercentText={true}
-            percentText={`${Math.round(levelPct)}%`}
+            percentText={`${levelPct}%`}
             percentTextColor="#111827"
           />
         </div>
@@ -333,14 +347,13 @@ export default function DraggableSiloTank({ tank }) {
           marginTop: 6,
           fontFamily: "monospace",
           fontSize: `${18 * scale}px`,
-          fontWeight: 700,
+          fontWeight: 800,
           color: "#111827",
         }}
       >
         {outputText}
       </div>
 
-      {/* optional tiny hint if capacity missing */}
       {!Number.isFinite(Number(maxCapacity)) || Number(maxCapacity) <= 0 ? (
         <div style={{ marginTop: 2, fontSize: `${11 * scale}px`, color: "#64748b" }}>
           Set Max Capacity to enable level %
