@@ -38,6 +38,7 @@ export function SiloTank({
 
   const effectiveFill = alarm ? "#ff4d4d88" : fillColor;
 
+  // ✅ show if requested or if a value exists
   const shouldShowBottom = showBottomText || String(bottomText || "").trim() !== "";
 
   return (
@@ -96,13 +97,11 @@ export function SiloTank({
         <div
           style={{
             marginTop: 6,
-            padding: "4px 10px",
-            borderRadius: 6,
-            background: "#e5e7eb",
-            border: "1px solid #cbd5e1",
+            padding: "5px 12px",
+            borderRadius: 8,
+            background: "#eef2f7",
+            border: "1px solid rgba(17,24,39,0.20)",
             fontFamily: "monospace",
-            fontWeight: 800,
-            fontSize: 14,
             lineHeight: 1,
             color: bottomTextColor,
             userSelect: "none",
@@ -111,9 +110,20 @@ export function SiloTank({
             gap: 6,
           }}
         >
-          <span>{String(bottomText || "").trim() || "--"}</span>
+          {/* ✅ BIGGER number */}
+          <span
+            style={{
+              fontSize: 16,
+              fontWeight: 900,
+              letterSpacing: 0.2,
+            }}
+          >
+            {String(bottomText || "").trim() || "--"}
+          </span>
+
+          {/* ✅ smaller unit */}
           {String(bottomUnit || "").trim() ? (
-            <span style={{ fontSize: 12, fontWeight: 700, opacity: 0.9 }}>{String(bottomUnit).trim()}</span>
+            <span style={{ fontSize: 11, fontWeight: 700, opacity: 0.9 }}>{String(bottomUnit).trim()}</span>
           ) : null}
         </div>
       ) : null}
