@@ -75,6 +75,9 @@ export default function DashboardCanvas({
   activeStandardTankId,
   setActiveStandardTankId,
   setShowStandardTankProps,
+  activeVerticalTankId,
+  setActiveVerticalTankId,
+  setShowVerticalTankProps,
 
   handleSelect,
   handleRightClick,
