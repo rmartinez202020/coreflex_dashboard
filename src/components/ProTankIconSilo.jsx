@@ -13,23 +13,21 @@ export function SiloTank({
   fillColor = "#fde04788",
   alarm = false,
 
-  // ✅ show percent text inside the silo
+  // percent text inside
   showPercentText = false,
   percentText = "",
   percentTextColor = "#111827",
 
-  // ✅ NEW: show bottom output label (value + unit) under the silo (like your screenshot)
+  // bottom output
   showBottomText = false,
-  bottomText = "", // ex: "16666" or "16666.00"
-  bottomUnit = "", // ex: "lb", "psi", "gal", etc (from modal)
+  bottomText = "",
+  bottomUnit = "",
   bottomTextColor = "#111827",
 }) {
   const clipId = useId();
 
   const clampedLevel = Math.max(0, Math.min(100, Number(level) || 0));
 
-  // ✅ FULL tank height INCLUDING the cone
-  // body starts at y=30, cone tip ends at y=194
   const topY = 30;
   const bottomY = 194;
 
@@ -38,15 +36,12 @@ export function SiloTank({
 
   const effectiveFill = alarm ? "#ff4d4d88" : fillColor;
 
-  // ✅ show if requested or if a value exists
   const shouldShowBottom = showBottomText || String(bottomText || "").trim() !== "";
 
   return (
     <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center" }}>
-      {/* viewBox is 0..120 (tank centered at x=60) */}
       <svg viewBox="0 0 120 200" preserveAspectRatio="xMidYMid meet" style={svgStyle}>
         <defs>
-          {/* ✅ clip path includes BOTH body + cone so fill starts at cone bottom */}
           <clipPath id={clipId}>
             <path
               d="
@@ -62,10 +57,15 @@ export function SiloTank({
           </clipPath>
         </defs>
 
-        {/* ✅ liquid fill (use wide rect and clip it) */}
-        <rect x="0" y={fillY} width="120" height={filledHeight} fill={effectiveFill} clipPath={`url(#${clipId})`} />
+        <rect
+          x="0"
+          y={fillY}
+          width="120"
+          height={filledHeight}
+          fill={effectiveFill}
+          clipPath={`url(#${clipId})`}
+        />
 
-        {/* tank outline */}
         <path
           d="M 20 30 A 40 12 0 0 1 100 30 L 100 140 L 20 140 Z"
           fill="none"
@@ -74,7 +74,6 @@ export function SiloTank({
         />
         <path d="M 20 140 L 100 140 L 70 194 L 50 194 Z" fill="none" stroke="#555" strokeWidth="2" />
 
-        {/* percent text inside */}
         {showPercentText ? (
           <text
             x="60"
@@ -92,38 +91,46 @@ export function SiloTank({
         ) : null}
       </svg>
 
-      {/* ✅ bottom output label (value + unit) */}
+      {/* 🔥 Bottom label */}
       {shouldShowBottom ? (
         <div
           style={{
             marginTop: 6,
-            padding: "5px 12px",
+            padding: "6px 14px",
             borderRadius: 8,
             background: "#eef2f7",
-            border: "1px solid rgba(17,24,39,0.20)",
+            border: "1px solid rgba(17,24,39,0.25)",
             fontFamily: "monospace",
             lineHeight: 1,
             color: bottomTextColor,
             userSelect: "none",
             display: "inline-flex",
             alignItems: "baseline",
-            gap: 6,
+            gap: 8,
           }}
         >
-          {/* ✅ BIGGER number */}
+          {/* Bigger number */}
           <span
             style={{
-              fontSize: 16,
+              fontSize: 18,      // 🔥 bigger number
               fontWeight: 900,
-              letterSpacing: 0.2,
+              letterSpacing: 0.3,
             }}
           >
             {String(bottomText || "").trim() || "--"}
           </span>
 
-          {/* ✅ smaller unit */}
+          {/* Bigger unit */}
           {String(bottomUnit || "").trim() ? (
-            <span style={{ fontSize: 11, fontWeight: 700, opacity: 0.9 }}>{String(bottomUnit).trim()}</span>
+            <span
+              style={{
+                fontSize: 14,     // 🔥 bigger unit
+                fontWeight: 800,
+                opacity: 0.95,
+              }}
+            >
+              {String(bottomUnit).trim()}
+            </span>
           ) : null}
         </div>
       ) : null}
@@ -141,7 +148,12 @@ export function SiloTankIcon() {
         stroke="#ffffff"
         strokeWidth="2"
       />
-      <path d="M 20 140 L 100 140 L 70 194 L 50 194 Z" fill="none" stroke="#ffffff" strokeWidth="2" />
+      <path
+        d="M 20 140 L 100 140 L 70 194 L 50 194 Z"
+        fill="none"
+        stroke="#ffffff"
+        strokeWidth="2"
+      />
     </svg>
   );
 }
