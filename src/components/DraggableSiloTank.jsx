@@ -11,7 +11,7 @@ const MODEL_META = {
 };
 
 // -------------------------
-// auth + no-cache fetch helpers (same idea as DisplayBox)
+// auth + no-cache fetch helpers
 // -------------------------
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
@@ -110,12 +110,11 @@ function readAiField(row, bindField) {
 function computeMathOutput(liveValue, formula) {
   const f = String(formula || "").trim();
 
-  // ✅ empty math => output == liveValue (your requirement)
+  // ✅ empty math => output == liveValue
   if (!f) return liveValue;
 
   const VALUE = liveValue;
 
-  // CONCAT support
   const upper = f.toUpperCase();
   if (upper.startsWith("CONCAT(") && f.endsWith(")")) {
     const inner = f.slice(7, -1);
@@ -155,7 +154,6 @@ function computeMathOutput(liveValue, formula) {
       .join("");
   }
 
-  // Numeric expression
   try {
     const expr = f.replace(/\bVALUE\b/gi, "VALUE");
     // eslint-disable-next-line no-new-func
@@ -185,11 +183,10 @@ export default function DraggableSiloTank({ tank }) {
   const props = tank?.properties || {};
   const scale = tank?.scale || 1;
 
-  // ✅ LOCK WIDTH so title + output are ALWAYS centered with silo
+  // ✅ The SVG is viewBox 160x200 => aspect = 200/160 = 1.25
   const siloW = 140 * scale;
-  const siloH = 220 * scale;
+  const siloH = Math.round(siloW * 1.25);
 
-  // ✅ user settings from modal
   const name = String(props.name || "").trim();
 
   const maxCapacity =
@@ -199,7 +196,6 @@ export default function DraggableSiloTank({ tank }) {
 
   const materialColor = ensureAlphaHex(props.materialColor || "#00ff00", "88");
 
-  // ✅ binding + math
   const bindModel = props.bindModel || "zhc1921";
   const bindDeviceId = String(props.bindDeviceId || "").trim();
   const bindField = String(props.bindField || "ai1").trim();
@@ -212,7 +208,6 @@ export default function DraggableSiloTank({ tank }) {
   const [liveValue, setLiveValue] = useState(null);
   const [outputValue, setOutputValue] = useState(null);
 
-  // ✅ poll every 2s
   useEffect(() => {
     if (!hasBinding) {
       setLiveValue(null);
@@ -239,8 +234,6 @@ export default function DraggableSiloTank({ tank }) {
             : Number(raw);
 
         const safeLive = Number.isFinite(num) ? num : null;
-
-        // ✅ IMPORTANT: if formula empty => output == live
         const out = computeMathOutput(safeLive, formula);
 
         if (cancelled) return;
@@ -249,7 +242,6 @@ export default function DraggableSiloTank({ tank }) {
       } catch (e) {
         if (cancelled) return;
         if (String(e?.name || "").toLowerCase().includes("abort")) return;
-        // keep last values
       }
     };
 
@@ -263,7 +255,6 @@ export default function DraggableSiloTank({ tank }) {
     };
   }, [hasBinding, bindModel, bindDeviceId, bindField, formula]);
 
-  // ✅ output numeric
   const numericOutput = useMemo(() => {
     const v = outputValue;
     if (v === null || v === undefined || v === "") return null;
@@ -275,14 +266,13 @@ export default function DraggableSiloTank({ tank }) {
     return Number.isFinite(n) ? n : null;
   }, [outputValue]);
 
-  // ✅ compute level from capacity (0..maxCapacity => 0..100%)
+  // ✅ 0..maxCapacity => 0..100%
   const levelPct = useMemo(() => {
     if (!Number.isFinite(Number(maxCapacity)) || Number(maxCapacity) <= 0) return 0;
     const frac = clamp01((numericOutput ?? 0) / Number(maxCapacity));
     return frac * 100;
   }, [numericOutput, maxCapacity]);
 
-  // ✅ output text shown under silo
   const outputText = useMemo(() => {
     if (!hasBinding) return "--";
     if (typeof outputValue === "string") return outputValue || "--";
@@ -291,70 +281,73 @@ export default function DraggableSiloTank({ tank }) {
   }, [hasBinding, outputValue]);
 
   return (
-    <div
-      style={{
-        width: `${siloW}px`,
-        display: "flex",
-        flexDirection: "column",
-        alignItems: "center",
-        textAlign: "center",
-        pointerEvents: "none",
-      }}
-    >
-      {/* ✅ TITLE: always centered to silo width */}
-      {name ? (
-        <div
-          style={{
-            width: "100%",
-            marginBottom: 6,
-            fontSize: `${16 * scale}px`,
-            fontWeight: 600,
-            color: "#111827",
-            lineHeight: 1.1,
-            textAlign: "center",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-          }}
-          title={name}
-        >
-          {name}
-        </div>
-      ) : null}
-
-      {/* ✅ SILO */}
-      <div style={{ width: `${siloW}px`, height: `${siloH}px` }}>
-        <SiloTank
-          level={levelPct}
-          fillColor={materialColor}
-          alarm={false}
-          showPercentText={true}
-          percentText={`${Math.round(levelPct)}%`}
-          percentTextColor="#111827"
-        />
-      </div>
-
-      {/* ✅ OUTPUT VALUE UNDER THE SILO (always visible + centered) */}
+    // ✅ OUTER: fill whatever DraggableDroppedTank gives us
+    <div style={{ width: "100%", pointerEvents: "none" }}>
+      {/* ✅ INNER: fixed silo width, centered in parent */}
       <div
         style={{
-          width: "100%",
-          marginTop: 8,
-          fontFamily: "monospace",
-          fontSize: `${18 * scale}px`,
-          fontWeight: 700,
-          color: "#111827",
+          width: `${siloW}px`,
+          margin: "0 auto",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
           textAlign: "center",
         }}
       >
-        {outputText}
-      </div>
+        {/* ✅ TITLE: centered to the silo */}
+        {name ? (
+          <div
+            style={{
+              width: "100%",
+              marginBottom: 4,
+              fontSize: `${16 * scale}px`,
+              fontWeight: 600,
+              color: "#111827",
+              lineHeight: 1.1,
+              textAlign: "center",
+              whiteSpace: "nowrap",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+            }}
+            title={name}
+          >
+            {name}
+          </div>
+        ) : null}
 
-      {/* optional hint if capacity missing */}
-      {!Number.isFinite(Number(maxCapacity)) || Number(maxCapacity) <= 0 ? (
-        <div style={{ width: "100%", marginTop: 2, fontSize: `${11 * scale}px`, color: "#64748b" }}>
-          Set Max Capacity to enable level %
+        {/* ✅ SILO */}
+        <div style={{ width: `${siloW}px`, height: `${siloH}px` }}>
+          <SiloTank
+            level={levelPct}
+            fillColor={materialColor}
+            alarm={false}
+            showPercentText={true}
+            percentText={`${Math.round(levelPct)}%`}
+            percentTextColor="#111827"
+          />
         </div>
-      ) : null}
+
+        {/* ✅ OUTPUT: tight under the cone (no extra SVG whitespace now) */}
+        <div
+          style={{
+            width: "100%",
+            marginTop: 2,
+            fontFamily: "monospace",
+            fontSize: `${18 * scale}px`,
+            fontWeight: 700,
+            color: "#111827",
+            textAlign: "center",
+          }}
+        >
+          {outputText}
+        </div>
+
+        {!Number.isFinite(Number(maxCapacity)) || Number(maxCapacity) <= 0 ? (
+          <div style={{ width: "100%", marginTop: 2, fontSize: `${11 * scale}px`, color: "#64748b" }}>
+            Set Max Capacity to enable level %
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
