@@ -8,6 +8,56 @@ const MODEL_META = {
   zhc1661: { label: "CF-1600", base: "zhc1661" },
 };
 
+// ✅ Final Combined UNIT_OPTIONS (Weight + Volume + Pressure + Vacuum)
+const UNIT_OPTIONS = [
+  { key: "", label: "(none)" },
+
+  // -------------------
+  // 🔹 WEIGHT
+  // -------------------
+  { key: "lb", label: "lb (pounds)" },
+  { key: "kg", label: "kg (kilograms)" },
+  { key: "g", label: "g (grams)" },
+  { key: "oz", label: "oz (ounces)" },
+  { key: "ton", label: "ton (US short ton)" },
+  { key: "tonne", label: "tonne (metric ton)" },
+
+  // -------------------
+  // 🔹 VOLUME
+  // -------------------
+  { key: "gal", label: "gal (US gallons)" },
+  { key: "L", label: "L (liters)" },
+  { key: "mL", label: "mL (milliliters)" },
+  // use safe keys (avoid unicode in keys); label keeps the symbol
+  { key: "m3", label: "m³ (cubic meters)" },
+  { key: "ft3", label: "ft³ (cubic feet)" },
+  { key: "in3", label: "in³ (cubic inches)" },
+
+  // -------------------
+  // 🔹 PRESSURE – US
+  // -------------------
+  { key: "psi", label: "psi (pounds per square inch)" },
+  { key: "psig", label: "psig (psi gauge)" },
+  { key: "psia", label: "psia (psi absolute)" },
+  { key: "inH2O", label: "inH₂O (inches of water column)" },
+
+  // -------------------
+  // 🔹 PRESSURE – METRIC
+  // -------------------
+  { key: "bar", label: "bar" },
+  { key: "mbar", label: "mbar (millibar)" },
+  { key: "kPa", label: "kPa (kilopascal)" },
+  { key: "Pa", label: "Pa (pascal)" },
+  { key: "MPa", label: "MPa (megapascal)" },
+
+  // -------------------
+  // 🔹 VACUUM
+  // -------------------
+  { key: "inHg", label: "inHg (inches of mercury)" },
+  { key: "mmHg", label: "mmHg (millimeters of mercury)" },
+  { key: "Torr", label: "Torr" },
+];
+
 // -------------------------
 // ✅ auth + no-cache fetch helpers (same idea as DisplayBox)
 function getAuthHeaders() {
@@ -188,24 +238,6 @@ function computeMathOutput(liveValue, formula) {
     return liveValue;
   }
 }
-
-// ✅ Unit options (simple + editable)
-const UNIT_OPTIONS = [
-  { key: "", label: "(none)" },
-  { key: "%", label: "%" },
-  { key: "psi", label: "PSI" },
-  { key: "bar", label: "bar" },
-  { key: "kpa", label: "kPa" },
-  { key: "c", label: "°C" },
-  { key: "f", label: "°F" },
-  { key: "gal", label: "gal" },
-  { key: "l", label: "L" },
-  { key: "ft", label: "ft" },
-  { key: "in", label: "in" },
-  { key: "mm", label: "mm" },
-  { key: "cm", label: "cm" },
-  { key: "m", label: "m" },
-];
 
 export default function SiloPropertiesModal({ open = true, silo, onSave, onClose }) {
   if (!open || !silo) return null;
@@ -467,9 +499,7 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
 
     setDensity(p.density === undefined || p.density === null ? "" : String(p.density));
 
-    setMaxCapacity(
-      p.maxCapacity === undefined || p.maxCapacity === null ? "" : Number(p.maxCapacity)
-    );
+    setMaxCapacity(p.maxCapacity === undefined || p.maxCapacity === null ? "" : Number(p.maxCapacity));
     setMaterialColor(p.materialColor || "#00ff00");
 
     setBindModel(p.bindModel ?? "zhc1921");
