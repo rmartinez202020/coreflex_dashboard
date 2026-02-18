@@ -105,6 +105,41 @@ function computeCenteredPos({ panelW = 1240, estH = 640 } = {}) {
   return { left, top };
 }
 
+// -------------------------
+// ✅ CounterModal-style telemetry helpers
+// -------------------------
+function modelMyDevicesEndpoint(modelKey) {
+  const base = MODEL_META[modelKey]?.base || modelKey;
+  return base === "zhc1661" ? "/zhc1661/my-devices" : "/zhc1921/my-devices";
+}
+
+// ✅ Similar spirit to readTagFromRow() but for AI fields (ai1..ai8)
+// Handles ai1 / AI1 / ai_1 / AI_1 / ai-1 / AI-1
+function readAiFromRow(row, field) {
+  if (!row || !field) return undefined;
+
+  const f = String(field || "").trim().toLowerCase(); // ai1..ai8
+  if (!/^ai[1-8]$/.test(f)) return undefined;
+
+  const n = f.replace("ai", ""); // "1"
+
+  const candidates = [
+    f,
+    f.toUpperCase(),
+    `ai_${n}`,
+    `AI_${n}`,
+    `ai-${n}`,
+    `AI-${n}`,
+  ];
+
+  for (const k of candidates) {
+    const v = row?.[k];
+    if (v !== undefined && v !== null && v !== "") return v;
+  }
+
+  return undefined;
+}
+
 export default function SiloPropertiesModal({ open = true, silo, onSave, onClose }) {
   if (!open || !silo) return null;
 
@@ -165,9 +200,6 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
   // -------------------------
   const [name, setName] = useState(props.name ?? "");
 
-  // ✅ REMOVED: contents
-  // const [contents, setContents] = useState(props.contents ?? "");
-
   const [density, setDensity] = useState(
     props.density === undefined || props.density === null ? "" : Number(props.density)
   );
@@ -178,7 +210,9 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
   );
   const [materialColor, setMaterialColor] = useState(props.materialColor || "#00ff00");
 
-  const [liveValue] = useState(0);
+  // ✅ live value (now real, comes from telemetry like Counter modal)
+  const [liveValue, setLiveValue] = useState(null);
+
   const outputValue = useMemo(() => {
     const d = Number(density);
     return Number.isFinite(d) ? d : 0;
@@ -195,6 +229,56 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
   const [deviceQuery, setDeviceQuery] = useState(""); // ✅ search box
   const [devicesLoading, setDevicesLoading] = useState(false);
 
+  // -------------------------
+  // ✅ Counter-modal style telemetry row polling
+  // -------------------------
+  const [telemetryRow, setTelemetryRow] = useState(null);
+  const telemetryRef = useRef({ loading: false });
+
+  const fetchTelemetryRow = React.useCallback(async () => {
+    const id = String(bindDeviceId || "").trim();
+    if (!id) {
+      setTelemetryRow(null);
+      return;
+    }
+    if (telemetryRef.current.loading) return;
+
+    telemetryRef.current.loading = true;
+    try {
+      const token = String(getToken() || "").trim();
+      if (!token) throw new Error("Missing auth token. Please logout and login again.");
+
+      const endpoint = modelMyDevicesEndpoint(bindModel);
+
+      const res = await fetch(`${API_URL}${withNoCache(endpoint)}`, {
+        method: "GET",
+        headers: {
+          ...getAuthHeaders(),
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+        cache: "no-store",
+      });
+
+      if (!res.ok) {
+        setTelemetryRow(null);
+        return;
+      }
+
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : [];
+      const row =
+        list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
+
+      setTelemetryRow(row);
+    } catch {
+      setTelemetryRow(null);
+    } finally {
+      telemetryRef.current.loading = false;
+    }
+  }, [bindDeviceId, bindModel]);
+
+  // Load device list once when open/model changes (existing logic)
   useEffect(() => {
     if (!open) return;
 
@@ -222,6 +306,30 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
     };
   }, [open, bindModel]);
 
+  // ✅ Poll telemetry like Counter modal (preview only)
+  useEffect(() => {
+    if (!open) return;
+
+    fetchTelemetryRow();
+    const t = setInterval(() => {
+      if (document.hidden) return;
+      fetchTelemetryRow();
+    }, 3000);
+
+    return () => clearInterval(t);
+  }, [open, fetchTelemetryRow]);
+
+  // ✅ compute live value from telemetryRow + bindField
+  useEffect(() => {
+    if (!telemetryRow || !bindField) {
+      setLiveValue(null);
+      return;
+    }
+    const v = readAiFromRow(telemetryRow, bindField);
+    const num = Number(v);
+    setLiveValue(Number.isFinite(num) ? num : null);
+  }, [telemetryRow, bindField]);
+
   const filteredDevices = useMemo(() => {
     const q = String(deviceQuery || "").trim().toLowerCase();
     if (!q) return devices;
@@ -232,6 +340,15 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
     const hit = devices.find((d) => String(d.deviceId) === String(bindDeviceId));
     return hit || null;
   }, [devices, bindDeviceId]);
+
+  // ✅ prefer backend status from telemetryRow (like Counter modal)
+  const backendDeviceStatus = useMemo(() => {
+    const s = String(telemetryRow?.status || "").trim().toLowerCase();
+    if (!bindDeviceId) return "";
+    return s || "";
+  }, [telemetryRow, bindDeviceId]);
+
+  const deviceIsOnline = backendDeviceStatus === "online";
 
   const canApply = useMemo(() => {
     return !!String(bindDeviceId || "").trim() && !!String(bindField || "").trim();
@@ -269,10 +386,6 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
     const p = silo?.properties || {};
 
     setName(p.name ?? "");
-
-    // ✅ REMOVED: contents
-    // setContents(p.contents ?? "");
-
     setDensity(p.density === undefined || p.density === null ? "" : Number(p.density));
 
     setMaxCapacity(
@@ -283,6 +396,9 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
     setBindModel(p.bindModel ?? "zhc1921");
     setBindDeviceId(p.bindDeviceId ?? "");
     setBindField(p.bindField ?? "ai1");
+
+    setTelemetryRow(null);
+    setLiveValue(null);
 
     setDeviceQuery("");
   }, [silo]);
@@ -462,8 +578,6 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                 />
               </div>
 
-              {/* ✅ REMOVED: Contents block */}
-
               <div
                 style={{
                   display: "grid",
@@ -491,7 +605,7 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                       color: "#0b3b18",
                     }}
                   >
-                    {Number.isFinite(liveValue) ? liveValue.toFixed(2) : "--"}
+                    {Number.isFinite(Number(liveValue)) ? Number(liveValue).toFixed(2) : "--"}
                   </div>
                 </div>
 
@@ -677,10 +791,14 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                 <div style={previewTextStyle}>
                   Selected: <span style={{ fontFamily: "monospace" }}>{bindDeviceId || "--"}</span>{" "}
                   ·{" "}
-                  {String(selectedDevice?.status || "").toLowerCase() === "online" ? (
-                    <span style={{ color: "#16a34a" }}>ONLINE</span>
+                  {bindDeviceId ? (
+                    deviceIsOnline ? (
+                      <span style={{ color: "#16a34a" }}>ONLINE</span>
+                    ) : (
+                      <span style={{ color: "#dc2626" }}>OFFLINE</span>
+                    )
                   ) : (
-                    <span style={{ color: "#dc2626" }}>OFFLINE</span>
+                    <span style={{ color: "#64748b" }}>—</span>
                   )}
                 </div>
 
@@ -703,7 +821,7 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                       color: "#0b3b18",
                     }}
                   >
-                    {Number.isFinite(liveValue) ? liveValue.toFixed(2) : "--"}
+                    {Number.isFinite(Number(liveValue)) ? Number(liveValue).toFixed(2) : "--"}
                   </div>
                 </div>
               </div>
@@ -730,15 +848,9 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                     const nextProps = {
                       ...(silo?.properties || {}),
                       name: String(name || "").trim(),
-
-                      // ✅ REMOVED: contents
-                      // contents: String(contents || "").trim(),
-
                       density: density === "" ? "" : Number(density),
-
                       maxCapacity: maxCapacity === "" ? "" : Number(maxCapacity),
                       materialColor: String(materialColor || "#00ff00"),
-
                       bindModel,
                       bindDeviceId,
                       bindField,
