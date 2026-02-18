@@ -7,37 +7,48 @@ const svgStyle = {
   display: "block",
 };
 
-// ⭐ VERTICAL TANK (Dashboard) — with liquid fill
+// ⭐ VERTICAL TANK (Dashboard) — now matches SiloTank behavior style-wise
 export function VerticalTank({
-  level = 0,
+  level = 0, // 0..100
   fillColor = "#60a5fa88",
   alarm = false,
+
+  // percent text inside
   showPercentText = false,
-  percentText,
+  percentText = "",
+  percentTextColor = "#111827",
+
+  // bottom output (same idea as SiloTank)
+  showBottomText = false,
+  bottomText = "",
+  bottomUnit = "",
+  bottomTextColor = "#111827",
 }) {
   const clipId = useId();
 
   const clampedLevel = Math.max(0, Math.min(100, Number(level) || 0));
 
-  // Geometry (matches your outline)
+  // Geometry
   const topY = 25;
   const bodyBottomY = 165;
-  const bottomCurveY = 180; // ✅ IMPORTANT: your base curve reaches here
+  const bottomCurveY = 180; // ✅ the outline bottom curve reaches here
   const leftX = 15;
   const rightX = 65;
   const innerW = rightX - leftX;
 
-  // ✅ Fill should go ALL the way to bottom curve
-  const fillH = (bottomCurveY - topY) * (clampedLevel / 100);
-  const fillY = bottomCurveY - fillH;
+  // ✅ Fill should reach the curved bottom, not stop at 165
+  const filledHeight = (bottomCurveY - topY) * (clampedLevel / 100);
+  const fillY = bottomCurveY - filledHeight;
 
   const effectiveFill = alarm ? "#ff4d4d88" : fillColor;
 
+  const shouldShowBottom = showBottomText || String(bottomText || "").trim() !== "";
+
   return (
-    <div style={{ display: "inline-block" }}>
+    <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center" }}>
       <svg viewBox="0 0 160 180" preserveAspectRatio="xMidYMid meet" style={svgStyle}>
         <defs>
-          {/* ✅ Clip matches the inside of the tank INCLUDING the rounded bottom */}
+          {/* ✅ Clip matches the inside including the rounded bottom */}
           <clipPath id={clipId}>
             <path
               d={`
@@ -51,17 +62,17 @@ export function VerticalTank({
           </clipPath>
         </defs>
 
-        {/* ✅ LIQUID FILL */}
+        {/* LIQUID FILL */}
         <rect
           x={leftX}
           y={fillY}
           width={innerW}
-          height={fillH}
+          height={filledHeight}
           fill={effectiveFill}
           clipPath={`url(#${clipId})`}
         />
 
-        {/* OUTLINE (unchanged) */}
+        {/* OUTLINE */}
         <ellipse cx="40" cy="25" rx="25" ry="10" fill="none" stroke="#555" strokeWidth="2" />
         <line x1="15" y1="25" x2="15" y2="165" stroke="#555" strokeWidth="2" />
         <line x1="65" y1="25" x2="65" y2="165" stroke="#555" strokeWidth="2" />
@@ -81,18 +92,77 @@ export function VerticalTank({
             y="105"
             textAnchor="middle"
             dominantBaseline="middle"
-            style={{
-              fontSize: 14,
-              fontWeight: 700,
-              fill: "#0f172a",
-              opacity: 0.85,
-              userSelect: "none",
-            }}
+            fontFamily="system-ui, -apple-system, Segoe UI, Roboto, Arial"
+            fontSize="14"
+            fontWeight="700"
+            fill={percentTextColor}
+            style={{ userSelect: "none", opacity: 0.9 }}
           >
-            {percentText ?? `${Math.round(clampedLevel)}%`}
+            {percentText || `${Math.round(clampedLevel)}%`}
           </text>
         ) : null}
       </svg>
+
+      {/* 🔥 Bottom label (same UI idea as SiloTank) */}
+      {shouldShowBottom ? (
+        <div
+          style={{
+            marginTop: 6,
+            padding: "6px 14px",
+            borderRadius: 8,
+            background: "#eef2f7",
+            border: "1px solid rgba(17,24,39,0.25)",
+            fontFamily: "monospace",
+            lineHeight: 1,
+            color: bottomTextColor,
+            userSelect: "none",
+            display: "inline-flex",
+            alignItems: "baseline",
+            gap: 8,
+          }}
+        >
+          <span
+            style={{
+              fontSize: 18,
+              fontWeight: 900,
+              letterSpacing: 0.3,
+            }}
+          >
+            {String(bottomText || "").trim() || "--"}
+          </span>
+
+          {String(bottomUnit || "").trim() ? (
+            <span
+              style={{
+                fontSize: 14,
+                fontWeight: 800,
+                opacity: 0.95,
+              }}
+            >
+              {String(bottomUnit).trim()}
+            </span>
+          ) : null}
+        </div>
+      ) : null}
     </div>
+  );
+}
+
+// ⭐ VERTICAL TANK ICON (Left menu) — unchanged
+export function VerticalTankIcon() {
+  return (
+    <svg width="30" height="70" viewBox="0 0 160 180">
+      <ellipse cx="40" cy="25" rx="25" ry="10" fill="none" stroke="#ffffff" strokeWidth="2" />
+      <line x1="15" y1="25" x2="15" y2="165" stroke="#ffffff" strokeWidth="2" />
+      <line x1="65" y1="25" x2="65" y2="165" stroke="#ffffff" strokeWidth="2" />
+      <path d="M 15 165 C 15 180, 65 180, 65 165" fill="none" stroke="#ffffff" strokeWidth="2" />
+      <path
+        d="M 65 165 C 65 150, 15 150, 15 165"
+        fill="none"
+        stroke="#ffffff"
+        strokeWidth="2"
+        strokeDasharray="6 6"
+      />
+    </svg>
   );
 }
