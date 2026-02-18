@@ -183,7 +183,7 @@ export default function DraggableSiloTank({ tank }) {
   const props = tank?.properties || {};
   const scale = tank?.scale || 1;
 
-  // ✅ The SVG is viewBox 160x200 => aspect = 200/160 = 1.25
+  // ✅ SVG viewBox 160x200 => aspect = 1.25
   const siloW = 140 * scale;
   const siloH = Math.round(siloW * 1.25);
 
@@ -200,7 +200,6 @@ export default function DraggableSiloTank({ tank }) {
   const bindDeviceId = String(props.bindDeviceId || "").trim();
   const bindField = String(props.bindField || "ai1").trim();
 
-  // support old key names if any
   const formula = String(props.formula ?? props.mathFormula ?? props.math ?? props.density ?? "").trim();
 
   const hasBinding = !!bindDeviceId && !!bindField;
@@ -258,10 +257,12 @@ export default function DraggableSiloTank({ tank }) {
   const numericOutput = useMemo(() => {
     const v = outputValue;
     if (v === null || v === undefined || v === "") return null;
+
     if (typeof v === "string") {
       const n = Number(v);
       return Number.isFinite(n) ? n : null;
     }
+
     const n = typeof v === "number" ? v : Number(v);
     return Number.isFinite(n) ? n : null;
   }, [outputValue]);
@@ -273,17 +274,22 @@ export default function DraggableSiloTank({ tank }) {
     return frac * 100;
   }, [numericOutput, maxCapacity]);
 
+  // ✅ NO decimals (remove .00)
   const outputText = useMemo(() => {
     if (!hasBinding) return "--";
+
+    // if string output (CONCAT), show as-is
     if (typeof outputValue === "string") return outputValue || "--";
-    if (!Number.isFinite(Number(outputValue))) return "--";
-    return Number(outputValue).toFixed(2);
+
+    const n = Number(outputValue);
+    if (!Number.isFinite(n)) return "--";
+
+    return String(Math.round(n)); // ✅ no .00 ever
   }, [hasBinding, outputValue]);
 
   return (
-    // ✅ OUTER: fill whatever DraggableDroppedTank gives us
     <div style={{ width: "100%", pointerEvents: "none" }}>
-      {/* ✅ INNER: fixed silo width, centered in parent */}
+      {/* ✅ fixed-width inner column centered */}
       <div
         style={{
           width: `${siloW}px`,
@@ -291,20 +297,20 @@ export default function DraggableSiloTank({ tank }) {
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
-          textAlign: "center",
         }}
       >
-        {/* ✅ TITLE: centered to the silo */}
+        {/* ✅ TITLE: centered EXACTLY with silo width */}
         {name ? (
           <div
             style={{
-              width: "100%",
+              width: `${siloW}px`,
+              display: "flex",
+              justifyContent: "center",
               marginBottom: 4,
               fontSize: `${16 * scale}px`,
               fontWeight: 600,
               color: "#111827",
               lineHeight: 1.1,
-              textAlign: "center",
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
@@ -327,23 +333,24 @@ export default function DraggableSiloTank({ tank }) {
           />
         </div>
 
-        {/* ✅ OUTPUT: tight under the cone (no extra SVG whitespace now) */}
+        {/* ✅ OUTPUT tight under cone */}
         <div
           style={{
-            width: "100%",
+            width: `${siloW}px`,
+            display: "flex",
+            justifyContent: "center",
             marginTop: 2,
             fontFamily: "monospace",
             fontSize: `${18 * scale}px`,
             fontWeight: 700,
             color: "#111827",
-            textAlign: "center",
           }}
         >
           {outputText}
         </div>
 
         {!Number.isFinite(Number(maxCapacity)) || Number(maxCapacity) <= 0 ? (
-          <div style={{ width: "100%", marginTop: 2, fontSize: `${11 * scale}px`, color: "#64748b" }}>
+          <div style={{ width: `${siloW}px`, marginTop: 2, fontSize: `${11 * scale}px`, color: "#64748b", textAlign: "center" }}>
             Set Max Capacity to enable level %
           </div>
         ) : null}
