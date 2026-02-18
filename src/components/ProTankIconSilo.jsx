@@ -7,48 +7,93 @@ const svgStyle = {
   display: "block",
 };
 
+// Convert hex to { rgb, opacity } for reliable SVG rendering
+function hexToRgbOpacity(input) {
+  const s = String(input || "").trim();
+  if (!s) return { rgb: "rgb(0,255,0)", opacity: 0.55 };
+
+  // #RGB
+  if (s.startsWith("#") && s.length === 4) {
+    const r = parseInt(s[1] + s[1], 16);
+    const g = parseInt(s[2] + s[2], 16);
+    const b = parseInt(s[3] + s[3], 16);
+    return { rgb: `rgb(${r},${g},${b})`, opacity: 0.55 };
+  }
+
+  // #RRGGBB
+  if (s.startsWith("#") && s.length === 7) {
+    const r = parseInt(s.slice(1, 3), 16);
+    const g = parseInt(s.slice(3, 5), 16);
+    const b = parseInt(s.slice(5, 7), 16);
+    return { rgb: `rgb(${r},${g},${b})`, opacity: 0.55 };
+  }
+
+  // #RRGGBBAA
+  if (s.startsWith("#") && s.length === 9) {
+    const r = parseInt(s.slice(1, 3), 16);
+    const g = parseInt(s.slice(3, 5), 16);
+    const b = parseInt(s.slice(5, 7), 16);
+    const a = parseInt(s.slice(7, 9), 16);
+    const opacity = Number.isFinite(a) ? Math.max(0, Math.min(1, a / 255)) : 0.55;
+    return { rgb: `rgb(${r},${g},${b})`, opacity };
+  }
+
+  // fallback: let svg try it, but keep opacity
+  return { rgb: s, opacity: 0.55 };
+}
+
 // ⭐ SILO TANK (Dashboard)
 export function SiloTank({
   level = 0, // 0..100
-  fillColor = "#fde04788",
+  fillColor = "#00ff00",
   alarm = false,
 
-  // ✅ show percent text inside the silo
+  // percent text in the silo
   showPercentText = false,
   percentText = "",
   percentTextColor = "#111827",
+
+  // ✅ NEW: bottom output text INSIDE svg (prevents clipping by parent)
+  showBottomText = false,
+  bottomText = "",
+  bottomTextColor = "#111827",
 }) {
-  // ✅ sanitize id (React useId can contain ":" which can cause url(#id) issues in some SVG cases)
   const rawId = useId();
-  const clipId = `siloClip_${String(rawId).replace(/[^a-zA-Z0-9\-_]/g, "")}`;
+  const safeId = `silo_${String(rawId).replace(/[^a-zA-Z0-9\-_]/g, "")}`;
+  const maskId = `${safeId}_mask`;
 
   const clampedLevel = Math.max(0, Math.min(100, Number(level) || 0));
 
+  // Body (cylinder) region
   const topY = 30;
   const bottomY = 140;
   const filledHeight = (bottomY - topY) * (clampedLevel / 100);
   const fillY = bottomY - filledHeight;
 
-  const effectiveFill = alarm ? "#ff4d4d88" : fillColor;
+  const { rgb, opacity } = hexToRgbOpacity(alarm ? "#ff4d4d" : fillColor);
 
+  // ✅ bigger viewBox so we can draw the bottom text INSIDE the SVG
   return (
     <div style={{ display: "inline-block" }}>
-      <svg viewBox="0 0 160 200" preserveAspectRatio="xMidYMid meet" style={svgStyle}>
+      <svg viewBox="0 0 160 240" preserveAspectRatio="xMidYMid meet" style={svgStyle}>
         <defs>
-          {/* ✅ IMPORTANT: force userSpace units so the path coords work correctly */}
-          <clipPath id={clipId} clipPathUnits="userSpaceOnUse">
-            <path d="M 20 30 A 40 12 0 0 1 100 30 L 100 140 L 20 140 Z" />
-          </clipPath>
+          {/* ✅ Mask is more reliable than clipPath in many React/SVG cases */}
+          <mask id={maskId} maskUnits="userSpaceOnUse">
+            <rect x="0" y="0" width="160" height="240" fill="black" />
+            {/* white = visible */}
+            <path d="M 20 30 A 40 12 0 0 1 100 30 L 100 140 L 20 140 Z" fill="white" />
+          </mask>
         </defs>
 
-        {/* liquid fill */}
+        {/* liquid fill (masked to the cylinder body) */}
         <rect
           x="20"
           y={fillY}
           width="80"
           height={filledHeight}
-          fill={effectiveFill}
-          clipPath={`url(#${clipId})`}
+          fill={rgb}
+          fillOpacity={opacity}
+          mask={`url(#${maskId})`}
         />
 
         {/* tank outline */}
@@ -79,6 +124,23 @@ export function SiloTank({
             style={{ userSelect: "none" }}
           >
             {percentText || `${Math.round(clampedLevel)}%`}
+          </text>
+        ) : null}
+
+        {/* ✅ bottom output text INSIDE svg (won't be clipped) */}
+        {showBottomText ? (
+          <text
+            x="60"
+            y="225"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            fontFamily="monospace"
+            fontSize="18"
+            fontWeight="700"
+            fill={bottomTextColor}
+            style={{ userSelect: "none" }}
+          >
+            {bottomText || "--"}
           </text>
         ) : null}
       </svg>

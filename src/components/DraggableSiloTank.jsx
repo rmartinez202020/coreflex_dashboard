@@ -11,7 +11,7 @@ const MODEL_META = {
 };
 
 // -------------------------
-// auth + no-cache fetch helpers (same idea as DisplayBox)
+// auth + no-cache fetch helpers
 // -------------------------
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
@@ -113,7 +113,6 @@ function computeMathOutput(liveValue, formula) {
 
   const VALUE = liveValue;
 
-  // CONCAT support
   const upper = f.toUpperCase();
   if (upper.startsWith("CONCAT(") && f.endsWith(")")) {
     const inner = f.slice(7, -1);
@@ -153,7 +152,6 @@ function computeMathOutput(liveValue, formula) {
       .join("");
   }
 
-  // Numeric expression
   try {
     const expr = f.replace(/\bVALUE\b/gi, "VALUE");
     // eslint-disable-next-line no-new-func
@@ -170,20 +168,10 @@ function clamp01(v) {
   return Math.max(0, Math.min(1, n));
 }
 
-// ✅ add alpha if user selected solid hex like "#00ff00"
-function ensureAlphaHex(hex, alphaHex = "88") {
-  const s = String(hex || "").trim();
-  if (!s) return `#00ff00${alphaHex}`;
-  if (s.startsWith("#") && (s.length === 9 || s.length === 5)) return s; // already has alpha
-  if (s.startsWith("#") && s.length === 7) return `${s}${alphaHex}`;
-  return s;
-}
-
 export default function DraggableSiloTank({ tank }) {
   const props = tank?.properties || {};
   const scale = tank?.scale || 1;
 
-  // ✅ user settings from modal
   const name = String(props.name || "").trim();
 
   const maxCapacity =
@@ -191,14 +179,14 @@ export default function DraggableSiloTank({ tank }) {
       ? 0
       : Number(props.maxCapacity);
 
-  const materialColor = ensureAlphaHex(props.materialColor || "#00ff00", "88");
+  // keep raw user color; ProTankIconSilo converts to rgb+opacity safely
+  const materialColor = String(props.materialColor || "#00ff00").trim() || "#00ff00";
 
-  // ✅ binding + math
   const bindModel = props.bindModel || "zhc1921";
   const bindDeviceId = String(props.bindDeviceId || "").trim();
   const bindField = String(props.bindField || "ai1").trim();
 
-  // ✅ math formula stored in density (your modal saves it there)
+  // modal saves formula in density
   const formula = String(props.density ?? props.formula ?? props.mathFormula ?? props.math ?? "").trim();
 
   const hasBinding = !!bindDeviceId && !!bindField;
@@ -206,7 +194,6 @@ export default function DraggableSiloTank({ tank }) {
   const [liveValue, setLiveValue] = useState(null);
   const [outputValue, setOutputValue] = useState(null);
 
-  // ✅ poll every 2s
   useEffect(() => {
     if (!hasBinding) {
       setLiveValue(null);
@@ -234,7 +221,7 @@ export default function DraggableSiloTank({ tank }) {
 
         const safeLive = Number.isFinite(num) ? num : null;
 
-        // ✅ if formula empty => output = live (handled by computeMathOutput)
+        // ✅ if formula empty => output is liveValue
         const out = computeMathOutput(safeLive, formula);
 
         if (cancelled) return;
@@ -243,7 +230,6 @@ export default function DraggableSiloTank({ tank }) {
       } catch (e) {
         if (cancelled) return;
         if (String(e?.name || "").toLowerCase().includes("abort")) return;
-        // keep last values
       }
     };
 
@@ -257,7 +243,6 @@ export default function DraggableSiloTank({ tank }) {
     };
   }, [hasBinding, bindModel, bindDeviceId, bindField, formula]);
 
-  // ✅ output numeric
   const numericOutput = useMemo(() => {
     const v = outputValue;
     if (v === null || v === undefined || v === "") return null;
@@ -269,7 +254,7 @@ export default function DraggableSiloTank({ tank }) {
     return Number.isFinite(n) ? n : null;
   }, [outputValue]);
 
-  // ✅ compute level from capacity (0..100 based on 0..maxCapacity)
+  // ✅ 0..100% is based on 0..maxCapacity
   const levelPct = useMemo(() => {
     const cap = Number(maxCapacity);
     if (!Number.isFinite(cap) || cap <= 0) return 0;
@@ -277,18 +262,12 @@ export default function DraggableSiloTank({ tank }) {
     return frac * 100;
   }, [numericOutput, maxCapacity]);
 
-  // ✅ text below
   const outputText = useMemo(() => {
     if (!hasBinding) return "--";
     if (typeof outputValue === "string") return outputValue || "--";
     if (!Number.isFinite(Number(outputValue))) return "--";
     return Number(outputValue).toFixed(2);
   }, [hasBinding, outputValue]);
-
-  // ✅ IMPORTANT: make component taller so the bottom output is NOT clipped
-  const bodyW = 140 * scale;
-  const bodyH = 220 * scale;
-  const extraBottom = 34 * scale;
 
   return (
     <div style={{ textAlign: "center", pointerEvents: "none" }}>
@@ -306,41 +285,19 @@ export default function DraggableSiloTank({ tank }) {
         </div>
       ) : null}
 
-      <div
-        style={{
-          width: `${bodyW}px`,
-          height: `${bodyH + extraBottom}px`,
-          position: "relative",
-          display: "inline-block",
-        }}
-      >
-        <div style={{ width: `${bodyW}px`, height: `${bodyH}px` }}>
-          <SiloTank
-            level={levelPct}
-            fillColor={materialColor}
-            alarm={false}
-            showPercentText={true}
-            percentText={`${Math.round(levelPct)}%`}
-            percentTextColor="#111827"
-          />
-        </div>
-
-        {/* ✅ OUTPUT NUMBER (always visible) */}
-        <div
-          style={{
-            position: "absolute",
-            left: 0,
-            right: 0,
-            bottom: 0,
-            fontFamily: "monospace",
-            fontSize: `${18 * scale}px`,
-            fontWeight: 700,
-            color: "#111827",
-            lineHeight: 1,
-          }}
-        >
-          {outputText}
-        </div>
+      {/* ✅ output text is now INSIDE the SVG (cannot be clipped by canvas box) */}
+      <div style={{ display: "inline-block", width: `${140 * scale}px`, height: `${240 * scale}px` }}>
+        <SiloTank
+          level={levelPct}
+          fillColor={materialColor}
+          alarm={false}
+          showPercentText={true}
+          percentText={`${Math.round(levelPct)}%`}
+          percentTextColor="#111827"
+          showBottomText={true}
+          bottomText={outputText}
+          bottomTextColor="#111827"
+        />
       </div>
 
       {!Number.isFinite(Number(maxCapacity)) || Number(maxCapacity) <= 0 ? (
