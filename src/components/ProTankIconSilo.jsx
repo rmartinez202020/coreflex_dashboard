@@ -13,12 +13,14 @@ export function SiloTank({
   fillColor = "#fde04788",
   alarm = false,
 
-  // ✅ NEW: show percent text inside the silo
+  // ✅ show percent text inside the silo
   showPercentText = false,
   percentText = "",
   percentTextColor = "#111827",
 }) {
-  const clipId = useId();
+  // ✅ sanitize id (React useId can contain ":" which can cause url(#id) issues in some SVG cases)
+  const rawId = useId();
+  const clipId = `siloClip_${String(rawId).replace(/[^a-zA-Z0-9\-_]/g, "")}`;
 
   const clampedLevel = Math.max(0, Math.min(100, Number(level) || 0));
 
@@ -33,7 +35,8 @@ export function SiloTank({
     <div style={{ display: "inline-block" }}>
       <svg viewBox="0 0 160 200" preserveAspectRatio="xMidYMid meet" style={svgStyle}>
         <defs>
-          <clipPath id={clipId}>
+          {/* ✅ IMPORTANT: force userSpace units so the path coords work correctly */}
+          <clipPath id={clipId} clipPathUnits="userSpaceOnUse">
             <path d="M 20 30 A 40 12 0 0 1 100 30 L 100 140 L 20 140 Z" />
           </clipPath>
         </defs>
@@ -62,7 +65,7 @@ export function SiloTank({
           strokeWidth="2"
         />
 
-        {/* ✅ percent text inside */}
+        {/* percent text inside */}
         {showPercentText ? (
           <text
             x="60"

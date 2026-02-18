@@ -170,34 +170,20 @@ function clamp01(v) {
   return Math.max(0, Math.min(1, n));
 }
 
-// ✅ Convert hex to rgba for transparency (SVG-safe)
-function hexToRgba(hex, alpha = 0.55) {
+// ✅ add alpha if user selected solid hex like "#00ff00"
+function ensureAlphaHex(hex, alphaHex = "88") {
   const s = String(hex || "").trim();
-  if (!s) return `rgba(0,255,0,${alpha})`;
-
-  // allow already rgba()/rgb()/named colors
-  if (!s.startsWith("#")) return s;
-
-  let h = s.slice(1);
-
-  // #RGB
-  if (h.length === 3) h = h.split("").map((c) => c + c).join("");
-
-  // #RRGGBB
-  if (h.length !== 6) return `rgba(0,255,0,${alpha})`;
-
-  const r = parseInt(h.slice(0, 2), 16);
-  const g = parseInt(h.slice(2, 4), 16);
-  const b = parseInt(h.slice(4, 6), 16);
-
-  if (![r, g, b].every((x) => Number.isFinite(x))) return `rgba(0,255,0,${alpha})`;
-  return `rgba(${r},${g},${b},${alpha})`;
+  if (!s) return `#00ff00${alphaHex}`;
+  if (s.startsWith("#") && (s.length === 9 || s.length === 5)) return s; // already has alpha
+  if (s.startsWith("#") && s.length === 7) return `${s}${alphaHex}`;
+  return s;
 }
 
 export default function DraggableSiloTank({ tank }) {
   const props = tank?.properties || {};
   const scale = tank?.scale || 1;
 
+  // ✅ user settings from modal
   const name = String(props.name || "").trim();
 
   const maxCapacity =
@@ -205,22 +191,15 @@ export default function DraggableSiloTank({ tank }) {
       ? 0
       : Number(props.maxCapacity);
 
-  // ✅ transparent fill (SVG-safe)
-  const materialColor = hexToRgba(props.materialColor || "#00ff00", 0.55);
+  const materialColor = ensureAlphaHex(props.materialColor || "#00ff00", "88");
 
-  // ✅ binding: support BOTH new + legacy styles
-  const bindModel = props.bindModel || props.tag?.model || "zhc1921";
+  // ✅ binding + math
+  const bindModel = props.bindModel || "zhc1921";
+  const bindDeviceId = String(props.bindDeviceId || "").trim();
+  const bindField = String(props.bindField || "ai1").trim();
 
-  const bindDeviceId = String(
-    props.bindDeviceId || props.tag?.deviceId || props.tag?.id || ""
-  ).trim();
-
-  const bindField = String(
-    props.bindField || props.tag?.field || ""
-  ).trim() || "ai1";
-
-  // support old key names if any
-  const formula = String(props.formula ?? props.mathFormula ?? props.math ?? props.density ?? "").trim();
+  // ✅ math formula stored in density (your modal saves it there)
+  const formula = String(props.density ?? props.formula ?? props.mathFormula ?? props.math ?? "").trim();
 
   const hasBinding = !!bindDeviceId && !!bindField;
 
@@ -254,6 +233,8 @@ export default function DraggableSiloTank({ tank }) {
             : Number(raw);
 
         const safeLive = Number.isFinite(num) ? num : null;
+
+        // ✅ if formula empty => output = live (handled by computeMathOutput)
         const out = computeMathOutput(safeLive, formula);
 
         if (cancelled) return;
@@ -262,6 +243,7 @@ export default function DraggableSiloTank({ tank }) {
       } catch (e) {
         if (cancelled) return;
         if (String(e?.name || "").toLowerCase().includes("abort")) return;
+        // keep last values
       }
     };
 
@@ -275,7 +257,7 @@ export default function DraggableSiloTank({ tank }) {
     };
   }, [hasBinding, bindModel, bindDeviceId, bindField, formula]);
 
-  // ✅ numeric output
+  // ✅ output numeric
   const numericOutput = useMemo(() => {
     const v = outputValue;
     if (v === null || v === undefined || v === "") return null;
@@ -287,28 +269,26 @@ export default function DraggableSiloTank({ tank }) {
     return Number.isFinite(n) ? n : null;
   }, [outputValue]);
 
-  // ✅ use numeric output; if not numeric, fall back to live numeric (prevents 0 level)
-  const levelSource = useMemo(() => {
-    if (Number.isFinite(Number(numericOutput))) return Number(numericOutput);
-    if (Number.isFinite(Number(liveValue))) return Number(liveValue);
-    return 0;
-  }, [numericOutput, liveValue]);
+  // ✅ compute level from capacity (0..100 based on 0..maxCapacity)
+  const levelPct = useMemo(() => {
+    const cap = Number(maxCapacity);
+    if (!Number.isFinite(cap) || cap <= 0) return 0;
+    const frac = clamp01((numericOutput ?? 0) / cap);
+    return frac * 100;
+  }, [numericOutput, maxCapacity]);
 
-  // ✅ fraction 0..1 (most tank SVGs expect this)
-  const levelFrac = useMemo(() => {
-    if (!Number.isFinite(Number(maxCapacity)) || Number(maxCapacity) <= 0) return 0;
-    return clamp01(levelSource / Number(maxCapacity));
-  }, [levelSource, maxCapacity]);
-
-  // ✅ percent for display only
-  const levelPct = useMemo(() => Math.round(levelFrac * 100), [levelFrac]);
-
+  // ✅ text below
   const outputText = useMemo(() => {
     if (!hasBinding) return "--";
     if (typeof outputValue === "string") return outputValue || "--";
     if (!Number.isFinite(Number(outputValue))) return "--";
     return Number(outputValue).toFixed(2);
   }, [hasBinding, outputValue]);
+
+  // ✅ IMPORTANT: make component taller so the bottom output is NOT clipped
+  const bodyW = 140 * scale;
+  const bodyH = 220 * scale;
+  const extraBottom = 34 * scale;
 
   return (
     <div style={{ textAlign: "center", pointerEvents: "none" }}>
@@ -326,32 +306,41 @@ export default function DraggableSiloTank({ tank }) {
         </div>
       ) : null}
 
-      {/* ✅ SILO with liquid + percent inside */}
-      <div style={{ display: "inline-block" }}>
-        <div style={{ width: `${140 * scale}px`, height: `${220 * scale}px` }}>
+      <div
+        style={{
+          width: `${bodyW}px`,
+          height: `${bodyH + extraBottom}px`,
+          position: "relative",
+          display: "inline-block",
+        }}
+      >
+        <div style={{ width: `${bodyW}px`, height: `${bodyH}px` }}>
           <SiloTank
-            level={levelFrac}              // ✅ 0..1
-            levelPct={levelPct}            // ✅ harmless extra (if component supports)
-            fillColor={materialColor}      // ✅ rgba transparency
+            level={levelPct}
+            fillColor={materialColor}
             alarm={false}
             showPercentText={true}
-            percentText={`${levelPct}%`}
+            percentText={`${Math.round(levelPct)}%`}
             percentTextColor="#111827"
           />
         </div>
-      </div>
 
-      {/* ✅ OUTPUT NUMBER BELOW FIGURE */}
-      <div
-        style={{
-          marginTop: 6,
-          fontFamily: "monospace",
-          fontSize: `${18 * scale}px`,
-          fontWeight: 800,
-          color: "#111827",
-        }}
-      >
-        {outputText}
+        {/* ✅ OUTPUT NUMBER (always visible) */}
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            bottom: 0,
+            fontFamily: "monospace",
+            fontSize: `${18 * scale}px`,
+            fontWeight: 700,
+            color: "#111827",
+            lineHeight: 1,
+          }}
+        >
+          {outputText}
+        </div>
       </div>
 
       {!Number.isFinite(Number(maxCapacity)) || Number(maxCapacity) <= 0 ? (
