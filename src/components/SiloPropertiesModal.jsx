@@ -123,14 +123,7 @@ function readAiFromRow(row, field) {
 
   const n = f.replace("ai", ""); // "1"
 
-  const candidates = [
-    f,
-    f.toUpperCase(),
-    `ai_${n}`,
-    `AI_${n}`,
-    `ai-${n}`,
-    `AI-${n}`,
-  ];
+  const candidates = [f, f.toUpperCase(), `ai_${n}`, `AI_${n}`, `ai-${n}`, `AI-${n}`];
 
   for (const k of candidates) {
     const v = row?.[k];
@@ -200,8 +193,9 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
   // -------------------------
   const [name, setName] = useState(props.name ?? "");
 
+  // ✅ Math should start EMPTY (string), not 0
   const [density, setDensity] = useState(
-    props.density === undefined || props.density === null ? "" : Number(props.density)
+    props.density === undefined || props.density === null ? "" : String(props.density)
   );
 
   // ✅ Capacity + Material Color
@@ -213,10 +207,19 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
   // ✅ live value (now real, comes from telemetry like Counter modal)
   const [liveValue, setLiveValue] = useState(null);
 
+  // ✅ Output: if Math empty => output == liveValue
   const outputValue = useMemo(() => {
-    const d = Number(density);
+    const expr = String(density || "").trim();
+
+    if (!expr) {
+      const lv = Number(liveValue);
+      return Number.isFinite(lv) ? lv : 0;
+    }
+
+    // for now: numeric math entry (same as old behavior)
+    const d = Number(expr);
     return Number.isFinite(d) ? d : 0;
-  }, [density]);
+  }, [density, liveValue]);
 
   // -------------------------
   // ✅ RIGHT: device binding with SEARCH
@@ -386,7 +389,7 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
     const p = silo?.properties || {};
 
     setName(p.name ?? "");
-    setDensity(p.density === undefined || p.density === null ? "" : Number(p.density));
+    setDensity(p.density === undefined || p.density === null ? "" : String(p.density));
 
     setMaxCapacity(
       p.maxCapacity === undefined || p.maxCapacity === null ? "" : Number(p.maxCapacity)
@@ -637,7 +640,7 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                 <div style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>Math</div>
                 <textarea
                   value={density}
-                  onChange={(e) => setDensity(toNum(e.target.value))}
+                  onChange={(e) => setDensity(e.target.value)}
                   rows={4}
                   style={{
                     marginTop: 6,
@@ -848,7 +851,7 @@ export default function SiloPropertiesModal({ open = true, silo, onSave, onClose
                     const nextProps = {
                       ...(silo?.properties || {}),
                       name: String(name || "").trim(),
-                      density: density === "" ? "" : Number(density),
+                      density: String(density || "").trim(),
                       maxCapacity: maxCapacity === "" ? "" : Number(maxCapacity),
                       materialColor: String(materialColor || "#00ff00"),
                       bindModel,
