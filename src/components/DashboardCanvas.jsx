@@ -14,10 +14,18 @@ import ToggleSwitchControl from "./controls/ToggleSwitchControl";
 import PushButtonControl from "./controls/PushButtonControl";
 import AlarmLogResizeEdges from "./alarm/AlarmLogResizeEdges";
 import DisplayOutputTextBoxStyle from "./display/DisplayOutputTextBoxStyle";
-import { StandardTank, HorizontalTank, VerticalTank, SiloTank } from "./ProTankIcon";
-import DraggableHorizontalTank from "./DraggableHorizontalTank";
-import DraggableVerticalTank from "./DraggableVerticalTank";
-import {DraggableLedCircle,DraggableStatusTextBox,DraggableBlinkingAlarm,DraggableStateImage,DraggableCounterInput,} from "./indicators";
+import { StandardTank, HorizontalTank, VerticalTank } from "./ProTankIcon";
+
+// ✅ IMPORTANT: use the real silo widget (polling + fill + output)
+import DraggableSiloTank from "./DraggableSiloTank";
+
+import {
+  DraggableLedCircle,
+  DraggableStatusTextBox,
+  DraggableBlinkingAlarm,
+  DraggableStateImage,
+  DraggableCounterInput,
+} from "./indicators";
 
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
@@ -36,7 +44,6 @@ function resolveDashboardId({ activeDashboardId, dashboardId, selectedTank, drop
   const b = String(selectedTank?.dashboard_id || selectedTank?.dashboardId || "").trim();
   if (b) return b;
 
-  // if all widgets belong to same dashboard, try first one's property
   const first = Array.isArray(droppedTanks) ? droppedTanks[0] : null;
   const c = String(
     first?.dashboard_id || first?.dashboardId || first?.properties?.dashboard_id || ""
@@ -63,12 +70,12 @@ export default function DashboardCanvas({
   activeSiloId,
   setActiveSiloId,
   setShowSiloProps,
-activeHorizontalTankId,
-setActiveHorizontalTankId,
-setShowHorizontalTankProps,
-activeStandardTankId,
-setActiveStandardTankId,
-setShowStandardTankProps,
+  activeHorizontalTankId,
+  setActiveHorizontalTankId,
+  setShowHorizontalTankProps,
+  activeStandardTankId,
+  setActiveStandardTankId,
+  setShowStandardTankProps,
 
   handleSelect,
   handleRightClick,
@@ -85,22 +92,16 @@ setShowStandardTankProps,
   onOpenDisplaySettings,
   onOpenGraphicDisplaySettings,
 
-
-  // ✅ NEW
   onOpenAlarmLog,
   onLaunchAlarmLog,
 
-  // ✅ NEW: indicator settings
   onOpenIndicatorSettings,
   onOpenStatusTextSettings,
   onOpenBlinkingAlarmSettings,
   onOpenStateImageSettings,
   onOpenCounterInputSettings,
 
-  // ✅ NEW: active dashboard id (preferred)
   activeDashboardId,
-
-  // ✅ OPTIONAL: pass dashboard id from parent if you have it
   dashboardId,
 }) {
   const isPlay = dashboardMode === "play";
@@ -128,7 +129,6 @@ setShowStandardTankProps,
       const token = String(getToken() || "").trim();
       if (!token) return;
 
-      // Fast bulk endpoint
       const res = await fetch(
         `${API_URL}/device-counters/by-dashboard/${encodeURIComponent(dash)}`,
         { headers: getAuthHeaders() }
@@ -139,7 +139,6 @@ setShowStandardTankProps,
       const rows = await res.json();
       const list = Array.isArray(rows) ? rows : [];
 
-      // map by widget_id -> count
       const map = {};
       for (const r of list) {
         const wid = String(r?.widget_id || r?.widgetId || "").trim();
@@ -147,7 +146,6 @@ setShowStandardTankProps,
         map[wid] = Number(r?.count ?? 0) || 0;
       }
 
-      // apply to dropped tanks
       setDroppedTanks((prev) => {
         const arr = Array.isArray(prev) ? prev : [];
         let changed = false;
@@ -178,7 +176,7 @@ setShowStandardTankProps,
         return changed ? next : prev;
       });
     } catch {
-      // ignore (keep UI stable)
+      // ignore
     } finally {
       countersRef.current.loading = false;
     }
@@ -187,10 +185,8 @@ setShowStandardTankProps,
   React.useEffect(() => {
     if (!isPlay) return;
 
-    // initial fetch
     fetchCountersForDashboard();
 
-    // ✅ poll every 1 second (your request)
     const t = setInterval(() => {
       if (document.hidden) return;
       fetchCountersForDashboard();
@@ -200,9 +196,8 @@ setShowStandardTankProps,
   }, [isPlay, fetchCountersForDashboard]);
 
   // =====================================================
-  // ✅ Z-ORDER HELPERS (Option A) — STABLE + NO CRASH
+  // ✅ Z-ORDER HELPERS
   // =====================================================
-
   const getTankZ = React.useCallback((t) => {
     return Number(t?.z ?? t?.zIndex ?? 0) || 0;
   }, []);
@@ -282,13 +277,6 @@ setShowStandardTankProps,
 
   // =====================================================
   // ✅ RESET COUNTER (Play mode)
-  // NOTE: your backend might be:
-  //   POST /device-counters/reset           (with JSON body)
-  // or
-  //   POST /device-counters/reset/{widget}  (optional query)
-  //
-  // I am implementing the BODY version because your backend schema shows ResetCounterBody.
-  // Body: { widget_id, dashboard_id? }
   // =====================================================
   const resetCounterOnBackend = React.useCallback(
     async ({ widgetId, dash }) => {
@@ -309,7 +297,6 @@ setShowStandardTankProps,
         throw new Error(j?.detail || `Reset failed (${res.status})`);
       }
 
-      // refresh immediately so UI updates right away
       await fetchCountersForDashboard();
       return j;
     },
@@ -329,7 +316,7 @@ setShowStandardTankProps,
         onDragOver={(e) => !isPlay && e.preventDefault()}
         onDrop={(e) => !isPlay && handleDrop(e)}
         onContextMenu={(e) => {
-          if (isPlay) return; // ✅ no menu in play mode
+          if (isPlay) return;
           e.preventDefault();
           e.stopPropagation();
           handleRightClick?.(e, null);
@@ -354,9 +341,7 @@ setShowStandardTankProps,
               onSelect: handleSelect,
               onRightClick: (e) => handleRightClick?.(e, tank),
               onUpdate: (updated) =>
-                setDroppedTanks((prev) =>
-                  prev.map((t) => (t.id === updated.id ? updated : t))
-                ),
+                setDroppedTanks((prev) => prev.map((t) => (t.id === updated.id ? updated : t))),
             };
 
             if (tank.shape === "alarmLog" && tank.minimized) {
@@ -448,9 +433,7 @@ setShowStandardTankProps,
                       onOpenSettings={() => onOpenAlarmLog?.(tank)}
                       onLaunch={() => onLaunchAlarmLog?.(tank)}
                       onMinimize={() => commonProps.onUpdate?.({ ...tank, minimized: true })}
-                      onClose={() =>
-                        setDroppedTanks((prev) => prev.filter((t) => t.id !== tank.id))
-                      }
+                      onClose={() => setDroppedTanks((prev) => prev.filter((t) => t.id !== tank.id))}
                     />
 
                     {!isPlay && (
@@ -502,39 +485,37 @@ setShowStandardTankProps,
               );
             }
 
-     if (tank.shape === "standardTank") {
-  return (
-    <DraggableDroppedTank
-      {...commonProps}
-      onDoubleClick={() => {
-        if (!isPlay) {
-          setActiveStandardTankId?.(tank.id);
-          setShowStandardTankProps?.(true);
-        }
-      }}
-    >
-      <StandardTank level={tank.level ?? 0} />
-    </DraggableDroppedTank>
-  );
-}
+            if (tank.shape === "standardTank") {
+              return (
+                <DraggableDroppedTank
+                  {...commonProps}
+                  onDoubleClick={() => {
+                    if (!isPlay) {
+                      setActiveStandardTankId?.(tank.id);
+                      setShowStandardTankProps?.(true);
+                    }
+                  }}
+                >
+                  <StandardTank level={tank.level ?? 0} />
+                </DraggableDroppedTank>
+              );
+            }
 
-
-           if (tank.shape === "horizontalTank") {
-  return (
-    <DraggableDroppedTank
-      {...commonProps}
-      onDoubleClick={() => {
-        if (!isPlay) {
-          setActiveHorizontalTankId?.(tank.id);
-          setShowHorizontalTankProps?.(true);
-        }
-      }}
-    >
-      <HorizontalTank level={tank.level ?? 0} />
-    </DraggableDroppedTank>
-  );
-}
-
+            if (tank.shape === "horizontalTank") {
+              return (
+                <DraggableDroppedTank
+                  {...commonProps}
+                  onDoubleClick={() => {
+                    if (!isPlay) {
+                      setActiveHorizontalTankId?.(tank.id);
+                      setShowHorizontalTankProps?.(true);
+                    }
+                  }}
+                >
+                  <HorizontalTank level={tank.level ?? 0} />
+                </DraggableDroppedTank>
+              );
+            }
 
             if (tank.shape === "verticalTank") {
               return (
@@ -544,19 +525,20 @@ setShowStandardTankProps,
               );
             }
 
+            // ✅ FIXED: render the real silo widget
             if (tank.shape === "siloTank") {
               return (
                 <DraggableDroppedTank
                   {...commonProps}
                   onDoubleClick={() => {
                     if (!isPlay) {
-                      setActiveSiloId(tank.id);
-                      setShowSiloProps(true);
+                      setActiveSiloId?.(tank.id);
+                      setShowSiloProps?.(true);
                     }
                   }}
                 >
                   <div className="flex flex-col items-center">
-                    <SiloTank level={tank.level ?? 0} />
+                    <DraggableSiloTank tank={tank} />
                   </div>
                 </DraggableDroppedTank>
               );
@@ -626,7 +608,6 @@ setShowStandardTankProps,
               );
             }
 
-            // ✅ COUNTER INPUT (DI) — backend-driven + play polling + ✅ reset wired
             if (tank.shape === "counterInput") {
               const resolvedDash = resolveDashboardId({
                 activeDashboardId,
@@ -642,24 +623,23 @@ setShowStandardTankProps,
                     if (!isPlay) onOpenCounterInputSettings?.(tank);
                   }}
                 >
-              <DraggableCounterInput
-  variant="canvas"
-  label="Counter"
-  tank={tank}
-  id={tank.id}
-  dashboardId={resolvedDash}
-  dashboardMode={dashboardMode}   // ✅ ADD THIS
-  onReset={async (widgetId) => {
-    if (!isPlay) return;
-    try {
-      await resetCounterOnBackend({ widgetId, dash: resolvedDash });
-    } catch (e) {
-      console.error("Reset failed:", e);
-      alert(e?.message || "Reset failed");
-    }
-  }}
-/>
-
+                  <DraggableCounterInput
+                    variant="canvas"
+                    label="Counter"
+                    tank={tank}
+                    id={tank.id}
+                    dashboardId={resolvedDash}
+                    dashboardMode={dashboardMode}
+                    onReset={async (widgetId) => {
+                      if (!isPlay) return;
+                      try {
+                        await resetCounterOnBackend({ widgetId, dash: resolvedDash });
+                      } catch (e) {
+                        console.error("Reset failed:", e);
+                        alert(e?.message || "Reset failed");
+                      }
+                    }}
+                  />
                 </DraggableDroppedTank>
               );
             }
