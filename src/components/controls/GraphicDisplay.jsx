@@ -18,6 +18,40 @@ function normalizeLineColor(c) {
   return s || DEFAULT_LINE_COLOR;
 }
 
+// ✅ normalize ONLINE/OFFLINE from many backend shapes
+function normalizeOnlineStatusFromRow(row) {
+  if (!row) return { online: null, label: "--" };
+
+  const raw =
+    row.status ??
+    row.deviceStatus ??
+    row.state ??
+    row.online ??
+    row.isOnline ??
+    row.connected ??
+    row.connection ??
+    row.connectionStatus ??
+    row.aws_status ??
+    row.awsStatus ??
+    row.clientStatus ??
+    null;
+
+  const s = String(raw ?? "").trim().toLowerCase();
+
+  // booleans / numbers
+  if (raw === true || raw === 1) return { online: true, label: "ONLINE" };
+  if (raw === false || raw === 0) return { online: false, label: "OFFLINE" };
+
+  // common strings
+  if (["online", "connected", "ok", "active", "up", "true", "yes", "1"].includes(s))
+    return { online: true, label: "ONLINE" };
+  if (["offline", "disconnected", "down", "inactive", "false", "no", "0"].includes(s))
+    return { online: false, label: "OFFLINE" };
+
+  // unknown
+  return { online: null, label: "--" };
+}
+
 // ✅ CSV export helper
 function exportPointsCsv({
   title = "Graphic Display",
@@ -26,8 +60,7 @@ function exportPointsCsv({
   filePrefix = "graphic-display",
 } = {}) {
   const safeTitle =
-    String(title || "Graphic Display").replace(/[^\w\- ]+/g, "").trim() ||
-    "Graphic Display";
+    String(title || "Graphic Display").replace(/[^\w\- ]+/g, "").trim() || "Graphic Display";
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const filename = `${filePrefix}-${safeTitle}-${stamp}.csv`;
 
@@ -106,11 +139,8 @@ export default function GraphicDisplay({ tank }) {
 
   // ✅ stable storage key (per widget if possible, otherwise per binding)
   const storageKey = useMemo(() => {
-    const widgetId =
-      tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
-    const base = widgetId
-      ? `widget:${widgetId}`
-      : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
+    const widgetId = tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
+    const base = widgetId ? `widget:${widgetId}` : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
     return `coreflex:graphicDisplay:points:${base}`;
   }, [tank, bindModel, bindDeviceId, bindField]);
 
@@ -170,6 +200,9 @@ export default function GraphicDisplay({ tank }) {
   const [mathOutput, setMathOutput] = useState(null);
   const [err, setErr] = useState("");
 
+  // ✅ NEW: device online/offline
+  const [deviceOnline, setDeviceOnline] = useState(null); // true/false/null
+
   // points: {t:number, y:number, gap?:boolean}
   const [points, setPoints] = useState([]);
 
@@ -216,17 +249,14 @@ export default function GraphicDisplay({ tank }) {
     // if binding missing, clear + don't load
     if (!bindDeviceId || !bindField) {
       setPoints([]);
+      setDeviceOnline(null);
       return;
     }
 
     const raw = localStorage.getItem(storageKey);
     const parsed = raw ? safeJsonParse(raw) : null;
 
-    const loaded = Array.isArray(parsed?.points)
-      ? parsed.points
-      : Array.isArray(parsed)
-      ? parsed
-      : [];
+    const loaded = Array.isArray(parsed?.points) ? parsed.points : Array.isArray(parsed) ? parsed : [];
     const pruned = prunePointsByWindow(loaded, windowSize, timeUnit);
 
     setPoints(pruned);
@@ -254,8 +284,7 @@ export default function GraphicDisplay({ tank }) {
       const pruned = prunePointsByWindow(points, windowSize, timeUnit);
       // keep it compact (avoid runaway)
       const limit = Math.max(50, Number(maxPointsRef.current || 200));
-      const finalPoints =
-        pruned.length > limit ? pruned.slice(pruned.length - limit) : pruned;
+      const finalPoints = pruned.length > limit ? pruned.slice(pruned.length - limit) : pruned;
 
       try {
         localStorage.setItem(
@@ -275,17 +304,7 @@ export default function GraphicDisplay({ tank }) {
     return () => {
       if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
     };
-  }, [
-    points,
-    storageKey,
-    bindDeviceId,
-    bindField,
-    windowSize,
-    timeUnit,
-    bindModel,
-    bindField,
-    bindDeviceId,
-  ]);
+  }, [points, storageKey, bindDeviceId, bindField, windowSize, timeUnit, bindModel, bindField, bindDeviceId]);
 
   // ===============================
   // ✅ LIVE POLL
@@ -297,6 +316,7 @@ export default function GraphicDisplay({ tank }) {
       setMathOutput(null);
       setErr("");
       setPoints([]);
+      setDeviceOnline(null);
       return;
     }
 
@@ -313,6 +333,10 @@ export default function GraphicDisplay({ tank }) {
         const row = await loadLiveRowForDevice(bindModel, bindDeviceId, {
           signal: ctrl.signal,
         });
+
+        // ✅ NEW: online/offline from row status
+        const st = normalizeOnlineStatusFromRow(row);
+        if (!cancelled) setDeviceOnline(st.online);
 
         const raw = row ? readAiField(row, bindField) : null;
 
@@ -350,6 +374,7 @@ export default function GraphicDisplay({ tank }) {
         if (cancelled) return;
         if (String(e?.name || "").toLowerCase().includes("abort")) return;
         setErr("Trend read failed (device endpoint / tag field).");
+        setDeviceOnline(false); // best-effort: show offline on fetch fail
       }
     };
 
@@ -501,6 +526,14 @@ export default function GraphicDisplay({ tank }) {
     </div>
   );
 
+  // ✅ ONLINE/OFFLINE pill (under Output)
+  const statusLabel = useMemo(() => {
+    if (!bindDeviceId) return { text: "--", color: "#64748b", bg: "rgba(148,163,184,0.16)", border: "rgba(148,163,184,0.35)" };
+    if (deviceOnline === true) return { text: "ONLINE", color: "#16a34a", bg: "rgba(187,247,208,0.55)", border: "rgba(22,163,74,0.25)" };
+    if (deviceOnline === false) return { text: "OFFLINE", color: "#dc2626", bg: "rgba(254,202,202,0.55)", border: "rgba(220,38,38,0.25)" };
+    return { text: "--", color: "#64748b", bg: "rgba(148,163,184,0.16)", border: "rgba(148,163,184,0.35)" };
+  }, [deviceOnline, bindDeviceId]);
+
   return (
     <div
       style={{
@@ -592,11 +625,36 @@ export default function GraphicDisplay({ tank }) {
 
             {styleIndicator}
 
-            <div style={outputBoxStyle} title="Math Output">
-              <span style={{ color: "#555" }}>Output:</span>
-              <span style={{ color: "#0b3b18" }}>
-                {Number.isFinite(mathOutput) ? mathOutput.toFixed(2) : "--"}
-              </span>
+            {/* ✅ Output + Status (stacked) */}
+            <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
+              <div style={outputBoxStyle} title="Math Output">
+                <span style={{ color: "#555" }}>Output:</span>
+                <span style={{ color: "#0b3b18" }}>
+                  {Number.isFinite(mathOutput) ? mathOutput.toFixed(2) : "--"}
+                </span>
+              </div>
+
+              <div
+                style={{
+                  height: 22,
+                  padding: "0 10px",
+                  borderRadius: 999,
+                  border: `1px solid ${statusLabel.border}`,
+                  background: statusLabel.bg,
+                  color: statusLabel.color,
+                  fontSize: 11,
+                  fontWeight: 900,
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+                  letterSpacing: 0.2,
+                  userSelect: "none",
+                }}
+                title={bindDeviceId ? `Device is ${statusLabel.text}` : "No device selected"}
+              >
+                {statusLabel.text}
+              </div>
             </div>
           </div>
         </div>
@@ -722,13 +780,7 @@ export default function GraphicDisplay({ tank }) {
               style={{ width: "100%", height: "100%", display: "block" }}
             >
               {svg.segs.map((pts, idx) => (
-                <polyline
-                  key={idx}
-                  fill="none"
-                  stroke={lineColor}
-                  strokeWidth="3"
-                  points={pts.join(" ")}
-                />
+                <polyline key={idx} fill="none" stroke={lineColor} strokeWidth="3" points={pts.join(" ")} />
               ))}
             </svg>
 
