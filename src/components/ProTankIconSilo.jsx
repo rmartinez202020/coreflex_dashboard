@@ -17,6 +17,12 @@ export function SiloTank({
   showPercentText = false,
   percentText = "",
   percentTextColor = "#111827",
+
+  // ✅ NEW: show bottom output label (value + unit) under the silo (like your screenshot)
+  showBottomText = false,
+  bottomText = "", // ex: "16666" or "16666.00"
+  bottomUnit = "", // ex: "lb", "psi", "gal", etc (from modal)
+  bottomTextColor = "#111827",
 }) {
   const clipId = useId();
 
@@ -32,8 +38,10 @@ export function SiloTank({
 
   const effectiveFill = alarm ? "#ff4d4d88" : fillColor;
 
+  const shouldShowBottom = showBottomText || String(bottomText || "").trim() !== "";
+
   return (
-    <div style={{ display: "inline-block" }}>
+    <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center" }}>
       {/* viewBox is 0..120 (tank centered at x=60) */}
       <svg viewBox="0 0 120 200" preserveAspectRatio="xMidYMid meet" style={svgStyle}>
         <defs>
@@ -54,14 +62,7 @@ export function SiloTank({
         </defs>
 
         {/* ✅ liquid fill (use wide rect and clip it) */}
-        <rect
-          x="0"
-          y={fillY}
-          width="120"
-          height={filledHeight}
-          fill={effectiveFill}
-          clipPath={`url(#${clipId})`}
-        />
+        <rect x="0" y={fillY} width="120" height={filledHeight} fill={effectiveFill} clipPath={`url(#${clipId})`} />
 
         {/* tank outline */}
         <path
@@ -70,12 +71,7 @@ export function SiloTank({
           stroke="#555"
           strokeWidth="2"
         />
-        <path
-          d="M 20 140 L 100 140 L 70 194 L 50 194 Z"
-          fill="none"
-          stroke="#555"
-          strokeWidth="2"
-        />
+        <path d="M 20 140 L 100 140 L 70 194 L 50 194 Z" fill="none" stroke="#555" strokeWidth="2" />
 
         {/* percent text inside */}
         {showPercentText ? (
@@ -94,6 +90,33 @@ export function SiloTank({
           </text>
         ) : null}
       </svg>
+
+      {/* ✅ bottom output label (value + unit) */}
+      {shouldShowBottom ? (
+        <div
+          style={{
+            marginTop: 6,
+            padding: "4px 10px",
+            borderRadius: 6,
+            background: "#e5e7eb",
+            border: "1px solid #cbd5e1",
+            fontFamily: "monospace",
+            fontWeight: 800,
+            fontSize: 14,
+            lineHeight: 1,
+            color: bottomTextColor,
+            userSelect: "none",
+            display: "inline-flex",
+            alignItems: "baseline",
+            gap: 6,
+          }}
+        >
+          <span>{String(bottomText || "").trim() || "--"}</span>
+          {String(bottomUnit || "").trim() ? (
+            <span style={{ fontSize: 12, fontWeight: 700, opacity: 0.9 }}>{String(bottomUnit).trim()}</span>
+          ) : null}
+        </div>
+      ) : null}
     </div>
   );
 }
@@ -108,12 +131,7 @@ export function SiloTankIcon() {
         stroke="#ffffff"
         strokeWidth="2"
       />
-      <path
-        d="M 20 140 L 100 140 L 70 194 L 50 194 Z"
-        fill="none"
-        stroke="#ffffff"
-        strokeWidth="2"
-      />
+      <path d="M 20 140 L 100 140 L 70 194 L 50 194 Z" fill="none" stroke="#ffffff" strokeWidth="2" />
     </svg>
   );
 }
