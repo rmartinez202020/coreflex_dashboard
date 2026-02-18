@@ -33,35 +33,76 @@ async function apiGet(path, { signal } = {}) {
   return res.json();
 }
 
-function readAiField(row, field) {
-  if (!row || !field) return undefined;
+/**
+ * ✅ FIX: match DraggableSiloTank readAiField behavior
+ * supports:
+ *  - ai1 / AI1
+ *  - a1 / A1
+ *  - analog1 / ANALOG1
+ *  - ai_1 / AI_1
+ *  - ai-1 / AI-1
+ * also tolerates bindField like "AI-1" (from some UIs)
+ */
+function readAiField(row, bindField) {
+  if (!row || !bindField) return undefined;
 
-  const k = String(field);
-  if (row[k] !== undefined) return row[k];
+  const raw = String(bindField || "").trim();
+  if (!raw) return undefined;
 
-  const low = k.toLowerCase();
-  if (row[low] !== undefined) return row[low];
+  // normalize: accept ai1, ai-1, ai_1, AI-1, etc
+  const f = raw.toLowerCase();
 
-  const up = k.toUpperCase();
-  if (row[up] !== undefined) return row[up];
+  const directCandidates = [
+    raw,
+    f,
+    raw.toUpperCase(),
+  ];
 
-  // try ai1..ai8 mapping variants
-  const m = low.match(/^ai(\d)$/);
-  if (m) {
-    const n = m[1];
-    const candidates = [
+  // If bindField already exists as a key, return it fast
+  for (const k of directCandidates) {
+    if (row[k] !== undefined) return row[k];
+  }
+
+  // detect AI index (1..8) from many formats
+  // ai1, ai-1, ai_1, AI1, AI-1, etc
+  const m = f.match(/^ai[-_]?(\d+)$/i);
+  const n = m ? m[1] : null;
+
+  // build same candidates used by DraggableSiloTank
+  const candidates = [];
+
+  if (n) {
+    const baseForms = [
       `ai${n}`,
       `AI${n}`,
-      `analog${n}`,
-      `ANALOG${n}`,
-      `ain${n}`,
-      `AIN${n}`,
       `a${n}`,
       `A${n}`,
+      `analog${n}`,
+      `ANALOG${n}`,
     ];
-    for (const c of candidates) {
-      if (row[c] !== undefined) return row[c];
-    }
+
+    const extra = [
+      `ai_${n}`,
+      `AI_${n}`,
+      `ai-${n}`,
+      `AI-${n}`,
+    ];
+
+    candidates.push(...baseForms, ...extra);
+  } else {
+    // if it wasn't aiN format, still try common transforms
+    candidates.push(
+      f,
+      f.toUpperCase(),
+      f.replace("ai", "a"),
+      f.replace("ai", "A"),
+      f.replace("ai", "analog"),
+      f.replace("ai", "ANALOG")
+    );
+  }
+
+  for (const k of candidates) {
+    if (row[k] !== undefined) return row[k];
   }
 
   return undefined;
@@ -70,13 +111,17 @@ function readAiField(row, field) {
 function normalizeRow(data) {
   if (!data) return null;
   if (Array.isArray(data)) return data[0] || null;
+
   if (typeof data === "object") {
+    // common wrappers
     if (data.row && typeof data.row === "object") return data.row;
     if (data.data && typeof data.data === "object") return data.data;
     if (data.latest && typeof data.latest === "object") return data.latest;
     if (data.telemetry && typeof data.telemetry === "object") return data.telemetry;
+
     return data;
   }
+
   return null;
 }
 
@@ -133,7 +178,6 @@ export default function useVerticalTankSettingsModalTelemetric({
   useEffect(() => {
     if (!args.open) return;
 
-    // if no device chosen, clear state like Silo does (no ONLINE/OFFLINE)
     if (!args.deviceId || !args.field) {
       setLiveValue(null);
       setDeviceIsOnline(false);
@@ -159,34 +203,37 @@ export default function useVerticalTankSettingsModalTelemetric({
           return;
         }
 
-        // online heuristic
+        // online heuristic (keep yours, plus a safe fallback)
         const status = String(row.status || row.deviceStatus || row.state || "").toLowerCase();
         const online =
           status === "online" ||
           status === "connected" ||
           status === "active" ||
           row.online === true ||
-          row.is_online === true;
+          row.is_online === true ||
+          // fallback: if we got a row with telemetry fields, treat as online
+          row.last_seen !== undefined ||
+          row.lastSeen !== undefined;
 
         setDeviceIsOnline(!!online);
 
         const v = readAiField(row, args.field);
+
         if (v === undefined || v === null || v === "") {
           setLiveValue(null);
         } else {
           const n = Number(v);
           setLiveValue(Number.isFinite(n) ? n : v);
         }
-      } catch {
+      } catch (e) {
         if (cancelled) return;
+        if (String(e?.name || "").toLowerCase().includes("abort")) return;
         setDeviceIsOnline(false);
         setLiveValue(null);
       }
     }
 
-    // immediate first tick
     tick();
-
     timerRef.current = window.setInterval(tick, args.pollMs);
 
     return () => {
