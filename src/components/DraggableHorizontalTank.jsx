@@ -326,7 +326,6 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
       <div
         style={{
           width: w,
-          // ✅ Let content define height (no forced extra empty space)
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -352,29 +351,28 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
           }}
         />
 
-        {/* ✅ title bigger */}
-      {title ? (
-  <div
-    style={{
-      marginBottom: 1 * scale,      // ✅ closer to tank
-      fontSize: 15 * scale,         // ✅ slightly bigger
-      fontWeight: 500,              // ✅ not bold
-      color: "#111827",
-      lineHeight: 1,
-      textAlign: "center",
-      pointerEvents: "none",
-    }}
-  >
-    {title}
-  </div>
-) : null}
+        {/* title */}
+        {title ? (
+          <div
+            style={{
+              marginBottom: 1 * scale,
+              fontSize: 15 * scale,
+              fontWeight: 500,
+              color: "#111827",
+              lineHeight: 1,
+              textAlign: "center",
+              pointerEvents: "none",
+            }}
+          >
+            {title}
+          </div>
+        ) : null}
 
-
-        {/* Tank icon (ONLY the SVG / percent) */}
+        {/* Tank icon */}
         <div
           style={{
             width: w,
-            height: h, // ✅ keep tank size stable
+            height: h,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -389,17 +387,17 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
               showPercentText={true}
               percentText={percentText}
               percentTextColor="#111827"
-              // ✅ IMPORTANT: bottom label OFF here
-              showBottomText={false}
+              showBottomText={false} // keep badge outside
               pointerEvents="none"
             />
           </div>
         </div>
 
-        {/* ✅ Output badge rendered OUTSIDE so it can sit VERY close */}
+        {/* output badge (tight) */}
         <div
           style={{
-            marginTop: 0 * scale, 
+            marginTop: 0,
+            transform: `translateY(${-10 * scale}px)`, // ✅ pulls badge UP closer to tank
             padding: `${5 * scale}px ${12 * scale}px`,
             borderRadius: 8,
             background: "#eef2f7",
