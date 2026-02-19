@@ -353,25 +353,22 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
         />
 
         {/* ✅ title bigger */}
-        {title ? (
-          <div
-            style={{
-              marginBottom: 4 * scale,
-              fontSize: 14 * scale, // ✅ bigger
-              fontWeight: 800, // ✅ bolder
-              color: "#111827",
-              lineHeight: 1.1,
-              textAlign: "center",
-              maxWidth: "100%",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-              pointerEvents: "none",
-            }}
-          >
-            {title}
-          </div>
-        ) : null}
+      {title ? (
+  <div
+    style={{
+      marginBottom: 1 * scale,      // ✅ closer to tank
+      fontSize: 15 * scale,         // ✅ slightly bigger
+      fontWeight: 500,              // ✅ not bold
+      color: "#111827",
+      lineHeight: 1,
+      textAlign: "center",
+      pointerEvents: "none",
+    }}
+  >
+    {title}
+  </div>
+) : null}
+
 
         {/* Tank icon (ONLY the SVG / percent) */}
         <div
