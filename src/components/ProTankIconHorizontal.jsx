@@ -48,11 +48,12 @@ export function HorizontalTank({
 
   const effectiveFill = alarm ? "#ff4d4d88" : fillColor;
 
-  const shouldShowBottom = showBottomText || String(bottomText || "").trim() !== "";
+  const shouldShowBottom =
+    showBottomText || String(bottomText || "").trim() !== "";
 
   // ✅ TIGHTER viewBox so the widget bounding/blue box hugs the tank more (like VerticalTank)
-  // Tank vertical extents are ~19..91, so we crop most extra whitespace from 0..110.
-  const TIGHT_VIEWBOX = "0 12 160 88";
+  // Tank extents are ~19..91 in the original 0..110 space; crop extra whitespace.
+  const TIGHT_VIEWBOX = "0 16 160 78";
 
   return (
     <div
@@ -113,12 +114,12 @@ export function HorizontalTank({
         ) : null}
       </svg>
 
-      {/* Bottom label (EXACT same style + event behavior as VerticalTank) */}
+      {/* Bottom label (move UP closer to tank) */}
       {shouldShowBottom ? (
         <div
           style={{
-            marginTop: 4, // ✅ slightly tighter so the overall widget box hugs content better
-            padding: "6px 14px",
+            marginTop: -2, // ✅ pull badge up closer (like your screenshot request)
+            padding: "5px 14px",
             borderRadius: 8,
             background: "#eef2f7",
             border: "1px solid rgba(17,24,39,0.25)",
