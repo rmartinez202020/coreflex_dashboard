@@ -7,7 +7,7 @@ const svgStyle = {
   display: "block",
 };
 
-// ⭐ HORIZONTAL TANK (Dashboard) — EXACT same event behavior as VerticalTank
+// ⭐ HORIZONTAL TANK (Dashboard) — tighter bounding box so selection fits closer
 export function HorizontalTank({
   level = 0, // 0..100
   fillColor = "#60a5fa88",
@@ -32,18 +32,15 @@ export function HorizontalTank({
   const clampedLevel = Math.max(0, Math.min(100, Number(level) || 0));
 
   // geometry (outline path you use)
-  // Path: M 35 37 H 125 A 35 18 ... so the "caps" extend beyond x=35..125
   const x1 = 35;
   const x2 = 125;
-  const capR = 35; // horizontal radius of end caps
+  const capR = 35;
   const topY = 37;
   const bottomY = 73;
 
-  // total interior width INCLUDING rounded caps
-  const totalW = x2 - x1 + capR * 2; // 90 + 70 = 160
+  const totalW = x2 - x1 + capR * 2; // 160
   const h = bottomY - topY;
 
-  // fill should start at the far left of the cap
   const fillX = x1 - capR;
   const fillW = totalW * (clampedLevel / 100);
 
@@ -57,18 +54,20 @@ export function HorizontalTank({
         display: "inline-flex",
         flexDirection: "column",
         alignItems: "center",
-
-        // ✅ EXACT same as VerticalTank
         pointerEvents,
+        // ✅ shrink-wrap container to the actual tank width (so blue box hugs it)
+        width: 160,
       }}
     >
       <svg
-        viewBox="0 0 160 110"
+        // ✅ tighter viewBox around the tank (removes extra whitespace that makes selection too big)
+        viewBox="0 20 160 70"
         preserveAspectRatio="xMidYMid meet"
         style={{
           ...svgStyle,
-          // ✅ EXACT same as VerticalTank
           pointerEvents,
+          // keep svg from stretching taller than needed (helps selection feel tight)
+          height: "auto",
         }}
       >
         <defs>
@@ -77,7 +76,7 @@ export function HorizontalTank({
           </clipPath>
         </defs>
 
-        {/* LIQUID FILL (covers BOTH caps at 100%) */}
+        {/* LIQUID FILL */}
         <rect
           x={fillX}
           y={topY}
@@ -113,7 +112,7 @@ export function HorizontalTank({
         ) : null}
       </svg>
 
-      {/* Bottom label (EXACT same style + event behavior as VerticalTank) */}
+      {/* Bottom label */}
       {shouldShowBottom ? (
         <div
           style={{
@@ -129,8 +128,6 @@ export function HorizontalTank({
             display: "inline-flex",
             alignItems: "baseline",
             gap: 8,
-
-            // ✅ EXACT same as VerticalTank
             pointerEvents,
           }}
         >
