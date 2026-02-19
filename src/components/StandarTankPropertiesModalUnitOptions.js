@@ -1,6 +1,6 @@
-// src/components/StandarTankPropertiesModalUnitOptions.js
+// src/components/StandarTankPropertiesMOdalUnitOptions.js
 
-export const StandarTankPropertiesModalUnitOptions = [
+export const StandarTankPropertiesMOdalUnitOptions = [
   { key: "", label: "(none)" },
 
   // -------------------
@@ -47,3 +47,6 @@ export const StandarTankPropertiesModalUnitOptions = [
   { key: "mmHg", label: "mmHg (millimeters of mercury)" },
   { key: "Torr", label: "Torr" },
 ];
+
+// ✅ alias export (so imports with the "correct" spelling won't break)
+export const StandardTankPropertiesModalUnitOptions = StandarTankPropertiesMOdalUnitOptions;
