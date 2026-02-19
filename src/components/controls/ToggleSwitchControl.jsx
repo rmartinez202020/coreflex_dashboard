@@ -1,6 +1,6 @@
 // src/components/controls/ToggleSwitchControl.jsx
 import React from "react";
-import ToggleSwitchPropertiesModal from "../ToggleSwitchPropertiesModal";
+import ToggleSwitchPropertiesModal from "./ToggleSwitchPropertiesModal";
 
 export default function ToggleSwitchControl({
   isOn = true,
