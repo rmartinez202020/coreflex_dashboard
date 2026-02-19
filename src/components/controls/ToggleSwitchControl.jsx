@@ -10,6 +10,9 @@ export default function ToggleSwitchControl({
   // ✅ keep old behavior by default
   visualOnly = true,
 
+  // ✅ NEW: edit/play gate (parent should pass true when dashboard is launched)
+  isLaunched = false,
+
   // ✅ optional (parent should pass to enable saving binding)
   widget = null,
   onSaveWidget = null,
@@ -44,18 +47,26 @@ export default function ToggleSwitchControl({
   const knobBg =
     "linear-gradient(180deg, #3A3A3A 0%, #141414 60%, #2A2A2A 100%)";
 
+  // ✅ only allow opening modal in EDIT mode
+  const canEdit = !visualOnly && !isLaunched;
+
+  // ✅ safety: if dashboard switches to launched while modal open, close it
+  React.useEffect(() => {
+    if (isLaunched && openProps) setOpenProps(false);
+  }, [isLaunched, openProps]);
+
   return (
     <>
       <div
         title={isOn ? "ON" : "OFF"}
         onDoubleClick={
-          visualOnly
-            ? undefined
-            : (e) => {
+          canEdit
+            ? (e) => {
                 e.preventDefault();
                 e.stopPropagation();
                 setOpenProps(true);
               }
+            : undefined
         }
         style={{
           width: safeW,
@@ -66,7 +77,11 @@ export default function ToggleSwitchControl({
           boxShadow: "0 8px 18px rgba(0,0,0,0.45)",
           position: "relative",
           userSelect: "none",
-          cursor: visualOnly ? "default" : "pointer",
+
+          // ✅ cursor reflects edit availability
+          cursor: canEdit ? "pointer" : "default",
+
+          // ✅ keep existing behavior: in visualOnly we don't interact at all
           pointerEvents: visualOnly ? "none" : "auto",
         }}
       >
@@ -140,6 +155,8 @@ export default function ToggleSwitchControl({
         onSave={(nextWidget) => {
           if (typeof onSaveWidget === "function") onSaveWidget(nextWidget);
         }}
+        // ✅ pass through so modal also hard-blocks in PLAY
+        isLaunched={isLaunched}
       />
     </>
   );
