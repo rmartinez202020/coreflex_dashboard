@@ -5,9 +5,10 @@ const svgStyle = {
   width: "100%",
   height: "auto",
   display: "block",
+  overflow: "visible", // ✅ allow stroke to render outside viewBox if needed
 };
 
-// ⭐ HORIZONTAL TANK — Balanced Height Version
+// ⭐ HORIZONTAL TANK (Dashboard)
 export function HorizontalTank({
   level = 0,
   fillColor = "#60a5fa88",
@@ -25,16 +26,15 @@ export function HorizontalTank({
   pointerEvents = "none",
 }) {
   const clipId = useId();
-
   const clampedLevel = Math.max(0, Math.min(100, Number(level) || 0));
 
-  // ✅ Slightly taller than original, but not too much
+  // ✅ geometry (balanced height)
   const x1 = 35;
   const x2 = 125;
   const capR = 35;
 
-  const topY = 32;      // balanced
-  const bottomY = 86;   // balanced
+  const topY = 32;
+  const bottomY = 86;
 
   const totalW = x2 - x1 + capR * 2; // 160
   const h = bottomY - topY;
@@ -44,10 +44,14 @@ export function HorizontalTank({
   const shouldShowBottom =
     showBottomText || String(bottomText || "").trim() !== "";
 
-  // Bottom → Top fill
+  // ✅ Bottom → Top fill (vertical)
   const fillH = h * (clampedLevel / 100);
   const fillY = bottomY - fillH;
   const fillX = x1 - capR;
+
+  // ✅ FIX: add padding so left/right stroke never clips
+  // Path reaches x=0..160, stroke extends outside → use a slightly wider viewBox.
+  const VIEWBOX = "-3 20 166 85";
 
   return (
     <div
@@ -60,7 +64,7 @@ export function HorizontalTank({
       }}
     >
       <svg
-        viewBox="0 0 160 115"
+        viewBox={VIEWBOX}
         preserveAspectRatio="xMidYMid meet"
         style={{
           ...svgStyle,
@@ -69,7 +73,6 @@ export function HorizontalTank({
       >
         <defs>
           <clipPath id={clipId}>
-            {/* Reduced arc height for smoother look */}
             <path d="M 35 32 H 125 A 35 26 0 1 1 125 86 H 35 A 35 26 0 1 1 35 32" />
           </clipPath>
         </defs>
@@ -110,10 +113,11 @@ export function HorizontalTank({
         ) : null}
       </svg>
 
+      {/* Bottom label (LOWER + not touching tank) */}
       {shouldShowBottom ? (
         <div
           style={{
-            marginTop: -8,
+            marginTop: 8, // ✅ lower / add a clear gap from the tank
             padding: "6px 14px",
             borderRadius: 8,
             background: "#eef2f7",
@@ -133,7 +137,7 @@ export function HorizontalTank({
           </span>
 
           {String(bottomUnit || "").trim() ? (
-            <span style={{ fontSize: 14, fontWeight: 800 }}>
+            <span style={{ fontSize: 14, fontWeight: 800, opacity: 0.95 }}>
               {String(bottomUnit).trim()}
             </span>
           ) : null}
@@ -143,9 +147,10 @@ export function HorizontalTank({
   );
 }
 
+// ⭐ HORIZONTAL TANK ICON (Left menu)
 export function HorizontalTankIcon() {
   return (
-    <svg width="50" height="20" viewBox="0 0 160 115">
+    <svg width="50" height="20" viewBox="-3 20 166 85">
       <path
         d="M 35 32 H 125 A 35 26 0 1 1 125 86 H 35 A 35 26 0 1 1 35 32"
         fill="none"
