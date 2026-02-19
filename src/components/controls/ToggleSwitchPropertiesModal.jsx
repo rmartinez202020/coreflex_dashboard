@@ -64,13 +64,13 @@ export default function ToggleSwitchPropertiesModal({
   toggleSwitch,
   onSave,
   onClose,
-  // ✅ gate modal to EDIT mode only
+  // ✅ MUST be true in PLAY mode
   isLaunched = false,
 }) {
-  // ✅ do NOT early return before hooks
+  // ✅ DO NOT early return before hooks
   const p = toggleSwitch?.properties || {};
 
-  // ✅ Modal sizing like BlinkingAlarmSettingsModal
+  // ✅ Modal sizing
   const MODAL_W = Math.min(720, window.innerWidth - 80);
   const MODAL_H = Math.min(520, window.innerHeight - 120);
 
@@ -78,11 +78,9 @@ export default function ToggleSwitchPropertiesModal({
   const forcedModel = "zhc1921";
 
   // ✅ Backward compatible initial binding:
-  // prefer bindDeviceId/bindField, else fall back to tag
   const initialDeviceId = String(p.bindDeviceId || p?.tag?.deviceId || "");
   const initialField = String(p.bindField || p?.tag?.field || "do1");
 
-  const [deviceModel] = React.useState(forcedModel); // locked
   const [deviceId, setDeviceId] = React.useState(initialDeviceId);
   const [field, setField] = React.useState(
     /^do[1-4]$/.test(String(initialField || "").toLowerCase()) ? initialField : "do1"
@@ -91,21 +89,32 @@ export default function ToggleSwitchPropertiesModal({
   const [deviceSearch, setDeviceSearch] = React.useState("");
 
   // =========================
-  // REHYDRATE ON OPEN
+  // ✅ HARD GUARANTEE: NEVER IN PLAY MODE
+  // - if play launches while open, auto-close
+  // - no network calls in play
+  // - render is blocked in play
   // =========================
   React.useEffect(() => {
-    if (!open || !toggleSwitch) return;
+    if (isLaunched && open) onClose?.();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isLaunched, open]);
+
+  // =========================
+  // REHYDRATE ON OPEN (EDIT ONLY)
+  // =========================
+  React.useEffect(() => {
+    if (!open || !toggleSwitch || isLaunched) return;
 
     const pp = toggleSwitch?.properties || {};
-
     const f = String(pp.bindField || pp?.tag?.field || "do1");
+
     setDeviceId(String(pp.bindDeviceId || pp?.tag?.deviceId || ""));
     setField(/^do[1-4]$/.test(f.toLowerCase()) ? f : "do1");
     setDeviceSearch("");
-  }, [open, toggleSwitch?.id]);
+  }, [open, toggleSwitch?.id, isLaunched]);
 
   // =========================
-  // DRAGGABLE WINDOW (same feel)
+  // DRAGGABLE WINDOW
   // =========================
   const modalRef = React.useRef(null);
   const dragRef = React.useRef({
@@ -122,15 +131,17 @@ export default function ToggleSwitchPropertiesModal({
     return { left, top };
   });
 
-  // recenter on open
+  // recenter on open (EDIT ONLY)
   React.useEffect(() => {
-    if (!open) return;
+    if (!open || isLaunched) return;
     const left = Math.max(20, Math.round((window.innerWidth - MODAL_W) / 2));
     const top = Math.max(20, Math.round((window.innerHeight - MODAL_H) / 2));
     setPos({ left, top });
-  }, [open, MODAL_W, MODAL_H]);
+  }, [open, MODAL_W, MODAL_H, isLaunched]);
 
   React.useEffect(() => {
+    if (isLaunched) return;
+
     const onMove = (e) => {
       if (!dragRef.current.dragging) return;
       e.preventDefault();
@@ -166,7 +177,7 @@ export default function ToggleSwitchPropertiesModal({
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [MODAL_W]);
+  }, [MODAL_W, isLaunched]);
 
   const startDrag = (e) => {
     if (e.button !== 0) return;
@@ -182,13 +193,13 @@ export default function ToggleSwitchPropertiesModal({
   };
 
   // =========================
-  // DEVICES (BACKEND) — ONLY CF-2000 my-devices
+  // DEVICES (BACKEND) — EDIT ONLY
   // =========================
   const [devices, setDevices] = React.useState([]);
   const [devicesErr, setDevicesErr] = React.useState("");
 
   React.useEffect(() => {
-    if (!open || isLaunched) return; // ✅ don't waste calls in PLAY
+    if (!open || isLaunched) return;
 
     let alive = true;
 
@@ -236,7 +247,7 @@ export default function ToggleSwitchPropertiesModal({
   }, [devices, deviceSearch]);
 
   // =========================
-  // LIVE STATUS / VALUE (POLL CF-2000 my-devices)
+  // LIVE STATUS / VALUE (EDIT ONLY)
   // =========================
   const [telemetryRow, setTelemetryRow] = React.useState(null);
   const telemetryRef = React.useRef({ loading: false });
@@ -304,7 +315,10 @@ export default function ToggleSwitchPropertiesModal({
   const hasSelection = !!deviceId && !!effectiveField;
   const hasData = rawValue !== undefined && rawValue !== null;
   const isOnlineWithData = deviceIsOnline && hasData && hasSelection;
-  const as01 = React.useMemo(() => (isOnlineWithData ? to01(rawValue) : null), [isOnlineWithData, rawValue]);
+  const as01 = React.useMemo(
+    () => (isOnlineWithData ? to01(rawValue) : null),
+    [isOnlineWithData, rawValue]
+  );
 
   const statusText = !deviceId
     ? "Select a device and DO"
@@ -353,7 +367,7 @@ export default function ToggleSwitchPropertiesModal({
     <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>{children}</div>
   );
 
-  // ✅ ONLY show in EDIT mode
+  // ✅ ABSOLUTE BLOCK: never render in PLAY mode
   if (!open || !toggleSwitch || isLaunched) return null;
 
   return (
@@ -461,10 +475,7 @@ export default function ToggleSwitchPropertiesModal({
                 <Label>Device</Label>
                 <select
                   value={deviceId || ""}
-                  onChange={(e) => {
-                    const v = String(e.target.value || "");
-                    setDeviceId(v);
-                  }}
+                  onChange={(e) => setDeviceId(String(e.target.value || ""))}
                   style={{
                     width: "100%",
                     padding: "10px 12px",
