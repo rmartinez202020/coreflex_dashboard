@@ -3,11 +3,11 @@ import React, { useId } from "react";
 
 const svgStyle = {
   width: "100%",
-  height: "auto", // ✅ KEY FIX: do NOT stretch to parent height
+  height: "auto", // ✅ do NOT stretch to parent height
   display: "block",
 };
 
-// ⭐ HORIZONTAL TANK (Dashboard) — fixes bottom label gap
+// ⭐ HORIZONTAL TANK (Dashboard) — bottom-to-top fill + tight bottom label
 export function HorizontalTank({
   level = 0, // 0..100
   fillColor = "#60a5fa88",
@@ -40,12 +40,14 @@ export function HorizontalTank({
   const totalW = x2 - x1 + capR * 2; // 160
   const h = bottomY - topY;
 
-  const fillX = x1 - capR;
-  const fillW = totalW * (clampedLevel / 100);
-
   const effectiveFill = alarm ? "#ff4d4d88" : fillColor;
 
   const shouldShowBottom = showBottomText || String(bottomText || "").trim() !== "";
+
+  // ✅ BOTTOM → TOP fill inside the capsule (not left → right)
+  const fillH = h * (clampedLevel / 100);
+  const fillY = bottomY - fillH;
+  const fillX = x1 - capR;
 
   return (
     <div
@@ -71,12 +73,12 @@ export function HorizontalTank({
           </clipPath>
         </defs>
 
-        {/* LIQUID FILL */}
+        {/* LIQUID FILL (BOTTOM → TOP) */}
         <rect
           x={fillX}
-          y={topY}
-          width={fillW}
-          height={h}
+          y={fillY}
+          width={totalW}
+          height={fillH}
           fill={effectiveFill}
           clipPath={`url(#${clipId})`}
         />
