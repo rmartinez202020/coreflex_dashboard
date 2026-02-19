@@ -1,7 +1,7 @@
 // src/components/ToggleSwitchPropertiesModal.jsx
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { API_URL } from "./config/api";
-import { getToken } from "./utils/authToken";
+import { API_URL } from "../config/api";
+import { getToken } from "../utils/authToken";
 
 const MODEL_META = {
   zhc1921: { label: "CF-2000", base: "zhc1921" },
