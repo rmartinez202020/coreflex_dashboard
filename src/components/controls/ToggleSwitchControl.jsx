@@ -1,6 +1,6 @@
 // src/components/controls/ToggleSwitchControl.jsx
 import React from "react";
-import ToggleSwitchPropertiesModal from "../ToggleSwitchPropertiesModal";
+import ToggleSwitchPropertiesModal from "./ToggleSwitchPropertiesModal";
 
 export default function ToggleSwitchControl({
   isOn = true,
@@ -69,7 +69,7 @@ export default function ToggleSwitchControl({
           position: "relative",
           userSelect: "none",
           cursor: visualOnly ? "default" : "pointer",
-          pointerEvents: visualOnly ? "none" : "auto", // ✅ important: allow dblclick only when visualOnly=false
+          pointerEvents: visualOnly ? "none" : "auto", // ✅ allow dblclick only when visualOnly=false
         }}
       >
         {/* Track */}
