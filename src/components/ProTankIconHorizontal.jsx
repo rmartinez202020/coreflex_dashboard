@@ -3,11 +3,11 @@ import React, { useId } from "react";
 
 const svgStyle = {
   width: "100%",
-  height: "100%",
+  height: "auto", // ✅ KEY FIX: do NOT stretch to parent height
   display: "block",
 };
 
-// ⭐ HORIZONTAL TANK (Dashboard) — tight-cropped so output can sit close
+// ⭐ HORIZONTAL TANK (Dashboard) — fixes bottom label gap
 export function HorizontalTank({
   level = 0, // 0..100
   fillColor = "#60a5fa88",
@@ -24,13 +24,13 @@ export function HorizontalTank({
   bottomUnit = "",
   bottomTextColor = "#111827",
 
-  pointerEvents = "none",
+  pointerEvents = "none", // match VerticalTank behavior
 }) {
   const clipId = useId();
 
   const clampedLevel = Math.max(0, Math.min(100, Number(level) || 0));
 
-  // outline geometry
+  // geometry
   const x1 = 35;
   const x2 = 125;
   const capR = 35;
@@ -47,11 +47,6 @@ export function HorizontalTank({
 
   const shouldShowBottom = showBottomText || String(bottomText || "").trim() !== "";
 
-  // ✅ TIGHT viewBox:
-  // Tank top is ~19 (topY - 18), tank bottom is ~91 (bottomY + 18)
-  // So crop near that range to remove the extra empty padding.
-  const TIGHT_VIEWBOX = "0 16 160 80"; // y=16..96
-
   return (
     <div
       style={{
@@ -63,9 +58,12 @@ export function HorizontalTank({
       }}
     >
       <svg
-        viewBox={TIGHT_VIEWBOX}
+        viewBox="0 0 160 110"
         preserveAspectRatio="xMidYMid meet"
-        style={{ ...svgStyle, pointerEvents }}
+        style={{
+          ...svgStyle,
+          pointerEvents,
+        }}
       >
         <defs>
           <clipPath id={clipId}>
@@ -113,7 +111,7 @@ export function HorizontalTank({
       {shouldShowBottom ? (
         <div
           style={{
-            marginTop: 0, // ✅ now this will actually sit close because SVG is cropped
+            marginTop: -8, // ✅ pull it UP close to tank
             padding: "6px 14px",
             borderRadius: 8,
             background: "#eef2f7",
