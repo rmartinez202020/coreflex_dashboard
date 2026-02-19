@@ -28,16 +28,23 @@ export function VerticalTank({
 
   const clampedLevel = Math.max(0, Math.min(100, Number(level) || 0));
 
-  // Geometry
-  const topY = 25;
+  // Geometry (kept same look)
+  const topY = 25; // ellipse center Y
+  const rx = 25;
+  const ry = 10;
+
   const bodyBottomY = 165;
-  const bottomCurveY = 180; // ✅ the outline bottom curve reaches here
+  const bottomCurveY = 180; // outline bottom curve reaches here
+
   const leftX = 15;
   const rightX = 65;
   const innerW = rightX - leftX;
 
-  // ✅ Fill should reach the curved bottom, not stop at 165
-  const filledHeight = (bottomCurveY - topY) * (clampedLevel / 100);
+  // ✅ REAL top-most inside point (so 100% fills the dome)
+  const topFillY = topY - ry; // 15
+
+  // ✅ Fill spans FULL inside (topFillY -> bottomCurveY)
+  const filledHeight = (bottomCurveY - topFillY) * (clampedLevel / 100);
   const fillY = bottomCurveY - filledHeight;
 
   const effectiveFill = alarm ? "#ff4d4d88" : fillColor;
@@ -53,17 +60,17 @@ export function VerticalTank({
         alignItems: "center",
       }}
     >
-      {/* ✅ IMPORTANT: tighter viewBox so the tank is centered (no huge right whitespace) */}
+      {/* tighter viewBox so the tank is centered */}
       <svg viewBox="0 0 80 180" preserveAspectRatio="xMidYMid meet" style={svgStyle}>
         <defs>
-          {/* ✅ Clip matches the inside including the rounded bottom */}
+          {/* ✅ Clip includes TOP DOME + rounded bottom */}
           <clipPath id={clipId}>
             <path
               d={`
                 M ${leftX} ${topY}
-                L ${leftX} ${bodyBottomY}
-                C ${leftX} ${bottomCurveY}, ${rightX} ${bottomCurveY}, ${rightX} ${bodyBottomY}
-                L ${rightX} ${topY}
+                A ${rx} ${ry} 0 0 1 ${rightX} ${topY}
+                L ${rightX} ${bodyBottomY}
+                C ${rightX} ${bottomCurveY}, ${leftX} ${bottomCurveY}, ${leftX} ${bodyBottomY}
                 Z
               `}
             />
@@ -81,12 +88,17 @@ export function VerticalTank({
         />
 
         {/* OUTLINE */}
-        <ellipse cx="40" cy="25" rx="25" ry="10" fill="none" stroke="#555" strokeWidth="2" />
-        <line x1="15" y1="25" x2="15" y2="165" stroke="#555" strokeWidth="2" />
-        <line x1="65" y1="25" x2="65" y2="165" stroke="#555" strokeWidth="2" />
-        <path d="M 15 165 C 15 180, 65 180, 65 165" fill="none" stroke="#555" strokeWidth="2" />
+        <ellipse cx="40" cy={topY} rx={rx} ry={ry} fill="none" stroke="#555" strokeWidth="2" />
+        <line x1={leftX} y1={topY} x2={leftX} y2={bodyBottomY} stroke="#555" strokeWidth="2" />
+        <line x1={rightX} y1={topY} x2={rightX} y2={bodyBottomY} stroke="#555" strokeWidth="2" />
         <path
-          d="M 65 165 C 65 150, 15 150, 15 165"
+          d={`M ${leftX} ${bodyBottomY} C ${leftX} ${bottomCurveY}, ${rightX} ${bottomCurveY}, ${rightX} ${bodyBottomY}`}
+          fill="none"
+          stroke="#555"
+          strokeWidth="2"
+        />
+        <path
+          d={`M ${rightX} ${bodyBottomY} C ${rightX} 150, ${leftX} 150, ${leftX} ${bodyBottomY}`}
           fill="none"
           stroke="#555"
           strokeWidth="2"
@@ -111,7 +123,7 @@ export function VerticalTank({
         ) : null}
       </svg>
 
-      {/* 🔥 Bottom label (centered under tank now) */}
+      {/* Bottom label */}
       {shouldShowBottom ? (
         <div
           style={{
@@ -129,24 +141,12 @@ export function VerticalTank({
             gap: 8,
           }}
         >
-          <span
-            style={{
-              fontSize: 18,
-              fontWeight: 900,
-              letterSpacing: 0.3,
-            }}
-          >
+          <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: 0.3 }}>
             {String(bottomText || "").trim() || "--"}
           </span>
 
           {String(bottomUnit || "").trim() ? (
-            <span
-              style={{
-                fontSize: 14,
-                fontWeight: 800,
-                opacity: 0.95,
-              }}
-            >
+            <span style={{ fontSize: 14, fontWeight: 800, opacity: 0.95 }}>
               {String(bottomUnit).trim()}
             </span>
           ) : null}
@@ -156,7 +156,7 @@ export function VerticalTank({
   );
 }
 
-// ⭐ VERTICAL TANK ICON (Left menu) — unchanged
+// ⭐ VERTICAL TANK ICON (Left menu)
 export function VerticalTankIcon() {
   return (
     <svg width="30" height="70" viewBox="0 0 160 180">
