@@ -1,17 +1,19 @@
 import React from "react";
-
-/**
- * iOS-style toggle (final polish)
- * - ON/OFF text centered in color panel
- * - Thinner bezel
- * - Knob overlaps panel edge cleanly
- */
+import ToggleSwitchPropertiesModal from "../ToggleSwitchPropertiesModal";
 
 export default function ToggleSwitchControl({
   isOn = true,
   width = 180,
   height = 70,
+
+  // ✅ OPTIONAL (parent should pass these so modal can save)
+  // widget = the actual toggle switch widget object (same idea as "tank" object elsewhere)
+  widget = null,
+  // onSaveWidget(nextWidget) -> parent updates dashboard objects
+  onSaveWidget = null,
 }) {
+  const [openProps, setOpenProps] = React.useState(false);
+
   const safeW = Math.max(90, Number(width) || 180);
   const safeH = Math.max(40, Number(height) || 70);
 
@@ -26,9 +28,7 @@ export default function ToggleSwitchControl({
   const knobTop = trackPad - Math.round(safeH * 0.015);
 
   // ON = LEFT, OFF = RIGHT
-  const knobLeft = isOn
-    ? trackPad
-    : safeW - trackPad - knobSize;
+  const knobLeft = isOn ? trackPad : safeW - trackPad - knobSize;
 
   const bezelBg =
     "linear-gradient(180deg, #2B2B2B 0%, #0E0E0E 50%, #1C1C1C 100%)";
@@ -43,78 +43,100 @@ export default function ToggleSwitchControl({
     "linear-gradient(180deg, #3A3A3A 0%, #141414 60%, #2A2A2A 100%)";
 
   return (
-    <div
-      style={{
-        width: safeW,
-        height: safeH,
-        borderRadius: radius,
-        background: bezelBg,
-        padding: bezelPad,
-        boxShadow: "0 8px 18px rgba(0,0,0,0.45)",
-        position: "relative",
-        userSelect: "none",
-      }}
-    >
-      {/* Track */}
+    <>
       <div
+        onDoubleClick={(e) => {
+          e.preventDefault();
+          e.stopPropagation();
+          setOpenProps(true);
+        }}
+        title="Double-click to bind Digital Output (DO)"
         style={{
-          width: "100%",
-          height: "100%",
-          borderRadius: radius - 4,
-          background: trackBg,
+          width: safeW,
+          height: safeH,
+          borderRadius: radius,
+          background: bezelBg,
+          padding: bezelPad,
+          boxShadow: "0 8px 18px rgba(0,0,0,0.45)",
           position: "relative",
-          overflow: "hidden",
+          userSelect: "none",
+          cursor: "pointer",
         }}
       >
-        {/* Color panel */}
+        {/* Track */}
         <div
           style={{
-            position: "absolute",
-            inset: panelInset,
-            borderRadius: radius,
-            background: panelBg,
-            zIndex: 1,
-          }}
-        />
-
-        {/* ON / OFF text — perfectly centered in panel */}
-        <div
-          style={{
-            position: "absolute",
-            inset: panelInset,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontWeight: 800,
-            fontSize: Math.max(14, Math.round(safeH * 0.28)),
-            letterSpacing: 1,
-            color: "white",
-            textShadow: "0 2px 4px rgba(0,0,0,0.45)",
-            pointerEvents: "none",
-            zIndex: 2,
+            width: "100%",
+            height: "100%",
+            borderRadius: radius - 4,
+            background: trackBg,
+            position: "relative",
+            overflow: "hidden",
           }}
         >
-          {isOn ? "ON" : "OFF"}
-        </div>
+          {/* Color panel */}
+          <div
+            style={{
+              position: "absolute",
+              inset: panelInset,
+              borderRadius: radius,
+              background: panelBg,
+              zIndex: 1,
+            }}
+          />
 
-        {/* Knob */}
-        <div
-          style={{
-            position: "absolute",
-            top: knobTop,
-            left: knobLeft,
-            width: knobSize,
-            height: knobSize,
-            borderRadius: knobSize / 2,
-            background: knobBg,
-            boxShadow:
-              "0 6px 14px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.12)",
-            border: "2px solid rgba(0,0,0,0.5)",
-            transition: "left 180ms ease",
-            zIndex: 3,
-          }}
-        />
+          {/* ON / OFF text — perfectly centered in panel */}
+          <div
+            style={{
+              position: "absolute",
+              inset: panelInset,
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              fontWeight: 800,
+              fontSize: Math.max(14, Math.round(safeH * 0.28)),
+              letterSpacing: 1,
+              color: "white",
+              textShadow: "0 2px 4px rgba(0,0,0,0.45)",
+              pointerEvents: "none",
+              zIndex: 2,
+            }}
+          >
+            {isOn ? "ON" : "OFF"}
+          </div>
+
+          {/* Knob */}
+          <div
+            style={{
+              position: "absolute",
+              top: knobTop,
+              left: knobLeft,
+              width: knobSize,
+              height: knobSize,
+              borderRadius: knobSize / 2,
+              background: knobBg,
+              boxShadow:
+                "0 6px 14px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.12)",
+              border: "2px solid rgba(0,0,0,0.5)",
+              transition: "left 180ms ease",
+              zIndex: 3,
+            }}
+          />
+        </div>
       </div>
-    </div>
+
+      {/* ✅ Properties Modal (device list + DO dropdown) */}
+      <ToggleSwitchPropertiesModal
+        open={openProps}
+        toggleSwitch={widget}
+        onClose={() => setOpenProps(false)}
+        onSave={(nextWidget) => {
+          // ✅ only call if parent provided handler
+          if (typeof onSaveWidget === "function") {
+            onSaveWidget(nextWidget);
+          }
+        }}
+      />
+    </>
   );
 }

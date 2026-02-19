@@ -3,6 +3,12 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "re
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 
+// ✅ extracted telemetry (polling + read AI + online status)
+import useHorizontalTankPropertiesModalTelemetric from "./HorizontalTankPropertiesModalTelemetric";
+
+// ✅ extracted unit options
+import { HorizontalTankPropertiesModalUnitOptions } from "./HorizontalTankPropertiesModalUnitOptions";
+
 const MODEL_META = {
   zhc1921: { label: "CF-2000", base: "zhc1921" },
   zhc1661: { label: "CF-1600", base: "zhc1661" },
@@ -106,25 +112,70 @@ function computeCenteredPos({ panelW = 1240, estH = 640 } = {}) {
   return { left, top };
 }
 
+// ✅ same evaluator as Silo/Standard
+function computeMathOutput(liveValue, formula) {
+  const f = String(formula || "").trim();
+  if (!f) return liveValue;
+
+  const VALUE = liveValue;
+
+  const upper = f.toUpperCase();
+  if (upper.startsWith("CONCAT(") && f.endsWith(")")) {
+    const inner = f.slice(7, -1);
+    const parts = [];
+    let cur = "";
+    let inQ = false;
+
+    for (let i = 0; i < inner.length; i++) {
+      const ch = inner[i];
+      if (ch === '"' && inner[i - 1] !== "\\") inQ = !inQ;
+
+      if (ch === "," && !inQ) {
+        parts.push(cur.trim());
+        cur = "";
+      } else {
+        cur += ch;
+      }
+    }
+    if (cur.trim()) parts.push(cur.trim());
+
+    return parts
+      .map((p) => {
+        if (!p) return "";
+        if (p === "VALUE" || p === "value") return VALUE ?? "";
+        if (p.startsWith('"') && p.endsWith('"')) return p.slice(1, -1);
+
+        try {
+          const expr = p.replace(/\bVALUE\b/gi, "VALUE");
+          // eslint-disable-next-line no-new-func
+          const fn = new Function("VALUE", `return (${expr});`);
+          const r = fn(VALUE);
+          return r ?? "";
+        } catch {
+          return "";
+        }
+      })
+      .join("");
+  }
+
+  try {
+    const expr = f.replace(/\bVALUE\b/gi, "VALUE");
+    // eslint-disable-next-line no-new-func
+    const fn = new Function("VALUE", `return (${expr});`);
+    return fn(VALUE);
+  } catch {
+    return liveValue;
+  }
+}
+
 /**
- * ✅ SAME STYLE AS SiloPropertiesModal.jsx
- * - Left: Math Helper
- * - Middle: Math + Capacity & Color
- * - Right: Tag that drives the Trend (AI) + Device Search
+ * Horizontal Tank Properties (same behavior as Silo/Standard)
  *
- * IMPORTANT FOR RUNTIME:
+ * IMPORTANT:
  * DraggableHorizontalTank reads:
  *  - props.density  (math/formula)
  *  - props.bindModel, props.bindDeviceId, props.bindField
- *  - props.maxCapacity, props.materialColor, props.name
- *
- * So this modal must SAVE the math into `density` (not `math`).
- *
- * Props:
- *  - open (bool)
- *  - tank (the horizontal tank widget object)
- *  - onSave(updatedTank)
- *  - onClose()
+ *  - props.maxCapacity, props.materialColor, props.name, props.unit
  */
 export default function HorizontalTankPropertiesModal({ open = true, tank, onSave, onClose }) {
   if (!open || !tank) return null;
@@ -182,27 +233,20 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
   );
 
   // -------------------------
-  // ✅ MIDDLE: “Math” card
+  // ✅ MIDDLE: state (match Standard/Silo)
   // -------------------------
   const [name, setName] = useState(props.name ?? "");
+  const [unit, setUnit] = useState(props.unit ?? "");
 
   // ✅ IMPORTANT: use density as the saved formula key (matches DraggableHorizontalTank)
   const [density, setDensity] = useState(
     props.density === undefined || props.density === null ? "" : String(props.density)
   );
 
-  // ✅ Capacity + Material Color
   const [maxCapacity, setMaxCapacity] = useState(
     props.maxCapacity === undefined || props.maxCapacity === null ? "" : Number(props.maxCapacity)
   );
   const [materialColor, setMaterialColor] = useState(props.materialColor || "#00ff00");
-
-  // UI-only preview
-  const [liveValue] = useState(0);
-  const outputValue = useMemo(() => {
-    const v = Number(density);
-    return Number.isFinite(v) ? v : 0;
-  }, [density]);
 
   // -------------------------
   // ✅ RIGHT: device binding with SEARCH
@@ -215,6 +259,30 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
   const [deviceQuery, setDeviceQuery] = useState("");
   const [devicesLoading, setDevicesLoading] = useState(false);
 
+  // ✅ extracted telemetry hook (polling + AI read + ONLINE status)
+  const { liveValue, deviceIsOnline } = useHorizontalTankPropertiesModalTelemetric({
+    open,
+    bindModel,
+    bindDeviceId,
+    bindField,
+    pollMs: 3000,
+  });
+
+  // ✅ Output preview (same logic as Standard/Silo)
+  const outputValue = useMemo(() => {
+    const lv = Number(liveValue);
+    const safeLive = Number.isFinite(lv) ? lv : null;
+
+    const out = computeMathOutput(safeLive, density);
+
+    if (out === null || out === undefined || out === "") return safeLive ?? 0;
+    if (typeof out === "number") return out;
+
+    const n = Number(out);
+    return Number.isFinite(n) ? n : out;
+  }, [density, liveValue]);
+
+  // Load device list once when open/model changes
   useEffect(() => {
     if (!open) return;
 
@@ -248,14 +316,9 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     return devices.filter((d) => String(d.deviceId || "").toLowerCase().includes(q));
   }, [devices, deviceQuery]);
 
-  const selectedDevice = useMemo(() => {
-    const hit = devices.find((d) => String(d.deviceId) === String(bindDeviceId));
-    return hit || null;
-  }, [devices, bindDeviceId]);
-
-  // ✅ allow Apply even if user wants "manual" / no binding (optional)
-  // But if you prefer to require binding, flip this back.
-  const canApply = useMemo(() => true, []);
+  const canApply = useMemo(() => {
+    return !!String(bindDeviceId || "").trim() && !!String(bindField || "").trim();
+  }, [bindDeviceId, bindField]);
 
   // -------------------------
   // ✅ DRAG STATE (NO FLASH)
@@ -269,7 +332,6 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     startTop: 0,
   });
 
-  // ✅ start centered on FIRST render (prevents corner flash)
   const [pos, setPos] = useState(() => {
     if (typeof window === "undefined") return { left: 12, top: 12 };
     return computeCenteredPos({ panelW: PANEL_W, estH: 640 });
@@ -277,7 +339,6 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
 
   const [isDragging, setIsDragging] = useState(false);
 
-  // ✅ center BEFORE paint each time it opens (professional, no jump)
   useLayoutEffect(() => {
     if (!open) return;
     setPos(computeCenteredPos({ panelW: PANEL_W, estH: 640 }));
@@ -289,11 +350,11 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     const p = tank?.properties || {};
 
     setName(p.name ?? "");
+    setUnit(p.unit ?? "");
+
     setDensity(p.density === undefined || p.density === null ? "" : String(p.density));
 
-    setMaxCapacity(
-      p.maxCapacity === undefined || p.maxCapacity === null ? "" : Number(p.maxCapacity)
-    );
+    setMaxCapacity(p.maxCapacity === undefined || p.maxCapacity === null ? "" : Number(p.maxCapacity));
     setMaterialColor(p.materialColor || "#00ff00");
 
     setBindModel(p.bindModel ?? "zhc1921");
@@ -403,7 +464,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
         }}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* HEADER BAR (DRAG HANDLE) */}
+        {/* HEADER BAR */}
         <div
           onMouseDown={startDrag}
           style={{
@@ -478,6 +539,17 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
                 />
               </div>
 
+              <div style={{ display: "grid", gap: 6 }}>
+                <div style={labelStyle}>Units</div>
+                <select value={unit} onChange={(e) => setUnit(e.target.value)} style={fieldSelectStyle}>
+                  {HorizontalTankPropertiesModalUnitOptions.map((u) => (
+                    <option key={u.key} value={u.key}>
+                      {u.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+
               <div
                 style={{
                   display: "grid",
@@ -505,7 +577,9 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
                       color: "#0b3b18",
                     }}
                   >
-                    {Number.isFinite(liveValue) ? liveValue.toFixed(2) : "--"}
+                    {Number.isFinite(Number(liveValue))
+                      ? `${Number(liveValue).toFixed(2)}${unit ? ` ${unit}` : ""}`
+                      : "--"}
                   </div>
                 </div>
 
@@ -528,7 +602,9 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
                       color: "#111827",
                     }}
                   >
-                    {Number.isFinite(Number(outputValue)) ? Number(outputValue).toFixed(2) : "0.00"}
+                    {typeof outputValue === "number"
+                      ? `${Number(outputValue).toFixed(2)}${unit ? ` ${unit}` : ""}`
+                      : String(outputValue ?? "--")}
                   </div>
                 </div>
               </div>
@@ -619,11 +695,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
 
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Model</div>
-                <select
-                  value={bindModel}
-                  onChange={(e) => setBindModel(e.target.value)}
-                  style={fieldSelectStyle}
-                >
+                <select value={bindModel} onChange={(e) => setBindModel(e.target.value)} style={fieldSelectStyle}>
                   {Object.entries(MODEL_META).map(([k, v]) => (
                     <option key={k} value={k}>
                       {v.label}
@@ -644,11 +716,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
 
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Device</div>
-                <select
-                  value={bindDeviceId}
-                  onChange={(e) => setBindDeviceId(e.target.value)}
-                  style={fieldSelectStyle}
-                >
+                <select value={bindDeviceId} onChange={(e) => setBindDeviceId(e.target.value)} style={fieldSelectStyle}>
                   <option value="">{devicesLoading ? "Loading..." : "Select device..."}</option>
                   {filteredDevices.map((d) => (
                     <option key={d.deviceId} value={d.deviceId}>
@@ -660,11 +728,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
 
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Analog Input (AI)</div>
-                <select
-                  value={bindField}
-                  onChange={(e) => setBindField(e.target.value)}
-                  style={fieldSelectStyle}
-                >
+                <select value={bindField} onChange={(e) => setBindField(e.target.value)} style={fieldSelectStyle}>
                   <option value="ai1">AI-1</option>
                   <option value="ai2">AI-2</option>
                   <option value="ai3">AI-3</option>
@@ -688,12 +752,15 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
                 <div style={previewTitleStyle}>Binding Preview</div>
 
                 <div style={previewTextStyle}>
-                  Selected: <span style={{ fontFamily: "monospace" }}>{bindDeviceId || "--"}</span>{" "}
-                  ·{" "}
-                  {String(selectedDevice?.status || "").toLowerCase() === "online" ? (
-                    <span style={{ color: "#16a34a" }}>ONLINE</span>
+                  Selected: <span style={{ fontFamily: "monospace" }}>{bindDeviceId || "--"}</span> ·{" "}
+                  {bindDeviceId ? (
+                    deviceIsOnline ? (
+                      <span style={{ color: "#16a34a" }}>ONLINE</span>
+                    ) : (
+                      <span style={{ color: "#dc2626" }}>OFFLINE</span>
+                    )
                   ) : (
-                    <span style={{ color: "#dc2626" }}>OFFLINE</span>
+                    <span style={{ color: "#64748b" }}>—</span>
                   )}
                 </div>
 
@@ -716,7 +783,9 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
                       color: "#0b3b18",
                     }}
                   >
-                    {Number.isFinite(liveValue) ? liveValue.toFixed(2) : "--"}
+                    {Number.isFinite(Number(liveValue))
+                      ? `${Number(liveValue).toFixed(2)}${unit ? ` ${unit}` : ""}`
+                      : "--"}
                   </div>
                 </div>
               </div>
@@ -742,6 +811,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
                     const nextProps = {
                       ...(tank?.properties || {}),
                       name: String(name || "").trim(),
+                      unit: String(unit || "").trim(),
 
                       // ✅ IMPORTANT: Save the formula to density (DraggableHorizontalTank reads density)
                       density: String(density || "").trim(),

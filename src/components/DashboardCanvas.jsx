@@ -18,6 +18,7 @@ import { StandardTank, HorizontalTank, VerticalTank } from "./ProTankIcon";
 import DraggableVerticalTank from "./DraggableVerticalTank";
 import DraggableSiloTank from "./DraggableSiloTank";
 import DraggableStandardTank from "./DraggableStandardTank";
+import DraggableHorizontalTank from "./DraggableHorizontalTank";
 import {DraggableLedCircle,DraggableStatusTextBox,DraggableBlinkingAlarm,DraggableStateImage,DraggableCounterInput,} from "./indicators";
 
 function getAuthHeaders() {
@@ -502,21 +503,27 @@ export default function DashboardCanvas({
 }
 
 
-            if (tank.shape === "horizontalTank") {
-              return (
-                <DraggableDroppedTank
-                  {...commonProps}
-                  onDoubleClick={() => {
-                    if (!isPlay) {
-                      setActiveHorizontalTankId?.(tank.id);
-                      setShowHorizontalTankProps?.(true);
-                    }
-                  }}
-                >
-                  <HorizontalTank level={tank.level ?? 0} />
-                </DraggableDroppedTank>
-              );
-            }
+          if (tank.shape === "horizontalTank") {
+  return (
+    <DraggableDroppedTank
+      {...commonProps}
+      onDoubleClick={() => {
+        if (!isPlay) {
+          setActiveHorizontalTankId?.(tank.id);
+          setShowHorizontalTankProps?.(true);
+        }
+      }}
+    >
+      <div className="flex flex-col items-center">
+        <DraggableHorizontalTank
+          tank={tank}
+          onChange={(nextTank) => commonProps.onUpdate?.(nextTank)}
+        />
+      </div>
+    </DraggableDroppedTank>
+  );
+}
+
 
 if (tank.shape === "verticalTank") {
   return (

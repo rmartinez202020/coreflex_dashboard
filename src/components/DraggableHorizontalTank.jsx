@@ -183,7 +183,27 @@ function ensureAlpha(color) {
   return c;
 }
 
-export default function DraggableHorizontalTank({ tank, onUpdate }) {
+function toNumberOrNull(v) {
+  if (v === null || v === undefined || v === "") return null;
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function formatOutputNoTrailingZeros(v, digits = 2) {
+  if (v === null || v === undefined || v === "") return "--";
+  if (typeof v === "string") return String(v);
+
+  const n = typeof v === "number" ? v : Number(v);
+  if (!Number.isFinite(n)) return String(v);
+
+  const d = Math.max(0, Number(digits) || 0);
+  let s = n.toFixed(d);
+  if (d > 0) s = s.replace(/\.?0+$/, "");
+  return s;
+}
+
+export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
   const props = tank?.properties || {};
   const scale = tank?.scale || 1;
 
@@ -192,6 +212,9 @@ export default function DraggableHorizontalTank({ tank, onUpdate }) {
 
   // Saved from modal
   const title = String(props.name || props.title || "").trim();
+
+  // ✅ unit saved by HorizontalTankPropertiesModal (we will add this to modal next)
+  const unit = String(props.unit || "").trim();
 
   const maxCapacityRaw = props.maxCapacity;
   const maxCapacity =
@@ -214,7 +237,7 @@ export default function DraggableHorizontalTank({ tank, onUpdate }) {
   const [liveValue, setLiveValue] = useState(null);
   const [outputValue, setOutputValue] = useState(null);
 
-  // ✅ Poll every 2s
+  // ✅ Poll every 2s (same as Silo/Standard)
   useEffect(() => {
     if (!hasBinding) {
       setLiveValue(null);
@@ -266,109 +289,128 @@ export default function DraggableHorizontalTank({ tank, onUpdate }) {
 
   // Numeric output used for % + numeric label
   const numericOut = useMemo(() => {
-    if (outputValue === null || outputValue === undefined || outputValue === "") return null;
-    if (typeof outputValue === "string") {
-      const n = Number(outputValue);
-      return Number.isFinite(n) ? n : null;
-    }
-    const n = Number(outputValue);
-    return Number.isFinite(n) ? n : null;
+    return toNumberOrNull(outputValue);
   }, [outputValue]);
 
   // Level % logic
   const levelPercent = useMemo(() => {
-    if (!Number.isFinite(numericOut)) return 0;
+    if (!Number.isFinite(Number(numericOut))) return 0;
 
     // if capacity set => output is amount (0..capacity)
     if (Number.isFinite(maxCapacity) && maxCapacity > 0) {
-      return clamp((numericOut / maxCapacity) * 100, 0, 100);
+      return clamp((Number(numericOut) / maxCapacity) * 100, 0, 100);
     }
 
     // else assume output already is % (0..100)
-    return clamp(numericOut, 0, 100);
+    return clamp(Number(numericOut), 0, 100);
   }, [numericOut, maxCapacity]);
 
   // Text inside tank: show percent
   const percentText = `${Math.round(levelPercent)}%`;
 
-  // Bottom number under tank (output)
+  // Bottom number under tank (output) — same style as others
   const bottomValueText = useMemo(() => {
-    if (outputValue === null || outputValue === undefined || outputValue === "") return "--";
-    if (typeof outputValue === "string") return outputValue;
-    const n = Number(outputValue);
-    if (!Number.isFinite(n)) return String(outputValue);
-    return n.toFixed(2);
+    // If CONCAT outputs a string, show it as-is
+    if (typeof outputValue === "string") return String(outputValue || "").trim() || "--";
+
+    // If numeric => remove trailing .00 like Silo/Standard patterns you wanted
+    return formatOutputNoTrailingZeros(outputValue, 2);
   }, [outputValue]);
+
+  // ✅ container sizing (so it stays centered inside selection box)
+  const w = (tank?.w || tank?.width || 220) * scale;
+  const h = (tank?.h || tank?.height || 120) * scale;
 
   return (
     <>
-      {/* ✅ Double-click handle wrapper (must allow pointer events) */}
+      {/* ✅ DOUBLE CLICK OPENS MODAL (same pattern as DraggableStandardTank) */}
       <div
         onDoubleClick={(e) => {
           e.stopPropagation();
           setOpenProps(true);
         }}
         style={{
-          display: "inline-block",
-          cursor: "pointer",
+          width: w,
+          height: h + 44 * scale,
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "flex-start",
           pointerEvents: "auto",
+          cursor: "default",
           userSelect: "none",
         }}
         title="Double-click to edit"
       >
-        {/* existing render stays the same */}
-        <div style={{ textAlign: "center", pointerEvents: "none" }}>
-          {title ? (
-            <div
-              style={{
-                marginBottom: 6,
-                fontSize: `${14 * scale}px`,
-                fontWeight: 600,
-                color: "#0f172a",
-                lineHeight: 1.1,
-                pointerEvents: "none",
-              }}
-            >
-              {title}
-            </div>
-          ) : null}
-
+        {title ? (
           <div
             style={{
-              width: `${200 * scale}px`,
-              height: `${110 * scale}px`,
-              margin: "0 auto",
+              marginBottom: 6 * scale,
+              fontSize: 12 * scale,
+              fontWeight: 600,
+              color: "#111827",
+              lineHeight: 1.1,
+              textAlign: "center",
+              maxWidth: "100%",
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
               pointerEvents: "none",
             }}
           >
+            {title}
+          </div>
+        ) : null}
+
+        {/* Tank icon */}
+        <div
+          style={{
+            width: w,
+            height: h,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            pointerEvents: "none",
+          }}
+        >
+          <div style={{ width: "100%", height: "100%" }}>
             <HorizontalTank
               level={levelPercent}
               fillColor={materialColor}
               alarm={false}
               showPercentText={true}
               percentText={percentText}
+              percentTextColor="#111827"
+              // ✅ MATCH SILO/Standard behavior: bottom label rendered by icon component
+              showBottomText={true}
+              bottomText={bottomValueText}
+              bottomUnit={unit}
+              bottomTextColor="#111827"
             />
           </div>
+        </div>
 
-          <div
-            style={{
-              marginTop: 6,
-              fontFamily: "monospace",
-              fontSize: `${14 * scale}px`,
-              fontWeight: 700,
-              color: "#111827",
-              pointerEvents: "none",
-            }}
-            title={
-              typeof outputValue === "string"
-                ? outputValue
-                : Number.isFinite(Number(outputValue))
-                ? `OUT=${String(outputValue)}  LIVE=${Number.isFinite(liveValue) ? liveValue : "--"}`
-                : ""
-            }
-          >
-            {bottomValueText}
-          </div>
+        {/* OPTIONAL: keep hidden external output (we now show it inside bottom label) */}
+        <div
+          style={{
+            marginTop: 6 * scale,
+            fontFamily: "monospace",
+            fontSize: `${14 * scale}px`,
+            fontWeight: 700,
+            color: "#111827",
+            pointerEvents: "none",
+            display: "none",
+          }}
+          title={
+            typeof outputValue === "string"
+              ? outputValue
+              : Number.isFinite(Number(outputValue))
+              ? `OUT=${String(outputValue)}  LIVE=${Number.isFinite(liveValue) ? liveValue : "--"}`
+              : ""
+          }
+        >
+          {bottomValueText}
+          {unit ? ` ${unit}` : ""}
         </div>
       </div>
 
@@ -378,8 +420,9 @@ export default function DraggableHorizontalTank({ tank, onUpdate }) {
         tank={tank}
         onClose={() => setOpenProps(false)}
         onSave={(updatedTank) => {
-          // support either pattern: a parent callback OR mutate via global editor
-          onUpdate?.(updatedTank);
+          // support both callbacks
+          if (typeof onUpdate === "function") onUpdate(updatedTank);
+          if (typeof onChange === "function") onChange(updatedTank);
           setOpenProps(false);
         }}
       />
