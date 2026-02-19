@@ -18,7 +18,7 @@ export function StandardTank({
   percentText = "",
   percentTextColor = "#111827",
 
-  // ✅ NEW (match ProTankIconSilo behavior)
+  // ✅ bottom output (match ProTankIconSilo behavior)
   showBottomText = false,
   bottomText = "",
   bottomUnit = "",
@@ -28,12 +28,25 @@ export function StandardTank({
 
   const clampedLevel = Math.max(0, Math.min(100, Number(level) || 0));
 
-  // interior bounds (roughly between top ellipse and bottom curve)
-  const topY = 30;
-  const bottomY = 160;
+  // -------------------------
+  // ✅ CENTERED GEOMETRY
+  // -------------------------
+  // We keep the same "tank size" as before, but center it inside the 160-wide viewBox.
+  const TANK_W = 90;
+  const X0 = (160 - TANK_W) / 2; // 35
+  const X1 = X0 + TANK_W; // 125
+  const CX = (X0 + X1) / 2; // 80 (dead center)
 
-  const filledHeight = (bottomY - topY) * (clampedLevel / 100);
-  const fillY = bottomY - filledHeight;
+  // Top ellipse stays at y=30
+  const topY = 30;
+
+  // IMPORTANT:
+  // Your clip-path goes down to y=175 (rounded bottom), so the fill must also compute to that.
+  const clipBottomY = 175;
+
+  // Fill math should run from topY -> clipBottomY so it really fills from the bottom.
+  const filledHeight = (clipBottomY - topY) * (clampedLevel / 100);
+  const fillY = clipBottomY - filledHeight;
 
   const effectiveFill = alarm ? "#ff4d4d88" : fillColor;
 
@@ -43,43 +56,43 @@ export function StandardTank({
     <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center" }}>
       <svg viewBox="0 0 160 180" preserveAspectRatio="xMidYMid meet" style={svgStyle}>
         <defs>
-          {/* Clip to the inside of the tank body */}
+          {/* Clip to the inside of the tank body (CENTERED) */}
           <clipPath id={clipId}>
-            <path d="M 15 30 L 15 160 C 15 175, 105 175, 105 160 L 105 30 Z" />
+            <path d={`M ${X0} ${topY} L ${X0} 160 C ${X0} 175, ${X1} 175, ${X1} 160 L ${X1} ${topY} Z`} />
           </clipPath>
         </defs>
 
-        {/* liquid fill */}
+        {/* liquid fill (now reaches the true bottom curve) */}
         <rect
-          x="15"
+          x={X0}
           y={fillY}
-          width="90"
+          width={TANK_W}
           height={filledHeight}
           fill={effectiveFill}
           clipPath={`url(#${clipId})`}
         />
 
         {/* tank outline */}
-        <ellipse cx="60" cy="30" rx="45" ry="15" fill="none" stroke="#555" strokeWidth="2" />
-        <line x1="15" y1="30" x2="15" y2="160" stroke="#555" strokeWidth="2" />
-        <line x1="105" y1="30" x2="105" y2="160" stroke="#555" strokeWidth="2" />
+        <ellipse cx={CX} cy={topY} rx="45" ry="15" fill="none" stroke="#555" strokeWidth="2" />
+        <line x1={X0} y1={topY} x2={X0} y2="160" stroke="#555" strokeWidth="2" />
+        <line x1={X1} y1={topY} x2={X1} y2="160" stroke="#555" strokeWidth="2" />
 
         {/* bottom curve */}
-        <path d="M 15 160 C 15 175, 105 175, 105 160" fill="none" stroke="#555" strokeWidth="2" />
+        <path d={`M ${X0} 160 C ${X0} 175, ${X1} 175, ${X1} 160`} fill="none" stroke="#555" strokeWidth="2" />
 
         {/* dashed interior hint line */}
         <path
-          d="M 105 160 C 105 145, 15 145, 15 160"
+          d={`M ${X1} 160 C ${X1} 145, ${X0} 145, ${X0} 160`}
           fill="none"
           stroke="#555"
           strokeWidth="2"
           strokeDasharray="5 5"
         />
 
-        {/* ✅ percent text inside */}
+        {/* percent text inside */}
         {showPercentText ? (
           <text
-            x="60"
+            x={CX}
             y="95"
             textAnchor="middle"
             dominantBaseline="middle"
@@ -94,7 +107,7 @@ export function StandardTank({
         ) : null}
       </svg>
 
-      {/* 🔥 Bottom label (same as ProTankIconSilo) */}
+      {/* Bottom label (same as ProTankIconSilo) */}
       {shouldShowBottom ? (
         <div
           style={{
@@ -112,7 +125,6 @@ export function StandardTank({
             gap: 8,
           }}
         >
-          {/* Bigger number */}
           <span
             style={{
               fontSize: 18,
@@ -123,7 +135,6 @@ export function StandardTank({
             {String(bottomText || "").trim() || "--"}
           </span>
 
-          {/* Bigger unit */}
           {String(bottomUnit || "").trim() ? (
             <span
               style={{
@@ -143,14 +154,21 @@ export function StandardTank({
 
 // ⭐ STANDARD TANK ICON (Left menu)
 export function StandardTankIcon() {
+  // Keep icon simple; centering not critical here, but we can keep consistent.
+  const TANK_W = 90;
+  const X0 = (160 - TANK_W) / 2;
+  const X1 = X0 + TANK_W;
+  const CX = (X0 + X1) / 2;
+  const topY = 30;
+
   return (
     <svg width="40" height="40" viewBox="0 0 160 180">
-      <ellipse cx="60" cy="30" rx="45" ry="15" fill="none" stroke="#ffffff" strokeWidth="2" />
-      <line x1="15" y1="30" x2="15" y2="160" stroke="#ffffff" strokeWidth="2" />
-      <line x1="105" y1="30" x2="105" y2="160" stroke="#ffffff" strokeWidth="2" />
-      <path d="M 15 160 C 15 175, 105 175, 105 160" fill="none" stroke="#ffffff" strokeWidth="2" />
+      <ellipse cx={CX} cy={topY} rx="45" ry="15" fill="none" stroke="#ffffff" strokeWidth="2" />
+      <line x1={X0} y1={topY} x2={X0} y2="160" stroke="#ffffff" strokeWidth="2" />
+      <line x1={X1} y1={topY} x2={X1} y2="160" stroke="#ffffff" strokeWidth="2" />
+      <path d={`M ${X0} 160 C ${X0} 175, ${X1} 175, ${X1} 160`} fill="none" stroke="#ffffff" strokeWidth="2" />
       <path
-        d="M 105 160 C 105 145, 15 145, 15 160"
+        d={`M ${X1} 160 C ${X1} 145, ${X0} 145, ${X0} 160`}
         fill="none"
         stroke="#ffffff"
         strokeWidth="2"
