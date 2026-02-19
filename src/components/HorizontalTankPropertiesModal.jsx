@@ -319,7 +319,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
   }, [bindDeviceId, bindField]);
 
   // -------------------------
-  // ✅ DRAG STATE (MATCH SILO)
+  // ✅ DRAG STATE + ✅ BLOCK DND-KIT
   // -------------------------
   const PANEL_W = 1240;
   const dragRef = useRef({
@@ -336,6 +336,13 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
   });
 
   const [isDragging, setIsDragging] = useState(false);
+
+  // ✅ key: dnd-kit uses document listeners; it will NOT activate if defaultPrevented === true
+  const blockDndKitPointerDownCapture = (e) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (e.nativeEvent?.stopImmediatePropagation) e.nativeEvent.stopImmediatePropagation();
+  };
 
   useLayoutEffect(() => {
     if (!open) return;
@@ -386,19 +393,22 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
   const endDrag = () => {
     dragRef.current.dragging = false;
     setIsDragging(false);
-    window.removeEventListener("mousemove", onDragMove);
-    window.removeEventListener("mouseup", endDrag);
+    window.removeEventListener("pointermove", onDragMove);
+    window.removeEventListener("pointerup", endDrag);
   };
 
-  // ✅ FIX: stop propagation + capture start position AFTER we stop bubbling
+  // ✅ pointer-based drag; blocks dnd-kit and prevents tank moving while modal drags
   const startDrag = (e) => {
-    if (e.button !== 0) return;
+    // left-click only (mouse), allow touch (no button)
+    if (e.button !== undefined && e.button !== 0) return;
 
     const t = e.target;
     if (t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")) return;
 
+    // ✅ critical: stop dnd-kit activation
     e.preventDefault();
-    e.stopPropagation(); // ✅ important: prevent canvas/draggable from also processing this mouse down
+    e.stopPropagation();
+    if (e.nativeEvent?.stopImmediatePropagation) e.nativeEvent.stopImmediatePropagation();
 
     dragRef.current.dragging = true;
     setIsDragging(true);
@@ -407,14 +417,14 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     dragRef.current.startLeft = pos.left;
     dragRef.current.startTop = pos.top;
 
-    window.addEventListener("mousemove", onDragMove);
-    window.addEventListener("mouseup", endDrag);
+    window.addEventListener("pointermove", onDragMove, { passive: false });
+    window.addEventListener("pointerup", endDrag, { passive: false });
   };
 
   useEffect(() => {
     return () => {
-      window.removeEventListener("mousemove", onDragMove);
-      window.removeEventListener("mouseup", endDrag);
+      window.removeEventListener("pointermove", onDragMove);
+      window.removeEventListener("pointerup", endDrag);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -441,10 +451,8 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
 
   return (
     <div
-      onMouseDown={(e) => {
-        // ✅ clicking the overlay should not start dragging the canvas behind it
-        e.stopPropagation();
-      }}
+      // ✅ capture-phase block so dnd-kit can't start dragging the tank behind
+      onPointerDownCapture={blockDndKitPointerDownCapture}
       style={{
         position: "fixed",
         inset: 0,
@@ -452,10 +460,9 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
         zIndex: 999999,
       }}
     >
-      {/* ✅ clicking outside panel closes (matches "others") */}
+      {/* ✅ clicking outside panel closes */}
       <div
-        onMouseDown={(e) => {
-          // only close when you click on the dark overlay itself
+        onPointerDown={(e) => {
           if (e.target === e.currentTarget) onClose?.();
         }}
         style={{
@@ -465,6 +472,8 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
       />
 
       <div
+        // ✅ also block on the panel itself
+        onPointerDownCapture={blockDndKitPointerDownCapture}
         style={{
           position: "fixed",
           left: pos.left,
@@ -476,11 +485,10 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
           boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
           overflow: "hidden",
         }}
-        onMouseDown={(e) => e.stopPropagation()}
       >
         {/* HEADER BAR (DRAG HANDLE) */}
         <div
-          onMouseDown={startDrag}
+          onPointerDown={startDrag}
           style={{
             padding: "14px 18px",
             borderBottom: "1px solid #e5e7eb",
@@ -494,6 +502,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
             color: "#fff",
             cursor: isDragging ? "grabbing" : "grab",
             userSelect: "none",
+            touchAction: "none",
           }}
           title="Drag to move"
         >
