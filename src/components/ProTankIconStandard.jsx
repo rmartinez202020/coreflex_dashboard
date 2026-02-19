@@ -31,21 +31,26 @@ export function StandardTank({
   // -------------------------
   // ✅ CENTERED GEOMETRY
   // -------------------------
-  // We keep the same "tank size" as before, but center it inside the 160-wide viewBox.
   const TANK_W = 90;
   const X0 = (160 - TANK_W) / 2; // 35
   const X1 = X0 + TANK_W; // 125
-  const CX = (X0 + X1) / 2; // 80 (dead center)
+  const CX = (X0 + X1) / 2; // 80
 
-  // Top ellipse stays at y=30
-  const topY = 30;
+  // Tank top ellipse geometry
+  const topEllipseCY = 30;
+  const topEllipseRX = 45;
+  const topEllipseRY = 15;
 
-  // IMPORTANT:
-  // Your clip-path goes down to y=175 (rounded bottom), so the fill must also compute to that.
+  // ✅ This is the REAL top-most inside point of the tank
+  // (so 100% fill reaches the top dome)
+  const topFillY = topEllipseCY - topEllipseRY; // 15
+
+  // Bottom of the rounded shape
+  const bodyBottomY = 160;
   const clipBottomY = 175;
 
-  // Fill math should run from topY -> clipBottomY so it really fills from the bottom.
-  const filledHeight = (clipBottomY - topY) * (clampedLevel / 100);
+  // ✅ Fill uses full inside height (topFillY -> clipBottomY)
+  const filledHeight = (clipBottomY - topFillY) * (clampedLevel / 100);
   const fillY = clipBottomY - filledHeight;
 
   const effectiveFill = alarm ? "#ff4d4d88" : fillColor;
@@ -56,13 +61,21 @@ export function StandardTank({
     <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center" }}>
       <svg viewBox="0 0 160 180" preserveAspectRatio="xMidYMid meet" style={svgStyle}>
         <defs>
-          {/* Clip to the inside of the tank body (CENTERED) */}
+          {/* ✅ Clip includes TOP DOME so 100% fill covers everything */}
           <clipPath id={clipId}>
-            <path d={`M ${X0} ${topY} L ${X0} 160 C ${X0} 175, ${X1} 175, ${X1} 160 L ${X1} ${topY} Z`} />
+            <path
+              d={`
+                M ${X0} ${topEllipseCY}
+                A ${topEllipseRX} ${topEllipseRY} 0 0 1 ${X1} ${topEllipseCY}
+                L ${X1} ${bodyBottomY}
+                C ${X1} ${clipBottomY}, ${X0} ${clipBottomY}, ${X0} ${bodyBottomY}
+                Z
+              `}
+            />
           </clipPath>
         </defs>
 
-        {/* liquid fill (now reaches the true bottom curve) */}
+        {/* liquid fill */}
         <rect
           x={X0}
           y={fillY}
@@ -73,16 +86,29 @@ export function StandardTank({
         />
 
         {/* tank outline */}
-        <ellipse cx={CX} cy={topY} rx="45" ry="15" fill="none" stroke="#555" strokeWidth="2" />
-        <line x1={X0} y1={topY} x2={X0} y2="160" stroke="#555" strokeWidth="2" />
-        <line x1={X1} y1={topY} x2={X1} y2="160" stroke="#555" strokeWidth="2" />
+        <ellipse
+          cx={CX}
+          cy={topEllipseCY}
+          rx={topEllipseRX}
+          ry={topEllipseRY}
+          fill="none"
+          stroke="#555"
+          strokeWidth="2"
+        />
+        <line x1={X0} y1={topEllipseCY} x2={X0} y2={bodyBottomY} stroke="#555" strokeWidth="2" />
+        <line x1={X1} y1={topEllipseCY} x2={X1} y2={bodyBottomY} stroke="#555" strokeWidth="2" />
 
         {/* bottom curve */}
-        <path d={`M ${X0} 160 C ${X0} 175, ${X1} 175, ${X1} 160`} fill="none" stroke="#555" strokeWidth="2" />
+        <path
+          d={`M ${X0} ${bodyBottomY} C ${X0} ${clipBottomY}, ${X1} ${clipBottomY}, ${X1} ${bodyBottomY}`}
+          fill="none"
+          stroke="#555"
+          strokeWidth="2"
+        />
 
         {/* dashed interior hint line */}
         <path
-          d={`M ${X1} 160 C ${X1} 145, ${X0} 145, ${X0} 160`}
+          d={`M ${X1} ${bodyBottomY} C ${X1} 145, ${X0} 145, ${X0} ${bodyBottomY}`}
           fill="none"
           stroke="#555"
           strokeWidth="2"
@@ -107,7 +133,7 @@ export function StandardTank({
         ) : null}
       </svg>
 
-      {/* Bottom label (same as ProTankIconSilo) */}
+      {/* Bottom label */}
       {shouldShowBottom ? (
         <div
           style={{
@@ -125,24 +151,12 @@ export function StandardTank({
             gap: 8,
           }}
         >
-          <span
-            style={{
-              fontSize: 18,
-              fontWeight: 900,
-              letterSpacing: 0.3,
-            }}
-          >
+          <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: 0.3 }}>
             {String(bottomText || "").trim() || "--"}
           </span>
 
           {String(bottomUnit || "").trim() ? (
-            <span
-              style={{
-                fontSize: 14,
-                fontWeight: 800,
-                opacity: 0.95,
-              }}
-            >
+            <span style={{ fontSize: 14, fontWeight: 800, opacity: 0.95 }}>
               {String(bottomUnit).trim()}
             </span>
           ) : null}
@@ -154,21 +168,39 @@ export function StandardTank({
 
 // ⭐ STANDARD TANK ICON (Left menu)
 export function StandardTankIcon() {
-  // Keep icon simple; centering not critical here, but we can keep consistent.
   const TANK_W = 90;
   const X0 = (160 - TANK_W) / 2;
   const X1 = X0 + TANK_W;
   const CX = (X0 + X1) / 2;
-  const topY = 30;
+
+  const topEllipseCY = 30;
+  const topEllipseRX = 45;
+  const topEllipseRY = 15;
+
+  const bodyBottomY = 160;
+  const clipBottomY = 175;
 
   return (
     <svg width="40" height="40" viewBox="0 0 160 180">
-      <ellipse cx={CX} cy={topY} rx="45" ry="15" fill="none" stroke="#ffffff" strokeWidth="2" />
-      <line x1={X0} y1={topY} x2={X0} y2="160" stroke="#ffffff" strokeWidth="2" />
-      <line x1={X1} y1={topY} x2={X1} y2="160" stroke="#ffffff" strokeWidth="2" />
-      <path d={`M ${X0} 160 C ${X0} 175, ${X1} 175, ${X1} 160`} fill="none" stroke="#ffffff" strokeWidth="2" />
+      <ellipse
+        cx={CX}
+        cy={topEllipseCY}
+        rx={topEllipseRX}
+        ry={topEllipseRY}
+        fill="none"
+        stroke="#ffffff"
+        strokeWidth="2"
+      />
+      <line x1={X0} y1={topEllipseCY} x2={X0} y2={bodyBottomY} stroke="#ffffff" strokeWidth="2" />
+      <line x1={X1} y1={topEllipseCY} x2={X1} y2={bodyBottomY} stroke="#ffffff" strokeWidth="2" />
       <path
-        d={`M ${X1} 160 C ${X1} 145, ${X0} 145, ${X0} 160`}
+        d={`M ${X0} ${bodyBottomY} C ${X0} ${clipBottomY}, ${X1} ${clipBottomY}, ${X1} ${bodyBottomY}`}
+        fill="none"
+        stroke="#ffffff"
+        strokeWidth="2"
+      />
+      <path
+        d={`M ${X1} ${bodyBottomY} C ${X1} 145, ${X0} 145, ${X0} ${bodyBottomY}`}
         fill="none"
         stroke="#ffffff"
         strokeWidth="2"
