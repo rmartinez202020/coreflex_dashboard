@@ -10,7 +10,6 @@ const MODEL_META = {
   zhc1661: { label: "CF-1600", base: "zhc1661" },
 };
 
-// ✅ auth + no-cache fetch helpers (same idea as DisplayBox)
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -46,7 +45,6 @@ function normalizeList(data) {
     : [];
 }
 
-// ✅ IMPORTANT: avoid /devices (can be 403/405). Use user-safe list endpoints.
 async function loadDeviceListForModel(modelKey, { signal } = {}) {
   const base = MODEL_META[modelKey]?.base || modelKey;
 
@@ -94,7 +92,6 @@ function toNum(v) {
   return Number.isFinite(n) ? n : "";
 }
 
-// ✅ center helper (prevents “flash in corner then move”)
 function computeCenteredPos({ panelW = 1240, estH = 640 } = {}) {
   const w = window.innerWidth || 1200;
   const h = window.innerHeight || 800;
@@ -106,14 +103,12 @@ function computeCenteredPos({ panelW = 1240, estH = 640 } = {}) {
   return { left, top };
 }
 
-// ✅ same evaluator as Silo/Standard
 function computeMathOutput(liveValue, formula) {
   const f = String(formula || "").trim();
   if (!f) return liveValue;
 
   const VALUE = liveValue;
 
-  // CONCAT support
   const upper = f.toUpperCase();
   if (upper.startsWith("CONCAT(") && f.endsWith(")")) {
     const inner = f.slice(7, -1);
@@ -153,7 +148,6 @@ function computeMathOutput(liveValue, formula) {
       .join("");
   }
 
-  // Numeric expression
   try {
     const expr = f.replace(/\bVALUE\b/gi, "VALUE");
     // eslint-disable-next-line no-new-func
@@ -164,20 +158,11 @@ function computeMathOutput(liveValue, formula) {
   }
 }
 
-// ✅ block DnD-kit behind WITHOUT killing modal drag
-function blockBehind(e) {
-  e.stopPropagation();
-  if (e.nativeEvent?.stopImmediatePropagation) e.nativeEvent.stopImmediatePropagation();
-}
-
 export default function HorizontalTankPropertiesModal({ open = true, tank, onSave, onClose }) {
   if (!open || !tank) return null;
 
   const props = tank?.properties || {};
 
-  // -------------------------
-  // ✅ LEFT: helper card (math helper)
-  // -------------------------
   const helperCard = (
     <div
       style={{
@@ -225,9 +210,6 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     </div>
   );
 
-  // -------------------------
-  // ✅ MIDDLE: state
-  // -------------------------
   const [title, setTitle] = useState(props.name ?? "");
   const [unit, setUnit] = useState(props.unit ?? "");
   const [density, setDensity] = useState(
@@ -239,9 +221,6 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
   );
   const [materialColor, setMaterialColor] = useState(props.materialColor || "#00ff00");
 
-  // -------------------------
-  // ✅ RIGHT: device binding with SEARCH
-  // -------------------------
   const [bindModel, setBindModel] = useState(props.bindModel || "zhc1921");
   const [bindDeviceId, setBindDeviceId] = useState(props.bindDeviceId || "");
   const [bindField, setBindField] = useState(props.bindField || "ai1");
@@ -250,7 +229,6 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
   const [deviceQuery, setDeviceQuery] = useState("");
   const [devicesLoading, setDevicesLoading] = useState(false);
 
-  // ✅ extracted telemetry hook
   const { liveValue, deviceIsOnline } = useHorizontalTankPropertiesModalTelemetric({
     open,
     bindModel,
@@ -259,7 +237,6 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     pollMs: 3000,
   });
 
-  // ✅ Output preview
   const outputValue = useMemo(() => {
     const lv = Number(liveValue);
     const safeLive = Number.isFinite(lv) ? lv : null;
@@ -311,11 +288,13 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
   }, [bindDeviceId, bindField]);
 
   // -------------------------
-  // ✅ DRAG STATE (MATCH STANDARD)
+  // ✅ DRAG STATE (Pointer-based: fixes dnd-kit interference)
   // -------------------------
   const PANEL_W = 1240;
+
   const dragRef = useRef({
     dragging: false,
+    pointerId: null,
     startX: 0,
     startY: 0,
     startLeft: 0,
@@ -352,8 +331,11 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     setDeviceQuery("");
   }, [tank]);
 
-  const onDragMove = (e) => {
+  const onDragMove = (ev) => {
     if (!dragRef.current.dragging) return;
+
+    const e = ev?.clientX != null ? ev : ev?.touches?.[0];
+    if (!e) return;
 
     const dx = e.clientX - dragRef.current.startX;
     const dy = e.clientY - dragRef.current.startY;
@@ -376,39 +358,51 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
 
   const endDrag = () => {
     dragRef.current.dragging = false;
+    dragRef.current.pointerId = null;
     setIsDragging(false);
-    window.removeEventListener("mousemove", onDragMove);
-    window.removeEventListener("mouseup", endDrag);
+
+    window.removeEventListener("pointermove", onDragMove, true);
+    window.removeEventListener("pointerup", endDrag, true);
+    window.removeEventListener("pointercancel", endDrag, true);
   };
 
   const startDrag = (e) => {
-    if (e.button !== 0) return;
+    // only left button / primary
+    if (e.button != null && e.button !== 0) return;
 
     const t = e.target;
     if (t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")) return;
 
-    // ✅ SAME AS STANDARD: prevent text selection + start drag
+    // ✅ critical: block dnd-kit PointerSensor
     e.preventDefault();
-
-    // ✅ ALSO block DnD-kit behind (document listeners)
     e.stopPropagation();
     if (e.nativeEvent?.stopImmediatePropagation) e.nativeEvent.stopImmediatePropagation();
 
     dragRef.current.dragging = true;
+    dragRef.current.pointerId = e.pointerId;
     setIsDragging(true);
     dragRef.current.startX = e.clientX;
     dragRef.current.startY = e.clientY;
     dragRef.current.startLeft = pos.left;
     dragRef.current.startTop = pos.top;
 
-    window.addEventListener("mousemove", onDragMove);
-    window.addEventListener("mouseup", endDrag);
+    // keep events even if cursor leaves header
+    try {
+      e.currentTarget?.setPointerCapture?.(e.pointerId);
+    } catch {
+      // ignore
+    }
+
+    window.addEventListener("pointermove", onDragMove, true);
+    window.addEventListener("pointerup", endDrag, true);
+    window.addEventListener("pointercancel", endDrag, true);
   };
 
   useEffect(() => {
     return () => {
-      window.removeEventListener("mousemove", onDragMove);
-      window.removeEventListener("mouseup", endDrag);
+      window.removeEventListener("pointermove", onDragMove, true);
+      window.removeEventListener("pointerup", endDrag, true);
+      window.removeEventListener("pointercancel", endDrag, true);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -433,10 +427,16 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
   const previewTitleStyle = { fontWeight: 600, marginBottom: 8, fontSize: 13 };
   const previewTextStyle = { fontSize: 12, fontWeight: 400, color: "#111827" };
 
+  // ✅ one helper to block pointer events from reaching canvas (capture phase)
+  const blockCanvasPointer = (e) => {
+    e.stopPropagation();
+    if (e.nativeEvent?.stopImmediatePropagation) e.nativeEvent.stopImmediatePropagation();
+  };
+
   return (
     <div
-      // ✅ Capture helps beat some parent handlers, but we do NOT preventDefault here
-      onMouseDownCapture={blockBehind}
+      onPointerDownCapture={blockCanvasPointer}
+      onMouseDownCapture={blockCanvasPointer}
       style={{
         position: "fixed",
         inset: 0,
@@ -444,16 +444,13 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
         zIndex: 999999,
       }}
     >
-      {/* ✅ clicking outside panel closes */}
+      {/* click outside closes */}
       <div
-        onMouseDownCapture={(e) => {
-          blockBehind(e);
+        onPointerDownCapture={(e) => {
+          blockCanvasPointer(e);
           if (e.target === e.currentTarget) onClose?.();
         }}
-        style={{
-          position: "absolute",
-          inset: 0,
-        }}
+        style={{ position: "absolute", inset: 0 }}
       />
 
       <div
@@ -468,11 +465,12 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
           boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
           overflow: "hidden",
         }}
-        onMouseDownCapture={blockBehind}
+        onPointerDownCapture={blockCanvasPointer}
+        onMouseDownCapture={blockCanvasPointer}
       >
         {/* HEADER BAR (DRAG HANDLE) */}
         <div
-          onMouseDown={startDrag}
+          onPointerDown={startDrag}
           style={{
             padding: "14px 18px",
             borderBottom: "1px solid #e5e7eb",
@@ -486,6 +484,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
             color: "#fff",
             cursor: isDragging ? "grabbing" : "grab",
             userSelect: "none",
+            touchAction: "none", // ✅ important for pointer dragging
           }}
           title="Drag to move"
         >
@@ -799,7 +798,6 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
                 </div>
               </div>
 
-              {/* ACTIONS */}
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 4 }}>
                 <button
                   onClick={onClose}
