@@ -7,7 +7,7 @@ const svgStyle = {
   display: "block",
 };
 
-// ⭐ HORIZONTAL TANK (Dashboard) — tighter bounding box so selection fits closer
+// ⭐ HORIZONTAL TANK (Dashboard) — EXACT same event behavior as VerticalTank
 export function HorizontalTank({
   level = 0, // 0..100
   fillColor = "#60a5fa88",
@@ -34,13 +34,15 @@ export function HorizontalTank({
   // geometry (outline path you use)
   const x1 = 35;
   const x2 = 125;
-  const capR = 35;
+  const capR = 35; // horizontal radius of end caps
   const topY = 37;
   const bottomY = 73;
 
+  // total interior width INCLUDING rounded caps
   const totalW = x2 - x1 + capR * 2; // 160
   const h = bottomY - topY;
 
+  // fill should start at the far left of the cap
   const fillX = x1 - capR;
   const fillW = totalW * (clampedLevel / 100);
 
@@ -48,26 +50,25 @@ export function HorizontalTank({
 
   const shouldShowBottom = showBottomText || String(bottomText || "").trim() !== "";
 
+  // ✅ TIGHTER viewBox so the widget bounding/blue box hugs the tank more (like VerticalTank)
+  // Tank vertical extents are ~19..91, so we crop most extra whitespace from 0..110.
+  const TIGHT_VIEWBOX = "0 12 160 88";
+
   return (
     <div
       style={{
         display: "inline-flex",
         flexDirection: "column",
         alignItems: "center",
-        pointerEvents,
-        // ✅ shrink-wrap container to the actual tank width (so blue box hugs it)
-        width: 160,
+        pointerEvents, // ✅ EXACT same as VerticalTank
       }}
     >
       <svg
-        // ✅ tighter viewBox around the tank (removes extra whitespace that makes selection too big)
-        viewBox="0 20 160 70"
+        viewBox={TIGHT_VIEWBOX}
         preserveAspectRatio="xMidYMid meet"
         style={{
           ...svgStyle,
-          pointerEvents,
-          // keep svg from stretching taller than needed (helps selection feel tight)
-          height: "auto",
+          pointerEvents, // ✅ EXACT same as VerticalTank
         }}
       >
         <defs>
@@ -76,7 +77,7 @@ export function HorizontalTank({
           </clipPath>
         </defs>
 
-        {/* LIQUID FILL */}
+        {/* LIQUID FILL (covers BOTH caps at 100%) */}
         <rect
           x={fillX}
           y={topY}
@@ -112,11 +113,11 @@ export function HorizontalTank({
         ) : null}
       </svg>
 
-      {/* Bottom label */}
+      {/* Bottom label (EXACT same style + event behavior as VerticalTank) */}
       {shouldShowBottom ? (
         <div
           style={{
-            marginTop: 6,
+            marginTop: 4, // ✅ slightly tighter so the overall widget box hugs content better
             padding: "6px 14px",
             borderRadius: 8,
             background: "#eef2f7",
@@ -128,7 +129,7 @@ export function HorizontalTank({
             display: "inline-flex",
             alignItems: "baseline",
             gap: 8,
-            pointerEvents,
+            pointerEvents, // ✅ EXACT same as VerticalTank
           }}
         >
           <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: 0.3 }}>
