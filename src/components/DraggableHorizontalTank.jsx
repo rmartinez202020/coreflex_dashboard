@@ -346,7 +346,7 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
       <div
         style={{
           width: w,
-          height: h + 44 * scale,
+          height: h + 28 * scale, // ✅ tighter overall box (brings selection box closer)
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
@@ -375,9 +375,9 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
         {title ? (
           <div
             style={{
-              marginBottom: 6 * scale,
-              fontSize: 12 * scale,
-              fontWeight: 600,
+              marginBottom: 2 * scale, // ✅ tighter to tank
+              fontSize: 16 * scale, // ✅ bigger title
+              fontWeight: 700,
               color: "#111827",
               lineHeight: 1.1,
               textAlign: "center",
@@ -423,7 +423,7 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
         {/* OPTIONAL: keep hidden external output */}
         <div
           style={{
-            marginTop: 6 * scale,
+            marginTop: 0, // ✅ tighter (even though hidden)
             fontFamily: "monospace",
             fontSize: `${14 * scale}px`,
             fontWeight: 700,
