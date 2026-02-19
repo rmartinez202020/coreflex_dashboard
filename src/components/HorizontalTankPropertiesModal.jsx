@@ -321,7 +321,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
   }, [bindDeviceId, bindField]);
 
   // -------------------------
-  // ✅ DRAG STATE (NO FLASH)
+  // ✅ DRAG STATE (NO FLASH) + ✅ STOP CANVAS/DND FROM DRAGGING UNDER MODAL
   // -------------------------
   const PANEL_W = 1240;
   const dragRef = useRef({
@@ -354,7 +354,9 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
 
     setDensity(p.density === undefined || p.density === null ? "" : String(p.density));
 
-    setMaxCapacity(p.maxCapacity === undefined || p.maxCapacity === null ? "" : Number(p.maxCapacity));
+    setMaxCapacity(
+      p.maxCapacity === undefined || p.maxCapacity === null ? "" : Number(p.maxCapacity)
+    );
     setMaterialColor(p.materialColor || "#00ff00");
 
     setBindModel(p.bindModel ?? "zhc1921");
@@ -364,6 +366,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     setDeviceQuery("");
   }, [tank]);
 
+  // ✅ Pointer-event drag handlers (prevents dnd-kit/canvas drag from starting)
   const onDragMove = (e) => {
     if (!dragRef.current.dragging) return;
 
@@ -389,8 +392,9 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
   const endDrag = () => {
     dragRef.current.dragging = false;
     setIsDragging(false);
-    window.removeEventListener("mousemove", onDragMove);
-    window.removeEventListener("mouseup", endDrag);
+    window.removeEventListener("pointermove", onDragMove);
+    window.removeEventListener("pointerup", endDrag);
+    window.removeEventListener("pointercancel", endDrag);
   };
 
   const startDrag = (e) => {
@@ -399,7 +403,9 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     const t = e.target;
     if (t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")) return;
 
+    // ✅ CRITICAL: stop underlying canvas/dnd-kit drag
     e.preventDefault();
+    e.stopPropagation();
 
     dragRef.current.dragging = true;
     setIsDragging(true);
@@ -408,14 +414,16 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     dragRef.current.startLeft = pos.left;
     dragRef.current.startTop = pos.top;
 
-    window.addEventListener("mousemove", onDragMove);
-    window.addEventListener("mouseup", endDrag);
+    window.addEventListener("pointermove", onDragMove, { passive: false });
+    window.addEventListener("pointerup", endDrag, { passive: false });
+    window.addEventListener("pointercancel", endDrag, { passive: false });
   };
 
   useEffect(() => {
     return () => {
-      window.removeEventListener("mousemove", onDragMove);
-      window.removeEventListener("mouseup", endDrag);
+      window.removeEventListener("pointermove", onDragMove);
+      window.removeEventListener("pointerup", endDrag);
+      window.removeEventListener("pointercancel", endDrag);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -440,17 +448,30 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
   const previewTitleStyle = { fontWeight: 600, marginBottom: 8, fontSize: 13 };
   const previewTextStyle = { fontSize: 12, fontWeight: 400, color: "#111827" };
 
+  // ✅ capture-phase blockers (kills drag-through)
+  const stopAll = (e) => {
+    e.preventDefault?.();
+    e.stopPropagation?.();
+  };
+
   return (
     <div
-      onMouseDown={(e) => e.stopPropagation()}
+      onMouseDownCapture={stopAll}
+      onPointerDownCapture={stopAll}
+      onContextMenuCapture={stopAll}
       style={{
         position: "fixed",
         inset: 0,
         background: "rgba(0,0,0,0.35)",
         zIndex: 999999,
+        pointerEvents: "auto",
+        touchAction: "none",
       }}
     >
       <div
+        onMouseDownCapture={stopAll}
+        onPointerDownCapture={stopAll}
+        onContextMenuCapture={stopAll}
         style={{
           position: "fixed",
           left: pos.left,
@@ -461,12 +482,13 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
           background: "#fff",
           boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
           overflow: "hidden",
+          pointerEvents: "auto",
+          touchAction: "none",
         }}
-        onMouseDown={(e) => e.stopPropagation()}
       >
         {/* HEADER BAR */}
         <div
-          onMouseDown={startDrag}
+          onPointerDown={startDrag}
           style={{
             padding: "14px 18px",
             borderBottom: "1px solid #e5e7eb",
@@ -480,13 +502,18 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
             color: "#fff",
             cursor: isDragging ? "grabbing" : "grab",
             userSelect: "none",
+            touchAction: "none",
           }}
           title="Drag to move"
         >
           <div>Horizontal Tank Properties</div>
           <button
             data-no-drag="true"
-            onClick={onClose}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose?.();
+            }}
             style={{
               width: 34,
               height: 34,
@@ -695,7 +722,11 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
 
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Model</div>
-                <select value={bindModel} onChange={(e) => setBindModel(e.target.value)} style={fieldSelectStyle}>
+                <select
+                  value={bindModel}
+                  onChange={(e) => setBindModel(e.target.value)}
+                  style={fieldSelectStyle}
+                >
                   {Object.entries(MODEL_META).map(([k, v]) => (
                     <option key={k} value={k}>
                       {v.label}
@@ -716,7 +747,11 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
 
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Device</div>
-                <select value={bindDeviceId} onChange={(e) => setBindDeviceId(e.target.value)} style={fieldSelectStyle}>
+                <select
+                  value={bindDeviceId}
+                  onChange={(e) => setBindDeviceId(e.target.value)}
+                  style={fieldSelectStyle}
+                >
                   <option value="">{devicesLoading ? "Loading..." : "Select device..."}</option>
                   {filteredDevices.map((d) => (
                     <option key={d.deviceId} value={d.deviceId}>
@@ -728,7 +763,11 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
 
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Analog Input (AI)</div>
-                <select value={bindField} onChange={(e) => setBindField(e.target.value)} style={fieldSelectStyle}>
+                <select
+                  value={bindField}
+                  onChange={(e) => setBindField(e.target.value)}
+                  style={fieldSelectStyle}
+                >
                   <option value="ai1">AI-1</option>
                   <option value="ai2">AI-2</option>
                   <option value="ai3">AI-3</option>
@@ -792,7 +831,11 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
 
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 4 }}>
                 <button
-                  onClick={onClose}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    onClose?.();
+                  }}
                   style={{
                     padding: "10px 14px",
                     borderRadius: 10,
@@ -807,7 +850,10 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
 
                 <button
                   disabled={!canApply}
-                  onClick={() => {
+                  onClick={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+
                     const nextProps = {
                       ...(tank?.properties || {}),
                       name: String(name || "").trim(),
