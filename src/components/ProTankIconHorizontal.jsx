@@ -7,7 +7,7 @@ const svgStyle = {
   display: "block",
 };
 
-// ⭐ HORIZONTAL TANK (Dashboard) — EXACT same event behavior as VerticalTank
+// ⭐ HORIZONTAL TANK (Dashboard) — tight-cropped so output can sit close
 export function HorizontalTank({
   level = 0, // 0..100
   fillColor = "#60a5fa88",
@@ -18,59 +18,54 @@ export function HorizontalTank({
   percentText = "",
   percentTextColor = "#111827",
 
-  // bottom output (same as SiloTank)
+  // bottom output
   showBottomText = false,
   bottomText = "",
   bottomUnit = "",
   bottomTextColor = "#111827",
 
-  // ✅ match VerticalTank exactly
-  pointerEvents = "none", // "none" (default) | "auto"
+  pointerEvents = "none",
 }) {
   const clipId = useId();
 
   const clampedLevel = Math.max(0, Math.min(100, Number(level) || 0));
 
-  // geometry (outline path you use)
+  // outline geometry
   const x1 = 35;
   const x2 = 125;
-  const capR = 35; // horizontal radius of end caps
+  const capR = 35;
   const topY = 37;
   const bottomY = 73;
 
-  // total interior width INCLUDING rounded caps
   const totalW = x2 - x1 + capR * 2; // 160
   const h = bottomY - topY;
 
-  // fill should start at the far left of the cap
   const fillX = x1 - capR;
   const fillW = totalW * (clampedLevel / 100);
 
   const effectiveFill = alarm ? "#ff4d4d88" : fillColor;
 
-  const shouldShowBottom =
-    showBottomText || String(bottomText || "").trim() !== "";
+  const shouldShowBottom = showBottomText || String(bottomText || "").trim() !== "";
 
-  // ✅ TIGHTER viewBox so the widget bounding/blue box hugs the tank more (like VerticalTank)
-  // Tank extents are ~19..91 in the original 0..110 space; crop extra whitespace.
-  const TIGHT_VIEWBOX = "0 16 160 78";
+  // ✅ TIGHT viewBox:
+  // Tank top is ~19 (topY - 18), tank bottom is ~91 (bottomY + 18)
+  // So crop near that range to remove the extra empty padding.
+  const TIGHT_VIEWBOX = "0 16 160 80"; // y=16..96
 
   return (
     <div
       style={{
-        display: "inline-flex",
+        width: "100%",
+        display: "flex",
         flexDirection: "column",
         alignItems: "center",
-        pointerEvents, // ✅ EXACT same as VerticalTank
+        pointerEvents,
       }}
     >
       <svg
         viewBox={TIGHT_VIEWBOX}
         preserveAspectRatio="xMidYMid meet"
-        style={{
-          ...svgStyle,
-          pointerEvents, // ✅ EXACT same as VerticalTank
-        }}
+        style={{ ...svgStyle, pointerEvents }}
       >
         <defs>
           <clipPath id={clipId}>
@@ -78,7 +73,7 @@ export function HorizontalTank({
           </clipPath>
         </defs>
 
-        {/* LIQUID FILL (covers BOTH caps at 100%) */}
+        {/* LIQUID FILL */}
         <rect
           x={fillX}
           y={topY}
@@ -96,7 +91,7 @@ export function HorizontalTank({
           strokeWidth="1.5"
         />
 
-        {/* % TEXT INSIDE */}
+        {/* % TEXT */}
         {showPercentText ? (
           <text
             x="80"
@@ -114,12 +109,12 @@ export function HorizontalTank({
         ) : null}
       </svg>
 
-      {/* Bottom label (move UP closer to tank) */}
+      {/* Bottom label */}
       {shouldShowBottom ? (
         <div
           style={{
-            marginTop: -2, // ✅ pull badge up closer (like your screenshot request)
-            padding: "5px 14px",
+            marginTop: 0, // ✅ now this will actually sit close because SVG is cropped
+            padding: "6px 14px",
             borderRadius: 8,
             background: "#eef2f7",
             border: "1px solid rgba(17,24,39,0.25)",
@@ -130,7 +125,7 @@ export function HorizontalTank({
             display: "inline-flex",
             alignItems: "baseline",
             gap: 8,
-            pointerEvents, // ✅ EXACT same as VerticalTank
+            pointerEvents,
           }}
         >
           <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: 0.3 }}>
