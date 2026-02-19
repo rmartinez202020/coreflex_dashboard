@@ -2,8 +2,6 @@
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
-
-// ✅ extracted telemetry (polling + read AI + online status)
 import useStandardTankPropertiesModalTelemetric from "./StandardTankPropertiesModalTelemetric";
 
 // ✅ extracted unit options (NOTE: keep the same name you already used)

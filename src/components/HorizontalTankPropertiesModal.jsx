@@ -164,34 +164,12 @@ function computeMathOutput(liveValue, formula) {
   }
 }
 
-// ✅ IMPORTANT: kill DnD-kit PointerSensor starting behind the modal
-function stopDnd(e) {
-  try {
-    e.preventDefault?.();
-  } catch {}
-  try {
-    e.stopPropagation?.();
-  } catch {}
-
-  const ne = e?.nativeEvent;
-  if (ne) {
-    // stops other native listeners on the same target (DnD-kit listens on document)
-    if (typeof ne.stopImmediatePropagation === "function") ne.stopImmediatePropagation();
-
-    // extra: also stop bubbling at native level
-    if (typeof ne.stopPropagation === "function") ne.stopPropagation();
-  }
+// ✅ block DnD-kit behind WITHOUT killing modal drag
+function blockBehind(e) {
+  e.stopPropagation();
+  if (e.nativeEvent?.stopImmediatePropagation) e.nativeEvent.stopImmediatePropagation();
 }
 
-/**
- * Horizontal Tank Properties (match SiloPropertiesModal behavior)
- *
- * IMPORTANT:
- * DraggableHorizontalTank reads:
- *  - props.density  (math/formula)
- *  - props.bindModel, props.bindDeviceId, props.bindField
- *  - props.maxCapacity, props.materialColor, props.name, props.unit
- */
 export default function HorizontalTankPropertiesModal({ open = true, tank, onSave, onClose }) {
   if (!open || !tank) return null;
 
@@ -272,7 +250,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
   const [deviceQuery, setDeviceQuery] = useState("");
   const [devicesLoading, setDevicesLoading] = useState(false);
 
-  // ✅ extracted telemetry hook (polling + AI read + ONLINE status)
+  // ✅ extracted telemetry hook
   const { liveValue, deviceIsOnline } = useHorizontalTankPropertiesModalTelemetric({
     open,
     bindModel,
@@ -295,7 +273,6 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     return Number.isFinite(n) ? n : out;
   }, [density, liveValue]);
 
-  // Load device list once when open/model changes
   useEffect(() => {
     if (!open) return;
 
@@ -334,7 +311,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
   }, [bindDeviceId, bindField]);
 
   // -------------------------
-  // ✅ DRAG STATE (LOCK OUT DND-KIT BEHIND)
+  // ✅ DRAG STATE (MATCH STANDARD)
   // -------------------------
   const PANEL_W = 1240;
   const dragRef = useRef({
@@ -343,7 +320,6 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     startY: 0,
     startLeft: 0,
     startTop: 0,
-    pointerId: null,
   });
 
   const [pos, setPos] = useState(() => {
@@ -358,7 +334,6 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     setPos(computeCenteredPos({ panelW: PANEL_W, estH: 640 }));
   }, [open]);
 
-  // Load from tank whenever it changes
   useEffect(() => {
     if (!tank) return;
     const p = tank?.properties || {};
@@ -380,9 +355,6 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
   const onDragMove = (e) => {
     if (!dragRef.current.dragging) return;
 
-    // keep killing DnD-kit while dragging too
-    stopDnd(e);
-
     const dx = e.clientX - dragRef.current.startX;
     const dy = e.clientY - dragRef.current.startY;
 
@@ -402,25 +374,25 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     });
   };
 
-  const endDrag = (e) => {
-    if (e) stopDnd(e);
+  const endDrag = () => {
     dragRef.current.dragging = false;
-    dragRef.current.pointerId = null;
     setIsDragging(false);
-
-    window.removeEventListener("pointermove", onDragMove, true);
-    window.removeEventListener("pointerup", endDrag, true);
-    window.removeEventListener("pointercancel", endDrag, true);
+    window.removeEventListener("mousemove", onDragMove);
+    window.removeEventListener("mouseup", endDrag);
   };
 
   const startDrag = (e) => {
-    // pointer-based so we can capture + block dnd-kit reliably
     if (e.button !== 0) return;
 
     const t = e.target;
     if (t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")) return;
 
-    stopDnd(e);
+    // ✅ SAME AS STANDARD: prevent text selection + start drag
+    e.preventDefault();
+
+    // ✅ ALSO block DnD-kit behind (document listeners)
+    e.stopPropagation();
+    if (e.nativeEvent?.stopImmediatePropagation) e.nativeEvent.stopImmediatePropagation();
 
     dragRef.current.dragging = true;
     setIsDragging(true);
@@ -428,19 +400,15 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     dragRef.current.startY = e.clientY;
     dragRef.current.startLeft = pos.left;
     dragRef.current.startTop = pos.top;
-    dragRef.current.pointerId = e.pointerId ?? null;
 
-    // capture-phase listeners so we beat dnd-kit’s document listeners
-    window.addEventListener("pointermove", onDragMove, true);
-    window.addEventListener("pointerup", endDrag, true);
-    window.addEventListener("pointercancel", endDrag, true);
+    window.addEventListener("mousemove", onDragMove);
+    window.addEventListener("mouseup", endDrag);
   };
 
   useEffect(() => {
     return () => {
-      window.removeEventListener("pointermove", onDragMove, true);
-      window.removeEventListener("pointerup", endDrag, true);
-      window.removeEventListener("pointercancel", endDrag, true);
+      window.removeEventListener("mousemove", onDragMove);
+      window.removeEventListener("mouseup", endDrag);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -467,10 +435,8 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
 
   return (
     <div
-      // ✅ CAPTURE is critical (blocks dnd-kit PointerSensor which listens on document)
-      onPointerDownCapture={stopDnd}
-      onMouseDownCapture={stopDnd}
-      onTouchStartCapture={stopDnd}
+      // ✅ Capture helps beat some parent handlers, but we do NOT preventDefault here
+      onMouseDownCapture={blockBehind}
       style={{
         position: "fixed",
         inset: 0,
@@ -480,12 +446,8 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     >
       {/* ✅ clicking outside panel closes */}
       <div
-        onPointerDownCapture={(e) => {
-          stopDnd(e);
-          if (e.target === e.currentTarget) onClose?.();
-        }}
         onMouseDownCapture={(e) => {
-          stopDnd(e);
+          blockBehind(e);
           if (e.target === e.currentTarget) onClose?.();
         }}
         style={{
@@ -495,8 +457,6 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
       />
 
       <div
-        onPointerDownCapture={stopDnd}
-        onMouseDownCapture={stopDnd}
         style={{
           position: "fixed",
           left: pos.left,
@@ -508,12 +468,11 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
           boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
           overflow: "hidden",
         }}
+        onMouseDownCapture={blockBehind}
       >
         {/* HEADER BAR (DRAG HANDLE) */}
         <div
-          onPointerDown={startDrag}
-          onPointerDownCapture={stopDnd}
-          onMouseDownCapture={stopDnd}
+          onMouseDown={startDrag}
           style={{
             padding: "14px 18px",
             borderBottom: "1px solid #e5e7eb",
@@ -527,17 +486,15 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
             color: "#fff",
             cursor: isDragging ? "grabbing" : "grab",
             userSelect: "none",
-            touchAction: "none", // ✅ prevents browser panning interfering with pointer drag
           }}
           title="Drag to move"
         >
           <div>Horizontal Tank Properties</div>
           <button
             data-no-drag="true"
-            onPointerDownCapture={stopDnd}
-            onMouseDownCapture={stopDnd}
             onClick={(e) => {
-              stopDnd(e);
+              e.stopPropagation();
+              if (e.nativeEvent?.stopImmediatePropagation) e.nativeEvent.stopImmediatePropagation();
               onClose?.();
             }}
             style={{
@@ -557,11 +514,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
         </div>
 
         {/* BODY */}
-        <div
-          onPointerDownCapture={stopDnd}
-          onMouseDownCapture={stopDnd}
-          style={{ padding: 18, background: "#f8fafc" }}
-        >
+        <div style={{ padding: 18, background: "#f8fafc" }}>
           <div
             style={{
               display: "grid",
@@ -570,7 +523,6 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
               alignItems: "start",
             }}
           >
-            {/* LEFT */}
             {helperCard}
 
             {/* MIDDLE */}
@@ -806,7 +758,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
                   padding: 12,
                 }}
               >
-                <div style={{ fontWeight: 600, marginBottom: 8, fontSize: 13 }}>Binding Preview</div>
+                <div style={previewTitleStyle}>Binding Preview</div>
 
                 <div style={previewTextStyle}>
                   Selected: <span style={{ fontFamily: "monospace" }}>{bindDeviceId || "--"}</span> ·{" "}
@@ -850,10 +802,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
               {/* ACTIONS */}
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 4 }}>
                 <button
-                  onClick={(e) => {
-                    stopDnd(e);
-                    onClose?.();
-                  }}
+                  onClick={onClose}
                   style={{
                     padding: "10px 14px",
                     borderRadius: 10,
@@ -868,9 +817,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
 
                 <button
                   disabled={!canApply}
-                  onClick={(e) => {
-                    stopDnd(e);
-
+                  onClick={() => {
                     const nextProps = {
                       ...(tank?.properties || {}),
                       name: String(title || "").trim(),
