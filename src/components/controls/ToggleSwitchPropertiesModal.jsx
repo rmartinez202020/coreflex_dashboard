@@ -8,20 +8,17 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-// ✅ Match BlinkingAlarmSettingsModal style
+// ✅ ONLY CF-2000 (ZHC1921)
 const MODEL_META = {
   zhc1921: { label: "ZHC1921 (CF-2000)", base: "zhc1921" },
-  zhc1661: { label: "ZHC1661 (CF-1600)", base: "zhc1661" },
 };
 
-// ✅ DO options (keep to 6 as your platform uses)
+// ✅ ONLY 4 DO outputs
 const DO_OPTIONS = [
   { key: "do1", label: "DO-1" },
   { key: "do2", label: "DO-2" },
   { key: "do3", label: "DO-3" },
   { key: "do4", label: "DO-4" },
-  { key: "do5", label: "DO-5" },
-  { key: "do6", label: "DO-6" },
 ];
 
 // ✅ Convert anything to 0/1 (for live preview)
@@ -40,23 +37,24 @@ function to01(v) {
 }
 
 // ✅ Read DO value from backend device row (supports do/out variants)
+// ✅ clamp to do1..do4 only
 function readDoFromRow(row, field) {
   if (!row || !field) return undefined;
 
-  // direct
-  if (row[field] !== undefined) return row[field];
+  const f = String(field).toLowerCase().trim();
+  if (!/^do[1-4]$/.test(f)) return undefined;
 
-  const up = String(field).toUpperCase();
+  if (row[f] !== undefined) return row[f];
+
+  const up = f.toUpperCase();
   if (row[up] !== undefined) return row[up];
 
-  // do1..do6 -> out1..out6
-  if (/^do[1-6]$/.test(field)) {
-    const n = field.replace("do", "");
-    const alt = `out${n}`;
-    if (row[alt] !== undefined) return row[alt];
-    const altUp = `OUT${n}`;
-    if (row[altUp] !== undefined) return row[altUp];
-  }
+  // do1..do4 -> out1..out4
+  const n = f.replace("do", "");
+  const alt = `out${n}`;
+  if (row[alt] !== undefined) return row[alt];
+  const altUp = `OUT${n}`;
+  if (row[altUp] !== undefined) return row[altUp];
 
   return undefined;
 }
@@ -66,6 +64,8 @@ export default function ToggleSwitchPropertiesModal({
   toggleSwitch,
   onSave,
   onClose,
+  // ✅ gate modal to EDIT mode only
+  isLaunched = false,
 }) {
   // ✅ do NOT early return before hooks
   const p = toggleSwitch?.properties || {};
@@ -74,18 +74,19 @@ export default function ToggleSwitchPropertiesModal({
   const MODAL_W = Math.min(720, window.innerWidth - 80);
   const MODAL_H = Math.min(520, window.innerHeight - 120);
 
+  // ✅ Force CF-2000 model
+  const forcedModel = "zhc1921";
+
   // ✅ Backward compatible initial binding:
-  // prefer bindModel/bindDeviceId/bindField, else fall back to tag
-  const initialModel =
-    String(p.bindModel || p?.tag?.model || "zhc1921").trim() || "zhc1921";
+  // prefer bindDeviceId/bindField, else fall back to tag
   const initialDeviceId = String(p.bindDeviceId || p?.tag?.deviceId || "");
   const initialField = String(p.bindField || p?.tag?.field || "do1");
 
-  const [deviceModel, setDeviceModel] = React.useState(
-    MODEL_META[initialModel] ? initialModel : "zhc1921"
-  );
+  const [deviceModel] = React.useState(forcedModel); // locked
   const [deviceId, setDeviceId] = React.useState(initialDeviceId);
-  const [field, setField] = React.useState(initialField);
+  const [field, setField] = React.useState(
+    /^do[1-4]$/.test(String(initialField || "").toLowerCase()) ? initialField : "do1"
+  );
 
   const [deviceSearch, setDeviceSearch] = React.useState("");
 
@@ -97,11 +98,9 @@ export default function ToggleSwitchPropertiesModal({
 
     const pp = toggleSwitch?.properties || {};
 
-    const m = String(pp.bindModel || pp?.tag?.model || "zhc1921").trim() || "zhc1921";
-    setDeviceModel(MODEL_META[m] ? m : "zhc1921");
+    const f = String(pp.bindField || pp?.tag?.field || "do1");
     setDeviceId(String(pp.bindDeviceId || pp?.tag?.deviceId || ""));
-    setField(String(pp.bindField || pp?.tag?.field || "do1"));
-
+    setField(/^do[1-4]$/.test(f.toLowerCase()) ? f : "do1");
     setDeviceSearch("");
   }, [open, toggleSwitch?.id]);
 
@@ -123,7 +122,7 @@ export default function ToggleSwitchPropertiesModal({
     return { left, top };
   });
 
-  // recenter on open (like BlinkingAlarm)
+  // recenter on open
   React.useEffect(() => {
     if (!open) return;
     const left = Math.max(20, Math.round((window.innerWidth - MODAL_W) / 2));
@@ -183,40 +182,15 @@ export default function ToggleSwitchPropertiesModal({
   };
 
   // =========================
-  // DEVICES (BACKEND LIKE StatusText/BlinkingAlarm)
+  // DEVICES (BACKEND) — ONLY CF-2000 my-devices
   // =========================
   const [devices, setDevices] = React.useState([]);
   const [devicesErr, setDevicesErr] = React.useState("");
 
   React.useEffect(() => {
-    if (!open) return;
+    if (!open || isLaunched) return; // ✅ don't waste calls in PLAY
 
     let alive = true;
-
-    async function fetchModelDevices(modelKey) {
-      const base = MODEL_META[modelKey]?.base;
-      if (!base) return [];
-
-      const res = await fetch(`${API_URL}/${base}/my-devices`, {
-        headers: getAuthHeaders(),
-      });
-      if (!res.ok) return [];
-
-      const data = await res.json();
-      const list = Array.isArray(data) ? data : [];
-
-      return list
-        .map((r) => {
-          const id = String(r.deviceId ?? r.device_id ?? "").trim();
-          return {
-            id,
-            name: id,
-            model: modelKey,
-            modelLabel: MODEL_META[modelKey]?.label || modelKey,
-          };
-        })
-        .filter((x) => x.id);
-    }
 
     async function loadDevices() {
       setDevicesErr("");
@@ -224,21 +198,23 @@ export default function ToggleSwitchPropertiesModal({
         const token = String(getToken() || "").trim();
         if (!token) throw new Error("Missing auth token. Please logout and login again.");
 
-        // ✅ only these models for toggle switch
-        const [d1, d2] = await Promise.all([
-          fetchModelDevices("zhc1921"),
-          fetchModelDevices("zhc1661"),
-        ]);
-
-        const merged = [...d1, ...d2];
-        merged.sort((a, b) => {
-          const ma = String(a.model || "");
-          const mb = String(b.model || "");
-          if (ma !== mb) return ma.localeCompare(mb);
-          return String(a.id).localeCompare(String(b.id));
+        const res = await fetch(`${API_URL}/zhc1921/my-devices`, {
+          headers: getAuthHeaders(),
         });
+        if (!res.ok) throw new Error("Failed to load CF-2000 devices");
 
-        if (alive) setDevices(merged);
+        const data = await res.json();
+        const list = Array.isArray(data) ? data : [];
+
+        const out = list
+          .map((r) => {
+            const id = String(r.deviceId ?? r.device_id ?? "").trim();
+            return { id, name: id };
+          })
+          .filter((x) => x.id)
+          .sort((a, b) => String(a.id).localeCompare(String(b.id)));
+
+        if (alive) setDevices(out);
       } catch (e) {
         if (alive) {
           setDevices([]);
@@ -251,30 +227,23 @@ export default function ToggleSwitchPropertiesModal({
     return () => {
       alive = false;
     };
-  }, [open]);
+  }, [open, isLaunched]);
 
   const filteredDevices = React.useMemo(() => {
     const q = String(deviceSearch || "").trim().toLowerCase();
     if (!q) return devices;
-    return devices.filter((d) => {
-      const id = String(d.id || "").toLowerCase();
-      const model = String(d.modelLabel || d.model || "").toLowerCase();
-      return id.includes(q) || model.includes(q);
-    });
+    return devices.filter((d) => String(d.id || "").toLowerCase().includes(q));
   }, [devices, deviceSearch]);
 
   // =========================
-  // LIVE STATUS / VALUE (POLL my-devices)
+  // LIVE STATUS / VALUE (POLL CF-2000 my-devices)
   // =========================
   const [telemetryRow, setTelemetryRow] = React.useState(null);
   const telemetryRef = React.useRef({ loading: false });
 
   const fetchTelemetryRow = React.useCallback(async () => {
     const id = String(deviceId || "").trim();
-    const modelKey = String(deviceModel || "").trim();
-    const base = MODEL_META[modelKey]?.base;
-
-    if (!id || !base) {
+    if (!id) {
       setTelemetryRow(null);
       return;
     }
@@ -285,7 +254,7 @@ export default function ToggleSwitchPropertiesModal({
       const token = String(getToken() || "").trim();
       if (!token) throw new Error("Missing auth token. Please logout and login again.");
 
-      const res = await fetch(`${API_URL}/${base}/my-devices`, {
+      const res = await fetch(`${API_URL}/zhc1921/my-devices`, {
         headers: getAuthHeaders(),
       });
 
@@ -304,10 +273,10 @@ export default function ToggleSwitchPropertiesModal({
     } finally {
       telemetryRef.current.loading = false;
     }
-  }, [deviceId, deviceModel]);
+  }, [deviceId]);
 
   React.useEffect(() => {
-    if (!open) return;
+    if (!open || isLaunched) return;
 
     fetchTelemetryRow();
     const t = setInterval(() => {
@@ -316,7 +285,7 @@ export default function ToggleSwitchPropertiesModal({
     }, 3000);
 
     return () => clearInterval(t);
-  }, [open, fetchTelemetryRow]);
+  }, [open, isLaunched, fetchTelemetryRow]);
 
   const backendDeviceStatus = React.useMemo(() => {
     const s = String(telemetryRow?.status || "").trim().toLowerCase();
@@ -326,8 +295,7 @@ export default function ToggleSwitchPropertiesModal({
 
   const deviceIsOnline = backendDeviceStatus === "online";
 
-  const effectiveField = String(field || "").trim();
-
+  const effectiveField = String(field || "").trim().toLowerCase();
   const rawValue = React.useMemo(() => {
     if (!telemetryRow || !effectiveField) return undefined;
     return readDoFromRow(telemetryRow, effectiveField);
@@ -353,7 +321,7 @@ export default function ToggleSwitchPropertiesModal({
   // =========================
   // APPLY SAVE (save BOTH formats)
   // =========================
-  const canApply = !!String(deviceId || "").trim() && !!String(effectiveField || "").trim();
+  const canApply = !!String(deviceId || "").trim() && /^do[1-4]$/.test(effectiveField);
 
   const apply = () => {
     if (!toggleSwitch) return;
@@ -361,15 +329,15 @@ export default function ToggleSwitchPropertiesModal({
     const nextProps = {
       ...(toggleSwitch?.properties || {}),
 
-      // ✅ legacy / current fields (keep)
-      bindModel: String(deviceModel || "zhc1921"),
+      // ✅ legacy fields (keep)
+      bindModel: forcedModel,
       bindDeviceId: String(deviceId || ""),
       bindField: String(effectiveField || "do1"),
 
-      // ✅ new/common tag format (also saved)
+      // ✅ tag format (also saved)
       tag: canApply
         ? {
-            model: String(deviceModel || "zhc1921"),
+            model: forcedModel,
             deviceId: String(deviceId || ""),
             field: String(effectiveField || "do1"),
           }
@@ -385,7 +353,8 @@ export default function ToggleSwitchPropertiesModal({
     <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>{children}</div>
   );
 
-  if (!open || !toggleSwitch) return null;
+  // ✅ ONLY show in EDIT mode
+  if (!open || !toggleSwitch || isLaunched) return null;
 
   return (
     <div
@@ -395,7 +364,7 @@ export default function ToggleSwitchPropertiesModal({
         background: "rgba(0,0,0,0.35)",
         zIndex: 999999,
       }}
-      onMouseDown={onClose} // ✅ click outside closes
+      onMouseDown={onClose}
     >
       <div
         ref={modalRef}
@@ -434,7 +403,7 @@ export default function ToggleSwitchPropertiesModal({
           }}
           title="Drag to move"
         >
-          <span>Toggle Switch</span>
+          <span>Toggle Switch (CF-2000)</span>
           <button
             onClick={onClose}
             style={{
@@ -454,10 +423,9 @@ export default function ToggleSwitchPropertiesModal({
         {/* Body */}
         <div style={{ padding: 16, overflow: "auto", flex: "1 1 auto" }}>
           <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
-            Bind this toggle to a <b>Digital Output (DO)</b> on a device.
+            Bind this toggle to a <b>CF-2000 Digital Output (DO)</b>.
           </div>
 
-          {/* TAG BINDING */}
           <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 14 }}>
             <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}>
               Output that this toggle controls (DO)
@@ -469,11 +437,11 @@ export default function ToggleSwitchPropertiesModal({
 
             {/* Search Device */}
             <div style={{ marginBottom: 10 }}>
-              <Label>Search Device</Label>
+              <Label>Search Device (CF-2000)</Label>
               <input
                 value={deviceSearch}
                 onChange={(e) => setDeviceSearch(e.target.value)}
-                placeholder="Type device id or model..."
+                placeholder="Type device id..."
                 style={{
                   width: "100%",
                   padding: "10px 12px",
@@ -492,19 +460,10 @@ export default function ToggleSwitchPropertiesModal({
               <div style={{ flex: 1 }}>
                 <Label>Device</Label>
                 <select
-                  value={deviceId ? `${deviceModel}::${deviceId}` : ""}
+                  value={deviceId || ""}
                   onChange={(e) => {
                     const v = String(e.target.value || "");
-                    if (!v || !v.includes("::")) {
-                      setDeviceModel("zhc1921");
-                      setDeviceId("");
-                      setField("do1");
-                      return;
-                    }
-                    const [m, id] = v.split("::");
-                    setDeviceModel(MODEL_META[m] ? m : "zhc1921");
-                    setDeviceId(String(id || ""));
-                    setField("do1");
+                    setDeviceId(v);
                   }}
                   style={{
                     width: "100%",
@@ -517,8 +476,8 @@ export default function ToggleSwitchPropertiesModal({
                 >
                   <option value="">— Select device —</option>
                   {filteredDevices.map((d) => (
-                    <option key={`${d.model}::${d.id}`} value={`${d.model}::${d.id}`}>
-                      {d.id /* ✅ ID ONLY */}
+                    <option key={d.id} value={d.id}>
+                      {d.id}
                     </option>
                   ))}
                 </select>
@@ -598,7 +557,7 @@ export default function ToggleSwitchPropertiesModal({
             </div>
 
             <div style={{ fontSize: 12, color: "#64748b", marginTop: 10 }}>
-              Tip: Value preview is best-effort from <code>/{MODEL_META[deviceModel]?.base}/my-devices</code>.
+              Tip: Value preview is best-effort from <code>/zhc1921/my-devices</code>.
             </div>
           </div>
         </div>
