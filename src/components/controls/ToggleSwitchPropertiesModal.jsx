@@ -1,7 +1,7 @@
-// src/components/controls/ToggleSwitchPropertiesModal.jsx
+// src/components/ToggleSwitchPropertiesModal.jsx
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { API_URL } from "../../config/api";
-import { getToken } from "../../utils/authToken";
+import { API_URL } from "../config/api";
+import { getToken } from "../utils/authToken";
 
 const MODEL_META = {
   zhc1921: { label: "CF-2000", base: "zhc1921" },
@@ -66,11 +66,7 @@ async function loadDeviceListForModel(modelKey, { signal } = {}) {
             r.DEVICE_ID ??
             "";
           const status = String(r.status || r.deviceStatus || r.state || "").toLowerCase();
-          return {
-            deviceId: String(id),
-            status: status || "offline",
-            raw: r,
-          };
+          return { deviceId: String(id), status: status || "offline", raw: r };
         })
         .filter((x) => x.deviceId);
 
@@ -88,31 +84,42 @@ export default function ToggleSwitchPropertiesModal({
   onSave,
   onClose,
 }) {
-  // ✅ do NOT return before hooks style used elsewhere
-  const props = toggleSwitch?.properties || {};
+  // ✅ never “trap” the UI — if open but missing widget, still allow closing
+  const canRender = !!open;
+  const p = toggleSwitch?.properties || {};
 
   // -------------------------
   // ✅ binding state
   // -------------------------
-  const [bindModel, setBindModel] = useState(props.bindModel || "zhc1921");
-  const [bindDeviceId, setBindDeviceId] = useState(props.bindDeviceId || "");
-  const [bindField, setBindField] = useState(props.bindField || "do1");
+  const [bindModel, setBindModel] = useState(p.bindModel || "zhc1921");
+  const [bindDeviceId, setBindDeviceId] = useState(p.bindDeviceId || "");
+  const [bindField, setBindField] = useState(p.bindField || "do1");
 
   const [devices, setDevices] = useState([]);
   const [deviceQuery, setDeviceQuery] = useState("");
   const [devicesLoading, setDevicesLoading] = useState(false);
 
-  // Rehydrate when opening / switching widget
+  // rehydrate on open/widget change
   useEffect(() => {
-    if (!open || !toggleSwitch) return;
-    const p = toggleSwitch?.properties || {};
-    setBindModel(p.bindModel || "zhc1921");
-    setBindDeviceId(p.bindDeviceId || "");
-    setBindField(p.bindField || "do1");
+    if (!open) return;
+    const pp = toggleSwitch?.properties || {};
+    setBindModel(pp.bindModel || "zhc1921");
+    setBindDeviceId(pp.bindDeviceId || "");
+    setBindField(pp.bindField || "do1");
     setDeviceQuery("");
   }, [open, toggleSwitch?.id]);
 
-  // Load device list on open/model changes
+  // ESC closes
+  useEffect(() => {
+    if (!open) return;
+    const onKey = (e) => {
+      if (e.key === "Escape") onClose?.();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [open, onClose]);
+
+  // load devices
   useEffect(() => {
     if (!open) return;
 
@@ -163,7 +170,7 @@ export default function ToggleSwitchPropertiesModal({
   }, [bindDeviceId, bindField]);
 
   // -------------------------
-  // ✅ MODAL SIZE + CENTER (LIKE YOUR OTHER MODALS)
+  // ✅ DRAGGABLE WINDOW (LIKE YOUR OTHER MODALS)
   // -------------------------
   const PANEL_W = 560;
   const EST_H = 520;
@@ -180,12 +187,13 @@ export default function ToggleSwitchPropertiesModal({
   const [pos, setPos] = useState(() => {
     const w = window.innerWidth || 1200;
     const h = window.innerHeight || 800;
-    const left = Math.max(20, Math.round((w - PANEL_W) / 2));
-    const top = Math.max(20, Math.round((h - EST_H) / 2));
-    return { left, top };
+    return {
+      left: Math.max(20, Math.round((w - PANEL_W) / 2)),
+      top: Math.max(20, Math.round((h - EST_H) / 2)),
+    };
   });
 
-  // Center on open (and clamp)
+  // center on open using real size
   useLayoutEffect(() => {
     if (!open) return;
 
@@ -196,13 +204,12 @@ export default function ToggleSwitchPropertiesModal({
     const mw = rect?.width ?? PANEL_W;
     const mh = rect?.height ?? EST_H;
 
-    const left = Math.max(20, Math.round((w - mw) / 2));
-    const top = Math.max(20, Math.round((h - mh) / 2));
-
-    setPos({ left, top });
+    setPos({
+      left: Math.max(20, Math.round((w - mw) / 2)),
+      top: Math.max(20, Math.round((h - mh) / 2)),
+    });
   }, [open]);
 
-  // Drag listeners (like your reference modal)
   useEffect(() => {
     const onMove = (e) => {
       if (!dragRef.current.dragging) return;
@@ -224,10 +231,10 @@ export default function ToggleSwitchPropertiesModal({
       const minTop = margin;
       const maxTop = (window.innerHeight || 800) - margin;
 
-      const clampedLeft = Math.min(maxLeft, Math.max(minLeft, nextLeft));
-      const clampedTop = Math.min(maxTop, Math.max(minTop, nextTop));
-
-      setPos({ left: clampedLeft, top: clampedTop });
+      setPos({
+        left: Math.min(maxLeft, Math.max(minLeft, nextLeft)),
+        top: Math.min(maxTop, Math.max(minTop, nextTop)),
+      });
     };
 
     const onUp = () => {
@@ -248,7 +255,6 @@ export default function ToggleSwitchPropertiesModal({
   const startDrag = (e) => {
     if (e.button !== 0) return;
 
-    // don’t start drag from buttons/inputs
     const t = e.target;
     if (t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")) return;
 
@@ -262,6 +268,9 @@ export default function ToggleSwitchPropertiesModal({
     document.body.style.cursor = "grabbing";
   };
 
+  // -------------------------
+  // ✅ styles
+  // -------------------------
   const labelStyle = { fontSize: 12, fontWeight: 500, color: "#111827" };
   const sectionTitleStyle = { fontWeight: 700, fontSize: 16 };
   const fieldInputStyle = {
@@ -279,7 +288,7 @@ export default function ToggleSwitchPropertiesModal({
   const previewTitleStyle = { fontWeight: 700, marginBottom: 8, fontSize: 13 };
   const previewTextStyle = { fontSize: 12, fontWeight: 500, color: "#111827" };
 
-  if (!open || !toggleSwitch) return null;
+  if (!canRender) return null;
 
   return (
     <div
@@ -289,7 +298,7 @@ export default function ToggleSwitchPropertiesModal({
         background: "rgba(0,0,0,0.35)",
         zIndex: 999999,
       }}
-      onMouseDown={onClose} // ✅ backdrop click closes
+      onMouseDown={() => onClose?.()} // ✅ backdrop closes
     >
       <div
         ref={modalRef}
@@ -303,10 +312,8 @@ export default function ToggleSwitchPropertiesModal({
           background: "#fff",
           boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
           overflow: "hidden",
-          display: "flex",
-          flexDirection: "column",
         }}
-        onMouseDown={(e) => e.stopPropagation()} // ✅ allow interaction inside
+        onMouseDown={(e) => e.stopPropagation()} // ✅ keep clicks inside
       >
         {/* HEADER BAR (DRAG HANDLE) */}
         <div
@@ -328,9 +335,19 @@ export default function ToggleSwitchPropertiesModal({
           title="Drag to move"
         >
           <div>Toggle Switch Properties</div>
+
           <button
             data-no-drag="true"
-            onClick={onClose}
+            type="button"
+            onMouseDown={(e) => {
+              // ✅ never let header drag logic interfere
+              e.stopPropagation();
+            }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose?.();
+            }}
             style={{
               width: 34,
               height: 34,
@@ -342,7 +359,6 @@ export default function ToggleSwitchPropertiesModal({
               cursor: "pointer",
             }}
             title="Close"
-            type="button"
           >
             ✕
           </button>
@@ -361,6 +377,12 @@ export default function ToggleSwitchPropertiesModal({
             }}
           >
             <div style={sectionTitleStyle}>Device + Digital Output (DO)</div>
+
+            {!toggleSwitch && (
+              <div style={{ fontSize: 12, color: "#dc2626" }}>
+                Missing widget reference. Close and re-open the modal.
+              </div>
+            )}
 
             <div style={{ display: "grid", gap: 6 }}>
               <div style={labelStyle}>Model</div>
@@ -440,7 +462,8 @@ export default function ToggleSwitchPropertiesModal({
             {/* ACTIONS */}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 4 }}>
               <button
-                onClick={onClose}
+                type="button"
+                onClick={() => onClose?.()}
                 style={{
                   padding: "10px 14px",
                   borderRadius: 10,
@@ -449,14 +472,16 @@ export default function ToggleSwitchPropertiesModal({
                   fontWeight: 700,
                   cursor: "pointer",
                 }}
-                type="button"
               >
                 Cancel
               </button>
 
               <button
-                disabled={!canApply}
+                type="button"
+                disabled={!canApply || !toggleSwitch}
                 onClick={() => {
+                  if (!toggleSwitch) return;
+
                   const nextProps = {
                     ...(toggleSwitch?.properties || {}),
                     bindModel,
@@ -472,12 +497,11 @@ export default function ToggleSwitchPropertiesModal({
                   padding: "10px 14px",
                   borderRadius: 10,
                   border: "1px solid #bfe6c8",
-                  background: canApply ? "linear-gradient(180deg,#bff2c7,#6fdc89)" : "#e5e7eb",
+                  background: canApply && toggleSwitch ? "linear-gradient(180deg,#bff2c7,#6fdc89)" : "#e5e7eb",
                   color: "#0b3b18",
                   fontWeight: 800,
-                  cursor: canApply ? "pointer" : "not-allowed",
+                  cursor: canApply && toggleSwitch ? "pointer" : "not-allowed",
                 }}
-                type="button"
               >
                 Apply
               </button>
@@ -485,7 +509,7 @@ export default function ToggleSwitchPropertiesModal({
           </div>
 
           <div style={{ marginTop: 10, fontSize: 11, color: "#64748b" }}>
-            Tip: Double-click the toggle on the canvas to open this binding window.
+            Tip: Double-click the toggle on the canvas to open this binding window. (Esc closes)
           </div>
         </div>
       </div>
