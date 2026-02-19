@@ -183,15 +183,6 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
   const props = tank?.properties || {};
 
   // -------------------------
-  // ✅ DND-KIT SHIELD (IMPORTANT)
-  // -------------------------
-  // DnD-Kit PointerSensor listens on document. We must stop events in CAPTURE phase
-  // so dragging the modal never drags the underlying tank/canvas.
-  const stopDndCapture = (e) => {
-    e.stopPropagation();
-  };
-
-  // -------------------------
   // ✅ LEFT: helper card (math helper)
   // -------------------------
   const helperCard = (
@@ -399,18 +390,18 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     window.removeEventListener("mouseup", endDrag);
   };
 
-  // ✅ start drag ONLY from header; stop propagation so DnD-kit never starts dragging tank
   const startDrag = (e) => {
     if (e.button !== 0) return;
 
     const t = e.target;
     if (t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")) return;
 
-    // IMPORTANT:
-    // - preventDefault: avoids text selection + makes drag feel clean
-    // - stopPropagation: prevents canvas/tank drag start
     e.preventDefault();
+
+    // ✅ KEY FIX:
+    // stop React propagation + stop native propagation to document listeners (DnD-kit)
     e.stopPropagation();
+    if (e.nativeEvent?.stopImmediatePropagation) e.nativeEvent.stopImmediatePropagation();
 
     dragRef.current.dragging = true;
     setIsDragging(true);
@@ -453,10 +444,11 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
 
   return (
     <div
-      // ✅ critical: stop DnD-kit sensors at capture phase
-      onPointerDownCapture={stopDndCapture}
-      onMouseDownCapture={stopDndCapture}
-      onTouchStartCapture={stopDndCapture}
+      onMouseDown={(e) => {
+        // ✅ prevent canvas/draggable behind from seeing this
+        e.stopPropagation();
+        if (e.nativeEvent?.stopImmediatePropagation) e.nativeEvent.stopImmediatePropagation();
+      }}
       style={{
         position: "fixed",
         inset: 0,
@@ -464,14 +456,11 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
         zIndex: 999999,
       }}
     >
-      {/* ✅ clicking outside panel closes */}
+      {/* ✅ clicking outside panel closes (matches others) */}
       <div
         onMouseDown={(e) => {
           e.stopPropagation();
-          if (e.target === e.currentTarget) onClose?.();
-        }}
-        onPointerDown={(e) => {
-          e.stopPropagation();
+          if (e.nativeEvent?.stopImmediatePropagation) e.nativeEvent.stopImmediatePropagation();
           if (e.target === e.currentTarget) onClose?.();
         }}
         style={{
@@ -492,11 +481,10 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
           boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
           overflow: "hidden",
         }}
-        // ✅ also shield the panel itself
-        onPointerDownCapture={stopDndCapture}
-        onMouseDownCapture={stopDndCapture}
-        onTouchStartCapture={stopDndCapture}
-        onMouseDown={(e) => e.stopPropagation()}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          if (e.nativeEvent?.stopImmediatePropagation) e.nativeEvent.stopImmediatePropagation();
+        }}
       >
         {/* HEADER BAR (DRAG HANDLE) */}
         <div
@@ -522,6 +510,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
             data-no-drag="true"
             onClick={(e) => {
               e.stopPropagation();
+              if (e.nativeEvent?.stopImmediatePropagation) e.nativeEvent.stopImmediatePropagation();
               onClose?.();
             }}
             style={{
