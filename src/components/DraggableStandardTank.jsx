@@ -4,28 +4,20 @@ import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 import { StandardTank } from "./ProTankIconStandard";
 
-// ✅ ADD THIS
-import StandardTankPropertiesModal from "./StandardTankPropertiesModal";
-
 // ✅ Models allowed
 const MODEL_META = {
   zhc1921: { base: "zhc1921" }, // CF-2000
   zhc1661: { base: "zhc1661" }, // CF-1600
 };
 
-// -------------------------
-// ✅ auth + no-cache fetch helpers (same idea as DisplayBox)
-// -------------------------
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
-
 function withNoCache(path) {
   const sep = path.includes("?") ? "&" : "?";
   return `${path}${sep}_ts=${Date.now()}`;
 }
-
 async function apiGet(path, { signal } = {}) {
   const res = await fetch(`${API_URL}${withNoCache(path)}`, {
     method: "GET",
@@ -40,7 +32,6 @@ async function apiGet(path, { signal } = {}) {
   if (!res.ok) throw new Error(`GET ${path} failed (${res.status})`);
   return res.json();
 }
-
 function normalizeList(data) {
   return Array.isArray(data)
     ? data
@@ -51,7 +42,6 @@ function normalizeList(data) {
     : [];
 }
 
-// ✅ IMPORTANT: avoid /devices (can be 403/405). Use user-safe list endpoints.
 async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
   const base = MODEL_META[modelKey]?.base || modelKey;
 
@@ -83,37 +73,27 @@ async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
       // continue
     }
   }
-
   return null;
 }
 
+// ✅ SAME strict AI reader as your Telemetric hook (no "analog"/"a" guessing)
 function readAiField(row, bindField) {
   if (!row || !bindField) return null;
-  const f = String(bindField).toLowerCase();
 
-  const candidates = [
-    f,
-    f.toUpperCase(),
-    f.replace("ai", "a"),
-    f.replace("ai", "A"),
-    f.replace("ai", "analog"),
-    f.replace("ai", "ANALOG"),
-  ];
-
-  for (const k of candidates) {
-    if (row[k] !== undefined) return row[k];
-  }
+  const f = String(bindField || "").trim().toLowerCase(); // ai1..ai8
+  if (!/^ai[1-8]$/.test(f)) return null;
 
   const n = f.replace("ai", "");
-  const extra = [`ai_${n}`, `AI_${n}`, `ai-${n}`, `AI-${n}`];
-  for (const k of extra) {
-    if (row[k] !== undefined) return row[k];
-  }
+  const candidates = [f, f.toUpperCase(), `ai_${n}`, `AI_${n}`, `ai-${n}`, `AI-${n}`];
 
+  for (const k of candidates) {
+    const v = row?.[k];
+    if (v !== undefined && v !== null && v !== "") return v;
+  }
   return null;
 }
 
-// ✅ small math evaluator: supports VALUE and CONCAT("a", VALUE, "b")
+// ✅ same evaluator as DraggableSiloTank
 function computeMathOutput(liveValue, formula) {
   const f = String(formula || "").trim();
   if (!f) return liveValue;
@@ -169,47 +149,44 @@ function computeMathOutput(liveValue, formula) {
   }
 }
 
-function toNumberOrNull(v) {
-  if (v === null || v === undefined || v === "") return null;
-  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+function clamp01(v) {
   const n = Number(v);
-  return Number.isFinite(n) ? n : null;
+  if (!Number.isFinite(n)) return 0;
+  return Math.max(0, Math.min(1, n));
 }
 
-function formatOutput(v, digits = 2) {
-  if (v === null || v === undefined || v === "") return "--";
-  if (typeof v === "string") return v;
-  const n = typeof v === "number" ? v : Number(v);
-  if (!Number.isFinite(n)) return String(v);
-  return n.toFixed(Math.max(0, Number(digits) || 0));
+function ensureAlphaHex(hex, alphaHex = "88") {
+  const s = String(hex || "").trim();
+  if (!s) return `#60a5fa${alphaHex}`;
+  if (s.startsWith("#") && (s.length === 9 || s.length === 5)) return s;
+  if (s.startsWith("#") && s.length === 7) return `${s}${alphaHex}`;
+  return s;
 }
 
-export default function DraggableStandardTank({ tank, onUpdate }) {
+export default function DraggableStandardTank({ tank }) {
   const props = tank?.properties || {};
   const scale = tank?.scale || 1;
 
-  // ✅ modal open/close
-  const [openProps, setOpenProps] = useState(false);
-
-  // ✅ saved from your modal
   const name = String(props.name || "").trim();
-  const maxCapacity = toNumberOrNull(props.maxCapacity);
-  const materialColor = String(props.materialColor || "#60a5fa88");
 
-  // ✅ binding + math
+  // ✅ unit saved by StandardTankPropertiesModal
+  const unit = String(props.unit || "").trim();
+
+  const maxCapacity =
+    props.maxCapacity === "" || props.maxCapacity === null || props.maxCapacity === undefined
+      ? 0
+      : Number(props.maxCapacity);
+
+  const materialColor = ensureAlphaHex(props.materialColor || "#60a5fa", "88");
+
   const bindModel = props.bindModel || "zhc1921";
   const bindDeviceId = String(props.bindDeviceId || "").trim();
   const bindField = String(props.bindField || "ai1").trim();
 
-  // ✅ IMPORTANT: match the modal key
-  const formula = String(props.mathExpr || props.formula || props.math || "").trim();
-  const digits = props.outputDigits ?? 2;
+  // ✅ same precedence style as your other widgets
+  const formula = String(props.formula ?? props.mathFormula ?? props.math ?? props.mathExpr ?? "").trim();
 
   const hasBinding = !!bindDeviceId && !!bindField;
-
-  const alarmEnabled = !!props.alarmEnabled;
-  const alarmHigh = toNumberOrNull(props.alarmHigh);
-  const alarmLow = toNumberOrNull(props.alarmLow);
 
   const [liveValue, setLiveValue] = useState(null);
   const [outputValue, setOutputValue] = useState(null);
@@ -226,13 +203,22 @@ export default function DraggableStandardTank({ tank, onUpdate }) {
 
     const tick = async () => {
       try {
+        if (document.hidden) return;
+
         const row = await loadLiveRowForDevice(bindModel, bindDeviceId, {
           signal: ctrl.signal,
         });
 
         const raw = row ? readAiField(row, bindField) : null;
-        const safeLive = toNumberOrNull(raw);
 
+        const num =
+          raw === null || raw === undefined || raw === ""
+            ? null
+            : typeof raw === "number"
+            ? raw
+            : Number(raw);
+
+        const safeLive = Number.isFinite(num) ? num : null;
         const out = computeMathOutput(safeLive, formula);
 
         if (cancelled) return;
@@ -254,121 +240,86 @@ export default function DraggableStandardTank({ tank, onUpdate }) {
     };
   }, [hasBinding, bindModel, bindDeviceId, bindField, formula]);
 
-  const outNum = useMemo(() => {
-    if (!hasBinding) return toNumberOrNull(props.value ?? tank?.value ?? 0);
-    return toNumberOrNull(outputValue);
-  }, [hasBinding, outputValue, props.value, tank?.value]);
+  const numericOutput = useMemo(() => {
+    const v = outputValue;
+    if (v === null || v === undefined || v === "") return null;
 
-  const percent = useMemo(() => {
-    if (!maxCapacity || !Number.isFinite(maxCapacity) || maxCapacity <= 0) return 0;
-    const v = Number(outNum || 0);
-    const p = (v / maxCapacity) * 100;
-    return Math.max(0, Math.min(100, p));
-  }, [outNum, maxCapacity]);
+    if (typeof v === "string") {
+      const n = Number(v);
+      return Number.isFinite(n) ? n : null;
+    }
 
-  const alarm = useMemo(() => {
-    if (!alarmEnabled) return false;
-    const v = toNumberOrNull(outNum);
-    if (v === null) return false;
-    if (alarmHigh !== null && v >= alarmHigh) return true;
-    if (alarmLow !== null && v <= alarmLow) return true;
-    return false;
-  }, [alarmEnabled, outNum, alarmHigh, alarmLow]);
+    const n = typeof v === "number" ? v : Number(v);
+    return Number.isFinite(n) ? n : null;
+  }, [outputValue]);
 
+  // ✅ SAME FIX as silo: if math returns string (CONCAT), level uses liveValue
+  const levelPct = useMemo(() => {
+    if (!Number.isFinite(Number(maxCapacity)) || Number(maxCapacity) <= 0) return 0;
+    const used = numericOutput ?? liveValue ?? 0;
+    const frac = clamp01(Number(used) / Number(maxCapacity));
+    return frac * 100;
+  }, [numericOutput, liveValue, maxCapacity]);
+
+  // ✅ remove .00 (always) like silo
   const outputText = useMemo(() => {
-    if (hasBinding) return formatOutput(outputValue, digits);
-    return formatOutput(props.value ?? tank?.value ?? 0, digits);
-  }, [hasBinding, outputValue, digits, props.value, tank?.value]);
+    if (!hasBinding) return "--";
+    if (typeof outputValue === "string") return outputValue || "--";
 
-  const w = (tank?.w || tank?.width || 120) * scale;
-  const h = (tank?.h || tank?.height || 160) * scale;
+    const n = Number(outputValue);
+    if (!Number.isFinite(n)) return "--";
+    return String(Math.round(n));
+  }, [hasBinding, outputValue]);
 
   return (
-    <>
-      {/* ✅ DOUBLE CLICK OPENS MODAL */}
-      <div
-        onDoubleClick={(e) => {
-          e.stopPropagation();
-          setOpenProps(true);
-        }}
-        style={{
-          width: w,
-          height: h + 34 * scale,
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "flex-start",
-          pointerEvents: "auto", // ✅ allow double click
-          cursor: "default",
-        }}
-      >
-        {name ? (
-          <div
-            style={{
-              marginBottom: 6 * scale,
-              fontSize: 12 * scale,
-              fontWeight: 600,
-              color: "#111827",
-              lineHeight: 1.1,
-              textAlign: "center",
-              maxWidth: "100%",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              whiteSpace: "nowrap",
-            }}
-          >
-            {name}
-          </div>
-        ) : null}
-
-        <div style={{ width: w, height: h, pointerEvents: "none" }}>
-          {/* if you haven't added liquid fill to StandardTank yet, this still renders the outline.
-              once you upgrade ProTankIconStandard to support fill, these props will take effect. */}
-          <StandardTank
-            level={percent}
-            fillColor={materialColor}
-            alarm={alarm}
-            showPercentText={true}
-            percentText={`${Math.round(percent)}%`}
-          />
-        </div>
-
+    <div style={{ textAlign: "center", pointerEvents: "none" }}>
+      {name ? (
         <div
           style={{
-            marginTop: 6 * scale,
-            minWidth: 90 * scale,
-            height: 26 * scale,
-            padding: `0 ${10 * scale}px`,
-            borderRadius: 10 * scale,
-            border: "1px solid #cbd5e1",
-            background: "#ffffff",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontFamily: "monospace",
-            fontSize: 14 * scale,
-            fontWeight: 700,
-            color: "#0f172a",
-            boxShadow: "0 2px 10px rgba(2,6,23,0.08)",
-            whiteSpace: "nowrap",
-            overflow: "hidden",
-            textOverflow: "ellipsis",
+            marginBottom: 4,
+            fontSize: `${16 * scale}px`,
+            fontWeight: 600,
+            color: "#111827",
+            lineHeight: 1.1,
           }}
         >
-          {outputText}
+          {name}
+        </div>
+      ) : null}
+
+      {/* ✅ STANDARD TANK */}
+      <div style={{ display: "inline-block" }}>
+        <div style={{ width: `${140 * scale}px`, height: `${220 * scale}px` }}>
+          <StandardTank
+            level={levelPct}
+            fillColor={materialColor}
+            alarm={false}
+            showPercentText={true}
+            percentText={`${Math.round(levelPct)}%`}
+            percentTextColor="#111827"
+            // ✅ bottom output (value + unit) — add these props if your ProTankIconStandard supports them
+            showBottomText={true}
+            bottomText={outputText}
+            bottomUnit={unit}
+            bottomTextColor="#111827"
+          />
         </div>
       </div>
 
-      {/* ✅ PROPERTIES MODAL */}
-      <StandardTankPropertiesModal
-        open={openProps}
-        tank={tank}
-        onClose={() => setOpenProps(false)}
-        onSave={(updatedTank) => {
-          // parent should update tank in state (same pattern as your other widgets)
-          if (typeof onUpdate === "function") onUpdate(updatedTank);
+      {/* ✅ OUTPUT: hidden (same as silo) */}
+      <div
+        style={{
+          marginTop: 2,
+          fontFamily: "monospace",
+          fontSize: `${18 * scale}px`,
+          fontWeight: 700,
+          color: "#111827",
+          display: "none",
         }}
-      />
-    </>
+      >
+        {outputText}
+        {unit ? ` ${unit}` : ""}
+      </div>
+    </div>
   );
 }
