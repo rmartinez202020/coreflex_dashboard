@@ -8,7 +8,7 @@ const MODEL_META = {
   zhc1661: { label: "CF-1600", base: "zhc1661" },
 };
 
-// ✅ auth + no-cache fetch helpers (same idea as your other modals)
+// ✅ auth + no-cache fetch helpers
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -82,26 +82,13 @@ async function loadDeviceListForModel(modelKey, { signal } = {}) {
   return [];
 }
 
-// ✅ center helper
-function computeCenteredPos({ panelW = 560, estH = 520 } = {}) {
-  const w = window.innerWidth || 1200;
-  const h = window.innerHeight || 800;
-
-  const width = Math.min(panelW, Math.floor(w * 0.96));
-  const left = Math.max(12, Math.floor((w - width) / 2));
-  const top = Math.max(12, Math.floor((h - estH) / 2));
-
-  return { left, top };
-}
-
 export default function ToggleSwitchPropertiesModal({
   open = false,
   toggleSwitch,
   onSave,
   onClose,
 }) {
-  if (!open || !toggleSwitch) return null;
-
+  // ✅ do NOT return before hooks style used elsewhere
   const props = toggleSwitch?.properties || {};
 
   // -------------------------
@@ -115,14 +102,15 @@ export default function ToggleSwitchPropertiesModal({
   const [deviceQuery, setDeviceQuery] = useState("");
   const [devicesLoading, setDevicesLoading] = useState(false);
 
-  // Load from widget whenever it changes
+  // Rehydrate when opening / switching widget
   useEffect(() => {
+    if (!open || !toggleSwitch) return;
     const p = toggleSwitch?.properties || {};
     setBindModel(p.bindModel || "zhc1921");
     setBindDeviceId(p.bindDeviceId || "");
     setBindField(p.bindField || "do1");
     setDeviceQuery("");
-  }, [toggleSwitch]);
+  }, [open, toggleSwitch?.id]);
 
   // Load device list on open/model changes
   useEffect(() => {
@@ -175,10 +163,12 @@ export default function ToggleSwitchPropertiesModal({
   }, [bindDeviceId, bindField]);
 
   // -------------------------
-  // ✅ DRAG STATE (NO FLASH)
+  // ✅ MODAL SIZE + CENTER (LIKE YOUR OTHER MODALS)
   // -------------------------
   const PANEL_W = 560;
+  const EST_H = 520;
 
+  const modalRef = useRef(null);
   const dragRef = useRef({
     dragging: false,
     startX: 0,
@@ -187,69 +177,90 @@ export default function ToggleSwitchPropertiesModal({
     startTop: 0,
   });
 
-  const [pos, setPos] = useState(() => computeCenteredPos({ panelW: PANEL_W, estH: 520 }));
-  const [isDragging, setIsDragging] = useState(false);
+  const [pos, setPos] = useState(() => {
+    const w = window.innerWidth || 1200;
+    const h = window.innerHeight || 800;
+    const left = Math.max(20, Math.round((w - PANEL_W) / 2));
+    const top = Math.max(20, Math.round((h - EST_H) / 2));
+    return { left, top };
+  });
 
+  // Center on open (and clamp)
   useLayoutEffect(() => {
     if (!open) return;
-    setPos(computeCenteredPos({ panelW: PANEL_W, estH: 520 }));
-  }, [open]);
 
-  const onDragMove = (e) => {
-    if (!dragRef.current.dragging) return;
-
-    const dx = e.clientX - dragRef.current.startX;
-    const dy = e.clientY - dragRef.current.startY;
-
-    const nextLeft = dragRef.current.startLeft + dx;
-    const nextTop = dragRef.current.startTop + dy;
-
-    const margin = 8;
     const w = window.innerWidth || 1200;
     const h = window.innerHeight || 800;
 
-    const maxLeft = Math.max(margin, w - margin - 240);
-    const maxTop = Math.max(margin, h - margin - 160);
+    const rect = modalRef.current?.getBoundingClientRect();
+    const mw = rect?.width ?? PANEL_W;
+    const mh = rect?.height ?? EST_H;
 
-    setPos({
-      left: Math.min(Math.max(margin, nextLeft), maxLeft),
-      top: Math.min(Math.max(margin, nextTop), maxTop),
-    });
-  };
+    const left = Math.max(20, Math.round((w - mw) / 2));
+    const top = Math.max(20, Math.round((h - mh) / 2));
 
-  const endDrag = () => {
-    dragRef.current.dragging = false;
-    setIsDragging(false);
-    window.removeEventListener("mousemove", onDragMove);
-    window.removeEventListener("mouseup", endDrag);
-  };
+    setPos({ left, top });
+  }, [open]);
+
+  // Drag listeners (like your reference modal)
+  useEffect(() => {
+    const onMove = (e) => {
+      if (!dragRef.current.dragging) return;
+      e.preventDefault();
+
+      const dx = e.clientX - dragRef.current.startX;
+      const dy = e.clientY - dragRef.current.startY;
+
+      const nextLeft = dragRef.current.startLeft + dx;
+      const nextTop = dragRef.current.startTop + dy;
+
+      const rect = modalRef.current?.getBoundingClientRect();
+      const mw = rect?.width ?? PANEL_W;
+      const mh = rect?.height ?? EST_H;
+
+      const margin = 20;
+      const minLeft = margin - (mw - 60);
+      const maxLeft = (window.innerWidth || 1200) - margin;
+      const minTop = margin;
+      const maxTop = (window.innerHeight || 800) - margin;
+
+      const clampedLeft = Math.min(maxLeft, Math.max(minLeft, nextLeft));
+      const clampedTop = Math.min(maxTop, Math.max(minTop, nextTop));
+
+      setPos({ left: clampedLeft, top: clampedTop });
+    };
+
+    const onUp = () => {
+      if (!dragRef.current.dragging) return;
+      dragRef.current.dragging = false;
+      document.body.style.userSelect = "";
+      document.body.style.cursor = "";
+    };
+
+    window.addEventListener("mousemove", onMove);
+    window.addEventListener("mouseup", onUp);
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, []);
 
   const startDrag = (e) => {
     if (e.button !== 0) return;
 
+    // don’t start drag from buttons/inputs
     const t = e.target;
     if (t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")) return;
 
-    e.preventDefault();
-
     dragRef.current.dragging = true;
-    setIsDragging(true);
     dragRef.current.startX = e.clientX;
     dragRef.current.startY = e.clientY;
     dragRef.current.startLeft = pos.left;
     dragRef.current.startTop = pos.top;
 
-    window.addEventListener("mousemove", onDragMove);
-    window.addEventListener("mouseup", endDrag);
+    document.body.style.userSelect = "none";
+    document.body.style.cursor = "grabbing";
   };
-
-  useEffect(() => {
-    return () => {
-      window.removeEventListener("mousemove", onDragMove);
-      window.removeEventListener("mouseup", endDrag);
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
 
   const labelStyle = { fontSize: 12, fontWeight: 500, color: "#111827" };
   const sectionTitleStyle = { fontWeight: 700, fontSize: 16 };
@@ -268,17 +279,20 @@ export default function ToggleSwitchPropertiesModal({
   const previewTitleStyle = { fontWeight: 700, marginBottom: 8, fontSize: 13 };
   const previewTextStyle = { fontSize: 12, fontWeight: 500, color: "#111827" };
 
+  if (!open || !toggleSwitch) return null;
+
   return (
     <div
-      onMouseDown={(e) => e.stopPropagation()}
       style={{
         position: "fixed",
         inset: 0,
         background: "rgba(0,0,0,0.35)",
         zIndex: 999999,
       }}
+      onMouseDown={onClose} // ✅ backdrop click closes
     >
       <div
+        ref={modalRef}
         style={{
           position: "fixed",
           left: pos.left,
@@ -289,8 +303,10 @@ export default function ToggleSwitchPropertiesModal({
           background: "#fff",
           boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
           overflow: "hidden",
+          display: "flex",
+          flexDirection: "column",
         }}
-        onMouseDown={(e) => e.stopPropagation()}
+        onMouseDown={(e) => e.stopPropagation()} // ✅ allow interaction inside
       >
         {/* HEADER BAR (DRAG HANDLE) */}
         <div
@@ -306,7 +322,7 @@ export default function ToggleSwitchPropertiesModal({
             justifyContent: "space-between",
             background: "linear-gradient(180deg,#0b1b33,#0a1730)",
             color: "#fff",
-            cursor: isDragging ? "grabbing" : "grab",
+            cursor: dragRef.current.dragging ? "grabbing" : "grab",
             userSelect: "none",
           }}
           title="Drag to move"
@@ -326,6 +342,7 @@ export default function ToggleSwitchPropertiesModal({
               cursor: "pointer",
             }}
             title="Close"
+            type="button"
           >
             ✕
           </button>
@@ -432,6 +449,7 @@ export default function ToggleSwitchPropertiesModal({
                   fontWeight: 700,
                   cursor: "pointer",
                 }}
+                type="button"
               >
                 Cancel
               </button>
@@ -459,6 +477,7 @@ export default function ToggleSwitchPropertiesModal({
                   fontWeight: 800,
                   cursor: canApply ? "pointer" : "not-allowed",
                 }}
+                type="button"
               >
                 Apply
               </button>
