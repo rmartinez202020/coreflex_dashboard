@@ -8,8 +8,6 @@ export default function ToggleSwitchControl({
   height = 70,
 
   // ✅ keep old behavior by default
-  // - true  => pointerEvents none (visual-only), no double-click handler here
-  // - false => pointerEvents auto, double-click opens modal
   visualOnly = true,
 
   // ✅ optional (parent should pass to enable saving binding)
@@ -69,7 +67,7 @@ export default function ToggleSwitchControl({
           position: "relative",
           userSelect: "none",
           cursor: visualOnly ? "default" : "pointer",
-          pointerEvents: visualOnly ? "none" : "auto", // ✅ allow dblclick only when visualOnly=false
+          pointerEvents: visualOnly ? "none" : "auto",
         }}
       >
         {/* Track */}
@@ -135,7 +133,6 @@ export default function ToggleSwitchControl({
         </div>
       </div>
 
-      {/* ✅ Properties Modal (device list + DO dropdown) */}
       <ToggleSwitchPropertiesModal
         open={openProps}
         toggleSwitch={widget}
