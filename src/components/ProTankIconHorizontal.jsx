@@ -7,7 +7,7 @@ const svgStyle = {
   display: "block",
 };
 
-// ⭐ HORIZONTAL TANK — TALLER VERSION
+// ⭐ HORIZONTAL TANK — Balanced Height Version
 export function HorizontalTank({
   level = 0,
   fillColor = "#60a5fa88",
@@ -28,13 +28,13 @@ export function HorizontalTank({
 
   const clampedLevel = Math.max(0, Math.min(100, Number(level) || 0));
 
-  // ✅ GEOMETRY — TALLER BODY
+  // ✅ Slightly taller than original, but not too much
   const x1 = 35;
   const x2 = 125;
   const capR = 35;
 
-  const topY = 28;      // moved up
-  const bottomY = 92;   // moved down
+  const topY = 32;      // balanced
+  const bottomY = 86;   // balanced
 
   const totalW = x2 - x1 + capR * 2; // 160
   const h = bottomY - topY;
@@ -44,7 +44,7 @@ export function HorizontalTank({
   const shouldShowBottom =
     showBottomText || String(bottomText || "").trim() !== "";
 
-  // ✅ Bottom → Top fill
+  // Bottom → Top fill
   const fillH = h * (clampedLevel / 100);
   const fillY = bottomY - fillH;
   const fillX = x1 - capR;
@@ -60,7 +60,7 @@ export function HorizontalTank({
       }}
     >
       <svg
-        viewBox="0 0 160 120"  // slightly taller viewbox
+        viewBox="0 0 160 115"
         preserveAspectRatio="xMidYMid meet"
         style={{
           ...svgStyle,
@@ -69,8 +69,8 @@ export function HorizontalTank({
       >
         <defs>
           <clipPath id={clipId}>
-            {/* ✅ Updated arc height (second radius changed from 18 → 32) */}
-            <path d="M 35 28 H 125 A 35 32 0 1 1 125 92 H 35 A 35 32 0 1 1 35 28" />
+            {/* Reduced arc height for smoother look */}
+            <path d="M 35 32 H 125 A 35 26 0 1 1 125 86 H 35 A 35 26 0 1 1 35 32" />
           </clipPath>
         </defs>
 
@@ -86,7 +86,7 @@ export function HorizontalTank({
 
         {/* OUTLINE */}
         <path
-          d="M 35 28 H 125 A 35 32 0 1 1 125 92 H 35 A 35 32 0 1 1 35 28"
+          d="M 35 32 H 125 A 35 26 0 1 1 125 86 H 35 A 35 26 0 1 1 35 32"
           fill="none"
           stroke="#727272"
           strokeWidth="1.5"
@@ -96,11 +96,11 @@ export function HorizontalTank({
         {showPercentText ? (
           <text
             x="80"
-            y="60"
+            y="59"
             textAnchor="middle"
             dominantBaseline="middle"
             fontFamily="system-ui, -apple-system, Segoe UI, Roboto, Arial"
-            fontSize="16"
+            fontSize="15"
             fontWeight="700"
             fill={percentTextColor}
             style={{ userSelect: "none", opacity: 0.9 }}
@@ -113,7 +113,7 @@ export function HorizontalTank({
       {shouldShowBottom ? (
         <div
           style={{
-            marginTop: -10,
+            marginTop: -8,
             padding: "6px 14px",
             borderRadius: 8,
             background: "#eef2f7",
@@ -145,9 +145,9 @@ export function HorizontalTank({
 
 export function HorizontalTankIcon() {
   return (
-    <svg width="50" height="20" viewBox="0 0 160 120">
+    <svg width="50" height="20" viewBox="0 0 160 115">
       <path
-        d="M 35 28 H 125 A 35 32 0 1 1 125 92 H 35 A 35 32 0 1 1 35 28"
+        d="M 35 32 H 125 A 35 26 0 1 1 125 86 H 35 A 35 26 0 1 1 35 32"
         fill="none"
         stroke="#ffffff"
         strokeWidth="2"
@@ -155,4 +155,3 @@ export function HorizontalTankIcon() {
     </svg>
   );
 }
-
