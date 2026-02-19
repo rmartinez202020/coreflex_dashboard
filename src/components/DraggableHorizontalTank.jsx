@@ -13,7 +13,7 @@ const MODEL_META = {
 };
 
 // -------------------------
-// ✅ auth + no-cache fetch helpers (same idea as DisplayBox)
+// ✅ auth + no-cache fetch helpers
 // -------------------------
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
@@ -119,7 +119,6 @@ function computeMathOutput(liveValue, formula) {
 
   const VALUE = liveValue;
 
-  // CONCAT support
   const upper = f.toUpperCase();
   if (upper.startsWith("CONCAT(") && f.endsWith(")")) {
     const inner = f.slice(7, -1);
@@ -159,7 +158,6 @@ function computeMathOutput(liveValue, formula) {
       .join("");
   }
 
-  // Numeric expression
   try {
     const expr = f.replace(/\bVALUE\b/gi, "VALUE");
     // eslint-disable-next-line no-new-func
@@ -179,7 +177,6 @@ function clamp(n, a, b) {
 function ensureAlpha(color) {
   const c = String(color || "").trim();
   if (!c) return "#60a5fa88";
-  // if user gives #RRGGBB, add 88 alpha
   if (/^#[0-9a-fA-F]{6}$/.test(c)) return `${c}88`;
   return c;
 }
@@ -208,13 +205,10 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
   const props = tank?.properties || {};
   const scale = tank?.scale || 1;
 
-  // ✅ modal open
   const [openProps, setOpenProps] = useState(false);
 
   // Saved from modal
   const title = String(props.name || props.title || "").trim();
-
-  // ✅ unit saved by HorizontalTankPropertiesModal
   const unit = String(props.unit || "").trim();
 
   const maxCapacityRaw = props.maxCapacity;
@@ -225,12 +219,9 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
 
   const materialColor = ensureAlpha(props.materialColor || "#00ff00");
 
-  // Binding + math
   const bindModel = props.bindModel || "zhc1921";
   const bindDeviceId = String(props.bindDeviceId || "").trim();
   const bindField = String(props.bindField || "ai1").trim();
-
-  // IMPORTANT: you’re using "density" as the Math field in the modal
   const formula = String(props.density || "").trim();
 
   const hasBinding = !!bindDeviceId && !!bindField;
@@ -238,7 +229,7 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
   const [liveValue, setLiveValue] = useState(null);
   const [outputValue, setOutputValue] = useState(null);
 
-  // ✅ Poll every 2s (same as Silo/Standard)
+  // ✅ Poll every 2s
   useEffect(() => {
     if (!hasBinding) {
       setLiveValue(null);
@@ -268,7 +259,6 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
 
         const safeLive = Number.isFinite(num) ? num : null;
 
-        // output can be string (CONCAT) or number
         const out = computeMathOutput(safeLive, formula);
 
         if (cancelled) return;
@@ -290,20 +280,15 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
     };
   }, [hasBinding, bindModel, bindDeviceId, bindField, formula]);
 
-  // Numeric output used for % + numeric label
   const numericOut = useMemo(() => toNumberOrNull(outputValue), [outputValue]);
 
-  // ✅ Match StandardTank behavior:
-  // If math returns a string (CONCAT), level uses liveValue (not NaN)
   const levelPercent = useMemo(() => {
     const used = numericOut ?? liveValue ?? 0;
 
-    // if capacity set => output is amount (0..capacity)
     if (Number.isFinite(maxCapacity) && maxCapacity > 0) {
       return clamp((Number(used) / maxCapacity) * 100, 0, 100);
     }
 
-    // else assume output already is % (0..100)
     return clamp(Number(used), 0, 100);
   }, [numericOut, liveValue, maxCapacity]);
 
@@ -315,11 +300,10 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
     return formatOutputNoTrailingZeros(outputValue, 2);
   }, [hasBinding, outputValue]);
 
-  // ✅ container sizing (so it stays centered inside selection box)
+  // ✅ sizing
   const w = (tank?.w || tank?.width || 220) * scale;
   const h = (tank?.h || tank?.height || 120) * scale;
 
-  // ✅ Portal: prevents "fixed modal offset" when parent is transformed (DnD-kit)
   const modalNode =
     openProps && typeof document !== "undefined"
       ? createPortal(
@@ -339,19 +323,15 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
 
   return (
     <>
-      {/* ✅ MATCH StandardTank behavior:
-          - outer visual should NOT steal mouse (so draggable wrapper shows move cursor)
-          - still allow double-click to open modal via an invisible hit-layer
-      */}
       <div
         style={{
           width: w,
-          height: h + 28 * scale, // ✅ tighter overall box (brings selection box closer)
+          // ✅ Let content define height (no forced extra empty space)
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "flex-start",
-          pointerEvents: "none", // ✅ key
+          pointerEvents: "none",
           userSelect: "none",
           position: "relative",
         }}
@@ -368,16 +348,17 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
             inset: 0,
             pointerEvents: "auto",
             background: "transparent",
-            cursor: "inherit", // don't force "default"
+            cursor: "inherit",
           }}
         />
 
+        {/* ✅ title bigger */}
         {title ? (
           <div
             style={{
-              marginBottom: 2 * scale, // ✅ tighter to tank
-              fontSize: 16 * scale, // ✅ bigger title
-              fontWeight: 700,
+              marginBottom: 4 * scale,
+              fontSize: 14 * scale, // ✅ bigger
+              fontWeight: 800, // ✅ bolder
               color: "#111827",
               lineHeight: 1.1,
               textAlign: "center",
@@ -392,11 +373,11 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
           </div>
         ) : null}
 
-        {/* Tank icon */}
+        {/* Tank icon (ONLY the SVG / percent) */}
         <div
           style={{
             width: w,
-            height: h,
+            height: h, // ✅ keep tank size stable
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -411,33 +392,43 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
               showPercentText={true}
               percentText={percentText}
               percentTextColor="#111827"
-              showBottomText={true}
-              bottomText={bottomValueText}
-              bottomUnit={unit}
-              bottomTextColor="#111827"
+              // ✅ IMPORTANT: bottom label OFF here
+              showBottomText={false}
               pointerEvents="none"
             />
           </div>
         </div>
 
-        {/* OPTIONAL: keep hidden external output */}
+        {/* ✅ Output badge rendered OUTSIDE so it can sit VERY close */}
         <div
           style={{
-            marginTop: 0, // ✅ tighter (even though hidden)
+            marginTop: 2 * scale, // ✅ super close to tank
+            padding: `${5 * scale}px ${12 * scale}px`,
+            borderRadius: 8,
+            background: "#eef2f7",
+            border: "1px solid rgba(17,24,39,0.25)",
             fontFamily: "monospace",
-            fontSize: `${14 * scale}px`,
-            fontWeight: 700,
+            lineHeight: 1,
             color: "#111827",
+            userSelect: "none",
+            display: "inline-flex",
+            alignItems: "baseline",
+            gap: 8,
             pointerEvents: "none",
-            display: "none",
           }}
         >
-          {bottomValueText}
-          {unit ? ` ${unit}` : ""}
+          <span style={{ fontSize: 16 * scale, fontWeight: 900, letterSpacing: 0.3 }}>
+            {String(bottomValueText || "").trim() || "--"}
+          </span>
+
+          {unit ? (
+            <span style={{ fontSize: 13 * scale, fontWeight: 800, opacity: 0.95 }}>
+              {unit}
+            </span>
+          ) : null}
         </div>
       </div>
 
-      {/* ✅ Modal (PORTAL) */}
       {modalNode}
     </>
   );
