@@ -402,7 +402,7 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
         {/* ✅ Output badge rendered OUTSIDE so it can sit VERY close */}
         <div
           style={{
-            marginTop: 2 * scale, // ✅ super close to tank
+            marginTop: 0 * scale, 
             padding: `${5 * scale}px ${12 * scale}px`,
             borderRadius: 8,
             background: "#eef2f7",
