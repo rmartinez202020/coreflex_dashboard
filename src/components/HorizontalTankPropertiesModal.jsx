@@ -288,7 +288,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
   }, [bindDeviceId, bindField]);
 
   // -------------------------
-  // ✅ DRAG STATE (Pointer-based: fixes dnd-kit interference)
+  // ✅ DRAG STATE (Fixed: header gets events; canvas never steals)
   // -------------------------
   const PANEL_W = 1240;
 
@@ -331,11 +331,8 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     setDeviceQuery("");
   }, [tank]);
 
-  const onDragMove = (ev) => {
+  const onDragMove = (e) => {
     if (!dragRef.current.dragging) return;
-
-    const e = ev?.clientX != null ? ev : ev?.touches?.[0];
-    if (!e) return;
 
     const dx = e.clientX - dragRef.current.startX;
     const dy = e.clientY - dragRef.current.startY;
@@ -347,6 +344,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     const w = window.innerWidth || 1200;
     const h = window.innerHeight || 800;
 
+    // keep inside viewport (simple clamp)
     const maxLeft = Math.max(margin, w - margin - 260);
     const maxTop = Math.max(margin, h - margin - 140);
 
@@ -367,13 +365,13 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
   };
 
   const startDrag = (e) => {
-    // only left button / primary
+    // left button / primary only (ignore right click)
     if (e.button != null && e.button !== 0) return;
 
     const t = e.target;
     if (t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")) return;
 
-    // ✅ critical: block dnd-kit PointerSensor
+    // ✅ critical: block dnd-kit PointerSensor + canvas selection
     e.preventDefault();
     e.stopPropagation();
     if (e.nativeEvent?.stopImmediatePropagation) e.nativeEvent.stopImmediatePropagation();
@@ -427,7 +425,8 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
   const previewTitleStyle = { fontWeight: 600, marginBottom: 8, fontSize: 13 };
   const previewTextStyle = { fontSize: 12, fontWeight: 400, color: "#111827" };
 
-  // ✅ one helper to block pointer events from reaching canvas (capture phase)
+  // ✅ IMPORTANT: do NOT use Capture blockers (they prevent header from receiving pointerdown)
+  // Bubble-phase blocker keeps events from reaching canvas without breaking header drag.
   const blockCanvasPointer = (e) => {
     e.stopPropagation();
     if (e.nativeEvent?.stopImmediatePropagation) e.nativeEvent.stopImmediatePropagation();
@@ -435,8 +434,8 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
 
   return (
     <div
-      onPointerDownCapture={blockCanvasPointer}
-      onMouseDownCapture={blockCanvasPointer}
+      onPointerDown={blockCanvasPointer}
+      onMouseDown={blockCanvasPointer}
       style={{
         position: "fixed",
         inset: 0,
@@ -446,7 +445,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     >
       {/* click outside closes */}
       <div
-        onPointerDownCapture={(e) => {
+        onPointerDown={(e) => {
           blockCanvasPointer(e);
           if (e.target === e.currentTarget) onClose?.();
         }}
@@ -465,8 +464,8 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
           boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
           overflow: "hidden",
         }}
-        onPointerDownCapture={blockCanvasPointer}
-        onMouseDownCapture={blockCanvasPointer}
+        onPointerDown={blockCanvasPointer}
+        onMouseDown={blockCanvasPointer}
       >
         {/* HEADER BAR (DRAG HANDLE) */}
         <div
@@ -484,13 +483,18 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
             color: "#fff",
             cursor: isDragging ? "grabbing" : "grab",
             userSelect: "none",
-            touchAction: "none", // ✅ important for pointer dragging
+            touchAction: "none",
           }}
           title="Drag to move"
         >
           <div>Horizontal Tank Properties</div>
           <button
             data-no-drag="true"
+            onPointerDown={(e) => {
+              // prevent header drag start
+              e.stopPropagation();
+              if (e.nativeEvent?.stopImmediatePropagation) e.nativeEvent.stopImmediatePropagation();
+            }}
             onClick={(e) => {
               e.stopPropagation();
               if (e.nativeEvent?.stopImmediatePropagation) e.nativeEvent.stopImmediatePropagation();
