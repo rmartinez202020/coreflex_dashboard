@@ -1,14 +1,13 @@
-// src/components/ToggleSwitchPropertiesModal.jsx
+// src/components/controls/ToggleSwitchPropertiesModal.jsx
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { API_URL } from "../config/api";
-import { getToken } from "../utils/authToken";
+import { API_URL } from "../../config/api";
+import { getToken } from "../../utils/authToken";
 
 const MODEL_META = {
   zhc1921: { label: "CF-2000", base: "zhc1921" },
   zhc1661: { label: "CF-1600", base: "zhc1661" },
 };
 
-// ✅ auth + no-cache fetch helpers
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -66,7 +65,11 @@ async function loadDeviceListForModel(modelKey, { signal } = {}) {
             r.DEVICE_ID ??
             "";
           const status = String(r.status || r.deviceStatus || r.state || "").toLowerCase();
-          return { deviceId: String(id), status: status || "offline", raw: r };
+          return {
+            deviceId: String(id),
+            status: status || "offline",
+            raw: r,
+          };
         })
         .filter((x) => x.deviceId);
 
@@ -78,48 +81,48 @@ async function loadDeviceListForModel(modelKey, { signal } = {}) {
   return [];
 }
 
+// ✅ center helper (same approach as your other modals)
+function computeCenteredPos({ panelW = 560, panelH = 520 } = {}) {
+  const w = window.innerWidth || 1200;
+  const h = window.innerHeight || 800;
+
+  const width = Math.min(panelW, Math.floor(w * 0.96));
+  const left = Math.max(12, Math.floor((w - width) / 2));
+  const top = Math.max(12, Math.floor((h - panelH) / 2));
+
+  return { left, top };
+}
+
 export default function ToggleSwitchPropertiesModal({
   open = false,
   toggleSwitch,
   onSave,
   onClose,
 }) {
-  // ✅ never “trap” the UI — if open but missing widget, still allow closing
-  const canRender = !!open;
-  const p = toggleSwitch?.properties || {};
+  // ✅ DO NOT early-return before hooks (fixes stuck modal / unclickable X)
+  const props = toggleSwitch?.properties || {};
 
   // -------------------------
   // ✅ binding state
   // -------------------------
-  const [bindModel, setBindModel] = useState(p.bindModel || "zhc1921");
-  const [bindDeviceId, setBindDeviceId] = useState(p.bindDeviceId || "");
-  const [bindField, setBindField] = useState(p.bindField || "do1");
+  const [bindModel, setBindModel] = useState(props.bindModel || "zhc1921");
+  const [bindDeviceId, setBindDeviceId] = useState(props.bindDeviceId || "");
+  const [bindField, setBindField] = useState(props.bindField || "do1");
 
   const [devices, setDevices] = useState([]);
   const [deviceQuery, setDeviceQuery] = useState("");
   const [devicesLoading, setDevicesLoading] = useState(false);
 
-  // rehydrate on open/widget change
+  // Load from widget whenever it changes
   useEffect(() => {
-    if (!open) return;
-    const pp = toggleSwitch?.properties || {};
-    setBindModel(pp.bindModel || "zhc1921");
-    setBindDeviceId(pp.bindDeviceId || "");
-    setBindField(pp.bindField || "do1");
+    const p = toggleSwitch?.properties || {};
+    setBindModel(p.bindModel || "zhc1921");
+    setBindDeviceId(p.bindDeviceId || "");
+    setBindField(p.bindField || "do1");
     setDeviceQuery("");
-  }, [open, toggleSwitch?.id]);
+  }, [toggleSwitch?.id]); // ✅ stable key
 
-  // ESC closes
-  useEffect(() => {
-    if (!open) return;
-    const onKey = (e) => {
-      if (e.key === "Escape") onClose?.();
-    };
-    window.addEventListener("keydown", onKey);
-    return () => window.removeEventListener("keydown", onKey);
-  }, [open, onClose]);
-
-  // load devices
+  // Load device list on open/model changes
   useEffect(() => {
     if (!open) return;
 
@@ -170,12 +173,13 @@ export default function ToggleSwitchPropertiesModal({
   }, [bindDeviceId, bindField]);
 
   // -------------------------
-  // ✅ DRAGGABLE WINDOW (LIKE YOUR OTHER MODALS)
+  // ✅ DRAG STATE + CENTER ON OPEN
   // -------------------------
   const PANEL_W = 560;
-  const EST_H = 520;
+  const PANEL_H_EST = 520;
 
   const modalRef = useRef(null);
+
   const dragRef = useRef({
     dragging: false,
     startX: 0,
@@ -184,73 +188,54 @@ export default function ToggleSwitchPropertiesModal({
     startTop: 0,
   });
 
-  const [pos, setPos] = useState(() => {
-    const w = window.innerWidth || 1200;
-    const h = window.innerHeight || 800;
-    return {
-      left: Math.max(20, Math.round((w - PANEL_W) / 2)),
-      top: Math.max(20, Math.round((h - EST_H) / 2)),
-    };
-  });
+  const [pos, setPos] = useState(() => computeCenteredPos({ panelW: PANEL_W, panelH: PANEL_H_EST }));
+  const [isDragging, setIsDragging] = useState(false);
 
-  // center on open using real size
   useLayoutEffect(() => {
     if (!open) return;
+    // If we can measure, use real height for better centering
+    const rect = modalRef.current?.getBoundingClientRect();
+    const h = rect?.height ? Math.min(rect.height, window.innerHeight - 24) : PANEL_H_EST;
+    setPos(computeCenteredPos({ panelW: PANEL_W, panelH: h }));
+  }, [open]);
 
-    const w = window.innerWidth || 1200;
-    const h = window.innerHeight || 800;
+  const onDragMove = (e) => {
+    if (!dragRef.current.dragging) return;
+
+    const dx = e.clientX - dragRef.current.startX;
+    const dy = e.clientY - dragRef.current.startY;
+
+    const nextLeft = dragRef.current.startLeft + dx;
+    const nextTop = dragRef.current.startTop + dy;
 
     const rect = modalRef.current?.getBoundingClientRect();
     const mw = rect?.width ?? PANEL_W;
-    const mh = rect?.height ?? EST_H;
+    const mh = rect?.height ?? PANEL_H_EST;
+
+    const margin = 8;
+    const w = window.innerWidth || 1200;
+    const h = window.innerHeight || 800;
+
+    const minLeft = margin - (mw - 60);
+    const maxLeft = w - margin;
+    const minTop = margin;
+    const maxTop = h - margin - 40;
 
     setPos({
-      left: Math.max(20, Math.round((w - mw) / 2)),
-      top: Math.max(20, Math.round((h - mh) / 2)),
+      left: Math.min(Math.max(minLeft, nextLeft), maxLeft),
+      top: Math.min(Math.max(minTop, nextTop), maxTop),
     });
-  }, [open]);
+  };
 
-  useEffect(() => {
-    const onMove = (e) => {
-      if (!dragRef.current.dragging) return;
-      e.preventDefault();
-
-      const dx = e.clientX - dragRef.current.startX;
-      const dy = e.clientY - dragRef.current.startY;
-
-      const nextLeft = dragRef.current.startLeft + dx;
-      const nextTop = dragRef.current.startTop + dy;
-
-      const rect = modalRef.current?.getBoundingClientRect();
-      const mw = rect?.width ?? PANEL_W;
-      const mh = rect?.height ?? EST_H;
-
-      const margin = 20;
-      const minLeft = margin - (mw - 60);
-      const maxLeft = (window.innerWidth || 1200) - margin;
-      const minTop = margin;
-      const maxTop = (window.innerHeight || 800) - margin;
-
-      setPos({
-        left: Math.min(maxLeft, Math.max(minLeft, nextLeft)),
-        top: Math.min(maxTop, Math.max(minTop, nextTop)),
-      });
-    };
-
-    const onUp = () => {
-      if (!dragRef.current.dragging) return;
-      dragRef.current.dragging = false;
-      document.body.style.userSelect = "";
-      document.body.style.cursor = "";
-    };
-
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
-    return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
-    };
-  }, []);
+  const endDrag = () => {
+    if (!dragRef.current.dragging) return;
+    dragRef.current.dragging = false;
+    setIsDragging(false);
+    document.body.style.userSelect = "";
+    document.body.style.cursor = "";
+    window.removeEventListener("mousemove", onDragMove);
+    window.removeEventListener("mouseup", endDrag);
+  };
 
   const startDrag = (e) => {
     if (e.button !== 0) return;
@@ -258,7 +243,10 @@ export default function ToggleSwitchPropertiesModal({
     const t = e.target;
     if (t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")) return;
 
+    e.preventDefault();
+
     dragRef.current.dragging = true;
+    setIsDragging(true);
     dragRef.current.startX = e.clientX;
     dragRef.current.startY = e.clientY;
     dragRef.current.startLeft = pos.left;
@@ -266,11 +254,19 @@ export default function ToggleSwitchPropertiesModal({
 
     document.body.style.userSelect = "none";
     document.body.style.cursor = "grabbing";
+
+    window.addEventListener("mousemove", onDragMove);
+    window.addEventListener("mouseup", endDrag);
   };
 
-  // -------------------------
-  // ✅ styles
-  // -------------------------
+  useEffect(() => {
+    return () => {
+      window.removeEventListener("mousemove", onDragMove);
+      window.removeEventListener("mouseup", endDrag);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   const labelStyle = { fontSize: 12, fontWeight: 500, color: "#111827" };
   const sectionTitleStyle = { fontWeight: 700, fontSize: 16 };
   const fieldInputStyle = {
@@ -288,7 +284,8 @@ export default function ToggleSwitchPropertiesModal({
   const previewTitleStyle = { fontWeight: 700, marginBottom: 8, fontSize: 13 };
   const previewTextStyle = { fontSize: 12, fontWeight: 500, color: "#111827" };
 
-  if (!canRender) return null;
+  // ✅ Render decision AFTER hooks
+  if (!open || !toggleSwitch) return null;
 
   return (
     <div
@@ -298,7 +295,11 @@ export default function ToggleSwitchPropertiesModal({
         background: "rgba(0,0,0,0.35)",
         zIndex: 999999,
       }}
-      onMouseDown={() => onClose?.()} // ✅ backdrop closes
+      onMouseDown={(e) => {
+        // optional: click outside closes
+        // onClose?.();
+        e.stopPropagation();
+      }}
     >
       <div
         ref={modalRef}
@@ -313,7 +314,7 @@ export default function ToggleSwitchPropertiesModal({
           boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
           overflow: "hidden",
         }}
-        onMouseDown={(e) => e.stopPropagation()} // ✅ keep clicks inside
+        onMouseDown={(e) => e.stopPropagation()}
       >
         {/* HEADER BAR (DRAG HANDLE) */}
         <div
@@ -329,20 +330,16 @@ export default function ToggleSwitchPropertiesModal({
             justifyContent: "space-between",
             background: "linear-gradient(180deg,#0b1b33,#0a1730)",
             color: "#fff",
-            cursor: dragRef.current.dragging ? "grabbing" : "grab",
+            cursor: isDragging ? "grabbing" : "grab",
             userSelect: "none",
           }}
           title="Drag to move"
         >
           <div>Toggle Switch Properties</div>
-
           <button
-            data-no-drag="true"
             type="button"
-            onMouseDown={(e) => {
-              // ✅ never let header drag logic interfere
-              e.stopPropagation();
-            }}
+            data-no-drag="true"
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -378,15 +375,13 @@ export default function ToggleSwitchPropertiesModal({
           >
             <div style={sectionTitleStyle}>Device + Digital Output (DO)</div>
 
-            {!toggleSwitch && (
-              <div style={{ fontSize: 12, color: "#dc2626" }}>
-                Missing widget reference. Close and re-open the modal.
-              </div>
-            )}
-
             <div style={{ display: "grid", gap: 6 }}>
               <div style={labelStyle}>Model</div>
-              <select value={bindModel} onChange={(e) => setBindModel(e.target.value)} style={fieldSelectStyle}>
+              <select
+                value={bindModel}
+                onChange={(e) => setBindModel(e.target.value)}
+                style={fieldSelectStyle}
+              >
                 {Object.entries(MODEL_META).map(([k, v]) => (
                   <option key={k} value={k}>
                     {v.label}
@@ -407,7 +402,11 @@ export default function ToggleSwitchPropertiesModal({
 
             <div style={{ display: "grid", gap: 6 }}>
               <div style={labelStyle}>Device</div>
-              <select value={bindDeviceId} onChange={(e) => setBindDeviceId(e.target.value)} style={fieldSelectStyle}>
+              <select
+                value={bindDeviceId}
+                onChange={(e) => setBindDeviceId(e.target.value)}
+                style={fieldSelectStyle}
+              >
                 <option value="">{devicesLoading ? "Loading..." : "Select device..."}</option>
                 {filteredDevices.map((d) => (
                   <option key={d.deviceId} value={d.deviceId}>
@@ -419,7 +418,11 @@ export default function ToggleSwitchPropertiesModal({
 
             <div style={{ display: "grid", gap: 6 }}>
               <div style={labelStyle}>Digital Output (DO)</div>
-              <select value={bindField} onChange={(e) => setBindField(e.target.value)} style={fieldSelectStyle}>
+              <select
+                value={bindField}
+                onChange={(e) => setBindField(e.target.value)}
+                style={fieldSelectStyle}
+              >
                 <option value="do1">DO-1</option>
                 <option value="do2">DO-2</option>
                 <option value="do3">DO-3</option>
@@ -463,7 +466,11 @@ export default function ToggleSwitchPropertiesModal({
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 4 }}>
               <button
                 type="button"
-                onClick={() => onClose?.()}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  onClose?.();
+                }}
                 style={{
                   padding: "10px 14px",
                   borderRadius: 10,
@@ -478,9 +485,10 @@ export default function ToggleSwitchPropertiesModal({
 
               <button
                 type="button"
-                disabled={!canApply || !toggleSwitch}
-                onClick={() => {
-                  if (!toggleSwitch) return;
+                disabled={!canApply}
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
 
                   const nextProps = {
                     ...(toggleSwitch?.properties || {}),
@@ -497,10 +505,10 @@ export default function ToggleSwitchPropertiesModal({
                   padding: "10px 14px",
                   borderRadius: 10,
                   border: "1px solid #bfe6c8",
-                  background: canApply && toggleSwitch ? "linear-gradient(180deg,#bff2c7,#6fdc89)" : "#e5e7eb",
+                  background: canApply ? "linear-gradient(180deg,#bff2c7,#6fdc89)" : "#e5e7eb",
                   color: "#0b3b18",
                   fontWeight: 800,
-                  cursor: canApply && toggleSwitch ? "pointer" : "not-allowed",
+                  cursor: canApply ? "pointer" : "not-allowed",
                 }}
               >
                 Apply
@@ -509,7 +517,7 @@ export default function ToggleSwitchPropertiesModal({
           </div>
 
           <div style={{ marginTop: 10, fontSize: 11, color: "#64748b" }}>
-            Tip: Double-click the toggle on the canvas to open this binding window. (Esc closes)
+            Tip: Double-click the toggle on the canvas to open this binding window.
           </div>
         </div>
       </div>
