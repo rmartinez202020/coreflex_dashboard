@@ -1,5 +1,5 @@
 // src/components/ProTankIconHorizontal.jsx
-import React from "react";
+import React, { useId } from "react";
 
 const svgStyle = {
   width: "100%",
@@ -7,7 +7,7 @@ const svgStyle = {
   display: "block",
 };
 
-// ⭐ HORIZONTAL TANK (Dashboard) — matches Silo/Standard/Vertical behavior
+// ⭐ HORIZONTAL TANK (Dashboard) — EXACT same event behavior as VerticalTank
 export function HorizontalTank({
   level = 0, // 0..100
   fillColor = "#60a5fa88",
@@ -23,7 +23,12 @@ export function HorizontalTank({
   bottomText = "",
   bottomUnit = "",
   bottomTextColor = "#111827",
+
+  // ✅ match VerticalTank exactly
+  pointerEvents = "none", // "none" (default) | "auto"
 }) {
+  const clipId = useId();
+
   const clampedLevel = Math.max(0, Math.min(100, Number(level) || 0));
 
   // geometry (outline path you use)
@@ -34,31 +39,45 @@ export function HorizontalTank({
   const topY = 37;
   const bottomY = 73;
 
-  // ✅ total interior width INCLUDING rounded caps
-  const totalW = (x2 - x1) + capR * 2; // 90 + 70 = 160
+  // total interior width INCLUDING rounded caps
+  const totalW = x2 - x1 + capR * 2; // 90 + 70 = 160
   const h = bottomY - topY;
 
-  // ✅ fill should start at the far left of the cap
+  // fill should start at the far left of the cap
   const fillX = x1 - capR;
   const fillW = totalW * (clampedLevel / 100);
 
   const effectiveFill = alarm ? "#ff4d4d88" : fillColor;
 
-  // ✅ unique clipPath id per instance (prevents SVG id collisions)
-  const clipId = React.useId();
-
   const shouldShowBottom = showBottomText || String(bottomText || "").trim() !== "";
 
   return (
-    <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "center" }}>
-      <svg viewBox="0 0 160 110" preserveAspectRatio="xMidYMid meet" style={svgStyle}>
+    <div
+      style={{
+        display: "inline-flex",
+        flexDirection: "column",
+        alignItems: "center",
+
+        // ✅ EXACT same as VerticalTank
+        pointerEvents,
+      }}
+    >
+      <svg
+        viewBox="0 0 160 110"
+        preserveAspectRatio="xMidYMid meet"
+        style={{
+          ...svgStyle,
+          // ✅ EXACT same as VerticalTank
+          pointerEvents,
+        }}
+      >
         <defs>
           <clipPath id={clipId}>
             <path d="M 35 37 H 125 A 35 18 0 1 1 125 73 H 35 A 35 18 0 1 1 35 37" />
           </clipPath>
         </defs>
 
-        {/* ✅ LIQUID FILL (now covers BOTH caps at 100%) */}
+        {/* LIQUID FILL (covers BOTH caps at 100%) */}
         <rect
           x={fillX}
           y={topY}
@@ -94,7 +113,7 @@ export function HorizontalTank({
         ) : null}
       </svg>
 
-      {/* 🔥 Bottom label (same style as ProTankIconSilo/Standard/Vertical) */}
+      {/* Bottom label (EXACT same style + event behavior as VerticalTank) */}
       {shouldShowBottom ? (
         <div
           style={{
@@ -110,6 +129,9 @@ export function HorizontalTank({
             display: "inline-flex",
             alignItems: "baseline",
             gap: 8,
+
+            // ✅ EXACT same as VerticalTank
+            pointerEvents,
           }}
         >
           <span style={{ fontSize: 18, fontWeight: 900, letterSpacing: 0.3 }}>
