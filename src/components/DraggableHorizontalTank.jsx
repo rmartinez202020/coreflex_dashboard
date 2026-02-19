@@ -251,6 +251,8 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
 
     const tick = async () => {
       try {
+        if (document.hidden) return;
+
         const row = await loadLiveRowForDevice(bindModel, bindDeviceId, {
           signal: ctrl.signal,
         });
@@ -289,34 +291,29 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
   }, [hasBinding, bindModel, bindDeviceId, bindField, formula]);
 
   // Numeric output used for % + numeric label
-  const numericOut = useMemo(() => {
-    return toNumberOrNull(outputValue);
-  }, [outputValue]);
+  const numericOut = useMemo(() => toNumberOrNull(outputValue), [outputValue]);
 
-  // Level % logic
+  // ✅ Match StandardTank behavior:
+  // If math returns a string (CONCAT), level uses liveValue (not NaN)
   const levelPercent = useMemo(() => {
-    if (!Number.isFinite(Number(numericOut))) return 0;
+    const used = numericOut ?? liveValue ?? 0;
 
     // if capacity set => output is amount (0..capacity)
     if (Number.isFinite(maxCapacity) && maxCapacity > 0) {
-      return clamp((Number(numericOut) / maxCapacity) * 100, 0, 100);
+      return clamp((Number(used) / maxCapacity) * 100, 0, 100);
     }
 
     // else assume output already is % (0..100)
-    return clamp(Number(numericOut), 0, 100);
-  }, [numericOut, maxCapacity]);
+    return clamp(Number(used), 0, 100);
+  }, [numericOut, liveValue, maxCapacity]);
 
-  // Text inside tank: show percent
   const percentText = `${Math.round(levelPercent)}%`;
 
-  // Bottom number under tank (output) — same style as others
   const bottomValueText = useMemo(() => {
-    // If CONCAT outputs a string, show it as-is
+    if (!hasBinding) return "--";
     if (typeof outputValue === "string") return String(outputValue || "").trim() || "--";
-
-    // If numeric => remove trailing .00 like Silo/Standard patterns you wanted
     return formatOutputNoTrailingZeros(outputValue, 2);
-  }, [outputValue]);
+  }, [hasBinding, outputValue]);
 
   // ✅ container sizing (so it stays centered inside selection box)
   const w = (tank?.w || tank?.width || 220) * scale;
@@ -331,7 +328,6 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
             tank={tank}
             onClose={() => setOpenProps(false)}
             onSave={(updatedTank) => {
-              // support both callbacks
               if (typeof onUpdate === "function") onUpdate(updatedTank);
               if (typeof onChange === "function") onChange(updatedTank);
               setOpenProps(false);
@@ -343,12 +339,11 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
 
   return (
     <>
-      {/* ✅ DOUBLE CLICK OPENS MODAL (same pattern as DraggableStandardTank) */}
+      {/* ✅ MATCH StandardTank behavior:
+          - outer visual should NOT steal mouse (so draggable wrapper shows move cursor)
+          - still allow double-click to open modal via an invisible hit-layer
+      */}
       <div
-        onDoubleClick={(e) => {
-          e.stopPropagation();
-          setOpenProps(true);
-        }}
         style={{
           width: w,
           height: h + 44 * scale,
@@ -356,12 +351,27 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "flex-start",
-          pointerEvents: "auto",
-          cursor: "default",
+          pointerEvents: "none", // ✅ key
           userSelect: "none",
+          position: "relative",
         }}
         title="Double-click to edit"
       >
+        {/* ✅ invisible hit-layer ONLY for double click */}
+        <div
+          onDoubleClick={(e) => {
+            e.stopPropagation();
+            setOpenProps(true);
+          }}
+          style={{
+            position: "absolute",
+            inset: 0,
+            pointerEvents: "auto",
+            background: "transparent",
+            cursor: "inherit", // don't force "default"
+          }}
+        />
+
         {title ? (
           <div
             style={{
