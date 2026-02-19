@@ -17,14 +17,8 @@ import DisplayOutputTextBoxStyle from "./display/DisplayOutputTextBoxStyle";
 import { StandardTank, HorizontalTank, VerticalTank } from "./ProTankIcon";
 import DraggableVerticalTank from "./DraggableVerticalTank";
 import DraggableSiloTank from "./DraggableSiloTank";
-
-import {
-  DraggableLedCircle,
-  DraggableStatusTextBox,
-  DraggableBlinkingAlarm,
-  DraggableStateImage,
-  DraggableCounterInput,
-} from "./indicators";
+import DraggableStandardTank from "./DraggableStandardTank";
+import {DraggableLedCircle,DraggableStatusTextBox,DraggableBlinkingAlarm,DraggableStateImage,DraggableCounterInput,} from "./indicators";
 
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
@@ -196,10 +190,9 @@ export default function DashboardCanvas({
 
     return () => clearInterval(t);
   }, [isPlay, fetchCountersForDashboard]);
-
-  // =====================================================
+  
   // ✅ Z-ORDER HELPERS
-  // =====================================================
+
   const getTankZ = React.useCallback((t) => {
     return Number(t?.z ?? t?.zIndex ?? 0) || 0;
   }, []);
@@ -487,21 +480,27 @@ export default function DashboardCanvas({
               );
             }
 
-            if (tank.shape === "standardTank") {
-              return (
-                <DraggableDroppedTank
-                  {...commonProps}
-                  onDoubleClick={() => {
-                    if (!isPlay) {
-                      setActiveStandardTankId?.(tank.id);
-                      setShowStandardTankProps?.(true);
-                    }
-                  }}
-                >
-                  <StandardTank level={tank.level ?? 0} />
-                </DraggableDroppedTank>
-              );
-            }
+         if (tank.shape === "standardTank") {
+  return (
+    <DraggableDroppedTank
+      {...commonProps}
+      onDoubleClick={() => {
+        if (!isPlay) {
+          setActiveStandardTankId?.(tank.id);
+          setShowStandardTankProps?.(true);
+        }
+      }}
+    >
+      <div className="flex flex-col items-center">
+        <DraggableStandardTank
+          tank={tank}
+          onUpdate={(nextTank) => commonProps.onUpdate?.(nextTank)}
+        />
+      </div>
+    </DraggableDroppedTank>
+  );
+}
+
 
             if (tank.shape === "horizontalTank") {
               return (
