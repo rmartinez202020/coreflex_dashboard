@@ -3,6 +3,12 @@ import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "re
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 
+// ✅ extracted telemetry (polling + read AI + online status)
+import useStandardTankPropertiesModalTelemetric from "./StandardTankPropertiesModalTelemetric";
+
+// ✅ extracted unit options (NOTE: keep the same name you already used)
+import { StandarTankPropertiesMOdalUnitOptions } from "./StandarTankPropertiesModalUnitOptions";
+
 const MODEL_META = {
   zhc1921: { label: "CF-2000", base: "zhc1921" },
   zhc1661: { label: "CF-1600", base: "zhc1661" },
@@ -106,8 +112,66 @@ function computeCenteredPos({ panelW = 1240, estH = 640 } = {}) {
   return { left, top };
 }
 
+// ✅ same evaluator as SiloPropertiesModal.jsx
+function computeMathOutput(liveValue, formula) {
+  const f = String(formula || "").trim();
+  if (!f) return liveValue;
+
+  const VALUE = liveValue;
+
+  // CONCAT support
+  const upper = f.toUpperCase();
+  if (upper.startsWith("CONCAT(") && f.endsWith(")")) {
+    const inner = f.slice(7, -1);
+    const parts = [];
+    let cur = "";
+    let inQ = false;
+
+    for (let i = 0; i < inner.length; i++) {
+      const ch = inner[i];
+      if (ch === '"' && inner[i - 1] !== "\\") inQ = !inQ;
+
+      if (ch === "," && !inQ) {
+        parts.push(cur.trim());
+        cur = "";
+      } else {
+        cur += ch;
+      }
+    }
+    if (cur.trim()) parts.push(cur.trim());
+
+    return parts
+      .map((p) => {
+        if (!p) return "";
+        if (p === "VALUE" || p === "value") return VALUE ?? "";
+        if (p.startsWith('"') && p.endsWith('"')) return p.slice(1, -1);
+
+        try {
+          const expr = p.replace(/\bVALUE\b/gi, "VALUE");
+          // eslint-disable-next-line no-new-func
+          const fn = new Function("VALUE", `return (${expr});`);
+          const r = fn(VALUE);
+          return r ?? "";
+        } catch {
+          return "";
+        }
+      })
+      .join("");
+  }
+
+  // Numeric expression
+  try {
+    const expr = f.replace(/\bVALUE\b/gi, "VALUE");
+    // eslint-disable-next-line no-new-func
+    const fn = new Function("VALUE", `return (${expr});`);
+    return fn(VALUE);
+  } catch {
+    return liveValue;
+  }
+}
+
 /**
- * ✅ SAME STYLE AS SiloPropertiesModal.jsx
+ * ✅ SAME BEHAVIOR AS SiloPropertiesModal.jsx
  *
  * Props:
  *  - open (bool)
@@ -171,16 +235,11 @@ export default function StandardTankPropertiesModal({ open = true, tank, onSave,
   );
 
   // -------------------------
-  // ✅ MIDDLE: “Math” card
+  // ✅ MIDDLE: “Math” card state (match Silo)
   // -------------------------
-  const [name, setName] = useState(props.name ?? "");
+  const [title, setTitle] = useState(props.name ?? "");
+  const [unit, setUnit] = useState(props.unit ?? "");
 
-  // ✅ IMPORTANT:
-  // DraggableStandardTank currently reads: props.formula || props.math
-  // We will store:
-  //  - mathExpr (new canonical)
-  //  - formula (compat)
-  //  - math (compat)
   const initialMath =
     props.mathExpr !== undefined && props.mathExpr !== null
       ? String(props.mathExpr)
@@ -192,23 +251,13 @@ export default function StandardTankPropertiesModal({ open = true, tank, onSave,
 
   const [mathExpr, setMathExpr] = useState(initialMath);
 
-  // ✅ Capacity + Material/Liquid Color
   const [maxCapacity, setMaxCapacity] = useState(
     props.maxCapacity === undefined || props.maxCapacity === null ? "" : Number(props.maxCapacity)
   );
   const [materialColor, setMaterialColor] = useState(props.materialColor || "#00ff00");
 
-  // placeholder (UI only)
-  const [liveValue] = useState(0);
-
-  // preview only: if number typed, show it, otherwise 0.00
-  const outputValue = useMemo(() => {
-    const n = Number(String(mathExpr || "").trim());
-    return Number.isFinite(n) ? n : 0;
-  }, [mathExpr]);
-
   // -------------------------
-  // ✅ RIGHT: device binding with SEARCH
+  // ✅ RIGHT: device binding with SEARCH (match Silo)
   // -------------------------
   const [bindModel, setBindModel] = useState(props.bindModel || "zhc1921");
   const [bindDeviceId, setBindDeviceId] = useState(props.bindDeviceId || "");
@@ -218,6 +267,30 @@ export default function StandardTankPropertiesModal({ open = true, tank, onSave,
   const [deviceQuery, setDeviceQuery] = useState("");
   const [devicesLoading, setDevicesLoading] = useState(false);
 
+  // ✅ extracted telemetry hook (polling + AI read + ONLINE status)
+  const { liveValue, deviceIsOnline } = useStandardTankPropertiesModalTelemetric({
+    open,
+    bindModel,
+    bindDeviceId,
+    bindField,
+    pollMs: 3000,
+  });
+
+  // ✅ Output preview (same logic as Silo)
+  const outputValue = useMemo(() => {
+    const lv = Number(liveValue);
+    const safeLive = Number.isFinite(lv) ? lv : null;
+
+    const out = computeMathOutput(safeLive, mathExpr);
+
+    if (out === null || out === undefined || out === "") return safeLive ?? 0;
+    if (typeof out === "number") return out;
+
+    const n = Number(out);
+    return Number.isFinite(n) ? n : out;
+  }, [mathExpr, liveValue]);
+
+  // Load device list once when open/model changes
   useEffect(() => {
     if (!open) return;
 
@@ -251,11 +324,6 @@ export default function StandardTankPropertiesModal({ open = true, tank, onSave,
     return devices.filter((d) => String(d.deviceId || "").toLowerCase().includes(q));
   }, [devices, deviceQuery]);
 
-  const selectedDevice = useMemo(() => {
-    const hit = devices.find((d) => String(d.deviceId) === String(bindDeviceId));
-    return hit || null;
-  }, [devices, bindDeviceId]);
-
   const canApply = useMemo(() => {
     return !!String(bindDeviceId || "").trim() && !!String(bindField || "").trim();
   }, [bindDeviceId, bindField]);
@@ -272,7 +340,6 @@ export default function StandardTankPropertiesModal({ open = true, tank, onSave,
     startTop: 0,
   });
 
-  // ✅ start centered on FIRST render (prevents corner flash)
   const [pos, setPos] = useState(() => {
     if (typeof window === "undefined") return { left: 12, top: 12 };
     return computeCenteredPos({ panelW: PANEL_W, estH: 640 });
@@ -280,18 +347,18 @@ export default function StandardTankPropertiesModal({ open = true, tank, onSave,
 
   const [isDragging, setIsDragging] = useState(false);
 
-  // ✅ center BEFORE paint each time it opens (professional, no jump)
   useLayoutEffect(() => {
     if (!open) return;
     setPos(computeCenteredPos({ panelW: PANEL_W, estH: 640 }));
   }, [open]);
 
-  // Load from tank whenever it changes
+  // Load from tank whenever it changes (match Silo)
   useEffect(() => {
     if (!tank) return;
     const p = tank?.properties || {};
 
-    setName(p.name ?? "");
+    setTitle(p.name ?? "");
+    setUnit(p.unit ?? "");
 
     const m =
       p.mathExpr !== undefined && p.mathExpr !== null
@@ -481,11 +548,22 @@ export default function StandardTankPropertiesModal({ open = true, tank, onSave,
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Name</div>
                 <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
                   style={fieldInputStyle}
                   placeholder="Example: Tank #1"
                 />
+              </div>
+
+              <div style={{ display: "grid", gap: 6 }}>
+                <div style={labelStyle}>Units</div>
+                <select value={unit} onChange={(e) => setUnit(e.target.value)} style={fieldSelectStyle}>
+                  {StandarTankPropertiesMOdalUnitOptions.map((u) => (
+                    <option key={u.key} value={u.key}>
+                      {u.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
               <div
@@ -515,7 +593,9 @@ export default function StandardTankPropertiesModal({ open = true, tank, onSave,
                       color: "#0b3b18",
                     }}
                   >
-                    {Number.isFinite(liveValue) ? liveValue.toFixed(2) : "--"}
+                    {Number.isFinite(Number(liveValue))
+                      ? `${Number(liveValue).toFixed(2)}${unit ? ` ${unit}` : ""}`
+                      : "--"}
                   </div>
                 </div>
 
@@ -538,7 +618,9 @@ export default function StandardTankPropertiesModal({ open = true, tank, onSave,
                       color: "#111827",
                     }}
                   >
-                    {Number.isFinite(Number(outputValue)) ? Number(outputValue).toFixed(2) : "0.00"}
+                    {typeof outputValue === "number"
+                      ? `${Number(outputValue).toFixed(2)}${unit ? ` ${unit}` : ""}`
+                      : String(outputValue ?? "--")}
                   </div>
                 </div>
               </div>
@@ -687,10 +769,14 @@ export default function StandardTankPropertiesModal({ open = true, tank, onSave,
 
                 <div style={previewTextStyle}>
                   Selected: <span style={{ fontFamily: "monospace" }}>{bindDeviceId || "--"}</span> ·{" "}
-                  {String(selectedDevice?.status || "").toLowerCase() === "online" ? (
-                    <span style={{ color: "#16a34a" }}>ONLINE</span>
+                  {bindDeviceId ? (
+                    deviceIsOnline ? (
+                      <span style={{ color: "#16a34a" }}>ONLINE</span>
+                    ) : (
+                      <span style={{ color: "#dc2626" }}>OFFLINE</span>
+                    )
                   ) : (
-                    <span style={{ color: "#dc2626" }}>OFFLINE</span>
+                    <span style={{ color: "#64748b" }}>—</span>
                   )}
                 </div>
 
@@ -713,7 +799,9 @@ export default function StandardTankPropertiesModal({ open = true, tank, onSave,
                       color: "#0b3b18",
                     }}
                   >
-                    {Number.isFinite(liveValue) ? liveValue.toFixed(2) : "--"}
+                    {Number.isFinite(Number(liveValue))
+                      ? `${Number(liveValue).toFixed(2)}${unit ? ` ${unit}` : ""}`
+                      : "--"}
                   </div>
                 </div>
               </div>
@@ -740,7 +828,8 @@ export default function StandardTankPropertiesModal({ open = true, tank, onSave,
 
                     const nextProps = {
                       ...(tank?.properties || {}),
-                      name: String(name || "").trim(),
+                      name: String(title || "").trim(),
+                      unit: String(unit || "").trim(),
 
                       // ✅ canonical + compatibility keys (so DraggableStandardTank works right now)
                       mathExpr: cleanMath,
