@@ -14,9 +14,7 @@ const MODEL_META = {
   zhc1661: { label: "CF-1600", base: "zhc1661" },
 };
 
-// -------------------------
 // ✅ auth + no-cache fetch helpers (same idea as DisplayBox)
-// -------------------------
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -119,6 +117,7 @@ function computeMathOutput(liveValue, formula) {
 
   const VALUE = liveValue;
 
+  // CONCAT support
   const upper = f.toUpperCase();
   if (upper.startsWith("CONCAT(") && f.endsWith(")")) {
     const inner = f.slice(7, -1);
@@ -158,6 +157,7 @@ function computeMathOutput(liveValue, formula) {
       .join("");
   }
 
+  // Numeric expression
   try {
     const expr = f.replace(/\bVALUE\b/gi, "VALUE");
     // eslint-disable-next-line no-new-func
@@ -169,7 +169,7 @@ function computeMathOutput(liveValue, formula) {
 }
 
 /**
- * Horizontal Tank Properties (same behavior as Silo/Standard)
+ * Horizontal Tank Properties (match SiloPropertiesModal behavior)
  *
  * IMPORTANT:
  * DraggableHorizontalTank reads:
@@ -233,12 +233,10 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
   );
 
   // -------------------------
-  // ✅ MIDDLE: state (match Standard/Silo)
+  // ✅ MIDDLE: “Math” card state (same pattern as Silo)
   // -------------------------
-  const [name, setName] = useState(props.name ?? "");
+  const [title, setTitle] = useState(props.name ?? "");
   const [unit, setUnit] = useState(props.unit ?? "");
-
-  // ✅ IMPORTANT: use density as the saved formula key (matches DraggableHorizontalTank)
   const [density, setDensity] = useState(
     props.density === undefined || props.density === null ? "" : String(props.density)
   );
@@ -268,7 +266,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     pollMs: 3000,
   });
 
-  // ✅ Output preview (same logic as Standard/Silo)
+  // ✅ Output preview
   const outputValue = useMemo(() => {
     const lv = Number(liveValue);
     const safeLive = Number.isFinite(lv) ? lv : null;
@@ -321,7 +319,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
   }, [bindDeviceId, bindField]);
 
   // -------------------------
-  // ✅ DRAG STATE (NO FLASH) + ✅ STOP CANVAS/DND FROM DRAGGING UNDER MODAL
+  // ✅ DRAG STATE (MATCH SILO EXACTLY)
   // -------------------------
   const PANEL_W = 1240;
   const dragRef = useRef({
@@ -349,9 +347,8 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     if (!tank) return;
     const p = tank?.properties || {};
 
-    setName(p.name ?? "");
+    setTitle(p.name ?? "");
     setUnit(p.unit ?? "");
-
     setDensity(p.density === undefined || p.density === null ? "" : String(p.density));
 
     setMaxCapacity(
@@ -366,7 +363,6 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     setDeviceQuery("");
   }, [tank]);
 
-  // ✅ Pointer-event drag handlers (prevents dnd-kit/canvas drag from starting)
   const onDragMove = (e) => {
     if (!dragRef.current.dragging) return;
 
@@ -392,9 +388,8 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
   const endDrag = () => {
     dragRef.current.dragging = false;
     setIsDragging(false);
-    window.removeEventListener("pointermove", onDragMove);
-    window.removeEventListener("pointerup", endDrag);
-    window.removeEventListener("pointercancel", endDrag);
+    window.removeEventListener("mousemove", onDragMove);
+    window.removeEventListener("mouseup", endDrag);
   };
 
   const startDrag = (e) => {
@@ -403,9 +398,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     const t = e.target;
     if (t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")) return;
 
-    // ✅ CRITICAL: stop underlying canvas/dnd-kit drag
     e.preventDefault();
-    e.stopPropagation();
 
     dragRef.current.dragging = true;
     setIsDragging(true);
@@ -414,16 +407,14 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     dragRef.current.startLeft = pos.left;
     dragRef.current.startTop = pos.top;
 
-    window.addEventListener("pointermove", onDragMove, { passive: false });
-    window.addEventListener("pointerup", endDrag, { passive: false });
-    window.addEventListener("pointercancel", endDrag, { passive: false });
+    window.addEventListener("mousemove", onDragMove);
+    window.addEventListener("mouseup", endDrag);
   };
 
   useEffect(() => {
     return () => {
-      window.removeEventListener("pointermove", onDragMove);
-      window.removeEventListener("pointerup", endDrag);
-      window.removeEventListener("pointercancel", endDrag);
+      window.removeEventListener("mousemove", onDragMove);
+      window.removeEventListener("mouseup", endDrag);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -448,30 +439,17 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
   const previewTitleStyle = { fontWeight: 600, marginBottom: 8, fontSize: 13 };
   const previewTextStyle = { fontSize: 12, fontWeight: 400, color: "#111827" };
 
-  // ✅ capture-phase blockers (kills drag-through)
-  const stopAll = (e) => {
-    e.preventDefault?.();
-    e.stopPropagation?.();
-  };
-
   return (
     <div
-      onMouseDownCapture={stopAll}
-      onPointerDownCapture={stopAll}
-      onContextMenuCapture={stopAll}
+      onMouseDown={(e) => e.stopPropagation()}
       style={{
         position: "fixed",
         inset: 0,
         background: "rgba(0,0,0,0.35)",
         zIndex: 999999,
-        pointerEvents: "auto",
-        touchAction: "none",
       }}
     >
       <div
-        onMouseDownCapture={stopAll}
-        onPointerDownCapture={stopAll}
-        onContextMenuCapture={stopAll}
         style={{
           position: "fixed",
           left: pos.left,
@@ -482,13 +460,12 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
           background: "#fff",
           boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
           overflow: "hidden",
-          pointerEvents: "auto",
-          touchAction: "none",
         }}
+        onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* HEADER BAR */}
+        {/* HEADER BAR (DRAG HANDLE) */}
         <div
-          onPointerDown={startDrag}
+          onMouseDown={startDrag}
           style={{
             padding: "14px 18px",
             borderBottom: "1px solid #e5e7eb",
@@ -502,18 +479,13 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
             color: "#fff",
             cursor: isDragging ? "grabbing" : "grab",
             userSelect: "none",
-            touchAction: "none",
           }}
           title="Drag to move"
         >
           <div>Horizontal Tank Properties</div>
           <button
             data-no-drag="true"
-            onClick={(e) => {
-              e.preventDefault();
-              e.stopPropagation();
-              onClose?.();
-            }}
+            onClick={onClose}
             style={{
               width: 34,
               height: 34,
@@ -559,8 +531,8 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Name</div>
                 <input
-                  value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
                   style={fieldInputStyle}
                   placeholder="Example: Horizontal Tank #1"
                 />
@@ -722,11 +694,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
 
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Model</div>
-                <select
-                  value={bindModel}
-                  onChange={(e) => setBindModel(e.target.value)}
-                  style={fieldSelectStyle}
-                >
+                <select value={bindModel} onChange={(e) => setBindModel(e.target.value)} style={fieldSelectStyle}>
                   {Object.entries(MODEL_META).map(([k, v]) => (
                     <option key={k} value={k}>
                       {v.label}
@@ -747,11 +715,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
 
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Device</div>
-                <select
-                  value={bindDeviceId}
-                  onChange={(e) => setBindDeviceId(e.target.value)}
-                  style={fieldSelectStyle}
-                >
+                <select value={bindDeviceId} onChange={(e) => setBindDeviceId(e.target.value)} style={fieldSelectStyle}>
                   <option value="">{devicesLoading ? "Loading..." : "Select device..."}</option>
                   {filteredDevices.map((d) => (
                     <option key={d.deviceId} value={d.deviceId}>
@@ -763,11 +727,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
 
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Analog Input (AI)</div>
-                <select
-                  value={bindField}
-                  onChange={(e) => setBindField(e.target.value)}
-                  style={fieldSelectStyle}
-                >
+                <select value={bindField} onChange={(e) => setBindField(e.target.value)} style={fieldSelectStyle}>
                   <option value="ai1">AI-1</option>
                   <option value="ai2">AI-2</option>
                   <option value="ai3">AI-3</option>
@@ -829,13 +789,10 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
                 </div>
               </div>
 
+              {/* ACTIONS */}
               <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 4 }}>
                 <button
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-                    onClose?.();
-                  }}
+                  onClick={onClose}
                   style={{
                     padding: "10px 14px",
                     borderRadius: 10,
@@ -850,27 +807,26 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
 
                 <button
                   disabled={!canApply}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    e.stopPropagation();
-
+                  onClick={() => {
                     const nextProps = {
                       ...(tank?.properties || {}),
-                      name: String(name || "").trim(),
-                      unit: String(unit || "").trim(),
 
-                      // ✅ IMPORTANT: Save the formula to density (DraggableHorizontalTank reads density)
+                      name: String(title || "").trim(),
+                      unit: String(unit || "").trim(),
                       density: String(density || "").trim(),
 
                       maxCapacity: maxCapacity === "" ? "" : Number(maxCapacity),
                       materialColor: String(materialColor || "#00ff00"),
-
                       bindModel,
                       bindDeviceId,
                       bindField,
                     };
 
-                    const nextTank = { ...tank, properties: nextProps };
+                    const nextTank = {
+                      ...tank,
+                      properties: nextProps,
+                    };
+
                     onSave?.(nextTank);
                     onClose?.();
                   }}
