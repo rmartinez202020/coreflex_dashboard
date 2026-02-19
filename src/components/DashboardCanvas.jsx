@@ -445,17 +445,25 @@ export default function DashboardCanvas({
               );
             }
 
-            if (tank.shape === "toggleSwitch" || tank.shape === "toggleControl") {
-              const w = tank.w ?? tank.width ?? 180;
-              const h = tank.h ?? tank.height ?? 70;
-              const isOn = tank.isOn ?? true;
+          if (tank.shape === "toggleSwitch" || tank.shape === "toggleControl") {
+  const w = tank.w ?? tank.width ?? 180;
+  const h = tank.h ?? tank.height ?? 70;
+  const isOn = tank.isOn ?? true;
 
-              return (
-                <DraggableDroppedTank {...commonProps}>
-                  <ToggleSwitchControl isOn={isOn} width={w} height={h} />
-                </DraggableDroppedTank>
-              );
-            }
+  return (
+    <DraggableDroppedTank {...commonProps}>
+      <ToggleSwitchControl
+        isOn={isOn}
+        width={w}
+        height={h}
+        visualOnly={false}          // ✅ allow double-click
+        widget={tank}              // ✅ give modal the widget
+        onSaveWidget={commonProps.onUpdate} // ✅ persist binding into droppedTanks
+      />
+    </DraggableDroppedTank>
+  );
+}
+
 
             if (tank.shape === "pushButtonNO") {
               const w = tank.w ?? tank.width ?? 110;
