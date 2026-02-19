@@ -233,7 +233,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
   );
 
   // -------------------------
-  // ✅ MIDDLE: “Math” card state (same pattern as Silo)
+  // ✅ MIDDLE: state
   // -------------------------
   const [title, setTitle] = useState(props.name ?? "");
   const [unit, setUnit] = useState(props.unit ?? "");
@@ -319,7 +319,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
   }, [bindDeviceId, bindField]);
 
   // -------------------------
-  // ✅ DRAG STATE (MATCH SILO EXACTLY)
+  // ✅ DRAG STATE (MATCH SILO)
   // -------------------------
   const PANEL_W = 1240;
   const dragRef = useRef({
@@ -351,9 +351,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     setUnit(p.unit ?? "");
     setDensity(p.density === undefined || p.density === null ? "" : String(p.density));
 
-    setMaxCapacity(
-      p.maxCapacity === undefined || p.maxCapacity === null ? "" : Number(p.maxCapacity)
-    );
+    setMaxCapacity(p.maxCapacity === undefined || p.maxCapacity === null ? "" : Number(p.maxCapacity));
     setMaterialColor(p.materialColor || "#00ff00");
 
     setBindModel(p.bindModel ?? "zhc1921");
@@ -392,6 +390,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     window.removeEventListener("mouseup", endDrag);
   };
 
+  // ✅ FIX: stop propagation + capture start position AFTER we stop bubbling
   const startDrag = (e) => {
     if (e.button !== 0) return;
 
@@ -399,6 +398,7 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
     if (t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")) return;
 
     e.preventDefault();
+    e.stopPropagation(); // ✅ important: prevent canvas/draggable from also processing this mouse down
 
     dragRef.current.dragging = true;
     setIsDragging(true);
@@ -441,7 +441,10 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
 
   return (
     <div
-      onMouseDown={(e) => e.stopPropagation()}
+      onMouseDown={(e) => {
+        // ✅ clicking the overlay should not start dragging the canvas behind it
+        e.stopPropagation();
+      }}
       style={{
         position: "fixed",
         inset: 0,
@@ -449,6 +452,18 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
         zIndex: 999999,
       }}
     >
+      {/* ✅ clicking outside panel closes (matches "others") */}
+      <div
+        onMouseDown={(e) => {
+          // only close when you click on the dark overlay itself
+          if (e.target === e.currentTarget) onClose?.();
+        }}
+        style={{
+          position: "absolute",
+          inset: 0,
+        }}
+      />
+
       <div
         style={{
           position: "fixed",
@@ -810,11 +825,9 @@ export default function HorizontalTankPropertiesModal({ open = true, tank, onSav
                   onClick={() => {
                     const nextProps = {
                       ...(tank?.properties || {}),
-
                       name: String(title || "").trim(),
                       unit: String(unit || "").trim(),
                       density: String(density || "").trim(),
-
                       maxCapacity: maxCapacity === "" ? "" : Number(maxCapacity),
                       materialColor: String(materialColor || "#00ff00"),
                       bindModel,

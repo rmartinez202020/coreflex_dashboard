@@ -1,5 +1,6 @@
 // src/components/DraggableHorizontalTank.jsx
 import React, { useEffect, useMemo, useState } from "react";
+import { createPortal } from "react-dom";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 import { HorizontalTank } from "./ProTankIconHorizontal";
@@ -213,7 +214,7 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
   // Saved from modal
   const title = String(props.name || props.title || "").trim();
 
-  // ✅ unit saved by HorizontalTankPropertiesModal (we will add this to modal next)
+  // ✅ unit saved by HorizontalTankPropertiesModal
   const unit = String(props.unit || "").trim();
 
   const maxCapacityRaw = props.maxCapacity;
@@ -321,6 +322,25 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
   const w = (tank?.w || tank?.width || 220) * scale;
   const h = (tank?.h || tank?.height || 120) * scale;
 
+  // ✅ Portal: prevents "fixed modal offset" when parent is transformed (DnD-kit)
+  const modalNode =
+    openProps && typeof document !== "undefined"
+      ? createPortal(
+          <HorizontalTankPropertiesModal
+            open={openProps}
+            tank={tank}
+            onClose={() => setOpenProps(false)}
+            onSave={(updatedTank) => {
+              // support both callbacks
+              if (typeof onUpdate === "function") onUpdate(updatedTank);
+              if (typeof onChange === "function") onChange(updatedTank);
+              setOpenProps(false);
+            }}
+          />,
+          document.body
+        )
+      : null;
+
   return (
     <>
       {/* ✅ DOUBLE CLICK OPENS MODAL (same pattern as DraggableStandardTank) */}
@@ -381,16 +401,16 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
               showPercentText={true}
               percentText={percentText}
               percentTextColor="#111827"
-              // ✅ MATCH SILO/Standard behavior: bottom label rendered by icon component
               showBottomText={true}
               bottomText={bottomValueText}
               bottomUnit={unit}
               bottomTextColor="#111827"
+              pointerEvents="none"
             />
           </div>
         </div>
 
-        {/* OPTIONAL: keep hidden external output (we now show it inside bottom label) */}
+        {/* OPTIONAL: keep hidden external output */}
         <div
           style={{
             marginTop: 6 * scale,
@@ -401,31 +421,14 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
             pointerEvents: "none",
             display: "none",
           }}
-          title={
-            typeof outputValue === "string"
-              ? outputValue
-              : Number.isFinite(Number(outputValue))
-              ? `OUT=${String(outputValue)}  LIVE=${Number.isFinite(liveValue) ? liveValue : "--"}`
-              : ""
-          }
         >
           {bottomValueText}
           {unit ? ` ${unit}` : ""}
         </div>
       </div>
 
-      {/* ✅ Modal */}
-      <HorizontalTankPropertiesModal
-        open={openProps}
-        tank={tank}
-        onClose={() => setOpenProps(false)}
-        onSave={(updatedTank) => {
-          // support both callbacks
-          if (typeof onUpdate === "function") onUpdate(updatedTank);
-          if (typeof onChange === "function") onChange(updatedTank);
-          setOpenProps(false);
-        }}
-      />
+      {/* ✅ Modal (PORTAL) */}
+      {modalNode}
     </>
   );
 }
