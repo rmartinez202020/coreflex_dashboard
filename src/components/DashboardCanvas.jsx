@@ -445,27 +445,36 @@ export default function DashboardCanvas({
               );
             }
 
-          if (tank.shape === "toggleSwitch" || tank.shape === "toggleControl") {
+            if (tank.shape === "toggleSwitch" || tank.shape === "toggleControl") {
   const w = tank.w ?? tank.width ?? 180;
   const h = tank.h ?? tank.height ?? 70;
   const isOn = tank.isOn ?? true;
 
+  // ✅ IMPORTANT: resolve dashboard id (needed for backend DO uniqueness)
+  const resolvedDash = resolveDashboardId({
+    activeDashboardId,
+    dashboardId,
+    selectedTank,
+    droppedTanks,
+  });
+
   return (
     <DraggableDroppedTank {...commonProps}>
-   <ToggleSwitchControl
-  isOn={isOn}
-  width={w}
-  height={h}
-  isLaunched={isPlay}                 // ✅ pass play/edit flag
-  visualOnly={isPlay ? true : false}  // ✅ no modal interactions in PLAY
-  widget={tank}
-  onSaveWidget={commonProps.onUpdate}
-/>
+      <ToggleSwitchControl
+        isOn={isOn}
+        width={w}
+        height={h}
+        isLaunched={isPlay}
+        visualOnly={false} // ✅ allow click in PLAY (modal still blocked by isLaunched)
+        widget={tank}
+        onSaveWidget={commonProps.onUpdate}
+        dashboardId={resolvedDash} // ✅ FIX: pass dashboardId
+      />
     </DraggableDroppedTank>
   );
 }
 
-
+    
             if (tank.shape === "pushButtonNO") {
               const w = tank.w ?? tank.width ?? 110;
               const h = tank.h ?? tank.height ?? 110;
