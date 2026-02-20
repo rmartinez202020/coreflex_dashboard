@@ -45,6 +45,11 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function readStatusFromRow(row) {
+  const s = String(row?.status ?? row?.Status ?? "").trim().toLowerCase();
+  return s; // "online" | "offline" | ""
+}
+
 export default function ToggleSwitchControl({
   // ✅ legacy external state (EDIT/visual usage)
   isOn = true,
@@ -105,27 +110,26 @@ export default function ToggleSwitchControl({
   const hasBinding = !!bindDeviceId && /^do[1-4]$/.test(bindField);
 
   // =========================
-  // ✅ PLAY/LAUNCH state machine
-  // IMPORTANT mapping you requested:
-  // DO=1 -> show OFF
-  // DO=0 -> show ON
-  // so UI "ON" is the INVERSE of DO
+  // ✅ Mapping you requested:
+  // DO=1 -> UI OFF
+  // DO=0 -> UI ON
+  // So UI "ON" = inverse of DO.
   // =========================
   const [uiIsOn, setUiIsOn] = React.useState(() => {
     const v01 = to01(isOn);
     if (v01 === null) return true;
-    return v01 === 0; // ✅ INVERT: DO 0 -> UI ON
+    return v01 === 0; // ✅ invert
   });
 
-  const [lockedUntil, setLockedUntil] = React.useState(0);
-  const lastManualAtRef = React.useRef(0);
+  // ✅ device online/offline indicator (from backend row)
+  const [deviceStatus, setDeviceStatus] = React.useState(""); // "online" | "offline" | ""
 
   // keep uiIsOn in sync with prop ONLY when not launched
   React.useEffect(() => {
     if (isLaunched) return;
     const v01 = to01(isOn);
     if (v01 === null) return;
-    setUiIsOn(v01 === 0); // ✅ INVERT
+    setUiIsOn(v01 === 0); // ✅ invert
   }, [isOn, isLaunched]);
 
   // close modal if switching to launched
@@ -133,32 +137,35 @@ export default function ToggleSwitchControl({
     if (isLaunched && openProps) setOpenProps(false);
   }, [isLaunched, openProps]);
 
-  // when launched turns ON => set lock timer
+  // =========================
+  // ✅ LOCK WINDOW (first 4 seconds only)
+  // During this window we are allowed to sync from DO.
+  // After it ends: NO MORE AUTO-SYNC (user controls)
+  // =========================
+  const [lockedUntil, setLockedUntil] = React.useState(0);
+
   React.useEffect(() => {
     if (!isLaunched) {
       setLockedUntil(0);
       return;
     }
-    const until = Date.now() + Math.max(0, Number(lockMs) || 4000);
-    setLockedUntil(until);
+    setLockedUntil(Date.now() + Math.max(0, Number(lockMs) || 4000));
   }, [isLaunched, lockMs]);
 
-  // ✅ make lock reactive (do not rely on Date.now() in render)
   const [nowTick, setNowTick] = React.useState(Date.now());
   React.useEffect(() => {
     if (!isLaunched) return;
-    const t = setInterval(() => setNowTick(Date.now()), 200);
+    const t = setInterval(() => setNowTick(Date.now()), 150);
     return () => clearInterval(t);
   }, [isLaunched]);
 
   const isLocked = isLaunched && nowTick < lockedUntil;
 
   // =========================
-  // ✅ Fetch DO state from backend (best-effort)
-  // Uses /zhc1921/my-devices (same as your modal)
-  // NOTE: Still runs during the 4s lock (lock only blocks manual).
+  // ✅ Fetch DO state + device status from backend (best-effort)
+  // Only used DURING the lock window.
   // =========================
-  const fetchRemoteDo = React.useCallback(async () => {
+  const fetchRemote = React.useCallback(async () => {
     if (!isLaunched) return;
     if (!hasBinding) return;
 
@@ -185,43 +192,41 @@ export default function ToggleSwitchControl({
 
       if (!row) return;
 
+      // ✅ status
+      setDeviceStatus(readStatusFromRow(row));
+
+      // ✅ DO -> UI state (invert mapping)
       const raw = readDoFromRow(row, bindField);
       const do01 = to01(raw);
       if (do01 === null) return;
 
-      // ✅ don't "fight" the user right after a manual toggle
-      const now = Date.now();
-      const lastManualAt = lastManualAtRef.current || 0;
-      if (now - lastManualAt < 1500) return;
-
-      // ✅ INVERT mapping: DO 0 => UI ON, DO 1 => UI OFF
       setUiIsOn(do01 === 0);
     } catch {
       // ignore
     }
   }, [isLaunched, hasBinding, bindDeviceId, bindField]);
 
-  // initial sync when launched + binding
-  React.useEffect(() => {
-    if (!isLaunched) return;
-    fetchRemoteDo();
-  }, [isLaunched, fetchRemoteDo]);
-
-  // optional polling while launched (includes first 4 seconds)
+  // ✅ During lock: initial sync + polling
   React.useEffect(() => {
     if (!isLaunched) return;
     if (!hasBinding) return;
 
+    // always do one fetch on start (gets status too)
+    fetchRemote();
+
+    // only keep polling during lock window
+    if (!isLocked) return;
+
     const t = setInterval(() => {
       if (document.hidden) return;
-      fetchRemoteDo();
-    }, Math.max(800, Number(pollMs) || 2000));
+      fetchRemote();
+    }, Math.max(500, Number(pollMs) || 2000));
 
     return () => clearInterval(t);
-  }, [isLaunched, hasBinding, fetchRemoteDo, pollMs]);
+  }, [isLaunched, hasBinding, isLocked, fetchRemote, pollMs]);
 
   // =========================
-  // ✅ Manual toggle in PLAY (after lock)
+  // ✅ Manual toggle in PLAY (after lock only)
   // =========================
   const canInteractInPlay = isLaunched && hasBinding && !isLocked;
 
@@ -233,9 +238,8 @@ export default function ToggleSwitchControl({
 
     const nextUi = !uiIsOn;
     setUiIsOn(nextUi);
-    lastManualAtRef.current = Date.now();
 
-    // ✅ Convert UI state to DO value with your required inversion:
+    // ✅ convert UI state to DO value with inversion:
     // UI ON => DO 0
     // UI OFF => DO 1
     const nextDo01 = nextUi ? 0 : 1;
@@ -248,9 +252,8 @@ export default function ToggleSwitchControl({
           value01: nextDo01,
           widget,
         });
-      } catch (err) {
-        // if write fails, resync from device quickly
-        setTimeout(() => fetchRemoteDo(), 300);
+      } catch {
+        // optional: do nothing; user asked no snap-back behavior
       }
     }
   };
@@ -273,7 +276,6 @@ export default function ToggleSwitchControl({
   // ✅ only allow edit affordances in EDIT mode
   const canEdit = !visualOnly && !isLaunched;
 
-  // cursor logic
   const hoverCursor = canEdit
     ? "move"
     : canInteractInPlay
@@ -282,11 +284,10 @@ export default function ToggleSwitchControl({
     ? "not-allowed"
     : "default";
 
-  // pointer events:
-  // - EDIT: same as before (visualOnly disables interaction)
-  // - PLAY: allow interaction for manual toggle ONLY if has binding
   const allowPointerEvents =
     (visualOnly ? false : true) || (isLaunched && hasBinding);
+
+  const showOffline = hasBinding && deviceStatus === "offline";
 
   return (
     <>
@@ -296,10 +297,10 @@ export default function ToggleSwitchControl({
             ? "Bind this toggle to a DO"
             : uiIsOn
             ? isLocked
-              ? "ON (locked)"
+              ? "ON (syncing…)"
               : "ON"
             : isLocked
-            ? "OFF (locked)"
+            ? "OFF (syncing…)"
             : "OFF"
         }
         onDoubleClick={
@@ -402,6 +403,31 @@ export default function ToggleSwitchControl({
             />
           )}
         </div>
+
+        {/* ✅ OFFLINE badge (right side) */}
+        {showOffline && (
+          <div
+            style={{
+              position: "absolute",
+              top: "50%",
+              right: -78, // outside to the right like your screenshot
+              transform: "translateY(-50%)",
+              background: "rgba(255,255,255,0.92)",
+              border: "2px solid #dc2626",
+              color: "#dc2626",
+              fontWeight: 1000,
+              fontSize: 14,
+              padding: "6px 10px",
+              borderRadius: 10,
+              letterSpacing: 0.5,
+              boxShadow: "0 8px 18px rgba(0,0,0,0.25)",
+              pointerEvents: "none",
+              whiteSpace: "nowrap",
+            }}
+          >
+            OFFLINE
+          </div>
+        )}
       </div>
 
       <ToggleSwitchPropertiesModal
