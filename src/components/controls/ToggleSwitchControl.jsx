@@ -69,7 +69,7 @@ export default function ToggleSwitchControl({
    * Signature:
    *   await onWrite({ deviceId, field, value01, widget })
    *
-   * If not provided, the switch will still move visually.
+   * value01 is the DO value (0 or 1).
    */
   onWrite = null,
 
@@ -98,25 +98,34 @@ export default function ToggleSwitchControl({
   // =========================
   const p = widget?.properties || {};
   const bindDeviceId = String(p.bindDeviceId || p?.tag?.deviceId || "").trim();
-  const bindField = String(p.bindField || p?.tag?.field || "").trim().toLowerCase();
+  const bindField = String(p.bindField || p?.tag?.field || "")
+    .trim()
+    .toLowerCase();
 
   const hasBinding = !!bindDeviceId && /^do[1-4]$/.test(bindField);
 
   // =========================
   // ✅ PLAY/LAUNCH state machine
-  // - Auto-sync initial state when Play/Launch starts
-  // - Lock manual control for 4 seconds
-  // - After lock, allow user toggle
+  // IMPORTANT mapping you requested:
+  // DO=1 -> show OFF
+  // DO=0 -> show ON
+  // so UI "ON" is the INVERSE of DO
   // =========================
-  // ✅ FIX: treat "0" as OFF, "1" as ON (strings are truthy)
-  const [uiIsOn, setUiIsOn] = React.useState(() => to01(isOn) === 1);
+  const [uiIsOn, setUiIsOn] = React.useState(() => {
+    const v01 = to01(isOn);
+    if (v01 === null) return true;
+    return v01 === 0; // ✅ INVERT: DO 0 -> UI ON
+  });
+
   const [lockedUntil, setLockedUntil] = React.useState(0);
   const lastManualAtRef = React.useRef(0);
 
   // keep uiIsOn in sync with prop ONLY when not launched
   React.useEffect(() => {
     if (isLaunched) return;
-    setUiIsOn(to01(isOn) === 1);
+    const v01 = to01(isOn);
+    if (v01 === null) return;
+    setUiIsOn(v01 === 0); // ✅ INVERT
   }, [isOn, isLaunched]);
 
   // close modal if switching to launched
@@ -124,7 +133,7 @@ export default function ToggleSwitchControl({
     if (isLaunched && openProps) setOpenProps(false);
   }, [isLaunched, openProps]);
 
-  // when launched turns ON => set lock timer + sync from device immediately
+  // when launched turns ON => set lock timer
   React.useEffect(() => {
     if (!isLaunched) {
       setLockedUntil(0);
@@ -147,6 +156,7 @@ export default function ToggleSwitchControl({
   // =========================
   // ✅ Fetch DO state from backend (best-effort)
   // Uses /zhc1921/my-devices (same as your modal)
+  // NOTE: Still runs during the 4s lock (lock only blocks manual).
   // =========================
   const fetchRemoteDo = React.useCallback(async () => {
     if (!isLaunched) return;
@@ -169,21 +179,23 @@ export default function ToggleSwitchControl({
       const data = await res.json();
       const list = Array.isArray(data) ? data : [];
       const row =
-        list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === bindDeviceId) ||
-        null;
+        list.find(
+          (r) => String(r.deviceId ?? r.device_id ?? "").trim() === bindDeviceId
+        ) || null;
 
       if (!row) return;
 
       const raw = readDoFromRow(row, bindField);
-      const v01 = to01(raw);
-      if (v01 === null) return;
+      const do01 = to01(raw);
+      if (do01 === null) return;
 
       // ✅ don't "fight" the user right after a manual toggle
       const now = Date.now();
       const lastManualAt = lastManualAtRef.current || 0;
       if (now - lastManualAt < 1500) return;
 
-      setUiIsOn(v01 === 1);
+      // ✅ INVERT mapping: DO 0 => UI ON, DO 1 => UI OFF
+      setUiIsOn(do01 === 0);
     } catch {
       // ignore
     }
@@ -195,7 +207,7 @@ export default function ToggleSwitchControl({
     fetchRemoteDo();
   }, [isLaunched, fetchRemoteDo]);
 
-  // optional polling while launched
+  // optional polling while launched (includes first 4 seconds)
   React.useEffect(() => {
     if (!isLaunched) return;
     if (!hasBinding) return;
@@ -219,17 +231,21 @@ export default function ToggleSwitchControl({
 
     if (!canInteractInPlay) return;
 
-    const next = !uiIsOn;
-    setUiIsOn(next);
+    const nextUi = !uiIsOn;
+    setUiIsOn(nextUi);
     lastManualAtRef.current = Date.now();
 
-    // ✅ optional write-through if parent provides it
+    // ✅ Convert UI state to DO value with your required inversion:
+    // UI ON => DO 0
+    // UI OFF => DO 1
+    const nextDo01 = nextUi ? 0 : 1;
+
     if (typeof onWrite === "function") {
       try {
         await onWrite({
           deviceId: bindDeviceId,
           field: bindField,
-          value01: next ? 1 : 0,
+          value01: nextDo01,
           widget,
         });
       } catch (err) {
@@ -395,7 +411,6 @@ export default function ToggleSwitchControl({
         onSave={(nextWidget) => {
           if (typeof onSaveWidget === "function") onSaveWidget(nextWidget);
         }}
-        // ✅ pass through so modal hard-blocks in PLAY
         isLaunched={isLaunched}
       />
     </>
