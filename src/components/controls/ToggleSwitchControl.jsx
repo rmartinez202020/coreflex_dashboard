@@ -10,7 +10,7 @@ export default function ToggleSwitchControl({
   // ✅ keep old behavior by default
   visualOnly = true,
 
-  // ✅ NEW: edit/play gate (parent should pass true when dashboard is launched)
+  // ✅ parent should pass true when dashboard is launched (PLAY)
   isLaunched = false,
 
   // ✅ optional (parent should pass to enable saving binding)
@@ -47,8 +47,11 @@ export default function ToggleSwitchControl({
   const knobBg =
     "linear-gradient(180deg, #3A3A3A 0%, #141414 60%, #2A2A2A 100%)";
 
-  // ✅ only allow opening modal in EDIT mode
+  // ✅ only allow edit affordances in EDIT mode
   const canEdit = !visualOnly && !isLaunched;
+
+  // ✅ cardinal arrows cursor on hover in EDIT mode
+  const hoverCursor = canEdit ? "move" : "default";
 
   // ✅ safety: if dashboard switches to launched while modal open, close it
   React.useEffect(() => {
@@ -78,8 +81,8 @@ export default function ToggleSwitchControl({
           position: "relative",
           userSelect: "none",
 
-          // ✅ cursor reflects edit availability
-          cursor: canEdit ? "pointer" : "default",
+          // ✅ cardinal arrows cursor when hovering in EDIT mode
+          cursor: hoverCursor,
 
           // ✅ keep existing behavior: in visualOnly we don't interact at all
           pointerEvents: visualOnly ? "none" : "auto",
@@ -155,7 +158,7 @@ export default function ToggleSwitchControl({
         onSave={(nextWidget) => {
           if (typeof onSaveWidget === "function") onSaveWidget(nextWidget);
         }}
-        // ✅ pass through so modal also hard-blocks in PLAY
+        // ✅ pass through so modal hard-blocks in PLAY
         isLaunched={isLaunched}
       />
     </>
