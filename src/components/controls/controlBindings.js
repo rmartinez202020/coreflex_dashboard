@@ -29,6 +29,7 @@ export async function fetchUsedDOs({ dashboardId, deviceId, signal } = {}) {
     headers: {
       ...getAuthHeaders(),
       "Cache-Control": "no-cache",
+      Pragma: "no-cache",
     },
     signal,
   });
@@ -38,7 +39,7 @@ export async function fetchUsedDOs({ dashboardId, deviceId, signal } = {}) {
     throw new Error(txt || `Failed to load used DOs (${res.status})`);
   }
 
-  return res.json(); 
+  return res.json();
   // returns:
   // [{ field: "do1", widgetId: "...", title: "...", widgetType: "toggle" }]
 }
@@ -61,6 +62,7 @@ export async function bindControlDO({
       "Content-Type": "application/json",
       ...getAuthHeaders(),
       "Cache-Control": "no-cache",
+      Pragma: "no-cache",
     },
     body: JSON.stringify({
       dashboardId,
@@ -97,11 +99,7 @@ export async function bindControlDO({
 // ===============================
 // 🗑️ Delete Binding (release DO)
 // ===============================
-export async function deleteControlBinding({
-  dashboardId,
-  widgetId,
-  signal,
-} = {}) {
+export async function deleteControlBinding({ dashboardId, widgetId, signal } = {}) {
   const q = qs({ dashboardId, widgetId });
 
   const res = await fetch(`${API_URL}/control-bindings?${q}`, {
@@ -109,6 +107,7 @@ export async function deleteControlBinding({
     headers: {
       ...getAuthHeaders(),
       "Cache-Control": "no-cache",
+      Pragma: "no-cache",
     },
     signal,
   });
@@ -119,4 +118,46 @@ export async function deleteControlBinding({
   }
 
   return res.json();
+}
+
+// ===============================
+// 🕹️ Write DO (PLAY MODE)
+// Frontend sends: dashboardId, widgetId, value01 (0/1)
+// Backend resolves binding -> forwards to Node-RED
+// ===============================
+export async function writeControlDO({ dashboardId, widgetId, value01, signal } = {}) {
+  const res = await fetch(`${API_URL}/control-bindings/write`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    },
+    body: JSON.stringify({
+      dashboardId,
+      widgetId,
+      value01: Number(value01) === 1 ? 1 : 0,
+    }),
+    signal,
+  });
+
+  if (res.ok) {
+    try {
+      return await res.json();
+    } catch {
+      return { ok: true };
+    }
+  }
+
+  let payload = null;
+  try {
+    payload = await res.json();
+  } catch {}
+
+  const msg = payload?.detail || `Write failed (${res.status})`;
+  const err = new Error(msg);
+  err.code = res.status;
+  err.detail = payload;
+  throw err;
 }
