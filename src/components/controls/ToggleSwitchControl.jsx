@@ -66,6 +66,9 @@ export default function ToggleSwitchControl({
   widget = null,
   onSaveWidget = null,
 
+  // ✅ IMPORTANT: pass from parent (for backend uniqueness)
+  dashboardId = null,
+
   /**
    * ✅ OPTIONAL: write handler for real DO control.
    * Called when user toggles in PLAY after lock/cooldown.
@@ -253,7 +256,8 @@ export default function ToggleSwitchControl({
   // - startup lock finished
   // - not in manual cooldown
   // =========================
-  const canInteractInPlay = isLaunched && hasBinding && !isStartupLocked && !isManualCooldown;
+  const canInteractInPlay =
+    isLaunched && hasBinding && !isStartupLocked && !isManualCooldown;
 
   const handleToggle = async (e) => {
     e?.preventDefault?.();
@@ -304,6 +308,10 @@ export default function ToggleSwitchControl({
   // ✅ only allow edit affordances in EDIT mode
   const canEdit = !visualOnly && !isLaunched;
 
+  const isOffline = hasBinding && deviceStatus === "offline";
+  const isOnline = hasBinding && deviceStatus === "online";
+
+  // ✅ show offline badge even if status is empty (unknown) — only when bound
   const showOffline = hasBinding && deviceStatus === "offline";
 
   // cursor logic
@@ -318,13 +326,15 @@ export default function ToggleSwitchControl({
   // pointer events:
   // - EDIT: same as before (visualOnly disables interaction)
   // - PLAY: allow interaction for manual toggle ONLY if has binding
-  const allowPointerEvents =
-    (visualOnly ? false : true) || (isLaunched && hasBinding);
+  const allowPointerEvents = (visualOnly ? false : true) || (isLaunched && hasBinding);
 
   // overlay meaning:
   // - startup lock: syncing from DO
   // - manual cooldown: waiting after a user action
   const showOverlay = isLaunched && hasBinding && (isStartupLocked || isManualCooldown);
+
+  // ✅ small label so user understands WHY it's blocked
+  const overlayText = isStartupLocked ? "SYNC…" : isManualCooldown ? "WAIT…" : "";
 
   return (
     <>
@@ -439,9 +449,19 @@ export default function ToggleSwitchControl({
                 zIndex: 4,
                 pointerEvents: "none",
                 background:
-                  "linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.18))",
+                  "linear-gradient(180deg, rgba(0,0,0,0.10), rgba(0,0,0,0.22))",
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                color: "rgba(255,255,255,0.92)",
+                fontWeight: 1000,
+                fontSize: Math.max(12, Math.round(safeH * 0.20)),
+                letterSpacing: 1,
+                textShadow: "0 2px 4px rgba(0,0,0,0.55)",
               }}
-            />
+            >
+              {overlayText}
+            </div>
           )}
         </div>
 
@@ -479,6 +499,7 @@ export default function ToggleSwitchControl({
           if (typeof onSaveWidget === "function") onSaveWidget(nextWidget);
         }}
         isLaunched={isLaunched}
+        dashboardId={dashboardId}
       />
     </>
   );

@@ -461,7 +461,6 @@ export default function DashboardCanvas({
   widget={tank}
   onSaveWidget={commonProps.onUpdate}
 />
-
     </DraggableDroppedTank>
   );
 }

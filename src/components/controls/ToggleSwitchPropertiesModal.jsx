@@ -4,6 +4,9 @@ import { createPortal } from "react-dom";
 import { API_URL } from "../../config/api";
 import { getToken } from "../../utils/authToken";
 
+// ✅ NEW: backend bindings helpers (same folder)
+import { fetchUsedDOs, bindControlDO } from "./controlBindings";
+
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -67,6 +70,10 @@ export default function ToggleSwitchPropertiesModal({
   onClose,
   // ✅ MUST be true in PLAY mode
   isLaunched = false,
+
+  // ✅ NEW (recommended): pass this from parent/dashboard
+  // It is required for backend uniqueness per dashboard.
+  dashboardId: dashboardIdProp,
 }) {
   // ✅ DO NOT early return before hooks
   const p = toggleSwitch?.properties || {};
@@ -84,7 +91,9 @@ export default function ToggleSwitchPropertiesModal({
 
   const [deviceId, setDeviceId] = React.useState(initialDeviceId);
   const [field, setField] = React.useState(
-    /^do[1-4]$/.test(String(initialField || "").toLowerCase()) ? initialField : "do1"
+    /^do[1-4]$/.test(String(initialField || "").toLowerCase())
+      ? initialField
+      : "do1"
   );
 
   const [deviceSearch, setDeviceSearch] = React.useState("");
@@ -205,7 +214,8 @@ export default function ToggleSwitchPropertiesModal({
       setDevicesErr("");
       try {
         const token = String(getToken() || "").trim();
-        if (!token) throw new Error("Missing auth token. Please logout and login again.");
+        if (!token)
+          throw new Error("Missing auth token. Please logout and login again.");
 
         const res = await fetch(`${API_URL}/zhc1921/my-devices`, {
           headers: getAuthHeaders(),
@@ -245,6 +255,90 @@ export default function ToggleSwitchPropertiesModal({
   }, [devices, deviceSearch]);
 
   // =========================
+  // ✅ USED DOs (backend uniqueness per dashboard)
+  // =========================
+  const widgetId = String(toggleSwitch?.id || "").trim();
+  const dashboardId = String(
+    dashboardIdProp || toggleSwitch?.dashboardId || p.dashboardId || ""
+  ).trim();
+
+  const [usedMap, setUsedMap] = React.useState({});
+  const [usedErr, setUsedErr] = React.useState("");
+  const usedAbortRef = React.useRef(null);
+
+  const loadUsed = React.useCallback(async () => {
+    const dash = String(dashboardId || "").trim();
+    const dev = String(deviceId || "").trim();
+
+    if (!open || isLaunched) return;
+    if (!dash || !dev) {
+      setUsedMap({});
+      setUsedErr("");
+      return;
+    }
+
+    try {
+      setUsedErr("");
+      if (usedAbortRef.current) usedAbortRef.current.abort();
+      const ac = new AbortController();
+      usedAbortRef.current = ac;
+
+      const rows = await fetchUsedDOs({
+        dashboardId: dash,
+        deviceId: dev,
+        signal: ac.signal,
+      });
+
+      const m = {};
+      (Array.isArray(rows) ? rows : []).forEach((r) => {
+        const f = String(r.field || "").trim().toLowerCase();
+        if (!/^do[1-4]$/.test(f)) return;
+        m[f] = {
+          field: f,
+          widgetId: String(r.widgetId || "").trim(),
+          title: String(r.title || "").trim(),
+          widgetType: String(r.widgetType || "").trim(),
+        };
+      });
+
+      setUsedMap(m);
+    } catch (e) {
+      // abort is normal when switching devices fast
+      if (String(e?.name || "") === "AbortError") return;
+      setUsedMap({});
+      setUsedErr(e?.message || "Failed to load used DOs");
+    }
+  }, [open, isLaunched, dashboardId, deviceId]);
+
+  React.useEffect(() => {
+    if (!open || isLaunched) return;
+    loadUsed();
+    return () => {
+      if (usedAbortRef.current) usedAbortRef.current.abort();
+    };
+  }, [open, isLaunched, loadUsed]);
+
+  const effectiveField = String(field || "").trim().toLowerCase();
+
+  const usedByOther = React.useMemo(() => {
+    const info = usedMap?.[effectiveField];
+    if (!info) return null;
+    if (!info.widgetId) return null;
+    if (!widgetId) return info; // can't compare
+    return info.widgetId !== widgetId ? info : null;
+  }, [usedMap, effectiveField, widgetId]);
+
+  const isOptionDisabled = React.useCallback(
+    (f) => {
+      const info = usedMap?.[String(f || "").toLowerCase().trim()];
+      if (!info?.widgetId) return false;
+      if (!widgetId) return true;
+      return info.widgetId !== widgetId;
+    },
+    [usedMap, widgetId]
+  );
+
+  // =========================
   // LIVE STATUS / VALUE (EDIT ONLY)
   // =========================
   const [telemetryRow, setTelemetryRow] = React.useState(null);
@@ -261,7 +355,8 @@ export default function ToggleSwitchPropertiesModal({
     telemetryRef.current.loading = true;
     try {
       const token = String(getToken() || "").trim();
-      if (!token) throw new Error("Missing auth token. Please logout and login again.");
+      if (!token)
+        throw new Error("Missing auth token. Please logout and login again.");
 
       const res = await fetch(`${API_URL}/zhc1921/my-devices`, {
         headers: getAuthHeaders(),
@@ -275,7 +370,8 @@ export default function ToggleSwitchPropertiesModal({
       const data = await res.json();
       const list = Array.isArray(data) ? data : [];
       const row =
-        list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
+        list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) ||
+        null;
 
       setTelemetryRow(row);
     } catch {
@@ -305,7 +401,6 @@ export default function ToggleSwitchPropertiesModal({
 
   const deviceIsOnline = backendDeviceStatus === "online";
 
-  const effectiveField = String(field || "").trim().toLowerCase();
   const rawValue = React.useMemo(() => {
     if (!telemetryRow || !effectiveField) return undefined;
     return readDoFromRow(telemetryRow, effectiveField);
@@ -323,6 +418,8 @@ export default function ToggleSwitchPropertiesModal({
     ? "Select a device and DO"
     : !effectiveField
     ? "Select a DO tag"
+    : usedByOther
+    ? "DO already used"
     : isOnlineWithData
     ? "Online"
     : deviceId && deviceIsOnline
@@ -332,34 +429,97 @@ export default function ToggleSwitchPropertiesModal({
   const valueText = isOnlineWithData ? String(as01 ?? 0) : "—";
 
   // =========================
-  // APPLY SAVE (save BOTH formats)
+  // APPLY SAVE + BACKEND BIND
   // =========================
-  const canApply = !!String(deviceId || "").trim() && /^do[1-4]$/.test(effectiveField);
+  const canApplyLocal =
+    !!String(deviceId || "").trim() && /^do[1-4]$/.test(effectiveField);
 
-  const apply = () => {
+  const [saving, setSaving] = React.useState(false);
+  const [saveErr, setSaveErr] = React.useState("");
+
+  React.useEffect(() => {
+    if (!open) {
+      setSaving(false);
+      setSaveErr("");
+    }
+  }, [open]);
+
+  const canApply =
+    canApplyLocal &&
+    !!String(dashboardId || "").trim() &&
+    !!String(widgetId || "").trim() &&
+    !usedByOther &&
+    !saving;
+
+  const apply = async () => {
     if (!toggleSwitch) return;
 
-    const nextProps = {
-      ...(toggleSwitch?.properties || {}),
+    setSaveErr("");
 
-      // ✅ legacy fields (keep)
-      bindModel: forcedModel,
-      bindDeviceId: String(deviceId || ""),
-      bindField: String(effectiveField || "do1"),
+    const dash = String(dashboardId || "").trim();
+    const wid = String(widgetId || "").trim();
+    const dev = String(deviceId || "").trim();
+    const f = String(effectiveField || "").trim().toLowerCase();
 
-      // ✅ tag format (also saved)
-      tag: canApply
-        ? {
-            model: forcedModel,
-            deviceId: String(deviceId || ""),
-            field: String(effectiveField || "do1"),
-          }
-        : (toggleSwitch?.properties || {}).tag,
-    };
+    if (!dash || !wid) {
+      setSaveErr(
+        "Missing dashboardId / widgetId. Pass dashboardId into the modal from the dashboard page."
+      );
+      return;
+    }
+    if (!dev || !/^do[1-4]$/.test(f)) return;
 
-    const next = { ...toggleSwitch, properties: nextProps };
-    onSave?.(next);
-    onClose?.();
+    setSaving(true);
+    try {
+      // ✅ 1) bind in backend (enforces uniqueness)
+      await bindControlDO({
+        dashboardId: dash,
+        widgetId: wid,
+        widgetType: "toggle",
+        title: String(toggleSwitch?.properties?.title || toggleSwitch?.title || "Toggle")
+          .trim()
+          .slice(0, 120),
+        deviceId: dev,
+        field: f,
+      });
+
+      // ✅ 2) refresh used list so UI updates instantly
+      await loadUsed();
+
+      // ✅ 3) save into canvas widget properties (for frontend usage)
+      const nextProps = {
+        ...(toggleSwitch?.properties || {}),
+
+        dashboardId: dash,
+
+        // ✅ legacy fields (keep)
+        bindModel: forcedModel,
+        bindDeviceId: dev,
+        bindField: f,
+
+        // ✅ tag format (also saved)
+        tag: {
+          model: forcedModel,
+          deviceId: dev,
+          field: f,
+        },
+      };
+
+      const next = { ...toggleSwitch, properties: nextProps };
+      onSave?.(next);
+      onClose?.();
+    } catch (e) {
+      if (e?.code === 409) {
+        const d = e?.detail || {};
+        setSaveErr(d?.error || "This DO is already used.");
+        // also reload used, in case something changed
+        loadUsed();
+      } else {
+        setSaveErr(e?.message || "Failed to bind DO");
+      }
+    } finally {
+      setSaving(false);
+    }
   };
 
   const Label = ({ children }) => (
@@ -443,13 +603,52 @@ export default function ToggleSwitchPropertiesModal({
             Bind this toggle to a <b>CF-2000 Digital Output (DO)</b>.
           </div>
 
+          {/* dashboardId helper */}
+          {!dashboardId && (
+            <div
+              style={{
+                marginBottom: 10,
+                padding: "10px 12px",
+                borderRadius: 10,
+                border: "1px solid #fecaca",
+                background: "#fff1f2",
+                color: "#991b1b",
+                fontSize: 12,
+                fontWeight: 900,
+              }}
+            >
+              Missing <code>dashboardId</code>. Pass it to this modal so DO uniqueness works.
+            </div>
+          )}
+
           <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 14 }}>
             <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}>
               Output that this toggle controls (DO)
             </div>
 
             {devicesErr && (
-              <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>{devicesErr}</div>
+              <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>
+                {devicesErr}
+              </div>
+            )}
+
+            {usedErr && (
+              <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>
+                {usedErr}
+              </div>
+            )}
+
+            {saveErr && (
+              <div
+                style={{
+                  marginBottom: 10,
+                  color: "#dc2626",
+                  fontSize: 12,
+                  fontWeight: 900,
+                }}
+              >
+                {saveErr}
+              </div>
             )}
 
             {/* Search Device */}
@@ -478,7 +677,12 @@ export default function ToggleSwitchPropertiesModal({
                 <Label>Device</Label>
                 <select
                   value={deviceId || ""}
-                  onChange={(e) => setDeviceId(String(e.target.value || ""))}
+                  onChange={(e) => {
+                    const next = String(e.target.value || "");
+                    setDeviceId(next);
+                    // optional: keep field, but refresh used DOs for new device
+                    // (loadUsed effect will run because deviceId changed)
+                  }}
                   style={{
                     width: "100%",
                     padding: "10px 12px",
@@ -516,12 +720,32 @@ export default function ToggleSwitchPropertiesModal({
                   }}
                 >
                   <option value="">— Select DO —</option>
-                  {DO_OPTIONS.map((t) => (
-                    <option key={t.key} value={t.key}>
-                      {t.label}
-                    </option>
-                  ))}
+                  {DO_OPTIONS.map((t) => {
+                    const f = String(t.key).toLowerCase();
+                    const info = usedMap?.[f];
+                    const disabled = deviceId ? isOptionDisabled(f) : true;
+
+                    const usedLabel =
+                      info?.widgetId && info.widgetId !== widgetId
+                        ? ` (Used${info.title ? `: ${info.title}` : ""})`
+                        : "";
+
+                    return (
+                      <option key={t.key} value={t.key} disabled={disabled}>
+                        {t.label}
+                        {usedLabel}
+                      </option>
+                    );
+                  })}
                 </select>
+
+                {usedByOther && (
+                  <div style={{ marginTop: 8, fontSize: 12, color: "#dc2626", fontWeight: 900 }}>
+                    {effectiveField.toUpperCase()} is already used
+                    {usedByOther.title ? ` by "${usedByOther.title}"` : ""}.
+                    Choose another DO.
+                  </div>
+                )}
               </div>
             </div>
 
@@ -542,7 +766,14 @@ export default function ToggleSwitchPropertiesModal({
                 <div style={{ fontSize: 13, color: "#475569", marginTop: 2 }}>
                   {deviceId && effectiveField ? (
                     <>
-                      <span style={{ fontWeight: 900, color: "#0f172a" }}>{statusText}</span>
+                      <span
+                        style={{
+                          fontWeight: 900,
+                          color: usedByOther ? "#dc2626" : "#0f172a",
+                        }}
+                      >
+                        {statusText}
+                      </span>
                       <span style={{ marginLeft: 10, color: "#64748b" }}>
                         Bound: <b>{deviceId}</b> / <b>{effectiveField}</b>
                       </span>
@@ -615,11 +846,18 @@ export default function ToggleSwitchPropertiesModal({
               cursor: canApply ? "pointer" : "not-allowed",
               fontWeight: 900,
               fontSize: 14,
+              opacity: saving ? 0.8 : 1,
             }}
             type="button"
-            title="Apply"
+            title={
+              !dashboardId
+                ? "Missing dashboardId"
+                : usedByOther
+                ? "This DO is already used"
+                : "Apply"
+            }
           >
-            Apply
+            {saving ? "Saving..." : "Apply"}
           </button>
         </div>
       </div>
