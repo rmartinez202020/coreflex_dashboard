@@ -308,9 +308,6 @@ export default function ToggleSwitchControl({
   // ✅ only allow edit affordances in EDIT mode
   const canEdit = !visualOnly && !isLaunched;
 
-  const isOffline = hasBinding && deviceStatus === "offline";
-  const isOnline = hasBinding && deviceStatus === "online";
-
   // ✅ show offline badge even if status is empty (unknown) — only when bound
   const showOffline = hasBinding && deviceStatus === "offline";
 
@@ -326,15 +323,17 @@ export default function ToggleSwitchControl({
   // pointer events:
   // - EDIT: same as before (visualOnly disables interaction)
   // - PLAY: allow interaction for manual toggle ONLY if has binding
-  const allowPointerEvents = (visualOnly ? false : true) || (isLaunched && hasBinding);
+  const allowPointerEvents =
+    (visualOnly ? false : true) || (isLaunched && hasBinding);
 
   // overlay meaning:
   // - startup lock: syncing from DO
-  // - manual cooldown: waiting after a user action
-  const showOverlay = isLaunched && hasBinding && (isStartupLocked || isManualCooldown);
+  // - manual cooldown: waiting after a user action (NO TEXT per your request)
+  const showOverlay =
+    isLaunched && hasBinding && (isStartupLocked || isManualCooldown);
 
-  // ✅ small label so user understands WHY it's blocked
-  const overlayText = isStartupLocked ? "SYNC…" : isManualCooldown ? "WAIT…" : "";
+  // ✅ remove WAIT text (keep SYNC only)
+  const overlayText = isStartupLocked ? "SYNC…" : "";
 
   return (
     <>
@@ -345,13 +344,9 @@ export default function ToggleSwitchControl({
             : uiIsOn
             ? isStartupLocked
               ? "ON (syncing…)"
-              : isManualCooldown
-              ? "ON (cooldown…)"
               : "ON"
             : isStartupLocked
             ? "OFF (syncing…)"
-            : isManualCooldown
-            ? "OFF (cooldown…)"
             : "OFF"
         }
         onDoubleClick={
@@ -440,7 +435,7 @@ export default function ToggleSwitchControl({
             }}
           />
 
-          {/* Lock/Cooldown overlay */}
+          {/* Lock/Cooldown overlay (no WAIT text) */}
           {showOverlay && (
             <div
               style={{
