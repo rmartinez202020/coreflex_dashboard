@@ -452,14 +452,16 @@ export default function DashboardCanvas({
 
   return (
     <DraggableDroppedTank {...commonProps}>
-      <ToggleSwitchControl
-        isOn={isOn}
-        width={w}
-        height={h}
-        visualOnly={false}          // ✅ allow double-click
-        widget={tank}              // ✅ give modal the widget
-        onSaveWidget={commonProps.onUpdate} // ✅ persist binding into droppedTanks
-      />
+   <ToggleSwitchControl
+  isOn={isOn}
+  width={w}
+  height={h}
+  isLaunched={isPlay}                 // ✅ pass play/edit flag
+  visualOnly={isPlay ? true : false}  // ✅ no modal interactions in PLAY
+  widget={tank}
+  onSaveWidget={commonProps.onUpdate}
+/>
+
     </DraggableDroppedTank>
   );
 }
