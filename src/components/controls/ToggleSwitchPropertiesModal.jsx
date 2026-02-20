@@ -7,6 +7,12 @@ import { getToken } from "../../utils/authToken";
 // ✅ NEW: backend bindings helpers (same folder)
 import { fetchUsedDOs, bindControlDO } from "./controlBindings";
 
+// ✅ NEW: extracted telemetry (same folder)
+import ToggleSwitchpropertiesmodalTelemetric, {
+  to01,
+  readDoFromRow,
+} from "./ToggleSwitchpropertiesmodalTelemetric";
+
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -24,44 +30,6 @@ const DO_OPTIONS = [
   { key: "do3", label: "DO-3" },
   { key: "do4", label: "DO-4" },
 ];
-
-// ✅ Convert anything to 0/1 (for live preview)
-function to01(v) {
-  if (v === undefined || v === null) return null;
-  if (typeof v === "boolean") return v ? 1 : 0;
-  if (typeof v === "number") return v > 0 ? 1 : 0;
-  if (typeof v === "string") {
-    const s = v.trim().toLowerCase();
-    if (s === "1" || s === "true" || s === "on" || s === "yes") return 1;
-    if (s === "0" || s === "false" || s === "off" || s === "no") return 0;
-    const n = Number(s);
-    if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
-  }
-  return v ? 1 : 0;
-}
-
-// ✅ Read DO value from backend device row (supports do/out variants)
-// ✅ clamp to do1..do4 only
-function readDoFromRow(row, field) {
-  if (!row || !field) return undefined;
-
-  const f = String(field).toLowerCase().trim();
-  if (!/^do[1-4]$/.test(f)) return undefined;
-
-  if (row[f] !== undefined) return row[f];
-
-  const up = f.toUpperCase();
-  if (row[up] !== undefined) return row[up];
-
-  // do1..do4 -> out1..out4
-  const n = f.replace("do", "");
-  const alt = `out${n}`;
-  if (row[alt] !== undefined) return row[alt];
-  const altUp = `OUT${n}`;
-  if (row[altUp] !== undefined) return row[altUp];
-
-  return undefined;
-}
 
 export default function ToggleSwitchPropertiesModal({
   open = false,
@@ -339,65 +307,15 @@ export default function ToggleSwitchPropertiesModal({
   );
 
   // =========================
-  // LIVE STATUS / VALUE (EDIT ONLY)
+  // ✅ LIVE STATUS / VALUE (EDIT ONLY) — Extracted
   // =========================
-  const [telemetryRow, setTelemetryRow] = React.useState(null);
-  const telemetryRef = React.useRef({ loading: false });
-
-  const fetchTelemetryRow = React.useCallback(async () => {
-    const id = String(deviceId || "").trim();
-    if (!id) {
-      setTelemetryRow(null);
-      return;
-    }
-    if (telemetryRef.current.loading) return;
-
-    telemetryRef.current.loading = true;
-    try {
-      const token = String(getToken() || "").trim();
-      if (!token)
-        throw new Error("Missing auth token. Please logout and login again.");
-
-      const res = await fetch(`${API_URL}/zhc1921/my-devices`, {
-        headers: getAuthHeaders(),
-      });
-
-      if (!res.ok) {
-        setTelemetryRow(null);
-        return;
-      }
-
-      const data = await res.json();
-      const list = Array.isArray(data) ? data : [];
-      const row =
-        list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) ||
-        null;
-
-      setTelemetryRow(row);
-    } catch {
-      setTelemetryRow(null);
-    } finally {
-      telemetryRef.current.loading = false;
-    }
-  }, [deviceId]);
-
-  React.useEffect(() => {
-    if (!open || isLaunched) return;
-
-    fetchTelemetryRow();
-    const t = setInterval(() => {
-      if (document.hidden) return;
-      fetchTelemetryRow();
-    }, 3000);
-
-    return () => clearInterval(t);
-  }, [open, isLaunched, fetchTelemetryRow]);
-
-  const backendDeviceStatus = React.useMemo(() => {
-    const s = String(telemetryRow?.status || "").trim().toLowerCase();
-    if (!deviceId) return "";
-    return s || "";
-  }, [telemetryRow, deviceId]);
+  const { telemetryRow, backendDeviceStatus } =
+    ToggleSwitchpropertiesmodalTelemetric({
+      open,
+      isLaunched,
+      deviceId,
+      pollMs: 3000,
+    });
 
   const deviceIsOnline = backendDeviceStatus === "online";
 
@@ -680,7 +598,6 @@ export default function ToggleSwitchPropertiesModal({
                   onChange={(e) => {
                     const next = String(e.target.value || "");
                     setDeviceId(next);
-                    // optional: keep field, but refresh used DOs for new device
                     // (loadUsed effect will run because deviceId changed)
                   }}
                   style={{
