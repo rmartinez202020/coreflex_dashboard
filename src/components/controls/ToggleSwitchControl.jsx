@@ -49,6 +49,41 @@ function readStatusFromRow(row) {
   return String(row?.status ?? row?.Status ?? "").trim().toLowerCase(); // "online" | "offline" | ""
 }
 
+// ✅ Default backend writer (so Launch works even if parent forgot to pass onWrite)
+async function defaultWriteToBackend({ dashboardId, widgetId, value01 }) {
+  const dash = String(dashboardId || "").trim();
+  const wid = String(widgetId || "").trim();
+
+  if (!dash || !wid) throw new Error("Missing dashboardId/widgetId for write");
+
+  const res = await fetch(`${API_URL}/control-bindings/write`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    },
+    body: JSON.stringify({
+      dashboardId: dash,
+      widgetId: wid,
+      value01: Number(value01) ? 1 : 0,
+    }),
+  });
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(txt || `Write failed (${res.status})`);
+  }
+
+  // pass-through json if backend returns it
+  try {
+    return await res.json();
+  } catch {
+    return { ok: true };
+  }
+}
+
 export default function ToggleSwitchControl({
   // ✅ legacy external state (EDIT/visual usage)
   isOn = true,
@@ -276,17 +311,31 @@ export default function ToggleSwitchControl({
     // UI OFF => DO 1
     const nextDo01 = nextUi ? 0 : 1;
 
-    if (typeof onWrite === "function") {
-      try {
+    // ✅ ALWAYS write in PLAY:
+    // - Prefer parent onWrite (if supplied)
+    // - Otherwise call backend /control-bindings/write directly
+    try {
+      if (typeof onWrite === "function") {
         await onWrite({
           deviceId: bindDeviceId,
           field: bindField,
           value01: nextDo01,
           widget,
         });
-      } catch {
-        // keep UI (no snap-back)
+      } else {
+        const wid = String(widget?.id || "").trim();
+        const dash = String(
+          dashboardId || widget?.properties?.dashboardId || ""
+        ).trim();
+
+        await defaultWriteToBackend({
+          dashboardId: dash,
+          widgetId: wid,
+          value01: nextDo01,
+        });
       }
+    } catch {
+      // keep UI (no snap-back)
     }
   };
 
