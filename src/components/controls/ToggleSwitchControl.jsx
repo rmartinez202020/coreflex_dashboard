@@ -46,8 +46,7 @@ function getAuthHeaders() {
 }
 
 function readStatusFromRow(row) {
-  const s = String(row?.status ?? row?.Status ?? "").trim().toLowerCase();
-  return s; // "online" | "offline" | ""
+  return String(row?.status ?? row?.Status ?? "").trim().toLowerCase(); // "online" | "offline" | ""
 }
 
 export default function ToggleSwitchControl({
@@ -69,7 +68,7 @@ export default function ToggleSwitchControl({
 
   /**
    * ✅ OPTIONAL: write handler for real DO control.
-   * Called when user toggles in PLAY after lock.
+   * Called when user toggles in PLAY after lock/cooldown.
    *
    * Signature:
    *   await onWrite({ deviceId, field, value01, widget })
@@ -81,7 +80,7 @@ export default function ToggleSwitchControl({
   /**
    * ✅ Optional tuning
    */
-  lockMs = 4000,
+  lockMs = 4000, // also used as manual cooldown
   pollMs = 2000,
 }) {
   const [openProps, setOpenProps] = React.useState(false);
@@ -138,8 +137,18 @@ export default function ToggleSwitchControl({
   }, [isLaunched, openProps]);
 
   // =========================
-  // ✅ LOCK WINDOW (first 4 seconds only)
-  // During this window we are allowed to sync from DO.
+  // ✅ TIME TICK (for lock + cooldown)
+  // =========================
+  const [nowTick, setNowTick] = React.useState(Date.now());
+  React.useEffect(() => {
+    if (!isLaunched) return;
+    const t = setInterval(() => setNowTick(Date.now()), 150);
+    return () => clearInterval(t);
+  }, [isLaunched]);
+
+  // =========================
+  // ✅ STARTUP LOCK WINDOW (first 4 seconds only)
+  // During this window we sync from DO.
   // After it ends: NO MORE AUTO-SYNC (user controls)
   // =========================
   const [lockedUntil, setLockedUntil] = React.useState(0);
@@ -152,18 +161,25 @@ export default function ToggleSwitchControl({
     setLockedUntil(Date.now() + Math.max(0, Number(lockMs) || 4000));
   }, [isLaunched, lockMs]);
 
-  const [nowTick, setNowTick] = React.useState(Date.now());
+  const isStartupLocked = isLaunched && nowTick < lockedUntil;
+
+  // =========================
+  // ✅ MANUAL COOLDOWN (after each manual toggle)
+  // After user toggles, wait 4 seconds before allowing another toggle.
+  // =========================
+  const [cooldownUntil, setCooldownUntil] = React.useState(0);
+
+  // reset cooldown when leaving play
   React.useEffect(() => {
-    if (!isLaunched) return;
-    const t = setInterval(() => setNowTick(Date.now()), 150);
-    return () => clearInterval(t);
+    if (!isLaunched) setCooldownUntil(0);
   }, [isLaunched]);
 
-  const isLocked = isLaunched && nowTick < lockedUntil;
+  const isManualCooldown = isLaunched && nowTick < cooldownUntil;
 
   // =========================
   // ✅ Fetch DO state + device status from backend (best-effort)
-  // Only used DURING the lock window.
+  // - Always fetch once when play starts (for status + initial sync)
+  // - Keep polling ONLY during startup lock window
   // =========================
   const fetchRemote = React.useCallback(async () => {
     if (!isLaunched) return;
@@ -195,27 +211,32 @@ export default function ToggleSwitchControl({
       // ✅ status
       setDeviceStatus(readStatusFromRow(row));
 
-      // ✅ DO -> UI state (invert mapping)
+      // ✅ Only sync DO -> UI during startup lock window
+      if (!isStartupLocked) return;
+
       const raw = readDoFromRow(row, bindField);
       const do01 = to01(raw);
       if (do01 === null) return;
 
+      // ✅ invert mapping (DO 0 => UI ON)
       setUiIsOn(do01 === 0);
     } catch {
       // ignore
     }
-  }, [isLaunched, hasBinding, bindDeviceId, bindField]);
+  }, [isLaunched, hasBinding, bindDeviceId, bindField, isStartupLocked]);
 
-  // ✅ During lock: initial sync + polling
+  // Fetch once when play starts (gets status + initial sync)
   React.useEffect(() => {
     if (!isLaunched) return;
     if (!hasBinding) return;
-
-    // always do one fetch on start (gets status too)
     fetchRemote();
+  }, [isLaunched, hasBinding, fetchRemote]);
 
-    // only keep polling during lock window
-    if (!isLocked) return;
+  // Poll ONLY during startup lock (for first 4 seconds)
+  React.useEffect(() => {
+    if (!isLaunched) return;
+    if (!hasBinding) return;
+    if (!isStartupLocked) return;
 
     const t = setInterval(() => {
       if (document.hidden) return;
@@ -223,12 +244,16 @@ export default function ToggleSwitchControl({
     }, Math.max(500, Number(pollMs) || 2000));
 
     return () => clearInterval(t);
-  }, [isLaunched, hasBinding, isLocked, fetchRemote, pollMs]);
+  }, [isLaunched, hasBinding, isStartupLocked, fetchRemote, pollMs]);
 
   // =========================
-  // ✅ Manual toggle in PLAY (after lock only)
+  // ✅ Manual toggle in PLAY:
+  // Allowed only when:
+  // - has binding
+  // - startup lock finished
+  // - not in manual cooldown
   // =========================
-  const canInteractInPlay = isLaunched && hasBinding && !isLocked;
+  const canInteractInPlay = isLaunched && hasBinding && !isStartupLocked && !isManualCooldown;
 
   const handleToggle = async (e) => {
     e?.preventDefault?.();
@@ -238,6 +263,9 @@ export default function ToggleSwitchControl({
 
     const nextUi = !uiIsOn;
     setUiIsOn(nextUi);
+
+    // ✅ start cooldown after every manual toggle
+    setCooldownUntil(Date.now() + Math.max(0, Number(lockMs) || 4000));
 
     // ✅ convert UI state to DO value with inversion:
     // UI ON => DO 0
@@ -253,7 +281,7 @@ export default function ToggleSwitchControl({
           widget,
         });
       } catch {
-        // optional: do nothing; user asked no snap-back behavior
+        // keep UI (no snap-back)
       }
     }
   };
@@ -276,18 +304,27 @@ export default function ToggleSwitchControl({
   // ✅ only allow edit affordances in EDIT mode
   const canEdit = !visualOnly && !isLaunched;
 
+  const showOffline = hasBinding && deviceStatus === "offline";
+
+  // cursor logic
   const hoverCursor = canEdit
     ? "move"
     : canInteractInPlay
     ? "pointer"
-    : isLaunched && hasBinding && isLocked
+    : isLaunched && hasBinding && (isStartupLocked || isManualCooldown)
     ? "not-allowed"
     : "default";
 
+  // pointer events:
+  // - EDIT: same as before (visualOnly disables interaction)
+  // - PLAY: allow interaction for manual toggle ONLY if has binding
   const allowPointerEvents =
     (visualOnly ? false : true) || (isLaunched && hasBinding);
 
-  const showOffline = hasBinding && deviceStatus === "offline";
+  // overlay meaning:
+  // - startup lock: syncing from DO
+  // - manual cooldown: waiting after a user action
+  const showOverlay = isLaunched && hasBinding && (isStartupLocked || isManualCooldown);
 
   return (
     <>
@@ -296,11 +333,15 @@ export default function ToggleSwitchControl({
           !hasBinding
             ? "Bind this toggle to a DO"
             : uiIsOn
-            ? isLocked
+            ? isStartupLocked
               ? "ON (syncing…)"
+              : isManualCooldown
+              ? "ON (cooldown…)"
               : "ON"
-            : isLocked
+            : isStartupLocked
             ? "OFF (syncing…)"
+            : isManualCooldown
+            ? "OFF (cooldown…)"
             : "OFF"
         }
         onDoubleClick={
@@ -324,7 +365,7 @@ export default function ToggleSwitchControl({
           userSelect: "none",
           cursor: hoverCursor,
           pointerEvents: allowPointerEvents ? "auto" : "none",
-          opacity: isLaunched && hasBinding && isLocked ? 0.92 : 1,
+          opacity: showOverlay ? 0.92 : 1,
         }}
       >
         {/* Track */}
@@ -389,8 +430,8 @@ export default function ToggleSwitchControl({
             }}
           />
 
-          {/* Optional lock overlay */}
-          {isLaunched && hasBinding && isLocked && (
+          {/* Lock/Cooldown overlay */}
+          {showOverlay && (
             <div
               style={{
                 position: "absolute",
@@ -410,7 +451,7 @@ export default function ToggleSwitchControl({
             style={{
               position: "absolute",
               top: "50%",
-              right: -78, // outside to the right like your screenshot
+              right: -78,
               transform: "translateY(-50%)",
               background: "rgba(255,255,255,0.92)",
               border: "2px solid #dc2626",
