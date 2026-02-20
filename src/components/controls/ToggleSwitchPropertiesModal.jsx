@@ -3,11 +3,7 @@ import React from "react";
 import { createPortal } from "react-dom";
 import { API_URL } from "../../config/api";
 import { getToken } from "../../utils/authToken";
-
-// ✅ NEW: backend bindings helpers (same folder)
 import { fetchUsedDOs, bindControlDO } from "./controlBindings";
-
-// ✅ NEW: extracted telemetry (same folder)
 import ToggleSwitchpropertiesmodalTelemetric, {
   to01,
   readDoFromRow,
@@ -90,6 +86,7 @@ export default function ToggleSwitchPropertiesModal({
 
   // =========================
   // DRAGGABLE WINDOW (Portal-safe)
+  // ✅ FIX: prevent dragging the underlying toggle widget while dragging modal
   // =========================
   const modalRef = React.useRef(null);
   const dragRef = React.useRef({
@@ -114,6 +111,7 @@ export default function ToggleSwitchPropertiesModal({
     setPos({ left, top });
   }, [open, MODAL_W, MODAL_H, isLaunched]);
 
+  // ✅ use pointer events so drag doesn't leak to canvas/draggable
   React.useEffect(() => {
     if (isLaunched) return;
 
@@ -139,32 +137,45 @@ export default function ToggleSwitchPropertiesModal({
       setPos({ left: clampedLeft, top: clampedTop });
     };
 
-    const onUp = () => {
+    const onUp = (e) => {
       if (!dragRef.current.dragging) return;
+      e.preventDefault();
+
       dragRef.current.dragging = false;
       document.body.style.userSelect = "";
       document.body.style.cursor = "";
     };
 
-    window.addEventListener("mousemove", onMove);
-    window.addEventListener("mouseup", onUp);
+    window.addEventListener("pointermove", onMove, { passive: false });
+    window.addEventListener("pointerup", onUp, { passive: false });
+
     return () => {
-      window.removeEventListener("mousemove", onMove);
-      window.removeEventListener("mouseup", onUp);
+      window.removeEventListener("pointermove", onMove);
+      window.removeEventListener("pointerup", onUp);
     };
   }, [MODAL_W, isLaunched]);
 
   const startDrag = (e) => {
-    if (e.button !== 0) return;
+    // ✅ stop event so underlying DraggableDroppedTank doesn't start dragging
+    e.preventDefault();
+    e.stopPropagation();
+
+    // support touch/mouse
+    const pt = "touches" in e && e.touches?.[0] ? e.touches[0] : e;
 
     dragRef.current.dragging = true;
-    dragRef.current.startX = e.clientX;
-    dragRef.current.startY = e.clientY;
+    dragRef.current.startX = pt.clientX;
+    dragRef.current.startY = pt.clientY;
     dragRef.current.startLeft = pos.left;
     dragRef.current.startTop = pos.top;
 
     document.body.style.userSelect = "none";
     document.body.style.cursor = "grabbing";
+
+    // ✅ capture pointer if available
+    try {
+      e.currentTarget?.setPointerCapture?.(e.pointerId);
+    } catch {}
   };
 
   // =========================
@@ -271,7 +282,6 @@ export default function ToggleSwitchPropertiesModal({
 
       setUsedMap(m);
     } catch (e) {
-      // abort is normal when switching devices fast
       if (String(e?.name || "") === "AbortError") return;
       setUsedMap({});
       setUsedErr(e?.message || "Failed to load used DOs");
@@ -292,7 +302,7 @@ export default function ToggleSwitchPropertiesModal({
     const info = usedMap?.[effectiveField];
     if (!info) return null;
     if (!info.widgetId) return null;
-    if (!widgetId) return info; // can't compare
+    if (!widgetId) return info;
     return info.widgetId !== widgetId ? info : null;
   }, [usedMap, effectiveField, widgetId]);
 
@@ -309,13 +319,12 @@ export default function ToggleSwitchPropertiesModal({
   // =========================
   // ✅ LIVE STATUS / VALUE (EDIT ONLY) — Extracted
   // =========================
-  const { telemetryRow, backendDeviceStatus } =
-    ToggleSwitchpropertiesmodalTelemetric({
-      open,
-      isLaunched,
-      deviceId,
-      pollMs: 3000,
-    });
+  const { telemetryRow, backendDeviceStatus } = ToggleSwitchpropertiesmodalTelemetric({
+    open,
+    isLaunched,
+    deviceId,
+    pollMs: 3000,
+  });
 
   const deviceIsOnline = backendDeviceStatus === "online";
 
@@ -327,10 +336,10 @@ export default function ToggleSwitchPropertiesModal({
   const hasSelection = !!deviceId && !!effectiveField;
   const hasData = rawValue !== undefined && rawValue !== null;
   const isOnlineWithData = deviceIsOnline && hasData && hasSelection;
-  const as01 = React.useMemo(
-    () => (isOnlineWithData ? to01(rawValue) : null),
-    [isOnlineWithData, rawValue]
-  );
+  const as01 = React.useMemo(() => (isOnlineWithData ? to01(rawValue) : null), [
+    isOnlineWithData,
+    rawValue,
+  ]);
 
   const statusText = !deviceId
     ? "Select a device and DO"
@@ -389,33 +398,29 @@ export default function ToggleSwitchPropertiesModal({
 
     setSaving(true);
     try {
-      // ✅ 1) bind in backend (enforces uniqueness)
       await bindControlDO({
         dashboardId: dash,
         widgetId: wid,
         widgetType: "toggle",
-        title: String(toggleSwitch?.properties?.title || toggleSwitch?.title || "Toggle")
+        title: String(
+          toggleSwitch?.properties?.title || toggleSwitch?.title || "Toggle"
+        )
           .trim()
           .slice(0, 120),
         deviceId: dev,
         field: f,
       });
 
-      // ✅ 2) refresh used list so UI updates instantly
       await loadUsed();
 
-      // ✅ 3) save into canvas widget properties (for frontend usage)
       const nextProps = {
         ...(toggleSwitch?.properties || {}),
-
         dashboardId: dash,
 
-        // ✅ legacy fields (keep)
         bindModel: forcedModel,
         bindDeviceId: dev,
         bindField: f,
 
-        // ✅ tag format (also saved)
         tag: {
           model: forcedModel,
           deviceId: dev,
@@ -430,7 +435,6 @@ export default function ToggleSwitchPropertiesModal({
       if (e?.code === 409) {
         const d = e?.detail || {};
         setSaveErr(d?.error || "This DO is already used.");
-        // also reload used, in case something changed
         loadUsed();
       } else {
         setSaveErr(e?.message || "Failed to bind DO");
@@ -441,7 +445,9 @@ export default function ToggleSwitchPropertiesModal({
   };
 
   const Label = ({ children }) => (
-    <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>{children}</div>
+    <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
+      {children}
+    </div>
   );
 
   // ✅ ABSOLUTE BLOCK: never render in PLAY mode
@@ -450,7 +456,6 @@ export default function ToggleSwitchPropertiesModal({
   const portalTarget = typeof document !== "undefined" ? document.body : null;
   if (!portalTarget) return null;
 
-  // ✅ IMPORTANT: PORTAL so transforms on canvas/draggables do not shrink/offset the modal
   return createPortal(
     <div
       style={{
@@ -459,7 +464,17 @@ export default function ToggleSwitchPropertiesModal({
         background: "rgba(0,0,0,0.35)",
         zIndex: 999999,
       }}
-      onMouseDown={onClose}
+      // ✅ stop overlay click from triggering canvas drag
+      onMouseDown={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose?.();
+      }}
+      onPointerDown={(e) => {
+        e.preventDefault();
+        e.stopPropagation();
+        onClose?.();
+      }}
     >
       <div
         ref={modalRef}
@@ -478,11 +493,13 @@ export default function ToggleSwitchPropertiesModal({
           display: "flex",
           flexDirection: "column",
         }}
+        // ✅ block any down events from reaching the canvas/toggle draggable
         onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
       >
         {/* Header */}
         <div
-          onMouseDown={startDrag}
+          onPointerDown={startDrag}
           style={{
             background: "#0f172a",
             color: "#fff",
@@ -500,7 +517,11 @@ export default function ToggleSwitchPropertiesModal({
         >
           <span>Toggle Switch (CF-2000)</span>
           <button
-            onClick={onClose}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose?.();
+            }}
             style={{
               border: "none",
               background: "transparent",
@@ -535,7 +556,8 @@ export default function ToggleSwitchPropertiesModal({
                 fontWeight: 900,
               }}
             >
-              Missing <code>dashboardId</code>. Pass it to this modal so DO uniqueness works.
+              Missing <code>dashboardId</code>. Pass it to this modal so DO
+              uniqueness works.
             </div>
           )}
 
@@ -598,7 +620,6 @@ export default function ToggleSwitchPropertiesModal({
                   onChange={(e) => {
                     const next = String(e.target.value || "");
                     setDeviceId(next);
-                    // (loadUsed effect will run because deviceId changed)
                   }}
                   style={{
                     width: "100%",
@@ -657,7 +678,14 @@ export default function ToggleSwitchPropertiesModal({
                 </select>
 
                 {usedByOther && (
-                  <div style={{ marginTop: 8, fontSize: 12, color: "#dc2626", fontWeight: 900 }}>
+                  <div
+                    style={{
+                      marginTop: 8,
+                      fontSize: 12,
+                      color: "#dc2626",
+                      fontWeight: 900,
+                    }}
+                  >
                     {effectiveField.toUpperCase()} is already used
                     {usedByOther.title ? ` by "${usedByOther.title}"` : ""}.
                     Choose another DO.
@@ -679,7 +707,9 @@ export default function ToggleSwitchPropertiesModal({
               }}
             >
               <div>
-                <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>Status</div>
+                <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>
+                  Status
+                </div>
                 <div style={{ fontSize: 13, color: "#475569", marginTop: 2 }}>
                   {deviceId && effectiveField ? (
                     <>
@@ -702,7 +732,9 @@ export default function ToggleSwitchPropertiesModal({
               </div>
 
               <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>Value</div>
+                <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>
+                  Value
+                </div>
                 <div
                   style={{
                     marginTop: 2,
@@ -736,7 +768,11 @@ export default function ToggleSwitchPropertiesModal({
           }}
         >
           <button
-            onClick={onClose}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose?.();
+            }}
             style={{
               padding: "9px 14px",
               borderRadius: 10,
@@ -752,7 +788,11 @@ export default function ToggleSwitchPropertiesModal({
           </button>
 
           <button
-            onClick={apply}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              apply();
+            }}
             disabled={!canApply}
             style={{
               padding: "9px 14px",
