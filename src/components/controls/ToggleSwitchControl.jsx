@@ -326,29 +326,14 @@ export default function ToggleSwitchControl({
   const allowPointerEvents =
     (visualOnly ? false : true) || (isLaunched && hasBinding);
 
-  // overlay meaning:
-  // - startup lock: syncing from DO
-  // - manual cooldown: waiting after a user action (NO TEXT per your request)
+  // ✅ overlay only visual dim (NO TEXT)
   const showOverlay =
     isLaunched && hasBinding && (isStartupLocked || isManualCooldown);
-
-  // ✅ remove WAIT text (keep SYNC only)
-  const overlayText = isStartupLocked ? "SYNC…" : "";
 
   return (
     <>
       <div
-        title={
-          !hasBinding
-            ? "Bind this toggle to a DO"
-            : uiIsOn
-            ? isStartupLocked
-              ? "ON (syncing…)"
-              : "ON"
-            : isStartupLocked
-            ? "OFF (syncing…)"
-            : "OFF"
-        }
+        title={!hasBinding ? "Bind this toggle to a DO" : uiIsOn ? "ON" : "OFF"}
         onDoubleClick={
           canEdit
             ? (e) => {
@@ -435,7 +420,7 @@ export default function ToggleSwitchControl({
             }}
           />
 
-          {/* Lock/Cooldown overlay (no WAIT text) */}
+          {/* Lock/Cooldown overlay (NO TEXT) */}
           {showOverlay && (
             <div
               style={{
@@ -445,18 +430,8 @@ export default function ToggleSwitchControl({
                 pointerEvents: "none",
                 background:
                   "linear-gradient(180deg, rgba(0,0,0,0.10), rgba(0,0,0,0.22))",
-                display: "flex",
-                alignItems: "center",
-                justifyContent: "center",
-                color: "rgba(255,255,255,0.92)",
-                fontWeight: 1000,
-                fontSize: Math.max(12, Math.round(safeH * 0.20)),
-                letterSpacing: 1,
-                textShadow: "0 2px 4px rgba(0,0,0,0.55)",
               }}
-            >
-              {overlayText}
-            </div>
+            />
           )}
         </div>
 
