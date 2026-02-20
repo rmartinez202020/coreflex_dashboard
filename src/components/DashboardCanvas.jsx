@@ -102,7 +102,6 @@ export default function DashboardCanvas({
   dashboardId,
 }) {
   const isPlay = dashboardMode === "play";
-  const isRuntime = isPlay || isLaunch; // Play + Launch behave the same for interaction
 
   // =====================================================
   // ✅ PLAY MODE: pull live counter values from backend
@@ -465,7 +464,7 @@ export default function DashboardCanvas({
         isOn={isOn}
         width={w}
         height={h}
-        isLaunched={isRuntime}
+        isLaunched={isPlay}
         visualOnly={false} // ✅ allow click in PLAY (modal still blocked by isLaunched)
         widget={tank}
         onSaveWidget={commonProps.onUpdate}
