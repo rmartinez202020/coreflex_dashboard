@@ -1,5 +1,6 @@
 // src/components/controls/ToggleSwitchPropertiesModal.jsx
 import React from "react";
+import { createPortal } from "react-dom";
 import { API_URL } from "../../config/api";
 import { getToken } from "../../utils/authToken";
 
@@ -67,12 +68,12 @@ export default function ToggleSwitchPropertiesModal({
   // ✅ MUST be true in PLAY mode
   isLaunched = false,
 }) {
-  // ✅ do NOT early return before hooks
+  // ✅ DO NOT early return before hooks
   const p = toggleSwitch?.properties || {};
 
-  // ✅ Modal sizing (same feel as BlinkingAlarm)
-  const MODAL_W = Math.min(720, window.innerWidth - 80);
-  const MODAL_H = Math.min(520, window.innerHeight - 120);
+  // ✅ Modal sizing (MATCH BlinkingAlarm feel)
+  const MODAL_W = Math.min(980, window.innerWidth - 80);
+  const MODAL_H = Math.min(640, window.innerHeight - 120);
 
   // ✅ Force CF-2000 model
   const forcedModel = "zhc1921";
@@ -85,6 +86,7 @@ export default function ToggleSwitchPropertiesModal({
   const [field, setField] = React.useState(
     /^do[1-4]$/.test(String(initialField || "").toLowerCase()) ? initialField : "do1"
   );
+
   const [deviceSearch, setDeviceSearch] = React.useState("");
 
   // =========================
@@ -96,7 +98,7 @@ export default function ToggleSwitchPropertiesModal({
   }, [isLaunched, open]);
 
   // =========================
-  // ✅ REHYDRATE ON OPEN (EDIT ONLY)
+  // REHYDRATE ON OPEN (EDIT ONLY)
   // =========================
   React.useEffect(() => {
     if (!open || !toggleSwitch || isLaunched) return;
@@ -110,7 +112,7 @@ export default function ToggleSwitchPropertiesModal({
   }, [open, toggleSwitch?.id, isLaunched]);
 
   // =========================
-  // ✅ DRAGGABLE WINDOW (MATCH BlinkingAlarm)
+  // DRAGGABLE WINDOW (Portal-safe)
   // =========================
   const modalRef = React.useRef(null);
   const dragRef = React.useRef({
@@ -127,13 +129,13 @@ export default function ToggleSwitchPropertiesModal({
     return { left, top };
   });
 
-  // ✅ CENTER EVERY TIME IT OPENS (EDIT ONLY)
+  // ✅ recenter on open (EDIT ONLY)
   React.useEffect(() => {
     if (!open || isLaunched) return;
     const left = Math.max(20, Math.round((window.innerWidth - MODAL_W) / 2));
     const top = Math.max(20, Math.round((window.innerHeight - MODAL_H) / 2));
     setPos({ left, top });
-  }, [open, isLaunched, MODAL_W, MODAL_H]);
+  }, [open, MODAL_W, MODAL_H, isLaunched]);
 
   React.useEffect(() => {
     if (isLaunched) return;
@@ -151,7 +153,10 @@ export default function ToggleSwitchPropertiesModal({
       const rect = modalRef.current?.getBoundingClientRect();
       const mw = rect?.width ?? MODAL_W;
 
-      const clampedLeft = Math.min(window.innerWidth - 20, Math.max(20 - (mw - 60), nextLeft));
+      const clampedLeft = Math.min(
+        window.innerWidth - 20,
+        Math.max(20 - (mw - 60), nextLeft)
+      );
       const clampedTop = Math.min(window.innerHeight - 20, Math.max(20, nextTop));
 
       setPos({ left: clampedLeft, top: clampedTop });
@@ -170,7 +175,7 @@ export default function ToggleSwitchPropertiesModal({
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [MODAL_W, MODAL_H, isLaunched]);
+  }, [MODAL_W, isLaunched]);
 
   const startDrag = (e) => {
     if (e.button !== 0) return;
@@ -186,7 +191,7 @@ export default function ToggleSwitchPropertiesModal({
   };
 
   // =========================
-  // ✅ DEVICES (BACKEND) — EDIT ONLY
+  // DEVICES (BACKEND) — EDIT ONLY (CF-2000 only)
   // =========================
   const [devices, setDevices] = React.useState([]);
   const [devicesErr, setDevicesErr] = React.useState("");
@@ -240,7 +245,7 @@ export default function ToggleSwitchPropertiesModal({
   }, [devices, deviceSearch]);
 
   // =========================
-  // ✅ LIVE STATUS / VALUE (EDIT ONLY)
+  // LIVE STATUS / VALUE (EDIT ONLY)
   // =========================
   const [telemetryRow, setTelemetryRow] = React.useState(null);
   const telemetryRef = React.useRef({ loading: false });
@@ -309,10 +314,10 @@ export default function ToggleSwitchPropertiesModal({
   const hasSelection = !!deviceId && !!effectiveField;
   const hasData = rawValue !== undefined && rawValue !== null;
   const isOnlineWithData = deviceIsOnline && hasData && hasSelection;
-  const as01 = React.useMemo(() => (isOnlineWithData ? to01(rawValue) : null), [
-    isOnlineWithData,
-    rawValue,
-  ]);
+  const as01 = React.useMemo(
+    () => (isOnlineWithData ? to01(rawValue) : null),
+    [isOnlineWithData, rawValue]
+  );
 
   const statusText = !deviceId
     ? "Select a device and DO"
@@ -327,7 +332,7 @@ export default function ToggleSwitchPropertiesModal({
   const valueText = isOnlineWithData ? String(as01 ?? 0) : "—";
 
   // =========================
-  // ✅ APPLY SAVE
+  // APPLY SAVE (save BOTH formats)
   // =========================
   const canApply = !!String(deviceId || "").trim() && /^do[1-4]$/.test(effectiveField);
 
@@ -336,9 +341,13 @@ export default function ToggleSwitchPropertiesModal({
 
     const nextProps = {
       ...(toggleSwitch?.properties || {}),
+
+      // ✅ legacy fields (keep)
       bindModel: forcedModel,
       bindDeviceId: String(deviceId || ""),
       bindField: String(effectiveField || "do1"),
+
+      // ✅ tag format (also saved)
       tag: canApply
         ? {
             model: forcedModel,
@@ -357,10 +366,14 @@ export default function ToggleSwitchPropertiesModal({
     <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>{children}</div>
   );
 
-  // ✅ NEVER render in PLAY mode
+  // ✅ ABSOLUTE BLOCK: never render in PLAY mode
   if (!open || !toggleSwitch || isLaunched) return null;
 
-  return (
+  const portalTarget = typeof document !== "undefined" ? document.body : null;
+  if (!portalTarget) return null;
+
+  // ✅ IMPORTANT: PORTAL so transforms on canvas/draggables do not shrink/offset the modal
+  return createPortal(
     <div
       style={{
         position: "fixed",
@@ -391,10 +404,7 @@ export default function ToggleSwitchPropertiesModal({
       >
         {/* Header */}
         <div
-          onMouseDown={(e) => {
-            e.stopPropagation();
-            startDrag(e);
-          }}
+          onMouseDown={startDrag}
           style={{
             background: "#0f172a",
             color: "#fff",
@@ -407,16 +417,12 @@ export default function ToggleSwitchPropertiesModal({
             letterSpacing: 0.2,
             cursor: "grab",
             flex: "0 0 auto",
-            userSelect: "none",
           }}
           title="Drag to move"
         >
           <span>Toggle Switch (CF-2000)</span>
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose?.();
-            }}
+            onClick={onClose}
             style={{
               border: "none",
               background: "transparent",
@@ -443,9 +449,7 @@ export default function ToggleSwitchPropertiesModal({
             </div>
 
             {devicesErr && (
-              <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>
-                {devicesErr}
-              </div>
+              <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>{devicesErr}</div>
             )}
 
             {/* Search Device */}
@@ -584,10 +588,7 @@ export default function ToggleSwitchPropertiesModal({
           }}
         >
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onClose?.();
-            }}
+            onClick={onClose}
             style={{
               padding: "9px 14px",
               borderRadius: 10,
@@ -603,10 +604,7 @@ export default function ToggleSwitchPropertiesModal({
           </button>
 
           <button
-            onClick={(e) => {
-              e.stopPropagation();
-              apply();
-            }}
+            onClick={apply}
             disabled={!canApply}
             style={{
               padding: "9px 14px",
@@ -625,6 +623,7 @@ export default function ToggleSwitchPropertiesModal({
           </button>
         </div>
       </div>
-    </div>
+    </div>,
+    portalTarget
   );
 }
