@@ -108,14 +108,15 @@ export default function ToggleSwitchControl({
   // - Lock manual control for 4 seconds
   // - After lock, allow user toggle
   // =========================
-  const [uiIsOn, setUiIsOn] = React.useState(!!isOn);
+  // ✅ FIX: treat "0" as OFF, "1" as ON (strings are truthy)
+  const [uiIsOn, setUiIsOn] = React.useState(() => to01(isOn) === 1);
   const [lockedUntil, setLockedUntil] = React.useState(0);
   const lastManualAtRef = React.useRef(0);
 
   // keep uiIsOn in sync with prop ONLY when not launched
   React.useEffect(() => {
     if (isLaunched) return;
-    setUiIsOn(!!isOn);
+    setUiIsOn(to01(isOn) === 1);
   }, [isOn, isLaunched]);
 
   // close modal if switching to launched
@@ -133,7 +134,15 @@ export default function ToggleSwitchControl({
     setLockedUntil(until);
   }, [isLaunched, lockMs]);
 
-  const isLocked = isLaunched && Date.now() < lockedUntil;
+  // ✅ make lock reactive (do not rely on Date.now() in render)
+  const [nowTick, setNowTick] = React.useState(Date.now());
+  React.useEffect(() => {
+    if (!isLaunched) return;
+    const t = setInterval(() => setNowTick(Date.now()), 200);
+    return () => clearInterval(t);
+  }, [isLaunched]);
+
+  const isLocked = isLaunched && nowTick < lockedUntil;
 
   // =========================
   // ✅ Fetch DO state from backend (best-effort)
@@ -371,7 +380,8 @@ export default function ToggleSwitchControl({
                 inset: 0,
                 zIndex: 4,
                 pointerEvents: "none",
-                background: "linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.18))",
+                background:
+                  "linear-gradient(180deg, rgba(0,0,0,0.08), rgba(0,0,0,0.18))",
               }}
             />
           )}
