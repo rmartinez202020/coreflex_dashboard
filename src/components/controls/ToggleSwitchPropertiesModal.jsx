@@ -67,10 +67,10 @@ export default function ToggleSwitchPropertiesModal({
   // ✅ MUST be true in PLAY mode
   isLaunched = false,
 }) {
-  // ✅ DO NOT early return before hooks
+  // ✅ do NOT early return before hooks
   const p = toggleSwitch?.properties || {};
 
-  // ✅ Modal sizing
+  // ✅ Modal sizing (same feel as BlinkingAlarm)
   const MODAL_W = Math.min(720, window.innerWidth - 80);
   const MODAL_H = Math.min(520, window.innerHeight - 120);
 
@@ -85,14 +85,10 @@ export default function ToggleSwitchPropertiesModal({
   const [field, setField] = React.useState(
     /^do[1-4]$/.test(String(initialField || "").toLowerCase()) ? initialField : "do1"
   );
-
   const [deviceSearch, setDeviceSearch] = React.useState("");
 
   // =========================
   // ✅ HARD GUARANTEE: NEVER IN PLAY MODE
-  // - if play launches while open, auto-close
-  // - no network calls in play
-  // - render is blocked in play
   // =========================
   React.useEffect(() => {
     if (isLaunched && open) onClose?.();
@@ -100,7 +96,7 @@ export default function ToggleSwitchPropertiesModal({
   }, [isLaunched, open]);
 
   // =========================
-  // REHYDRATE ON OPEN (EDIT ONLY)
+  // ✅ REHYDRATE ON OPEN (EDIT ONLY)
   // =========================
   React.useEffect(() => {
     if (!open || !toggleSwitch || isLaunched) return;
@@ -114,7 +110,7 @@ export default function ToggleSwitchPropertiesModal({
   }, [open, toggleSwitch?.id, isLaunched]);
 
   // =========================
-  // DRAGGABLE WINDOW
+  // ✅ DRAGGABLE WINDOW (MATCH BlinkingAlarm)
   // =========================
   const modalRef = React.useRef(null);
   const dragRef = React.useRef({
@@ -131,13 +127,13 @@ export default function ToggleSwitchPropertiesModal({
     return { left, top };
   });
 
-  // recenter on open (EDIT ONLY)
+  // ✅ CENTER EVERY TIME IT OPENS (EDIT ONLY)
   React.useEffect(() => {
     if (!open || isLaunched) return;
     const left = Math.max(20, Math.round((window.innerWidth - MODAL_W) / 2));
     const top = Math.max(20, Math.round((window.innerHeight - MODAL_H) / 2));
     setPos({ left, top });
-  }, [open, MODAL_W, MODAL_H, isLaunched]);
+  }, [open, isLaunched, MODAL_W, MODAL_H]);
 
   React.useEffect(() => {
     if (isLaunched) return;
@@ -155,10 +151,7 @@ export default function ToggleSwitchPropertiesModal({
       const rect = modalRef.current?.getBoundingClientRect();
       const mw = rect?.width ?? MODAL_W;
 
-      const clampedLeft = Math.min(
-        window.innerWidth - 20,
-        Math.max(20 - (mw - 60), nextLeft)
-      );
+      const clampedLeft = Math.min(window.innerWidth - 20, Math.max(20 - (mw - 60), nextLeft));
       const clampedTop = Math.min(window.innerHeight - 20, Math.max(20, nextTop));
 
       setPos({ left: clampedLeft, top: clampedTop });
@@ -177,7 +170,7 @@ export default function ToggleSwitchPropertiesModal({
       window.removeEventListener("mousemove", onMove);
       window.removeEventListener("mouseup", onUp);
     };
-  }, [MODAL_W, isLaunched]);
+  }, [MODAL_W, MODAL_H, isLaunched]);
 
   const startDrag = (e) => {
     if (e.button !== 0) return;
@@ -193,7 +186,7 @@ export default function ToggleSwitchPropertiesModal({
   };
 
   // =========================
-  // DEVICES (BACKEND) — EDIT ONLY
+  // ✅ DEVICES (BACKEND) — EDIT ONLY
   // =========================
   const [devices, setDevices] = React.useState([]);
   const [devicesErr, setDevicesErr] = React.useState("");
@@ -247,7 +240,7 @@ export default function ToggleSwitchPropertiesModal({
   }, [devices, deviceSearch]);
 
   // =========================
-  // LIVE STATUS / VALUE (EDIT ONLY)
+  // ✅ LIVE STATUS / VALUE (EDIT ONLY)
   // =========================
   const [telemetryRow, setTelemetryRow] = React.useState(null);
   const telemetryRef = React.useRef({ loading: false });
@@ -276,7 +269,8 @@ export default function ToggleSwitchPropertiesModal({
 
       const data = await res.json();
       const list = Array.isArray(data) ? data : [];
-      const row = list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
+      const row =
+        list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
 
       setTelemetryRow(row);
     } catch {
@@ -315,10 +309,10 @@ export default function ToggleSwitchPropertiesModal({
   const hasSelection = !!deviceId && !!effectiveField;
   const hasData = rawValue !== undefined && rawValue !== null;
   const isOnlineWithData = deviceIsOnline && hasData && hasSelection;
-  const as01 = React.useMemo(
-    () => (isOnlineWithData ? to01(rawValue) : null),
-    [isOnlineWithData, rawValue]
-  );
+  const as01 = React.useMemo(() => (isOnlineWithData ? to01(rawValue) : null), [
+    isOnlineWithData,
+    rawValue,
+  ]);
 
   const statusText = !deviceId
     ? "Select a device and DO"
@@ -333,7 +327,7 @@ export default function ToggleSwitchPropertiesModal({
   const valueText = isOnlineWithData ? String(as01 ?? 0) : "—";
 
   // =========================
-  // APPLY SAVE (save BOTH formats)
+  // ✅ APPLY SAVE
   // =========================
   const canApply = !!String(deviceId || "").trim() && /^do[1-4]$/.test(effectiveField);
 
@@ -342,13 +336,9 @@ export default function ToggleSwitchPropertiesModal({
 
     const nextProps = {
       ...(toggleSwitch?.properties || {}),
-
-      // ✅ legacy fields (keep)
       bindModel: forcedModel,
       bindDeviceId: String(deviceId || ""),
       bindField: String(effectiveField || "do1"),
-
-      // ✅ tag format (also saved)
       tag: canApply
         ? {
             model: forcedModel,
@@ -367,7 +357,7 @@ export default function ToggleSwitchPropertiesModal({
     <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>{children}</div>
   );
 
-  // ✅ ABSOLUTE BLOCK: never render in PLAY mode
+  // ✅ NEVER render in PLAY mode
   if (!open || !toggleSwitch || isLaunched) return null;
 
   return (
@@ -401,7 +391,10 @@ export default function ToggleSwitchPropertiesModal({
       >
         {/* Header */}
         <div
-          onMouseDown={startDrag}
+          onMouseDown={(e) => {
+            e.stopPropagation();
+            startDrag(e);
+          }}
           style={{
             background: "#0f172a",
             color: "#fff",
@@ -414,12 +407,16 @@ export default function ToggleSwitchPropertiesModal({
             letterSpacing: 0.2,
             cursor: "grab",
             flex: "0 0 auto",
+            userSelect: "none",
           }}
           title="Drag to move"
         >
           <span>Toggle Switch (CF-2000)</span>
           <button
-            onClick={onClose}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose?.();
+            }}
             style={{
               border: "none",
               background: "transparent",
@@ -446,7 +443,9 @@ export default function ToggleSwitchPropertiesModal({
             </div>
 
             {devicesErr && (
-              <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>{devicesErr}</div>
+              <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>
+                {devicesErr}
+              </div>
             )}
 
             {/* Search Device */}
@@ -585,7 +584,10 @@ export default function ToggleSwitchPropertiesModal({
           }}
         >
           <button
-            onClick={onClose}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose?.();
+            }}
             style={{
               padding: "9px 14px",
               borderRadius: 10,
@@ -601,7 +603,10 @@ export default function ToggleSwitchPropertiesModal({
           </button>
 
           <button
-            onClick={apply}
+            onClick={(e) => {
+              e.stopPropagation();
+              apply();
+            }}
             disabled={!canApply}
             style={{
               padding: "9px 14px",
