@@ -131,7 +131,7 @@ export default function ToggleSwitchControl({
 
   lockMs = 4000, // also used as manual cooldown
   pollMs = 2000, // fast poll during startup lock
-  statusVerifyMs = 10000, // ✅ NEW: verify status every 10s after startup lock
+  statusVerifyMs = 10000, // ✅ verify status every 10s after startup lock
 }) {
   const [openProps, setOpenProps] = React.useState(false);
 
@@ -178,6 +178,13 @@ export default function ToggleSwitchControl({
   // ✅ Track status transitions offline -> online
   const lastStatusRef = React.useRef("");
 
+  // ✅ Success banner: show only after backend DO confirms the manual change
+  const [showSuccess, setShowSuccess] = React.useState(false);
+  const successTimerRef = React.useRef(null);
+
+  // ✅ store expected DO (0/1) after manual toggle; cleared after confirm
+  const pendingWriteRef = React.useRef(null);
+
   // keep uiIsOn in sync with prop ONLY when not launched
   React.useEffect(() => {
     if (play) return;
@@ -190,6 +197,13 @@ export default function ToggleSwitchControl({
   React.useEffect(() => {
     if (play && openProps) setOpenProps(false);
   }, [play, openProps]);
+
+  // cleanup success timer on unmount
+  React.useEffect(() => {
+    return () => {
+      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+    };
+  }, []);
 
   // =========================
   // ✅ TIME TICK (lock + cooldown)
@@ -235,6 +249,7 @@ export default function ToggleSwitchControl({
   // - Sync DO only:
   //    a) during startup lock (first 4s)
   //    b) once on offline->online transition (snap to real DO)
+  // - Success: if pendingWriteRef is set AND DO matches, show "Successful" for 4s
   // =========================
   const fetchRemote = React.useCallback(async () => {
     if (!play) return;
@@ -279,12 +294,28 @@ export default function ToggleSwitchControl({
       // ✅ If offline, do not try to sync DO
       if (status === "offline") return;
 
-      // ✅ only sync DO during startup lock OR right after coming online
-      if (!isStartupLocked && !justCameOnline) return;
-
       const raw = readDoFromRow(row, bindField);
       const do01 = to01(raw);
       if (do01 === null) return;
+
+      // ✅ Success check: confirm backend DO reached expected value
+      if (
+        pendingWriteRef.current !== null &&
+        status === "online" &&
+        do01 === pendingWriteRef.current
+      ) {
+        pendingWriteRef.current = null;
+
+        // show success for 4 seconds
+        setShowSuccess(true);
+        if (successTimerRef.current) clearTimeout(successTimerRef.current);
+        successTimerRef.current = setTimeout(() => {
+          setShowSuccess(false);
+        }, 4000);
+      }
+
+      // ✅ only sync UI position during startup lock OR right after coming online
+      if (!isStartupLocked && !justCameOnline) return;
 
       setUiIsOn(do01 === 0); // invert
     } catch {
@@ -331,6 +362,13 @@ export default function ToggleSwitchControl({
 
     if (!canInteractInPlay) return;
 
+    // clear any old success banner on new action
+    setShowSuccess(false);
+    if (successTimerRef.current) {
+      clearTimeout(successTimerRef.current);
+      successTimerRef.current = null;
+    }
+
     const nextUi = !uiIsOn;
     setUiIsOn(nextUi);
 
@@ -339,6 +377,9 @@ export default function ToggleSwitchControl({
     // UI ON => DO 0
     // UI OFF => DO 1
     const nextDo01 = nextUi ? 0 : 1;
+
+    // ✅ store expected DO so fetchRemote can confirm and show "Successful"
+    pendingWriteRef.current = nextDo01;
 
     try {
       if (typeof onWrite === "function") {
@@ -369,6 +410,7 @@ export default function ToggleSwitchControl({
       }
     } catch (err) {
       console.error("Toggle write failed:", err);
+      // do not show success; allow next poll to potentially confirm anyway
     }
   };
 
@@ -535,6 +577,25 @@ export default function ToggleSwitchControl({
             }}
           >
             Offline
+          </div>
+        )}
+
+        {/* ✅ SUCCESS text under toggle (green) for 4 seconds after DO confirms */}
+        {!isOffline && showSuccess && (
+          <div
+            style={{
+              marginTop: 6,
+              textAlign: "center",
+              color: "#16a34a", // ✅ green
+              fontWeight: 600,
+              fontSize: 14,
+              letterSpacing: 0.3,
+              lineHeight: 1,
+              userSelect: "none",
+              pointerEvents: "none",
+            }}
+          >
+            Successful
           </div>
         )}
       </div>
