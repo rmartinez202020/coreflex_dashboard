@@ -195,6 +195,8 @@ export default function ToggleSwitchControl({
   // ✅ device online/offline indicator (from backend row)
   const [deviceStatus, setDeviceStatus] = React.useState(""); // "online" | "offline" | ""
 
+  const isOffline = hasBinding && deviceStatus === "offline";
+
   // keep uiIsOn in sync with prop ONLY when not launched
   React.useEffect(() => {
     if (play) return;
@@ -322,11 +324,12 @@ export default function ToggleSwitchControl({
   // ✅ Manual toggle in PLAY:
   // Allowed only when:
   // - has binding
+  // - NOT offline
   // - startup lock finished
   // - not in manual cooldown
   // =========================
   const canInteractInPlay =
-    play && hasBinding && !isStartupLocked && !isManualCooldown;
+    play && hasBinding && !isOffline && !isStartupLocked && !isManualCooldown;
 
   const handleToggle = async (e) => {
     e?.preventDefault?.();
@@ -401,12 +404,11 @@ export default function ToggleSwitchControl({
   // ✅ only allow edit affordances in EDIT mode
   const canEdit = !visualOnly && !play;
 
-  // ✅ show offline badge even if status is empty (unknown) — only when bound
-  const showOffline = hasBinding && deviceStatus === "offline";
-
-  // cursor logic
+  // cursor logic (offline overrides)
   const hoverCursor = canEdit
     ? "move"
+    : isOffline
+    ? "not-allowed"
     : canInteractInPlay
     ? "pointer"
     : play && hasBinding && (isStartupLocked || isManualCooldown)
@@ -415,140 +417,145 @@ export default function ToggleSwitchControl({
 
   // pointer events:
   // - EDIT: same as before (visualOnly disables interaction)
-  // - PLAY: allow interaction for manual toggle ONLY if has binding
+  // - PLAY: allow interaction for manual toggle ONLY if has binding (offline blocks anyway)
   const allowPointerEvents =
     (visualOnly ? false : true) || (play && hasBinding);
 
   // ✅ overlay only visual dim (NO TEXT)
-  const showOverlay = play && hasBinding && (isStartupLocked || isManualCooldown);
+  const showOverlay =
+    play && hasBinding && (isOffline || isStartupLocked || isManualCooldown);
 
   return (
     <>
-      <div
-        title={!hasBinding ? "Bind this toggle to a DO" : uiIsOn ? "ON" : "OFF"}
-        onDoubleClick={
-          canEdit
-            ? (e) => {
-                e.preventDefault();
-                e.stopPropagation();
-                setOpenProps(true);
-              }
-            : undefined
-        }
-        onClick={canInteractInPlay ? handleToggle : undefined}
-        style={{
-          width: safeW,
-          height: safeH,
-          borderRadius: radius,
-          background: bezelBg,
-          padding: bezelPad,
-          boxShadow: "0 8px 18px rgba(0,0,0,0.45)",
-          position: "relative",
-          userSelect: "none",
-          cursor: hoverCursor,
-          pointerEvents: allowPointerEvents ? "auto" : "none",
-          opacity: showOverlay ? 0.92 : 1,
-        }}
-      >
-        {/* Track */}
+      <div style={{ display: "inline-flex", flexDirection: "column" }}>
         <div
+          title={
+            !hasBinding
+              ? "Bind this toggle to a DO"
+              : isOffline
+              ? "Device Offline"
+              : uiIsOn
+              ? "ON"
+              : "OFF"
+          }
+          onDoubleClick={
+            canEdit
+              ? (e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  setOpenProps(true);
+                }
+              : undefined
+          }
+          onClick={canInteractInPlay ? handleToggle : undefined}
           style={{
-            width: "100%",
-            height: "100%",
-            borderRadius: radius - 4,
-            background: trackBg,
+            width: safeW,
+            height: safeH,
+            borderRadius: radius,
+            background: bezelBg,
+            padding: bezelPad,
+            boxShadow: "0 8px 18px rgba(0,0,0,0.45)",
             position: "relative",
-            overflow: "hidden",
+            userSelect: "none",
+            cursor: hoverCursor,
+            pointerEvents: allowPointerEvents ? "auto" : "none",
+            opacity: showOverlay ? 0.92 : 1,
           }}
         >
-          {/* Color panel */}
+          {/* Track */}
           <div
             style={{
-              position: "absolute",
-              inset: panelInset,
-              borderRadius: radius,
-              background: panelBg,
-              zIndex: 1,
-              transition: "background 180ms ease",
-            }}
-          />
-
-          {/* ON / OFF text */}
-          <div
-            style={{
-              position: "absolute",
-              inset: panelInset,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              fontWeight: 800,
-              fontSize: Math.max(14, Math.round(safeH * 0.28)),
-              letterSpacing: 1,
-              color: "white",
-              textShadow: "0 2px 4px rgba(0,0,0,0.45)",
-              zIndex: 2,
-              pointerEvents: "none",
+              width: "100%",
+              height: "100%",
+              borderRadius: radius - 4,
+              background: trackBg,
+              position: "relative",
+              overflow: "hidden",
             }}
           >
-            {uiIsOn ? "ON" : "OFF"}
-          </div>
-
-          {/* Knob */}
-          <div
-            style={{
-              position: "absolute",
-              top: knobTop,
-              left: knobLeft,
-              width: knobSize,
-              height: knobSize,
-              borderRadius: knobSize / 2,
-              background: knobBg,
-              boxShadow:
-                "0 6px 14px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.12)",
-              border: "2px solid rgba(0,0,0,0.5)",
-              transition: "left 180ms ease",
-              zIndex: 3,
-              pointerEvents: "none",
-            }}
-          />
-
-          {/* Lock/Cooldown overlay (NO TEXT) */}
-          {showOverlay && (
+            {/* Color panel */}
             <div
               style={{
                 position: "absolute",
-                inset: 0,
-                zIndex: 4,
-                pointerEvents: "none",
-                background:
-                  "linear-gradient(180deg, rgba(0,0,0,0.10), rgba(0,0,0,0.22))",
+                inset: panelInset,
+                borderRadius: radius,
+                background: panelBg,
+                zIndex: 1,
+                transition: "background 180ms ease",
               }}
             />
-          )}
+
+            {/* ON / OFF text */}
+            <div
+              style={{
+                position: "absolute",
+                inset: panelInset,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                fontWeight: 800,
+                fontSize: Math.max(14, Math.round(safeH * 0.28)),
+                letterSpacing: 1,
+                color: "white",
+                textShadow: "0 2px 4px rgba(0,0,0,0.45)",
+                zIndex: 2,
+                pointerEvents: "none",
+              }}
+            >
+              {uiIsOn ? "ON" : "OFF"}
+            </div>
+
+            {/* Knob */}
+            <div
+              style={{
+                position: "absolute",
+                top: knobTop,
+                left: knobLeft,
+                width: knobSize,
+                height: knobSize,
+                borderRadius: knobSize / 2,
+                background: knobBg,
+                boxShadow:
+                  "0 6px 14px rgba(0,0,0,0.6), inset 0 2px 4px rgba(255,255,255,0.12)",
+                border: "2px solid rgba(0,0,0,0.5)",
+                transition: "left 180ms ease",
+                zIndex: 3,
+                pointerEvents: "none",
+              }}
+            />
+
+            {/* Lock/Cooldown/offline overlay (NO TEXT) */}
+            {showOverlay && (
+              <div
+                style={{
+                  position: "absolute",
+                  inset: 0,
+                  zIndex: 4,
+                  pointerEvents: "none",
+                  background:
+                    "linear-gradient(180deg, rgba(0,0,0,0.10), rgba(0,0,0,0.22))",
+                }}
+              />
+            )}
+          </div>
         </div>
 
-        {/* ✅ OFFLINE badge (right side) */}
-        {showOffline && (
+        {/* ✅ OFFLINE text under toggle (red, NOT bold) */}
+        {isOffline && (
           <div
             style={{
-              position: "absolute",
-              top: "50%",
-              right: -78,
-              transform: "translateY(-50%)",
-              background: "rgba(255,255,255,0.92)",
-              border: "2px solid #dc2626",
+              marginTop: 6,
+              textAlign: "center",
               color: "#dc2626",
-              fontWeight: 1000,
+              fontWeight: 400, // ✅ not bold
               fontSize: 14,
-              padding: "6px 10px",
-              borderRadius: 10,
-              letterSpacing: 0.5,
-              boxShadow: "0 8px 18px rgba(0,0,0,0.25)",
+              letterSpacing: 0.2,
+              lineHeight: 1,
+              userSelect: "none",
               pointerEvents: "none",
-              whiteSpace: "nowrap",
             }}
           >
-            OFFLINE
+            Offline
           </div>
         )}
       </div>
