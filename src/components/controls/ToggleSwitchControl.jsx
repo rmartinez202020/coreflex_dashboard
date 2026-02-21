@@ -84,6 +84,37 @@ async function defaultWriteToBackend({ dashboardId, widgetId, value01 }) {
   }
 }
 
+function isLaunchRoute() {
+  try {
+    const p = String(window?.location?.pathname || "").toLowerCase();
+    // covers: /launchMainDashboard, /launch, etc.
+    return p.includes("launch");
+  } catch {
+    return false;
+  }
+}
+
+// ✅ Resolve ids robustly (Launch sometimes uses different shapes)
+function resolveWidgetId(widget) {
+  return String(
+    widget?.id ??
+      widget?.widgetId ??
+      widget?._id ??
+      widget?.uuid ??
+      widget?.properties?.widgetId ??
+      ""
+  ).trim();
+}
+function resolveDashboardId({ dashboardId, widget }) {
+  return String(
+    dashboardId ??
+      widget?.dashboardId ??
+      widget?.properties?.dashboardId ??
+      widget?.properties?.dashboard_id ??
+      ""
+  ).trim();
+}
+
 export default function ToggleSwitchControl({
   // ✅ legacy external state (EDIT/visual usage)
   isOn = true,
@@ -122,6 +153,9 @@ export default function ToggleSwitchControl({
   pollMs = 2000,
 }) {
   const [openProps, setOpenProps] = React.useState(false);
+
+  // ✅ Launch auto-detect: fixes "not clickable / no network request" when parent forgot isLaunched
+  const play = !!isLaunched || isLaunchRoute();
 
   const safeW = Math.max(90, Number(width) || 180);
   const safeH = Math.max(40, Number(height) || 70);
@@ -163,26 +197,26 @@ export default function ToggleSwitchControl({
 
   // keep uiIsOn in sync with prop ONLY when not launched
   React.useEffect(() => {
-    if (isLaunched) return;
+    if (play) return;
     const v01 = to01(isOn);
     if (v01 === null) return;
     setUiIsOn(v01 === 0); // ✅ invert
-  }, [isOn, isLaunched]);
+  }, [isOn, play]);
 
   // close modal if switching to launched
   React.useEffect(() => {
-    if (isLaunched && openProps) setOpenProps(false);
-  }, [isLaunched, openProps]);
+    if (play && openProps) setOpenProps(false);
+  }, [play, openProps]);
 
   // =========================
   // ✅ TIME TICK (for lock + cooldown)
   // =========================
   const [nowTick, setNowTick] = React.useState(Date.now());
   React.useEffect(() => {
-    if (!isLaunched) return;
+    if (!play) return;
     const t = setInterval(() => setNowTick(Date.now()), 150);
     return () => clearInterval(t);
-  }, [isLaunched]);
+  }, [play]);
 
   // =========================
   // ✅ STARTUP LOCK WINDOW (first 4 seconds only)
@@ -192,14 +226,14 @@ export default function ToggleSwitchControl({
   const [lockedUntil, setLockedUntil] = React.useState(0);
 
   React.useEffect(() => {
-    if (!isLaunched) {
+    if (!play) {
       setLockedUntil(0);
       return;
     }
     setLockedUntil(Date.now() + Math.max(0, Number(lockMs) || 4000));
-  }, [isLaunched, lockMs]);
+  }, [play, lockMs]);
 
-  const isStartupLocked = isLaunched && nowTick < lockedUntil;
+  const isStartupLocked = play && nowTick < lockedUntil;
 
   // =========================
   // ✅ MANUAL COOLDOWN (after each manual toggle)
@@ -209,10 +243,10 @@ export default function ToggleSwitchControl({
 
   // reset cooldown when leaving play
   React.useEffect(() => {
-    if (!isLaunched) setCooldownUntil(0);
-  }, [isLaunched]);
+    if (!play) setCooldownUntil(0);
+  }, [play]);
 
-  const isManualCooldown = isLaunched && nowTick < cooldownUntil;
+  const isManualCooldown = play && nowTick < cooldownUntil;
 
   // =========================
   // ✅ Fetch DO state + device status from backend (best-effort)
@@ -220,7 +254,7 @@ export default function ToggleSwitchControl({
   // - Keep polling ONLY during startup lock window
   // =========================
   const fetchRemote = React.useCallback(async () => {
-    if (!isLaunched) return;
+    if (!play) return;
     if (!hasBinding) return;
 
     try {
@@ -261,18 +295,18 @@ export default function ToggleSwitchControl({
     } catch {
       // ignore
     }
-  }, [isLaunched, hasBinding, bindDeviceId, bindField, isStartupLocked]);
+  }, [play, hasBinding, bindDeviceId, bindField, isStartupLocked]);
 
   // Fetch once when play starts (gets status + initial sync)
   React.useEffect(() => {
-    if (!isLaunched) return;
+    if (!play) return;
     if (!hasBinding) return;
     fetchRemote();
-  }, [isLaunched, hasBinding, fetchRemote]);
+  }, [play, hasBinding, fetchRemote]);
 
   // Poll ONLY during startup lock (for first 4 seconds)
   React.useEffect(() => {
-    if (!isLaunched) return;
+    if (!play) return;
     if (!hasBinding) return;
     if (!isStartupLocked) return;
 
@@ -282,7 +316,7 @@ export default function ToggleSwitchControl({
     }, Math.max(500, Number(pollMs) || 2000));
 
     return () => clearInterval(t);
-  }, [isLaunched, hasBinding, isStartupLocked, fetchRemote, pollMs]);
+  }, [play, hasBinding, isStartupLocked, fetchRemote, pollMs]);
 
   // =========================
   // ✅ Manual toggle in PLAY:
@@ -292,7 +326,7 @@ export default function ToggleSwitchControl({
   // - not in manual cooldown
   // =========================
   const canInteractInPlay =
-    isLaunched && hasBinding && !isStartupLocked && !isManualCooldown;
+    play && hasBinding && !isStartupLocked && !isManualCooldown;
 
   const handleToggle = async (e) => {
     e?.preventDefault?.();
@@ -323,10 +357,19 @@ export default function ToggleSwitchControl({
           widget,
         });
       } else {
-        const wid = String(widget?.id || "").trim();
-        const dash = String(
-          dashboardId || widget?.properties?.dashboardId || ""
-        ).trim();
+        const wid = resolveWidgetId(widget);
+        const dash = resolveDashboardId({ dashboardId, widget });
+
+        // If these are missing in Launch, do NOT attempt a broken write.
+        if (!dash || !wid) {
+          // keep UI state (no snap-back), but surface what is missing
+          console.error("Toggle write blocked: missing dashboardId/widgetId", {
+            dashboardId: dash,
+            widgetId: wid,
+            widget,
+          });
+          return;
+        }
 
         await defaultWriteToBackend({
           dashboardId: dash,
@@ -334,8 +377,9 @@ export default function ToggleSwitchControl({
           value01: nextDo01,
         });
       }
-    } catch {
-      // keep UI (no snap-back)
+    } catch (err) {
+      // keep UI (no snap-back) BUT log error so we can fix backend/payload
+      console.error("Toggle write failed:", err);
     }
   };
 
@@ -355,7 +399,7 @@ export default function ToggleSwitchControl({
   const knobLeft = uiIsOn ? trackPad : safeW - trackPad - knobSize;
 
   // ✅ only allow edit affordances in EDIT mode
-  const canEdit = !visualOnly && !isLaunched;
+  const canEdit = !visualOnly && !play;
 
   // ✅ show offline badge even if status is empty (unknown) — only when bound
   const showOffline = hasBinding && deviceStatus === "offline";
@@ -365,7 +409,7 @@ export default function ToggleSwitchControl({
     ? "move"
     : canInteractInPlay
     ? "pointer"
-    : isLaunched && hasBinding && (isStartupLocked || isManualCooldown)
+    : play && hasBinding && (isStartupLocked || isManualCooldown)
     ? "not-allowed"
     : "default";
 
@@ -373,11 +417,10 @@ export default function ToggleSwitchControl({
   // - EDIT: same as before (visualOnly disables interaction)
   // - PLAY: allow interaction for manual toggle ONLY if has binding
   const allowPointerEvents =
-    (visualOnly ? false : true) || (isLaunched && hasBinding);
+    (visualOnly ? false : true) || (play && hasBinding);
 
   // ✅ overlay only visual dim (NO TEXT)
-  const showOverlay =
-    isLaunched && hasBinding && (isStartupLocked || isManualCooldown);
+  const showOverlay = play && hasBinding && (isStartupLocked || isManualCooldown);
 
   return (
     <>
@@ -517,7 +560,7 @@ export default function ToggleSwitchControl({
         onSave={(nextWidget) => {
           if (typeof onSaveWidget === "function") onSaveWidget(nextWidget);
         }}
-        isLaunched={isLaunched}
+        isLaunched={play}
         dashboardId={dashboardId}
       />
     </>
