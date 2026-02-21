@@ -76,7 +76,6 @@ async function defaultWriteToBackend({ dashboardId, widgetId, value01 }) {
     throw new Error(txt || `Write failed (${res.status})`);
   }
 
-  // pass-through json if backend returns it
   try {
     return await res.json();
   } catch {
@@ -87,7 +86,6 @@ async function defaultWriteToBackend({ dashboardId, widgetId, value01 }) {
 function isLaunchRoute() {
   try {
     const p = String(window?.location?.pathname || "").toLowerCase();
-    // covers: /launchMainDashboard, /launch, etc.
     return p.includes("launch");
   } catch {
     return false;
@@ -116,45 +114,27 @@ function resolveDashboardId({ dashboardId, widget }) {
 }
 
 export default function ToggleSwitchControl({
-  // ✅ legacy external state (EDIT/visual usage)
   isOn = true,
 
   width = 180,
   height = 70,
 
-  // ✅ keep old behavior by default
   visualOnly = true,
-
-  // ✅ parent should pass true when dashboard is launched (PLAY)
   isLaunched = false,
 
-  // ✅ optional (parent should pass to enable saving binding)
   widget = null,
   onSaveWidget = null,
 
-  // ✅ IMPORTANT: pass from parent (for backend uniqueness)
   dashboardId = null,
 
-  /**
-   * ✅ OPTIONAL: write handler for real DO control.
-   * Called when user toggles in PLAY after lock/cooldown.
-   *
-   * Signature:
-   *   await onWrite({ deviceId, field, value01, widget })
-   *
-   * value01 is the DO value (0 or 1).
-   */
   onWrite = null,
 
-  /**
-   * ✅ Optional tuning
-   */
   lockMs = 4000, // also used as manual cooldown
   pollMs = 2000,
 }) {
   const [openProps, setOpenProps] = React.useState(false);
 
-  // ✅ Launch auto-detect: fixes "not clickable / no network request" when parent forgot isLaunched
+  // ✅ Launch auto-detect
   const play = !!isLaunched || isLaunchRoute();
 
   const safeW = Math.max(90, Number(width) || 180);
@@ -181,28 +161,31 @@ export default function ToggleSwitchControl({
   const hasBinding = !!bindDeviceId && /^do[1-4]$/.test(bindField);
 
   // =========================
-  // ✅ Mapping you requested:
+  // ✅ Mapping:
   // DO=1 -> UI OFF
   // DO=0 -> UI ON
-  // So UI "ON" = inverse of DO.
   // =========================
   const [uiIsOn, setUiIsOn] = React.useState(() => {
     const v01 = to01(isOn);
     if (v01 === null) return true;
-    return v01 === 0; // ✅ invert
+    return v01 === 0; // invert
   });
 
-  // ✅ device online/offline indicator (from backend row)
   const [deviceStatus, setDeviceStatus] = React.useState(""); // "online" | "offline" | ""
-
   const isOffline = hasBinding && deviceStatus === "offline";
+
+  // ✅ Track if we were offline (so we can resync DO once we come back online)
+  const wasOfflineRef = React.useRef(false);
+  React.useEffect(() => {
+    if (isOffline) wasOfflineRef.current = true;
+  }, [isOffline]);
 
   // keep uiIsOn in sync with prop ONLY when not launched
   React.useEffect(() => {
     if (play) return;
     const v01 = to01(isOn);
     if (v01 === null) return;
-    setUiIsOn(v01 === 0); // ✅ invert
+    setUiIsOn(v01 === 0);
   }, [isOn, play]);
 
   // close modal if switching to launched
@@ -211,7 +194,7 @@ export default function ToggleSwitchControl({
   }, [play, openProps]);
 
   // =========================
-  // ✅ TIME TICK (for lock + cooldown)
+  // ✅ TIME TICK (lock + cooldown)
   // =========================
   const [nowTick, setNowTick] = React.useState(Date.now());
   React.useEffect(() => {
@@ -221,9 +204,7 @@ export default function ToggleSwitchControl({
   }, [play]);
 
   // =========================
-  // ✅ STARTUP LOCK WINDOW (first 4 seconds only)
-  // During this window we sync from DO.
-  // After it ends: NO MORE AUTO-SYNC (user controls)
+  // ✅ STARTUP LOCK WINDOW
   // =========================
   const [lockedUntil, setLockedUntil] = React.useState(0);
 
@@ -238,12 +219,10 @@ export default function ToggleSwitchControl({
   const isStartupLocked = play && nowTick < lockedUntil;
 
   // =========================
-  // ✅ MANUAL COOLDOWN (after each manual toggle)
-  // After user toggles, wait 4 seconds before allowing another toggle.
+  // ✅ MANUAL COOLDOWN
   // =========================
   const [cooldownUntil, setCooldownUntil] = React.useState(0);
 
-  // reset cooldown when leaving play
   React.useEffect(() => {
     if (!play) setCooldownUntil(0);
   }, [play]);
@@ -251,9 +230,12 @@ export default function ToggleSwitchControl({
   const isManualCooldown = play && nowTick < cooldownUntil;
 
   // =========================
-  // ✅ Fetch DO state + device status from backend (best-effort)
-  // - Always fetch once when play starts (for status + initial sync)
-  // - Keep polling ONLY during startup lock window
+  // ✅ Fetch DO + status
+  // Rules:
+  // - Always fetch once at play start
+  // - Poll during startup lock
+  // - ALSO poll while offline (so Offline label clears when online returns)
+  // - When coming back online after offline: resync DO ONCE
   // =========================
   const fetchRemote = React.useCallback(async () => {
     if (!play) return;
@@ -282,35 +264,47 @@ export default function ToggleSwitchControl({
 
       if (!row) return;
 
-      // ✅ status
-      setDeviceStatus(readStatusFromRow(row));
+      const status = readStatusFromRow(row);
+      setDeviceStatus(status);
 
-      // ✅ Only sync DO -> UI during startup lock window
-      if (!isStartupLocked) return;
+      // ✅ If offline, do not try to sync DO (just keep polling until online)
+      if (status === "offline") return;
+
+      // ✅ Sync DO only in these cases:
+      // 1) during startup lock (first 4 seconds)
+      // 2) when we were offline and now we are back online (resync once)
+      const shouldSync =
+        isStartupLocked || (wasOfflineRef.current && status === "online");
+
+      if (!shouldSync) return;
 
       const raw = readDoFromRow(row, bindField);
       const do01 = to01(raw);
       if (do01 === null) return;
 
-      // ✅ invert mapping (DO 0 => UI ON)
-      setUiIsOn(do01 === 0);
+      setUiIsOn(do01 === 0); // invert
+
+      // ✅ consume the "offline recovery" one-time sync
+      if (wasOfflineRef.current) wasOfflineRef.current = false;
     } catch {
       // ignore
     }
   }, [play, hasBinding, bindDeviceId, bindField, isStartupLocked]);
 
-  // Fetch once when play starts (gets status + initial sync)
+  // Fetch once when play starts
   React.useEffect(() => {
     if (!play) return;
     if (!hasBinding) return;
     fetchRemote();
   }, [play, hasBinding, fetchRemote]);
 
-  // Poll ONLY during startup lock (for first 4 seconds)
+  // Poll during startup lock OR while offline
   React.useEffect(() => {
     if (!play) return;
     if (!hasBinding) return;
-    if (!isStartupLocked) return;
+
+    const shouldPoll = isStartupLocked || isOffline;
+    if (!shouldPoll) return;
 
     const t = setInterval(() => {
       if (document.hidden) return;
@@ -318,15 +312,11 @@ export default function ToggleSwitchControl({
     }, Math.max(500, Number(pollMs) || 2000));
 
     return () => clearInterval(t);
-  }, [play, hasBinding, isStartupLocked, fetchRemote, pollMs]);
+  }, [play, hasBinding, isStartupLocked, isOffline, fetchRemote, pollMs]);
 
   // =========================
   // ✅ Manual toggle in PLAY:
-  // Allowed only when:
-  // - has binding
-  // - NOT offline
-  // - startup lock finished
-  // - not in manual cooldown
+  // Blocked when offline
   // =========================
   const canInteractInPlay =
     play && hasBinding && !isOffline && !isStartupLocked && !isManualCooldown;
@@ -340,17 +330,12 @@ export default function ToggleSwitchControl({
     const nextUi = !uiIsOn;
     setUiIsOn(nextUi);
 
-    // ✅ start cooldown after every manual toggle
     setCooldownUntil(Date.now() + Math.max(0, Number(lockMs) || 4000));
 
-    // ✅ convert UI state to DO value with inversion:
     // UI ON => DO 0
     // UI OFF => DO 1
     const nextDo01 = nextUi ? 0 : 1;
 
-    // ✅ ALWAYS write in PLAY:
-    // - Prefer parent onWrite (if supplied)
-    // - Otherwise call backend /control-bindings/write directly
     try {
       if (typeof onWrite === "function") {
         await onWrite({
@@ -363,9 +348,7 @@ export default function ToggleSwitchControl({
         const wid = resolveWidgetId(widget);
         const dash = resolveDashboardId({ dashboardId, widget });
 
-        // If these are missing in Launch, do NOT attempt a broken write.
         if (!dash || !wid) {
-          // keep UI state (no snap-back), but surface what is missing
           console.error("Toggle write blocked: missing dashboardId/widgetId", {
             dashboardId: dash,
             widgetId: wid,
@@ -381,13 +364,12 @@ export default function ToggleSwitchControl({
         });
       }
     } catch (err) {
-      // keep UI (no snap-back) BUT log error so we can fix backend/payload
       console.error("Toggle write failed:", err);
     }
   };
 
   // =========================
-  // VISUALS (use uiIsOn)
+  // VISUALS
   // =========================
   const bezelBg =
     "linear-gradient(180deg, #2B2B2B 0%, #0E0E0E 50%, #1C1C1C 100%)";
@@ -398,13 +380,10 @@ export default function ToggleSwitchControl({
   const knobBg =
     "linear-gradient(180deg, #3A3A3A 0%, #141414 60%, #2A2A2A 100%)";
 
-  // ON = LEFT, OFF = RIGHT
   const knobLeft = uiIsOn ? trackPad : safeW - trackPad - knobSize;
 
-  // ✅ only allow edit affordances in EDIT mode
   const canEdit = !visualOnly && !play;
 
-  // cursor logic (offline overrides)
   const hoverCursor = canEdit
     ? "move"
     : isOffline
@@ -415,13 +394,9 @@ export default function ToggleSwitchControl({
     ? "not-allowed"
     : "default";
 
-  // pointer events:
-  // - EDIT: same as before (visualOnly disables interaction)
-  // - PLAY: allow interaction for manual toggle ONLY if has binding (offline blocks anyway)
   const allowPointerEvents =
     (visualOnly ? false : true) || (play && hasBinding);
 
-  // ✅ overlay only visual dim (NO TEXT)
   const showOverlay =
     play && hasBinding && (isOffline || isStartupLocked || isManualCooldown);
 
@@ -547,7 +522,7 @@ export default function ToggleSwitchControl({
               marginTop: 6,
               textAlign: "center",
               color: "#dc2626",
-              fontWeight: 400, // ✅ not bold
+              fontWeight: 400, // not bold
               fontSize: 14,
               letterSpacing: 0.2,
               lineHeight: 1,
