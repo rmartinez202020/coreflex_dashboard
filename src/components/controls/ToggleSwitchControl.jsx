@@ -130,7 +130,8 @@ export default function ToggleSwitchControl({
   onWrite = null,
 
   lockMs = 4000, // also used as manual cooldown
-  pollMs = 2000,
+  pollMs = 2000, // fast poll during startup lock
+  statusVerifyMs = 10000, // ✅ NEW: verify status every 10s after startup lock
 }) {
   const [openProps, setOpenProps] = React.useState(false);
 
@@ -174,11 +175,8 @@ export default function ToggleSwitchControl({
   const [deviceStatus, setDeviceStatus] = React.useState(""); // "online" | "offline" | ""
   const isOffline = hasBinding && deviceStatus === "offline";
 
-  // ✅ Track if we were offline (so we can resync DO once we come back online)
-  const wasOfflineRef = React.useRef(false);
-  React.useEffect(() => {
-    if (isOffline) wasOfflineRef.current = true;
-  }, [isOffline]);
+  // ✅ Track status transitions offline -> online
+  const lastStatusRef = React.useRef("");
 
   // keep uiIsOn in sync with prop ONLY when not launched
   React.useEffect(() => {
@@ -232,10 +230,11 @@ export default function ToggleSwitchControl({
   // =========================
   // ✅ Fetch DO + status
   // Rules:
-  // - Always fetch once at play start
-  // - Poll during startup lock
-  // - ALSO poll while offline (so Offline label clears when online returns)
-  // - When coming back online after offline: resync DO ONCE
+  // - Always update status
+  // - If offline: do not sync DO
+  // - Sync DO only:
+  //    a) during startup lock (first 4s)
+  //    b) once on offline->online transition (snap to real DO)
   // =========================
   const fetchRemote = React.useCallback(async () => {
     if (!play) return;
@@ -262,30 +261,32 @@ export default function ToggleSwitchControl({
           (r) => String(r.deviceId ?? r.device_id ?? "").trim() === bindDeviceId
         ) || null;
 
-      if (!row) return;
+      // If device not returned, treat as offline (better UX than unknown)
+      if (!row) {
+        setDeviceStatus("offline");
+        lastStatusRef.current = "offline";
+        return;
+      }
 
       const status = readStatusFromRow(row);
       setDeviceStatus(status);
 
-      // ✅ If offline, do not try to sync DO (just keep polling until online)
+      const prev = lastStatusRef.current;
+      lastStatusRef.current = status;
+
+      const justCameOnline = prev === "offline" && status === "online";
+
+      // ✅ If offline, do not try to sync DO
       if (status === "offline") return;
 
-      // ✅ Sync DO only in these cases:
-      // 1) during startup lock (first 4 seconds)
-      // 2) when we were offline and now we are back online (resync once)
-      const shouldSync =
-        isStartupLocked || (wasOfflineRef.current && status === "online");
-
-      if (!shouldSync) return;
+      // ✅ only sync DO during startup lock OR right after coming online
+      if (!isStartupLocked && !justCameOnline) return;
 
       const raw = readDoFromRow(row, bindField);
       const do01 = to01(raw);
       if (do01 === null) return;
 
       setUiIsOn(do01 === 0); // invert
-
-      // ✅ consume the "offline recovery" one-time sync
-      if (wasOfflineRef.current) wasOfflineRef.current = false;
     } catch {
       // ignore
     }
@@ -298,21 +299,24 @@ export default function ToggleSwitchControl({
     fetchRemote();
   }, [play, hasBinding, fetchRemote]);
 
-  // Poll during startup lock OR while offline
+  // ✅ Polling rule:
+  // - during startup lock: poll fast (pollMs)
+  // - after startup lock: verify status every 10s (statusVerifyMs)
   React.useEffect(() => {
     if (!play) return;
     if (!hasBinding) return;
 
-    const shouldPoll = isStartupLocked || isOffline;
-    if (!shouldPoll) return;
+    const ms = isStartupLocked
+      ? Math.max(500, Number(pollMs) || 2000)
+      : Math.max(2000, Number(statusVerifyMs) || 10000);
 
     const t = setInterval(() => {
       if (document.hidden) return;
       fetchRemote();
-    }, Math.max(500, Number(pollMs) || 2000));
+    }, ms);
 
     return () => clearInterval(t);
-  }, [play, hasBinding, isStartupLocked, isOffline, fetchRemote, pollMs]);
+  }, [play, hasBinding, isStartupLocked, fetchRemote, pollMs, statusVerifyMs]);
 
   // =========================
   // ✅ Manual toggle in PLAY:
