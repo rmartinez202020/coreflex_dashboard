@@ -1,6 +1,6 @@
 // src/pages/LaunchedMainDashboard.jsx
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import DashboardCanvas from "../components/DashboardCanvas";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
@@ -10,6 +10,37 @@ export default function LaunchedMainDashboard() {
   const [droppedTanks, setDroppedTanks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fatalError, setFatalError] = useState("");
+
+  // --------------------------------------------------------------
+  // ✅ Launch dashboard id (this screen is specifically "main")
+  // IMPORTANT: matches your backend control_bindings.dashboard_id = "main"
+  // --------------------------------------------------------------
+  const dashboardId = useMemo(() => "main", []);
+
+  // --------------------------------------------------------------
+  // ✅ helper: inject dashboardId into every widget so controls can write in Launch
+  // --------------------------------------------------------------
+  const injectDashboardIdIntoObjects = (objects, dashId) => {
+    if (!Array.isArray(objects)) return [];
+    const did = String(dashId || "").trim();
+    if (!did) return objects;
+
+    return objects.map((o) => {
+      if (!o || typeof o !== "object") return o;
+      const props = o.properties || {};
+      // don't thrash if already set
+      if (String(props.dashboardId || props.dashboard_id || "").trim() === did) {
+        return o;
+      }
+      return {
+        ...o,
+        properties: {
+          ...props,
+          dashboardId: did,
+        },
+      };
+    });
+  };
 
   // --------------------------------------------------------------
   // ✅ STEP 1 — Load THIS USER main dashboard layout from DB (token)
@@ -47,7 +78,12 @@ export default function LaunchedMainDashboard() {
           data?.layout?.objects ||
           [];
 
-        setDroppedTanks(Array.isArray(objects) ? objects : []);
+        const withDash = injectDashboardIdIntoObjects(
+          Array.isArray(objects) ? objects : [],
+          dashboardId
+        );
+
+        setDroppedTanks(withDash);
         setLoading(false);
       } catch (e) {
         console.error("❌ Launch load layout error:", e);
@@ -58,7 +94,7 @@ export default function LaunchedMainDashboard() {
     };
 
     loadLayout();
-  }, []);
+  }, [dashboardId]);
 
   // --------------------------------------------------------------
   // ✅ STEP 2 — Load live sensor/device data (poll every 1 second)
@@ -119,15 +155,6 @@ export default function LaunchedMainDashboard() {
 
   // --------------------------------------------------------------
   // ✅ STEP 2B — Poll COUNTERS every 1 second and inject into droppedTanks
-  //
-  // Why:
-  // - Your DraggableCounterInput reads from tank.properties.count (or tank.value/tank.count).
-  // - In Launch mode nothing updates those fields unless we inject the backend count.
-  //
-  // IMPORTANT:
-  // - This expects an endpoint that returns an array of counters with:
-  //   { widget_id: "...", count: 123 } (or value)
-  // - If your backend uses a different path, change COUNTERS_URL below.
   // --------------------------------------------------------------
   useEffect(() => {
     let alive = true;
@@ -192,13 +219,18 @@ export default function LaunchedMainDashboard() {
             const props = o?.properties || {};
             const oldCount = toInt0(props?.count);
 
-            if (oldCount === newCount) return o;
+            // also ensure dashboardId exists for controls in Launch
+            const didNow = String(props?.dashboardId || "").trim();
+            const needsDash = didNow !== dashboardId;
+
+            if (oldCount === newCount && !needsDash) return o;
 
             changed = true;
             return {
               ...o,
               properties: {
                 ...props,
+                dashboardId: dashboardId,
                 count: newCount, // ✅ THIS is what your widget displays
               },
             };
@@ -220,7 +252,7 @@ export default function LaunchedMainDashboard() {
       clearInterval(timer);
       controller.abort();
     };
-  }, []);
+  }, [dashboardId]);
 
   // --------------------------------------------------------------
   // ✅ UI: never show a “mystery blank” page
@@ -284,6 +316,7 @@ export default function LaunchedMainDashboard() {
       <DashboardCanvas
         dashboardMode="play"
         embedMode={true}
+        dashboardId={dashboardId} // ✅ IMPORTANT: make Launch provide dashboard id context
         /* ----- Layout Objects ----- */
         droppedTanks={droppedTanks}
         setDroppedTanks={setDroppedTanks}
