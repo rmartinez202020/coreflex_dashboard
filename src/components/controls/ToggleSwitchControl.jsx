@@ -115,21 +115,15 @@ function resolveDashboardId({ dashboardId, widget }) {
 
 export default function ToggleSwitchControl({
   isOn = true,
-
   width = 180,
   height = 70,
-
   visualOnly = true,
   isLaunched = false,
-
   widget = null,
   onSaveWidget = null,
-
   dashboardId = null,
-
   onWrite = null,
-
-  lockMs = 6000, // ✅ CHANGED: also used as manual cooldown (was 4000)
+  lockMs = 8000, // ✅ CHANGED: also used as manual cooldown (was 4000)
   pollMs = 2000, // fast poll during startup lock
   statusVerifyMs = 10000, // ✅ verify status every 10s after startup lock
 }) {
