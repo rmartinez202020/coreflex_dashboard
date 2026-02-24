@@ -129,7 +129,7 @@ export default function ToggleSwitchControl({
 
   onWrite = null,
 
-  lockMs = 4000, // also used as manual cooldown
+  lockMs = 6000, // ✅ CHANGED: also used as manual cooldown (was 4000)
   pollMs = 2000, // fast poll during startup lock
   statusVerifyMs = 10000, // ✅ verify status every 10s after startup lock
 }) {
@@ -211,7 +211,7 @@ export default function ToggleSwitchControl({
   const [nowTick, setNowTick] = React.useState(Date.now());
   React.useEffect(() => {
     if (!play) return;
-    const t = setInterval(() => setNowTick(Date.now()), 2000);
+    const t = setInterval(() => setNowTick(Date.now()), 2000); // ✅ already changed
     return () => clearInterval(t);
   }, [play]);
 
@@ -225,7 +225,7 @@ export default function ToggleSwitchControl({
       setLockedUntil(0);
       return;
     }
-    setLockedUntil(Date.now() + Math.max(0, Number(lockMs) || 4000));
+    setLockedUntil(Date.now() + Math.max(0, Number(lockMs) || 6000));
   }, [play, lockMs]);
 
   const isStartupLocked = play && nowTick < lockedUntil;
@@ -247,7 +247,7 @@ export default function ToggleSwitchControl({
   // - Always update status
   // - If offline: do not sync DO
   // - Sync DO only:
-  //    a) during startup lock (first 4s)
+  //    a) during startup lock (first lockMs)
   //    b) once on offline->online transition (snap to real DO)
   // - Success: if pendingWriteRef is set AND DO matches, show "Successful" for 4s
   // =========================
@@ -372,7 +372,7 @@ export default function ToggleSwitchControl({
     const nextUi = !uiIsOn;
     setUiIsOn(nextUi);
 
-    setCooldownUntil(Date.now() + Math.max(0, Number(lockMs) || 4000));
+    setCooldownUntil(Date.now() + Math.max(0, Number(lockMs) || 6000));
 
     // UI ON => DO 0
     // UI OFF => DO 1
