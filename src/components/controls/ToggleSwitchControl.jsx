@@ -211,7 +211,7 @@ export default function ToggleSwitchControl({
   const [nowTick, setNowTick] = React.useState(Date.now());
   React.useEffect(() => {
     if (!play) return;
-    const t = setInterval(() => setNowTick(Date.now()), 150);
+    const t = setInterval(() => setNowTick(Date.now()), 2000);
     return () => clearInterval(t);
   }, [play]);
 
