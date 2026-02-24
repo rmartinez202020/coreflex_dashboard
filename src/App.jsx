@@ -297,7 +297,6 @@ const [showVerticalTankProps, setShowVerticalTankProps] = useState(false);
 
   // ✅ MINIMIZE: hide modal + show minimized tab in AppTopBar
   const minimizeAlarmLog = () => {
-    console.log("✅ MINIMIZE FIRED");
     setAlarmLogOpen(false);
     setAlarmLogMinimized(true);
   };

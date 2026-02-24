@@ -145,7 +145,6 @@ export default function useDashboardPersistence({
       // ✅ make SAVE the new undo baseline
       hardResetHistory?.(droppedRef?.current || droppedTanks || []);
 
-      console.log("✅ Dashboard saved:", activeDashboard);
     } catch (err) {
       console.error("❌ Save failed:", err);
     }
@@ -199,7 +198,6 @@ export default function useDashboardPersistence({
       const savedAt = data?.layout?.meta?.savedAt || data?.meta?.savedAt;
       setLastSavedAt(savedAt ? new Date(savedAt) : null);
 
-      console.log("✅ Dashboard restored from DB");
     } catch (err) {
       console.error("❌ Upload failed:", err);
     } finally {
@@ -287,7 +285,6 @@ export default function useDashboardPersistence({
         const savedAt = data?.layout?.meta?.savedAt || data?.meta?.savedAt;
         setLastSavedAt(savedAt ? new Date(savedAt) : null);
 
-        console.log("✅ Auto restored dashboard on refresh");
       } catch (err) {
         console.error("❌ Auto restore failed:", err);
       }

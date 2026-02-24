@@ -187,7 +187,7 @@ export default function DashboardCanvas({
     const t = setInterval(() => {
       if (document.hidden) return;
       fetchCountersForDashboard();
-    }, 700);
+    }, 2000);
 
     return () => clearInterval(t);
   }, [isPlay, fetchCountersForDashboard]);
