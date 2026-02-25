@@ -142,7 +142,7 @@ export default function ToggleSwitchControl({
   dashboardId = null,
   onWrite = null,
   lockMs = 8000, // used as manual cooldown too
-  pollMs = 10000, // ✅ NOW: continuous sync interval (2s)
+  pollMs = 10000, // ✅ Continuous sync interval (10s)
   statusVerifyMs = 10000, // kept for compatibility (no longer used for polling)
 
   // ✅ match backend hold time for occupied state (your backend = 10s)
@@ -190,8 +190,8 @@ export default function ToggleSwitchControl({
   const [deviceStatus, setDeviceStatus] = React.useState(""); // "online" | "offline" | ""
   const isOffline = hasBinding && deviceStatus === "offline";
 
-  // ✅ Banner state
-  const [banner, setBanner] = React.useState({ kind: "none", text: "" }); // none|pending|success|error|occupied
+  // ✅ Banner state (NO "pending")
+  const [banner, setBanner] = React.useState({ kind: "none", text: "" }); // none|success|error|occupied
   const bannerTimerRef = React.useRef(null);
 
   // ✅ store expected DO (0/1) after manual toggle; cleared after confirm
@@ -266,8 +266,8 @@ export default function ToggleSwitchControl({
   const isManualCooldown = play && nowTick < cooldownUntil;
 
   // =========================
-  // ✅ Fetch DO + status (EVERY 2s)
-  // Rules (updated):
+  // ✅ Fetch DO + status
+  // Rules:
   // - Always update status
   // - If offline: do not sync DO
   // - Always sync DO position to real telemetry every poll (online)
@@ -334,7 +334,7 @@ export default function ToggleSwitchControl({
     fetchRemote();
   }, [play, hasBinding, fetchRemote]);
 
-  // ✅ Continuous sync poll: every 2 seconds (pollMs)
+  // ✅ Continuous sync poll (pollMs)
   React.useEffect(() => {
     if (!play) return;
     if (!hasBinding) return;
@@ -418,15 +418,20 @@ export default function ToggleSwitchControl({
         setUiIsOn(prevUi);
 
         // match backend hold (10s)
-        setCooldownUntil(Date.now() + Math.max(0, Number(actuationHoldMs) || 10000));
+        setCooldownUntil(
+          Date.now() + Math.max(0, Number(actuationHoldMs) || 10000)
+        );
 
-        showBanner("occupied", resp?.message || "Control Action in Progress", null);
+        showBanner(
+          "occupied",
+          resp?.message || "Control Action in Progress",
+          null
+        );
         return;
       }
 
       const ok = resp?.ok !== false;
       const nodeRedOk = resp?.nodeRedOk === true;
-      const pending = resp?.pending === true;
 
       if (!ok) {
         pendingWriteRef.current = null;
@@ -435,12 +440,12 @@ export default function ToggleSwitchControl({
         return;
       }
 
+      // ✅ NO PENDING: either show success (if confirmed by backend) or show nothing.
+      // Telemetry poll will confirm and show success when DO matches expected.
       if (nodeRedOk) {
         showBanner("success", "Successful", 4000);
-      } else if (pending) {
-        showBanner("pending", "Pending...", null);
       } else {
-        showBanner("pending", "Pending...", null);
+        showBanner("none", "");
       }
     } catch (err) {
       const msg = String(err?.message || err || "");
@@ -450,7 +455,9 @@ export default function ToggleSwitchControl({
       if (looksLike409) {
         pendingWriteRef.current = null;
         setUiIsOn(prevUi);
-        setCooldownUntil(Date.now() + Math.max(0, Number(actuationHoldMs) || 10000));
+        setCooldownUntil(
+          Date.now() + Math.max(0, Number(actuationHoldMs) || 10000)
+        );
         showBanner("occupied", "Control Action in Progress", null);
         return;
       }
@@ -506,7 +513,6 @@ export default function ToggleSwitchControl({
   const showOfflineText = isOffline;
 
   const showOccupiedText = !isOffline && banner.kind === "occupied";
-  const showPendingText = !isOffline && banner.kind === "pending";
   const showSuccessText = !isOffline && banner.kind === "success";
   const showErrorText = !isOffline && banner.kind === "error";
 
@@ -660,25 +666,6 @@ export default function ToggleSwitchControl({
             }}
           >
             {banner.text || "Control Action in Progress"}
-          </div>
-        )}
-
-        {/* ✅ PENDING */}
-        {showPendingText && (
-          <div
-            style={{
-              marginTop: 6,
-              textAlign: "center",
-              color: "#d97706",
-              fontWeight: 600,
-              fontSize: 14,
-              letterSpacing: 0.3,
-              lineHeight: 1,
-              userSelect: "none",
-              pointerEvents: "none",
-            }}
-          >
-            {banner.text || "Pending..."}
           </div>
         )}
 
