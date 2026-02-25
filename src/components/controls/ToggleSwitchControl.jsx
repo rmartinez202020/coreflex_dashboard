@@ -50,6 +50,7 @@ function readStatusFromRow(row) {
 }
 
 // ✅ Default backend writer (so Launch works even if parent forgot to pass onWrite)
+// ✅ Handles 409 gracefully (backend lock) so UI can show "Control Action in Progress"
 async function defaultWriteToBackend({ dashboardId, widgetId, value01 }) {
   const dash = String(dashboardId || "").trim();
   const wid = String(widgetId || "").trim();
@@ -70,6 +71,23 @@ async function defaultWriteToBackend({ dashboardId, widgetId, value01 }) {
       value01: Number(value01) ? 1 : 0,
     }),
   });
+
+  // ✅ Special case: backend advisory lock (occupied)
+  if (res.status === 409) {
+    let detail = null;
+    try {
+      detail = await res.json();
+    } catch {
+      detail = null;
+    }
+    return {
+      ok: false,
+      busy: true,
+      status: 409,
+      message: "Control Action in Progress",
+      detail,
+    };
+  }
 
   if (!res.ok) {
     const txt = await res.text().catch(() => "");
@@ -124,8 +142,11 @@ export default function ToggleSwitchControl({
   dashboardId = null,
   onWrite = null,
   lockMs = 8000, // used as manual cooldown too
-  pollMs = 2000, // fast poll during startup lock
-  statusVerifyMs = 10000, // verify status every 10s after startup lock
+  pollMs = 2000, // ✅ NOW: continuous sync interval (2s)
+  statusVerifyMs = 10000, // kept for compatibility (no longer used for polling)
+
+  // ✅ match backend hold time for occupied state (your backend = 10s)
+  actuationHoldMs = 10000,
 }) {
   const [openProps, setOpenProps] = React.useState(false);
 
@@ -169,11 +190,8 @@ export default function ToggleSwitchControl({
   const [deviceStatus, setDeviceStatus] = React.useState(""); // "online" | "offline" | ""
   const isOffline = hasBinding && deviceStatus === "offline";
 
-  // ✅ Track status transitions offline -> online
-  const lastStatusRef = React.useRef("");
-
   // ✅ Banner state
-  const [banner, setBanner] = React.useState({ kind: "none", text: "" }); // none|pending|success|error
+  const [banner, setBanner] = React.useState({ kind: "none", text: "" }); // none|pending|success|error|occupied
   const bannerTimerRef = React.useRef(null);
 
   // ✅ store expected DO (0/1) after manual toggle; cleared after confirm
@@ -217,12 +235,12 @@ export default function ToggleSwitchControl({
   const [nowTick, setNowTick] = React.useState(Date.now());
   React.useEffect(() => {
     if (!play) return;
-    const t = setInterval(() => setNowTick(Date.now()), 2000);
+    const t = setInterval(() => setNowTick(Date.now()), 1000);
     return () => clearInterval(t);
   }, [play]);
 
   // =========================
-  // ✅ STARTUP LOCK WINDOW
+  // ✅ STARTUP LOCK WINDOW (kept)
   // =========================
   const [lockedUntil, setLockedUntil] = React.useState(0);
 
@@ -237,7 +255,7 @@ export default function ToggleSwitchControl({
   const isStartupLocked = play && nowTick < lockedUntil;
 
   // =========================
-  // ✅ MANUAL COOLDOWN
+  // ✅ MANUAL COOLDOWN (includes occupied hold)
   // =========================
   const [cooldownUntil, setCooldownUntil] = React.useState(0);
 
@@ -248,13 +266,11 @@ export default function ToggleSwitchControl({
   const isManualCooldown = play && nowTick < cooldownUntil;
 
   // =========================
-  // ✅ Fetch DO + status
-  // Rules:
+  // ✅ Fetch DO + status (EVERY 2s)
+  // Rules (updated):
   // - Always update status
   // - If offline: do not sync DO
-  // - Sync DO only:
-  //    a) during startup lock (first lockMs)
-  //    b) once on offline->online transition (snap to real DO)
+  // - Always sync DO position to real telemetry every poll (online)
   // - If pendingWriteRef is set AND DO matches, clear pending and show success
   // =========================
   const fetchRemote = React.useCallback(async () => {
@@ -285,17 +301,11 @@ export default function ToggleSwitchControl({
       // If device not returned, treat as offline
       if (!row) {
         setDeviceStatus("offline");
-        lastStatusRef.current = "offline";
         return;
       }
 
       const status = readStatusFromRow(row);
       setDeviceStatus(status);
-
-      const prev = lastStatusRef.current;
-      lastStatusRef.current = status;
-
-      const justCameOnline = prev === "offline" && status === "online";
 
       // ✅ If offline, do not try to sync DO
       if (status === "offline") return;
@@ -310,14 +320,12 @@ export default function ToggleSwitchControl({
         showBanner("success", "Successful", 4000);
       }
 
-      // ✅ only sync UI position during startup lock OR right after coming online
-      if (!isStartupLocked && !justCameOnline) return;
-
+      // ✅ ALWAYS sync UI position (online)
       setUiIsOn(do01 === 0); // invert
     } catch {
       // ignore
     }
-  }, [play, hasBinding, bindDeviceId, bindField, isStartupLocked]);
+  }, [play, hasBinding, bindDeviceId, bindField]);
 
   // Fetch once when play starts
   React.useEffect(() => {
@@ -326,16 +334,12 @@ export default function ToggleSwitchControl({
     fetchRemote();
   }, [play, hasBinding, fetchRemote]);
 
-  // ✅ Polling rule:
-  // - during startup lock: poll fast (pollMs)
-  // - after startup lock: verify status every 10s (statusVerifyMs)
+  // ✅ Continuous sync poll: every 2 seconds (pollMs)
   React.useEffect(() => {
     if (!play) return;
     if (!hasBinding) return;
 
-    const ms = isStartupLocked
-      ? Math.max(500, Number(pollMs) || 2000)
-      : Math.max(2000, Number(statusVerifyMs) || 10000);
+    const ms = Math.max(500, Number(pollMs) || 2000);
 
     const t = setInterval(() => {
       if (document.hidden) return;
@@ -343,7 +347,7 @@ export default function ToggleSwitchControl({
     }, ms);
 
     return () => clearInterval(t);
-  }, [play, hasBinding, isStartupLocked, fetchRemote, pollMs, statusVerifyMs]);
+  }, [play, hasBinding, fetchRemote, pollMs]);
 
   // =========================
   // ✅ Manual toggle in PLAY:
@@ -365,7 +369,7 @@ export default function ToggleSwitchControl({
     const nextUi = !uiIsOn;
     setUiIsOn(nextUi);
 
-    // cooldown after click
+    // local cooldown after click
     setCooldownUntil(Date.now() + Math.max(0, Number(lockMs) || 6000));
 
     // UI ON => DO 0
@@ -395,7 +399,6 @@ export default function ToggleSwitchControl({
             widgetId: wid,
             widget,
           });
-          // revert UI because write can't happen
           pendingWriteRef.current = null;
           setUiIsOn(prevUi);
           showBanner("error", "Write blocked", 4000);
@@ -409,17 +412,23 @@ export default function ToggleSwitchControl({
         });
       }
 
-      // ✅ NEW: Use backend response from control_bindings.py
-      // Expected shapes:
-      //  - { ok:true, nodeRedOk:true, pending:false, ... }
-      //  - { ok:true, nodeRedOk:false, pending:true, ... }  (timeout)
-      //  - { ok:false, ... }                               (failure)
+      // ✅ Handle backend occupied (409)
+      if (resp?.busy === true || resp?.status === 409) {
+        pendingWriteRef.current = null;
+        setUiIsOn(prevUi);
+
+        // match backend hold (10s)
+        setCooldownUntil(Date.now() + Math.max(0, Number(actuationHoldMs) || 10000));
+
+        showBanner("occupied", resp?.message || "Control Action in Progress", null);
+        return;
+      }
+
       const ok = resp?.ok !== false;
       const nodeRedOk = resp?.nodeRedOk === true;
       const pending = resp?.pending === true;
 
       if (!ok) {
-        // hard fail: revert immediately
         pendingWriteRef.current = null;
         setUiIsOn(prevUi);
         showBanner("error", "Failed", 4000);
@@ -427,17 +436,25 @@ export default function ToggleSwitchControl({
       }
 
       if (nodeRedOk) {
-        // ACK received from Node-RED: show success now (telemetry will still confirm & clear pending)
         showBanner("success", "Successful", 4000);
-        // keep pendingWriteRef until telemetry confirms, so we don't lie if device doesn't change
       } else if (pending) {
-        // Node-RED slow/unreachable: show pending, wait for telemetry to confirm
         showBanner("pending", "Pending...", null);
       } else {
-        // ok but no ack info: be conservative
         showBanner("pending", "Pending...", null);
       }
     } catch (err) {
+      const msg = String(err?.message || err || "");
+      const looksLike409 =
+        msg.includes("409") || msg.toLowerCase().includes("write in progress");
+
+      if (looksLike409) {
+        pendingWriteRef.current = null;
+        setUiIsOn(prevUi);
+        setCooldownUntil(Date.now() + Math.max(0, Number(actuationHoldMs) || 10000));
+        showBanner("occupied", "Control Action in Progress", null);
+        return;
+      }
+
       console.error("Toggle write failed:", err);
       pendingWriteRef.current = null;
       setUiIsOn(prevUi);
@@ -481,13 +498,14 @@ export default function ToggleSwitchControl({
     ? "not-allowed"
     : "default";
 
-  const allowPointerEvents =
-    (visualOnly ? false : true) || (play && hasBinding);
+  const allowPointerEvents = (visualOnly ? false : true) || (play && hasBinding);
 
   const showOverlay =
     play && hasBinding && (isOffline || isStartupLocked || isManualCooldown);
 
   const showOfflineText = isOffline;
+
+  const showOccupiedText = !isOffline && banner.kind === "occupied";
   const showPendingText = !isOffline && banner.kind === "pending";
   const showSuccessText = !isOffline && banner.kind === "success";
   const showErrorText = !isOffline && banner.kind === "error";
@@ -607,7 +625,7 @@ export default function ToggleSwitchControl({
           </div>
         </div>
 
-        {/* ✅ OFFLINE text under toggle (red, NOT bold) */}
+        {/* ✅ OFFLINE text under toggle */}
         {showOfflineText && (
           <div
             style={{
@@ -626,7 +644,26 @@ export default function ToggleSwitchControl({
           </div>
         )}
 
-        {/* ✅ PENDING text under toggle (amber) */}
+        {/* ✅ OCCUPIED (professional) */}
+        {showOccupiedText && (
+          <div
+            style={{
+              marginTop: 6,
+              textAlign: "center",
+              color: "#d97706",
+              fontWeight: 700,
+              fontSize: 14,
+              letterSpacing: 0.25,
+              lineHeight: 1,
+              userSelect: "none",
+              pointerEvents: "none",
+            }}
+          >
+            {banner.text || "Control Action in Progress"}
+          </div>
+        )}
+
+        {/* ✅ PENDING */}
         {showPendingText && (
           <div
             style={{
@@ -641,11 +678,11 @@ export default function ToggleSwitchControl({
               pointerEvents: "none",
             }}
           >
-            Pending...
+            {banner.text || "Pending..."}
           </div>
         )}
 
-        {/* ✅ SUCCESS text under toggle (green) */}
+        {/* ✅ SUCCESS */}
         {showSuccessText && (
           <div
             style={{
@@ -660,11 +697,11 @@ export default function ToggleSwitchControl({
               pointerEvents: "none",
             }}
           >
-            Successful
+            {banner.text || "Successful"}
           </div>
         )}
 
-        {/* ✅ ERROR text under toggle (red) */}
+        {/* ✅ ERROR */}
         {showErrorText && (
           <div
             style={{
@@ -679,7 +716,7 @@ export default function ToggleSwitchControl({
               pointerEvents: "none",
             }}
           >
-            Failed
+            {banner.text || "Failed"}
           </div>
         )}
       </div>
