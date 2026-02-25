@@ -141,8 +141,8 @@ export default function ToggleSwitchControl({
   onSaveWidget = null,
   dashboardId = null,
   onWrite = null,
-  lockMs = 8000, // used as manual cooldown too
-  pollMs = 10000, // ✅ Continuous sync interval (10s)
+  lockMs = 12000, // used as manual cooldown too
+  pollMs = 12000, // ✅ Continuous sync interval (10s)
   statusVerifyMs = 10000, // kept for compatibility (no longer used for polling)
 
   // ✅ match backend hold time for occupied state (your backend = 10s)
