@@ -123,9 +123,9 @@ export default function ToggleSwitchControl({
   onSaveWidget = null,
   dashboardId = null,
   onWrite = null,
-  lockMs = 8000, // ✅ CHANGED: also used as manual cooldown (was 4000)
+  lockMs = 8000, // used as manual cooldown too
   pollMs = 2000, // fast poll during startup lock
-  statusVerifyMs = 10000, // ✅ verify status every 10s after startup lock
+  statusVerifyMs = 10000, // verify status every 10s after startup lock
 }) {
   const [openProps, setOpenProps] = React.useState(false);
 
@@ -172,9 +172,9 @@ export default function ToggleSwitchControl({
   // ✅ Track status transitions offline -> online
   const lastStatusRef = React.useRef("");
 
-  // ✅ Success banner: show only after backend DO confirms the manual change
-  const [showSuccess, setShowSuccess] = React.useState(false);
-  const successTimerRef = React.useRef(null);
+  // ✅ Banner state
+  const [banner, setBanner] = React.useState({ kind: "none", text: "" }); // none|pending|success|error
+  const bannerTimerRef = React.useRef(null);
 
   // ✅ store expected DO (0/1) after manual toggle; cleared after confirm
   const pendingWriteRef = React.useRef(null);
@@ -192,12 +192,24 @@ export default function ToggleSwitchControl({
     if (play && openProps) setOpenProps(false);
   }, [play, openProps]);
 
-  // cleanup success timer on unmount
+  // cleanup timers on unmount
   React.useEffect(() => {
     return () => {
-      if (successTimerRef.current) clearTimeout(successTimerRef.current);
+      if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
     };
   }, []);
+
+  function showBanner(kind, text, ms = null) {
+    setBanner({ kind, text: String(text || "") });
+    if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
+    bannerTimerRef.current = null;
+
+    if (ms && ms > 0) {
+      bannerTimerRef.current = setTimeout(() => {
+        setBanner({ kind: "none", text: "" });
+      }, ms);
+    }
+  }
 
   // =========================
   // ✅ TIME TICK (lock + cooldown)
@@ -205,7 +217,7 @@ export default function ToggleSwitchControl({
   const [nowTick, setNowTick] = React.useState(Date.now());
   React.useEffect(() => {
     if (!play) return;
-    const t = setInterval(() => setNowTick(Date.now()), 2000); // ✅ already changed
+    const t = setInterval(() => setNowTick(Date.now()), 2000);
     return () => clearInterval(t);
   }, [play]);
 
@@ -243,7 +255,7 @@ export default function ToggleSwitchControl({
   // - Sync DO only:
   //    a) during startup lock (first lockMs)
   //    b) once on offline->online transition (snap to real DO)
-  // - Success: if pendingWriteRef is set AND DO matches, show "Successful" for 4s
+  // - If pendingWriteRef is set AND DO matches, clear pending and show success
   // =========================
   const fetchRemote = React.useCallback(async () => {
     if (!play) return;
@@ -270,7 +282,7 @@ export default function ToggleSwitchControl({
           (r) => String(r.deviceId ?? r.device_id ?? "").trim() === bindDeviceId
         ) || null;
 
-      // If device not returned, treat as offline (better UX than unknown)
+      // If device not returned, treat as offline
       if (!row) {
         setDeviceStatus("offline");
         lastStatusRef.current = "offline";
@@ -292,20 +304,10 @@ export default function ToggleSwitchControl({
       const do01 = to01(raw);
       if (do01 === null) return;
 
-      // ✅ Success check: confirm backend DO reached expected value
-      if (
-        pendingWriteRef.current !== null &&
-        status === "online" &&
-        do01 === pendingWriteRef.current
-      ) {
+      // ✅ Confirm pending write by telemetry value match
+      if (pendingWriteRef.current !== null && do01 === pendingWriteRef.current) {
         pendingWriteRef.current = null;
-
-        // show success for 4 seconds
-        setShowSuccess(true);
-        if (successTimerRef.current) clearTimeout(successTimerRef.current);
-        successTimerRef.current = setTimeout(() => {
-          setShowSuccess(false);
-        }, 4000);
+        showBanner("success", "Successful", 4000);
       }
 
       // ✅ only sync UI position during startup lock OR right after coming online
@@ -345,7 +347,7 @@ export default function ToggleSwitchControl({
 
   // =========================
   // ✅ Manual toggle in PLAY:
-  // Blocked when offline
+  // Blocked when offline/startup/cooldown
   // =========================
   const canInteractInPlay =
     play && hasBinding && !isOffline && !isStartupLocked && !isManualCooldown;
@@ -356,28 +358,28 @@ export default function ToggleSwitchControl({
 
     if (!canInteractInPlay) return;
 
-    // clear any old success banner on new action
-    setShowSuccess(false);
-    if (successTimerRef.current) {
-      clearTimeout(successTimerRef.current);
-      successTimerRef.current = null;
-    }
+    // clear banner on new action
+    showBanner("none", "");
 
+    const prevUi = uiIsOn;
     const nextUi = !uiIsOn;
     setUiIsOn(nextUi);
 
+    // cooldown after click
     setCooldownUntil(Date.now() + Math.max(0, Number(lockMs) || 6000));
 
     // UI ON => DO 0
     // UI OFF => DO 1
     const nextDo01 = nextUi ? 0 : 1;
 
-    // ✅ store expected DO so fetchRemote can confirm and show "Successful"
+    // mark pending until telemetry confirms (or until we clear on error)
     pendingWriteRef.current = nextDo01;
 
     try {
+      let resp = null;
+
       if (typeof onWrite === "function") {
-        await onWrite({
+        resp = await onWrite({
           deviceId: bindDeviceId,
           field: bindField,
           value01: nextDo01,
@@ -393,20 +395,65 @@ export default function ToggleSwitchControl({
             widgetId: wid,
             widget,
           });
+          // revert UI because write can't happen
+          pendingWriteRef.current = null;
+          setUiIsOn(prevUi);
+          showBanner("error", "Write blocked", 4000);
           return;
         }
 
-        await defaultWriteToBackend({
+        resp = await defaultWriteToBackend({
           dashboardId: dash,
           widgetId: wid,
           value01: nextDo01,
         });
       }
+
+      // ✅ NEW: Use backend response from control_bindings.py
+      // Expected shapes:
+      //  - { ok:true, nodeRedOk:true, pending:false, ... }
+      //  - { ok:true, nodeRedOk:false, pending:true, ... }  (timeout)
+      //  - { ok:false, ... }                               (failure)
+      const ok = resp?.ok !== false;
+      const nodeRedOk = resp?.nodeRedOk === true;
+      const pending = resp?.pending === true;
+
+      if (!ok) {
+        // hard fail: revert immediately
+        pendingWriteRef.current = null;
+        setUiIsOn(prevUi);
+        showBanner("error", "Failed", 4000);
+        return;
+      }
+
+      if (nodeRedOk) {
+        // ACK received from Node-RED: show success now (telemetry will still confirm & clear pending)
+        showBanner("success", "Successful", 4000);
+        // keep pendingWriteRef until telemetry confirms, so we don't lie if device doesn't change
+      } else if (pending) {
+        // Node-RED slow/unreachable: show pending, wait for telemetry to confirm
+        showBanner("pending", "Pending...", null);
+      } else {
+        // ok but no ack info: be conservative
+        showBanner("pending", "Pending...", null);
+      }
     } catch (err) {
       console.error("Toggle write failed:", err);
-      // do not show success; allow next poll to potentially confirm anyway
+      pendingWriteRef.current = null;
+      setUiIsOn(prevUi);
+      showBanner("error", "Failed", 4000);
     }
   };
+
+  // If device goes offline, clear pending banner (avoid misleading)
+  React.useEffect(() => {
+    if (!play) return;
+    if (!hasBinding) return;
+    if (isOffline) {
+      pendingWriteRef.current = null;
+      showBanner("none", "");
+    }
+  }, [play, hasBinding, isOffline]);
 
   // =========================
   // VISUALS
@@ -439,6 +486,11 @@ export default function ToggleSwitchControl({
 
   const showOverlay =
     play && hasBinding && (isOffline || isStartupLocked || isManualCooldown);
+
+  const showOfflineText = isOffline;
+  const showPendingText = !isOffline && banner.kind === "pending";
+  const showSuccessText = !isOffline && banner.kind === "success";
+  const showErrorText = !isOffline && banner.kind === "error";
 
   return (
     <>
@@ -556,13 +608,13 @@ export default function ToggleSwitchControl({
         </div>
 
         {/* ✅ OFFLINE text under toggle (red, NOT bold) */}
-        {isOffline && (
+        {showOfflineText && (
           <div
             style={{
               marginTop: 6,
               textAlign: "center",
               color: "#dc2626",
-              fontWeight: 400, // not bold
+              fontWeight: 400,
               fontSize: 14,
               letterSpacing: 0.2,
               lineHeight: 1,
@@ -574,13 +626,32 @@ export default function ToggleSwitchControl({
           </div>
         )}
 
-        {/* ✅ SUCCESS text under toggle (green) for 4 seconds after DO confirms */}
-        {!isOffline && showSuccess && (
+        {/* ✅ PENDING text under toggle (amber) */}
+        {showPendingText && (
           <div
             style={{
               marginTop: 6,
               textAlign: "center",
-              color: "#16a34a", // ✅ green
+              color: "#d97706",
+              fontWeight: 600,
+              fontSize: 14,
+              letterSpacing: 0.3,
+              lineHeight: 1,
+              userSelect: "none",
+              pointerEvents: "none",
+            }}
+          >
+            Pending...
+          </div>
+        )}
+
+        {/* ✅ SUCCESS text under toggle (green) */}
+        {showSuccessText && (
+          <div
+            style={{
+              marginTop: 6,
+              textAlign: "center",
+              color: "#16a34a",
               fontWeight: 600,
               fontSize: 14,
               letterSpacing: 0.3,
@@ -590,6 +661,25 @@ export default function ToggleSwitchControl({
             }}
           >
             Successful
+          </div>
+        )}
+
+        {/* ✅ ERROR text under toggle (red) */}
+        {showErrorText && (
+          <div
+            style={{
+              marginTop: 6,
+              textAlign: "center",
+              color: "#dc2626",
+              fontWeight: 600,
+              fontSize: 14,
+              letterSpacing: 0.3,
+              lineHeight: 1,
+              userSelect: "none",
+              pointerEvents: "none",
+            }}
+          >
+            Failed
           </div>
         )}
       </div>
