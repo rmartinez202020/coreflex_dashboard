@@ -647,7 +647,7 @@ if (tank.shape === "verticalTank") {
               );
             }
 
-           if (tank.shape === "blinkingAlarm") {
+if (tank.shape === "blinkingAlarm") {
   return (
     <DraggableDroppedTank
       {...commonProps}
@@ -657,8 +657,9 @@ if (tank.shape === "verticalTank") {
     >
       <DraggableBlinkingAlarm
         tank={tank}
-        isPlay={isPlay}          // ✅ only live in play/launch
-        sensorsData={sensorsData} // (optional) used only in play anyway now
+        isPlay={isPlay}
+        telemetryMap={telemetryMap}   // ✅ ADD THIS LINE
+        sensorsData={sensorsData}
       />
     </DraggableDroppedTank>
   );

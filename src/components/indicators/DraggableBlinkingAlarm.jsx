@@ -1,18 +1,5 @@
+// src/components/indicators/DraggableBlinkingAlarm.jsx
 import React from "react";
-import { API_URL } from "../../config/api";
-import { getToken } from "../../utils/authToken";
-
-function getAuthHeaders() {
-  const token = String(getToken() || "").trim();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-// ✅ same mapping used in your modal
-const MODEL_META = {
-  zhc1921: { base: "zhc1921" },
-  zhc1661: { base: "zhc1661" },
-  tp4000: { base: "tp4000" },
-};
 
 // ✅ Convert anything to 0/1 (same as modal)
 function to01(v) {
@@ -74,8 +61,9 @@ function hexToGlow(hex) {
 export default function DraggableBlinkingAlarm({
   // Canvas mode
   tank,
-  sensorsData, // optional; backend poll is the reliable source
-  isPlay = false, // ✅ NEW: only live in play/launch
+  telemetryMap, // ✅ NEW: comes from useDashboardTelemetryPoller
+  sensorsData,  // optional fallback
+  isPlay = false,
 
   // Palette mode
   label = "Blinking Alarm",
@@ -91,12 +79,8 @@ export default function DraggableBlinkingAlarm({
     h: 70,
     text: "ALARM",
     blinkMs: 500,
-
-    // colors (used as fallback accents)
     colorOn: "#ef4444",
     colorOff: "#0b1220",
-
-    // style
     alarmStyle: "annunciator", // annunciator | banner | stackLight | minimal
     alarmTone: "critical", // critical | warning | info
   };
@@ -133,80 +117,24 @@ export default function DraggableBlinkingAlarm({
     const tagField = String(tag?.field || "").trim();
 
     // ✅ Saved design-time fallback (edit mode freeze)
-    // if user sets a manual value later, you can store p.isActive or p.value
-    const savedIsActive =
-      !!(p.isActive ?? p.value ?? false);
+    const savedIsActive = !!(p.isActive ?? p.value ?? false);
 
     // =========================
-    // ✅ BACKEND POLL (ONLY IN PLAY)
+    // ✅ LIVE READ (NO FETCH) — from telemetryMap
     // =========================
-    const [telemetryRow, setTelemetryRow] = React.useState(null);
+    const telemetryRow =
+      tagModel && tagDeviceId ? telemetryMap?.[tagModel]?.[tagDeviceId] : null;
 
-    const fetchTelemetryRow = React.useCallback(async () => {
-      if (!isPlay) return; // ✅ STOP in edit mode
-
-      const modelKey = String(tagModel || "").trim();
-      const id = String(tagDeviceId || "").trim();
-      const base = MODEL_META[modelKey]?.base;
-
-      if (!modelKey || !id || !base) {
-        setTelemetryRow(null);
-        return;
-      }
-
-      try {
-        const token = String(getToken() || "").trim();
-        if (!token) {
-          setTelemetryRow(null);
-          return;
-        }
-
-        const res = await fetch(`${API_URL}/${base}/my-devices`, {
-          headers: getAuthHeaders(),
-        });
-
-        if (!res.ok) {
-          setTelemetryRow(null);
-          return;
-        }
-
-        const data = await res.json();
-        const list = Array.isArray(data) ? data : [];
-
-        const row =
-          list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) ||
-          null;
-
-        setTelemetryRow(row);
-      } catch {
-        setTelemetryRow(null);
-      }
-    }, [isPlay, tagModel, tagDeviceId]);
-
-    React.useEffect(() => {
-      if (!isPlay) return; // ✅ do nothing in edit mode
-
-      fetchTelemetryRow();
-
-      const t = setInterval(() => {
-        if (document.hidden) return;
-        fetchTelemetryRow();
-      }, 3000);
-
-      return () => clearInterval(t);
-    }, [isPlay, fetchTelemetryRow]);
-
-    // ✅ read from backend row (reliable)
     const backendStatus = String(telemetryRow?.status || "").trim().toLowerCase();
     const deviceIsOnline = backendStatus ? backendStatus === "online" : true;
 
-    const rawValueFromBackend =
+    const rawValueFromTelemetry =
       telemetryRow && tagField ? readTagFromRow(telemetryRow, tagField) : undefined;
 
-    // ✅ optional fallback: sensorsData (ONLY IN PLAY)
+    // optional fallback: sensorsData (ONLY in play)
     const rawValue =
-      rawValueFromBackend !== undefined
-        ? rawValueFromBackend
+      rawValueFromTelemetry !== undefined
+        ? rawValueFromTelemetry
         : isPlay
         ? sensorsData?.values?.[tagDeviceId]?.[tagField]
         : undefined;
@@ -226,22 +154,19 @@ export default function DraggableBlinkingAlarm({
     const isActive = isPlay ? liveIsActive : savedIsActive;
 
     // =========================
-    // ✅ BLINK ENGINE (ONLY WHEN ACTIVE IN PLAY)
+    // ✅ BLINK ENGINE
     // =========================
     const [blinkOn, setBlinkOn] = React.useState(true);
 
     React.useEffect(() => {
-      // ✅ no blink in edit mode
       if (!isPlay) {
         setBlinkOn(true);
         return;
       }
-
       if (!isActive) {
         setBlinkOn(true);
         return;
       }
-
       const ms = Math.max(120, Number(blinkMs) || 500);
       const t = setInterval(() => setBlinkOn((x) => !x), ms);
       return () => clearInterval(t);
@@ -267,9 +192,9 @@ export default function DraggableBlinkingAlarm({
       userSelect: "none",
     };
 
-    const title = `BlinkingAlarm | ${isActive ? "ON" : "OFF"} | ${tagModel}:${tagDeviceId}/${tagField} | status=${backendStatus || "—"} | v=${String(
-      rawValue
-    )}`;
+    const title = `BlinkingAlarm | ${isActive ? "ON" : "OFF"} | ${tagModel}:${tagDeviceId}/${tagField} | status=${
+      backendStatus || "—"
+    } | v=${String(rawValue)}`;
 
     const textLeft = {
       fontWeight: 1000,
@@ -307,9 +232,7 @@ export default function DraggableBlinkingAlarm({
         title={title}
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
-          <div style={{ fontSize: 11, opacity: 0.65, letterSpacing: 1 }}>
-            {safeLabel}
-          </div>
+          <div style={{ fontSize: 11, opacity: 0.65, letterSpacing: 1 }}>{safeLabel}</div>
           <div style={textLeft}>{isActive ? "ACTIVE" : "NORMAL"}</div>
         </div>
 
@@ -320,9 +243,7 @@ export default function DraggableBlinkingAlarm({
             borderRadius: 999,
             background: accent,
             boxShadow:
-              isActive && blinkOn
-                ? `0 0 0 4px ${tone.glow || hexToGlow(colorOn)}`
-                : "none",
+              isActive && blinkOn ? `0 0 0 4px ${tone.glow || hexToGlow(colorOn)}` : "none",
             border: "2px solid rgba(255,255,255,0.10)",
             transition: "all 120ms linear",
           }}
@@ -364,7 +285,6 @@ export default function DraggableBlinkingAlarm({
               transition: "all 120ms linear",
             }}
           />
-
           <div
             style={{
               flex: 1,
@@ -405,10 +325,7 @@ export default function DraggableBlinkingAlarm({
             borderRadius: 999,
             background: accent,
             border: "2px solid rgba(255,255,255,0.10)",
-            boxShadow:
-              isActive && blinkOn
-                ? `0 0 14px ${tone.glow || hexToGlow(colorOn)}`
-                : "none",
+            boxShadow: isActive && blinkOn ? `0 0 14px ${tone.glow || hexToGlow(colorOn)}` : "none",
             transition: "all 120ms linear",
           }}
         />
