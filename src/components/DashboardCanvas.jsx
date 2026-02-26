@@ -20,6 +20,7 @@ import DraggableSiloTank from "./DraggableSiloTank";
 import DraggableStandardTank from "./DraggableStandardTank";
 import DraggableHorizontalTank from "./DraggableHorizontalTank";
 import {DraggableLedCircle,DraggableStatusTextBox,DraggableBlinkingAlarm,DraggableStateImage,DraggableCounterInput,} from "./indicators";
+import useDashboardTelemetryPoller from "../hooks/useDashboardTelemetryPoller";
 
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
@@ -102,6 +103,27 @@ export default function DashboardCanvas({
   dashboardId,
 }) {
   const isPlay = dashboardMode === "play";
+
+    // =====================================================
+  // ✅ ONE POLL PER DASHBOARD (Play mode): shared telemetryMap
+  // =====================================================
+  const resolvedDashForTelemetry = React.useMemo(
+    () =>
+      resolveDashboardId({
+        activeDashboardId,
+        dashboardId,
+        selectedTank,
+        droppedTanks,
+      }),
+    [activeDashboardId, dashboardId, selectedTank, droppedTanks]
+  );
+
+  const { telemetryMap } = useDashboardTelemetryPoller({
+    enabled: isPlay,
+    pollMs: 3000, // ✅ every 3 seconds
+    dashboardId: resolvedDashForTelemetry,
+    droppedTanks,
+  });
 
   // =====================================================
   // ✅ PLAY MODE: pull live counter values from backend

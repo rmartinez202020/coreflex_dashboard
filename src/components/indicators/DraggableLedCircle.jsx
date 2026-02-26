@@ -1,11 +1,5 @@
+// src/components/indicators/DraggableLedCircle.jsx
 import React from "react";
-import { API_URL } from "../../config/api";
-import { getToken } from "../../utils/authToken";
-
-function getAuthHeaders() {
-  const token = String(getToken() || "").trim();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
 
 // ✅ Convert anything to 0/1
 function to01(v) {
@@ -22,7 +16,7 @@ function to01(v) {
   return v ? 1 : 0;
 }
 
-// ✅ Read DI values from backend rows
+// ✅ Read DI values from backend rows (supports legacy keys)
 function readDiFromRow(row, diKey) {
   if (!row) return undefined;
 
@@ -39,15 +33,40 @@ function readDiFromRow(row, diKey) {
   return undefined;
 }
 
+// ✅ Get row from shared telemetryMap (telemetryMap[model][deviceId] = row)
+function getTelemetryRow(telemetryMap, model, deviceId) {
+  const id = String(deviceId || "").trim();
+  if (!telemetryMap || !id) return null;
+
+  const m = String(model || "").trim();
+
+  // Preferred: explicit model
+  if (m && telemetryMap?.[m]?.[id]) return telemetryMap[m][id];
+
+  // Fallback: scan all models (for older widgets that didn't store tag.model)
+  for (const mk of Object.keys(telemetryMap || {})) {
+    if (telemetryMap?.[mk]?.[id]) return telemetryMap[mk][id];
+  }
+
+  return null;
+}
+
 /**
  * DraggableLedCircle
  * ✅ Palette mode + Canvas mode
- * ✅ UPDATED: Live telemetry ONLY in Play/Launch (isPlay=true)
+ * ✅ Live telemetry ONLY in Play/Launch (isPlay=true)
+ * ✅ NO widget polling — uses shared telemetryMap from useDashboardTelemetryPoller
+ *
+ * Binding:
+ * tank.properties.tag = { model, deviceId, field }
  */
 export default function DraggableLedCircle({
   // Canvas mode
   tank,
-  isPlay = false, // ✅ NEW
+  isPlay = false,
+
+  // ✅ shared dashboard telemetry (one poller per dashboard)
+  telemetryMap = null,
 
   // Palette mode
   label = "Led Circle",
@@ -65,6 +84,7 @@ export default function DraggableLedCircle({
       colorOff: "#9ca3af",
       offText: "OFF",
       onText: "ON",
+      // tag: { model, deviceId, field } ✅ set by settings modal
     },
   };
 
@@ -75,98 +95,31 @@ export default function DraggableLedCircle({
     const w = tank.w ?? payload.w;
     const h = tank.h ?? payload.h;
 
-    const deviceId = String(tank.properties?.tag?.deviceId || "").trim();
-    const field = String(tank.properties?.tag?.field || "").trim();
+    const tag = tank.properties?.tag || {};
+    const model = String(tag?.model || "").trim(); // ✅ NEW (required going forward)
+    const deviceId = String(tag?.deviceId || "").trim();
+    const field = String(tag?.field || "").trim();
 
     // ✅ Saved (design-time) state
-    const savedStatus =
-      tank.status ??
-      tank.properties?.status ??
-      tank.properties?.value ??
-      "off";
-
+    const savedStatus = tank.status ?? tank.properties?.status ?? tank.properties?.value ?? "off";
     const savedIsOn =
-      savedStatus === "on" ||
-      savedStatus === true ||
-      savedStatus === 1 ||
-      savedStatus === "1";
+      savedStatus === "on" || savedStatus === true || savedStatus === 1 || savedStatus === "1";
 
     // =========================
-    // ✅ BACKEND POLL — ONLY IN PLAY
+    // ✅ Live value (PLAY only) from shared telemetryMap
     // =========================
-    const [telemetryRow, setTelemetryRow] = React.useState(null);
-    const telemetryRef = React.useRef({ loading: false });
+    const telemetryRow = isPlay ? getTelemetryRow(telemetryMap, model, deviceId) : null;
 
-    const fetchTelemetryRow = React.useCallback(async () => {
-      if (!isPlay) return; // ✅ STOP polling in edit mode
-
-      const id = String(deviceId || "").trim();
-      if (!id) {
-        setTelemetryRow(null);
-        return;
-      }
-
-      if (telemetryRef.current.loading) return;
-      telemetryRef.current.loading = true;
-
-      try {
-        const token = String(getToken() || "").trim();
-        if (!token) throw new Error("Missing auth token.");
-
-        const res = await fetch(`${API_URL}/zhc1921/my-devices`, {
-          headers: { ...getAuthHeaders() },
-        });
-
-        if (!res.ok) return;
-
-        const data = await res.json();
-        const list = Array.isArray(data) ? data : [];
-
-        const row =
-          list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) ||
-          null;
-
-        setTelemetryRow(row);
-      } catch {
-        setTelemetryRow(null);
-      } finally {
-        telemetryRef.current.loading = false;
-      }
-    }, [deviceId, isPlay]);
-
-    React.useEffect(() => {
-      if (!isPlay) return; // ✅ do nothing in edit mode
-
-      fetchTelemetryRow();
-
-      const POLL_MS = 3000;
-      const t = setInterval(() => {
-        if (document.hidden) return;
-        fetchTelemetryRow();
-      }, POLL_MS);
-
-      return () => clearInterval(t);
-    }, [fetchTelemetryRow, isPlay]);
-
-    // =========================
-    // ✅ Live value (PLAY only)
-    // =========================
-    const backendDeviceStatus = String(telemetryRow?.status || "")
-      .trim()
-      .toLowerCase();
-
-    const deviceIsOnline = backendDeviceStatus === "online";
+    const backendDeviceStatus = String(telemetryRow?.status || "").trim().toLowerCase();
+    const deviceIsOnline = backendDeviceStatus ? backendDeviceStatus === "online" : true;
 
     const backendDiValue =
       telemetryRow && field ? readDiFromRow(telemetryRow, field) : undefined;
 
-    const liveBit = to01(backendDiValue);
+    const liveBit = deviceIsOnline ? to01(backendDiValue) : null;
     const hasLive = liveBit !== null;
 
-    const liveIsOn =
-      deviceId && field && deviceIsOnline && hasLive
-        ? liveBit === 1
-        : false;
+    const liveIsOn = deviceId && field && deviceIsOnline && hasLive ? liveBit === 1 : false;
 
     // ✅ FINAL STATE CONTROL
     const isOn = isPlay ? liveIsOn : savedIsOn;
@@ -183,6 +136,13 @@ export default function DraggableLedCircle({
     const diameter = Math.min(w, h - 22);
     const isCircle = shapeStyle !== "square";
 
+    const title =
+      deviceId && field
+        ? `LedCircle | ${isOn ? "ON" : "OFF"} | ${model || "—"}:${deviceId}/${field} | status=${
+            backendDeviceStatus || "—"
+          } | v=${String(backendDiValue)}`
+        : "Bind a device + DI in settings";
+
     return (
       <div
         style={{
@@ -195,6 +155,7 @@ export default function DraggableLedCircle({
           gap: 6,
           userSelect: "none",
         }}
+        title={title}
       >
         <div
           style={{

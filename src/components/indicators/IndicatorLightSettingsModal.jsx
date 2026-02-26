@@ -8,6 +8,13 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+// ✅ Model options (must match useDashboardTelemetryPoller modelMeta keys)
+const MODEL_META = {
+  zhc1921: { label: "CF-2000 (ZHC1921)", base: "zhc1921" },
+  zhc1661: { label: "CF-1600 (ZHC1661)", base: "zhc1661" },
+  tp4000: { label: "TP-4000", base: "tp4000" },
+};
+
 // ✅ Tag options (DI + DO)
 const TAG_OPTIONS = [
   { key: "di1", label: "DI-1" },
@@ -100,6 +107,9 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
   const [onColor, setOnColor] = React.useState("#22c55e");
   const [offText, setOffText] = React.useState("OFF");
   const [onText, setOnText] = React.useState("ON");
+
+  // ✅ NEW: model binding
+  const [model, setModel] = React.useState("zhc1921");
 
   const [deviceId, setDeviceId] = React.useState("");
   const [field, setField] = React.useState("");
@@ -218,6 +228,10 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
     setOffText(String(tank?.properties?.offText || "OFF"));
     setOnText(String(tank?.properties?.onText || "ON"));
 
+    // ✅ NEW: restore model too (fallback to zhc1921)
+    const savedModel = String(tank?.properties?.tag?.model || "zhc1921").trim();
+    setModel(MODEL_META[savedModel] ? savedModel : "zhc1921");
+
     setDeviceId(String(tank?.properties?.tag?.deviceId || ""));
     setField(String(tank?.properties?.tag?.field || ""));
 
@@ -259,8 +273,10 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
     return () => window.removeEventListener("resize", onResize);
   }, [open, centerModal]);
 
+  const base = React.useMemo(() => MODEL_META?.[model]?.base || "zhc1921", [model]);
+
   // =========================
-  // ✅ LOAD DEVICES
+  // ✅ LOAD DEVICES (BY MODEL)
   // =========================
   React.useEffect(() => {
     if (!open) return;
@@ -273,7 +289,7 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
         const token = String(getToken() || "").trim();
         if (!token) throw new Error("Missing auth token. Please logout and login again.");
 
-        const res = await fetch(`${API_URL}/zhc1921/my-devices`, {
+        const res = await fetch(`${API_URL}/${base}/my-devices`, {
           headers: getAuthHeaders(),
         });
 
@@ -286,10 +302,10 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
         const list = Array.isArray(data) ? data : [];
 
         const mapped = list
-          .map((r) => ({
-            id: String(r.deviceId ?? r.device_id ?? "").trim(),
-            name: String(r.deviceId ?? r.device_id ?? "").trim(),
-          }))
+          .map((r) => {
+            const id = String(r.deviceId ?? r.device_id ?? "").trim();
+            return { id, name: id };
+          })
           .filter((x) => x.id);
 
         if (alive) setDevices(mapped);
@@ -305,14 +321,22 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
     return () => {
       alive = false;
     };
-  }, [open]);
+  }, [open, base]);
 
   const selectedDevice = React.useMemo(() => {
     return devices.find((d) => String(d.id) === String(deviceId)) || null;
   }, [devices, deviceId]);
 
+  // ✅ when model changes, reset device/tag (prevents mismatched bindings)
+  React.useEffect(() => {
+    if (!open) return;
+    setDeviceId("");
+    setField("");
+    setTelemetryRow(null);
+  }, [model, open]);
+
   // =========================
-  // ✅ POLL TELEMETRY
+  // ✅ POLL TELEMETRY (BY MODEL) — for live preview inside modal
   // =========================
   const fetchTelemetryRow = React.useCallback(async () => {
     const id = String(deviceId || "").trim();
@@ -327,7 +351,7 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
       const token = String(getToken() || "").trim();
       if (!token) throw new Error("Missing auth token. Please logout and login again.");
 
-      const res = await fetch(`${API_URL}/zhc1921/my-devices`, {
+      const res = await fetch(`${API_URL}/${base}/my-devices`, {
         headers: getAuthHeaders(),
       });
 
@@ -345,7 +369,7 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
     } finally {
       telemetryRef.current.loading = false;
     }
-  }, [deviceId]);
+  }, [deviceId, base]);
 
   React.useEffect(() => {
     if (!open) return;
@@ -401,6 +425,7 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
   const tagDot = deviceId && field ? (tagIsOnline ? "#16a34a" : "#dc2626") : "#94a3b8";
 
   const apply = () => {
+    const nextModel = String(model || "").trim() || "zhc1921";
     const nextDeviceId = String(deviceId || "").trim();
     const nextField = String(field || "").trim();
 
@@ -413,7 +438,8 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
         colorOn: onColor,
         offText,
         onText,
-        tag: { deviceId: nextDeviceId, field: nextField },
+        // ✅ FIX: save model too (required for shared poller)
+        tag: { model: nextModel, deviceId: nextDeviceId, field: nextField },
       },
     });
 
@@ -493,7 +519,7 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
         {/* Body */}
         <div style={{ padding: 18, fontSize: 14 }}>
           <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-            {/* LEFT SIDE (shape/colors/text/preview) */}
+            {/* LEFT SIDE */}
             <div style={{ flex: 1, minWidth: 420 }}>
               {/* Preview */}
               <div
@@ -687,7 +713,7 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
               </div>
             </div>
 
-            {/* RIGHT SIDE (device + tag dropdown + status) */}
+            {/* RIGHT SIDE */}
             <div
               style={{
                 width: 420,
@@ -707,6 +733,33 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
                 </div>
               )}
 
+              {/* ✅ NEW: Model */}
+              <div style={{ marginBottom: 10 }}>
+                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>Model</div>
+                <select
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5e1",
+                    fontSize: 14,
+                    background: "white",
+                  }}
+                >
+                  {Object.keys(MODEL_META).map((k) => (
+                    <option key={k} value={k}>
+                      {MODEL_META[k].label}
+                    </option>
+                  ))}
+                </select>
+                <div style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}>
+                  Endpoint: <b>/{base}/my-devices</b>
+                </div>
+              </div>
+
+              {/* Device */}
               <div style={{ marginBottom: 10 }}>
                 <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>Device</div>
                 <select
@@ -756,7 +809,7 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
                 )}
               </div>
 
-              {/* ✅ New: Tag dropdown (DI + DO) */}
+              {/* Tag */}
               <div style={{ marginBottom: 12 }}>
                 <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>Select Tag</div>
                 <select
@@ -844,7 +897,8 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
                       {deviceId && field ? (
                         tagIsOnline ? (
                           <span style={{ fontWeight: 900 }}>
-                            Value: <span style={{ color: "#0f172a" }}>{String(tag01 ?? "—")}</span>
+                            Value:{" "}
+                            <span style={{ color: "#0f172a" }}>{String(tag01 ?? "—")}</span>
                           </span>
                         ) : (
                           <span style={{ fontWeight: 900, color: "#dc2626" }}>Offline / No data</span>
@@ -858,7 +912,7 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
 
                 {deviceId && field && (
                   <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
-                    Bound Tag: <b>{field}</b>
+                    Bound Tag: <b>{model}:{deviceId}/{field}</b>
                   </div>
                 )}
               </div>
@@ -893,7 +947,7 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
 
           <button
             onClick={apply}
-            disabled={!deviceId || !field}
+            disabled={!model || !deviceId || !field}
             style={{
               padding: "9px 14px",
               borderRadius: 10,
@@ -903,7 +957,7 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
               cursor: "pointer",
               fontWeight: 900,
               fontSize: 14,
-              opacity: !deviceId || !field ? 0.5 : 1,
+              opacity: !model || !deviceId || !field ? 0.5 : 1,
             }}
           >
             Apply
