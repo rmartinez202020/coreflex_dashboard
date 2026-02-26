@@ -16,19 +16,34 @@ function to01(v) {
   return v ? 1 : 0;
 }
 
-// ✅ Read DI values from backend rows (supports legacy keys)
-function readDiFromRow(row, diKey) {
-  if (!row) return undefined;
+// ✅ Read tag value from backend row (DI + DO + legacy mappings)
+function readTagFromRow(row, field) {
+  if (!row || !field) return undefined;
 
-  if (row[diKey] !== undefined) return row[diKey];
+  // direct
+  if (row[field] !== undefined) return row[field];
 
-  const map = { di1: "in1", di2: "in2", di3: "in3", di4: "in4", di5: "in5", di6: "in6" };
-  const alt = map[diKey];
-  if (alt && row[alt] !== undefined) return row[alt];
+  // upper-case key
+  const up = String(field).toUpperCase();
+  if (row[up] !== undefined) return row[up];
 
-  const map2 = { di1: "DI1", di2: "DI2", di3: "DI3", di4: "DI4", di5: "DI5", di6: "DI6" };
-  const alt2 = map2[diKey];
-  if (alt2 && row[alt2] !== undefined) return row[alt2];
+  // di1..di6 -> in1..in6
+  if (/^di[1-6]$/.test(field)) {
+    const n = field.replace("di", "");
+    const alt = `in${n}`;
+    if (row[alt] !== undefined) return row[alt];
+    const altUp = `IN${n}`;
+    if (row[altUp] !== undefined) return row[altUp];
+  }
+
+  // do1..do4 -> out1..out4
+  if (/^do[1-4]$/.test(field)) {
+    const n = field.replace("do", "");
+    const alt = `out${n}`;
+    if (row[alt] !== undefined) return row[alt];
+    const altUp = `OUT${n}`;
+    if (row[altUp] !== undefined) return row[altUp];
+  }
 
   return undefined;
 }
@@ -58,7 +73,7 @@ function getTelemetryRow(telemetryMap, model, deviceId) {
  * ✅ NO widget polling — uses shared telemetryMap from useDashboardTelemetryPoller
  *
  * Binding:
- * tank.properties.tag = { model, deviceId, field }
+ * tank.properties.tag = { model, deviceId, field }   // field can be di1..di6 or do1..do4
  */
 export default function DraggableLedCircle({
   // Canvas mode
@@ -92,13 +107,13 @@ export default function DraggableLedCircle({
   // ✅ CANVAS MODE
   // =========================
   if (tank) {
-    const w = tank.w ?? payload.w;
-    const h = tank.h ?? payload.h;
+    const w = tank.w ?? tank.width ?? payload.w;
+    const h = tank.h ?? tank.height ?? payload.h;
 
-    const tag = tank.properties?.tag || {};
-    const model = String(tag?.model || "").trim(); // ✅ NEW (required going forward)
+    const tag = tank.properties?.tag || tank.tag || {};
+    const model = String(tag?.model || "").trim();
     const deviceId = String(tag?.deviceId || "").trim();
-    const field = String(tag?.field || "").trim();
+    const field = String(tag?.field || "").trim(); // di1..di6 OR do1..do4
 
     // ✅ Saved (design-time) state
     const savedStatus = tank.status ?? tank.properties?.status ?? tank.properties?.value ?? "off";
@@ -113,13 +128,13 @@ export default function DraggableLedCircle({
     const backendDeviceStatus = String(telemetryRow?.status || "").trim().toLowerCase();
     const deviceIsOnline = backendDeviceStatus ? backendDeviceStatus === "online" : true;
 
-    const backendDiValue =
-      telemetryRow && field ? readDiFromRow(telemetryRow, field) : undefined;
+    const backendTagValue =
+      telemetryRow && field ? readTagFromRow(telemetryRow, field) : undefined;
 
-    const liveBit = deviceIsOnline ? to01(backendDiValue) : null;
-    const hasLive = liveBit !== null;
+    const liveBit = deviceIsOnline ? to01(backendTagValue) : null;
 
-    const liveIsOn = deviceId && field && deviceIsOnline && hasLive ? liveBit === 1 : false;
+    const liveIsOn =
+      !!deviceId && !!field && deviceIsOnline && liveBit !== null ? liveBit === 1 : false;
 
     // ✅ FINAL STATE CONTROL
     const isOn = isPlay ? liveIsOn : savedIsOn;
@@ -140,8 +155,8 @@ export default function DraggableLedCircle({
       deviceId && field
         ? `LedCircle | ${isOn ? "ON" : "OFF"} | ${model || "—"}:${deviceId}/${field} | status=${
             backendDeviceStatus || "—"
-          } | v=${String(backendDiValue)}`
-        : "Bind a device + DI in settings";
+          } | v=${String(backendTagValue)}`
+        : "Bind a device + DI/DO in settings";
 
     return (
       <div
