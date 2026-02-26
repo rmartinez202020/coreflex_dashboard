@@ -67,14 +67,11 @@ function to01(v) {
 function readTagFromRow(row, field) {
   if (!row || !field) return undefined;
 
-  // direct
   if (row[field] !== undefined) return row[field];
 
-  // upper-case key
   const up = String(field).toUpperCase();
   if (row[up] !== undefined) return row[up];
 
-  // legacy mappings
   // di1..di6 -> in1..in6
   if (/^di[1-6]$/.test(field)) {
     const n = field.replace("di", "");
@@ -84,7 +81,7 @@ function readTagFromRow(row, field) {
     if (row[altUp] !== undefined) return row[altUp];
   }
 
-  // do1..do4 -> out1..out4 (common)
+  // do1..do4 -> out1..out4
   if (/^do[1-4]$/.test(field)) {
     const n = field.replace("do", "");
     const alt = `out${n}`;
@@ -97,8 +94,6 @@ function readTagFromRow(row, field) {
 }
 
 export default function IndicatorLightSettingsModal({ open, tank, onClose, onSave }) {
-  // ✅ do NOT early return before hooks
-
   // =========================
   // ✅ STATE (shape/colors/text + tag)
   // =========================
@@ -108,9 +103,7 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
   const [offText, setOffText] = React.useState("OFF");
   const [onText, setOnText] = React.useState("ON");
 
-  // ✅ NEW: model binding
   const [model, setModel] = React.useState("zhc1921");
-
   const [deviceId, setDeviceId] = React.useState("");
   const [field, setField] = React.useState("");
 
@@ -124,7 +117,7 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
   // ✅ DRAGGABLE MODAL STATE
   // =========================
   const modalRef = React.useRef(null);
-  const [pos, setPos] = React.useState(null); // {x,y} once measured
+  const [pos, setPos] = React.useState(null);
   const [isDragging, setIsDragging] = React.useState(false);
 
   const dragRef = React.useRef({
@@ -219,8 +212,12 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
   // =========================
   // ✅ REHYDRATE ON OPEN
   // =========================
+  const didHydrateRef = React.useRef(false);
+
   React.useEffect(() => {
     if (!open || !tank) return;
+
+    didHydrateRef.current = true;
 
     setShapeStyle(String(tank?.properties?.shapeStyle || "circle"));
     setOffColor(String(tank?.properties?.colorOff || "#9ca3af"));
@@ -228,7 +225,6 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
     setOffText(String(tank?.properties?.offText || "OFF"));
     setOnText(String(tank?.properties?.onText || "ON"));
 
-    // ✅ NEW: restore model too (fallback to zhc1921)
     const savedModel = String(tank?.properties?.tag?.model || "zhc1921").trim();
     setModel(MODEL_META[savedModel] ? savedModel : "zhc1921");
 
@@ -236,17 +232,13 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
     setField(String(tank?.properties?.tag?.field || ""));
 
     setTelemetryRow(null);
-
-    // reset position so it recenters each open (optional)
     setPos(null);
     setIsDragging(false);
   }, [open, tank?.id]);
 
-  // --- helpers for preview
   const previewSize = 56;
   const borderRadius = shapeStyle === "square" ? 12 : 999;
 
-  // when open, center after first paint + clamp on resize
   React.useEffect(() => {
     if (!open) return;
     centerModal();
@@ -274,6 +266,16 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
   }, [open, centerModal]);
 
   const base = React.useMemo(() => MODEL_META?.[model]?.base || "zhc1921", [model]);
+
+  // ✅ when model changes, reset device/tag (but not during initial hydrate)
+  React.useEffect(() => {
+    if (!open) return;
+    if (!didHydrateRef.current) return; // safety
+    // when user changes model, we clear mismatched bindings
+    setDeviceId("");
+    setField("");
+    setTelemetryRow(null);
+  }, [model, open]);
 
   // =========================
   // ✅ LOAD DEVICES (BY MODEL)
@@ -326,14 +328,6 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
   const selectedDevice = React.useMemo(() => {
     return devices.find((d) => String(d.id) === String(deviceId)) || null;
   }, [devices, deviceId]);
-
-  // ✅ when model changes, reset device/tag (prevents mismatched bindings)
-  React.useEffect(() => {
-    if (!open) return;
-    setDeviceId("");
-    setField("");
-    setTelemetryRow(null);
-  }, [model, open]);
 
   // =========================
   // ✅ POLL TELEMETRY (BY MODEL) — for live preview inside modal
@@ -405,7 +399,6 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
     return formatDateMMDDYYYY_hmma(ts);
   }, [telemetryRow]);
 
-  // ✅ live preview state (ON when selected tag is 1)
   const previewState = React.useMemo(() => {
     if (!deviceId || !field) return "unknown";
     if (!deviceIsOnline) return "offline";
@@ -424,13 +417,14 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
   const deviceDot = deviceId ? (deviceIsOnline ? "#16a34a" : "#dc2626") : "#94a3b8";
   const tagDot = deviceId && field ? (tagIsOnline ? "#16a34a" : "#dc2626") : "#94a3b8";
 
+  // ✅ FIXED: SAVE FULL TANK OBJECT (NOT PARTIAL)
   const apply = () => {
     const nextModel = String(model || "").trim() || "zhc1921";
     const nextDeviceId = String(deviceId || "").trim();
     const nextField = String(field || "").trim();
 
-    onSave?.({
-      id: tank.id,
+    const nextTank = {
+      ...tank, // ✅ keep shape/w/h/x/y/etc
       properties: {
         ...(tank.properties || {}),
         shapeStyle,
@@ -438,11 +432,11 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
         colorOn: onColor,
         offText,
         onText,
-        // ✅ FIX: save model too (required for shared poller)
         tag: { model: nextModel, deviceId: nextDeviceId, field: nextField },
       },
-    });
+    };
 
+    onSave?.(nextTank);
     onClose?.();
   };
 
@@ -498,7 +492,7 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
           <span>Indicator Light</span>
 
           <button
-            onPointerDown={(e) => e.stopPropagation()} // ✅ prevent drag
+            onPointerDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.stopPropagation();
               onClose?.();
@@ -733,7 +727,7 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
                 </div>
               )}
 
-              {/* ✅ NEW: Model */}
+              {/* Model */}
               <div style={{ marginBottom: 10 }}>
                 <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>Model</div>
                 <select
@@ -901,7 +895,9 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
                             <span style={{ color: "#0f172a" }}>{String(tag01 ?? "—")}</span>
                           </span>
                         ) : (
-                          <span style={{ fontWeight: 900, color: "#dc2626" }}>Offline / No data</span>
+                          <span style={{ fontWeight: 900, color: "#dc2626" }}>
+                            Offline / No data
+                          </span>
                         )
                       ) : (
                         <span style={{ color: "#64748b" }}>—</span>
