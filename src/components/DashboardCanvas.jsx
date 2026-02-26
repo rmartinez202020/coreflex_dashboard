@@ -596,18 +596,21 @@ if (tank.shape === "verticalTank") {
               );
             }
 
-            if (tank.shape === "ledCircle") {
-              return (
-                <DraggableDroppedTank
-                  {...commonProps}
-                  onDoubleClick={() => {
-                    if (!isPlay) onOpenIndicatorSettings?.(tank);
-                  }}
-                >
-                  <DraggableLedCircle tank={tank} sensorsData={sensorsData} />
-                </DraggableDroppedTank>
-              );
-            }
+           if (tank.shape === "ledCircle") {
+  return (
+    <DraggableDroppedTank
+      {...commonProps}
+      onDoubleClick={() => {
+        if (!isPlay) onOpenIndicatorSettings?.(tank);
+      }}
+    >
+      <DraggableLedCircle
+        tank={tank}
+        isPlay={isPlay}   // ✅ only live in play/launch
+      />
+    </DraggableDroppedTank>
+  );
+}
 
             if (tank.shape === "statusTextBox") {
               return (

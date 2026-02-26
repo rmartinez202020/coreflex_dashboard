@@ -1,7 +1,5 @@
 import React from "react";
 import { API_URL } from "../../config/api";
-
-// ✅ per-tab token
 import { getToken } from "../../utils/authToken";
 
 function getAuthHeaders() {
@@ -24,7 +22,7 @@ function to01(v) {
   return v ? 1 : 0;
 }
 
-// ✅ Read DI values from backend rows (supports multiple legacy keys)
+// ✅ Read DI values from backend rows
 function readDiFromRow(row, diKey) {
   if (!row) return undefined;
 
@@ -43,13 +41,13 @@ function readDiFromRow(row, diKey) {
 
 /**
  * DraggableLedCircle
- * ✅ Palette mode (Sidebar) + Canvas mode
- * ✅ Reads tag binding from tank.properties.tag.deviceId + field
- * ✅ Uses backend polling (/zhc1921/my-devices) every 3 seconds
+ * ✅ Palette mode + Canvas mode
+ * ✅ UPDATED: Live telemetry ONLY in Play/Launch (isPlay=true)
  */
 export default function DraggableLedCircle({
   // Canvas mode
   tank,
+  isPlay = false, // ✅ NEW
 
   // Palette mode
   label = "Led Circle",
@@ -67,7 +65,6 @@ export default function DraggableLedCircle({
       colorOff: "#9ca3af",
       offText: "OFF",
       onText: "ON",
-      // tag: { deviceId, field } ✅ set by settings modal
     },
   };
 
@@ -81,51 +78,65 @@ export default function DraggableLedCircle({
     const deviceId = String(tank.properties?.tag?.deviceId || "").trim();
     const field = String(tank.properties?.tag?.field || "").trim();
 
+    // ✅ Saved (design-time) state
+    const savedStatus =
+      tank.status ??
+      tank.properties?.status ??
+      tank.properties?.value ??
+      "off";
+
+    const savedIsOn =
+      savedStatus === "on" ||
+      savedStatus === true ||
+      savedStatus === 1 ||
+      savedStatus === "1";
+
+    // =========================
+    // ✅ BACKEND POLL — ONLY IN PLAY
+    // =========================
     const [telemetryRow, setTelemetryRow] = React.useState(null);
-    const [telemetryErr, setTelemetryErr] = React.useState("");
     const telemetryRef = React.useRef({ loading: false });
 
     const fetchTelemetryRow = React.useCallback(async () => {
+      if (!isPlay) return; // ✅ STOP polling in edit mode
+
       const id = String(deviceId || "").trim();
       if (!id) {
         setTelemetryRow(null);
-        setTelemetryErr("");
         return;
       }
-      if (telemetryRef.current.loading) return;
 
+      if (telemetryRef.current.loading) return;
       telemetryRef.current.loading = true;
-      setTelemetryErr("");
 
       try {
         const token = String(getToken() || "").trim();
-        if (!token) throw new Error("Missing auth token. Please logout and login again.");
+        if (!token) throw new Error("Missing auth token.");
 
         const res = await fetch(`${API_URL}/zhc1921/my-devices`, {
           headers: { ...getAuthHeaders() },
         });
 
-        if (!res.ok) {
-          const j = await res.json().catch(() => ({}));
-          throw new Error(j?.detail || `Failed to load device telemetry (${res.status})`);
-        }
+        if (!res.ok) return;
 
         const data = await res.json();
         const list = Array.isArray(data) ? data : [];
 
         const row =
-          list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
+          list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) ||
+          null;
 
         setTelemetryRow(row);
-      } catch (e) {
+      } catch {
         setTelemetryRow(null);
-        setTelemetryErr(e.message || "Failed to load device telemetry.");
       } finally {
         telemetryRef.current.loading = false;
       }
-    }, [deviceId]);
+    }, [deviceId, isPlay]);
 
     React.useEffect(() => {
+      if (!isPlay) return; // ✅ do nothing in edit mode
+
       fetchTelemetryRow();
 
       const POLL_MS = 3000;
@@ -135,40 +146,34 @@ export default function DraggableLedCircle({
       }, POLL_MS);
 
       return () => clearInterval(t);
-    }, [fetchTelemetryRow]);
+    }, [fetchTelemetryRow, isPlay]);
 
-    // ✅ If deviceId changes, reset row
-    React.useEffect(() => {
-      setTelemetryRow(null);
-      setTelemetryErr("");
-    }, [deviceId]);
-
-    const backendDeviceStatus = React.useMemo(() => {
-      const s = String(telemetryRow?.status || "").trim().toLowerCase();
-      if (!deviceId) return "";
-      if (!s) return "";
-      return s; // "online"/"offline"
-    }, [telemetryRow, deviceId]);
+    // =========================
+    // ✅ Live value (PLAY only)
+    // =========================
+    const backendDeviceStatus = String(telemetryRow?.status || "")
+      .trim()
+      .toLowerCase();
 
     const deviceIsOnline = backendDeviceStatus === "online";
 
-    const backendDiValue = React.useMemo(() => {
-      if (!telemetryRow || !field) return undefined;
-      return readDiFromRow(telemetryRow, field);
-    }, [telemetryRow, field]);
+    const backendDiValue =
+      telemetryRow && field ? readDiFromRow(telemetryRow, field) : undefined;
 
-    const liveBit = React.useMemo(() => to01(backendDiValue), [backendDiValue]);
+    const liveBit = to01(backendDiValue);
     const hasLive = liveBit !== null;
 
-    // ✅ fallback to legacy status if no live data / no tag selected
-    const legacyStatus =
-      tank.status ?? tank.properties?.status ?? tank.properties?.value ?? "off";
+    const liveIsOn =
+      deviceId && field && deviceIsOnline && hasLive
+        ? liveBit === 1
+        : false;
 
-    const legacyOn =
-      legacyStatus === "on" || legacyStatus === true || legacyStatus === 1 || legacyStatus === "1";
+    // ✅ FINAL STATE CONTROL
+    const isOn = isPlay ? liveIsOn : savedIsOn;
 
-    const isOn = deviceId && field && deviceIsOnline && hasLive ? liveBit === 1 : legacyOn;
-
+    // =========================
+    // VISUALS
+    // =========================
     const shapeStyle = tank.properties?.shapeStyle ?? payload.properties.shapeStyle;
     const colorOn = tank.properties?.colorOn ?? payload.properties.colorOn;
     const colorOff = tank.properties?.colorOff ?? payload.properties.colorOff;
@@ -190,13 +195,6 @@ export default function DraggableLedCircle({
           gap: 6,
           userSelect: "none",
         }}
-        title={
-          telemetryErr
-            ? telemetryErr
-            : deviceId && field
-            ? `${deviceId} • ${field} • ${deviceIsOnline ? "online" : "offline"}`
-            : "Bind a device + DI in settings"
-        }
       >
         <div
           style={{
