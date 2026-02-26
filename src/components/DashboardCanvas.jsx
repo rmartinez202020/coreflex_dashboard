@@ -625,18 +625,22 @@ if (tank.shape === "verticalTank") {
               );
             }
 
-            if (tank.shape === "blinkingAlarm") {
-              return (
-                <DraggableDroppedTank
-                  {...commonProps}
-                  onDoubleClick={() => {
-                    if (!isPlay) onOpenBlinkingAlarmSettings?.(tank);
-                  }}
-                >
-                  <DraggableBlinkingAlarm tank={tank} sensorsData={sensorsData} />
-                </DraggableDroppedTank>
-              );
-            }
+           if (tank.shape === "blinkingAlarm") {
+  return (
+    <DraggableDroppedTank
+      {...commonProps}
+      onDoubleClick={() => {
+        if (!isPlay) onOpenBlinkingAlarmSettings?.(tank);
+      }}
+    >
+      <DraggableBlinkingAlarm
+        tank={tank}
+        isPlay={isPlay}          // ✅ only live in play/launch
+        sensorsData={sensorsData} // (optional) used only in play anyway now
+      />
+    </DraggableDroppedTank>
+  );
+}
 
           if (tank.shape === "stateImage") {
   return (

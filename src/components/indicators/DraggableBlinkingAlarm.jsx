@@ -75,6 +75,7 @@ export default function DraggableBlinkingAlarm({
   // Canvas mode
   tank,
   sensorsData, // optional; backend poll is the reliable source
+  isPlay = false, // ✅ NEW: only live in play/launch
 
   // Palette mode
   label = "Blinking Alarm",
@@ -131,12 +132,19 @@ export default function DraggableBlinkingAlarm({
     const tagDeviceId = String(tag?.deviceId || "").trim();
     const tagField = String(tag?.field || "").trim();
 
+    // ✅ Saved design-time fallback (edit mode freeze)
+    // if user sets a manual value later, you can store p.isActive or p.value
+    const savedIsActive =
+      !!(p.isActive ?? p.value ?? false);
+
     // =========================
-    // ✅ BACKEND POLL (SAME AS MODAL)
+    // ✅ BACKEND POLL (ONLY IN PLAY)
     // =========================
     const [telemetryRow, setTelemetryRow] = React.useState(null);
 
     const fetchTelemetryRow = React.useCallback(async () => {
+      if (!isPlay) return; // ✅ STOP in edit mode
+
       const modelKey = String(tagModel || "").trim();
       const id = String(tagDeviceId || "").trim();
       const base = MODEL_META[modelKey]?.base;
@@ -173,10 +181,11 @@ export default function DraggableBlinkingAlarm({
       } catch {
         setTelemetryRow(null);
       }
-    }, [tagModel, tagDeviceId]);
+    }, [isPlay, tagModel, tagDeviceId]);
 
     React.useEffect(() => {
-      // fetch immediately + poll
+      if (!isPlay) return; // ✅ do nothing in edit mode
+
       fetchTelemetryRow();
 
       const t = setInterval(() => {
@@ -185,7 +194,7 @@ export default function DraggableBlinkingAlarm({
       }, 3000);
 
       return () => clearInterval(t);
-    }, [fetchTelemetryRow]);
+    }, [isPlay, fetchTelemetryRow]);
 
     // ✅ read from backend row (reliable)
     const backendStatus = String(telemetryRow?.status || "").trim().toLowerCase();
@@ -194,29 +203,49 @@ export default function DraggableBlinkingAlarm({
     const rawValueFromBackend =
       telemetryRow && tagField ? readTagFromRow(telemetryRow, tagField) : undefined;
 
-    // ✅ optional fallback: try sensorsData too (won’t hurt)
+    // ✅ optional fallback: sensorsData (ONLY IN PLAY)
     const rawValue =
       rawValueFromBackend !== undefined
         ? rawValueFromBackend
-        : sensorsData?.values?.[tagDeviceId]?.[tagField];
+        : isPlay
+        ? sensorsData?.values?.[tagDeviceId]?.[tagField]
+        : undefined;
 
-    const v01 = deviceIsOnline ? to01(rawValue) : null;
-    const isActive = !!(tagModel && tagDeviceId && tagField && deviceIsOnline && v01 === 1);
+    const v01 = isPlay && deviceIsOnline ? to01(rawValue) : null;
+
+    const liveIsActive = !!(
+      tagModel &&
+      tagDeviceId &&
+      tagField &&
+      isPlay &&
+      deviceIsOnline &&
+      v01 === 1
+    );
+
+    // ✅ FINAL: freeze in edit mode, live in play
+    const isActive = isPlay ? liveIsActive : savedIsActive;
 
     // =========================
-    // ✅ BLINK ENGINE
+    // ✅ BLINK ENGINE (ONLY WHEN ACTIVE IN PLAY)
     // =========================
     const [blinkOn, setBlinkOn] = React.useState(true);
 
     React.useEffect(() => {
+      // ✅ no blink in edit mode
+      if (!isPlay) {
+        setBlinkOn(true);
+        return;
+      }
+
       if (!isActive) {
         setBlinkOn(true);
         return;
       }
+
       const ms = Math.max(120, Number(blinkMs) || 500);
       const t = setInterval(() => setBlinkOn((x) => !x), ms);
       return () => clearInterval(t);
-    }, [isActive, blinkMs]);
+    }, [isPlay, isActive, blinkMs]);
 
     const dimAccent = "rgba(148,163,184,0.22)";
     const accent = isActive ? (blinkOn ? colorOn : dimAccent) : dimAccent;
@@ -259,10 +288,8 @@ export default function DraggableBlinkingAlarm({
       textTransform: "uppercase",
     };
 
-    // ✅ NEW: robust label fallback (fixes missing "ALARM" in OFF stage when text is blank)
     const safeLabel = String((text && String(text).trim()) || "ALARM").toUpperCase();
 
-    // 1) Annunciator
     const Annunciator = () => (
       <div
         style={{
@@ -303,7 +330,6 @@ export default function DraggableBlinkingAlarm({
       </div>
     );
 
-    // 2) Banner
     const Banner = () => {
       const bar = isActive
         ? `repeating-linear-gradient(
@@ -356,7 +382,6 @@ export default function DraggableBlinkingAlarm({
       );
     };
 
-    // 3) StackLight
     const StackLight = () => (
       <div
         style={{
@@ -393,7 +418,6 @@ export default function DraggableBlinkingAlarm({
       </div>
     );
 
-    // 4) Minimal
     const Minimal = () => (
       <div
         style={{
