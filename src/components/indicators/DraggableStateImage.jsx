@@ -71,11 +71,13 @@ function readTagFromRow(row, field) {
  *
  * ✅ IMPORTANT:
  * - DashboardCanvas handles double-click to open settings modal.
+ * - ✅ UPDATED: Live state changes ONLY in Play/Launch (isPlay=true)
  */
 export default function DraggableStateImage({
   // Canvas mode
   tank,
-  sensorsData, // optional fallback
+  sensorsData, // optional fallback (USED ONLY IN PLAY NOW)
+  isPlay = false, // ✅ NEW: only run telemetry updates in play/launch
 
   // Palette mode
   label = "State Image",
@@ -118,13 +120,24 @@ export default function DraggableStateImage({
     const tagDeviceId = String(tag?.deviceId || "").trim();
     const tagField = String(tag?.field || "").trim();
 
+    // ✅ EDIT MODE SHOULD NOT CHANGE:
+    // Freeze to saved widget state (default OFF)
+    const savedIsOn =
+      tank?.properties?.isOn ??
+      tank?.isOn ??
+      payload.isOn;
+
     // =========================
     // ✅ BACKEND POLL (SAME PATTERN AS BLINKING ALARM)
+    // ✅ UPDATED: ONLY RUN IN PLAY/LAUNCH
     // =========================
     const [telemetryRow, setTelemetryRow] = React.useState(null);
     const telemetryRef = React.useRef({ loading: false });
 
     const fetchTelemetryRow = React.useCallback(async () => {
+      // ✅ only poll in PLAY
+      if (!isPlay) return;
+
       const modelKey = String(tagModel || "").trim();
       const id = String(tagDeviceId || "").trim();
       const base = MODEL_META[modelKey]?.base;
@@ -164,9 +177,12 @@ export default function DraggableStateImage({
       } finally {
         telemetryRef.current.loading = false;
       }
-    }, [tagModel, tagDeviceId]);
+    }, [isPlay, tagModel, tagDeviceId]);
 
     React.useEffect(() => {
+      // ✅ do NOTHING in edit mode
+      if (!isPlay) return;
+
       fetchTelemetryRow();
 
       const t = setInterval(() => {
@@ -175,7 +191,7 @@ export default function DraggableStateImage({
       }, 3000);
 
       return () => clearInterval(t);
-    }, [fetchTelemetryRow]);
+    }, [isPlay, fetchTelemetryRow]);
 
     // ✅ read from backend row (reliable)
     const backendStatus = String(telemetryRow?.status || "").trim().toLowerCase();
@@ -184,17 +200,23 @@ export default function DraggableStateImage({
     const rawValueFromBackend =
       telemetryRow && tagField ? readTagFromRow(telemetryRow, tagField) : undefined;
 
-    // ✅ optional fallback: sensorsData
+    // ✅ optional fallback: sensorsData (ONLY IN PLAY)
     const rawValue =
       rawValueFromBackend !== undefined
         ? rawValueFromBackend
-        : sensorsData?.values?.[tagDeviceId]?.[tagField];
+        : isPlay
+        ? sensorsData?.values?.[tagDeviceId]?.[tagField]
+        : undefined;
 
-    const v01 = deviceIsOnline ? to01(rawValue) : null;
+    const v01 = isPlay && deviceIsOnline ? to01(rawValue) : null;
 
-    // ✅ Determine ON/OFF from live tag
+    // ✅ Determine ON/OFF from live tag (ONLY IN PLAY)
     const tagReady = !!(tagModel && tagDeviceId && tagField);
-    const isOn = !!(tagReady && deviceIsOnline && v01 === 1);
+
+    const liveIsOn = !!(tagReady && isPlay && deviceIsOnline && v01 === 1);
+
+    // ✅ Final: freeze in edit, live in play
+    const isOn = isPlay ? liveIsOn : !!savedIsOn;
 
     // ✅ choose image (OFF is default)
     const imgSrc = isOn ? onImage : offImage;
@@ -236,9 +258,7 @@ export default function DraggableStateImage({
                 boxShadow: "0 8px 18px rgba(0,0,0,0.10)",
               }}
             />
-            <div style={{ fontWeight: 1000, letterSpacing: 1 }}>
-              STATE IMAGE
-            </div>
+            <div style={{ fontWeight: 1000, letterSpacing: 1 }}>STATE IMAGE</div>
             <div style={{ fontSize: 12, marginTop: 6, opacity: 0.9 }}>
               {isOn ? "ON" : "OFF"}
             </div>

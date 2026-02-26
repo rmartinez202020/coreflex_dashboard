@@ -635,19 +635,22 @@ if (tank.shape === "verticalTank") {
               );
             }
 
-            if (tank.shape === "stateImage") {
-              return (
-                <DraggableDroppedTank
-                  {...commonProps}
-                  onDoubleClick={() => {
-                    if (!isPlay) onOpenStateImageSettings?.(tank);
-                  }}
-                >
-                  <DraggableStateImage tank={tank} />
-                </DraggableDroppedTank>
-              );
-            }
-
+          if (tank.shape === "stateImage") {
+  return (
+    <DraggableDroppedTank
+      {...commonProps}
+      onDoubleClick={() => {
+        if (!isPlay) onOpenStateImageSettings?.(tank);
+      }}
+    >
+      <DraggableStateImage
+        tank={tank}
+        isPlay={isPlay}          // ✅ only live in play/launch
+        sensorsData={sensorsData} // ✅ needed for live reads
+      />
+    </DraggableDroppedTank>
+  );
+}
             if (tank.shape === "counterInput") {
               const resolvedDash = resolveDashboardId({
                 activeDashboardId,
