@@ -119,19 +119,17 @@ function ensureAlphaHex(hex, alphaHex = "88") {
 
 /**
  * DraggableSiloTank
- * ✅ NOW uses shared telemetryMap (NO fetch, NO interval)
+ * ✅ Uses shared telemetryMap (NO fetch, NO interval)
  * ✅ Live updates ONLY in Play/Launch (isPlay=true)
  *
- * Binding expected (existing):
- * props.bindModel, props.bindDeviceId, props.bindField (ai1..ai4)
+ * ✅ NEW RULE:
+ * - In EDIT mode -> HIDE LIQUID (force level=0)
  */
 export default function DraggableSiloTank({ tank, isPlay = false, telemetryMap = null }) {
   const props = tank?.properties || {};
   const scale = tank?.scale || 1;
 
   const name = String(props.name || "").trim();
-
-  // ✅ unit saved by SiloPropertiesModal
   const unit = String(props.unit || "").trim();
 
   const maxCapacity =
@@ -145,7 +143,9 @@ export default function DraggableSiloTank({ tank, isPlay = false, telemetryMap =
   const bindDeviceId = String(props.bindDeviceId || "").trim();
   const bindField = String(props.bindField || "ai1").trim();
 
-  const formula = String(props.formula ?? props.mathFormula ?? props.math ?? props.density ?? "").trim();
+  const formula = String(
+    props.formula ?? props.mathFormula ?? props.math ?? props.density ?? ""
+  ).trim();
 
   const hasBinding = !!bindDeviceId && !!bindField;
 
@@ -161,7 +161,7 @@ export default function DraggableSiloTank({ tank, isPlay = false, telemetryMap =
 
   // ✅ raw analog value
   const liveValue = useMemo(() => {
-    if (!isPlay) return null;            // ✅ no live in edit mode
+    if (!isPlay) return null;
     if (!hasBinding) return null;
     if (!deviceIsOnline) return null;
 
@@ -195,16 +195,18 @@ export default function DraggableSiloTank({ tank, isPlay = false, telemetryMap =
     return Number.isFinite(n) ? n : null;
   }, [outputValue]);
 
-  const levelPct = useMemo(() => {
+  const levelPctLive = useMemo(() => {
     if (!Number.isFinite(Number(maxCapacity)) || Number(maxCapacity) <= 0) return 0;
     const frac = clamp01((numericOutput ?? 0) / Number(maxCapacity));
     return frac * 100;
   }, [numericOutput, maxCapacity]);
 
-  // ✅ remove .00 (always)
+  // ✅ EDIT MODE: NO LIQUID
+  const levelPct = isPlay ? levelPctLive : 0;
+
   const outputText = useMemo(() => {
     if (!hasBinding) return "--";
-    if (!isPlay) return "--"; // ✅ freeze in edit mode (no polling)
+    if (!isPlay) return "--";
     if (!deviceIsOnline) return "--";
 
     if (typeof outputValue === "string") return outputValue || "--";
@@ -213,6 +215,9 @@ export default function DraggableSiloTank({ tank, isPlay = false, telemetryMap =
     if (!Number.isFinite(n)) return "--";
     return String(Math.round(n));
   }, [hasBinding, isPlay, deviceIsOnline, outputValue]);
+
+  // ✅ EDIT MODE: hide percent text so it looks truly "empty"
+  const showPercent = isPlay;
 
   return (
     <div style={{ textAlign: "center", pointerEvents: "none" }}>
@@ -230,14 +235,13 @@ export default function DraggableSiloTank({ tank, isPlay = false, telemetryMap =
         </div>
       ) : null}
 
-      {/* ✅ SILO */}
       <div style={{ display: "inline-block" }}>
         <div style={{ width: `${140 * scale}px`, height: `${220 * scale}px` }}>
           <SiloTank
             level={levelPct}
             fillColor={materialColor}
             alarm={false}
-            showPercentText={true}
+            showPercentText={showPercent}
             percentText={`${Math.round(levelPct)}%`}
             percentTextColor="#111827"
             showBottomText={true}
@@ -248,7 +252,6 @@ export default function DraggableSiloTank({ tank, isPlay = false, telemetryMap =
         </div>
       </div>
 
-      {/* hidden (kept) */}
       <div
         style={{
           marginTop: 2,
