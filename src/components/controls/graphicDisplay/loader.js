@@ -9,20 +9,38 @@ export const MODEL_META = {
 };
 
 // ===============================
-// ✅ DEBUG (no typing required)
-// Enable by setting in code somewhere: tank.debugUI = true
-// OR set localStorage flag once from your app UI later:
-// localStorage.setItem("coreflex:gd:debug", "1")
+// ✅ DEBUG ENABLE (NO CONSOLE TYPING)
+// Enable by ANY of these:
+// 1) URL: ?gddebug=1   (recommended)
+// 2) localStorage: coreflex:gd:debug = "1"
+// 3) window.__CF_GD_DEBUG__ = true
 // ===============================
 function gdDebugEnabled() {
+  // 1) URL param
   try {
-    // ✅ if you later add UI button -> just set this key
+    if (typeof window !== "undefined") {
+      const qs = window.location?.search || "";
+      const hp = window.location?.hash || "";
+      const params = new URLSearchParams(qs.startsWith("?") ? qs.slice(1) : qs);
+      const v = String(params.get("gddebug") || "").trim();
+      if (v === "1" || v.toLowerCase() === "true" || v.toLowerCase() === "yes")
+        return true;
+
+      // also allow #gddebug=1
+      if (hp && hp.includes("gddebug=1")) return true;
+    }
+  } catch {
+    // ignore
+  }
+
+  // 2) localStorage flag
+  try {
     if (localStorage.getItem("coreflex:gd:debug") === "1") return true;
   } catch {
     // ignore
   }
 
-  // optional: allow global flag if you ever want it
+  // 3) global flag
   if (typeof window !== "undefined" && window.__CF_GD_DEBUG__ === true) return true;
 
   return false;
@@ -164,10 +182,8 @@ export function getRowFromTelemetryMap(telemetryMap, modelKey, deviceId) {
     return null;
   }
 
-  // 🔎 show top-level keys
   dbg("telemetryMap keys", safeKeys(telemetryMap).slice(0, 30));
 
-  // 1) direct modelKey
   const directBucket = telemetryMap?.[mk];
   dbg("bucket direct", { mk, bucketKeys: safeKeys(directBucket).slice(0, 10) });
 
@@ -177,7 +193,6 @@ export function getRowFromTelemetryMap(telemetryMap, modelKey, deviceId) {
     return direct;
   }
 
-  // 2) base key fallback
   const base = MODEL_META?.[mk]?.base || mk;
   const baseBucket = telemetryMap?.[base];
   dbg("bucket base", { base, bucketKeys: safeKeys(baseBucket).slice(0, 10) });
@@ -188,24 +203,12 @@ export function getRowFromTelemetryMap(telemetryMap, modelKey, deviceId) {
     return byBase;
   }
 
-  // 3) helpful near-miss info
-  const directIds = safeKeys(directBucket);
-  const baseIds = safeKeys(baseBucket);
-
-  // try to find a "close" match (same digits, etc.)
-  const idLower = id.toLowerCase();
-  const near =
-    directIds.find((k) => String(k).toLowerCase() === idLower) ||
-    baseIds.find((k) => String(k).toLowerCase() === idLower) ||
-    null;
-
   dbg("NOT FOUND in telemetryMap", {
     mk,
     base,
     id,
-    directIdsSample: directIds.slice(0, 10),
-    baseIdsSample: baseIds.slice(0, 10),
-    nearMatchKey: near,
+    directIdsSample: safeKeys(directBucket).slice(0, 10),
+    baseIdsSample: safeKeys(baseBucket).slice(0, 10),
   });
 
   return null;
@@ -225,14 +228,12 @@ export async function loadLiveRowForDevice(
 
   dbg("loadLiveRowForDevice called", { modelKey: mk, deviceId: id });
 
-  // 1) common poller map
   const fromCommon = getRowFromTelemetryMap(telemetryMap, mk, id);
   if (fromCommon) {
     dbg("loadLiveRowForDevice -> using telemetryMap row");
     return fromCommon;
   }
 
-  // 2) fallback to API
   const base = MODEL_META[mk]?.base || mk;
   const candidates = listCandidatesForBase(base);
 
@@ -260,7 +261,6 @@ export async function loadLiveRowForDevice(
         return found;
       }
 
-      // extra hint: see if the id exists in any form
       const ids = arr.map((r) => String(readDeviceId(r)).trim()).filter(Boolean);
       const near = ids.find((x) => x.toLowerCase() === id.toLowerCase()) || null;
 
@@ -270,8 +270,10 @@ export async function loadLiveRowForDevice(
         near,
       });
     } catch (e) {
-      dbgErr("API path failed, continuing", { path: p, err: String(e?.message || e) });
-      // continue
+      dbgErr("API path failed, continuing", {
+        path: p,
+        err: String(e?.message || e),
+      });
     }
   }
 
