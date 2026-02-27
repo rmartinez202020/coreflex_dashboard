@@ -191,7 +191,6 @@ export default function GraphicDisplay({ tank, isActive = true }) {
   const [err, setErr] = useState("");
 
   const [deviceOnline, setDeviceOnline] = useState(null); // true/false/null
-
   const [points, setPoints] = useState([]);
 
   // local playback controls
@@ -290,12 +289,11 @@ export default function GraphicDisplay({ tank, isActive = true }) {
   }, [points, storageKey, bindDeviceId, bindField, windowSize, timeUnit, bindModel, bindField, bindDeviceId]);
 
   // ===============================
-  // ✅ LIVE POLL (NOW RESPECTS isActive + document.hidden)
+  // ✅ LIVE POLL (FIXED: NO document.hidden early-return)
   // ===============================
   const tickRef = useRef(null);
 
   useEffect(() => {
-    // reset if missing binding
     if (!bindDeviceId || !bindField) {
       setLiveValue(null);
       setMathOutput(null);
@@ -305,7 +303,6 @@ export default function GraphicDisplay({ tank, isActive = true }) {
       return;
     }
 
-    // ✅ stop polling if not active OR paused
     if (!isActive) return;
     if (!isPlaying) return;
 
@@ -315,9 +312,6 @@ export default function GraphicDisplay({ tank, isActive = true }) {
     const tick = async () => {
       try {
         if (cancelled) return;
-
-        // ✅ do not poll in background tab / locked screen
-        if (typeof document !== "undefined" && document.hidden) return;
 
         setErr("");
 
@@ -372,19 +366,23 @@ export default function GraphicDisplay({ tank, isActive = true }) {
 
     const id = window.setInterval(tick, Math.max(400, Number(sampleMs) || 1000));
 
-    // ✅ if tab becomes visible, force an immediate tick
-    const onVis = () => {
+    // ✅ iOS-safe resume triggers
+    const onResume = () => {
       if (cancelled) return;
-      if (document.hidden) return;
       tickRef.current?.();
     };
-    document.addEventListener("visibilitychange", onVis);
+
+    document.addEventListener("visibilitychange", onResume);
+    window.addEventListener("focus", onResume);
+    window.addEventListener("pageshow", onResume);
 
     return () => {
       cancelled = true;
       ctrl.abort();
       window.clearInterval(id);
-      document.removeEventListener("visibilitychange", onVis);
+      document.removeEventListener("visibilitychange", onResume);
+      window.removeEventListener("focus", onResume);
+      window.removeEventListener("pageshow", onResume);
     };
   }, [bindModel, bindDeviceId, bindField, sampleMs, mathFormula, isPlaying, windowSize, timeUnit, isActive]);
 
@@ -680,15 +678,7 @@ export default function GraphicDisplay({ tank, isActive = true }) {
       </div>
 
       {/* BODY */}
-      <div
-        style={{
-          flex: "1 1 auto",
-          minHeight: 0,
-          minWidth: 0,
-          padding: 12,
-          display: "flex",
-        }}
-      >
+      <div style={{ flex: "1 1 auto", minHeight: 0, minWidth: 0, padding: 12, display: "flex" }}>
         <div
           style={{
             flex: "1 1 auto",
@@ -703,14 +693,7 @@ export default function GraphicDisplay({ tank, isActive = true }) {
             border: "1px solid #d9d9d9",
           }}
         >
-          <div
-            style={{
-              position: "absolute",
-              inset: 0,
-              ...gridBackground,
-              pointerEvents: "none",
-            }}
-          />
+          <div style={{ position: "absolute", inset: 0, ...gridBackground, pointerEvents: "none" }} />
 
           {yTicks.length > 0 && (
             <div
@@ -761,11 +744,7 @@ export default function GraphicDisplay({ tank, isActive = true }) {
             }}
             title="Move mouse to ping time/value. Drag to zoom. Double-click to reset zoom."
           >
-            <svg
-              viewBox={`0 0 ${svg.W} ${svg.H}`}
-              preserveAspectRatio="none"
-              style={{ width: "100%", height: "100%", display: "block" }}
-            >
+            <svg viewBox={`0 0 ${svg.W} ${svg.H}`} preserveAspectRatio="none" style={{ width: "100%", height: "100%", display: "block" }}>
               {svg.segs.map((pts, idx) => (
                 <polyline key={idx} fill="none" stroke={lineColor} strokeWidth="3" points={pts.join(" ")} />
               ))}
@@ -789,17 +768,7 @@ export default function GraphicDisplay({ tank, isActive = true }) {
 
             {hover ? (
               <>
-                <div
-                  style={{
-                    position: "absolute",
-                    left: hover.xPx,
-                    top: 0,
-                    bottom: 0,
-                    width: 1,
-                    background: "rgba(0,0,0,0.18)",
-                    pointerEvents: "none",
-                  }}
-                />
+                <div style={{ position: "absolute", left: hover.xPx, top: 0, bottom: 0, width: 1, background: "rgba(0,0,0,0.18)", pointerEvents: "none" }} />
                 <div
                   style={{
                     position: "absolute",
@@ -917,14 +886,7 @@ export default function GraphicDisplay({ tank, isActive = true }) {
                 </div>
               ))
             ) : (
-              <div
-                style={{
-                  background: "rgba(255,255,255,0.78)",
-                  border: "1px solid rgba(0,0,0,0.06)",
-                  padding: "2px 6px",
-                  borderRadius: 8,
-                }}
-              >
+              <div style={{ background: "rgba(255,255,255,0.78)", border: "1px solid rgba(0,0,0,0.06)", padding: "2px 6px", borderRadius: 8 }}>
                 --
               </div>
             )}
