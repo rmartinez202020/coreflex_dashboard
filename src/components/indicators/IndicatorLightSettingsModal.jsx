@@ -210,14 +210,15 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
   };
 
   // =========================
-  // ✅ REHYDRATE ON OPEN
+  // ✅ REHYDRATE ON OPEN (FIXED: don't wipe device/tag)
   // =========================
-  const didHydrateRef = React.useRef(false);
+  const isHydratingRef = React.useRef(false);
+  const prevModelRef = React.useRef(null);
 
   React.useEffect(() => {
     if (!open || !tank) return;
 
-    didHydrateRef.current = true;
+    isHydratingRef.current = true;
 
     setShapeStyle(String(tank?.properties?.shapeStyle || "circle"));
     setOffColor(String(tank?.properties?.colorOff || "#9ca3af"));
@@ -225,15 +226,22 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
     setOffText(String(tank?.properties?.offText || "OFF"));
     setOnText(String(tank?.properties?.onText || "ON"));
 
-    const savedModel = String(tank?.properties?.tag?.model || "zhc1921").trim();
-    setModel(MODEL_META[savedModel] ? savedModel : "zhc1921");
+    const savedModelRaw = String(tank?.properties?.tag?.model || "zhc1921").trim();
+    const nextModel = MODEL_META[savedModelRaw] ? savedModelRaw : "zhc1921";
+    prevModelRef.current = nextModel;
 
+    setModel(nextModel);
     setDeviceId(String(tank?.properties?.tag?.deviceId || ""));
     setField(String(tank?.properties?.tag?.field || ""));
 
     setTelemetryRow(null);
     setPos(null);
     setIsDragging(false);
+
+    // allow downstream effects after state set
+    requestAnimationFrame(() => {
+      isHydratingRef.current = false;
+    });
   }, [open, tank?.id]);
 
   const previewSize = 56;
@@ -267,14 +275,24 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
 
   const base = React.useMemo(() => MODEL_META?.[model]?.base || "zhc1921", [model]);
 
-  // ✅ when model changes, reset device/tag (but not during initial hydrate)
+  // ✅ when model changes by USER, reset device/tag (NOT during hydration)
   React.useEffect(() => {
     if (!open) return;
-    if (!didHydrateRef.current) return; // safety
-    // when user changes model, we clear mismatched bindings
-    setDeviceId("");
-    setField("");
-    setTelemetryRow(null);
+    if (isHydratingRef.current) return;
+
+    const prev = prevModelRef.current;
+    if (prev === null) {
+      prevModelRef.current = model;
+      return;
+    }
+
+    if (model !== prev) {
+      setDeviceId("");
+      setField("");
+      setTelemetryRow(null);
+    }
+
+    prevModelRef.current = model;
   }, [model, open]);
 
   // =========================
