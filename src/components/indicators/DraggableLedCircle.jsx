@@ -140,6 +140,90 @@ export default function DraggableLedCircle({
     const isOn = isPlay ? liveIsOn : savedIsOn;
 
     // =========================
+    // ✅ DEBUG (console)
+    // - Only logs in Play/Launch
+    // - Logs when important values change
+    // =========================
+    const debugKey = `${tank?.id || ""}|${model}|${deviceId}|${field}|${isPlay ? "P" : "D"}`;
+    const dbgPrevRef = React.useRef({ key: "", row: null, raw: undefined, bit: undefined, on: undefined });
+
+    React.useEffect(() => {
+      if (!isPlay) return;
+
+      const hasMap = !!telemetryMap;
+      const modelKeys = telemetryMap ? Object.keys(telemetryMap) : [];
+      const hasRow = !!telemetryRow;
+
+      const prev = dbgPrevRef.current;
+      const changed =
+        prev.key !== debugKey ||
+        prev.row !== telemetryRow ||
+        prev.raw !== backendTagValue ||
+        prev.bit !== liveBit ||
+        prev.on !== isOn;
+
+      if (!changed) return;
+
+      dbgPrevRef.current = {
+        key: debugKey,
+        row: telemetryRow,
+        raw: backendTagValue,
+        bit: liveBit,
+        on: isOn,
+      };
+
+      // keep it readable in console
+      console.groupCollapsed(
+        `%c[LED DEBUG]%c ${deviceId || "no-device"} ${field || "no-tag"} → ${isOn ? "ON" : "OFF"}`,
+        "color:#22c55e;font-weight:900;",
+        "color:#111827;"
+      );
+
+      console.log("tank.id:", tank?.id);
+      console.log("isPlay:", isPlay);
+      console.log("binding:", { model, deviceId, field });
+
+      console.log("telemetryMap present:", hasMap);
+      console.log("telemetryMap model keys:", modelKeys);
+
+      // show which model bucket we attempted
+      if (model) {
+        console.log(`telemetryMap[${model}] exists:`, !!telemetryMap?.[model]);
+        console.log(`telemetryMap[${model}][${deviceId}] exists:`, !!telemetryMap?.[model]?.[deviceId]);
+      }
+
+      console.log("telemetryRow found:", hasRow);
+      if (hasRow) {
+        console.log("telemetryRow.status:", telemetryRow?.status);
+        console.log("backendDeviceStatus:", backendDeviceStatus);
+        console.log("deviceIsOnline:", deviceIsOnline);
+
+        console.log("field:", field);
+        console.log("backendTagValue (raw):", backendTagValue);
+        console.log("liveBit (0/1/null):", liveBit);
+      } else {
+        console.warn("No telemetryRow. Likely key mismatch (model/deviceId) or telemetryMap not passed.");
+      }
+
+      console.log("FINAL isOn:", isOn);
+      console.groupEnd();
+    }, [
+      debugKey,
+      isPlay,
+      telemetryMap,
+      telemetryRow,
+      backendDeviceStatus,
+      deviceIsOnline,
+      backendTagValue,
+      liveBit,
+      isOn,
+      model,
+      deviceId,
+      field,
+      tank?.id,
+    ]);
+
+    // =========================
     // VISUALS
     // =========================
     const shapeStyle = tank.properties?.shapeStyle ?? payload.properties.shapeStyle;
@@ -153,9 +237,11 @@ export default function DraggableLedCircle({
 
     const title =
       deviceId && field
-        ? `LedCircle | ${isOn ? "ON" : "OFF"} | ${model || "—"}:${deviceId}/${field} | status=${
-            backendDeviceStatus || "—"
-          } | v=${String(backendTagValue)}`
+        ? `LedCircle | ${isOn ? "ON" : "OFF"} | ${model || "—"}:${deviceId}/${field} | row=${
+            telemetryRow ? "YES" : "NO"
+          } | status=${backendDeviceStatus || "—"} | raw=${String(
+            backendTagValue
+          )} | bit=${String(liveBit)}`
         : "Bind a device + DI/DO in settings";
 
     return (
