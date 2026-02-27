@@ -16,13 +16,18 @@ export default function DraggableGraphicDisplay({
 }) {
   if (!tank) return null;
 
-  const isPlay = dashboardMode === "play";
+  // ✅ FIX: Launch/Launched should behave like Play for telemetry + interactions
+  const isPlay =
+    dashboardMode === "play" ||
+    dashboardMode === "launch" ||
+    dashboardMode === "launched";
+
   const safeOnUpdate = typeof onUpdate === "function" ? onUpdate : () => {};
 
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: tank.id,
-      disabled: isPlay, // ✅ no dragging in play
+      disabled: isPlay, // ✅ no dragging in play/launch
     });
 
   const [isResizing, setIsResizing] = useState(false);
@@ -83,28 +88,16 @@ export default function DraggableGraphicDisplay({
       let newH = startRef.current.h;
 
       if (resizeDir === "right") {
-        newW = Math.max(
-          300,
-          startRef.current.w + (e.clientX - startRef.current.x)
-        );
+        newW = Math.max(300, startRef.current.w + (e.clientX - startRef.current.x));
       }
       if (resizeDir === "left") {
-        newW = Math.max(
-          300,
-          startRef.current.w - (e.clientX - startRef.current.x)
-        );
+        newW = Math.max(300, startRef.current.w - (e.clientX - startRef.current.x));
       }
       if (resizeDir === "bottom") {
-        newH = Math.max(
-          180,
-          startRef.current.h + (e.clientY - startRef.current.y)
-        );
+        newH = Math.max(180, startRef.current.h + (e.clientY - startRef.current.y));
       }
       if (resizeDir === "top") {
-        newH = Math.max(
-          180,
-          startRef.current.h - (e.clientY - startRef.current.y)
-        );
+        newH = Math.max(180, startRef.current.h - (e.clientY - startRef.current.y));
       }
 
       safeOnUpdate({ ...tank, w: newW, h: newH });
@@ -156,11 +149,16 @@ export default function DraggableGraphicDisplay({
           borderRadius: 10,
           overflow: "hidden",
           cursor: "inherit",
-          pointerEvents: isPlay ? "auto" : "none",
+          // ✅ IMPORTANT: let the chart receive mouse events in play/launch
+          pointerEvents: "auto",
         }}
       >
         {/* ✅ NOW uses common poller */}
-        <GraphicDisplay tank={tank} telemetryMap={telemetryMap} isPlay={isPlay} />
+        <GraphicDisplay
+          tank={tank}
+          telemetryMap={telemetryMap}
+          isPlay={isPlay} // ✅ true in play/launch/launched
+        />
       </div>
 
       {selected && !isPlay && (

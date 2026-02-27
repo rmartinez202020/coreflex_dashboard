@@ -102,7 +102,7 @@ export default function DashboardCanvas({
   activeDashboardId,
   dashboardId,
 }) {
-  const isPlay = dashboardMode === "play";
+  const isPlay = dashboardMode === "play" || dashboardMode === "launch";
 
   // =====================================================
   // ✅ ONE POLL PER DASHBOARD (Play/Launch): shared telemetryMap
@@ -445,6 +445,8 @@ export default function DashboardCanvas({
                 />
               );
             }
+
+
             if (tank.shape === "alarmLog") {
               const w = tank.w ?? tank.width ?? 780;
               const h = tank.h ?? tank.height ?? 360;
