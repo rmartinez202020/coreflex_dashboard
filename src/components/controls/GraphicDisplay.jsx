@@ -1,7 +1,13 @@
 // src/components/controls/GraphicDisplay.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { computeMathOutput, msPerUnit, fmtTimeWithDate } from "./graphicDisplay/utils";
-import { loadLiveRowForDevice, readAiField } from "./graphicDisplay/loader";
+
+// ✅ IMPORTANT: use the SYNC telemetryMap reader
+import {
+  getRowFromTelemetryMap,
+  readAiField,
+} from "./graphicDisplay/loader";
+
 import usePingZoom from "./graphicDisplay/hooks/usePingZoom";
 import useTrendSvg from "./graphicDisplay/hooks/useTrendSvg";
 import useTrendLayout from "./graphicDisplay/hooks/useTrendLayout";
@@ -126,15 +132,14 @@ export default function GraphicDisplay({
   const DEBUG = useMemo(() => {
     if (tank?.debug) return true;
     if (typeof window === "undefined") return false;
-
     const url = new URL(window.location.href);
     if (url.searchParams.get("gddebug") === "1") return true;
-
     return false;
   }, [tank]);
 
   const dbgKey = useMemo(() => {
-    const widgetId = tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
+    const widgetId =
+      tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
     return widgetId
       ? `widget:${widgetId}`
       : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
@@ -157,8 +162,11 @@ export default function GraphicDisplay({
   }
 
   const storageKey = useMemo(() => {
-    const widgetId = tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
-    const base = widgetId ? `widget:${widgetId}` : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
+    const widgetId =
+      tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
+    const base = widgetId
+      ? `widget:${widgetId}`
+      : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
     return `coreflex:graphicDisplay:points:${base}`;
   }, [tank, bindModel, bindDeviceId, bindField]);
 
@@ -167,7 +175,6 @@ export default function GraphicDisplay({
   const yMinor = Number.isFinite(tank?.yMinor) ? Math.max(1, tank.yMinor) : 2;
   const xMinor = Number.isFinite(tank?.xMinor) ? Math.max(1, tank.xMinor) : 2;
 
-  // ✅ EXTRACTED: chart layout calculations (badge/ticks/grid)
   const { styleBadge, yTicks, gridBackground } = useTrendLayout({
     graphStyle,
     yMin,
@@ -185,10 +192,6 @@ export default function GraphicDisplay({
   const [points, setPoints] = useState([]);
 
   const [isPlaying, setIsPlaying] = useState(true);
-  const isPlayingRef = useRef(true);
-  useEffect(() => {
-    isPlayingRef.current = isPlaying;
-  }, [isPlaying]);
 
   // 🔎 one-time: log binding
   useEffect(() => {
@@ -267,7 +270,9 @@ export default function GraphicDisplay({
 
     setPoints(pruned);
 
-    const lastNumeric = [...pruned].reverse().find((p) => Number.isFinite(Number(p?.y)));
+    const lastNumeric = [...pruned]
+      .reverse()
+      .find((p) => Number.isFinite(Number(p?.y)));
     if (lastNumeric) setMathOutput(Number(lastNumeric.y));
   }, [storageKey, bindDeviceId, bindField, windowSize, timeUnit]);
 
@@ -281,7 +286,8 @@ export default function GraphicDisplay({
     saveTimerRef.current = window.setTimeout(() => {
       const pruned = prunePointsByWindow(points, windowSize, timeUnit);
       const limit = Math.max(50, Number(maxPointsRef.current || 200));
-      const finalPoints = pruned.length > limit ? pruned.slice(pruned.length - limit) : pruned;
+      const finalPoints =
+        pruned.length > limit ? pruned.slice(pruned.length - limit) : pruned;
 
       try {
         localStorage.setItem(
@@ -308,24 +314,14 @@ export default function GraphicDisplay({
     return () => {
       if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
     };
-  }, [
-    points,
-    storageKey,
-    bindDeviceId,
-    bindField,
-    windowSize,
-    timeUnit,
-    bindModel,
-    bindField,
-    bindDeviceId,
-  ]);
+  }, [points, storageKey, bindDeviceId, bindField, windowSize, timeUnit, bindModel]);
 
   const lastSampleAtRef = useRef(0);
 
+  // ✅ MAIN POLL (telemetryMap sync)
   useEffect(() => {
-    // only in play/launch, only when widget "playing"
     if (!isPlay) {
-      dbgWarn("POLL SKIP: isPlay=false (widget will not read telemetryMap)");
+      dbgWarn("POLL SKIP: isPlay=false");
       return;
     }
     if (!isPlaying) {
@@ -334,7 +330,10 @@ export default function GraphicDisplay({
     }
 
     if (!bindDeviceId || !bindField) {
-      dbgWarn("POLL RESET: missing bindDeviceId/bindField", { bindDeviceId, bindField });
+      dbgWarn("POLL RESET: missing bindDeviceId/bindField", {
+        bindDeviceId,
+        bindField,
+      });
       setLiveValue(null);
       setMathOutput(null);
       setErr("");
@@ -346,48 +345,23 @@ export default function GraphicDisplay({
     try {
       setErr("");
 
-      if (!telemetryMap) {
-        dbgWarn("POLL: telemetryMap is null/undefined");
-      }
+      // ✅ FIX: sync row read (NOT async)
+      const row = getRowFromTelemetryMap(telemetryMap, bindModel, bindDeviceId);
 
-      dbg("POLL: reading from telemetryMap", {
-        bindModel,
-        bindDeviceId,
-        bindField,
-        sampleMs,
-        windowSize,
-        timeUnit,
+      dbg("POLL: got row", {
+        hasRow: !!row,
+        rowType: typeof row,
+        rowKeys: row ? Object.keys(row).slice(0, 30) : [],
       });
-
-      // ✅ read row from telemetryMap (common poller)
-      const row = loadLiveRowForDevice(bindModel, bindDeviceId, { telemetryMap });
-
-      if (!row) {
-        dbgWarn("POLL: loadLiveRowForDevice returned null/undefined", {
-          bindModel,
-          bindDeviceId,
-          telemetryMapKeys:
-            telemetryMap && typeof telemetryMap === "object"
-              ? Object.keys(telemetryMap).slice(0, 10)
-              : null,
-        });
-      } else {
-        dbg("POLL: got row keys", Object.keys(row).slice(0, 30));
-      }
 
       const st = normalizeOnlineStatusFromRow(row);
-      dbg("POLL: online status parse", {
-        rawRowStatus: row ? row.status ?? row.online ?? row.connected ?? row.aws_status ?? row.awsStatus : null,
-        st,
-      });
       setDeviceOnline(st.online);
 
       const raw = row ? readAiField(row, bindField) : null;
-      dbg("POLL: readAiField", { bindField, raw });
+      dbg("POLL: readAiField", { bindField, raw, rawType: typeof raw });
 
-      // ✅ stronger number parsing
+      // ✅ strong number parse
       let safeLive = null;
-
       if (raw === null || raw === undefined || raw === "") {
         safeLive = null;
       } else if (typeof raw === "number") {
@@ -397,20 +371,9 @@ export default function GraphicDisplay({
         safeLive = Number.isFinite(parsed) ? parsed : null;
       }
 
-      dbg("POLL: strong number parse", {
-        raw,
-        parsed: safeLive,
-        rawType: typeof raw,
-      });
+      dbg("POLL: strong number parse", { raw, parsed: safeLive });
 
       const out = computeMathOutput(safeLive, mathFormula);
-
-      dbg("POLL: parsed + math", {
-        safeLive,
-        mathFormula,
-        out,
-        isFiniteOut: Number.isFinite(out),
-      });
 
       setLiveValue(safeLive);
       setMathOutput(out);
@@ -420,33 +383,17 @@ export default function GraphicDisplay({
       const smp = Math.max(250, Number(sampleMs) || 1000);
       const last = lastSampleAtRef.current || 0;
 
-      if (now - last < smp) {
-        dbg("POLL: throttle skip", { now, last, smp, delta: now - last });
-        return;
-      }
+      if (now - last < smp) return;
       lastSampleAtRef.current = now;
 
       if (Number.isFinite(out)) {
         setPoints((prev) => {
           const next = [...prev, { t: now, y: out }];
-
           const pruned = prunePointsByWindow(next, windowSize, timeUnit);
           const limit = maxPointsRef.current || 2;
           if (pruned.length > limit) pruned.splice(0, pruned.length - limit);
-
-          dbg("POLL: point added", {
-            now,
-            out,
-            prevCount: prev.length,
-            nextCount: next.length,
-            prunedCount: pruned.length,
-            limit,
-          });
-
           return pruned;
         });
-      } else {
-        dbgWarn("POLL: out is not finite -> no point added", { out, safeLive });
       }
     } catch (e) {
       dbgErr("POLL ERROR:", e);
@@ -762,58 +709,6 @@ export default function GraphicDisplay({
             border: "1px solid #d9d9d9",
           }}
         >
-          {/* ✅ STEP 3: On-screen debug overlay (gddebug=1) */}
-          {DEBUG && (
-            <div
-              style={{
-                position: "absolute",
-                left: 10,
-                top: 10,
-                width: 340,
-                maxHeight: 240,
-                overflow: "auto",
-                background: "rgba(0,0,0,0.85)",
-                color: "#00ff88",
-                fontFamily: "monospace",
-                fontSize: 11,
-                padding: 10,
-                borderRadius: 10,
-                border: "1px solid rgba(0,255,136,0.55)",
-                zIndex: 9999,
-                pointerEvents: "none",
-                boxShadow: "0 10px 24px rgba(0,0,0,0.35)",
-              }}
-            >
-              <div style={{ fontWeight: 900, marginBottom: 6 }}>GD DEBUG (gddebug=1)</div>
-              <div>isPlay: {String(isPlay)}</div>
-              <div>Playing: {String(isPlaying)}</div>
-              <div>Model: {String(bindModel)}</div>
-              <div>Device: {bindDeviceId || "--"}</div>
-              <div>Field: {String(bindField)}</div>
-              <div>Online: {deviceOnline === null ? "--" : String(deviceOnline)}</div>
-              <div>
-                Live:{" "}
-                {liveValue === null || liveValue === undefined
-                  ? "--"
-                  : Number.isFinite(Number(liveValue))
-                  ? Number(liveValue).toFixed(3)
-                  : String(liveValue)}
-              </div>
-              <div>
-                Math:{" "}
-                {mathOutput === null || mathOutput === undefined
-                  ? "--"
-                  : Number.isFinite(Number(mathOutput))
-                  ? Number(mathOutput).toFixed(3)
-                  : String(mathOutput)}
-              </div>
-              <div>Points: {points.length}</div>
-              <div style={{ marginTop: 6, opacity: 0.85 }}>
-                Window={windowSize} {timeUnit}, sampleMs={sampleMs}
-              </div>
-            </div>
-          )}
-
           <div
             style={{
               position: "absolute",
