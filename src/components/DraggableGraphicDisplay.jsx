@@ -171,7 +171,7 @@ export default function DraggableGraphicDisplay({
           pointerEvents: isPlay ? "auto" : "none",
         }}
       >
-        <GraphicDisplay tank={tank} />
+        <GraphicDisplay tank={tank} isActive={dashboardMode === "play"} />
       </div>
 
       {/* ✅ Resize edges (EDIT only) */}

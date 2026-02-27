@@ -1,16 +1,9 @@
 // src/components/controls/GraphicDisplay.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-
-// ✅ extracted utilities
 import { computeMathOutput, msPerUnit, fmtTimeWithDate } from "./graphicDisplay/utils";
-
-// ✅ extracted loader (API + row loader + field reader)
 import { loadLiveRowForDevice, readAiField } from "./graphicDisplay/loader";
-
-// ✅ extracted ping/zoom hook
 import usePingZoom from "./graphicDisplay/hooks/usePingZoom";
 
-// ✅ line color fallback
 const DEFAULT_LINE_COLOR = "#0c5ac8";
 
 function normalizeLineColor(c) {
@@ -18,7 +11,6 @@ function normalizeLineColor(c) {
   return s || DEFAULT_LINE_COLOR;
 }
 
-// ✅ normalize ONLINE/OFFLINE from many backend shapes
 function normalizeOnlineStatusFromRow(row) {
   if (!row) return { online: null, label: "--" };
 
@@ -118,7 +110,7 @@ function prunePointsByWindow(points, windowSize, timeUnit) {
   return cleaned;
 }
 
-export default function GraphicDisplay({ tank }) {
+export default function GraphicDisplay({ tank, isActive = true }) {
   const title = tank?.title ?? "Graphic Display";
   const timeUnit = tank?.timeUnit ?? "seconds";
   const windowSize = Number(tank?.window ?? 60);
@@ -137,7 +129,7 @@ export default function GraphicDisplay({ tank }) {
   // ✅ line color from settings panel (saved on tank)
   const lineColor = normalizeLineColor(tank?.lineColor);
 
-  // ✅ stable storage key (per widget if possible, otherwise per binding)
+  // ✅ stable storage key
   const storageKey = useMemo(() => {
     const widgetId = tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
     const base = widgetId ? `widget:${widgetId}` : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
@@ -158,7 +150,6 @@ export default function GraphicDisplay({ tank }) {
     return "LINE";
   })();
 
-  // ✅ derived Y ticks
   const yTicks = useMemo(() => {
     const min = Number(yMin);
     const max = Number(yMax);
@@ -169,7 +160,6 @@ export default function GraphicDisplay({ tank }) {
     return arr;
   }, [yMin, yMax, yDivs]);
 
-  // ✅ background grid (major + minor)
   const gridBackground = useMemo(() => {
     const majorX = Math.max(24, Math.round(520 / xDivs));
     const majorY = Math.max(20, Math.round(260 / yDivs));
@@ -194,33 +184,30 @@ export default function GraphicDisplay({ tank }) {
   }, [xDivs, yDivs, xMinor, yMinor]);
 
   // ===============================
-  // ✅ LIVE POLL + MATH OUTPUT + TREND POINTS
+  // ✅ LIVE + POINTS
   // ===============================
   const [liveValue, setLiveValue] = useState(null);
   const [mathOutput, setMathOutput] = useState(null);
   const [err, setErr] = useState("");
 
-  // ✅ NEW: device online/offline
   const [deviceOnline, setDeviceOnline] = useState(null); // true/false/null
 
-  // points: {t:number, y:number, gap?:boolean}
   const [points, setPoints] = useState([]);
 
-  // ✅ local playback controls
+  // local playback controls
   const [isPlaying, setIsPlaying] = useState(true);
   const isPlayingRef = useRef(true);
   useEffect(() => {
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
 
-  // ✅ insert a "gap marker" point when pausing so the line breaks
+  // ✅ insert gap marker when pausing
   useEffect(() => {
     if (!bindDeviceId || !bindField) return;
 
     if (!isPlaying) {
       setPoints((prev) => {
         const t = Date.now();
-        // avoid stacking multiple gap points if user clicks pause repeatedly
         const last = prev.length ? prev[prev.length - 1] : null;
         if (last?.gap) return prev;
         return [...prev, { t, y: null, gap: true }];
@@ -236,17 +223,15 @@ export default function GraphicDisplay({ tank }) {
     return Math.max(2, Math.round(totalMs / smp));
   }, [windowSize, sampleMs, timeUnit]);
 
-  // ✅ avoid stale maxPoints in interval closure
   const maxPointsRef = useRef(maxPoints);
   useEffect(() => {
     maxPointsRef.current = maxPoints;
   }, [maxPoints]);
 
   // ===============================
-  // ✅ LOAD points from localStorage when binding/widget changes
+  // ✅ LOAD points on binding/widget change
   // ===============================
   useEffect(() => {
-    // if binding missing, clear + don't load
     if (!bindDeviceId || !bindField) {
       setPoints([]);
       setDeviceOnline(null);
@@ -256,33 +241,31 @@ export default function GraphicDisplay({ tank }) {
     const raw = localStorage.getItem(storageKey);
     const parsed = raw ? safeJsonParse(raw) : null;
 
-    const loaded = Array.isArray(parsed?.points) ? parsed.points : Array.isArray(parsed) ? parsed : [];
+    const loaded = Array.isArray(parsed?.points)
+      ? parsed.points
+      : Array.isArray(parsed)
+      ? parsed
+      : [];
     const pruned = prunePointsByWindow(loaded, windowSize, timeUnit);
 
     setPoints(pruned);
 
-    // best effort: restore last numeric values for display
     const lastNumeric = [...pruned].reverse().find((p) => Number.isFinite(Number(p?.y)));
-    if (lastNumeric) {
-      setMathOutput(Number(lastNumeric.y));
-    }
+    if (lastNumeric) setMathOutput(Number(lastNumeric.y));
   }, [storageKey, bindDeviceId, bindField, windowSize, timeUnit]);
 
   // ===============================
-  // ✅ SAVE points to localStorage (debounced)
+  // ✅ SAVE points (debounced)
   // ===============================
   const saveTimerRef = useRef(null);
 
   useEffect(() => {
-    // only save when we have a binding
     if (!bindDeviceId || !bindField) return;
 
-    // debounce writes
     if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
 
     saveTimerRef.current = window.setTimeout(() => {
       const pruned = prunePointsByWindow(points, windowSize, timeUnit);
-      // keep it compact (avoid runaway)
       const limit = Math.max(50, Number(maxPointsRef.current || 200));
       const finalPoints = pruned.length > limit ? pruned.slice(pruned.length - limit) : pruned;
 
@@ -307,10 +290,12 @@ export default function GraphicDisplay({ tank }) {
   }, [points, storageKey, bindDeviceId, bindField, windowSize, timeUnit, bindModel, bindField, bindDeviceId]);
 
   // ===============================
-  // ✅ LIVE POLL
+  // ✅ LIVE POLL (NOW RESPECTS isActive + document.hidden)
   // ===============================
+  const tickRef = useRef(null);
+
   useEffect(() => {
-    // reset points if binding missing
+    // reset if missing binding
     if (!bindDeviceId || !bindField) {
       setLiveValue(null);
       setMathOutput(null);
@@ -320,7 +305,8 @@ export default function GraphicDisplay({ tank }) {
       return;
     }
 
-    // ✅ if paused, do not poll (but keep chart visible)
+    // ✅ stop polling if not active OR paused
+    if (!isActive) return;
     if (!isPlaying) return;
 
     let cancelled = false;
@@ -328,13 +314,17 @@ export default function GraphicDisplay({ tank }) {
 
     const tick = async () => {
       try {
+        if (cancelled) return;
+
+        // ✅ do not poll in background tab / locked screen
+        if (typeof document !== "undefined" && document.hidden) return;
+
         setErr("");
 
         const row = await loadLiveRowForDevice(bindModel, bindDeviceId, {
           signal: ctrl.signal,
         });
 
-        // ✅ NEW: online/offline from row status
         const st = normalizeOnlineStatusFromRow(row);
         if (!cancelled) setDeviceOnline(st.online);
 
@@ -359,11 +349,8 @@ export default function GraphicDisplay({ tank }) {
           const t = Date.now();
           setPoints((prev) => {
             const next = [...prev, { t, y: out }];
-
-            // prune by time window first (so reopen looks correct)
             const pruned = prunePointsByWindow(next, windowSize, timeUnit);
 
-            // also enforce max points based on sample/window
             const limit = maxPointsRef.current || 2;
             if (pruned.length > limit) pruned.splice(0, pruned.length - limit);
 
@@ -374,22 +361,35 @@ export default function GraphicDisplay({ tank }) {
         if (cancelled) return;
         if (String(e?.name || "").toLowerCase().includes("abort")) return;
         setErr("Trend read failed (device endpoint / tag field).");
-        setDeviceOnline(false); // best-effort: show offline on fetch fail
+        setDeviceOnline(false);
       }
     };
 
+    tickRef.current = tick;
+
+    // run immediately
     tick();
-    const id = window.setInterval(tick, Math.max(250, Number(sampleMs) || 1000));
+
+    const id = window.setInterval(tick, Math.max(400, Number(sampleMs) || 1000));
+
+    // ✅ if tab becomes visible, force an immediate tick
+    const onVis = () => {
+      if (cancelled) return;
+      if (document.hidden) return;
+      tickRef.current?.();
+    };
+    document.addEventListener("visibilitychange", onVis);
 
     return () => {
       cancelled = true;
       ctrl.abort();
       window.clearInterval(id);
+      document.removeEventListener("visibilitychange", onVis);
     };
-  }, [bindModel, bindDeviceId, bindField, sampleMs, mathFormula, isPlaying, windowSize, timeUnit]);
+  }, [bindModel, bindDeviceId, bindField, sampleMs, mathFormula, isPlaying, windowSize, timeUnit, isActive]);
 
   // ===============================
-  // ✅ INTERACTION: ping + zoom (timeline) via hook
+  // ✅ INTERACTION: ping + zoom
   // ===============================
   const { plotRef, sel, hover, timeTicks, pointsForView, handlers } = usePingZoom({
     points,
@@ -398,7 +398,6 @@ export default function GraphicDisplay({ tank }) {
     fmtTimeWithDate,
   });
 
-  // ✅ build MULTI polyline segments so gaps do NOT connect
   const svg = useMemo(() => {
     const W = 1000;
     const H = 360;
@@ -411,11 +410,8 @@ export default function GraphicDisplay({ tank }) {
     }
 
     const arrRaw = pointsForView?.length ? pointsForView : points;
-    if (!arrRaw.length) {
-      return { segs: [], W, H };
-    }
+    if (!arrRaw.length) return { segs: [], W, H };
 
-    // keep only valid time points (but allow y=null for gaps)
     const arr = arrRaw
       .map((p) => ({
         t: Number(p?.t),
@@ -427,14 +423,12 @@ export default function GraphicDisplay({ tank }) {
 
     if (!arr.length) return { segs: [], W, H };
 
-    // time range from first to last (even if last is a gap marker)
     const tMin = arr[0].t;
     const tMax = arr[arr.length - 1].t;
     const tSpan = Math.max(1, tMax - tMin);
 
     const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 
-    // build segments separated by "gap" markers
     const segs = [];
     let current = [];
 
@@ -456,7 +450,6 @@ export default function GraphicDisplay({ tank }) {
     return { segs, W, H };
   }, [points, pointsForView, yMin, yMax]);
 
-  // ✅ BIGGER top button styles + keep rectangle (not pill)
   const topBtnBase = {
     height: 36,
     padding: "0 18px",
@@ -480,7 +473,6 @@ export default function GraphicDisplay({ tank }) {
     opacity: 0.55,
   };
 
-  // ✅ Output box (top-right, after buttons)
   const outputBoxStyle = {
     height: 36,
     display: "inline-flex",
@@ -497,7 +489,6 @@ export default function GraphicDisplay({ tank }) {
     whiteSpace: "nowrap",
   };
 
-  // ✅ Style indicator (NO oval/pill; just color dot + LINE text)
   const styleIndicator = (
     <div
       style={{
@@ -526,11 +517,13 @@ export default function GraphicDisplay({ tank }) {
     </div>
   );
 
-  // ✅ ONLINE/OFFLINE pill (under Output)
   const statusLabel = useMemo(() => {
-    if (!bindDeviceId) return { text: "--", color: "#64748b", bg: "rgba(148,163,184,0.16)", border: "rgba(148,163,184,0.35)" };
-    if (deviceOnline === true) return { text: "ONLINE", color: "#16a34a", bg: "rgba(187,247,208,0.55)", border: "rgba(22,163,74,0.25)" };
-    if (deviceOnline === false) return { text: "OFFLINE", color: "#dc2626", bg: "rgba(254,202,202,0.55)", border: "rgba(220,38,38,0.25)" };
+    if (!bindDeviceId)
+      return { text: "--", color: "#64748b", bg: "rgba(148,163,184,0.16)", border: "rgba(148,163,184,0.35)" };
+    if (deviceOnline === true)
+      return { text: "ONLINE", color: "#16a34a", bg: "rgba(187,247,208,0.55)", border: "rgba(22,163,74,0.25)" };
+    if (deviceOnline === false)
+      return { text: "OFFLINE", color: "#dc2626", bg: "rgba(254,202,202,0.55)", border: "rgba(220,38,38,0.25)" };
     return { text: "--", color: "#64748b", bg: "rgba(148,163,184,0.16)", border: "rgba(148,163,184,0.35)" };
   }, [deviceOnline, bindDeviceId]);
 
@@ -562,7 +555,6 @@ export default function GraphicDisplay({ tank }) {
           minWidth: 0,
         }}
       >
-        {/* TOP ROW: Title + (Buttons + style) on LEFT of Output */}
         <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
           <div
             style={{
@@ -578,7 +570,6 @@ export default function GraphicDisplay({ tank }) {
             {title}
           </div>
 
-          {/* RIGHT SIDE: buttons + style indicator + output (output last) */}
           <div
             style={{
               marginLeft: "auto",
@@ -625,7 +616,6 @@ export default function GraphicDisplay({ tank }) {
 
             {styleIndicator}
 
-            {/* ✅ Output + Status (stacked) */}
             <div style={{ display: "inline-flex", flexDirection: "column", alignItems: "flex-end", gap: 4 }}>
               <div style={outputBoxStyle} title="Math Output">
                 <span style={{ color: "#555" }}>Output:</span>
@@ -659,7 +649,6 @@ export default function GraphicDisplay({ tank }) {
           </div>
         </div>
 
-        {/* SECOND ROW: info only */}
         <div
           style={{
             display: "flex",
@@ -723,7 +712,6 @@ export default function GraphicDisplay({ tank }) {
             }}
           />
 
-          {/* Y ticks */}
           {yTicks.length > 0 && (
             <div
               style={{
@@ -757,7 +745,6 @@ export default function GraphicDisplay({ tank }) {
             </div>
           )}
 
-          {/* PLOT AREA (interactive) */}
           <div
             ref={plotRef}
             {...handlers}
@@ -784,7 +771,6 @@ export default function GraphicDisplay({ tank }) {
               ))}
             </svg>
 
-            {/* Selection rectangle (zoom) */}
             {sel ? (
               <div
                 style={{
@@ -801,7 +787,6 @@ export default function GraphicDisplay({ tank }) {
               />
             ) : null}
 
-            {/* Crosshair + tooltip (ping) */}
             {hover ? (
               <>
                 <div
@@ -853,7 +838,6 @@ export default function GraphicDisplay({ tank }) {
               </>
             ) : null}
 
-            {/* Value overlay (top-right) */}
             <div
               style={{
                 position: "absolute",
@@ -895,7 +879,6 @@ export default function GraphicDisplay({ tank }) {
             ) : null}
           </div>
 
-          {/* X TIMELINE */}
           <div
             style={{
               position: "absolute",
