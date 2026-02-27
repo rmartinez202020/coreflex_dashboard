@@ -1,5 +1,5 @@
 // src/pages/LoginPage.jsx
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import bgImage from "../assets/login_photo/satellite.jpg";
 import { API_URL } from "../config/api";
@@ -7,6 +7,26 @@ import { API_URL } from "../config/api";
 import { setToken, clearAuth } from "../utils/authToken";
 
 const MIN_LOADING_TIME = 2000;
+
+// ✅ Detect PHONES only (allow iPads + desktops)
+function isPhoneDevice() {
+  const ua = navigator.userAgent.toLowerCase();
+
+  const isIphone = ua.includes("iphone") || ua.includes("ipod");
+  const isAndroid = ua.includes("android");
+  const isIPad = ua.includes("ipad");
+
+  // Many Android phones include "mobile". Some tablets don't.
+  const isMobileKeyword = ua.includes("mobile");
+
+  // iPhone always blocked
+  if (isIphone) return true;
+
+  // Android phone blocked (android + mobile), but NOT iPad
+  if (isAndroid && isMobileKeyword && !isIPad) return true;
+
+  return false;
+}
 
 export default function LoginPage() {
   const formRef = useRef(null);
@@ -18,6 +38,15 @@ export default function LoginPage() {
   const [showResetInfo, setShowResetInfo] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
 
+  // ✅ One-time phone detection
+  const blockedPhone = useMemo(() => {
+    try {
+      return isPhoneDevice();
+    } catch {
+      return false;
+    }
+  }, []);
+
   const waitRemaining = async (startTime) => {
     const elapsed = Date.now() - startTime;
     const remaining = Math.max(MIN_LOADING_TIME - elapsed, 0);
@@ -26,6 +55,13 @@ export default function LoginPage() {
 
   const handleLogin = async (e) => {
     e.preventDefault();
+
+    // ✅ Hard block login on phones
+    if (blockedPhone) {
+      setError("Platform not supported on mobile phones. Please use a desktop or supported iPad.");
+      return;
+    }
+
     if (loading) return;
     setError("");
     setLoading(true);
@@ -53,9 +89,7 @@ export default function LoginPage() {
 
       if (!res.ok) {
         await waitRemaining(startTime);
-        throw new Error(
-          data?.detail || data?.error || "Invalid email or password"
-        );
+        throw new Error(data?.detail || data?.error || "Invalid email or password");
       }
 
       const token = String(data?.access_token || data?.token || "").trim();
@@ -69,8 +103,7 @@ export default function LoginPage() {
       // ✅ Store token using your auth helper (sessionStorage only)
       setToken(token);
 
-      // ✅ OPTIONAL (per-tab only): if you still have any old guard relying on this,
-      // keep it ONLY in sessionStorage — NEVER localStorage.
+      // ✅ OPTIONAL (per-tab only)
       try {
         sessionStorage.setItem("coreflex_logged_in", "yes");
       } catch {
@@ -144,82 +177,21 @@ export default function LoginPage() {
           CoreFlex IIoTs Platform
         </h1>
 
-        <p className="text-center text-gray-600 mb-6">
-          Login to access your account
-        </p>
-
-        {error && (
-          <div className="bg-red-100 text-red-700 px-3 py-2 rounded text-sm mb-4">
-            {error}
-          </div>
-        )}
-
-        <form ref={formRef} onSubmit={handleLogin} className="space-y-4">
-          <div>
-            <label className="block text-sm mb-1 text-gray-700">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              required
-              disabled={loading}
-              className="w-full border rounded px-3 py-2 text-gray-800 disabled:bg-gray-100"
-              placeholder="you@example.com"
-              autoComplete="email"
-            />
-          </div>
-
-          <div>
-            <label className="block text-sm mb-1 text-gray-700">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              onKeyUp={handlePasswordKeyEvent}
-              onKeyDown={handlePasswordKeyEvent}
-              required
-              disabled={loading}
-              className="w-full border rounded px-3 py-2 text-gray-800 disabled:bg-gray-100"
-              placeholder="••••••••"
-              autoComplete="current-password"
-            />
-
-            {capsLockOn && (
-              <div className="mt-1 text-sm text-yellow-600">
-                ⚠️ Caps Lock is ON
+        {/* ✅ If phone: show block message and DO NOT render login form */}
+        {blockedPhone ? (
+          <div className="text-center">
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-4">
+              <b>Platform Not Supported</b>
+              <div className="mt-1">
+                CoreFlex IIoTs Platform is not supported on mobile phones.
               </div>
-            )}
-          </div>
+              <div className="mt-1">
+                Please use a desktop computer or a supported iPad.
+              </div>
+            </div>
 
-          <button
-            type="submit"
-            disabled={loading}
-            className={`w-full py-2 rounded mt-4 text-white transition ${
-              loading
-                ? "bg-blue-400 cursor-not-allowed"
-                : "bg-blue-600 hover:bg-blue-700"
-            }`}
-          >
-            {loading ? "Logging in…" : "Login"}
-          </button>
-        </form>
-
-        <div className="text-center text-gray-600 text-sm mt-4">
-          <div className="flex items-center justify-center gap-2">
-            <span>Forgot your password?</span>
-            <button
-              type="button"
-              onClick={() => setShowResetInfo((prev) => !prev)}
-              className="text-blue-600 hover:text-blue-800 font-semibold"
-              title="How to reset password"
-            >
-              ℹ️
-            </button>
-          </div>
-
-          {showResetInfo && (
-            <div className="mt-2 text-gray-700">
-              Request a Reset Password at{" "}
+            <div className="text-gray-700 text-sm">
+              Need help? Email{" "}
               <a
                 href="mailto:info@coreflexalliance.net"
                 className="text-blue-600 font-semibold hover:underline"
@@ -227,18 +199,106 @@ export default function LoginPage() {
                 info@coreflexalliance.net
               </a>
             </div>
-          )}
-        </div>
+          </div>
+        ) : (
+          <>
+            <p className="text-center text-gray-600 mb-6">
+              Login to access your account
+            </p>
 
-        <p className="text-center text-gray-600 text-sm mt-4">
-          Don’t have an account?{" "}
-          <Link
-            to="/register"
-            className="text-blue-600 font-semibold hover:underline"
-          >
-            Create one
-          </Link>
-        </p>
+            {error && (
+              <div className="bg-red-100 text-red-700 px-3 py-2 rounded text-sm mb-4">
+                {error}
+              </div>
+            )}
+
+            <form ref={formRef} onSubmit={handleLogin} className="space-y-4">
+              <div>
+                <label className="block text-sm mb-1 text-gray-700">Email</label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  required
+                  disabled={loading}
+                  className="w-full border rounded px-3 py-2 text-gray-800 disabled:bg-gray-100"
+                  placeholder="you@example.com"
+                  autoComplete="email"
+                />
+              </div>
+
+              <div>
+                <label className="block text-sm mb-1 text-gray-700">Password</label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  onKeyUp={handlePasswordKeyEvent}
+                  onKeyDown={handlePasswordKeyEvent}
+                  required
+                  disabled={loading}
+                  className="w-full border rounded px-3 py-2 text-gray-800 disabled:bg-gray-100"
+                  placeholder="••••••••"
+                  autoComplete="current-password"
+                />
+
+                {capsLockOn && (
+                  <div className="mt-1 text-sm text-yellow-600">
+                    ⚠️ Caps Lock is ON
+                  </div>
+                )}
+              </div>
+
+              <button
+                type="submit"
+                disabled={loading}
+                className={`w-full py-2 rounded mt-4 text-white transition ${
+                  loading
+                    ? "bg-blue-400 cursor-not-allowed"
+                    : "bg-blue-600 hover:bg-blue-700"
+                }`}
+              >
+                {loading ? "Logging in…" : "Login"}
+              </button>
+            </form>
+
+            <div className="text-center text-gray-600 text-sm mt-4">
+              <div className="flex items-center justify-center gap-2">
+                <span>Forgot your password?</span>
+                <button
+                  type="button"
+                  onClick={() => setShowResetInfo((prev) => !prev)}
+                  className="text-blue-600 hover:text-blue-800 font-semibold"
+                  title="How to reset password"
+                >
+                  ℹ️
+                </button>
+              </div>
+
+              {showResetInfo && (
+                <div className="mt-2 text-gray-700">
+                  Request a Reset Password at{" "}
+                  <a
+                    href="mailto:info@coreflexalliance.net"
+                    className="text-blue-600 font-semibold hover:underline"
+                  >
+                    info@coreflexalliance.net
+                  </a>
+                </div>
+              )}
+            </div>
+
+            <p className="text-center text-gray-600 text-sm mt-4">
+              Don’t have an account?{" "}
+              <Link
+                to="/register"
+                className="text-blue-600 font-semibold hover:underline"
+              >
+                Create one
+              </Link>
+            </p>
+          </>
+        )}
       </div>
     </div>
   );
