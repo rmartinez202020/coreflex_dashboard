@@ -8,9 +8,9 @@ import React from "react";
  * - Fetches /{base}/my-devices at most once per model per tick
  * - Builds telemetryMap[model][deviceId] = row
  *
- * Supports bindings in:
- *  1) tank.properties.tag = { model, deviceId, field }
- *  2) GraphicDisplay style: tank.bindModel / tank.bindDeviceId (or inside properties)
+ * Supports bindings stored as:
+ *  A) tank.properties.tag = { model, deviceId, field }
+ *  B) GraphicDisplay style: tank.bindModel / tank.bindDeviceId (or inside tank.properties)
  */
 export default function useDashboardTelemetryPoller({
   isPlay,
@@ -37,55 +37,27 @@ export default function useDashboardTelemetryPoller({
 
   const loadingRef = React.useRef(false);
 
-  // ✅ normalize model key to one of modelMeta keys
-  const normalizeModelKey = React.useCallback(
-    (m) => {
-      const raw = String(m || "").trim();
-      if (!raw) return "";
-
-      // direct key
-      if (modelMeta?.[raw]?.base) return raw;
-
-      // maybe user passed base instead of key
-      const found = Object.keys(modelMeta || {}).find(
-        (k) => String(modelMeta?.[k]?.base || "").trim() === raw
-      );
-      return found || raw;
-    },
-    [modelMeta]
-  );
-
+  // ✅ Extract binding from ANY widget shape we support
   const extractBinding = React.useCallback(
     (t) => {
       if (!t) return null;
 
-      // ✅ 1) preferred universal format: properties.tag
+      // A) common binding: properties.tag
       const tag = t?.properties?.tag || t?.tag || null;
       if (tag) {
-        const model = normalizeModelKey(tag?.model);
+        const model = String(tag?.model || "").trim();
         const deviceId = String(tag?.deviceId || "").trim();
         if (model && deviceId && modelMeta?.[model]?.base) return { model, deviceId };
       }
 
-      // ✅ 2) GraphicDisplay format: bindModel/bindDeviceId (sometimes saved on root or properties)
-      const gm =
-        t?.bindModel ??
-        t?.properties?.bindModel ??
-        t?.properties?.graphic?.bindModel ??
-        "";
-      const gd =
-        t?.bindDeviceId ??
-        t?.properties?.bindDeviceId ??
-        t?.properties?.graphic?.bindDeviceId ??
-        "";
-
-      const model2 = normalizeModelKey(gm);
-      const deviceId2 = String(gd || "").trim();
-      if (model2 && deviceId2 && modelMeta?.[model2]?.base) return { model: model2, deviceId: deviceId2 };
+      // B) graphicDisplay binding style
+      const bm = String(t?.bindModel ?? t?.properties?.bindModel ?? "").trim();
+      const bd = String(t?.bindDeviceId ?? t?.properties?.bindDeviceId ?? "").trim();
+      if (bm && bd && modelMeta?.[bm]?.base) return { model: bm, deviceId: bd };
 
       return null;
     },
-    [modelMeta, normalizeModelKey]
+    [modelMeta]
   );
 
   const collectWanted = React.useCallback(() => {
@@ -96,7 +68,6 @@ export default function useDashboardTelemetryPoller({
     for (const t of list) {
       const x = extractBinding(t);
       if (!x) continue;
-      if (!wanted[x.model]) wanted[x.model] = new Set();
       wanted[x.model].add(x.deviceId);
     }
 
@@ -122,8 +93,8 @@ export default function useDashboardTelemetryPoller({
       if (!token) return;
 
       const wanted = collectWanted();
-      const anyWanted = Object.values(wanted).some((s) => s && s.size > 0);
 
+      const anyWanted = Object.values(wanted).some((s) => s && s.size > 0);
       if (!anyWanted) {
         setTelemetryMap((prev) => {
           let changed = false;
@@ -193,7 +164,7 @@ export default function useDashboardTelemetryPoller({
   React.useEffect(() => {
     if (!isPlay) return;
 
-    fetchOnce(); // immediate
+    fetchOnce();
     const ms = Math.max(500, Number(pollMs) || 3000);
 
     const t = setInterval(() => {

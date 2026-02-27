@@ -5,7 +5,7 @@ import { getToken } from "../../../utils/authToken";
 export const MODEL_META = {
   zhc1921: { base: "zhc1921" },
   zhc1661: { base: "zhc1661" },
-  tp4000: { base: "tp4000" }, // safe if you later add
+  tp4000: { base: "tp4000" },
 };
 
 function getAuthHeaders() {
@@ -82,14 +82,41 @@ function readDeviceId(row) {
 }
 
 function listCandidatesForBase(base) {
-  // ✅ Use only tenant-safe endpoints (no /devices, no /device/:id, no /one/:id)
-  if (base === "zhc1921") return ["/zhc1921/my-devices", "/zhc1921/list", "/zhc1921"];
-  if (base === "zhc1661") return ["/zhc1661/my-devices", "/zhc1661/list", "/zhc1661"];
-  if (base === "tp4000") return ["/tp4000/my-devices", "/tp4000/list", "/tp4000"];
-  return [`/${base}/my-devices`, `/${base}/list`, `/${base}`];
+  if (base === "zhc1921") return ["/zhc1921/my-devices"];
+  if (base === "zhc1661") return ["/zhc1661/my-devices"];
+  if (base === "tp4000") return ["/tp4000/my-devices"];
+  return [`/${base}/my-devices`];
 }
 
-export async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
+/**
+ * ✅ COMMON POLLER READER
+ * telemetryMap shape: telemetryMap[modelKey][deviceId] = row
+ */
+export function getRowFromTelemetryMap(telemetryMap, modelKey, deviceId) {
+  if (!telemetryMap || !modelKey || !deviceId) return null;
+
+  const mk = String(modelKey).trim();
+  const id = String(deviceId).trim();
+  if (!mk || !id) return null;
+
+  const direct = telemetryMap?.[mk]?.[id];
+  if (direct) return direct;
+
+  const base = MODEL_META?.[mk]?.base || mk;
+  const byBase = telemetryMap?.[base]?.[id];
+  if (byBase) return byBase;
+
+  return null;
+}
+
+/**
+ * ✅ loadLiveRowForDevice now supports:
+ * loadLiveRowForDevice(modelKey, deviceId, { telemetryMap, signal })
+ */
+export async function loadLiveRowForDevice(modelKey, deviceId, { telemetryMap, signal } = {}) {
+  const fromCommon = getRowFromTelemetryMap(telemetryMap, modelKey, deviceId);
+  if (fromCommon) return fromCommon;
+
   const base = MODEL_META[modelKey]?.base || modelKey;
   const candidates = listCandidatesForBase(base);
 
@@ -97,10 +124,7 @@ export async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) 
     try {
       const data = await apiGet(p, { signal });
       const arr = normalizeArray(data);
-
-      const found =
-        arr.find((r) => String(readDeviceId(r)) === String(deviceId)) || null;
-
+      const found = arr.find((r) => String(readDeviceId(r)) === String(deviceId)) || null;
       if (found) return found;
     } catch {
       // continue
