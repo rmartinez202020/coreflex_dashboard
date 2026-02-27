@@ -1,4 +1,3 @@
-// src/components/GraphicDisplaySettingsModal.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
@@ -12,7 +11,7 @@ const SAMPLE_OPTIONS = [1000, 3000, 6000, 30000, 60000, 300000, 600000];
 // ✅ Graph style is FIXED to LINE (no UI)
 const FIXED_GRAPH_STYLE = "line";
 
-// ✅ Models allowed (labels WITHOUT ZHCxxxx)
+// ✅ Models allowed
 const MODEL_META = {
   zhc1921: { label: "CF-2000", base: "zhc1921" },
   zhc1661: { label: "CF-1600", base: "zhc1661" },
@@ -46,7 +45,6 @@ async function apiGet(path, { signal } = {}) {
   return res.json();
 }
 
-// ✅ Normalize array responses
 function normalizeArray(data) {
   return Array.isArray(data)
     ? data
@@ -57,7 +55,6 @@ function normalizeArray(data) {
     : [];
 }
 
-// ✅ Robust deviceId reader
 function readDeviceId(row) {
   return (
     row?.deviceId ??
@@ -68,46 +65,6 @@ function readDeviceId(row) {
     row?.DEVICE_ID ??
     ""
   );
-}
-
-// ✅ ONLY use /my-devices (this endpoint is confirmed working for you)
-async function loadDevicesForModel(modelKey, { signal } = {}) {
-  const base = MODEL_META[modelKey]?.base || modelKey;
-
-  // ✅ keep it simple & safe (no 403/404/405 spam)
-  const data = await apiGet(`/${base}/my-devices`, { signal });
-  const arr = normalizeArray(data);
-
-  return arr
-    .map((r) => {
-      const deviceId = readDeviceId(r);
-      if (!deviceId) return null;
-
-      return {
-        deviceId: String(deviceId),
-        status: String(r.status ?? r.online ?? "").toLowerCase(),
-        lastSeen: r.lastSeen ?? r.last_seen ?? r.updatedAt ?? r.updated_at,
-        // keep full row too (helps in future)
-        __row: r,
-      };
-    })
-    .filter(Boolean);
-}
-
-// ✅ Live row reader that DOES NOT call legacy endpoints.
-// It simply finds the row from /my-devices.
-async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
-  const list = await loadDevicesForModel(modelKey, { signal });
-
-  const wanted = String(deviceId || "").trim();
-  if (!wanted) return null;
-
-  const found =
-    list.find((d) => String(d.deviceId) === wanted) ||
-    list.find((d) => String(d.deviceId).toLowerCase() === wanted.toLowerCase()) ||
-    null;
-
-  return found ? found.__row || null : null;
 }
 
 function readAiField(row, bindField) {
@@ -136,6 +93,49 @@ function readAiField(row, bindField) {
   return null;
 }
 
+// ✅ COMMON POLLER READER (same idea as loader.js)
+function getRowFromTelemetryMap(telemetryMap, modelKey, deviceId) {
+  if (!telemetryMap || !modelKey || !deviceId) return null;
+
+  const mk = String(modelKey || "").trim();
+  const id = String(deviceId || "").trim();
+  if (!mk || !id) return null;
+
+  const direct = telemetryMap?.[mk]?.[id];
+  if (direct) return direct;
+
+  const base = MODEL_META?.[mk]?.base || mk;
+  const byBase = telemetryMap?.[base]?.[id];
+  if (byBase) return byBase;
+
+  return null;
+}
+
+/**
+ * ✅ NO-SPAM LIVE ROW LOADER
+ * - Prefer telemetryMap (common poller)
+ * - Otherwise ONLY call /{base}/my-devices (the endpoint you confirmed works)
+ */
+async function loadLiveRowForDevice(modelKey, deviceId, { telemetryMap, signal } = {}) {
+  const mk = String(modelKey || "").trim();
+  const id = String(deviceId || "").trim();
+  if (!mk || !id) return null;
+
+  // 1) Common poller (best)
+  const fromCommon = getRowFromTelemetryMap(telemetryMap, mk, id);
+  if (fromCommon) return fromCommon;
+
+  // 2) Fallback: /my-devices only (NO 404/403/405 endpoints)
+  const base = MODEL_META[mk]?.base || mk;
+  const data = await apiGet(`/${base}/my-devices`, { signal });
+  const arr = normalizeArray(data);
+
+  const found =
+    arr.find((r) => String(readDeviceId(r) || "").trim() === id) || null;
+
+  return found;
+}
+
 function formatSampleLabel(ms) {
   if (ms === 1000) return "1s";
   if (ms === 3000) return "3s";
@@ -154,16 +154,19 @@ function normalizeHexColor(v, fallback = "#0c5ac8") {
   const s = String(v || "").trim();
   if (!s) return fallback;
 
-  // allow #RGB / #RRGGBB
   if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(s)) return s;
-
-  // allow bare hex "0c5ac8"
   if (/^[0-9a-f]{6}$/i.test(s)) return `#${s}`;
 
   return fallback;
 }
 
-export default function GraphicDisplaySettingsModal({ open, tank, onClose, onSave }) {
+export default function GraphicDisplaySettingsModal({
+  open,
+  tank,
+  onClose,
+  onSave,
+  telemetryMap = null, // ✅ NEW: pass common poller map here
+}) {
   if (!open) return null;
 
   // -------------------------
@@ -178,7 +181,6 @@ export default function GraphicDisplaySettingsModal({ open, tank, onClose, onSav
   const [yMax, setYMax] = useState(100);
   const [yUnits, setYUnits] = useState("");
 
-  // ✅ line color (saved into tank.lineColor)
   const [lineColor, setLineColor] = useState("#0c5ac8");
 
   // -------------------------
@@ -187,7 +189,7 @@ export default function GraphicDisplaySettingsModal({ open, tank, onClose, onSav
   const [mathFormula, setMathFormula] = useState("");
 
   // -------------------------
-  // RIGHT: tag binding
+  // RIGHT: binding
   // -------------------------
   const [bindModel, setBindModel] = useState("zhc1921");
   const [bindDeviceId, setBindDeviceId] = useState("");
@@ -237,7 +239,6 @@ export default function GraphicDisplaySettingsModal({ open, tank, onClose, onSav
     setDidInitPos(true);
   }, [open, didInitPos]);
 
-  // Load from tank when opening/editing
   useEffect(() => {
     if (!tank) return;
 
@@ -253,7 +254,6 @@ export default function GraphicDisplaySettingsModal({ open, tank, onClose, onSav
     setYUnits(tank.yUnits ?? "");
 
     setLineColor(normalizeHexColor(tank.lineColor ?? "#0c5ac8"));
-
     setMathFormula(tank.mathFormula ?? "");
 
     setBindModel(tank.bindModel ?? "zhc1921");
@@ -273,7 +273,7 @@ export default function GraphicDisplaySettingsModal({ open, tank, onClose, onSav
   }, [yRangeValid, bindDeviceId, bindField]);
 
   // -------------------------
-  // ✅ LIVE VALUE POLL (for Math)
+  // ✅ LIVE VALUE POLL (NO-SPAM)
   // -------------------------
   useEffect(() => {
     if (!open) return;
@@ -292,12 +292,13 @@ export default function GraphicDisplaySettingsModal({ open, tank, onClose, onSav
         setLiveErr("");
 
         const row = await loadLiveRowForDevice(bindModel, bindDeviceId, {
+          telemetryMap, // ✅ use common poller if available
           signal: ctrl.signal,
         });
 
-        const value = row ? readAiField(row, bindField) : null;
-
         if (cancelled) return;
+
+        const value = row ? readAiField(row, bindField) : null;
 
         const num =
           value === null || value === undefined || value === ""
@@ -307,14 +308,10 @@ export default function GraphicDisplaySettingsModal({ open, tank, onClose, onSav
             : Number(value);
 
         setLiveValue(Number.isFinite(num) ? num : value ?? null);
-
-        if (!row) {
-          setLiveErr("No row found for this device in /my-devices.");
-        }
       } catch (e) {
         if (cancelled) return;
         if (String(e?.name || "").toLowerCase().includes("abort")) return;
-        setLiveErr("Could not read live value (check /my-devices).");
+        setLiveErr("Could not read live value (check /my-devices response & fields).");
       }
     };
 
@@ -326,7 +323,7 @@ export default function GraphicDisplaySettingsModal({ open, tank, onClose, onSav
       ctrl.abort();
       window.clearInterval(id);
     };
-  }, [open, bindModel, bindDeviceId, bindField, sampleMs]);
+  }, [open, bindModel, bindDeviceId, bindField, sampleMs, telemetryMap]);
 
   // ✅ DRAG handlers
   const onDragMove = (e) => {
@@ -395,7 +392,6 @@ export default function GraphicDisplaySettingsModal({ open, tank, onClose, onSav
         zIndex: 999999,
       }}
     >
-      {/* MAIN PANEL */}
       <div
         style={{
           position: "fixed",
@@ -409,7 +405,6 @@ export default function GraphicDisplaySettingsModal({ open, tank, onClose, onSav
           overflow: "hidden",
         }}
       >
-        {/* HEADER BAR (DRAG HANDLE) */}
         <div
           onMouseDown={startDrag}
           style={{
@@ -448,7 +443,6 @@ export default function GraphicDisplaySettingsModal({ open, tank, onClose, onSav
           </button>
         </div>
 
-        {/* BODY: 3 columns */}
         <div
           style={{
             display: "grid",
@@ -458,7 +452,6 @@ export default function GraphicDisplaySettingsModal({ open, tank, onClose, onSav
             background: "#f8fafc",
           }}
         >
-          {/* LEFT: Display Settings */}
           <GraphicDisplaySettingsPanel
             title={title}
             setTitle={setTitle}
@@ -478,9 +471,12 @@ export default function GraphicDisplaySettingsModal({ open, tank, onClose, onSav
             setLineColor={setLineColor}
           />
 
-          {/* MIDDLE: Math */}
           <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
-            <GraphicDisplayMathPanel value={liveValue} formula={mathFormula} setFormula={setMathFormula} />
+            <GraphicDisplayMathPanel
+              value={liveValue}
+              formula={mathFormula}
+              setFormula={setMathFormula}
+            />
 
             {liveErr && (
               <div
@@ -499,7 +495,6 @@ export default function GraphicDisplaySettingsModal({ open, tank, onClose, onSav
             )}
           </div>
 
-          {/* RIGHT: Binding + Actions */}
           <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
             <GraphicDisplayBindingPanel
               bindModel={bindModel}
@@ -512,7 +507,6 @@ export default function GraphicDisplaySettingsModal({ open, tank, onClose, onSav
               formatSampleLabel={formatSampleLabel}
             />
 
-            {/* Actions */}
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
               <button
                 onClick={onClose}
@@ -552,7 +546,9 @@ export default function GraphicDisplaySettingsModal({ open, tank, onClose, onSav
                   padding: "10px 14px",
                   borderRadius: 10,
                   border: "1px solid #bfe6c8",
-                  background: canApply ? "linear-gradient(180deg,#bff2c7,#6fdc89)" : "#e5e7eb",
+                  background: canApply
+                    ? "linear-gradient(180deg,#bff2c7,#6fdc89)"
+                    : "#e5e7eb",
                   color: "#0b3b18",
                   fontWeight: 900,
                   cursor: canApply ? "pointer" : "not-allowed",
