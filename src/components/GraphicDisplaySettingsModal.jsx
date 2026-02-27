@@ -1,3 +1,4 @@
+// src/components/GraphicDisplaySettingsModal.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
@@ -45,90 +46,78 @@ async function apiGet(path, { signal } = {}) {
   return res.json();
 }
 
-async function loadDevicesForModel(modelKey, { signal } = {}) {
-  const base = MODEL_META[modelKey]?.base || modelKey;
-  const candidates =
-    base === "zhc1921"
-      ? ["/zhc1921/my-devices", "/zhc1921/devices", "/zhc1921/list", "/zhc1921"]
-      : ["/zhc1661/my-devices", "/zhc1661/devices", "/zhc1661/list", "/zhc1661"];
-
-  let lastErr = null;
-
-  for (const p of candidates) {
-    try {
-      const data = await apiGet(p, { signal });
-
-      const arr = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.devices)
-        ? data.devices
-        : Array.isArray(data?.rows)
-        ? data.rows
-        : [];
-
-      const out = arr
-        .map((r) => {
-          const deviceId =
-            r.deviceId ??
-            r.device_id ??
-            r.id ??
-            r.imei ??
-            r.IMEI ??
-            r.DEVICE_ID ??
-            "";
-
-          if (!deviceId) return null;
-
-          return {
-            deviceId: String(deviceId),
-            status: String(r.status ?? r.online ?? "").toLowerCase(),
-            lastSeen: r.lastSeen ?? r.last_seen ?? r.updatedAt ?? r.updated_at,
-          };
-        })
-        .filter(Boolean);
-
-      return out;
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-
-  throw lastErr || new Error("No device endpoint matched");
+// ✅ normalize API response to array
+function normalizeArray(data) {
+  return Array.isArray(data)
+    ? data
+    : Array.isArray(data?.devices)
+    ? data.devices
+    : Array.isArray(data?.rows)
+    ? data.rows
+    : [];
 }
 
-async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
+// ✅ read device id robustly
+function readDeviceId(row) {
+  return (
+    row?.deviceId ??
+    row?.device_id ??
+    row?.id ??
+    row?.imei ??
+    row?.IMEI ??
+    row?.DEVICE_ID ??
+    ""
+  );
+}
+
+/**
+ * ✅ ONLY use /{base}/my-devices
+ * This avoids the 403/404/405 spam you saw.
+ */
+async function loadDevicesForModel(modelKey, { signal } = {}) {
   const base = MODEL_META[modelKey]?.base || modelKey;
 
-  const directCandidates =
-    base === "zhc1921"
-      ? [
-          `/zhc1921/device/${deviceId}`,
-          `/zhc1921/devices/${deviceId}`,
-          `/zhc1921/${deviceId}`,
-          `/zhc1921/one/${deviceId}`,
-        ]
-      : [
-          `/zhc1661/device/${deviceId}`,
-          `/zhc1661/devices/${deviceId}`,
-          `/zhc1661/${deviceId}`,
-          `/zhc1661/one/${deviceId}`,
-        ];
+  // ✅ ONLY endpoint we trust
+  const path = `/${base}/my-devices`;
 
-  for (const p of directCandidates) {
-    try {
-      const r = await apiGet(p, { signal });
-      return r?.row ?? r?.device ?? r;
-    } catch (e) {
-      // continue
-    }
-  }
+  const data = await apiGet(path, { signal });
+  const arr = normalizeArray(data);
 
-  // fallback: just confirm it exists; caller can do list-raw fallback if needed
-  const list = await loadDevicesForModel(modelKey, { signal });
-  const found = list.find((d) => String(d.deviceId) === String(deviceId));
-  if (!found) return null;
+  return arr
+    .map((r) => {
+      const deviceId = readDeviceId(r);
+      if (!deviceId) return null;
 
-  return null;
+      return {
+        deviceId: String(deviceId),
+        status: String(r.status ?? r.online ?? "").toLowerCase(),
+        lastSeen: r.lastSeen ?? r.last_seen ?? r.updatedAt ?? r.updated_at,
+      };
+    })
+    .filter(Boolean);
+}
+
+/**
+ * ✅ ONLY use /{base}/my-devices and find the row
+ * Returns the full row (with ai1..ai4 etc) so Math preview works.
+ */
+async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
+  const base = MODEL_META[modelKey]?.base || modelKey;
+  const id = String(deviceId || "").trim();
+  if (!id) return null;
+
+  const data = await apiGet(`/${base}/my-devices`, { signal });
+  const arr = normalizeArray(data);
+
+  const found =
+    arr.find((r) => String(readDeviceId(r)).trim() === id) ||
+    arr.find(
+      (r) =>
+        String(readDeviceId(r)).trim().toLowerCase() === id.toLowerCase()
+    ) ||
+    null;
+
+  return found;
 }
 
 function readAiField(row, bindField) {
@@ -182,6 +171,31 @@ function normalizeHexColor(v, fallback = "#0c5ac8") {
   if (/^[0-9a-f]{6}$/i.test(s)) return `#${s}`;
 
   return fallback;
+}
+
+// ✅ stronger number parsing for live value (handles "11,974.0", "11974", etc)
+function toFiniteNumber(v) {
+  if (v === null || v === undefined || v === "") return null;
+  if (typeof v === "number") return Number.isFinite(v) ? v : null;
+
+  const s = String(v).trim();
+  if (!s) return null;
+
+  // Remove spaces
+  const t = s.replace(/\s+/g, "");
+
+  // If contains both comma and dot, assume comma = thousands separator
+  // Example: "11,974.0" -> "11974.0"
+  let cleaned = t;
+  if (cleaned.includes(",") && cleaned.includes(".")) {
+    cleaned = cleaned.replace(/,/g, "");
+  } else if (cleaned.includes(",") && !cleaned.includes(".")) {
+    // If only comma, assume comma is decimal separator: "11974,5" -> "11974.5"
+    cleaned = cleaned.replace(/,/g, ".");
+  }
+
+  const n = Number(cleaned);
+  return Number.isFinite(n) ? n : null;
 }
 
 export default function GraphicDisplaySettingsModal({
@@ -303,6 +317,7 @@ export default function GraphicDisplaySettingsModal({
 
   // -------------------------
   // ✅ LIVE VALUE POLL (for Math)
+  // ✅ Now uses ONLY /{base}/my-devices (no more 403/404/405 spam)
   // -------------------------
   useEffect(() => {
     if (!open) return;
@@ -324,76 +339,16 @@ export default function GraphicDisplaySettingsModal({
           signal: ctrl.signal,
         });
 
-        let value = null;
-
-        if (row) {
-          value = readAiField(row, bindField);
-        } else {
-          // fallback: call list raw and find by id (some list endpoints include AI fields)
-          const base = MODEL_META[bindModel]?.base || bindModel;
-
-          const rawCandidates =
-            base === "zhc1921"
-              ? [
-                  "/zhc1921/devices",
-                  "/zhc1921/my-devices",
-                  "/zhc1921/list",
-                  "/zhc1921",
-                ]
-              : [
-                  "/zhc1661/devices",
-                  "/zhc1661/my-devices",
-                  "/zhc1661/list",
-                  "/zhc1661",
-                ];
-
-          let rawArr = [];
-          for (const p of rawCandidates) {
-            try {
-              const data = await apiGet(p, { signal: ctrl.signal });
-              rawArr = Array.isArray(data)
-                ? data
-                : Array.isArray(data?.devices)
-                ? data.devices
-                : Array.isArray(data?.rows)
-                ? data.rows
-                : [];
-              if (rawArr.length) break;
-            } catch (e) {
-              // continue
-            }
-          }
-
-          const rawRow =
-            rawArr.find((r) => {
-              const id =
-                r.deviceId ??
-                r.device_id ??
-                r.id ??
-                r.imei ??
-                r.IMEI ??
-                r.DEVICE_ID ??
-                "";
-              return String(id) === String(bindDeviceId);
-            }) || null;
-
-          if (rawRow) value = readAiField(rawRow, bindField);
-        }
+        const value = row ? readAiField(row, bindField) : null;
 
         if (cancelled) return;
 
-        const num =
-          value === null || value === undefined || value === ""
-            ? null
-            : typeof value === "number"
-            ? value
-            : Number(value);
-
-        setLiveValue(Number.isFinite(num) ? num : value ?? null);
+        const num = toFiniteNumber(value);
+        setLiveValue(num !== null ? num : value ?? null);
       } catch (e) {
         if (cancelled) return;
         if (String(e?.name || "").toLowerCase().includes("abort")) return;
-        setLiveErr("Could not read live value (check API endpoint / fields).");
+        setLiveErr("Could not read live value (my-devices).");
       }
     };
 
@@ -441,9 +396,7 @@ export default function GraphicDisplaySettingsModal({
     if (e.button !== 0) return;
 
     const t = e.target;
-    if (
-      t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")
-    ) {
+    if (t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")) {
       return;
     }
 
