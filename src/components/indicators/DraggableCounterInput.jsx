@@ -71,6 +71,9 @@ export default function DraggableCounterInput({
   isSelected,
   onSelect,
   onStartDragObject,
+
+  // ✅ NEW: preferred reset hook (DashboardCanvas already provides this)
+  onReset,
 }) {
   const handleDragStart = (e) => {
     e.dataTransfer.setData("shape", "counterInput");
@@ -90,10 +93,6 @@ export default function DraggableCounterInput({
   // ✅ override display so user sees immediate effect
   const [overrideCount, setOverrideCount] = React.useState(null);
 
-  // ✅ NEW: backend counter row (includes count + run_seconds)
-  const [serverCounter, setServerCounter] = React.useState(null);
-  const serverRef = React.useRef({ loading: false });
-
   const widgetId = String(id || tank?.id || "").trim();
 
   // ✅ Always send dashboard_id string (main dashboard -> "main")
@@ -111,58 +110,8 @@ export default function DraggableCounterInput({
   };
 
   // ===============================
-  // ✅ NEW: Poll backend counter row (count + run_seconds)
+  // ✅ RESET (NO polling here)
   // ===============================
-  const fetchServerCounter = React.useCallback(async () => {
-    if (!widgetId) return;
-    if (serverRef.current.loading) return;
-
-    serverRef.current.loading = true;
-    try {
-      const token = String(getToken() || "").trim();
-      if (!token) throw new Error("Missing auth token");
-
-      const qs = dashForBackend
-        ? `?dashboard_id=${encodeURIComponent(dashForBackend)}`
-        : "";
-      const res = await fetch(
-        `${API_URL}/device-counters/by-widget/${encodeURIComponent(widgetId)}${qs}`,
-        { headers: getAuthHeaders() }
-      );
-
-      if (res.status === 404) {
-        setServerCounter(null);
-        return;
-      }
-
-      if (!res.ok) {
-        // don't spam alerts in play mode; just keep last known state
-        return;
-      }
-
-      const data = await res.json();
-      setServerCounter(data || null);
-    } catch (e) {
-      // silent; keep last
-    } finally {
-      serverRef.current.loading = false;
-    }
-  }, [widgetId, dashForBackend]);
-
-  React.useEffect(() => {
-    // Only poll when widget exists AND dashboard is in play mode
-    if (!widgetId) return;
-    if (dashboardMode !== "play") return;
-
-    fetchServerCounter();
-    const t = setInterval(() => {
-      if (document.hidden) return;
-      fetchServerCounter();
-    }, 2000); // matches your backend tick default (2s)
-
-    return () => clearInterval(t);
-  }, [widgetId, dashboardMode, fetchServerCounter]);
-
   const onResetClick = async (e) => {
     e.preventDefault();
     e.stopPropagation();
@@ -177,6 +126,14 @@ export default function DraggableCounterInput({
     showStatus("Reset!");
 
     try {
+      // ✅ Prefer the parent reset (DashboardCanvas). It will refresh counters correctly.
+      if (typeof onReset === "function") {
+        await onReset(widgetId);
+        window.setTimeout(() => setOverrideCount(null), 350);
+        return;
+      }
+
+      // ✅ fallback (if used outside DashboardCanvas)
       const token = String(getToken() || "").trim();
       if (!token) throw new Error("Missing auth token");
 
@@ -192,20 +149,11 @@ export default function DraggableCounterInput({
       const j = await res.json().catch(() => ({}));
       if (!res.ok) throw new Error(j?.detail || `Reset failed (${res.status})`);
 
-      // ✅ update local serverCounter immediately (count + run_seconds reset)
-      setServerCounter((prev) =>
-        prev
-          ? { ...prev, count: 0, run_seconds: 0, prev01: j?.prev01 ?? prev.prev01 }
-          : prev
-      );
-
-      // ✅ keep override briefly; polling will update real value
-      window.setTimeout(() => setOverrideCount(null), 400);
+      window.setTimeout(() => setOverrideCount(null), 350);
     } catch (err) {
       console.error("❌ counter reset error:", err);
       showStatus("Failed");
-      // revert override if failed
-      window.setTimeout(() => setOverrideCount(null), 300);
+      window.setTimeout(() => setOverrideCount(null), 250);
       alert(err?.message || "Failed to reset counter");
     } finally {
       setResetting(false);
@@ -224,13 +172,11 @@ export default function DraggableCounterInput({
       ? Math.max(1, Math.min(10, digitsRaw))
       : 4;
 
-    // ✅ Prefer backend count in PLAY mode
-    const serverCount = Number(serverCounter?.count ?? NaN);
-
+    // ✅ NO fetch here. Read from widget props/state (DashboardCanvas updates these in PLAY).
     const nRaw =
-      Number.isFinite(serverCount) && dashboardMode === "play"
-        ? serverCount
-        : props?.count ?? tank?.value ?? tank?.count ?? count ?? value ?? 0;
+      dashboardMode === "play"
+        ? (props?.count ?? tank?.count ?? count ?? value ?? 0)
+        : (props?.count ?? tank?.count ?? count ?? value ?? 0);
 
     const n = Number(nRaw);
     const safe = Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : 0;
@@ -238,13 +184,17 @@ export default function DraggableCounterInput({
     const effective = overrideCount !== null ? overrideCount : safe;
     const display = String(effective).padStart(digits, "0");
 
-    // ✅ Running Hours (PLAY): show "Hrs : Minutes" then values under it (like your photo)
-    const runSeconds = Number(serverCounter?.run_seconds ?? 0);
+    // ✅ Running Hours (PLAY): also from widget props (DashboardCanvas should update run_seconds)
+    const runSecondsRaw =
+      dashboardMode === "play"
+        ? (props?.run_seconds ?? props?.runSeconds ?? 0)
+        : 0;
+
+    const runSeconds = Number(runSecondsRaw) || 0;
     const showRun = dashboardMode === "play";
     const { hrsStr, minsStr } = runSecondsToHrsMinParts(runSeconds);
 
-    // (keep old helper for tooltip / consistency)
-    const legacyRunText = formatRunSecondsToHrsMin(serverCounter?.run_seconds);
+    const legacyRunText = formatRunSecondsToHrsMin(runSeconds);
 
     return (
       <div
@@ -273,8 +223,6 @@ export default function DraggableCounterInput({
           alignItems: "center",
           padding: 8,
           userSelect: "none",
-
-          // ✅ IMPORTANT: no "move" cursor in play/launch
           cursor: "default",
         }}
         title={title}
@@ -291,8 +239,6 @@ export default function DraggableCounterInput({
             whiteSpace: "nowrap",
             overflow: "hidden",
             textOverflow: "ellipsis",
-
-            // ✅ cursor move ONLY in edit mode
             cursor: isEdit ? "move" : "default",
           }}
         >
@@ -324,7 +270,7 @@ export default function DraggableCounterInput({
           {display}
         </div>
 
-        {/* ✅ UPDATED: RUNNING HOURS BLOCK (Hrs : Minutes + values under) */}
+        {/* RUNNING HOURS */}
         {showRun ? (
           <div
             style={{
@@ -374,7 +320,7 @@ export default function DraggableCounterInput({
           <div style={{ height: 36, marginBottom: 6 }} />
         )}
 
-        {/* STATUS (small feedback) */}
+        {/* STATUS */}
         {statusMsg ? (
           <div
             style={{
@@ -413,10 +359,7 @@ export default function DraggableCounterInput({
             color: "white",
             fontWeight: 800,
             fontSize: 13,
-
-            // ✅ pointer ONLY on reset button
             cursor: resetting ? "not-allowed" : "pointer",
-
             boxShadow: "0 2px 0 rgba(0,0,0,0.25)",
             opacity: resetting ? 0.85 : 1,
           }}

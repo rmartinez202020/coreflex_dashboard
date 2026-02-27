@@ -33,8 +33,6 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-// ✅ best-effort dashboard id resolver (safe fallbacks)
-// ✅ UPDATED: prefer activeDashboardId first, then dashboardId, then selectedTank, then first widget
 function resolveDashboardId({ activeDashboardId, dashboardId, selectedTank, droppedTanks }) {
   const z = String(activeDashboardId || "").trim();
   if (z) return z;
@@ -94,16 +92,13 @@ export default function DashboardCanvas({
   guides,
   onOpenDisplaySettings,
   onOpenGraphicDisplaySettings,
-
   onOpenAlarmLog,
   onLaunchAlarmLog,
-
   onOpenIndicatorSettings,
   onOpenStatusTextSettings,
   onOpenBlinkingAlarmSettings,
   onOpenStateImageSettings,
   onOpenCounterInputSettings,
-
   activeDashboardId,
   dashboardId,
 }) {
@@ -111,7 +106,6 @@ export default function DashboardCanvas({
 
   // =====================================================
   // ✅ ONE POLL PER DASHBOARD (Play/Launch): shared telemetryMap
-  // FIX: call hook with correct signature (isPlay, API_URL, headers, etc.)
   // =====================================================
   const { telemetryMap } = useDashboardTelemetryPoller({
     isPlay,
@@ -133,6 +127,7 @@ export default function DashboardCanvas({
 
   // =====================================================
   // ✅ PLAY MODE: pull live counter values from backend
+  // ✅ NOW stores { count, run_seconds } into widget.properties
   // =====================================================
   const countersRef = React.useRef({ loading: false });
 
@@ -164,11 +159,16 @@ export default function DashboardCanvas({
       const rows = await res.json();
       const list = Array.isArray(rows) ? rows : [];
 
+      // ✅ map[widgetId] = { count, run_seconds }
       const map = {};
       for (const r of list) {
         const wid = String(r?.widget_id || r?.widgetId || "").trim();
         if (!wid) continue;
-        map[wid] = Number(r?.count ?? 0) || 0;
+
+        map[wid] = {
+          count: Number(r?.count ?? 0) || 0,
+          run_seconds: Number(r?.run_seconds ?? 0) || 0,
+        };
       }
 
       setDroppedTanks((prev) => {
@@ -181,19 +181,24 @@ export default function DashboardCanvas({
           const wid = String(t.id || "").trim();
           if (!wid) return t;
 
-          if (map[wid] === undefined) return t;
+          const incomingObj = map[wid];
+          if (!incomingObj) return t;
 
-          const current = Number(t?.properties?.count ?? 0) || 0;
-          const incoming = Number(map[wid] ?? 0) || 0;
+          const currentCount = Number(t?.properties?.count ?? 0) || 0;
+          const currentRun = Number(t?.properties?.run_seconds ?? 0) || 0;
 
-          if (current === incoming) return t;
+          const incomingCount = Number(incomingObj?.count ?? 0) || 0;
+          const incomingRun = Number(incomingObj?.run_seconds ?? 0) || 0;
+
+          if (currentCount === incomingCount && currentRun === incomingRun) return t;
 
           changed = true;
           return {
             ...t,
             properties: {
               ...(t.properties || {}),
-              count: incoming,
+              count: incomingCount,
+              run_seconds: incomingRun, // ✅ NEW
             },
           };
         });
@@ -205,7 +210,14 @@ export default function DashboardCanvas({
     } finally {
       countersRef.current.loading = false;
     }
-  }, [isPlay, activeDashboardId, dashboardId, selectedTank, droppedTanks, setDroppedTanks]);
+  }, [
+    isPlay,
+    activeDashboardId,
+    dashboardId,
+    selectedTank,
+    droppedTanks,
+    setDroppedTanks,
+  ]);
 
   React.useEffect(() => {
     if (!isPlay) return;
@@ -468,7 +480,6 @@ export default function DashboardCanvas({
               const h = tank.h ?? tank.height ?? 70;
               const isOn = tank.isOn ?? true;
 
-              // ✅ IMPORTANT: resolve dashboard id (needed for backend DO uniqueness)
               const resolvedDash = resolveDashboardId({
                 activeDashboardId,
                 dashboardId,
@@ -528,13 +539,7 @@ export default function DashboardCanvas({
                   }}
                 >
                   <div className="flex flex-col items-center">
-
-                    <DraggableStandardTank
-  tank={tank}
-  isPlay={isPlay}
-  telemetryMap={telemetryMap}
-/>
-
+                    <DraggableStandardTank tank={tank} isPlay={isPlay} telemetryMap={telemetryMap} />
                   </div>
                 </DraggableDroppedTank>
               );
@@ -552,14 +557,12 @@ export default function DashboardCanvas({
                   }}
                 >
                   <div className="flex flex-col items-center">
-
                     <DraggableHorizontalTank
-  tank={tank}
-  onChange={(nextTank) => commonProps.onUpdate?.(nextTank)}
-  isPlay={isPlay}
-  telemetryMap={telemetryMap}
-/>
-
+                      tank={tank}
+                      onChange={(nextTank) => commonProps.onUpdate?.(nextTank)}
+                      isPlay={isPlay}
+                      telemetryMap={telemetryMap}
+                    />
                   </div>
                 </DraggableDroppedTank>
               );
@@ -577,19 +580,12 @@ export default function DashboardCanvas({
                   }}
                 >
                   <div className="flex flex-col items-center">
-
-                    <DraggableVerticalTank
-  tank={tank}
-  isPlay={isPlay}
-  telemetryMap={telemetryMap}
-/>
-
+                    <DraggableVerticalTank tank={tank} isPlay={isPlay} telemetryMap={telemetryMap} />
                   </div>
                 </DraggableDroppedTank>
               );
             }
 
-            // ✅ FIXED: render the real silo widget
             if (tank.shape === "siloTank") {
               return (
                 <DraggableDroppedTank
@@ -620,7 +616,6 @@ export default function DashboardCanvas({
               );
             }
 
-            // ✅ FIX: pass telemetryMap so LED can read live telemetry
             if (tank.shape === "ledCircle") {
               return (
                 <DraggableDroppedTank
@@ -629,11 +624,7 @@ export default function DashboardCanvas({
                     if (!isPlay) onOpenIndicatorSettings?.(tank);
                   }}
                 >
-                  <DraggableLedCircle
-                    tank={tank}
-                    isPlay={isPlay}
-                    telemetryMap={telemetryMap} // ✅ REQUIRED
-                  />
+                  <DraggableLedCircle tank={tank} isPlay={isPlay} telemetryMap={telemetryMap} />
                 </DraggableDroppedTank>
               );
             }
@@ -672,13 +663,7 @@ export default function DashboardCanvas({
                     if (!isPlay) onOpenStateImageSettings?.(tank);
                   }}
                 >
-                  <DraggableStateImage
-  tank={tank}
-  isPlay={isPlay}
-  telemetryMap={telemetryMap}   // ✅ ADD THIS
-  sensorsData={sensorsData}
-/>
-
+                  <DraggableStateImage tank={tank} isPlay={isPlay} telemetryMap={telemetryMap} sensorsData={sensorsData} />
                 </DraggableDroppedTank>
               );
             }
