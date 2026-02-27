@@ -583,7 +583,9 @@ export default function DashboardCanvas({
                   }}
                 >
                   <div className="flex flex-col items-center">
-                    <DraggableSiloTank tank={tank} />
+
+                    <DraggableSiloTank tank={tank} isPlay={isPlay} telemetryMap={telemetryMap} />
+
                   </div>
                 </DraggableDroppedTank>
               );

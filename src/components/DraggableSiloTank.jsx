@@ -1,81 +1,8 @@
 // src/components/DraggableSiloTank.jsx
-import React, { useEffect, useMemo, useState } from "react";
-import { API_URL } from "../config/api";
-import { getToken } from "../utils/authToken";
+import React, { useMemo } from "react";
 import { SiloTank } from "./ProTankIconSilo";
 
-// ✅ Models allowed
-const MODEL_META = {
-  zhc1921: { base: "zhc1921" },
-  zhc1661: { base: "zhc1661" },
-};
-
-function getAuthHeaders() {
-  const token = String(getToken() || "").trim();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-function withNoCache(path) {
-  const sep = path.includes("?") ? "&" : "?";
-  return `${path}${sep}_ts=${Date.now()}`;
-}
-async function apiGet(path, { signal } = {}) {
-  const res = await fetch(`${API_URL}${withNoCache(path)}`, {
-    method: "GET",
-    headers: {
-      ...getAuthHeaders(),
-      "Cache-Control": "no-cache",
-      Pragma: "no-cache",
-    },
-    cache: "no-store",
-    signal,
-  });
-  if (!res.ok) throw new Error(`GET ${path} failed (${res.status})`);
-  return res.json();
-}
-function normalizeList(data) {
-  return Array.isArray(data)
-    ? data
-    : Array.isArray(data?.devices)
-    ? data.devices
-    : Array.isArray(data?.rows)
-    ? data.rows
-    : [];
-}
-
-async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
-  const base = MODEL_META[modelKey]?.base || modelKey;
-
-  const listCandidates =
-    base === "zhc1661"
-      ? ["/zhc1661/my-devices", "/zhc1661/list", "/zhc1661"]
-      : ["/zhc1921/my-devices", "/zhc1921/list", "/zhc1921"];
-
-  for (const p of listCandidates) {
-    try {
-      const data = await apiGet(p, { signal });
-      const arr = normalizeList(data);
-
-      const hit =
-        arr.find((r) => {
-          const id =
-            r.deviceId ??
-            r.device_id ??
-            r.id ??
-            r.imei ??
-            r.IMEI ??
-            r.DEVICE_ID ??
-            "";
-          return String(id) === String(deviceId);
-        }) || null;
-
-      if (hit) return hit;
-    } catch {
-      // continue
-    }
-  }
-  return null;
-}
-
+// ✅ Convert AI field from telemetry row (ai1..ai4 etc)
 function readAiField(row, bindField) {
   if (!row || !bindField) return null;
   const f = String(bindField).toLowerCase();
@@ -97,6 +24,24 @@ function readAiField(row, bindField) {
   const extra = [`ai_${n}`, `AI_${n}`, `ai-${n}`, `AI-${n}`];
   for (const k of extra) {
     if (row[k] !== undefined) return row[k];
+  }
+
+  return null;
+}
+
+// ✅ Get row from shared telemetryMap (telemetryMap[model][deviceId] = row)
+function getTelemetryRow(telemetryMap, model, deviceId) {
+  const id = String(deviceId || "").trim();
+  if (!telemetryMap || !id) return null;
+
+  const m = String(model || "").trim();
+
+  // Preferred: explicit model bucket
+  if (m && telemetryMap?.[m]?.[id]) return telemetryMap[m][id];
+
+  // Fallback: scan all models (for older widgets or mismatched model storage)
+  for (const mk of Object.keys(telemetryMap || {})) {
+    if (telemetryMap?.[mk]?.[id]) return telemetryMap[mk][id];
   }
 
   return null;
@@ -172,7 +117,15 @@ function ensureAlphaHex(hex, alphaHex = "88") {
   return s;
 }
 
-export default function DraggableSiloTank({ tank }) {
+/**
+ * DraggableSiloTank
+ * ✅ NOW uses shared telemetryMap (NO fetch, NO interval)
+ * ✅ Live updates ONLY in Play/Launch (isPlay=true)
+ *
+ * Binding expected (existing):
+ * props.bindModel, props.bindDeviceId, props.bindField (ai1..ai4)
+ */
+export default function DraggableSiloTank({ tank, isPlay = false, telemetryMap = null }) {
   const props = tank?.properties || {};
   const scale = tank?.scale || 1;
 
@@ -188,7 +141,7 @@ export default function DraggableSiloTank({ tank }) {
 
   const materialColor = ensureAlphaHex(props.materialColor || "#00ff00", "88");
 
-  const bindModel = props.bindModel || "zhc1921";
+  const bindModel = String(props.bindModel || "zhc1921").trim();
   const bindDeviceId = String(props.bindDeviceId || "").trim();
   const bindField = String(props.bindField || "ai1").trim();
 
@@ -196,55 +149,38 @@ export default function DraggableSiloTank({ tank }) {
 
   const hasBinding = !!bindDeviceId && !!bindField;
 
-  const [liveValue, setLiveValue] = useState(null);
-  const [outputValue, setOutputValue] = useState(null);
+  // ✅ Live row from common poller (PLAY only)
+  const telemetryRow = useMemo(() => {
+    if (!isPlay) return null;
+    if (!hasBinding) return null;
+    return getTelemetryRow(telemetryMap, bindModel, bindDeviceId);
+  }, [isPlay, hasBinding, telemetryMap, bindModel, bindDeviceId]);
 
-  useEffect(() => {
-    if (!hasBinding) {
-      setLiveValue(null);
-      setOutputValue(null);
-      return;
-    }
+  const backendStatus = String(telemetryRow?.status || "").trim().toLowerCase();
+  const deviceIsOnline = backendStatus ? backendStatus === "online" : true;
 
-    let cancelled = false;
-    const ctrl = new AbortController();
+  // ✅ raw analog value
+  const liveValue = useMemo(() => {
+    if (!isPlay) return null;            // ✅ no live in edit mode
+    if (!hasBinding) return null;
+    if (!deviceIsOnline) return null;
 
-    const tick = async () => {
-      try {
-        const row = await loadLiveRowForDevice(bindModel, bindDeviceId, {
-          signal: ctrl.signal,
-        });
+    const raw = telemetryRow ? readAiField(telemetryRow, bindField) : null;
 
-        const raw = row ? readAiField(row, bindField) : null;
+    const num =
+      raw === null || raw === undefined || raw === ""
+        ? null
+        : typeof raw === "number"
+        ? raw
+        : Number(raw);
 
-        const num =
-          raw === null || raw === undefined || raw === ""
-            ? null
-            : typeof raw === "number"
-            ? raw
-            : Number(raw);
+    return Number.isFinite(num) ? num : null;
+  }, [isPlay, hasBinding, deviceIsOnline, telemetryRow, bindField]);
 
-        const safeLive = Number.isFinite(num) ? num : null;
-        const out = computeMathOutput(safeLive, formula);
-
-        if (cancelled) return;
-        setLiveValue(safeLive);
-        setOutputValue(out);
-      } catch (e) {
-        if (cancelled) return;
-        if (String(e?.name || "").toLowerCase().includes("abort")) return;
-      }
-    };
-
-    tick();
-    const id = window.setInterval(tick, 2000);
-
-    return () => {
-      cancelled = true;
-      ctrl.abort();
-      window.clearInterval(id);
-    };
-  }, [hasBinding, bindModel, bindDeviceId, bindField, formula]);
+  const outputValue = useMemo(() => {
+    if (!isPlay) return null;
+    return computeMathOutput(liveValue, formula);
+  }, [isPlay, liveValue, formula]);
 
   const numericOutput = useMemo(() => {
     const v = outputValue;
@@ -268,17 +204,15 @@ export default function DraggableSiloTank({ tank }) {
   // ✅ remove .00 (always)
   const outputText = useMemo(() => {
     if (!hasBinding) return "--";
+    if (!isPlay) return "--"; // ✅ freeze in edit mode (no polling)
+    if (!deviceIsOnline) return "--";
+
     if (typeof outputValue === "string") return outputValue || "--";
 
     const n = Number(outputValue);
     if (!Number.isFinite(n)) return "--";
     return String(Math.round(n));
-  }, [hasBinding, outputValue]);
-
-  // ✅ bigger number (this affects the bottom label size because ProTankIconSilo uses the text you pass)
-  // We pass a "styled" version by padding with spaces? NO — better: keep value same and let SVG handle size.
-  // So we do NOT change title here; we just keep title normal.
-  // (Your bottom number size should be changed in ProTankIconSilo.jsx fontSize, but leaving this file clean.)
+  }, [hasBinding, isPlay, deviceIsOnline, outputValue]);
 
   return (
     <div style={{ textAlign: "center", pointerEvents: "none" }}>
@@ -286,7 +220,7 @@ export default function DraggableSiloTank({ tank }) {
         <div
           style={{
             marginBottom: 4,
-            fontSize: `${16 * scale}px`, // ✅ keep title NOT bigger
+            fontSize: `${16 * scale}px`,
             fontWeight: 600,
             color: "#111827",
             lineHeight: 1.1,
@@ -306,7 +240,6 @@ export default function DraggableSiloTank({ tank }) {
             showPercentText={true}
             percentText={`${Math.round(levelPct)}%`}
             percentTextColor="#111827"
-            // ✅ bottom output (value + unit)
             showBottomText={true}
             bottomText={outputText}
             bottomUnit={unit}
@@ -315,8 +248,7 @@ export default function DraggableSiloTank({ tank }) {
         </div>
       </div>
 
-      {/* ✅ OUTPUT: keep (optional) */}
-      {/* If you ONLY want the bottom label, delete this block. */}
+      {/* hidden (kept) */}
       <div
         style={{
           marginTop: 2,
@@ -324,7 +256,7 @@ export default function DraggableSiloTank({ tank }) {
           fontSize: `${18 * scale}px`,
           fontWeight: 700,
           color: "#111827",
-          display: "none", // ✅ hide because we show it on the bottom label now
+          display: "none",
         }}
       >
         {outputText}
