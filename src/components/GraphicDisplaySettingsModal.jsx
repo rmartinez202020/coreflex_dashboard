@@ -46,7 +46,7 @@ async function apiGet(path, { signal } = {}) {
   return res.json();
 }
 
-// ✅ normalize API response to array
+// ✅ Normalize array responses
 function normalizeArray(data) {
   return Array.isArray(data)
     ? data
@@ -57,7 +57,7 @@ function normalizeArray(data) {
     : [];
 }
 
-// ✅ read device id robustly
+// ✅ Robust deviceId reader
 function readDeviceId(row) {
   return (
     row?.deviceId ??
@@ -70,17 +70,12 @@ function readDeviceId(row) {
   );
 }
 
-/**
- * ✅ ONLY use /{base}/my-devices
- * This avoids the 403/404/405 spam you saw.
- */
+// ✅ ONLY use /my-devices (this endpoint is confirmed working for you)
 async function loadDevicesForModel(modelKey, { signal } = {}) {
   const base = MODEL_META[modelKey]?.base || modelKey;
 
-  // ✅ ONLY endpoint we trust
-  const path = `/${base}/my-devices`;
-
-  const data = await apiGet(path, { signal });
+  // ✅ keep it simple & safe (no 403/404/405 spam)
+  const data = await apiGet(`/${base}/my-devices`, { signal });
   const arr = normalizeArray(data);
 
   return arr
@@ -92,32 +87,27 @@ async function loadDevicesForModel(modelKey, { signal } = {}) {
         deviceId: String(deviceId),
         status: String(r.status ?? r.online ?? "").toLowerCase(),
         lastSeen: r.lastSeen ?? r.last_seen ?? r.updatedAt ?? r.updated_at,
+        // keep full row too (helps in future)
+        __row: r,
       };
     })
     .filter(Boolean);
 }
 
-/**
- * ✅ ONLY use /{base}/my-devices and find the row
- * Returns the full row (with ai1..ai4 etc) so Math preview works.
- */
+// ✅ Live row reader that DOES NOT call legacy endpoints.
+// It simply finds the row from /my-devices.
 async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
-  const base = MODEL_META[modelKey]?.base || modelKey;
-  const id = String(deviceId || "").trim();
-  if (!id) return null;
+  const list = await loadDevicesForModel(modelKey, { signal });
 
-  const data = await apiGet(`/${base}/my-devices`, { signal });
-  const arr = normalizeArray(data);
+  const wanted = String(deviceId || "").trim();
+  if (!wanted) return null;
 
   const found =
-    arr.find((r) => String(readDeviceId(r)).trim() === id) ||
-    arr.find(
-      (r) =>
-        String(readDeviceId(r)).trim().toLowerCase() === id.toLowerCase()
-    ) ||
+    list.find((d) => String(d.deviceId) === wanted) ||
+    list.find((d) => String(d.deviceId).toLowerCase() === wanted.toLowerCase()) ||
     null;
 
-  return found;
+  return found ? found.__row || null : null;
 }
 
 function readAiField(row, bindField) {
@@ -173,37 +163,7 @@ function normalizeHexColor(v, fallback = "#0c5ac8") {
   return fallback;
 }
 
-// ✅ stronger number parsing for live value (handles "11,974.0", "11974", etc)
-function toFiniteNumber(v) {
-  if (v === null || v === undefined || v === "") return null;
-  if (typeof v === "number") return Number.isFinite(v) ? v : null;
-
-  const s = String(v).trim();
-  if (!s) return null;
-
-  // Remove spaces
-  const t = s.replace(/\s+/g, "");
-
-  // If contains both comma and dot, assume comma = thousands separator
-  // Example: "11,974.0" -> "11974.0"
-  let cleaned = t;
-  if (cleaned.includes(",") && cleaned.includes(".")) {
-    cleaned = cleaned.replace(/,/g, "");
-  } else if (cleaned.includes(",") && !cleaned.includes(".")) {
-    // If only comma, assume comma is decimal separator: "11974,5" -> "11974.5"
-    cleaned = cleaned.replace(/,/g, ".");
-  }
-
-  const n = Number(cleaned);
-  return Number.isFinite(n) ? n : null;
-}
-
-export default function GraphicDisplaySettingsModal({
-  open,
-  tank,
-  onClose,
-  onSave,
-}) {
+export default function GraphicDisplaySettingsModal({ open, tank, onClose, onSave }) {
   if (!open) return null;
 
   // -------------------------
@@ -218,7 +178,7 @@ export default function GraphicDisplaySettingsModal({
   const [yMax, setYMax] = useState(100);
   const [yUnits, setYUnits] = useState("");
 
-  // ✅ NEW: line color (saved into tank.lineColor)
+  // ✅ line color (saved into tank.lineColor)
   const [lineColor, setLineColor] = useState("#0c5ac8");
 
   // -------------------------
@@ -227,14 +187,14 @@ export default function GraphicDisplaySettingsModal({
   const [mathFormula, setMathFormula] = useState("");
 
   // -------------------------
-  // RIGHT: tag binding (kept in parent for saving)
+  // RIGHT: tag binding
   // -------------------------
   const [bindModel, setBindModel] = useState("zhc1921");
   const [bindDeviceId, setBindDeviceId] = useState("");
   const [bindField, setBindField] = useState("ai1");
 
   // -------------------------
-  // ✅ LIVE VALUE for Math (poll in parent so Math always works)
+  // ✅ LIVE VALUE for Math
   // -------------------------
   const [liveValue, setLiveValue] = useState(null);
   const [liveErr, setLiveErr] = useState("");
@@ -242,7 +202,7 @@ export default function GraphicDisplaySettingsModal({
   // -------------------------
   // ✅ DRAG STATE
   // -------------------------
-  const PANEL_W = 1180; // ✅ wider window
+  const PANEL_W = 1180;
   const dragRef = useRef({
     dragging: false,
     startX: 0,
@@ -255,7 +215,6 @@ export default function GraphicDisplaySettingsModal({
   const [didInitPos, setDidInitPos] = useState(false);
   const [isDragging, setIsDragging] = useState(false);
 
-  // ✅ center on open (only once per open)
   useEffect(() => {
     if (!open) return;
     setDidInitPos(false);
@@ -293,7 +252,6 @@ export default function GraphicDisplaySettingsModal({
     setYMax(Number.isFinite(tank.yMax) ? tank.yMax : 100);
     setYUnits(tank.yUnits ?? "");
 
-    // ✅ NEW: line color from tank
     setLineColor(normalizeHexColor(tank.lineColor ?? "#0c5ac8"));
 
     setMathFormula(tank.mathFormula ?? "");
@@ -308,7 +266,6 @@ export default function GraphicDisplaySettingsModal({
   const safeYMax = Number.isFinite(yMax) ? yMax : 0;
 
   const safeLineColor = normalizeHexColor(lineColor);
-
   const yRangeValid = safeYMax > safeYMin;
 
   const canApply = useMemo(() => {
@@ -317,7 +274,6 @@ export default function GraphicDisplaySettingsModal({
 
   // -------------------------
   // ✅ LIVE VALUE POLL (for Math)
-  // ✅ Now uses ONLY /{base}/my-devices (no more 403/404/405 spam)
   // -------------------------
   useEffect(() => {
     if (!open) return;
@@ -343,12 +299,22 @@ export default function GraphicDisplaySettingsModal({
 
         if (cancelled) return;
 
-        const num = toFiniteNumber(value);
-        setLiveValue(num !== null ? num : value ?? null);
+        const num =
+          value === null || value === undefined || value === ""
+            ? null
+            : typeof value === "number"
+            ? value
+            : Number(value);
+
+        setLiveValue(Number.isFinite(num) ? num : value ?? null);
+
+        if (!row) {
+          setLiveErr("No row found for this device in /my-devices.");
+        }
       } catch (e) {
         if (cancelled) return;
         if (String(e?.name || "").toLowerCase().includes("abort")) return;
-        setLiveErr("Could not read live value (my-devices).");
+        setLiveErr("Could not read live value (check /my-devices).");
       }
     };
 
@@ -376,7 +342,7 @@ export default function GraphicDisplaySettingsModal({
     const w = window.innerWidth || 1200;
     const h = window.innerHeight || 800;
 
-    const maxLeft = Math.max(margin, w - margin - 240); // ✅ keep some width visible
+    const maxLeft = Math.max(margin, w - margin - 240);
     const maxTop = Math.max(margin, h - margin - 120);
 
     setPos({
@@ -396,9 +362,7 @@ export default function GraphicDisplaySettingsModal({
     if (e.button !== 0) return;
 
     const t = e.target;
-    if (t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")) {
-      return;
-    }
+    if (t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")) return;
 
     e.preventDefault();
 
@@ -437,7 +401,7 @@ export default function GraphicDisplaySettingsModal({
           position: "fixed",
           left: pos.left,
           top: pos.top,
-          width: PANEL_W, // ✅ wider
+          width: PANEL_W,
           maxWidth: "96vw",
           borderRadius: 12,
           background: "#fff",
@@ -459,7 +423,7 @@ export default function GraphicDisplaySettingsModal({
             justifyContent: "space-between",
             background: "linear-gradient(180deg,#0b1b33,#0a1730)",
             color: "#fff",
-            cursor: isDragging ? "grabbing" : "grab", // ✅ hand grab
+            cursor: isDragging ? "grabbing" : "grab",
             userSelect: "none",
           }}
           title="Drag to move"
@@ -510,18 +474,13 @@ export default function GraphicDisplaySettingsModal({
             setYMax={setYMax}
             yUnits={yUnits}
             setYUnits={setYUnits}
-            // ✅ NEW
             lineColor={safeLineColor}
             setLineColor={setLineColor}
           />
 
           {/* MIDDLE: Math */}
           <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
-            <GraphicDisplayMathPanel
-              value={liveValue}
-              formula={mathFormula}
-              setFormula={setMathFormula}
-            />
+            <GraphicDisplayMathPanel value={liveValue} formula={mathFormula} setFormula={setMathFormula} />
 
             {liveErr && (
               <div
@@ -554,13 +513,7 @@ export default function GraphicDisplaySettingsModal({
             />
 
             {/* Actions */}
-            <div
-              style={{
-                display: "flex",
-                justifyContent: "flex-end",
-                gap: 10,
-              }}
-            >
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
               <button
                 onClick={onClose}
                 style={{
@@ -580,7 +533,6 @@ export default function GraphicDisplaySettingsModal({
                 onClick={() =>
                   onSave({
                     ...tank,
-                    // chart settings
                     title,
                     timeUnit,
                     window: safeWindow,
@@ -589,14 +541,8 @@ export default function GraphicDisplaySettingsModal({
                     yMax: safeYMax,
                     yUnits,
                     graphStyle: FIXED_GRAPH_STYLE,
-
-                    // ✅ NEW: line color persisted on the widget
                     lineColor: safeLineColor,
-
-                    // ✅ math
                     mathFormula,
-
-                    // ✅ binding
                     bindModel,
                     bindDeviceId,
                     bindField,
@@ -606,9 +552,7 @@ export default function GraphicDisplaySettingsModal({
                   padding: "10px 14px",
                   borderRadius: 10,
                   border: "1px solid #bfe6c8",
-                  background: canApply
-                    ? "linear-gradient(180deg,#bff2c7,#6fdc89)"
-                    : "#e5e7eb",
+                  background: canApply ? "linear-gradient(180deg,#bff2c7,#6fdc89)" : "#e5e7eb",
                   color: "#0b3b18",
                   fontWeight: 900,
                   cursor: canApply ? "pointer" : "not-allowed",
