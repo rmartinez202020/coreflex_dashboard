@@ -426,25 +426,25 @@ export default function DashboardCanvas({
               );
             }
 
-        if (tank.shape === "graphicDisplay") {
-  return (
-    <DraggableGraphicDisplay
-      key={tank.id}
-      tank={tank}
-      selected={isSelected && !isPlay}
-      selectedIds={selectedIds}
-      dragDelta={dragDelta}
-      dashboardMode={dashboardMode}
-      telemetryMap={telemetryMap}  // ✅ NEW
-      onSelect={handleSelect}
-      onUpdate={commonProps.onUpdate}
-      onRightClick={(e) => handleRightClick?.(e, tank)}
-      onDoubleClick={() => {
-        if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
-      }}
-    />
-  );
-}
+               if (tank.shape === "graphicDisplay") {
+              return (
+                <DraggableGraphicDisplay
+                  key={tank.id}
+                  tank={tank}
+                  telemetryMap={telemetryMap} // ✅ NEW
+                  selected={isSelected && !isPlay}
+                  selectedIds={selectedIds}
+                  dragDelta={dragDelta}
+                  dashboardMode={dashboardMode}
+                  onSelect={handleSelect}
+                  onUpdate={commonProps.onUpdate}
+                  onRightClick={(e) => handleRightClick?.(e, tank)}
+                  onDoubleClick={() => {
+                    if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
+                  }}
+                />
+              );
+            }
             if (tank.shape === "alarmLog") {
               const w = tank.w ?? tank.width ?? 780;
               const h = tank.h ?? tank.height ?? 360;
