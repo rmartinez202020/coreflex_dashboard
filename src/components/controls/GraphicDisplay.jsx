@@ -1,12 +1,10 @@
 // src/components/controls/GraphicDisplay.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  computeMathOutput,
-  msPerUnit,
-  fmtTimeWithDate,
-} from "./graphicDisplay/utils";
+import { computeMathOutput, msPerUnit, fmtTimeWithDate } from "./graphicDisplay/utils";
 import { loadLiveRowForDevice, readAiField } from "./graphicDisplay/loader";
 import usePingZoom from "./graphicDisplay/hooks/usePingZoom";
+import useTrendSvg from "./graphicDisplay/hooks/useTrendSvg";
+import useTrendLayout from "./graphicDisplay/hooks/useTrendLayout";
 
 const DEFAULT_LINE_COLOR = "#0c5ac8";
 
@@ -17,7 +15,6 @@ function normalizeLineColor(c) {
 
 function normalizeOnlineStatusFromRow(row) {
   if (!row) return { online: null, label: "--" };
-
   const raw =
     row.status ??
     row.deviceStatus ??
@@ -33,25 +30,12 @@ function normalizeOnlineStatusFromRow(row) {
     null;
 
   const s = String(raw ?? "").trim().toLowerCase();
-
   if (raw === true || raw === 1) return { online: true, label: "ONLINE" };
   if (raw === false || raw === 0) return { online: false, label: "OFFLINE" };
 
-  if (
-    ["online", "connected", "ok", "active", "up", "true", "yes", "1"].includes(s)
-  )
+  if (["online", "connected", "ok", "active", "up", "true", "yes", "1"].includes(s))
     return { online: true, label: "ONLINE" };
-  if (
-    [
-      "offline",
-      "disconnected",
-      "down",
-      "inactive",
-      "false",
-      "no",
-      "0",
-    ].includes(s)
-  )
+  if (["offline", "disconnected", "down", "inactive", "false", "no", "0"].includes(s))
     return { online: false, label: "OFFLINE" };
 
   return { online: null, label: "--" };
@@ -64,9 +48,8 @@ function exportPointsCsv({
   filePrefix = "graphic-display",
 } = {}) {
   const safeTitle =
-    String(title || "Graphic Display")
-      .replace(/[^\w\- ]+/g, "")
-      .trim() || "Graphic Display";
+    String(title || "Graphic Display").replace(/[^\w\- ]+/g, "").trim() ||
+    "Graphic Display";
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const filename = `${filePrefix}-${safeTitle}-${stamp}.csv`;
 
@@ -105,7 +88,6 @@ function prunePointsByWindow(points, windowSize, timeUnit) {
   const win = Number.isFinite(windowSize) ? Math.max(1, Number(windowSize)) : 60;
   const unitMs = msPerUnit(timeUnit || "seconds");
   const keepMs = win * unitMs;
-
   const bufferMs = Math.min(keepMs * 0.15, 30_000);
   const cutoff = Date.now() - (keepMs + bufferMs);
 
@@ -135,26 +117,27 @@ export default function GraphicDisplay({
   const yMax = Number.isFinite(tank?.yMax) ? tank.yMax : 100;
   const yUnits = tank?.yUnits ?? "";
   const graphStyle = tank?.graphStyle ?? "line";
-
   const bindModel = tank?.bindModel ?? "zhc1921";
   const bindDeviceId = String(tank?.bindDeviceId ?? "").trim();
   const bindField = String(tank?.bindField ?? "ai1").trim();
   const mathFormula = tank?.mathFormula ?? "";
-
   const lineColor = normalizeLineColor(tank?.lineColor);
 
-  // ===============================
-  // ✅ DEBUG SWITCH
-  // ===============================
-  // Turn on by setting: tank.debug = true
-  // OR add: window.__CF_GD_DEBUG__ = true in console
-  const DEBUG =
-    !!tank?.debug || (typeof window !== "undefined" && !!window.__CF_GD_DEBUG__);
+  const DEBUG = useMemo(() => {
+    if (tank?.debug) return true;
+    if (typeof window === "undefined") return false;
+
+    const url = new URL(window.location.href);
+    if (url.searchParams.get("gddebug") === "1") return true;
+
+    return false;
+  }, [tank]);
 
   const dbgKey = useMemo(() => {
-    const widgetId =
-      tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
-    return widgetId ? `widget:${widgetId}` : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
+    const widgetId = tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
+    return widgetId
+      ? `widget:${widgetId}`
+      : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
   }, [tank, bindModel, bindDeviceId, bindField]);
 
   function dbg(...args) {
@@ -174,11 +157,8 @@ export default function GraphicDisplay({
   }
 
   const storageKey = useMemo(() => {
-    const widgetId =
-      tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
-    const base = widgetId
-      ? `widget:${widgetId}`
-      : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
+    const widgetId = tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
+    const base = widgetId ? `widget:${widgetId}` : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
     return `coreflex:graphicDisplay:points:${base}`;
   }, [tank, bindModel, bindDeviceId, bindField]);
 
@@ -187,46 +167,16 @@ export default function GraphicDisplay({
   const yMinor = Number.isFinite(tank?.yMinor) ? Math.max(1, tank.yMinor) : 2;
   const xMinor = Number.isFinite(tank?.xMinor) ? Math.max(1, tank.xMinor) : 2;
 
-  const styleBadge = (() => {
-    if (graphStyle === "line") return "LINE";
-    if (graphStyle === "area") return "AREA";
-    if (graphStyle === "bar") return "BAR";
-    if (graphStyle === "step") return "STEP";
-    return "LINE";
-  })();
-
-  const yTicks = useMemo(() => {
-    const min = Number(yMin);
-    const max = Number(yMax);
-    if (!Number.isFinite(min) || !Number.isFinite(max) || max === min) return [];
-    const step = (max - min) / yDivs;
-    const arr = [];
-    for (let i = 0; i <= yDivs; i++) arr.push(min + step * i);
-    return arr;
-  }, [yMin, yMax, yDivs]);
-
-  const gridBackground = useMemo(() => {
-    const majorX = Math.max(24, Math.round(520 / xDivs));
-    const majorY = Math.max(20, Math.round(260 / yDivs));
-    const minorX = Math.max(8, Math.round(majorX / (xMinor + 1)));
-    const minorY = Math.max(8, Math.round(majorY / (yMinor + 1)));
-
-    return {
-      backgroundImage: `
-        linear-gradient(to right, rgba(0,0,0,0.035) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(0,0,0,0.035) 1px, transparent 1px),
-        linear-gradient(to right, rgba(0,0,0,0.085) 1px, transparent 1px),
-        linear-gradient(to bottom, rgba(0,0,0,0.085) 1px, transparent 1px)
-      `,
-      backgroundSize: `
-        ${minorX}px ${minorY}px,
-        ${minorX}px ${minorY}px,
-        ${majorX}px ${majorY}px,
-        ${majorX}px ${majorY}px
-      `,
-      backgroundPosition: `0 0, 0 0, 0 0, 0 0`,
-    };
-  }, [xDivs, yDivs, xMinor, yMinor]);
+  // ✅ EXTRACTED: chart layout calculations (badge/ticks/grid)
+  const { styleBadge, yTicks, gridBackground } = useTrendLayout({
+    graphStyle,
+    yMin,
+    yMax,
+    yDivs,
+    xDivs,
+    yMinor,
+    xMinor,
+  });
 
   const [liveValue, setLiveValue] = useState(null);
   const [mathOutput, setMathOutput] = useState(null);
@@ -253,9 +203,10 @@ export default function GraphicDisplay({
       timeUnit,
       mathFormula,
       telemetryMapType: telemetryMap ? typeof telemetryMap : "null",
-      telemetryMapKeys: telemetryMap && typeof telemetryMap === "object"
-        ? Object.keys(telemetryMap).slice(0, 10)
-        : null,
+      telemetryMapKeys:
+        telemetryMap && typeof telemetryMap === "object"
+          ? Object.keys(telemetryMap).slice(0, 10)
+          : null,
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -316,9 +267,7 @@ export default function GraphicDisplay({
 
     setPoints(pruned);
 
-    const lastNumeric = [...pruned]
-      .reverse()
-      .find((p) => Number.isFinite(Number(p?.y)));
+    const lastNumeric = [...pruned].reverse().find((p) => Number.isFinite(Number(p?.y)));
     if (lastNumeric) setMathOutput(Number(lastNumeric.y));
   }, [storageKey, bindDeviceId, bindField, windowSize, timeUnit]);
 
@@ -332,8 +281,7 @@ export default function GraphicDisplay({
     saveTimerRef.current = window.setTimeout(() => {
       const pruned = prunePointsByWindow(points, windowSize, timeUnit);
       const limit = Math.max(50, Number(maxPointsRef.current || 200));
-      const finalPoints =
-        pruned.length > limit ? pruned.slice(pruned.length - limit) : pruned;
+      const finalPoints = pruned.length > limit ? pruned.slice(pruned.length - limit) : pruned;
 
       try {
         localStorage.setItem(
@@ -372,9 +320,6 @@ export default function GraphicDisplay({
     bindDeviceId,
   ]);
 
-  // ===============================
-  // ✅ COMMON POLLER INPUT (NO INTERVAL HERE)
-  // ===============================
   const lastSampleAtRef = useRef(0);
 
   useEffect(() => {
@@ -389,10 +334,7 @@ export default function GraphicDisplay({
     }
 
     if (!bindDeviceId || !bindField) {
-      dbgWarn("POLL RESET: missing bindDeviceId/bindField", {
-        bindDeviceId,
-        bindField,
-      });
+      dbgWarn("POLL RESET: missing bindDeviceId/bindField", { bindDeviceId, bindField });
       setLiveValue(null);
       setMathOutput(null);
       setErr("");
@@ -418,9 +360,7 @@ export default function GraphicDisplay({
       });
 
       // ✅ read row from telemetryMap (common poller)
-      const row = loadLiveRowForDevice(bindModel, bindDeviceId, {
-        telemetryMap,
-      });
+      const row = loadLiveRowForDevice(bindModel, bindDeviceId, { telemetryMap });
 
       if (!row) {
         dbgWarn("POLL: loadLiveRowForDevice returned null/undefined", {
@@ -436,20 +376,33 @@ export default function GraphicDisplay({
       }
 
       const st = normalizeOnlineStatusFromRow(row);
-      dbg("POLL: online status parse", { rawRowStatus: row ? (row.status ?? row.online ?? row.connected ?? row.aws_status ?? row.awsStatus) : null, st });
+      dbg("POLL: online status parse", {
+        rawRowStatus: row ? row.status ?? row.online ?? row.connected ?? row.aws_status ?? row.awsStatus : null,
+        st,
+      });
       setDeviceOnline(st.online);
 
       const raw = row ? readAiField(row, bindField) : null;
       dbg("POLL: readAiField", { bindField, raw });
 
-      const num =
-        raw === null || raw === undefined || raw === ""
-          ? null
-          : typeof raw === "number"
-          ? raw
-          : Number(raw);
+      // ✅ stronger number parsing
+      let safeLive = null;
 
-      const safeLive = Number.isFinite(num) ? num : null;
+      if (raw === null || raw === undefined || raw === "") {
+        safeLive = null;
+      } else if (typeof raw === "number") {
+        safeLive = Number.isFinite(raw) ? raw : null;
+      } else {
+        const parsed = Number(String(raw).replace(",", ".").trim());
+        safeLive = Number.isFinite(parsed) ? parsed : null;
+      }
+
+      dbg("POLL: strong number parse", {
+        raw,
+        parsed: safeLive,
+        rawType: typeof raw,
+      });
+
       const out = computeMathOutput(safeLive, mathFormula);
 
       dbg("POLL: parsed + math", {
@@ -513,78 +466,21 @@ export default function GraphicDisplay({
     timeUnit,
   ]);
 
-  // ===============================
-  // ✅ INTERACTION: ping + zoom
-  // ===============================
-  const { plotRef, sel, hover, timeTicks, pointsForView, handlers } = usePingZoom(
-    {
-      points,
-      yMin: Number(yMin),
-      yMax: Number(yMax),
-      fmtTimeWithDate,
-    }
-  );
+  const { plotRef, sel, hover, timeTicks, pointsForView, handlers } = usePingZoom({
+    points,
+    yMin: Number(yMin),
+    yMax: Number(yMax),
+    fmtTimeWithDate,
+  });
 
-  const svg = useMemo(() => {
-    const W = 1000;
-    const H = 360;
-    const minY = Number(yMin);
-    const maxY = Number(yMax);
-    const ySpan = maxY - minY;
-
-    if (!Number.isFinite(minY) || !Number.isFinite(maxY) || ySpan <= 0) {
-      dbgWarn("SVG: invalid y range", { minY, maxY, ySpan });
-      return { segs: [], W, H };
-    }
-
-    const arrRaw = pointsForView?.length ? pointsForView : points;
-    if (!arrRaw.length) {
-      dbg("SVG: no points to draw", { pointsCount: points.length, viewCount: pointsForView?.length || 0 });
-      return { segs: [], W, H };
-    }
-
-    const arr = arrRaw
-      .map((p) => ({
-        t: Number(p?.t),
-        y: p?.y,
-        gap: !!p?.gap || p?.y === null || p?.y === undefined,
-      }))
-      .filter((p) => Number.isFinite(p.t))
-      .sort((a, b) => a.t - b.t);
-
-    if (!arr.length) {
-      dbgWarn("SVG: points present but none valid after sanitize");
-      return { segs: [], W, H };
-    }
-
-    const tMin = arr[0].t;
-    const tMax = arr[arr.length - 1].t;
-    const tSpan = Math.max(1, tMax - tMin);
-
-    const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
-
-    const segs = [];
-    let current = [];
-
-    for (const p of arr) {
-      if (p.gap) {
-        if (current.length >= 2) segs.push(current);
-        current = [];
-        continue;
-      }
-
-      const x = ((p.t - tMin) / tSpan) * W;
-      const yy = clamp(Number(p.y), minY, maxY);
-      const y = H - ((yy - minY) / ySpan) * H;
-      current.push(`${x.toFixed(2)},${y.toFixed(2)}`);
-    }
-
-    if (current.length >= 2) segs.push(current);
-
-    dbg("SVG: segs computed", { segsCount: segs.length, arrCount: arr.length });
-
-    return { segs, W, H };
-  }, [points, pointsForView, yMin, yMax]); // keep deps
+  const { svg } = useTrendSvg({
+    points,
+    pointsForView,
+    yMin,
+    yMax,
+    dbg,
+    dbgWarn,
+  });
 
   const topBtnBase = {
     height: 36,
@@ -800,14 +696,11 @@ export default function GraphicDisplay({
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontFamily:
-                    "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+                  fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
                   letterSpacing: 0.2,
                   userSelect: "none",
                 }}
-                title={
-                  bindDeviceId ? `Device is ${statusLabel.text}` : "No device selected"
-                }
+                title={bindDeviceId ? `Device is ${statusLabel.text}` : "No device selected"}
               >
                 {statusLabel.text}
               </div>
@@ -869,6 +762,58 @@ export default function GraphicDisplay({
             border: "1px solid #d9d9d9",
           }}
         >
+          {/* ✅ STEP 3: On-screen debug overlay (gddebug=1) */}
+          {DEBUG && (
+            <div
+              style={{
+                position: "absolute",
+                left: 10,
+                top: 10,
+                width: 340,
+                maxHeight: 240,
+                overflow: "auto",
+                background: "rgba(0,0,0,0.85)",
+                color: "#00ff88",
+                fontFamily: "monospace",
+                fontSize: 11,
+                padding: 10,
+                borderRadius: 10,
+                border: "1px solid rgba(0,255,136,0.55)",
+                zIndex: 9999,
+                pointerEvents: "none",
+                boxShadow: "0 10px 24px rgba(0,0,0,0.35)",
+              }}
+            >
+              <div style={{ fontWeight: 900, marginBottom: 6 }}>GD DEBUG (gddebug=1)</div>
+              <div>isPlay: {String(isPlay)}</div>
+              <div>Playing: {String(isPlaying)}</div>
+              <div>Model: {String(bindModel)}</div>
+              <div>Device: {bindDeviceId || "--"}</div>
+              <div>Field: {String(bindField)}</div>
+              <div>Online: {deviceOnline === null ? "--" : String(deviceOnline)}</div>
+              <div>
+                Live:{" "}
+                {liveValue === null || liveValue === undefined
+                  ? "--"
+                  : Number.isFinite(Number(liveValue))
+                  ? Number(liveValue).toFixed(3)
+                  : String(liveValue)}
+              </div>
+              <div>
+                Math:{" "}
+                {mathOutput === null || mathOutput === undefined
+                  ? "--"
+                  : Number.isFinite(Number(mathOutput))
+                  ? Number(mathOutput).toFixed(3)
+                  : String(mathOutput)}
+              </div>
+              <div>Points: {points.length}</div>
+              <div style={{ marginTop: 6, opacity: 0.85 }}>
+                Window={windowSize} {timeUnit}, sampleMs={sampleMs}
+              </div>
+            </div>
+          )}
+
           <div
             style={{
               position: "absolute",
@@ -977,13 +922,11 @@ export default function GraphicDisplay({
                     position: "absolute",
                     left: Math.min(
                       Math.max(hover.xPx + 10, 8),
-                      (plotRef.current?.getBoundingClientRect?.().width || 0) -
-                        260
+                      (plotRef.current?.getBoundingClientRect?.().width || 0) - 260
                     ),
                     top: Math.min(
                       Math.max(hover.yPx - 26, 8),
-                      (plotRef.current?.getBoundingClientRect?.().height || 0) -
-                        60
+                      (plotRef.current?.getBoundingClientRect?.().height || 0) - 60
                     ),
                     fontFamily: "monospace",
                     fontSize: 11,
@@ -1005,9 +948,7 @@ export default function GraphicDisplay({
                   <div>
                     Y:{" "}
                     <span style={{ color: "#0b3b18" }}>
-                      {Number.isFinite(hover.y)
-                        ? Number(hover.y).toFixed(2)
-                        : "--"}
+                      {Number.isFinite(hover.y) ? Number(hover.y).toFixed(2) : "--"}
                     </span>
                   </div>
                 </div>
