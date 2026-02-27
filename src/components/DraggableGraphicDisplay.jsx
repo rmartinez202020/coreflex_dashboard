@@ -12,6 +12,7 @@ export default function DraggableGraphicDisplay({
   selectedIds = [],
   dragDelta = { x: 0, y: 0 },
   dashboardMode = "edit",
+  telemetryMap = null, // ✅ NEW: common poller map
 }) {
   if (!tank) return null;
 
@@ -129,17 +130,10 @@ export default function DraggableGraphicDisplay({
       className="draggable-item"
       style={style}
       {...attributes}
-      // ✅ CRITICAL: prevent canvas selection box for the graphic too
       onPointerDown={(e) => {
         if (isPlay) return;
-
-        // stop the canvas selection box
         e.stopPropagation();
-
-        // select it
         onSelect?.(tank.id);
-
-        // start drag (DnD-kit)
         listeners?.onPointerDown?.(e);
       }}
       onDoubleClick={(e) => {
@@ -147,20 +141,14 @@ export default function DraggableGraphicDisplay({
         e.stopPropagation();
         onDoubleClick?.(tank);
       }}
-      // ✅ FIX: allow our custom context menu
       onContextMenu={(e) => {
         e.preventDefault();
         e.stopPropagation();
         if (isPlay) return;
-
-        // ensure right-click also selects the object
         onSelect?.(tank.id);
-
-        // open App.jsx context menu (via useContextMenu signature)
         onRightClick?.(e);
       }}
     >
-      {/* ✅ In EDIT: let wrapper handle mouse; chart shouldn't steal events */}
       <div
         style={{
           width: "100%",
@@ -171,14 +159,12 @@ export default function DraggableGraphicDisplay({
           pointerEvents: isPlay ? "auto" : "none",
         }}
       >
-        <GraphicDisplay tank={tank} />
-        
+        {/* ✅ NOW uses common poller */}
+        <GraphicDisplay tank={tank} telemetryMap={telemetryMap} isPlay={isPlay} />
       </div>
 
-      {/* ✅ Resize edges (EDIT only) */}
       {selected && !isPlay && (
         <>
-          {/* LEFT EDGE */}
           <div
             onMouseDown={(e) => startResize("left", e)}
             style={{
@@ -193,7 +179,6 @@ export default function DraggableGraphicDisplay({
             }}
           />
 
-          {/* RIGHT EDGE */}
           <div
             onMouseDown={(e) => startResize("right", e)}
             style={{
@@ -208,7 +193,6 @@ export default function DraggableGraphicDisplay({
             }}
           />
 
-          {/* TOP EDGE */}
           <div
             onMouseDown={(e) => startResize("top", e)}
             style={{
@@ -223,7 +207,6 @@ export default function DraggableGraphicDisplay({
             }}
           />
 
-          {/* BOTTOM EDGE */}
           <div
             onMouseDown={(e) => startResize("bottom", e)}
             style={{
