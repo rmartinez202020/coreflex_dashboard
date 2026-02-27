@@ -1,3 +1,4 @@
+// src/components/GraphicDisplaySettingsModal.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
@@ -115,8 +116,16 @@ function getRowFromTelemetryMap(telemetryMap, modelKey, deviceId) {
  * ✅ NO-SPAM LIVE ROW LOADER
  * - Prefer telemetryMap (common poller)
  * - Otherwise ONLY call /{base}/my-devices (the endpoint you confirmed works)
+ *
+ * IMPORTANT:
+ * Your earlier console spam was from trying many "direct" endpoints (/device/:id, /devices/:id, /one/:id, /devices)
+ * that return 404/405/403. This version never calls those.
  */
-async function loadLiveRowForDevice(modelKey, deviceId, { telemetryMap, signal } = {}) {
+async function loadLiveRowForDevice(
+  modelKey,
+  deviceId,
+  { telemetryMap, signal } = {}
+) {
   const mk = String(modelKey || "").trim();
   const id = String(deviceId || "").trim();
   if (!mk || !id) return null;
@@ -311,7 +320,9 @@ export default function GraphicDisplaySettingsModal({
       } catch (e) {
         if (cancelled) return;
         if (String(e?.name || "").toLowerCase().includes("abort")) return;
-        setLiveErr("Could not read live value (check /my-devices response & fields).");
+        setLiveErr(
+          "Could not read live value (check /my-devices response & fields)."
+        );
       }
     };
 
@@ -359,7 +370,12 @@ export default function GraphicDisplaySettingsModal({
     if (e.button !== 0) return;
 
     const t = e.target;
-    if (t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")) return;
+    if (
+      t?.closest?.(
+        "button, input, select, textarea, a, [data-no-drag='true']"
+      )
+    )
+      return;
 
     e.preventDefault();
 
@@ -507,7 +523,9 @@ export default function GraphicDisplaySettingsModal({
               formatSampleLabel={formatSampleLabel}
             />
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+            <div
+              style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}
+            >
               <button
                 onClick={onClose}
                 style={{
