@@ -15,13 +15,19 @@ export default function DraggableGraphicDisplay({
 }) {
   if (!tank) return null;
 
+  // ✅ treat Launch as "running" (same behavior as play for polling + interaction)
   const isPlay = dashboardMode === "play";
+  const isRun =
+    dashboardMode === "play" ||
+    dashboardMode === "launch" ||
+    dashboardMode === "launched";
+
   const safeOnUpdate = typeof onUpdate === "function" ? onUpdate : () => {};
 
   const { attributes, listeners, setNodeRef, transform, isDragging } =
     useDraggable({
       id: tank.id,
-      disabled: isPlay, // ✅ no dragging in play
+      disabled: isPlay, // ✅ no dragging in play (keep your rule)
     });
 
   const [isResizing, setIsResizing] = useState(false);
@@ -168,10 +174,12 @@ export default function DraggableGraphicDisplay({
           borderRadius: 10,
           overflow: "hidden",
           cursor: "inherit",
-          pointerEvents: isPlay ? "auto" : "none",
+          // ✅ allow interaction in play + launch; block in edit so wrapper can drag/select
+          pointerEvents: isRun ? "auto" : "none",
         }}
       >
-        <GraphicDisplay tank={tank} isActive={dashboardMode === "play"} />
+        {/* ✅ poll in play + launch */}
+        <GraphicDisplay tank={tank} isActive={isRun} />
       </div>
 
       {/* ✅ Resize edges (EDIT only) */}
