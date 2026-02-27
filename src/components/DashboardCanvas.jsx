@@ -552,7 +552,14 @@ export default function DashboardCanvas({
                   }}
                 >
                   <div className="flex flex-col items-center">
-                    <DraggableHorizontalTank tank={tank} onChange={(nextTank) => commonProps.onUpdate?.(nextTank)} />
+
+                    <DraggableHorizontalTank
+  tank={tank}
+  onChange={(nextTank) => commonProps.onUpdate?.(nextTank)}
+  isPlay={isPlay}
+  telemetryMap={telemetryMap}
+/>
+
                   </div>
                 </DraggableDroppedTank>
               );

@@ -1,91 +1,10 @@
 // src/components/DraggableHorizontalTank.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useMemo, useState } from "react";
 import { createPortal } from "react-dom";
-import { API_URL } from "../config/api";
-import { getToken } from "../utils/authToken";
 import { HorizontalTank } from "./ProTankIconHorizontal";
 import HorizontalTankPropertiesModal from "./HorizontalTankPropertiesModal";
 
-// ✅ Models allowed
-const MODEL_META = {
-  zhc1921: { base: "zhc1921" }, // CF-2000
-  zhc1661: { base: "zhc1661" }, // CF-1600
-};
-
-// -------------------------
-// ✅ auth + no-cache fetch helpers
-// -------------------------
-function getAuthHeaders() {
-  const token = String(getToken() || "").trim();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-function withNoCache(path) {
-  const sep = path.includes("?") ? "&" : "?";
-  return `${path}${sep}_ts=${Date.now()}`;
-}
-
-async function apiGet(path, { signal } = {}) {
-  const res = await fetch(`${API_URL}${withNoCache(path)}`, {
-    method: "GET",
-    headers: {
-      ...getAuthHeaders(),
-      "Cache-Control": "no-cache",
-      Pragma: "no-cache",
-    },
-    cache: "no-store",
-    signal,
-  });
-  if (!res.ok) throw new Error(`GET ${path} failed (${res.status})`);
-  return res.json();
-}
-
-function normalizeList(data) {
-  return Array.isArray(data)
-    ? data
-    : Array.isArray(data?.devices)
-    ? data.devices
-    : Array.isArray(data?.rows)
-    ? data.rows
-    : [];
-}
-
-// ✅ IMPORTANT: avoid /devices (can be 403/405). Use user-safe list endpoints.
-async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
-  const base = MODEL_META[modelKey]?.base || modelKey;
-
-  const listCandidates =
-    base === "zhc1661"
-      ? ["/zhc1661/my-devices", "/zhc1661/list", "/zhc1661"]
-      : ["/zhc1921/my-devices", "/zhc1921/list", "/zhc1921"];
-
-  for (const p of listCandidates) {
-    try {
-      const data = await apiGet(p, { signal });
-      const arr = normalizeList(data);
-
-      const hit =
-        arr.find((r) => {
-          const id =
-            r.deviceId ??
-            r.device_id ??
-            r.id ??
-            r.imei ??
-            r.IMEI ??
-            r.DEVICE_ID ??
-            "";
-          return String(id) === String(deviceId);
-        }) || null;
-
-      if (hit) return hit;
-    } catch {
-      // continue
-    }
-  }
-
-  return null;
-}
-
+// ✅ Read AI field from telemetry row (keeps your flexible variants)
 function readAiField(row, bindField) {
   if (!row || !bindField) return null;
   const f = String(bindField).toLowerCase();
@@ -107,6 +26,24 @@ function readAiField(row, bindField) {
   const extra = [`ai_${n}`, `AI_${n}`, `ai-${n}`, `AI-${n}`];
   for (const k of extra) {
     if (row[k] !== undefined) return row[k];
+  }
+
+  return null;
+}
+
+// ✅ Get row from shared telemetryMap (telemetryMap[model][deviceId] = row)
+function getTelemetryRow(telemetryMap, model, deviceId) {
+  const id = String(deviceId || "").trim();
+  if (!telemetryMap || !id) return null;
+
+  const m = String(model || "").trim();
+
+  // Preferred: explicit model bucket
+  if (m && telemetryMap?.[m]?.[id]) return telemetryMap[m][id];
+
+  // Fallback: scan all models (for older widgets or mismatched model storage)
+  for (const mk of Object.keys(telemetryMap || {})) {
+    if (telemetryMap?.[mk]?.[id]) return telemetryMap[mk][id];
   }
 
   return null;
@@ -201,7 +138,24 @@ function formatOutputNoTrailingZeros(v, digits = 2) {
   return s;
 }
 
-export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
+/**
+ * DraggableHorizontalTank
+ * ✅ NOW uses shared telemetryMap (NO fetch, NO interval)
+ * ✅ Live updates ONLY in Play/Launch (isPlay=true)
+ *
+ * ✅ Edit mode:
+ * - No liquid (level=0)
+ * - output badge shows "--"
+ */
+export default function DraggableHorizontalTank({
+  tank,
+  onUpdate,
+  onChange,
+
+  // ✅ NEW
+  isPlay = false,
+  telemetryMap = null,
+}) {
   const props = tank?.properties || {};
   const scale = tank?.scale || 1;
 
@@ -219,86 +173,73 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
 
   const materialColor = ensureAlpha(props.materialColor || "#00ff00");
 
-  const bindModel = props.bindModel || "zhc1921";
+  const bindModel = String(props.bindModel || "zhc1921").trim();
   const bindDeviceId = String(props.bindDeviceId || "").trim();
   const bindField = String(props.bindField || "ai1").trim();
   const formula = String(props.density || "").trim();
 
   const hasBinding = !!bindDeviceId && !!bindField;
 
-  const [liveValue, setLiveValue] = useState(null);
-  const [outputValue, setOutputValue] = useState(null);
+  // ✅ Live row from shared poller (PLAY only)
+  const telemetryRow = useMemo(() => {
+    if (!isPlay) return null;
+    if (!hasBinding) return null;
+    return getTelemetryRow(telemetryMap, bindModel, bindDeviceId);
+  }, [isPlay, hasBinding, telemetryMap, bindModel, bindDeviceId]);
 
-  // ✅ Poll every 2s
-  useEffect(() => {
-    if (!hasBinding) {
-      setLiveValue(null);
-      setOutputValue(null);
-      return;
-    }
+  const backendStatus = String(telemetryRow?.status || "").trim().toLowerCase();
+  const deviceIsOnline = backendStatus ? backendStatus === "online" : true;
 
-    let cancelled = false;
-    const ctrl = new AbortController();
+  // ✅ Live analog only in play
+  const liveValue = useMemo(() => {
+    if (!isPlay) return null;
+    if (!hasBinding) return null;
+    if (!deviceIsOnline) return null;
 
-    const tick = async () => {
-      try {
-        if (document.hidden) return;
+    const raw = telemetryRow ? readAiField(telemetryRow, bindField) : null;
 
-        const row = await loadLiveRowForDevice(bindModel, bindDeviceId, {
-          signal: ctrl.signal,
-        });
+    const num =
+      raw === null || raw === undefined || raw === ""
+        ? null
+        : typeof raw === "number"
+        ? raw
+        : Number(raw);
 
-        const raw = row ? readAiField(row, bindField) : null;
+    return Number.isFinite(num) ? num : null;
+  }, [isPlay, hasBinding, deviceIsOnline, telemetryRow, bindField]);
 
-        const num =
-          raw === null || raw === undefined || raw === ""
-            ? null
-            : typeof raw === "number"
-            ? raw
-            : Number(raw);
-
-        const safeLive = Number.isFinite(num) ? num : null;
-
-        const out = computeMathOutput(safeLive, formula);
-
-        if (cancelled) return;
-        setLiveValue(safeLive);
-        setOutputValue(out);
-      } catch (e) {
-        if (cancelled) return;
-        if (String(e?.name || "").toLowerCase().includes("abort")) return;
-      }
-    };
-
-    tick();
-    const id = window.setInterval(tick, 2000);
-
-    return () => {
-      cancelled = true;
-      ctrl.abort();
-      window.clearInterval(id);
-    };
-  }, [hasBinding, bindModel, bindDeviceId, bindField, formula]);
+  const outputValue = useMemo(() => {
+    if (!isPlay) return null;
+    return computeMathOutput(liveValue, formula);
+  }, [isPlay, liveValue, formula]);
 
   const numericOut = useMemo(() => toNumberOrNull(outputValue), [outputValue]);
 
-  const levelPercent = useMemo(() => {
+  const levelPercentLive = useMemo(() => {
     const used = numericOut ?? liveValue ?? 0;
 
     if (Number.isFinite(maxCapacity) && maxCapacity > 0) {
       return clamp((Number(used) / maxCapacity) * 100, 0, 100);
     }
 
+    // if no maxCapacity, treat input as 0..100
     return clamp(Number(used), 0, 100);
   }, [numericOut, liveValue, maxCapacity]);
 
+  // ✅ EDIT MODE: NO LIQUID
+  const levelPercent = isPlay ? levelPercentLive : 0;
+
   const percentText = `${Math.round(levelPercent)}%`;
+  const showPercentText = isPlay; // ✅ hide % in edit mode for a "blank" tank
 
   const bottomValueText = useMemo(() => {
     if (!hasBinding) return "--";
+    if (!isPlay) return "--";
+    if (!deviceIsOnline) return "--";
+
     if (typeof outputValue === "string") return String(outputValue || "").trim() || "--";
     return formatOutputNoTrailingZeros(outputValue, 2);
-  }, [hasBinding, outputValue]);
+  }, [hasBinding, isPlay, deviceIsOnline, outputValue]);
 
   // ✅ sizing
   const w = (tank?.w || tank?.width || 220) * scale;
@@ -334,22 +275,24 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
           userSelect: "none",
           position: "relative",
         }}
-        title="Double-click to edit"
+        title={isPlay ? "" : "Double-click to edit"}
       >
-        {/* ✅ invisible hit-layer ONLY for double click */}
-        <div
-          onDoubleClick={(e) => {
-            e.stopPropagation();
-            setOpenProps(true);
-          }}
-          style={{
-            position: "absolute",
-            inset: 0,
-            pointerEvents: "auto",
-            background: "transparent",
-            cursor: "inherit",
-          }}
-        />
+        {/* ✅ invisible hit-layer ONLY for double click (EDIT MODE ONLY) */}
+        {!isPlay && (
+          <div
+            onDoubleClick={(e) => {
+              e.stopPropagation();
+              setOpenProps(true);
+            }}
+            style={{
+              position: "absolute",
+              inset: 0,
+              pointerEvents: "auto",
+              background: "transparent",
+              cursor: "inherit",
+            }}
+          />
+        )}
 
         {/* title */}
         {title ? (
@@ -384,7 +327,7 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
               level={levelPercent}
               fillColor={materialColor}
               alarm={false}
-              showPercentText={true}
+              showPercentText={showPercentText}
               percentText={percentText}
               percentTextColor="#111827"
               showBottomText={false} // keep badge outside
@@ -397,7 +340,7 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
         <div
           style={{
             marginTop: 0,
-            transform: `translateY(${-10 * scale}px)`, // ✅ pulls badge UP closer to tank
+            transform: `translateY(${-10 * scale}px)`,
             padding: `${5 * scale}px ${12 * scale}px`,
             borderRadius: 8,
             background: "#eef2f7",
@@ -410,6 +353,7 @@ export default function DraggableHorizontalTank({ tank, onUpdate, onChange }) {
             alignItems: "baseline",
             gap: 8,
             pointerEvents: "none",
+            opacity: isPlay ? 1 : 0.9,
           }}
         >
           <span style={{ fontSize: 16 * scale, fontWeight: 900, letterSpacing: 0.3 }}>
