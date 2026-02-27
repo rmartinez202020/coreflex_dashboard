@@ -653,7 +653,13 @@ export default function DashboardCanvas({
                     if (!isPlay) onOpenStateImageSettings?.(tank);
                   }}
                 >
-                  <DraggableStateImage tank={tank} isPlay={isPlay} sensorsData={sensorsData} />
+                  <DraggableStateImage
+  tank={tank}
+  isPlay={isPlay}
+  telemetryMap={telemetryMap}   // ✅ ADD THIS
+  sensorsData={sensorsData}
+/>
+
                 </DraggableDroppedTank>
               );
             }
