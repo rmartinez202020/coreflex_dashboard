@@ -19,7 +19,13 @@ import DraggableVerticalTank from "./DraggableVerticalTank";
 import DraggableSiloTank from "./DraggableSiloTank";
 import DraggableStandardTank from "./DraggableStandardTank";
 import DraggableHorizontalTank from "./DraggableHorizontalTank";
-import {DraggableLedCircle,DraggableStatusTextBox,DraggableBlinkingAlarm,DraggableStateImage,DraggableCounterInput,} from "./indicators";
+import {
+  DraggableLedCircle,
+  DraggableStatusTextBox,
+  DraggableBlinkingAlarm,
+  DraggableStateImage,
+  DraggableCounterInput,
+} from "./indicators";
 import useDashboardTelemetryPoller from "../hooks/useDashboardTelemetryPoller";
 
 function getAuthHeaders() {
@@ -40,9 +46,8 @@ function resolveDashboardId({ activeDashboardId, dashboardId, selectedTank, drop
   if (b) return b;
 
   const first = Array.isArray(droppedTanks) ? droppedTanks[0] : null;
-  const c = String(
-    first?.dashboard_id || first?.dashboardId || first?.properties?.dashboard_id || ""
-  ).trim();
+  const c = String(first?.dashboard_id || first?.dashboardId || first?.properties?.dashboard_id || "")
+    .trim();
   if (c) return c;
 
   return null;
@@ -104,25 +109,26 @@ export default function DashboardCanvas({
 }) {
   const isPlay = dashboardMode === "play";
 
-    // =====================================================
-  // ✅ ONE POLL PER DASHBOARD (Play mode): shared telemetryMap
   // =====================================================
-  const resolvedDashForTelemetry = React.useMemo(
-    () =>
-      resolveDashboardId({
-        activeDashboardId,
-        dashboardId,
-        selectedTank,
-        droppedTanks,
-      }),
-    [activeDashboardId, dashboardId, selectedTank, droppedTanks]
-  );
-
+  // ✅ ONE POLL PER DASHBOARD (Play/Launch): shared telemetryMap
+  // FIX: call hook with correct signature (isPlay, API_URL, headers, etc.)
+  // =====================================================
   const { telemetryMap } = useDashboardTelemetryPoller({
-    enabled: isPlay,
-    pollMs: 3000, // ✅ every 3 seconds
-    dashboardId: resolvedDashForTelemetry,
+    isPlay,
+    API_URL,
+    getAuthHeaders,
+    getToken,
     droppedTanks,
+    activeDashboardId,
+    dashboardId,
+    selectedTank,
+    resolveDashboardId,
+    pollMs: 3000, // ✅ every 3 seconds
+    modelMeta: {
+      zhc1921: { base: "zhc1921" },
+      zhc1661: { base: "zhc1661" },
+      tp4000: { base: "tp4000" },
+    },
   });
 
   // =====================================================
@@ -213,9 +219,8 @@ export default function DashboardCanvas({
 
     return () => clearInterval(t);
   }, [isPlay, fetchCountersForDashboard]);
-  
-  // ✅ Z-ORDER HELPERS
 
+  // ✅ Z-ORDER HELPERS
   const getTankZ = React.useCallback((t) => {
     return Number(t?.z ?? t?.zIndex ?? 0) || 0;
   }, []);
@@ -404,11 +409,7 @@ export default function DashboardCanvas({
                     if (!isPlay) onOpenDisplaySettings?.(tank);
                   }}
                 >
-                  <DisplayOutputTextBoxStyle
-                    tank={tank}
-                    isPlay={isPlay}
-                    onUpdate={commonProps.onUpdate}
-                  />
+                  <DisplayOutputTextBoxStyle tank={tank} isPlay={isPlay} onUpdate={commonProps.onUpdate} />
                 </DraggableDroppedTank>
               );
             }
@@ -455,12 +456,7 @@ export default function DashboardCanvas({
                     />
 
                     {!isPlay && (
-                      <AlarmLogResizeEdges
-                        tank={tank}
-                        onUpdate={commonProps.onUpdate}
-                        minW={520}
-                        minH={240}
-                      />
+                      <AlarmLogResizeEdges tank={tank} onUpdate={commonProps.onUpdate} minW={520} minH={240} />
                     )}
                   </div>
                 </DraggableDroppedTank>
@@ -468,35 +464,34 @@ export default function DashboardCanvas({
             }
 
             if (tank.shape === "toggleSwitch" || tank.shape === "toggleControl") {
-  const w = tank.w ?? tank.width ?? 180;
-  const h = tank.h ?? tank.height ?? 70;
-  const isOn = tank.isOn ?? true;
+              const w = tank.w ?? tank.width ?? 180;
+              const h = tank.h ?? tank.height ?? 70;
+              const isOn = tank.isOn ?? true;
 
-  // ✅ IMPORTANT: resolve dashboard id (needed for backend DO uniqueness)
-  const resolvedDash = resolveDashboardId({
-    activeDashboardId,
-    dashboardId,
-    selectedTank,
-    droppedTanks,
-  });
+              // ✅ IMPORTANT: resolve dashboard id (needed for backend DO uniqueness)
+              const resolvedDash = resolveDashboardId({
+                activeDashboardId,
+                dashboardId,
+                selectedTank,
+                droppedTanks,
+              });
 
-  return (
-    <DraggableDroppedTank {...commonProps}>
-      <ToggleSwitchControl
-        isOn={isOn}
-        width={w}
-        height={h}
-        isLaunched={isPlay}
-        visualOnly={false} // ✅ allow click in PLAY (modal still blocked by isLaunched)
-        widget={tank}
-        onSaveWidget={commonProps.onUpdate}
-        dashboardId={resolvedDash} // ✅ FIX: pass dashboardId
-      />
-    </DraggableDroppedTank>
-  );
-}
+              return (
+                <DraggableDroppedTank {...commonProps}>
+                  <ToggleSwitchControl
+                    isOn={isOn}
+                    width={w}
+                    height={h}
+                    isLaunched={isPlay}
+                    visualOnly={false}
+                    widget={tank}
+                    onSaveWidget={commonProps.onUpdate}
+                    dashboardId={resolvedDash}
+                  />
+                </DraggableDroppedTank>
+              );
+            }
 
-    
             if (tank.shape === "pushButtonNO") {
               const w = tank.w ?? tank.width ?? 110;
               const h = tank.h ?? tank.height ?? 110;
@@ -521,71 +516,59 @@ export default function DashboardCanvas({
               );
             }
 
-         if (tank.shape === "standardTank") {
-  return (
-    <DraggableDroppedTank
-      {...commonProps}
-      onDoubleClick={() => {
-        if (!isPlay) {
-          setActiveStandardTankId?.(tank.id);
-          setShowStandardTankProps?.(true);
-        }
-      }}
-    >
-      <div className="flex flex-col items-center">
-        <DraggableStandardTank
-          tank={tank}
-          onUpdate={(nextTank) => commonProps.onUpdate?.(nextTank)}
-        />
-      </div>
-    </DraggableDroppedTank>
-  );
-}
+            if (tank.shape === "standardTank") {
+              return (
+                <DraggableDroppedTank
+                  {...commonProps}
+                  onDoubleClick={() => {
+                    if (!isPlay) {
+                      setActiveStandardTankId?.(tank.id);
+                      setShowStandardTankProps?.(true);
+                    }
+                  }}
+                >
+                  <div className="flex flex-col items-center">
+                    <DraggableStandardTank tank={tank} onUpdate={(nextTank) => commonProps.onUpdate?.(nextTank)} />
+                  </div>
+                </DraggableDroppedTank>
+              );
+            }
 
+            if (tank.shape === "horizontalTank") {
+              return (
+                <DraggableDroppedTank
+                  {...commonProps}
+                  onDoubleClick={() => {
+                    if (!isPlay) {
+                      setActiveHorizontalTankId?.(tank.id);
+                      setShowHorizontalTankProps?.(true);
+                    }
+                  }}
+                >
+                  <div className="flex flex-col items-center">
+                    <DraggableHorizontalTank tank={tank} onChange={(nextTank) => commonProps.onUpdate?.(nextTank)} />
+                  </div>
+                </DraggableDroppedTank>
+              );
+            }
 
-          if (tank.shape === "horizontalTank") {
-  return (
-    <DraggableDroppedTank
-      {...commonProps}
-      onDoubleClick={() => {
-        if (!isPlay) {
-          setActiveHorizontalTankId?.(tank.id);
-          setShowHorizontalTankProps?.(true);
-        }
-      }}
-    >
-      <div className="flex flex-col items-center">
-        <DraggableHorizontalTank
-          tank={tank}
-          onChange={(nextTank) => commonProps.onUpdate?.(nextTank)}
-        />
-      </div>
-    </DraggableDroppedTank>
-  );
-}
-
-
-if (tank.shape === "verticalTank") {
-  return (
-    <DraggableDroppedTank
-      {...commonProps}
-      onDoubleClick={() => {
-        if (!isPlay) {
-          setActiveVerticalTankId?.(tank.id);
-          setShowVerticalTankProps?.(true);
-        }
-      }}
-    >
-      <div className="flex flex-col items-center">
-        <DraggableVerticalTank
-          tank={tank}
-          onChange={(nextTank) => commonProps.onUpdate?.(nextTank)}
-        />
-      </div>
-    </DraggableDroppedTank>
-  );
-}
-
+            if (tank.shape === "verticalTank") {
+              return (
+                <DraggableDroppedTank
+                  {...commonProps}
+                  onDoubleClick={() => {
+                    if (!isPlay) {
+                      setActiveVerticalTankId?.(tank.id);
+                      setShowVerticalTankProps?.(true);
+                    }
+                  }}
+                >
+                  <div className="flex flex-col items-center">
+                    <DraggableVerticalTank tank={tank} onChange={(nextTank) => commonProps.onUpdate?.(nextTank)} />
+                  </div>
+                </DraggableDroppedTank>
+              );
+            }
 
             // ✅ FIXED: render the real silo widget
             if (tank.shape === "siloTank") {
@@ -618,21 +601,23 @@ if (tank.shape === "verticalTank") {
               );
             }
 
-           if (tank.shape === "ledCircle") {
-  return (
-    <DraggableDroppedTank
-      {...commonProps}
-      onDoubleClick={() => {
-        if (!isPlay) onOpenIndicatorSettings?.(tank);
-      }}
-    >
-      <DraggableLedCircle
-        tank={tank}
-        isPlay={isPlay}   // ✅ only live in play/launch
-      />
-    </DraggableDroppedTank>
-  );
-}
+            // ✅ FIX: pass telemetryMap so LED can read live telemetry
+            if (tank.shape === "ledCircle") {
+              return (
+                <DraggableDroppedTank
+                  {...commonProps}
+                  onDoubleClick={() => {
+                    if (!isPlay) onOpenIndicatorSettings?.(tank);
+                  }}
+                >
+                  <DraggableLedCircle
+                    tank={tank}
+                    isPlay={isPlay}
+                    telemetryMap={telemetryMap} // ✅ REQUIRED
+                  />
+                </DraggableDroppedTank>
+              );
+            }
 
             if (tank.shape === "statusTextBox") {
               return (
@@ -647,40 +632,32 @@ if (tank.shape === "verticalTank") {
               );
             }
 
-if (tank.shape === "blinkingAlarm") {
-  return (
-    <DraggableDroppedTank
-      {...commonProps}
-      onDoubleClick={() => {
-        if (!isPlay) onOpenBlinkingAlarmSettings?.(tank);
-      }}
-    >
-      <DraggableBlinkingAlarm
-        tank={tank}
-        isPlay={isPlay}
-        telemetryMap={telemetryMap}   // ✅ ADD THIS LINE
-        sensorsData={sensorsData}
-      />
-    </DraggableDroppedTank>
-  );
-}
+            if (tank.shape === "blinkingAlarm") {
+              return (
+                <DraggableDroppedTank
+                  {...commonProps}
+                  onDoubleClick={() => {
+                    if (!isPlay) onOpenBlinkingAlarmSettings?.(tank);
+                  }}
+                >
+                  <DraggableBlinkingAlarm tank={tank} isPlay={isPlay} telemetryMap={telemetryMap} sensorsData={sensorsData} />
+                </DraggableDroppedTank>
+              );
+            }
 
-          if (tank.shape === "stateImage") {
-  return (
-    <DraggableDroppedTank
-      {...commonProps}
-      onDoubleClick={() => {
-        if (!isPlay) onOpenStateImageSettings?.(tank);
-      }}
-    >
-      <DraggableStateImage
-        tank={tank}
-        isPlay={isPlay}          // ✅ only live in play/launch
-        sensorsData={sensorsData} // ✅ needed for live reads
-      />
-    </DraggableDroppedTank>
-  );
-}
+            if (tank.shape === "stateImage") {
+              return (
+                <DraggableDroppedTank
+                  {...commonProps}
+                  onDoubleClick={() => {
+                    if (!isPlay) onOpenStateImageSettings?.(tank);
+                  }}
+                >
+                  <DraggableStateImage tank={tank} isPlay={isPlay} sensorsData={sensorsData} />
+                </DraggableDroppedTank>
+              );
+            }
+
             if (tank.shape === "counterInput") {
               const resolvedDash = resolveDashboardId({
                 activeDashboardId,
