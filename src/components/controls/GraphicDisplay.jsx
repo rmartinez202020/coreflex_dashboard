@@ -143,6 +143,36 @@ export default function GraphicDisplay({
 
   const lineColor = normalizeLineColor(tank?.lineColor);
 
+  // ===============================
+  // ✅ DEBUG SWITCH
+  // ===============================
+  // Turn on by setting: tank.debug = true
+  // OR add: window.__CF_GD_DEBUG__ = true in console
+  const DEBUG =
+    !!tank?.debug || (typeof window !== "undefined" && !!window.__CF_GD_DEBUG__);
+
+  const dbgKey = useMemo(() => {
+    const widgetId =
+      tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
+    return widgetId ? `widget:${widgetId}` : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
+  }, [tank, bindModel, bindDeviceId, bindField]);
+
+  function dbg(...args) {
+    if (!DEBUG) return;
+    // eslint-disable-next-line no-console
+    console.log(`[GraphicDisplay] ${dbgKey}`, ...args);
+  }
+  function dbgWarn(...args) {
+    if (!DEBUG) return;
+    // eslint-disable-next-line no-console
+    console.warn(`[GraphicDisplay] ${dbgKey}`, ...args);
+  }
+  function dbgErr(...args) {
+    if (!DEBUG) return;
+    // eslint-disable-next-line no-console
+    console.error(`[GraphicDisplay] ${dbgKey}`, ...args);
+  }
+
   const storageKey = useMemo(() => {
     const widgetId =
       tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
@@ -210,6 +240,26 @@ export default function GraphicDisplay({
     isPlayingRef.current = isPlaying;
   }, [isPlaying]);
 
+  // 🔎 one-time: log binding
+  useEffect(() => {
+    dbg("MOUNT / bind", {
+      isPlay,
+      isPlaying,
+      bindModel,
+      bindDeviceId,
+      bindField,
+      sampleMs,
+      windowSize,
+      timeUnit,
+      mathFormula,
+      telemetryMapType: telemetryMap ? typeof telemetryMap : "null",
+      telemetryMapKeys: telemetryMap && typeof telemetryMap === "object"
+        ? Object.keys(telemetryMap).slice(0, 10)
+        : null,
+    });
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (!bindDeviceId || !bindField) return;
 
@@ -218,6 +268,7 @@ export default function GraphicDisplay({
         const t = Date.now();
         const last = prev.length ? prev[prev.length - 1] : null;
         if (last?.gap) return prev;
+        dbg("PAUSE: inserting GAP point", { t });
         return [...prev, { t, y: null, gap: true }];
       });
     }
@@ -239,6 +290,7 @@ export default function GraphicDisplay({
   // LOAD points on binding change
   useEffect(() => {
     if (!bindDeviceId || !bindField) {
+      dbgWarn("LOAD: missing bindDeviceId or bindField -> clearing points");
       setPoints([]);
       setDeviceOnline(null);
       return;
@@ -254,6 +306,14 @@ export default function GraphicDisplay({
       : [];
 
     const pruned = prunePointsByWindow(loaded, windowSize, timeUnit);
+
+    dbg("LOAD: localStorage", {
+      storageKey,
+      rawSize: raw ? raw.length : 0,
+      loadedCount: loaded.length,
+      prunedCount: pruned.length,
+    });
+
     setPoints(pruned);
 
     const lastNumeric = [...pruned]
@@ -285,8 +345,15 @@ export default function GraphicDisplay({
             points: finalPoints,
           })
         );
-      } catch {
-        // ignore quota errors
+        dbg("SAVE: wrote localStorage", {
+          storageKey,
+          inCount: points.length,
+          prunedCount: pruned.length,
+          finalCount: finalPoints.length,
+          limit,
+        });
+      } catch (e) {
+        dbgWarn("SAVE: localStorage error (quota?)", e);
       }
     }, 350);
 
@@ -312,10 +379,20 @@ export default function GraphicDisplay({
 
   useEffect(() => {
     // only in play/launch, only when widget "playing"
-    if (!isPlay) return;
-    if (!isPlaying) return;
+    if (!isPlay) {
+      dbgWarn("POLL SKIP: isPlay=false (widget will not read telemetryMap)");
+      return;
+    }
+    if (!isPlaying) {
+      dbgWarn("POLL SKIP: isPlaying=false (paused)");
+      return;
+    }
 
     if (!bindDeviceId || !bindField) {
+      dbgWarn("POLL RESET: missing bindDeviceId/bindField", {
+        bindDeviceId,
+        bindField,
+      });
       setLiveValue(null);
       setMathOutput(null);
       setErr("");
@@ -327,15 +404,43 @@ export default function GraphicDisplay({
     try {
       setErr("");
 
+      if (!telemetryMap) {
+        dbgWarn("POLL: telemetryMap is null/undefined");
+      }
+
+      dbg("POLL: reading from telemetryMap", {
+        bindModel,
+        bindDeviceId,
+        bindField,
+        sampleMs,
+        windowSize,
+        timeUnit,
+      });
+
       // ✅ read row from telemetryMap (common poller)
       const row = loadLiveRowForDevice(bindModel, bindDeviceId, {
         telemetryMap,
       });
 
+      if (!row) {
+        dbgWarn("POLL: loadLiveRowForDevice returned null/undefined", {
+          bindModel,
+          bindDeviceId,
+          telemetryMapKeys:
+            telemetryMap && typeof telemetryMap === "object"
+              ? Object.keys(telemetryMap).slice(0, 10)
+              : null,
+        });
+      } else {
+        dbg("POLL: got row keys", Object.keys(row).slice(0, 30));
+      }
+
       const st = normalizeOnlineStatusFromRow(row);
+      dbg("POLL: online status parse", { rawRowStatus: row ? (row.status ?? row.online ?? row.connected ?? row.aws_status ?? row.awsStatus) : null, st });
       setDeviceOnline(st.online);
 
       const raw = row ? readAiField(row, bindField) : null;
+      dbg("POLL: readAiField", { bindField, raw });
 
       const num =
         raw === null || raw === undefined || raw === ""
@@ -347,13 +452,25 @@ export default function GraphicDisplay({
       const safeLive = Number.isFinite(num) ? num : null;
       const out = computeMathOutput(safeLive, mathFormula);
 
+      dbg("POLL: parsed + math", {
+        safeLive,
+        mathFormula,
+        out,
+        isFiniteOut: Number.isFinite(out),
+      });
+
       setLiveValue(safeLive);
       setMathOutput(out);
 
       // ✅ throttle point add using sampleMs
       const now = Date.now();
       const smp = Math.max(250, Number(sampleMs) || 1000);
-      if (now - (lastSampleAtRef.current || 0) < smp) return;
+      const last = lastSampleAtRef.current || 0;
+
+      if (now - last < smp) {
+        dbg("POLL: throttle skip", { now, last, smp, delta: now - last });
+        return;
+      }
       lastSampleAtRef.current = now;
 
       if (Number.isFinite(out)) {
@@ -364,10 +481,22 @@ export default function GraphicDisplay({
           const limit = maxPointsRef.current || 2;
           if (pruned.length > limit) pruned.splice(0, pruned.length - limit);
 
+          dbg("POLL: point added", {
+            now,
+            out,
+            prevCount: prev.length,
+            nextCount: next.length,
+            prunedCount: pruned.length,
+            limit,
+          });
+
           return pruned;
         });
+      } else {
+        dbgWarn("POLL: out is not finite -> no point added", { out, safeLive });
       }
     } catch (e) {
+      dbgErr("POLL ERROR:", e);
       setErr("Trend read failed (common poller map).");
       setDeviceOnline(false);
     }
@@ -404,11 +533,15 @@ export default function GraphicDisplay({
     const ySpan = maxY - minY;
 
     if (!Number.isFinite(minY) || !Number.isFinite(maxY) || ySpan <= 0) {
+      dbgWarn("SVG: invalid y range", { minY, maxY, ySpan });
       return { segs: [], W, H };
     }
 
     const arrRaw = pointsForView?.length ? pointsForView : points;
-    if (!arrRaw.length) return { segs: [], W, H };
+    if (!arrRaw.length) {
+      dbg("SVG: no points to draw", { pointsCount: points.length, viewCount: pointsForView?.length || 0 });
+      return { segs: [], W, H };
+    }
 
     const arr = arrRaw
       .map((p) => ({
@@ -419,7 +552,10 @@ export default function GraphicDisplay({
       .filter((p) => Number.isFinite(p.t))
       .sort((a, b) => a.t - b.t);
 
-    if (!arr.length) return { segs: [], W, H };
+    if (!arr.length) {
+      dbgWarn("SVG: points present but none valid after sanitize");
+      return { segs: [], W, H };
+    }
 
     const tMin = arr[0].t;
     const tMax = arr[arr.length - 1].t;
@@ -445,8 +581,10 @@ export default function GraphicDisplay({
 
     if (current.length >= 2) segs.push(current);
 
+    dbg("SVG: segs computed", { segsCount: segs.length, arrCount: arr.length });
+
     return { segs, W, H };
-  }, [points, pointsForView, yMin, yMax]);
+  }, [points, pointsForView, yMin, yMax]); // keep deps
 
   const topBtnBase = {
     height: 36,
@@ -667,7 +805,9 @@ export default function GraphicDisplay({
                   letterSpacing: 0.2,
                   userSelect: "none",
                 }}
-                title={bindDeviceId ? `Device is ${statusLabel.text}` : "No device selected"}
+                title={
+                  bindDeviceId ? `Device is ${statusLabel.text}` : "No device selected"
+                }
               >
                 {statusLabel.text}
               </div>
