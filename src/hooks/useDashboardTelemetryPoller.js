@@ -9,7 +9,10 @@ import React from "react";
  * - Builds telemetryMap[model][deviceId] = row
  *
  * Requirements:
- * - Widgets must store bindings at: tank.properties.tag = { model, deviceId, field }
+ * - Widgets should store bindings at: tank.properties.tag = { model, deviceId, field }
+ *
+ * ✅ ALSO SUPPORTED (legacy / GraphicDisplay):
+ * - tank.bindModel + tank.bindDeviceId (or tank.properties.bindModel/bindDeviceId)
  */
 export default function useDashboardTelemetryPoller({
   isPlay,
@@ -36,18 +39,36 @@ export default function useDashboardTelemetryPoller({
 
   const loadingRef = React.useRef(false);
 
-  const extractTag = React.useCallback((t) => {
-    const tag = t?.properties?.tag || t?.tag || null;
-    if (!tag) return null;
+  // ✅ supports BOTH:
+  // 1) common tag binding: t.properties.tag = { model, deviceId, field }
+  // 2) legacy/GraphicDisplay binding: t.bindModel + t.bindDeviceId (or under properties)
+  const extractTag = React.useCallback(
+    (t) => {
+      // common format
+      const tag = t?.properties?.tag || t?.tag || null;
 
-    const model = String(tag?.model || "").trim();
-    const deviceId = String(tag?.deviceId || "").trim();
+      let model = "";
+      let deviceId = "";
 
-    if (!model || !deviceId) return null;
-    if (!modelMeta?.[model]?.base) return null;
+      if (tag) {
+        model = String(tag?.model || "").trim();
+        deviceId = String(tag?.deviceId || "").trim();
+      } else {
+        // legacy / GraphicDisplay format
+        const bm = t?.bindModel ?? t?.properties?.bindModel;
+        const bd = t?.bindDeviceId ?? t?.properties?.bindDeviceId;
 
-    return { model, deviceId };
-  }, [modelMeta]);
+        model = String(bm || "").trim();
+        deviceId = String(bd || "").trim();
+      }
+
+      if (!model || !deviceId) return null;
+      if (!modelMeta?.[model]?.base) return null;
+
+      return { model, deviceId };
+    },
+    [modelMeta]
+  );
 
   const collectWanted = React.useCallback(() => {
     const wanted = {};
