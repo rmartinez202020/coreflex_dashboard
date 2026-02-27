@@ -1,4 +1,3 @@
-// src/components/controls/graphicDisplay/loader.js
 import { API_URL } from "../../../config/api";
 import { getToken } from "../../../utils/authToken";
 
@@ -16,31 +15,21 @@ export const MODEL_META = {
 // 3) window.__CF_GD_DEBUG__ = true
 // ===============================
 function gdDebugEnabled() {
-  // 1) URL param
   try {
     if (typeof window !== "undefined") {
       const qs = window.location?.search || "";
       const hp = window.location?.hash || "";
       const params = new URLSearchParams(qs.startsWith("?") ? qs.slice(1) : qs);
       const v = String(params.get("gddebug") || "").trim();
-      if (v === "1" || v.toLowerCase() === "true" || v.toLowerCase() === "yes")
-        return true;
-
-      // also allow #gddebug=1
+      if (v === "1" || v.toLowerCase() === "true" || v.toLowerCase() === "yes") return true;
       if (hp && hp.includes("gddebug=1")) return true;
     }
-  } catch {
-    // ignore
-  }
+  } catch {}
 
-  // 2) localStorage flag
   try {
     if (localStorage.getItem("coreflex:gd:debug") === "1") return true;
-  } catch {
-    // ignore
-  }
+  } catch {}
 
-  // 3) global flag
   if (typeof window !== "undefined" && window.__CF_GD_DEBUG__ === true) return true;
 
   return false;
@@ -97,96 +86,32 @@ export async function apiGet(path, { signal } = {}) {
   }
 
   const json = await res.json();
-  dbg("apiGet OK", {
-    path,
-    type: typeof json,
-    keys: safeKeys(json).slice(0, 20),
-  });
-
+  dbg("apiGet OK", { path, type: typeof json, keys: safeKeys(json).slice(0, 20) });
   return json;
 }
 
-// ✅ safe own-property check
-function hasKey(obj, key) {
-  return !!obj && typeof obj === "object" && Object.prototype.hasOwnProperty.call(obj, key);
-}
-
-// ✅ robust: reads ai field from row OR nested containers
 export function readAiField(row, bindField) {
   if (!row || !bindField) return null;
+  const f = String(bindField).toLowerCase();
 
-  const rawField = String(bindField).trim();
-  if (!rawField) return null;
-
-  const f = rawField;                // keep original (ai2)
-  const fl = rawField.toLowerCase();  // ai2
-  const fu = rawField.toUpperCase();  // AI2
-
-  // Common variants (your old logic + a few more)
   const candidates = [
     f,
-    fl,
-    fu,
-
-    fl.replace("ai", "a"),
-    fu.replace("AI", "A"),
-
-    fl.replace("ai", "analog"),
-    fu.replace("AI", "ANALOG"),
+    f.toUpperCase(),
+    f.replace("ai", "a"),
+    f.replace("ai", "A"),
+    f.replace("ai", "analog"),
+    f.replace("ai", "ANALOG"),
   ];
 
-  const n = fl.replace(/^ai/, ""); // "2" from "ai2"
-  const extra = [
-    `ai_${n}`,
-    `AI_${n}`,
-    `ai-${n}`,
-    `AI-${n}`,
-  ];
-
-  const keysToTry = [...new Set([...candidates, ...extra].filter(Boolean))];
-
-  // 1) Direct on row (MOST IMPORTANT for your backend: row.ai2)
-  for (const k of keysToTry) {
-    if (hasKey(row, k)) {
-      const v = row[k];
-      dbg("readAiField: HIT (direct)", { bindField: rawField, key: k, value: v });
-      return v;
-    }
+  for (const k of candidates) {
+    if (row[k] !== undefined) return row[k];
   }
 
-  // 2) Nested containers fallback (some endpoints wrap telemetry)
-  const containers = [
-    row.data,
-    row.payload,
-    row.telemetry,
-    row.values,
-    row.latest,
-  ].filter(Boolean);
-
-  for (const c of containers) {
-    for (const k of keysToTry) {
-      if (hasKey(c, k)) {
-        const v = c[k];
-        dbg("readAiField: HIT (nested)", {
-          bindField: rawField,
-          key: k,
-          value: v,
-          containerKeys: safeKeys(c).slice(0, 20),
-        });
-        return v;
-      }
-    }
+  const n = f.replace("ai", "");
+  const extra = [`ai_${n}`, `AI_${n}`, `ai-${n}`, `AI-${n}`];
+  for (const k of extra) {
+    if (row[k] !== undefined) return row[k];
   }
-
-  // 3) Debug miss (shows row keys so we instantly see why)
-  dbg("readAiField: MISS", {
-    bindField: rawField,
-    tried: keysToTry,
-    rowKeys: safeKeys(row).slice(0, 40),
-    hasData: !!row?.data,
-    hasPayload: !!row?.payload,
-    hasTelemetry: !!row?.telemetry,
-  });
 
   return null;
 }
@@ -225,50 +150,18 @@ function listCandidatesForBase(base) {
  * telemetryMap shape: telemetryMap[modelKey][deviceId] = row
  */
 export function getRowFromTelemetryMap(telemetryMap, modelKey, deviceId) {
-  if (!telemetryMap || !modelKey || !deviceId) {
-    dbg("getRowFromTelemetryMap: missing input", {
-      hasTelemetryMap: !!telemetryMap,
-      modelKey,
-      deviceId,
-    });
-    return null;
-  }
+  if (!telemetryMap || !modelKey || !deviceId) return null;
 
   const mk = String(modelKey).trim();
   const id = String(deviceId).trim();
-  if (!mk || !id) {
-    dbg("getRowFromTelemetryMap: empty mk/id after trim", { mk, id });
-    return null;
-  }
-
-  dbg("telemetryMap keys", safeKeys(telemetryMap).slice(0, 30));
-
-  const directBucket = telemetryMap?.[mk];
-  dbg("bucket direct", { mk, bucketKeys: safeKeys(directBucket).slice(0, 10) });
+  if (!mk || !id) return null;
 
   const direct = telemetryMap?.[mk]?.[id];
-  if (direct) {
-    dbg("FOUND in telemetryMap (direct)", { mk, id });
-    return direct;
-  }
+  if (direct) return direct;
 
   const base = MODEL_META?.[mk]?.base || mk;
-  const baseBucket = telemetryMap?.[base];
-  dbg("bucket base", { base, bucketKeys: safeKeys(baseBucket).slice(0, 10) });
-
   const byBase = telemetryMap?.[base]?.[id];
-  if (byBase) {
-    dbg("FOUND in telemetryMap (base)", { base, id, originalModelKey: mk });
-    return byBase;
-  }
-
-  dbg("NOT FOUND in telemetryMap", {
-    mk,
-    base,
-    id,
-    directIdsSample: safeKeys(directBucket).slice(0, 10),
-    baseIdsSample: safeKeys(baseBucket).slice(0, 10),
-  });
+  if (byBase) return byBase;
 
   return null;
 }
@@ -276,66 +169,46 @@ export function getRowFromTelemetryMap(telemetryMap, modelKey, deviceId) {
 /**
  * ✅ loadLiveRowForDevice now supports:
  * loadLiveRowForDevice(modelKey, deviceId, { telemetryMap, signal })
+ *
+ * ✅ IMPORTANT FIX:
+ * If telemetryMap is provided, we DO NOT fallback to API endpoints.
+ * We only read from the common poller. No 404/403 spam.
  */
-export async function loadLiveRowForDevice(
-  modelKey,
-  deviceId,
-  { telemetryMap, signal } = {}
-) {
+export async function loadLiveRowForDevice(modelKey, deviceId, { telemetryMap, signal } = {}) {
   const mk = String(modelKey || "").trim();
   const id = String(deviceId || "").trim();
 
-  dbg("loadLiveRowForDevice called", { modelKey: mk, deviceId: id });
+  const hasTelemetryMap = telemetryMap !== null && telemetryMap !== undefined;
 
+  // 1) Try common poller
   const fromCommon = getRowFromTelemetryMap(telemetryMap, mk, id);
-  if (fromCommon) {
-    dbg("loadLiveRowForDevice -> using telemetryMap row");
-    return fromCommon;
+  if (fromCommon) return fromCommon;
+
+  // ✅ If we're in "common poller mode" (telemetryMap was provided),
+  // do NOT do any API fallback. Just return null and wait for poller.
+  if (hasTelemetryMap) {
+    dbg("loadLiveRowForDevice: telemetryMap provided but row not found yet -> no API fallback", {
+      mk,
+      id,
+    });
+    return null;
   }
 
+  // 2) Fallback API (only when telemetryMap is NOT provided)
   const base = MODEL_META[mk]?.base || mk;
   const candidates = listCandidatesForBase(base);
-
-  dbg("loadLiveRowForDevice -> fallback API", { base, candidates });
 
   for (const p of candidates) {
     try {
       const data = await apiGet(p, { signal });
       const arr = normalizeArray(data);
 
-      dbg("API normalized array", {
-        path: p,
-        count: arr.length,
-        sampleIds: arr
-          .slice(0, 8)
-          .map((r) => String(readDeviceId(r)).trim())
-          .filter(Boolean),
-      });
-
-      const found =
-        arr.find((r) => String(readDeviceId(r)).trim() === id) || null;
-
-      if (found) {
-        dbg("FOUND via API", { path: p, id });
-        return found;
-      }
-
-      const ids = arr.map((r) => String(readDeviceId(r)).trim()).filter(Boolean);
-      const near = ids.find((x) => x.toLowerCase() === id.toLowerCase()) || null;
-
-      dbg("NOT FOUND via API on this path", {
-        path: p,
-        wanted: id,
-        near,
-      });
+      const found = arr.find((r) => String(readDeviceId(r)).trim() === id) || null;
+      if (found) return found;
     } catch (e) {
-      dbgErr("API path failed, continuing", {
-        path: p,
-        err: String(e?.message || e),
-      });
+      dbgErr("API path failed, continuing", { path: p, err: String(e?.message || e) });
     }
   }
 
-  dbg("loadLiveRowForDevice -> return null (no row found)");
   return null;
 }
