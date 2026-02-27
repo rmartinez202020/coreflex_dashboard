@@ -1,80 +1,6 @@
 // src/components/DraggableStandardTank.jsx
-import React, { useEffect, useMemo, useState } from "react";
-import { API_URL } from "../config/api";
-import { getToken } from "../utils/authToken";
+import React, { useMemo } from "react";
 import { StandardTank } from "./ProTankIconStandard";
-
-// ✅ Models allowed
-const MODEL_META = {
-  zhc1921: { base: "zhc1921" }, // CF-2000
-  zhc1661: { base: "zhc1661" }, // CF-1600
-};
-
-function getAuthHeaders() {
-  const token = String(getToken() || "").trim();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-function withNoCache(path) {
-  const sep = path.includes("?") ? "&" : "?";
-  return `${path}${sep}_ts=${Date.now()}`;
-}
-async function apiGet(path, { signal } = {}) {
-  const res = await fetch(`${API_URL}${withNoCache(path)}`, {
-    method: "GET",
-    headers: {
-      ...getAuthHeaders(),
-      "Cache-Control": "no-cache",
-      Pragma: "no-cache",
-    },
-    cache: "no-store",
-    signal,
-  });
-  if (!res.ok) throw new Error(`GET ${path} failed (${res.status})`);
-  return res.json();
-}
-function normalizeList(data) {
-  return Array.isArray(data)
-    ? data
-    : Array.isArray(data?.devices)
-    ? data.devices
-    : Array.isArray(data?.rows)
-    ? data.rows
-    : [];
-}
-
-async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
-  const base = MODEL_META[modelKey]?.base || modelKey;
-
-  const listCandidates =
-    base === "zhc1661"
-      ? ["/zhc1661/my-devices", "/zhc1661/list", "/zhc1661"]
-      : ["/zhc1921/my-devices", "/zhc1921/list", "/zhc1921"];
-
-  for (const p of listCandidates) {
-    try {
-      const data = await apiGet(p, { signal });
-      const arr = normalizeList(data);
-
-      const hit =
-        arr.find((r) => {
-          const id =
-            r.deviceId ??
-            r.device_id ??
-            r.id ??
-            r.imei ??
-            r.IMEI ??
-            r.DEVICE_ID ??
-            "";
-          return String(id) === String(deviceId);
-        }) || null;
-
-      if (hit) return hit;
-    } catch {
-      // continue
-    }
-  }
-  return null;
-}
 
 // ✅ SAME strict AI reader as your Telemetric hook (no "analog"/"a" guessing)
 function readAiField(row, bindField) {
@@ -93,7 +19,25 @@ function readAiField(row, bindField) {
   return null;
 }
 
-// ✅ same evaluator as DraggableSiloTank
+// ✅ Get row from shared telemetryMap (telemetryMap[model][deviceId] = row)
+function getTelemetryRow(telemetryMap, model, deviceId) {
+  const id = String(deviceId || "").trim();
+  if (!telemetryMap || !id) return null;
+
+  const m = String(model || "").trim();
+
+  // Preferred: explicit model bucket
+  if (m && telemetryMap?.[m]?.[id]) return telemetryMap[m][id];
+
+  // Fallback: scan all models (for older widgets or mismatched model storage)
+  for (const mk of Object.keys(telemetryMap || {})) {
+    if (telemetryMap?.[mk]?.[id]) return telemetryMap[mk][id];
+  }
+
+  return null;
+}
+
+// ✅ same evaluator as silo
 function computeMathOutput(liveValue, formula) {
   const f = String(formula || "").trim();
   if (!f) return liveValue;
@@ -163,7 +107,15 @@ function ensureAlphaHex(hex, alphaHex = "88") {
   return s;
 }
 
-export default function DraggableStandardTank({ tank }) {
+/**
+ * DraggableStandardTank
+ * ✅ NOW uses shared telemetryMap (NO fetch, NO interval)
+ * ✅ Live updates ONLY in Play/Launch (isPlay=true)
+ *
+ * ✅ NEW RULE:
+ * - In EDIT mode -> HIDE LIQUID (force level=0)
+ */
+export default function DraggableStandardTank({ tank, isPlay = false, telemetryMap = null }) {
   const props = tank?.properties || {};
   const scale = tank?.scale || 1;
 
@@ -179,66 +131,47 @@ export default function DraggableStandardTank({ tank }) {
 
   const materialColor = ensureAlphaHex(props.materialColor || "#60a5fa", "88");
 
-  const bindModel = props.bindModel || "zhc1921";
+  const bindModel = String(props.bindModel || "zhc1921").trim();
   const bindDeviceId = String(props.bindDeviceId || "").trim();
   const bindField = String(props.bindField || "ai1").trim();
 
-  // ✅ same precedence style as your other widgets
-  const formula = String(props.formula ?? props.mathFormula ?? props.math ?? props.mathExpr ?? "").trim();
+  const formula = String(
+    props.formula ?? props.mathFormula ?? props.math ?? props.mathExpr ?? ""
+  ).trim();
 
   const hasBinding = !!bindDeviceId && !!bindField;
 
-  const [liveValue, setLiveValue] = useState(null);
-  const [outputValue, setOutputValue] = useState(null);
+  // ✅ Live row from common poller (PLAY only)
+  const telemetryRow = useMemo(() => {
+    if (!isPlay) return null;
+    if (!hasBinding) return null;
+    return getTelemetryRow(telemetryMap, bindModel, bindDeviceId);
+  }, [isPlay, hasBinding, telemetryMap, bindModel, bindDeviceId]);
 
-  useEffect(() => {
-    if (!hasBinding) {
-      setLiveValue(null);
-      setOutputValue(null);
-      return;
-    }
+  const backendStatus = String(telemetryRow?.status || "").trim().toLowerCase();
+  const deviceIsOnline = backendStatus ? backendStatus === "online" : true;
 
-    let cancelled = false;
-    const ctrl = new AbortController();
+  const liveValue = useMemo(() => {
+    if (!isPlay) return null; // ✅ no live in edit mode
+    if (!hasBinding) return null;
+    if (!deviceIsOnline) return null;
 
-    const tick = async () => {
-      try {
-        if (document.hidden) return;
+    const raw = telemetryRow ? readAiField(telemetryRow, bindField) : null;
 
-        const row = await loadLiveRowForDevice(bindModel, bindDeviceId, {
-          signal: ctrl.signal,
-        });
+    const num =
+      raw === null || raw === undefined || raw === ""
+        ? null
+        : typeof raw === "number"
+        ? raw
+        : Number(raw);
 
-        const raw = row ? readAiField(row, bindField) : null;
+    return Number.isFinite(num) ? num : null;
+  }, [isPlay, hasBinding, deviceIsOnline, telemetryRow, bindField]);
 
-        const num =
-          raw === null || raw === undefined || raw === ""
-            ? null
-            : typeof raw === "number"
-            ? raw
-            : Number(raw);
-
-        const safeLive = Number.isFinite(num) ? num : null;
-        const out = computeMathOutput(safeLive, formula);
-
-        if (cancelled) return;
-        setLiveValue(safeLive);
-        setOutputValue(out);
-      } catch (e) {
-        if (cancelled) return;
-        if (String(e?.name || "").toLowerCase().includes("abort")) return;
-      }
-    };
-
-    tick();
-    const id = window.setInterval(tick, 2000);
-
-    return () => {
-      cancelled = true;
-      ctrl.abort();
-      window.clearInterval(id);
-    };
-  }, [hasBinding, bindModel, bindDeviceId, bindField, formula]);
+  const outputValue = useMemo(() => {
+    if (!isPlay) return null;
+    return computeMathOutput(liveValue, formula);
+  }, [isPlay, liveValue, formula]);
 
   const numericOutput = useMemo(() => {
     const v = outputValue;
@@ -253,23 +186,32 @@ export default function DraggableStandardTank({ tank }) {
     return Number.isFinite(n) ? n : null;
   }, [outputValue]);
 
-  // ✅ SAME FIX as silo: if math returns string (CONCAT), level uses liveValue
-  const levelPct = useMemo(() => {
+  // ✅ if math returns string (CONCAT), level uses liveValue
+  const levelPctLive = useMemo(() => {
     if (!Number.isFinite(Number(maxCapacity)) || Number(maxCapacity) <= 0) return 0;
     const used = numericOutput ?? liveValue ?? 0;
     const frac = clamp01(Number(used) / Number(maxCapacity));
     return frac * 100;
   }, [numericOutput, liveValue, maxCapacity]);
 
+  // ✅ EDIT MODE: NO LIQUID
+  const levelPct = isPlay ? levelPctLive : 0;
+
   // ✅ remove .00 (always) like silo
   const outputText = useMemo(() => {
     if (!hasBinding) return "--";
+    if (!isPlay) return "--"; // ✅ freeze in edit mode
+    if (!deviceIsOnline) return "--";
+
     if (typeof outputValue === "string") return outputValue || "--";
 
     const n = Number(outputValue);
     if (!Number.isFinite(n)) return "--";
     return String(Math.round(n));
-  }, [hasBinding, outputValue]);
+  }, [hasBinding, isPlay, deviceIsOnline, outputValue]);
+
+  // ✅ EDIT MODE: hide percent so it looks truly empty
+  const showPercent = isPlay;
 
   return (
     <div style={{ textAlign: "center", pointerEvents: "none" }}>
@@ -294,10 +236,9 @@ export default function DraggableStandardTank({ tank }) {
             level={levelPct}
             fillColor={materialColor}
             alarm={false}
-            showPercentText={true}
+            showPercentText={showPercent}
             percentText={`${Math.round(levelPct)}%`}
             percentTextColor="#111827"
-            // ✅ bottom output (value + unit) — add these props if your ProTankIconStandard supports them
             showBottomText={true}
             bottomText={outputText}
             bottomUnit={unit}
@@ -306,7 +247,7 @@ export default function DraggableStandardTank({ tank }) {
         </div>
       </div>
 
-      {/* ✅ OUTPUT: hidden (same as silo) */}
+      {/* hidden (kept) */}
       <div
         style={{
           marginTop: 2,

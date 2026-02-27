@@ -528,7 +528,13 @@ export default function DashboardCanvas({
                   }}
                 >
                   <div className="flex flex-col items-center">
-                    <DraggableStandardTank tank={tank} onUpdate={(nextTank) => commonProps.onUpdate?.(nextTank)} />
+
+                    <DraggableStandardTank
+  tank={tank}
+  isPlay={isPlay}
+  telemetryMap={telemetryMap}
+/>
+
                   </div>
                 </DraggableDroppedTank>
               );
@@ -583,9 +589,7 @@ export default function DashboardCanvas({
                   }}
                 >
                   <div className="flex flex-col items-center">
-
                     <DraggableSiloTank tank={tank} isPlay={isPlay} telemetryMap={telemetryMap} />
-
                   </div>
                 </DraggableDroppedTank>
               );
