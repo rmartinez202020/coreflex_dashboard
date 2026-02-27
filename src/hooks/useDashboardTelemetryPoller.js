@@ -37,6 +37,64 @@ export default function useDashboardTelemetryPoller({
 
   const loadingRef = React.useRef(false);
 
+  // ===============================
+  // ✅ DEBUG (NO CONSOLE TYPING)
+  // Turn on by URL: ?gddebug=1
+  // ===============================
+  const debugEnabled = React.useMemo(() => {
+    try {
+      if (typeof window === "undefined") return false;
+      const qs = window.location?.search || "";
+      const params = new URLSearchParams(qs.startsWith("?") ? qs.slice(1) : qs);
+      const v = String(params.get("gddebug") || "").trim().toLowerCase();
+      return v === "1" || v === "true" || v === "yes";
+    } catch {
+      return false;
+    }
+  }, []);
+
+  const dbg = React.useCallback(
+    (...args) => {
+      if (!debugEnabled) return;
+      // eslint-disable-next-line no-console
+      console.warn("[TelemetryPoller]", ...args);
+    },
+    [debugEnabled]
+  );
+
+  const dbgErr = React.useCallback(
+    (...args) => {
+      if (!debugEnabled) return;
+      // eslint-disable-next-line no-console
+      console.error("[TelemetryPoller]", ...args);
+    },
+    [debugEnabled]
+  );
+
+  // ✅ normalize API response to array (matches loader.js idea)
+  function normalizeArray(data) {
+    return Array.isArray(data)
+      ? data
+      : Array.isArray(data?.devices)
+      ? data.devices
+      : Array.isArray(data?.rows)
+      ? data.rows
+      : [];
+  }
+
+  // ✅ read device id robustly (matches loader.js)
+  function readDeviceId(row) {
+    return (
+      row?.deviceId ??
+      row?.device_id ??
+      row?.id ??
+      row?.imei ??
+      row?.IMEI ??
+      row?.DEVICE_ID ??
+      ""
+    );
+  }
+
   // ✅ Extract binding from ANY widget shape we support
   const extractBinding = React.useCallback(
     (t) => {
@@ -90,12 +148,19 @@ export default function useDashboardTelemetryPoller({
 
     try {
       const token = String(getToken?.() || "").trim();
-      if (!token) return;
+      if (!token) {
+        dbg("skip: no token");
+        return;
+      }
 
       const wanted = collectWanted();
+      dbg("wanted devices", Object.fromEntries(
+        Object.entries(wanted).map(([k, set]) => [k, Array.from(set).slice(0, 20)])
+      ));
 
       const anyWanted = Object.values(wanted).some((s) => s && s.size > 0);
       if (!anyWanted) {
+        dbg("no wanted bindings -> clearing telemetryMap");
         setTelemetryMap((prev) => {
           let changed = false;
           const next = {};
@@ -110,12 +175,30 @@ export default function useDashboardTelemetryPoller({
       }
 
       async function fetchModel(base) {
-        const res = await fetch(`${API_URL}/${base}/my-devices`, {
+        const url = `${API_URL}/${base}/my-devices`;
+        dbg("fetchModel", { base, url });
+
+        const res = await fetch(url, {
           headers: getAuthHeaders?.() || {},
         });
-        if (!res.ok) return [];
-        const data = await res.json().catch(() => []);
-        return Array.isArray(data) ? data : [];
+
+        if (!res.ok) {
+          dbgErr("fetchModel failed", { base, status: res.status });
+          return [];
+        }
+
+        const data = await res.json().catch(() => null);
+        const arr = normalizeArray(data);
+
+        dbg("fetchModel ok", {
+          base,
+          dataType: data ? typeof data : "null",
+          topKeys: data && typeof data === "object" ? Object.keys(data).slice(0, 10) : null,
+          rows: arr.length,
+          sampleIds: arr.slice(0, 6).map((r) => String(readDeviceId(r)).trim()).filter(Boolean),
+        });
+
+        return arr;
       }
 
       const results = await Promise.all(
@@ -136,13 +219,18 @@ export default function useDashboardTelemetryPoller({
       for (const [modelKey, rows] of results) {
         const setWanted = wanted?.[modelKey] || new Set();
         for (const row of rows || []) {
-          const id = String(row?.deviceId ?? row?.device_id ?? "").trim();
+          const id = String(readDeviceId(row) || "").trim();
           if (id && setWanted.has(id)) next[modelKey][id] = row;
         }
       }
 
+      dbg("telemetryMap built", Object.fromEntries(
+        Object.entries(next).map(([k, bucket]) => [k, Object.keys(bucket).slice(0, 20)])
+      ));
+
       setTelemetryMap(next);
-    } catch {
+    } catch (e) {
+      dbgErr("poller error (keeping last telemetryMap)", String(e?.message || e));
       // keep last good telemetryMap
     } finally {
       loadingRef.current = false;
@@ -159,6 +247,8 @@ export default function useDashboardTelemetryPoller({
     resolveDashboardId,
     collectWanted,
     modelMeta,
+    dbg,
+    dbgErr,
   ]);
 
   React.useEffect(() => {
