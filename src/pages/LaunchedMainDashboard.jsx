@@ -1,9 +1,17 @@
 // src/pages/LaunchedMainDashboard.jsx
 
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState, useCallback } from "react";
 import DashboardCanvas from "../components/DashboardCanvas";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
+
+// ✅ NEW: shared telemetry poller (same one used by normal dashboard)
+import useDashboardTelemetryPoller from "../hooks/useDashboardTelemetryPoller";
+
+function getAuthHeaders() {
+  const token = String(getToken() || "").trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 export default function LaunchedMainDashboard() {
   const [sensorsData, setSensorsData] = useState([]);
@@ -20,7 +28,7 @@ export default function LaunchedMainDashboard() {
   // --------------------------------------------------------------
   // ✅ helper: inject dashboardId into every widget so controls can write in Launch
   // --------------------------------------------------------------
-  const injectDashboardIdIntoObjects = (objects, dashId) => {
+  const injectDashboardIdIntoObjects = useCallback((objects, dashId) => {
     if (!Array.isArray(objects)) return [];
     const did = String(dashId || "").trim();
     if (!did) return objects;
@@ -40,7 +48,7 @@ export default function LaunchedMainDashboard() {
         },
       };
     });
-  };
+  }, []);
 
   // --------------------------------------------------------------
   // ✅ STEP 1 — Load THIS USER main dashboard layout from DB (token)
@@ -94,7 +102,7 @@ export default function LaunchedMainDashboard() {
     };
 
     loadLayout();
-  }, [dashboardId]);
+  }, [dashboardId, injectDashboardIdIntoObjects]);
 
   // --------------------------------------------------------------
   // ✅ STEP 2 — Load live sensor/device data (poll every 1 second)
@@ -123,7 +131,7 @@ export default function LaunchedMainDashboard() {
       try {
         const token = getToken();
         const headers = {};
-        if (token) headers.Authorization = `Bearer ${token}`; // safe if endpoint requires auth
+        if (token) headers.Authorization = `Bearer ${token}`;
 
         const res = await fetch(`${API_URL}/devices`, {
           headers,
@@ -142,7 +150,6 @@ export default function LaunchedMainDashboard() {
       }
     };
 
-    // initial + 1s polling
     fetchDevices();
     const timer = setInterval(fetchDevices, 1000);
 
@@ -185,7 +192,6 @@ export default function LaunchedMainDashboard() {
         const arr = Array.isArray(rows) ? rows : [];
         if (arr.length === 0) return;
 
-        // map widget_id -> count
         const map = new Map();
         for (const r of arr) {
           const wid = String(r?.widget_id || r?.widgetId || r?.id || "").trim();
@@ -205,7 +211,6 @@ export default function LaunchedMainDashboard() {
             const oid = String(o?.id || "").trim();
             if (!oid) return o;
 
-            // only update counter widgets (optional, but reduces work)
             const shape = String(o?.shape || o?.type || "").toLowerCase();
             const looksLikeCounter =
               shape.includes("counter") ||
@@ -219,7 +224,6 @@ export default function LaunchedMainDashboard() {
             const props = o?.properties || {};
             const oldCount = toInt0(props?.count);
 
-            // also ensure dashboardId exists for controls in Launch
             const didNow = String(props?.dashboardId || "").trim();
             const needsDash = didNow !== dashboardId;
 
@@ -231,7 +235,7 @@ export default function LaunchedMainDashboard() {
               properties: {
                 ...props,
                 dashboardId: dashboardId,
-                count: newCount, // ✅ THIS is what your widget displays
+                count: newCount,
               },
             };
           });
@@ -240,12 +244,11 @@ export default function LaunchedMainDashboard() {
         });
       } catch (err) {
         if (err?.name === "AbortError") return;
-        // stay quiet in launch mode
       }
     };
 
     fetchCounters();
-    const timer = setInterval(fetchCounters, 1000); // ✅ 1 second
+    const timer = setInterval(fetchCounters, 1000);
 
     return () => {
       alive = false;
@@ -253,6 +256,33 @@ export default function LaunchedMainDashboard() {
       controller.abort();
     };
   }, [dashboardId]);
+
+  // --------------------------------------------------------------
+  // ✅ STEP 2C — SHARED TELEMETRY (DI/DO/AI/AO rows) for widgets (LED, etc.)
+  // This is the missing piece in Launch.
+  // --------------------------------------------------------------
+  const resolveDashboardId = useCallback(() => {
+    // Launch screen is always "main"
+    return dashboardId;
+  }, [dashboardId]);
+
+  const { telemetryMap } = useDashboardTelemetryPoller({
+    isPlay: true, // ✅ Launch is always play
+    API_URL,
+    getAuthHeaders,
+    getToken,
+    droppedTanks,
+    activeDashboardId: dashboardId,
+    dashboardId,
+    selectedTank: null,
+    resolveDashboardId,
+    pollMs: 1500, // 🔧 faster in launch (optional). Use 3000 if you prefer.
+    modelMeta: {
+      zhc1921: { base: "zhc1921" },
+      zhc1661: { base: "zhc1661" },
+      tp4000: { base: "tp4000" },
+    },
+  });
 
   // --------------------------------------------------------------
   // ✅ UI: never show a “mystery blank” page
@@ -316,7 +346,9 @@ export default function LaunchedMainDashboard() {
       <DashboardCanvas
         dashboardMode="play"
         embedMode={true}
-        dashboardId={dashboardId} // ✅ IMPORTANT: make Launch provide dashboard id context
+        dashboardId={dashboardId}
+        /* ✅ NEW: provide shared telemetry to widgets (LED, indicators, etc.) */
+        telemetryMap={telemetryMap}
         /* ----- Layout Objects ----- */
         droppedTanks={droppedTanks}
         setDroppedTanks={setDroppedTanks}
