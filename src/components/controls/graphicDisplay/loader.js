@@ -106,28 +106,87 @@ export async function apiGet(path, { signal } = {}) {
   return json;
 }
 
+// ✅ safe own-property check
+function hasKey(obj, key) {
+  return !!obj && typeof obj === "object" && Object.prototype.hasOwnProperty.call(obj, key);
+}
+
+// ✅ robust: reads ai field from row OR nested containers
 export function readAiField(row, bindField) {
   if (!row || !bindField) return null;
-  const f = String(bindField).toLowerCase();
 
+  const rawField = String(bindField).trim();
+  if (!rawField) return null;
+
+  const f = rawField;                // keep original (ai2)
+  const fl = rawField.toLowerCase();  // ai2
+  const fu = rawField.toUpperCase();  // AI2
+
+  // Common variants (your old logic + a few more)
   const candidates = [
     f,
-    f.toUpperCase(),
-    f.replace("ai", "a"),
-    f.replace("ai", "A"),
-    f.replace("ai", "analog"),
-    f.replace("ai", "ANALOG"),
+    fl,
+    fu,
+
+    fl.replace("ai", "a"),
+    fu.replace("AI", "A"),
+
+    fl.replace("ai", "analog"),
+    fu.replace("AI", "ANALOG"),
   ];
 
-  for (const k of candidates) {
-    if (row[k] !== undefined) return row[k];
+  const n = fl.replace(/^ai/, ""); // "2" from "ai2"
+  const extra = [
+    `ai_${n}`,
+    `AI_${n}`,
+    `ai-${n}`,
+    `AI-${n}`,
+  ];
+
+  const keysToTry = [...new Set([...candidates, ...extra].filter(Boolean))];
+
+  // 1) Direct on row (MOST IMPORTANT for your backend: row.ai2)
+  for (const k of keysToTry) {
+    if (hasKey(row, k)) {
+      const v = row[k];
+      dbg("readAiField: HIT (direct)", { bindField: rawField, key: k, value: v });
+      return v;
+    }
   }
 
-  const n = f.replace("ai", "");
-  const extra = [`ai_${n}`, `AI_${n}`, `ai-${n}`, `AI-${n}`];
-  for (const k of extra) {
-    if (row[k] !== undefined) return row[k];
+  // 2) Nested containers fallback (some endpoints wrap telemetry)
+  const containers = [
+    row.data,
+    row.payload,
+    row.telemetry,
+    row.values,
+    row.latest,
+  ].filter(Boolean);
+
+  for (const c of containers) {
+    for (const k of keysToTry) {
+      if (hasKey(c, k)) {
+        const v = c[k];
+        dbg("readAiField: HIT (nested)", {
+          bindField: rawField,
+          key: k,
+          value: v,
+          containerKeys: safeKeys(c).slice(0, 20),
+        });
+        return v;
+      }
+    }
   }
+
+  // 3) Debug miss (shows row keys so we instantly see why)
+  dbg("readAiField: MISS", {
+    bindField: rawField,
+    tried: keysToTry,
+    rowKeys: safeKeys(row).slice(0, 40),
+    hasData: !!row?.data,
+    hasPayload: !!row?.payload,
+    hasTelemetry: !!row?.telemetry,
+  });
 
   return null;
 }
