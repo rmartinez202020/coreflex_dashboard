@@ -521,6 +521,7 @@ export default function GraphicDisplaySettingsModal({
               setBindField={setBindField}
               sampleMs={sampleMs}
               formatSampleLabel={formatSampleLabel}
+              telemetryMap={telemetryMap}
             />
 
             <div

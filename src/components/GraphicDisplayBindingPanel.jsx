@@ -1,3 +1,4 @@
+// src/components/GraphicDisplayBindingPanel.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
@@ -43,88 +44,26 @@ async function apiGet(path, { signal } = {}) {
   return res.json();
 }
 
-// ✅ Try multiple endpoints because projects evolve.
-async function loadDevicesForModel(modelKey, { signal } = {}) {
-  const base = MODEL_META[modelKey]?.base || modelKey;
-  const candidates =
-    base === "zhc1921"
-      ? ["/zhc1921/my-devices", "/zhc1921/devices", "/zhc1921/list", "/zhc1921"]
-      : ["/zhc1661/my-devices", "/zhc1661/devices", "/zhc1661/list", "/zhc1661"];
-
-  let lastErr = null;
-
-  for (const p of candidates) {
-    try {
-      const data = await apiGet(p, { signal });
-
-      const arr = Array.isArray(data)
-        ? data
-        : Array.isArray(data?.devices)
-        ? data.devices
-        : Array.isArray(data?.rows)
-        ? data.rows
-        : [];
-
-      const out = arr
-        .map((r) => {
-          const deviceId =
-            r.deviceId ??
-            r.device_id ??
-            r.id ??
-            r.imei ??
-            r.IMEI ??
-            r.DEVICE_ID ??
-            "";
-
-          if (!deviceId) return null;
-
-          return {
-            deviceId: String(deviceId),
-            status: String(r.status ?? r.online ?? "").toLowerCase(),
-            lastSeen: r.lastSeen ?? r.last_seen ?? r.updatedAt ?? r.updated_at,
-          };
-        })
-        .filter(Boolean);
-
-      return out;
-    } catch (e) {
-      lastErr = e;
-    }
-  }
-
-  throw lastErr || new Error("No device endpoint matched");
+function normalizeArray(data) {
+  return Array.isArray(data)
+    ? data
+    : Array.isArray(data?.devices)
+    ? data.devices
+    : Array.isArray(data?.rows)
+    ? data.rows
+    : [];
 }
 
-// ✅ Live row poll (tries “single device” endpoints first, then falls back to list endpoint + find)
-async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
-  const base = MODEL_META[modelKey]?.base || modelKey;
-
-  const directCandidates =
-    base === "zhc1921"
-      ? [
-          `/zhc1921/device/${deviceId}`,
-          `/zhc1921/devices/${deviceId}`,
-          `/zhc1921/${deviceId}`,
-          `/zhc1921/one/${deviceId}`,
-        ]
-      : [
-          `/zhc1661/device/${deviceId}`,
-          `/zhc1661/devices/${deviceId}`,
-          `/zhc1661/${deviceId}`,
-          `/zhc1661/one/${deviceId}`,
-        ];
-
-  for (const p of directCandidates) {
-    try {
-      const r = await apiGet(p, { signal });
-      return r?.row ?? r?.device ?? r;
-    } catch (e) {
-      // ignore
-    }
-  }
-
-  // fallback: we can't get a raw row from normalized list; return null
-  return null;
+function readDeviceId(row) {
+  return (
+    row?.deviceId ??
+    row?.device_id ??
+    row?.id ??
+    row?.imei ??
+    row?.IMEI ??
+    row?.DEVICE_ID ??
+    ""
+  );
 }
 
 // ✅ read AI field from row, accept multiple naming styles
@@ -154,6 +93,100 @@ function readAiField(row, bindField) {
   return null;
 }
 
+// ✅ COMMON POLLER READER
+function getRowFromTelemetryMap(telemetryMap, modelKey, deviceId) {
+  if (!telemetryMap || !modelKey || !deviceId) return null;
+
+  const mk = String(modelKey || "").trim();
+  const id = String(deviceId || "").trim();
+  if (!mk || !id) return null;
+
+  // direct modelKey
+  const direct = telemetryMap?.[mk]?.[id];
+  if (direct) return direct;
+
+  // base modelKey (zhc1921/zhc1661)
+  const base = MODEL_META?.[mk]?.base || mk;
+  const byBase = telemetryMap?.[base]?.[id];
+  if (byBase) return byBase;
+
+  return null;
+}
+
+/**
+ * ✅ DEVICE LIST LOADER (NO-SPAM)
+ * Prefer telemetryMap keys if present (instant, no network),
+ * else ONLY call /{base}/my-devices (the endpoint you confirmed works).
+ */
+async function loadDevicesForModel(modelKey, { telemetryMap, signal } = {}) {
+  const mk = String(modelKey || "").trim();
+  const base = MODEL_META[mk]?.base || mk;
+
+  // 1) If telemetryMap exists, we can build a list from it (no API call).
+  const bucket = telemetryMap?.[mk] || telemetryMap?.[base] || null;
+  if (bucket && typeof bucket === "object") {
+    const out = Object.entries(bucket)
+      .map(([deviceId, row]) => {
+        const id = String(deviceId || "").trim();
+        if (!id) return null;
+        return {
+          deviceId: id,
+          status: String(row?.status ?? row?.online ?? "").toLowerCase(),
+          lastSeen: row?.lastSeen ?? row?.last_seen ?? row?.updatedAt ?? row?.updated_at,
+        };
+      })
+      .filter(Boolean);
+
+    // Keep stable ordering
+    out.sort((a, b) => String(a.deviceId).localeCompare(String(b.deviceId)));
+    return out;
+  }
+
+  // 2) Fallback: ONLY /my-devices
+  const data = await apiGet(`/${base}/my-devices`, { signal });
+  const arr = normalizeArray(data);
+
+  const out = arr
+    .map((r) => {
+      const deviceId = readDeviceId(r);
+      if (!deviceId) return null;
+      return {
+        deviceId: String(deviceId),
+        status: String(r.status ?? r.online ?? "").toLowerCase(),
+        lastSeen: r.lastSeen ?? r.last_seen ?? r.updatedAt ?? r.updated_at,
+      };
+    })
+    .filter(Boolean);
+
+  out.sort((a, b) => String(a.deviceId).localeCompare(String(b.deviceId)));
+  return out;
+}
+
+/**
+ * ✅ LIVE ROW LOADER (NO-SPAM)
+ * - Prefer telemetryMap (common poller)
+ * - Otherwise ONLY call /{base}/my-devices and find the device row
+ */
+async function loadLiveRowForDevice(modelKey, deviceId, { telemetryMap, signal } = {}) {
+  const mk = String(modelKey || "").trim();
+  const id = String(deviceId || "").trim();
+  if (!mk || !id) return null;
+
+  // 1) Common poller (best)
+  const fromCommon = getRowFromTelemetryMap(telemetryMap, mk, id);
+  if (fromCommon) return fromCommon;
+
+  // 2) Fallback: /my-devices only
+  const base = MODEL_META[mk]?.base || mk;
+  const data = await apiGet(`/${base}/my-devices`, { signal });
+  const arr = normalizeArray(data);
+
+  const found =
+    arr.find((r) => String(readDeviceId(r) || "").trim() === id) || null;
+
+  return found;
+}
+
 export default function GraphicDisplayBindingPanel({
   bindModel,
   setBindModel,
@@ -163,6 +196,9 @@ export default function GraphicDisplayBindingPanel({
   setBindField,
   sampleMs,
   formatSampleLabel,
+
+  // ✅ NEW: pass the common poller map to stop modal spam
+  telemetryMap = null,
 }) {
   const [devices, setDevices] = useState([]);
   const [loadingDevices, setLoadingDevices] = useState(false);
@@ -171,7 +207,7 @@ export default function GraphicDisplayBindingPanel({
   const [currentValue, setCurrentValue] = useState(null);
   const [valueErr, setValueErr] = useState("");
 
-  // Load devices when model changes
+  // Load devices when model changes (NO-SPAM)
   useEffect(() => {
     let cancelled = false;
     const ctrl = new AbortController();
@@ -180,7 +216,10 @@ export default function GraphicDisplayBindingPanel({
       setLoadingDevices(true);
       setDeviceErr("");
       try {
-        const list = await loadDevicesForModel(bindModel, { signal: ctrl.signal });
+        const list = await loadDevicesForModel(bindModel, {
+          telemetryMap,
+          signal: ctrl.signal,
+        });
         if (cancelled) return;
 
         setDevices(list);
@@ -193,7 +232,7 @@ export default function GraphicDisplayBindingPanel({
         if (cancelled) return;
         setDevices([]);
         setDeviceErr(
-          "Could not load devices. Make sure your API has a user devices endpoint for this model."
+          "Could not load devices. Check your /my-devices endpoint and auth token."
         );
       } finally {
         if (!cancelled) setLoadingDevices(false);
@@ -206,7 +245,7 @@ export default function GraphicDisplayBindingPanel({
       ctrl.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bindModel]);
+  }, [bindModel, telemetryMap]);
 
   const selectedDevice = useMemo(() => {
     return devices.find((d) => d.deviceId === bindDeviceId) || null;
@@ -227,7 +266,7 @@ export default function GraphicDisplayBindingPanel({
     return "#6b7280";
   }, [deviceStatusLabel]);
 
-  // ✅ Poll current value using the selected sampleMs
+  // ✅ Poll current value using the selected sampleMs (NO-SPAM)
   useEffect(() => {
     if (!bindDeviceId || !bindField || !bindModel) {
       setCurrentValue(null);
@@ -243,65 +282,13 @@ export default function GraphicDisplayBindingPanel({
         setValueErr("");
 
         const row = await loadLiveRowForDevice(bindModel, bindDeviceId, {
+          telemetryMap,
           signal: ctrl.signal,
         });
 
-        let value = null;
-
-        if (row) {
-          value = readAiField(row, bindField);
-        } else {
-          // fallback: call the “devices” list endpoint raw and search by id
-          const base = MODEL_META[bindModel]?.base || bindModel;
-          const rawCandidates =
-            base === "zhc1921"
-              ? [
-                  "/zhc1921/devices",
-                  "/zhc1921/my-devices",
-                  "/zhc1921/list",
-                  "/zhc1921",
-                ]
-              : [
-                  "/zhc1661/devices",
-                  "/zhc1661/my-devices",
-                  "/zhc1661/list",
-                  "/zhc1661",
-                ];
-
-          let rawArr = [];
-          for (const p of rawCandidates) {
-            try {
-              const data = await apiGet(p, { signal: ctrl.signal });
-              rawArr = Array.isArray(data)
-                ? data
-                : Array.isArray(data?.devices)
-                ? data.devices
-                : Array.isArray(data?.rows)
-                ? data.rows
-                : [];
-              if (rawArr.length) break;
-            } catch (e) {
-              // continue
-            }
-          }
-
-          const rawRow =
-            rawArr.find((r) => {
-              const id =
-                r.deviceId ??
-                r.device_id ??
-                r.id ??
-                r.imei ??
-                r.IMEI ??
-                r.DEVICE_ID ??
-                "";
-              return String(id) === String(bindDeviceId);
-            }) || null;
-
-          if (rawRow) value = readAiField(rawRow, bindField);
-        }
-
         if (cancelled) return;
+
+        const value = row ? readAiField(row, bindField) : null;
 
         const num =
           value === null || value === undefined || value === ""
@@ -314,7 +301,7 @@ export default function GraphicDisplayBindingPanel({
       } catch (e) {
         if (cancelled) return;
         if (String(e?.name || "").toLowerCase().includes("abort")) return;
-        setValueErr("Could not read current value (check API endpoint / fields).");
+        setValueErr("Could not read current value (check /my-devices fields).");
       }
     };
 
@@ -326,7 +313,7 @@ export default function GraphicDisplayBindingPanel({
       ctrl.abort();
       window.clearInterval(id);
     };
-  }, [bindModel, bindDeviceId, bindField, sampleMs]);
+  }, [bindModel, bindDeviceId, bindField, sampleMs, telemetryMap]);
 
   const currentValueLabel = useMemo(() => {
     if (currentValue === null || currentValue === undefined) return "—";
