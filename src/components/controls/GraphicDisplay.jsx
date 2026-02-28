@@ -1,10 +1,6 @@
 // src/components/controls/GraphicDisplay.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  computeMathOutput,
-  msPerUnit,
-  fmtTimeWithDate,
-} from "./graphicDisplay/utils";
+import { computeMathOutput, msPerUnit, fmtTimeWithDate } from "./graphicDisplay/utils";
 import { getRowFromTelemetryMap, readAiField } from "./graphicDisplay/loader";
 import usePingZoom from "./graphicDisplay/hooks/usePingZoom";
 import useTrendSvg from "./graphicDisplay/hooks/useTrendSvg";
@@ -54,8 +50,7 @@ function exportPointsCsv({
   filePrefix = "graphic-display",
 } = {}) {
   const safeTitle =
-    String(title || "Graphic Display").replace(/[^\w\- ]+/g, "").trim() ||
-    "Graphic Display";
+    String(title || "Graphic Display").replace(/[^\w\- ]+/g, "").trim() || "Graphic Display";
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const filename = `${filePrefix}-${safeTitle}-${stamp}.csv`;
 
@@ -153,9 +148,7 @@ function rateUnitToTimeBase(rateUnit) {
     return "minute";
 
   // per hour
-  if (
-    ["GPH", "BBL/h", "LPH", "m³/h", "kg/h", "lb/h", "ton/h", "kW", "BTU/h", "MBTU/h"].includes(u)
-  )
+  if (["GPH", "BBL/h", "LPH", "m³/h", "kg/h", "lb/h", "ton/h", "kW", "BTU/h", "MBTU/h"].includes(u))
     return "hour";
 
   // per second
@@ -164,7 +157,6 @@ function rateUnitToTimeBase(rateUnit) {
   // per day
   if (["BPD"].includes(u)) return "day";
 
-  // unknown
   return "";
 }
 
@@ -242,11 +234,8 @@ export default function GraphicDisplay({
   }, [tank]);
 
   const dbgKey = useMemo(() => {
-    const widgetId =
-      tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
-    return widgetId
-      ? `widget:${widgetId}`
-      : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
+    const widgetId = tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
+    return widgetId ? `widget:${widgetId}` : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
   }, [tank, bindModel, bindDeviceId, bindField]);
 
   function dbg(...args) {
@@ -266,11 +255,8 @@ export default function GraphicDisplay({
   }
 
   const storageKey = useMemo(() => {
-    const widgetId =
-      tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
-    const base = widgetId
-      ? `widget:${widgetId}`
-      : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
+    const widgetId = tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
+    const base = widgetId ? `widget:${widgetId}` : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
     return `coreflex:graphicDisplay:points:${base}`;
   }, [tank, bindModel, bindDeviceId, bindField]);
 
@@ -363,11 +349,7 @@ export default function GraphicDisplay({
     const raw = localStorage.getItem(storageKey);
     const parsed = raw ? safeJsonParse(raw) : null;
 
-    const loaded = Array.isArray(parsed?.points)
-      ? parsed.points
-      : Array.isArray(parsed)
-      ? parsed
-      : [];
+    const loaded = Array.isArray(parsed?.points) ? parsed.points : Array.isArray(parsed) ? parsed : [];
     const pruned = prunePointsByWindow(loaded, windowSize, timeUnit);
 
     dbg("LOAD: localStorage", {
@@ -379,9 +361,7 @@ export default function GraphicDisplay({
 
     setPoints(pruned);
 
-    const lastNumeric = [...pruned]
-      .reverse()
-      .find((p) => Number.isFinite(Number(p?.y)));
+    const lastNumeric = [...pruned].reverse().find((p) => Number.isFinite(Number(p?.y)));
     if (lastNumeric) setMathOutput(Number(lastNumeric.y));
   }, [storageKey, bindDeviceId, bindField, windowSize, timeUnit]);
 
@@ -395,8 +375,7 @@ export default function GraphicDisplay({
     saveTimerRef.current = window.setTimeout(() => {
       const pruned = prunePointsByWindow(points, windowSize, timeUnit);
       const limit = Math.max(50, Number(maxPointsRef.current || 200));
-      const finalPoints =
-        pruned.length > limit ? pruned.slice(pruned.length - limit) : pruned;
+      const finalPoints = pruned.length > limit ? pruned.slice(pruned.length - limit) : pruned;
 
       try {
         localStorage.setItem(
@@ -520,13 +499,7 @@ export default function GraphicDisplay({
     const total = integrateRateToTotal(src, totalizerRateUnit);
 
     return Number.isFinite(total) ? total : null;
-  }, [
-    totalizerEnabled,
-    totalizerRateUnit,
-    totalizerTotalUnit,
-    pointsForView,
-    points,
-  ]);
+  }, [totalizerEnabled, totalizerRateUnit, totalizerTotalUnit, pointsForView, points]);
 
   const statusLabel = useMemo(() => {
     if (!bindDeviceId)
@@ -570,13 +543,11 @@ export default function GraphicDisplay({
         styleBadge={styleBadge}
         statusLabel={statusLabel}
         bindDeviceId={bindDeviceId}
-
-        // ✅ NEW: Totalizer display (for the red-circled area)
+        // ✅ Totalizer display (header)
         totalizerEnabled={totalizerEnabled}
         totalizerRateUnit={totalizerRateUnit}
         totalizerTotalUnit={totalizerTotalUnit}
         totalizerValue={totalizerValue}
-
         // controls
         isPlaying={isPlaying}
         onPlay={() => setIsPlaying(true)}
