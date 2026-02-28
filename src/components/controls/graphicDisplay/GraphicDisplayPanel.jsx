@@ -332,8 +332,14 @@ export default function GraphicDisplayPanel({
               ⏸ <span>Pause</span>
             </button>
 
-            <button type="button" onClick={onExport} style={topBtnBase} title="Export visible points to CSV">
-              ⬇ <span>Export</span>
+            {/* ✅ RENAMED BUTTON */}
+            <button
+              type="button"
+              onClick={onExport}
+              style={topBtnBase}
+              title="Export (Download Data) - CSV"
+            >
+              ⬇ <span>Export (Download Data)</span>
             </button>
 
             <div
@@ -425,7 +431,15 @@ export default function GraphicDisplayPanel({
                   type="button"
                   onClick={onTotEnableClick}
                   disabled={!!totalizerEnabled}
-                  style={totalizerEnabled ? totBtnDisabled : { ...totBtnBase, background: "rgba(220,252,231,0.90)", border: "1px solid rgba(34,197,94,0.35)" }}
+                  style={
+                    totalizerEnabled
+                      ? totBtnDisabled
+                      : {
+                          ...totBtnBase,
+                          background: "rgba(220,252,231,0.90)",
+                          border: "1px solid rgba(34,197,94,0.35)",
+                        }
+                  }
                   title="Enable totalizer accumulation"
                 >
                   ✅ <span>Enable</span>
@@ -436,7 +450,15 @@ export default function GraphicDisplayPanel({
                   type="button"
                   onClick={onTotDisableClick}
                   disabled={!totalizerEnabled}
-                  style={!totalizerEnabled ? totBtnDisabled : { ...totBtnBase, background: "rgba(254,242,242,0.95)", border: "1px solid rgba(239,68,68,0.25)" }}
+                  style={
+                    !totalizerEnabled
+                      ? totBtnDisabled
+                      : {
+                          ...totBtnBase,
+                          background: "rgba(254,242,242,0.95)",
+                          border: "1px solid rgba(239,68,68,0.25)",
+                        }
+                  }
                   title="Disable totalizer accumulation"
                 >
                   ⛔ <span>Disable</span>
@@ -642,9 +664,19 @@ export default function GraphicDisplayPanel({
             }}
             title={showVectors ? "Move mouse to ping time/value. Drag to zoom. Double-click to reset zoom." : ""}
           >
-            <svg viewBox={`0 0 ${svg.W} ${svg.H}`} preserveAspectRatio="none" style={{ width: "100%", height: "100%", display: "block" }}>
+            <svg
+              viewBox={`0 0 ${svg.W} ${svg.H}`}
+              preserveAspectRatio="none"
+              style={{ width: "100%", height: "100%", display: "block" }}
+            >
               {(svg?.segs || []).map((pts, idx) => (
-                <polyline key={idx} fill="none" stroke={lineColor} strokeWidth={strokeW} points={(pts || []).join(" ")} />
+                <polyline
+                  key={idx}
+                  fill="none"
+                  stroke={lineColor}
+                  strokeWidth={strokeW}
+                  points={(pts || []).join(" ")}
+                />
               ))}
             </svg>
 
