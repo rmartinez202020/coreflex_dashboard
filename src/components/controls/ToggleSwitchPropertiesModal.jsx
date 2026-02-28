@@ -87,6 +87,7 @@ export default function ToggleSwitchPropertiesModal({
   // =========================
   // DRAGGABLE WINDOW (Portal-safe)
   // ✅ FIX: prevent dragging the underlying toggle widget while dragging modal
+  // ✅ FIX: allow clicking X (do NOT start drag from button)
   // =========================
   const modalRef = React.useRef(null);
   const dragRef = React.useRef({
@@ -156,6 +157,14 @@ export default function ToggleSwitchPropertiesModal({
   }, [MODAL_W, isLaunched]);
 
   const startDrag = (e) => {
+    // ✅ If user clicked a control inside header (like X), do NOT start drag.
+    const t = e.target;
+    if (
+      t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")
+    ) {
+      return;
+    }
+
     // ✅ stop event so underlying DraggableDroppedTank doesn't start dragging
     e.preventDefault();
     e.stopPropagation();
@@ -319,12 +328,13 @@ export default function ToggleSwitchPropertiesModal({
   // =========================
   // ✅ LIVE STATUS / VALUE (EDIT ONLY) — Extracted
   // =========================
-  const { telemetryRow, backendDeviceStatus } = ToggleSwitchpropertiesmodalTelemetric({
-    open,
-    isLaunched,
-    deviceId,
-    pollMs: 3000,
-  });
+  const { telemetryRow, backendDeviceStatus } =
+    ToggleSwitchpropertiesmodalTelemetric({
+      open,
+      isLaunched,
+      deviceId,
+      pollMs: 3000,
+    });
 
   const deviceIsOnline = backendDeviceStatus === "online";
 
@@ -464,7 +474,7 @@ export default function ToggleSwitchPropertiesModal({
         background: "rgba(0,0,0,0.35)",
         zIndex: 999999,
       }}
-      // ✅ stop overlay click from triggering canvas drag
+      // ✅ close on overlay click (but do NOT break the X button)
       onMouseDown={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -493,7 +503,7 @@ export default function ToggleSwitchPropertiesModal({
           display: "flex",
           flexDirection: "column",
         }}
-        // ✅ block any down events from reaching the canvas/toggle draggable
+        // ✅ block any down events from reaching the overlay/canvas
         onMouseDown={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
       >
@@ -516,7 +526,18 @@ export default function ToggleSwitchPropertiesModal({
           title="Drag to move"
         >
           <span>Toggle Switch (CF-2000)</span>
+
+          {/* ✅ FIX: mark as no-drag + stop pointerdown so header drag doesn't cancel the click */}
           <button
+            data-no-drag="true"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -528,6 +549,8 @@ export default function ToggleSwitchPropertiesModal({
               color: "white",
               fontSize: 22,
               cursor: "pointer",
+              lineHeight: 1,
+              padding: 2,
             }}
             title="Close"
             type="button"
@@ -561,7 +584,13 @@ export default function ToggleSwitchPropertiesModal({
             </div>
           )}
 
-          <div style={{ border: "1px solid #e5e7eb", borderRadius: 12, padding: 14 }}>
+          <div
+            style={{
+              border: "1px solid #e5e7eb",
+              borderRadius: 12,
+              padding: 14,
+            }}
+          >
             <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}>
               Output that this toggle controls (DO)
             </div>
@@ -751,7 +780,8 @@ export default function ToggleSwitchPropertiesModal({
             </div>
 
             <div style={{ fontSize: 12, color: "#64748b", marginTop: 10 }}>
-              Tip: Value preview is best-effort from <code>/zhc1921/my-devices</code>.
+              Tip: Value preview is best-effort from{" "}
+              <code>/zhc1921/my-devices</code>.
             </div>
           </div>
         </div>
