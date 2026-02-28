@@ -126,7 +126,7 @@ export default function GraphicDisplayPanel({
     opacity: 0.55,
   };
 
-  // ✅ Bigger Output / Totallizer (as requested)
+  // ✅ Bigger Output / Totallizer
   const bigStatBoxStyle = {
     height: 40,
     display: "inline-flex",
@@ -174,7 +174,7 @@ export default function GraphicDisplayPanel({
     return `Totallizer integrated from ${totalizerRateUnit}`;
   }, [totalizerEnabled, totalizerRateUnit]);
 
-  // ✅ unit to show next to Output value (selected in modal)
+  // ✅ unit to show next to Output value
   const outputUnitText = useMemo(() => {
     const u = String(yUnits || "").trim();
     return u ? u : "";
@@ -207,7 +207,7 @@ export default function GraphicDisplayPanel({
           minWidth: 0,
         }}
       >
-        {/* ===================== ROW 1 (title left, controls FIXED right) ===================== */}
+        {/* ROW 1 (title left, controls pinned right) */}
         <div
           style={{
             display: "flex",
@@ -217,7 +217,6 @@ export default function GraphicDisplayPanel({
             paddingBottom: 8,
           }}
         >
-          {/* Title (flexes, never pushes the right controls) */}
           <div
             style={{
               fontWeight: 400,
@@ -234,7 +233,6 @@ export default function GraphicDisplayPanel({
             {title}
           </div>
 
-          {/* Right controls (always pinned to top-right) */}
           <div
             style={{
               display: "inline-flex",
@@ -247,7 +245,6 @@ export default function GraphicDisplayPanel({
               paddingBottom: 2,
             }}
           >
-            {/* Explore only in play/launch */}
             {isPlay && (
               <button
                 type="button"
@@ -287,7 +284,6 @@ export default function GraphicDisplayPanel({
               ⬇ <span>Export</span>
             </button>
 
-            {/* LINE indicator */}
             <div
               style={{
                 display: "inline-flex",
@@ -318,17 +314,16 @@ export default function GraphicDisplayPanel({
               ) : null}
             </div>
 
-            {/* ONLINE */}
             <div style={onlinePillStyle} title={bindDeviceId ? `Device is ${statusLabel.text}` : "No device selected"}>
               {statusLabel.text}
             </div>
           </div>
         </div>
 
-        {/* ✅ NEW LINE #1 (same style as frame line) */}
+        {/* LINE between row 1 and row 2 */}
         <div style={{ height: 0, borderTop: FRAME_LINE, width: "100%" }} />
 
-        {/* ===================== ROW 2 (right aligned) ===================== */}
+        {/* ROW 2 (Output/Totallizer right aligned) */}
         <div
           style={{
             marginTop: 10,
@@ -336,9 +331,9 @@ export default function GraphicDisplayPanel({
             justifyContent: "flex-end",
             gap: 12,
             flexWrap: "wrap",
+            paddingBottom: 10, // ✅ gives space before the new splitter line
           }}
         >
-          {/* Output (bigger) + ✅ unit from modal */}
           <div style={bigStatBoxStyle} title="Math Output">
             <span
               style={{
@@ -369,7 +364,6 @@ export default function GraphicDisplayPanel({
             ) : null}
           </div>
 
-          {/* Totallizer (bigger) */}
           {totalizerEnabled ? (
             <div style={bigStatBoxStyle} title={totalTitle}>
               <span
@@ -386,6 +380,9 @@ export default function GraphicDisplayPanel({
             </div>
           ) : null}
         </div>
+
+        {/* ✅ NEW: splitter line below row 2 (like your screenshot) */}
+        <div style={{ height: 0, borderTop: FRAME_LINE, width: "100%" }} />
 
         {/* info row */}
         <div
@@ -419,7 +416,7 @@ export default function GraphicDisplayPanel({
           </span>
         </div>
 
-        {/* ✅ NEW LINE #2 (same style as frame line) */}
+        {/* LINE between header and body */}
         <div style={{ height: 0, borderTop: FRAME_LINE, width: "100%" }} />
       </div>
 
@@ -516,11 +513,16 @@ export default function GraphicDisplayPanel({
               style={{ width: "100%", height: "100%", display: "block" }}
             >
               {(svg?.segs || []).map((pts, idx) => (
-                <polyline key={idx} fill="none" stroke={lineColor} strokeWidth={strokeW} points={(pts || []).join(" ")} />
+                <polyline
+                  key={idx}
+                  fill="none"
+                  stroke={lineColor}
+                  strokeWidth={strokeW}
+                  points={(pts || []).join(" ")}
+                />
               ))}
             </svg>
 
-            {/* ✅ Selection + hover vectors ONLY in Explore */}
             {showVectors && sel ? (
               <div
                 style={{
