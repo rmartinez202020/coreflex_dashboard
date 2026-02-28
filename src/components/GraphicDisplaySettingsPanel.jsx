@@ -1,16 +1,15 @@
 import React from "react";
 
 // ✅ Updated sampling options (ms)
-// 1s, 3s, 6s, 30s, 1min, 5min, 10min
-const SAMPLE_OPTIONS = [1000, 3000, 6000, 30000, 60000, 300000, 600000];
+// 3s, 6s, 30s, 1min, 5min, 10min
+const SAMPLE_OPTIONS = [3000, 6000, 30000, 60000, 300000, 600000];
 
 const TIME_UNITS = ["seconds", "minutes", "hours", "days"];
 
-// ✅ label helper for the new sample options
+// ✅ label helper for the new sample options (1s removed)
 function formatSampleLabel(ms) {
   const sec = ms / 1000;
 
-  if (ms === 1000) return "1s";
   if (ms === 3000) return "3s";
   if (ms === 6000) return "6s";
   if (ms === 30000) return "30s";
@@ -62,6 +61,12 @@ export default function GraphicDisplaySettingsPanel({
   const safeYMax = Number.isFinite(yMax) ? yMax : 0;
 
   const safeLineColor = normalizeHexColor(lineColor);
+
+  // ✅ guard: if someone has old saved 1000ms, bump to 3000ms
+  React.useEffect(() => {
+    if (Number(sampleMs) === 1000) setSampleMs(3000);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   return (
     <div
@@ -147,7 +152,8 @@ export default function GraphicDisplaySettingsPanel({
           </div>
 
           <div style={{ fontSize: 11, fontWeight: 800, color: "#6b7280" }}>
-            Tip: use HEX like <span style={{ fontFamily: "monospace" }}>#ff0000</span>
+            Tip: use HEX like{" "}
+            <span style={{ fontFamily: "monospace" }}>#ff0000</span>
           </div>
         </div>
 
@@ -204,7 +210,7 @@ export default function GraphicDisplaySettingsPanel({
             Sample time
           </span>
           <select
-            value={sampleMs}
+            value={SAMPLE_OPTIONS.includes(Number(sampleMs)) ? sampleMs : 3000}
             onChange={(e) => setSampleMs(Number(e.target.value))}
             style={{
               border: "1px solid #d1d5db",
