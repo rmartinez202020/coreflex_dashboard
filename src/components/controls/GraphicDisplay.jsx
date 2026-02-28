@@ -9,8 +9,6 @@ import { getRowFromTelemetryMap, readAiField } from "./graphicDisplay/loader";
 import usePingZoom from "./graphicDisplay/hooks/usePingZoom";
 import useTrendSvg from "./graphicDisplay/hooks/useTrendSvg";
 import useTrendLayout from "./graphicDisplay/hooks/useTrendLayout";
-
-// ✅ NEW: Explore (fullscreen) wrapper (create this new file)
 import GraphicDisplayExplorePortal from "./graphicDisplay/GraphicDisplayExplorePortal";
 
 const DEFAULT_LINE_COLOR = "#0c5ac8";
