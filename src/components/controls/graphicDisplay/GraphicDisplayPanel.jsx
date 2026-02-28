@@ -66,6 +66,28 @@ export default function GraphicDisplayPanel({
   const strokeW = isExploreMode ? 2 : 3; // thinner line in Explore
   const yFont = isExploreMode ? 14 : 11; // bigger Y numbers in Explore
 
+  // ✅ wrappers: stop propagation but still call hook handlers
+  const onPointerMove = (e) => {
+    e.stopPropagation();
+    handlers?.onPointerMove?.(e);
+  };
+  const onPointerLeave = (e) => {
+    e.stopPropagation();
+    handlers?.onPointerLeave?.(e);
+  };
+  const onPointerDown = (e) => {
+    e.stopPropagation();
+    handlers?.onPointerDown?.(e);
+  };
+  const onPointerUp = (e) => {
+    e.stopPropagation();
+    handlers?.onPointerUp?.(e);
+  };
+  const onDoubleClick = (e) => {
+    e.stopPropagation();
+    handlers?.onDoubleClick?.(e);
+  };
+
   const topBtnBase = {
     height: 36,
     padding: "0 18px",
@@ -221,12 +243,7 @@ export default function GraphicDisplayPanel({
               ⏸ <span>Pause</span>
             </button>
 
-            <button
-              type="button"
-              onClick={onExport}
-              style={topBtnBase}
-              title="Export visible points to CSV"
-            >
+            <button type="button" onClick={onExport} style={topBtnBase} title="Export visible points to CSV">
               ⬇ <span>Export</span>
             </button>
 
@@ -371,9 +388,11 @@ export default function GraphicDisplayPanel({
 
           <div
             ref={plotRef}
-            {...handlers}
-            onPointerDownCapture={(e) => e.stopPropagation()}
-            onPointerMoveCapture={(e) => e.stopPropagation()}
+            onPointerMove={onPointerMove}
+            onPointerLeave={onPointerLeave}
+            onPointerDown={onPointerDown}
+            onPointerUp={onPointerUp}
+            onDoubleClick={onDoubleClick}
             style={{
               position: "absolute",
               left: 92,
