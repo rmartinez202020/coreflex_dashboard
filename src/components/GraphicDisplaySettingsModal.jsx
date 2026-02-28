@@ -1,15 +1,18 @@
 // src/components/GraphicDisplaySettingsModal.jsx
-import React, { useEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 import GraphicDisplaySettingsPanel from "./GraphicDisplaySettingsPanel";
 import GraphicDisplayMathPanel from "./GraphicDisplayMathPanel";
 import GraphicDisplayBindingPanel from "./GraphicDisplayBindingPanel";
 
-// ✅ Updated sampling options (ms)
 const SAMPLE_OPTIONS = [1000, 3000, 6000, 30000, 60000, 300000, 600000];
-
-// ✅ Graph style is FIXED to LINE (no UI)
 const FIXED_GRAPH_STYLE = "line";
 
 // ✅ Models allowed
@@ -18,9 +21,6 @@ const MODEL_META = {
   zhc1661: { label: "CF-1600", base: "zhc1661" },
 };
 
-// -------------------------
-// ✅ auth + no-cache fetch helpers (for live VALUE polling)
-// -------------------------
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -115,11 +115,7 @@ function getRowFromTelemetryMap(telemetryMap, modelKey, deviceId) {
 /**
  * ✅ NO-SPAM LIVE ROW LOADER
  * - Prefer telemetryMap (common poller)
- * - Otherwise ONLY call /{base}/my-devices (the endpoint you confirmed works)
- *
- * IMPORTANT:
- * Your earlier console spam was from trying many "direct" endpoints (/device/:id, /devices/:id, /one/:id, /devices)
- * that return 404/405/403. This version never calls those.
+ * - Otherwise ONLY call /{base}/my-devices
  */
 async function loadLiveRowForDevice(
   modelKey,
@@ -169,6 +165,18 @@ function normalizeHexColor(v, fallback = "#0c5ac8") {
   return fallback;
 }
 
+// ✅ Center calc (used by layout effect so you never see it jump)
+function calcCenteredPos(panelW, estH = 640) {
+  const w = window.innerWidth || 1200;
+  const h = window.innerHeight || 800;
+
+  const width = Math.min(panelW, Math.floor(w * 0.96));
+  const left = Math.max(12, Math.floor((w - width) / 2));
+  const top = Math.max(12, Math.floor((h - estH) / 2));
+
+  return { left, top };
+}
+
 export default function GraphicDisplaySettingsModal({
   open,
   tank,
@@ -214,6 +222,7 @@ export default function GraphicDisplaySettingsModal({
   // ✅ DRAG STATE
   // -------------------------
   const PANEL_W = 1180;
+
   const dragRef = useRef({
     dragging: false,
     startX: 0,
@@ -222,31 +231,40 @@ export default function GraphicDisplaySettingsModal({
     startTop: 0,
   });
 
-  const [pos, setPos] = useState({ left: 0, top: 0 });
-  const [didInitPos, setDidInitPos] = useState(false);
+  // ✅ IMPORTANT: start centered immediately (no visible jump)
+  const [pos, setPos] = useState(() => {
+    // This initializer runs on mount (and we only mount when open=true)
+    // so it centers before the first paint in most cases.
+    try {
+      return calcCenteredPos(PANEL_W, 640);
+    } catch {
+      return { left: 12, top: 12 };
+    }
+  });
+
   const [isDragging, setIsDragging] = useState(false);
 
-  useEffect(() => {
+  // ✅ Ensure centering happens BEFORE paint every time you open (no flash at top-left)
+  useLayoutEffect(() => {
     if (!open) return;
-    setDidInitPos(false);
+
+    setPos(calcCenteredPos(PANEL_W, 640));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // Optional: keep centered if user resizes window (only when not dragging)
   useEffect(() => {
     if (!open) return;
-    if (didInitPos) return;
 
-    const w = window.innerWidth || 1200;
-    const h = window.innerHeight || 800;
+    const onResize = () => {
+      if (dragRef.current.dragging) return;
+      setPos(calcCenteredPos(PANEL_W, 640));
+    };
 
-    const width = Math.min(PANEL_W, Math.floor(w * 0.96));
-    const estHeight = 640;
-
-    const left = Math.max(12, Math.floor((w - width) / 2));
-    const top = Math.max(12, Math.floor((h - estHeight) / 2));
-
-    setPos({ left, top });
-    setDidInitPos(true);
-  }, [open, didInitPos]);
+    window.addEventListener("resize", onResize);
+    return () => window.removeEventListener("resize", onResize);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   useEffect(() => {
     if (!tank) return;
@@ -524,9 +542,7 @@ export default function GraphicDisplaySettingsModal({
               telemetryMap={telemetryMap}
             />
 
-            <div
-              style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}
-            >
+            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
               <button
                 onClick={onClose}
                 style={{
