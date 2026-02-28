@@ -74,12 +74,16 @@ export default function GraphicDisplayPanel({
   const yFont = isExploreMode ? 14 : 11; // bigger Y numbers in Explore
 
   // ✅ wrappers: stop propagation but still call hook handlers
+  // IMPORTANT FIX:
+  // - We STOP propagation on Down/Move so the widget doesn't drag while interacting with the plot.
+  // - We DO NOT stop propagation on Up/Cancel so the parent drag/resize system can properly end the gesture.
   const onPointerMove = (e) => {
     e.stopPropagation();
     handlers?.onPointerMove?.(e);
   };
   const onPointerLeave = (e) => {
-    e.stopPropagation();
+    // letting this bubble is usually fine, but keep it consistent with your old behavior
+    // if you prefer: remove stopPropagation here too.
     handlers?.onPointerLeave?.(e);
   };
   const onPointerDown = (e) => {
@@ -87,7 +91,11 @@ export default function GraphicDisplayPanel({
     handlers?.onPointerDown?.(e);
   };
   const onPointerUp = (e) => {
-    e.stopPropagation();
+    // ✅ DO NOT stopPropagation here
+    handlers?.onPointerUp?.(e);
+  };
+  const onPointerCancel = (e) => {
+    // ✅ DO NOT stopPropagation here
     handlers?.onPointerUp?.(e);
   };
   const onDoubleClick = (e) => {
@@ -258,12 +266,7 @@ export default function GraphicDisplayPanel({
             ⏸ <span>Pause</span>
           </button>
 
-          <button
-            type="button"
-            onClick={onExport}
-            style={topBtnBase}
-            title="Export visible points to CSV"
-          >
+          <button type="button" onClick={onExport} style={topBtnBase} title="Export visible points to CSV">
             ⬇ <span>Export</span>
           </button>
 
@@ -294,17 +297,12 @@ export default function GraphicDisplayPanel({
             />
             <span style={{ fontSize: 12, fontWeight: 400, color: "#111" }}>LINE</span>
             {styleBadge ? (
-              <span style={{ fontSize: 11, fontWeight: 400, color: "#475569" }}>
-                {styleBadge}
-              </span>
+              <span style={{ fontSize: 11, fontWeight: 400, color: "#475569" }}>{styleBadge}</span>
             ) : null}
           </div>
 
           {/* ONLINE (inline on row 1) */}
-          <div
-            style={onlinePillStyle}
-            title={bindDeviceId ? `Device is ${statusLabel.text}` : "No device selected"}
-          >
+          <div style={onlinePillStyle} title={bindDeviceId ? `Device is ${statusLabel.text}` : "No device selected"}>
             {statusLabel.text}
           </div>
         </div>
@@ -467,6 +465,7 @@ export default function GraphicDisplayPanel({
             onPointerLeave={onPointerLeave}
             onPointerDown={onPointerDown}
             onPointerUp={onPointerUp}
+            onPointerCancel={onPointerCancel}
             onDoubleClick={onDoubleClick}
             style={{
               position: "absolute",
@@ -485,13 +484,7 @@ export default function GraphicDisplayPanel({
               style={{ width: "100%", height: "100%", display: "block" }}
             >
               {(svg?.segs || []).map((pts, idx) => (
-                <polyline
-                  key={idx}
-                  fill="none"
-                  stroke={lineColor}
-                  strokeWidth={strokeW}
-                  points={(pts || []).join(" ")}
-                />
+                <polyline key={idx} fill="none" stroke={lineColor} strokeWidth={strokeW} points={(pts || []).join(" ")} />
               ))}
             </svg>
 
