@@ -221,9 +221,19 @@ export default function GraphicDisplay({
   const lineColor = normalizeLineColor(tank?.lineColor);
 
   // ✅ Totalizer config saved from modal
-  const totalizerEnabled = tank?.totalizerEnabled === true;
+  const tankTotEnabled = tank?.totalizerEnabled === true;
   const totalizerRateUnit = String(tank?.totalizerUnit ?? "").trim();
   const totalizerTotalUnit = RATE_TO_TOTAL_UNIT[totalizerRateUnit] || "";
+
+  // ✅ Runtime control for Enable/Disable from header buttons
+  const [totEnabled, setTotEnabled] = useState(tankTotEnabled);
+  const [totalizerResetAt, setTotalizerResetAt] = useState(0);
+
+  // keep runtime in sync if tank changes (like loading a different widget)
+  useEffect(() => {
+    setTotEnabled(tankTotEnabled);
+    setTotalizerResetAt(0);
+  }, [tankTotEnabled, tank?.id, tank?.widgetId, tank?.widget_id, bindDeviceId, bindField]);
 
   const DEBUG = useMemo(() => {
     if (tank?.debug) return true;
@@ -298,7 +308,8 @@ export default function GraphicDisplay({
       windowSize,
       timeUnit,
       mathFormula,
-      totalizerEnabled,
+      tankTotEnabled,
+      totEnabled,
       totalizerRateUnit,
       totalizerTotalUnit,
       telemetryMapType: telemetryMap ? typeof telemetryMap : "null",
@@ -490,16 +501,20 @@ export default function GraphicDisplay({
   });
 
   // ✅ Compute totalizer value over the CURRENT VISIBLE data (pointsForView)
+  // ✅ If reset is used, integrate only points AFTER totalizerResetAt
   const totalizerValue = useMemo(() => {
-    if (!totalizerEnabled) return null;
+    if (!totEnabled) return null;
     if (!totalizerRateUnit) return null;
     if (!totalizerTotalUnit) return null;
 
-    const src = (pointsForView?.length ? pointsForView : points) || [];
-    const total = integrateRateToTotal(src, totalizerRateUnit);
+    const srcBase = (pointsForView?.length ? pointsForView : points) || [];
+    const src = totalizerResetAt
+      ? srcBase.filter((p) => Number(p?.t) >= Number(totalizerResetAt || 0))
+      : srcBase;
 
+    const total = integrateRateToTotal(src, totalizerRateUnit);
     return Number.isFinite(total) ? total : null;
-  }, [totalizerEnabled, totalizerRateUnit, totalizerTotalUnit, pointsForView, points]);
+  }, [totEnabled, totalizerRateUnit, totalizerTotalUnit, pointsForView, points, totalizerResetAt]);
 
   const statusLabel = useMemo(() => {
     if (!bindDeviceId)
@@ -531,6 +546,24 @@ export default function GraphicDisplay({
     };
   }, [deviceOnline, bindDeviceId]);
 
+  // ✅ Totalizer header control handlers
+  const onTotalizerEnable = () => {
+    setTotEnabled(true);
+    dbg("TOTALIZER: enabled from header");
+  };
+
+  const onTotalizerDisable = () => {
+    setTotEnabled(false);
+    dbg("TOTALIZER: disabled from header");
+  };
+
+  const onTotalizerReset = () => {
+    // reset means "start accumulating from now"
+    const t = Date.now();
+    setTotalizerResetAt(t);
+    dbg("TOTALIZER: reset from header", { resetAt: t });
+  };
+
   function buildPanel(isExploreMode) {
     return (
       <GraphicDisplayPanel
@@ -544,10 +577,14 @@ export default function GraphicDisplay({
         statusLabel={statusLabel}
         bindDeviceId={bindDeviceId}
         // ✅ Totalizer display (header)
-        totalizerEnabled={totalizerEnabled}
+        totalizerEnabled={totEnabled}
         totalizerRateUnit={totalizerRateUnit}
         totalizerTotalUnit={totalizerTotalUnit}
         totalizerValue={totalizerValue}
+        // ✅ Totalizer header controls (Enable/Disable/Reset)
+        onTotalizerEnable={onTotalizerEnable}
+        onTotalizerDisable={onTotalizerDisable}
+        onTotalizerReset={onTotalizerReset}
         // controls
         isPlaying={isPlaying}
         onPlay={() => setIsPlaying(true)}
