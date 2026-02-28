@@ -98,7 +98,7 @@ function readAiField(row, bindField) {
   return null;
 }
 
-// ✅ COMMON POLLER READER (same idea as loader.js)
+// ✅ COMMON POLLER READER
 function getRowFromTelemetryMap(telemetryMap, modelKey, deviceId) {
   if (!telemetryMap || !modelKey || !deviceId) return null;
 
@@ -126,7 +126,7 @@ async function loadLiveRowForDevice(modelKey, deviceId, { telemetryMap, signal }
   const id = String(deviceId || "").trim();
   if (!mk || !id) return null;
 
-  // 1) Common poller (best)
+  // 1) Common poller
   const fromCommon = getRowFromTelemetryMap(telemetryMap, mk, id);
   if (fromCommon) return fromCommon;
 
@@ -135,7 +135,9 @@ async function loadLiveRowForDevice(modelKey, deviceId, { telemetryMap, signal }
   const data = await apiGet(`/${base}/my-devices`, { signal });
   const arr = normalizeArray(data);
 
-  const found = arr.find((r) => String(readDeviceId(r) || "").trim() === id) || null;
+  const found =
+    arr.find((r) => String(readDeviceId(r) || "").trim() === id) || null;
+
   return found;
 }
 
@@ -162,7 +164,7 @@ function normalizeHexColor(v, fallback = "#0c5ac8") {
   return fallback;
 }
 
-// ✅ Center calc (used by layout effect so you never see it jump)
+// ✅ Center calc
 function calcCenteredPos(panelW, estH = 660) {
   const w = window.innerWidth || 1200;
   const h = window.innerHeight || 800;
@@ -183,51 +185,38 @@ export default function GraphicDisplaySettingsModal({
 }) {
   if (!open) return null;
 
-  // -------------------------
   // LEFT: chart settings
-  // -------------------------
   const [title, setTitle] = useState("Graphic Display");
   const [timeUnit, setTimeUnit] = useState("seconds");
   const [windowSize, setWindowSize] = useState(60);
-
   const [sampleMs, setSampleMs] = useState(3000);
 
   const [yMin, setYMin] = useState(0);
   const [yMax, setYMax] = useState(100);
 
-  // ✅ Units under Totalizer section (keep yUnits for backward compatibility)
+  // Units now under totalizer (keep for backward compatibility)
   const [yUnits, setYUnits] = useState("");
 
   const [lineColor, setLineColor] = useState("#0c5ac8");
 
-  // -------------------------
   // ✅ TOTALIZER
-  // -------------------------
   const [totalizerEnabled, setTotalizerEnabled] = useState(false);
   const [totalizerUnit, setTotalizerUnit] = useState("");
 
-  // -------------------------
   // MIDDLE: math
-  // -------------------------
   const [mathFormula, setMathFormula] = useState("");
 
-  // -------------------------
   // RIGHT: binding
-  // -------------------------
   const [bindModel, setBindModel] = useState("zhc1921");
   const [bindDeviceId, setBindDeviceId] = useState("");
   const [bindField, setBindField] = useState("ai1");
 
-  // -------------------------
-  // ✅ LIVE VALUE for Math
-  // -------------------------
+  // Live value for math
   const [liveValue, setLiveValue] = useState(null);
   const [liveErr, setLiveErr] = useState("");
 
-  // -------------------------
   // ✅ DRAG STATE
-  // -------------------------
-  const PANEL_W = 1400; // ✅ wider
+  const PANEL_W = 1600; // ✅ wider to fit 4 columns nicely
 
   const dragRef = useRef({
     dragging: false,
@@ -239,7 +228,7 @@ export default function GraphicDisplaySettingsModal({
 
   const [pos, setPos] = useState(() => {
     try {
-      return calcCenteredPos(PANEL_W, 660);
+      return calcCenteredPos(PANEL_W, 700);
     } catch {
       return { left: 12, top: 12 };
     }
@@ -249,7 +238,7 @@ export default function GraphicDisplaySettingsModal({
 
   useLayoutEffect(() => {
     if (!open) return;
-    setPos(calcCenteredPos(PANEL_W, 660));
+    setPos(calcCenteredPos(PANEL_W, 700));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -258,7 +247,7 @@ export default function GraphicDisplaySettingsModal({
 
     const onResize = () => {
       if (dragRef.current.dragging) return;
-      setPos(calcCenteredPos(PANEL_W, 660));
+      setPos(calcCenteredPos(PANEL_W, 700));
     };
 
     window.addEventListener("resize", onResize);
@@ -275,7 +264,10 @@ export default function GraphicDisplaySettingsModal({
 
     const incomingSample = Number(tank.sampleMs ?? 3000);
     const normalizedSample = incomingSample === 1000 ? 3000 : incomingSample;
-    setSampleMs(SAMPLE_OPTIONS.includes(normalizedSample) ? normalizedSample : 3000);
+
+    setSampleMs(
+      SAMPLE_OPTIONS.includes(normalizedSample) ? normalizedSample : 3000
+    );
 
     setYMin(Number.isFinite(tank.yMin) ? tank.yMin : 0);
     setYMax(Number.isFinite(tank.yMax) ? tank.yMax : 100);
@@ -286,7 +278,7 @@ export default function GraphicDisplaySettingsModal({
     setTotalizerEnabled(tEnabled);
     setTotalizerUnit(tUnit);
 
-    // backward-compat sync
+    // backward compat sync
     setYUnits(tUnit);
 
     setLineColor(normalizeHexColor(tank.lineColor ?? "#0c5ac8"));
@@ -308,9 +300,7 @@ export default function GraphicDisplaySettingsModal({
     return yRangeValid && !!bindDeviceId && !!bindField;
   }, [yRangeValid, bindDeviceId, bindField]);
 
-  // -------------------------
-  // ✅ LIVE VALUE POLL (NO-SPAM)
-  // -------------------------
+  // ✅ LIVE VALUE POLL
   useEffect(() => {
     if (!open) return;
 
@@ -347,7 +337,9 @@ export default function GraphicDisplaySettingsModal({
       } catch (e) {
         if (cancelled) return;
         if (String(e?.name || "").toLowerCase().includes("abort")) return;
-        setLiveErr("Could not read live value (check /my-devices response & fields).");
+        setLiveErr(
+          "Could not read live value (check /my-devices response & fields)."
+        );
       }
     };
 
@@ -376,7 +368,7 @@ export default function GraphicDisplaySettingsModal({
     const h = window.innerHeight || 800;
 
     const actualW = Math.min(PANEL_W, Math.floor(w * 0.96));
-    const estH = 660;
+    const estH = 700;
 
     const maxLeft = Math.max(margin, w - margin - actualW);
     const maxTop = Math.max(margin, h - margin - estH);
@@ -398,7 +390,10 @@ export default function GraphicDisplaySettingsModal({
     if (e.button !== 0) return;
 
     const t = e.target;
-    if (t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")) return;
+    if (
+      t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")
+    )
+      return;
 
     e.preventDefault();
 
@@ -482,17 +477,19 @@ export default function GraphicDisplaySettingsModal({
           </button>
         </div>
 
+        {/* ✅ 4 COLUMNS: Totalizer | Settings | Math | Binding */}
         <div
           style={{
             display: "grid",
-            gridTemplateColumns: "1.15fr 0.95fr 1fr",
+            gridTemplateColumns: "0.95fr 1.15fr 0.95fr 1fr",
             gap: 14,
             padding: 14,
             background: "#f8fafc",
+            alignItems: "start",
           }}
         >
-          {/* LEFT COLUMN */}
-          <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
+          {/* 1) Totalizer */}
+          <div style={{ minWidth: 0 }}>
             <GraphicDisplayTotalizerSection
               enabled={totalizerEnabled}
               onToggleEnabled={(v) => setTotalizerEnabled(!!v)}
@@ -500,10 +497,13 @@ export default function GraphicDisplaySettingsModal({
               onChangeUnit={(u) => {
                 const unit = String(u ?? "");
                 setTotalizerUnit(unit);
-                setYUnits(unit);
+                setYUnits(unit); // backward compat
               }}
             />
+          </div>
 
+          {/* 2) Display Settings */}
+          <div style={{ minWidth: 0 }}>
             <GraphicDisplaySettingsPanel
               title={title}
               setTitle={setTitle}
@@ -529,9 +529,13 @@ export default function GraphicDisplaySettingsModal({
             />
           </div>
 
-          {/* MIDDLE */}
-          <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
-            <GraphicDisplayMathPanel value={liveValue} formula={mathFormula} setFormula={setMathFormula} />
+          {/* 3) Math */}
+          <div style={{ display: "grid", gap: 12, alignContent: "start", minWidth: 0 }}>
+            <GraphicDisplayMathPanel
+              value={liveValue}
+              formula={mathFormula}
+              setFormula={setMathFormula}
+            />
 
             {liveErr && (
               <div
@@ -550,8 +554,8 @@ export default function GraphicDisplaySettingsModal({
             )}
           </div>
 
-          {/* RIGHT */}
-          <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
+          {/* 4) Tag that drives the trend */}
+          <div style={{ display: "grid", gap: 12, alignContent: "start", minWidth: 0 }}>
             <GraphicDisplayBindingPanel
               bindModel={bindModel}
               setBindModel={setBindModel}
