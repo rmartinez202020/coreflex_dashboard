@@ -126,7 +126,7 @@ export default function GraphicDisplayPanel({
     opacity: 0.55,
   };
 
-  // ✅ Bigger Output / Totallizer (as requested)
+  // ✅ Bigger Output / Totallizer
   const bigStatBoxStyle = {
     height: 40,
     display: "inline-flex",
@@ -204,16 +204,17 @@ export default function GraphicDisplayPanel({
           minWidth: 0,
         }}
       >
+        {/* ROW 1: title left, controls pinned to right */}
         <div
           style={{
             display: "flex",
             alignItems: "center",
             gap: 10,
             minWidth: 0,
-            overflowX: "auto",
             paddingBottom: 8,
           }}
         >
+          {/* Title grows/shrinks, controls stay fixed on the right */}
           <div
             style={{
               fontWeight: 400,
@@ -222,102 +223,121 @@ export default function GraphicDisplayPanel({
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
-              minWidth: 120,
-              flex: "0 0 auto",
+              flex: "1 1 auto",
+              minWidth: 0,
             }}
             title={title}
           >
             {title}
           </div>
 
-          {isPlay && (
-            <button
-              type="button"
-              onClick={onToggleExplore}
-              style={{
-                ...topBtnBase,
-                background: isExploreMode ? "#fee2e2" : "#fff",
-                border: isExploreMode ? "1px solid #fecaca" : topBtnBase.border,
-              }}
-              title={isExploreMode ? "Close Explore" : "Open Explore"}
-            >
-              🔎 <span>{isExploreMode ? "Explore OUT" : "Explore IN"}</span>
-            </button>
-          )}
-
-          <button
-            type="button"
-            onClick={onPlay}
-            style={isPlaying ? topBtnDisabled : topBtnBase}
-            disabled={isPlaying}
-            title="Resume"
-          >
-            ▶ <span>Play</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onPause}
-            style={!isPlaying ? topBtnDisabled : topBtnBase}
-            disabled={!isPlaying}
-            title="Pause"
-          >
-            ⏸ <span>Pause</span>
-          </button>
-
-          <button
-            type="button"
-            onClick={onExport}
-            style={topBtnBase}
-            title="Export visible points to CSV"
-          >
-            ⬇ <span>Export</span>
-          </button>
-
+          {/* Right cluster: always pinned to the right */}
           <div
             style={{
+              marginLeft: "auto",
               display: "inline-flex",
               alignItems: "center",
-              gap: 8,
-              height: 36,
-              padding: "0 10px",
-              borderRadius: 10,
-              border: "1px solid rgba(0,0,0,0.10)",
-              background: "rgba(255,255,255,0.92)",
-              whiteSpace: "nowrap",
+              gap: 10,
               flex: "0 0 auto",
+              whiteSpace: "nowrap",
+              minWidth: 0,
             }}
-            title={`Line color: ${lineColor}`}
           >
-            <span
-              style={{
-                width: 12,
-                height: 12,
-                borderRadius: 999,
-                background: lineColor,
-                border: "1px solid rgba(0,0,0,0.15)",
-              }}
-            />
-            <span style={{ fontSize: 12, fontWeight: 400, color: "#111" }}>
-              LINE
-            </span>
-            {styleBadge ? (
-              <span style={{ fontSize: 11, fontWeight: 400, color: "#475569" }}>
-                {styleBadge}
-              </span>
-            ) : null}
-          </div>
+            {isPlay && (
+              <button
+                type="button"
+                onClick={onToggleExplore}
+                style={{
+                  ...topBtnBase,
+                  background: isExploreMode ? "#fee2e2" : "#fff",
+                  border: isExploreMode ? "1px solid #fecaca" : topBtnBase.border,
+                }}
+                title={isExploreMode ? "Close Explore" : "Open Explore"}
+              >
+                🔎 <span>{isExploreMode ? "Explore OUT" : "Explore IN"}</span>
+              </button>
+            )}
 
-          <div
-            style={onlinePillStyle}
-            title={bindDeviceId ? `Device is ${statusLabel.text}` : "No device selected"}
-          >
-            {statusLabel.text}
+            <button
+              type="button"
+              onClick={onPlay}
+              style={isPlaying ? topBtnDisabled : topBtnBase}
+              disabled={isPlaying}
+              title="Resume"
+            >
+              ▶ <span>Play</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onPause}
+              style={!isPlaying ? topBtnDisabled : topBtnBase}
+              disabled={!isPlaying}
+              title="Pause"
+            >
+              ⏸ <span>Pause</span>
+            </button>
+
+            <button
+              type="button"
+              onClick={onExport}
+              style={topBtnBase}
+              title="Export visible points to CSV"
+            >
+              ⬇ <span>Export</span>
+            </button>
+
+            {/* LINE indicator */}
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                height: 36,
+                padding: "0 10px",
+                borderRadius: 10,
+                border: "1px solid rgba(0,0,0,0.10)",
+                background: "rgba(255,255,255,0.92)",
+                whiteSpace: "nowrap",
+                flex: "0 0 auto",
+              }}
+              title={`Line color: ${lineColor}`}
+            >
+              <span
+                style={{
+                  width: 12,
+                  height: 12,
+                  borderRadius: 999,
+                  background: lineColor,
+                  border: "1px solid rgba(0,0,0,0.15)",
+                }}
+              />
+              <span style={{ fontSize: 12, fontWeight: 400, color: "#111" }}>
+                LINE
+              </span>
+              {styleBadge ? (
+                <span style={{ fontSize: 11, fontWeight: 400, color: "#475569" }}>
+                  {styleBadge}
+                </span>
+              ) : null}
+            </div>
+
+            {/* ONLINE */}
+            <div
+              style={onlinePillStyle}
+              title={
+                bindDeviceId ? `Device is ${statusLabel.text}` : "No device selected"
+              }
+            >
+              {statusLabel.text}
+            </div>
           </div>
         </div>
 
+        {/* divider */}
         <div style={{ height: 0, borderTop: FRAME_LINE, width: "100%" }} />
 
+        {/* ROW 2 (right aligned stats) */}
         <div
           style={{
             marginTop: 10,
@@ -362,6 +382,7 @@ export default function GraphicDisplayPanel({
           ) : null}
         </div>
 
+        {/* info row */}
         <div
           style={{
             display: "flex",
@@ -389,7 +410,8 @@ export default function GraphicDisplayPanel({
           </span>
           <span>•</span>
           <span>
-            Y: <span>{yMin}</span> → <span>{yMax}</span> {yUnits ? `({yUnits})` : ""}
+            Y: <span>{yMin}</span> → <span>{yMax}</span>{" "}
+            {yUnits ? `(${yUnits})` : ""}
           </span>
         </div>
 
@@ -503,7 +525,6 @@ export default function GraphicDisplayPanel({
               ))}
             </svg>
 
-            {/* ✅ selection band only in Explore IN */}
             {showExploreVectors && sel ? (
               <div
                 style={{
@@ -520,7 +541,6 @@ export default function GraphicDisplayPanel({
               />
             ) : null}
 
-            {/* ✅ hover vector + tooltip only in Explore IN */}
             {showExploreVectors && hover ? (
               <>
                 <div
@@ -572,7 +592,6 @@ export default function GraphicDisplayPanel({
               </>
             ) : null}
 
-            {/* math output corner pill stays visible always */}
             <div
               style={{
                 position: "absolute",
