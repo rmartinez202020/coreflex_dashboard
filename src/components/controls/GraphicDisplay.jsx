@@ -1,6 +1,10 @@
 // src/components/controls/GraphicDisplay.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { computeMathOutput, msPerUnit, fmtTimeWithDate } from "./graphicDisplay/utils";
+import {
+  computeMathOutput,
+  msPerUnit,
+  fmtTimeWithDate,
+} from "./graphicDisplay/utils";
 import { getRowFromTelemetryMap, readAiField } from "./graphicDisplay/loader";
 import usePingZoom from "./graphicDisplay/hooks/usePingZoom";
 import useTrendSvg from "./graphicDisplay/hooks/useTrendSvg";
@@ -35,9 +39,15 @@ function normalizeOnlineStatusFromRow(row) {
   if (raw === true || raw === 1) return { online: true, label: "ONLINE" };
   if (raw === false || raw === 0) return { online: false, label: "OFFLINE" };
 
-  if (["online", "connected", "ok", "active", "up", "true", "yes", "1"].includes(s))
+  if (
+    ["online", "connected", "ok", "active", "up", "true", "yes", "1"].includes(s)
+  )
     return { online: true, label: "ONLINE" };
-  if (["offline", "disconnected", "down", "inactive", "false", "no", "0"].includes(s))
+  if (
+    ["offline", "disconnected", "down", "inactive", "false", "no", "0"].includes(
+      s
+    )
+  )
     return { online: false, label: "OFFLINE" };
 
   return { online: null, label: "--" };
@@ -50,7 +60,9 @@ function exportPointsCsv({
   filePrefix = "graphic-display",
 } = {}) {
   const safeTitle =
-    String(title || "Graphic Display").replace(/[^\w\- ]+/g, "").trim() || "Graphic Display";
+    String(title || "Graphic Display")
+      .replace(/[^\w\- ]+/g, "")
+      .trim() || "Graphic Display";
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const filename = `${filePrefix}-${safeTitle}-${stamp}.csv`;
 
@@ -144,11 +156,28 @@ function rateUnitToTimeBase(rateUnit) {
   const u = String(rateUnit || "").trim();
 
   // per minute
-  if (["GPM", "CFM", "SCFM", "ACFM", "LPM", "m³/min", "kg/min", "lb/min"].includes(u))
+  if (
+    ["GPM", "CFM", "SCFM", "ACFM", "LPM", "m³/min", "kg/min", "lb/min"].includes(
+      u
+    )
+  )
     return "minute";
 
   // per hour
-  if (["GPH", "BBL/h", "LPH", "m³/h", "kg/h", "lb/h", "ton/h", "kW", "BTU/h", "MBTU/h"].includes(u))
+  if (
+    [
+      "GPH",
+      "BBL/h",
+      "LPH",
+      "m³/h",
+      "kg/h",
+      "lb/h",
+      "ton/h",
+      "kW",
+      "BTU/h",
+      "MBTU/h",
+    ].includes(u)
+  )
     return "hour";
 
   // per second
@@ -221,10 +250,12 @@ export default function GraphicDisplay({
   const lineColor = normalizeLineColor(tank?.lineColor);
 
   // ✅ Single Units config saved from modal
+  // IMPORTANT: the saved key is singleUnitsUnit (per your modal screenshot)
   const tankSingleEnabled = tank?.singleUnitsEnabled === true;
   const tankSingleUnit = String(tank?.singleUnitsUnit ?? "").trim();
 
-  const [singleUnitsEnabled, setSingleUnitsEnabled] = useState(tankSingleEnabled);
+  const [singleUnitsEnabled, setSingleUnitsEnabled] =
+    useState(tankSingleEnabled);
   const [singleUnitsUnit, setSingleUnitsUnit] = useState(tankSingleUnit);
 
   // ✅ Totalizer config saved from modal
@@ -274,8 +305,11 @@ export default function GraphicDisplay({
   }, [tank]);
 
   const dbgKey = useMemo(() => {
-    const widgetId = tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
-    return widgetId ? `widget:${widgetId}` : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
+    const widgetId =
+      tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
+    return widgetId
+      ? `widget:${widgetId}`
+      : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
   }, [tank, bindModel, bindDeviceId, bindField]);
 
   function dbg(...args) {
@@ -295,8 +329,11 @@ export default function GraphicDisplay({
   }
 
   const storageKey = useMemo(() => {
-    const widgetId = tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
-    const base = widgetId ? `widget:${widgetId}` : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
+    const widgetId =
+      tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
+    const base = widgetId
+      ? `widget:${widgetId}`
+      : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
     return `coreflex:graphicDisplay:points:${base}`;
   }, [tank, bindModel, bindDeviceId, bindField]);
 
@@ -392,7 +429,11 @@ export default function GraphicDisplay({
     const raw = localStorage.getItem(storageKey);
     const parsed = raw ? safeJsonParse(raw) : null;
 
-    const loaded = Array.isArray(parsed?.points) ? parsed.points : Array.isArray(parsed) ? parsed : [];
+    const loaded = Array.isArray(parsed?.points)
+      ? parsed.points
+      : Array.isArray(parsed)
+      ? parsed
+      : [];
     const pruned = prunePointsByWindow(loaded, windowSize, timeUnit);
 
     dbg("LOAD: localStorage", {
@@ -404,7 +445,9 @@ export default function GraphicDisplay({
 
     setPoints(pruned);
 
-    const lastNumeric = [...pruned].reverse().find((p) => Number.isFinite(Number(p?.y)));
+    const lastNumeric = [...pruned]
+      .reverse()
+      .find((p) => Number.isFinite(Number(p?.y)));
     if (lastNumeric) setMathOutput(Number(lastNumeric.y));
   }, [storageKey, bindDeviceId, bindField, windowSize, timeUnit]);
 
@@ -418,7 +461,8 @@ export default function GraphicDisplay({
     saveTimerRef.current = window.setTimeout(() => {
       const pruned = prunePointsByWindow(points, windowSize, timeUnit);
       const limit = Math.max(50, Number(maxPointsRef.current || 200));
-      const finalPoints = pruned.length > limit ? pruned.slice(pruned.length - limit) : pruned;
+      const finalPoints =
+        pruned.length > limit ? pruned.slice(pruned.length - limit) : pruned;
 
       try {
         localStorage.setItem(
@@ -608,10 +652,12 @@ export default function GraphicDisplay({
   };
 
   // ✅ Unit label used on the chart/UI
+  // IMPORTANT: when Single Units is enabled, use singleUnitsUnit (not totalizer unit)
   const displayUnits = useMemo(() => {
     const su = String(singleUnitsUnit || "").trim();
     const yu = String(yUnits || "").trim();
-    return singleUnitsEnabled ? (su || yu || "") : (yu || "");
+    if (singleUnitsEnabled) return su || yu || "";
+    return yu || "";
   }, [singleUnitsEnabled, singleUnitsUnit, yUnits]);
 
   function buildPanel(isExploreMode) {
@@ -636,8 +682,11 @@ export default function GraphicDisplay({
         onTotalizerDisable={onTotalizerDisable}
         onTotalizerReset={onTotalizerReset}
         // ✅ Single Units (NEW)
+        // IMPORTANT: GraphicDisplayPanel expects:
+        //   singleUnitsEnabled
+        //   singleUnit
         singleUnitsEnabled={singleUnitsEnabled}
-        singleUnitsUnit={singleUnitsUnit}
+        singleUnit={singleUnitsUnit}
         // controls
         isPlaying={isPlaying}
         onPlay={() => setIsPlaying(true)}
@@ -659,6 +708,7 @@ export default function GraphicDisplay({
         windowSize={windowSize}
         yMin={yMin}
         yMax={yMax}
+        // ✅ Use displayUnits so Single Units wins
         yUnits={displayUnits}
         // layout/plot
         gridBackground={gridBackground}
