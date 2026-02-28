@@ -82,6 +82,9 @@ export default function GraphicDisplayPanel({
   // show vector/hover/selection visuals ONLY in Explore IN mode
   const showVectors = !!isExploreMode;
 
+  // ✅ Totalizer controls should ONLY be visible in Play/Launch mode
+  const showTotalizerControls = !!isPlay && !!totalizerEnabled;
+
   // Local UI state for totalizer play/pause (parent can override with prop)
   const [localTotPlaying, setLocalTotPlaying] = useState(true);
   const totalizerIsPlaying =
@@ -383,7 +386,7 @@ export default function GraphicDisplayPanel({
         {/* LINE between row 1 and row 2 */}
         <div style={{ height: 0, borderTop: FRAME_LINE, width: "100%" }} />
 
-        {/* ROW 2: left = totalizer controls, right = output/totallizer boxes */}
+        {/* ROW 2: left = totalizer controls (PLAY ONLY), right = output/totallizer boxes */}
         <div
           style={{
             marginTop: 10,
@@ -396,80 +399,93 @@ export default function GraphicDisplayPanel({
             minWidth: 0,
           }}
         >
-          {/* LEFT: Totalizer controls */}
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 10,
-              flex: "1 1 auto",
-              minWidth: 240,
-            }}
-          >
-            <div
-              style={{
-                fontSize: 12,
-                color: "#111",
-                fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-                fontWeight: 400,
-                whiteSpace: "nowrap",
-              }}
-              title="Totalizer controls"
-            >
-              {totalizerSectionTitle}
-            </div>
-
+          {/* LEFT: Totalizer controls (ONLY in Play/Launch) */}
+          {showTotalizerControls ? (
             <div
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: 8,
-                flexWrap: "wrap",
+                gap: 10,
+                flex: "1 1 auto",
+                minWidth: 240,
               }}
             >
-              <button
-                type="button"
-                onClick={onTotPlayClick}
-                style={
-                  !totalizerEnabled
-                    ? totBtnDisabled
-                    : totalizerIsPlaying
-                    ? { ...totBtnBase, background: "rgba(220,252,231,0.9)", border: "1px solid rgba(34,197,94,0.35)" }
-                    : totBtnBase
-                }
-                disabled={!totalizerEnabled}
-                title="Resume totalizer accumulation"
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "#111",
+                  fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+                  fontWeight: 400,
+                  whiteSpace: "nowrap",
+                }}
+                title="Totalizer controls"
               >
-                ▶ <span>Play</span>
-              </button>
+                {totalizerSectionTitle}
+              </div>
 
-              <button
-                type="button"
-                onClick={onTotPauseClick}
-                style={
-                  !totalizerEnabled
-                    ? totBtnDisabled
-                    : !totalizerIsPlaying
-                    ? { ...totBtnBase, background: "rgba(254,242,242,0.95)", border: "1px solid rgba(239,68,68,0.25)" }
-                    : totBtnBase
-                }
-                disabled={!totalizerEnabled}
-                title="Pause totalizer accumulation"
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  flexWrap: "wrap",
+                }}
               >
-                ⏸ <span>Pause</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={onTotPlayClick}
+                  style={
+                    !totalizerEnabled
+                      ? totBtnDisabled
+                      : totalizerIsPlaying
+                      ? {
+                          ...totBtnBase,
+                          background: "rgba(220,252,231,0.9)",
+                          border: "1px solid rgba(34,197,94,0.35)",
+                        }
+                      : totBtnBase
+                  }
+                  disabled={!totalizerEnabled}
+                  title="Resume totalizer accumulation"
+                >
+                  ▶ <span>Play</span>
+                </button>
 
-              <button
-                type="button"
-                onClick={onTotResetClick}
-                style={!totalizerEnabled ? totBtnDisabled : totBtnBase}
-                disabled={!totalizerEnabled}
-                title="Reset totalizer total to zero"
-              >
-                ↺ <span>Reset</span>
-              </button>
+                <button
+                  type="button"
+                  onClick={onTotPauseClick}
+                  style={
+                    !totalizerEnabled
+                      ? totBtnDisabled
+                      : !totalizerIsPlaying
+                      ? {
+                          ...totBtnBase,
+                          background: "rgba(254,242,242,0.95)",
+                          border: "1px solid rgba(239,68,68,0.25)",
+                        }
+                      : totBtnBase
+                  }
+                  disabled={!totalizerEnabled}
+                  title="Pause totalizer accumulation"
+                >
+                  ⏸ <span>Pause</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={onTotResetClick}
+                  style={!totalizerEnabled ? totBtnDisabled : totBtnBase}
+                  disabled={!totalizerEnabled}
+                  title="Reset totalizer total to zero"
+                >
+                  ↺ <span>Reset</span>
+                </button>
+              </div>
             </div>
-          </div>
+          ) : (
+            // keep spacing consistent when controls are hidden
+            <div style={{ flex: "1 1 auto", minWidth: 240 }} />
+          )}
 
           {/* RIGHT: Output + Totalizer boxes */}
           <div
@@ -655,19 +671,9 @@ export default function GraphicDisplayPanel({
             }}
             title={showVectors ? "Move mouse to ping time/value. Drag to zoom. Double-click to reset zoom." : ""}
           >
-            <svg
-              viewBox={`0 0 ${svg.W} ${svg.H}`}
-              preserveAspectRatio="none"
-              style={{ width: "100%", height: "100%", display: "block" }}
-            >
+            <svg viewBox={`0 0 ${svg.W} ${svg.H}`} preserveAspectRatio="none" style={{ width: "100%", height: "100%", display: "block" }}>
               {(svg?.segs || []).map((pts, idx) => (
-                <polyline
-                  key={idx}
-                  fill="none"
-                  stroke={lineColor}
-                  strokeWidth={strokeW}
-                  points={(pts || []).join(" ")}
-                />
+                <polyline key={idx} fill="none" stroke={lineColor} strokeWidth={strokeW} points={(pts || []).join(" ")} />
               ))}
             </svg>
 
