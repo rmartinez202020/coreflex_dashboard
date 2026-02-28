@@ -12,7 +12,7 @@ import GraphicDisplaySettingsPanel from "./GraphicDisplaySettingsPanel";
 import GraphicDisplayMathPanel from "./GraphicDisplayMathPanel";
 import GraphicDisplayBindingPanel from "./GraphicDisplayBindingPanel";
 
-// ✅ NEW: Totalizer UI section (new file you created)
+// ✅ Totalizer UI section
 import GraphicDisplayTotalizerSection from "./controls/graphicDisplay/GraphicDisplayTotalizerSection";
 
 // ✅ REMOVE 1s option (1000ms)
@@ -130,7 +130,7 @@ async function loadLiveRowForDevice(modelKey, deviceId, { telemetryMap, signal }
   const fromCommon = getRowFromTelemetryMap(telemetryMap, mk, id);
   if (fromCommon) return fromCommon;
 
-  // 2) Fallback: /my-devices only (NO 404/403/405 endpoints)
+  // 2) Fallback: /my-devices only
   const base = MODEL_META[mk]?.base || mk;
   const data = await apiGet(`/${base}/my-devices`, { signal });
   const arr = normalizeArray(data);
@@ -140,7 +140,6 @@ async function loadLiveRowForDevice(modelKey, deviceId, { telemetryMap, signal }
 }
 
 function formatSampleLabel(ms) {
-  // ✅ 1s removed
   if (ms === 3000) return "3s";
   if (ms === 6000) return "6s";
   if (ms === 30000) return "30s";
@@ -164,7 +163,7 @@ function normalizeHexColor(v, fallback = "#0c5ac8") {
 }
 
 // ✅ Center calc (used by layout effect so you never see it jump)
-function calcCenteredPos(panelW, estH = 640) {
+function calcCenteredPos(panelW, estH = 660) {
   const w = window.innerWidth || 1200;
   const h = window.innerHeight || 800;
 
@@ -180,7 +179,7 @@ export default function GraphicDisplaySettingsModal({
   tank,
   onClose,
   onSave,
-  telemetryMap = null, // ✅ NEW: pass common poller map here
+  telemetryMap = null,
 }) {
   if (!open) return null;
 
@@ -191,19 +190,18 @@ export default function GraphicDisplaySettingsModal({
   const [timeUnit, setTimeUnit] = useState("seconds");
   const [windowSize, setWindowSize] = useState(60);
 
-  // ✅ default sample to 3s now
   const [sampleMs, setSampleMs] = useState(3000);
 
   const [yMin, setYMin] = useState(0);
   const [yMax, setYMax] = useState(100);
 
-  // ✅ Units moved under Totalizer section (still keep yUnits for backward compatibility)
+  // ✅ Units under Totalizer section (keep yUnits for backward compatibility)
   const [yUnits, setYUnits] = useState("");
 
   const [lineColor, setLineColor] = useState("#0c5ac8");
 
   // -------------------------
-  // ✅ TOTALIZER (UI-first)
+  // ✅ TOTALIZER
   // -------------------------
   const [totalizerEnabled, setTotalizerEnabled] = useState(false);
   const [totalizerUnit, setTotalizerUnit] = useState("");
@@ -229,7 +227,7 @@ export default function GraphicDisplaySettingsModal({
   // -------------------------
   // ✅ DRAG STATE
   // -------------------------
-  const PANEL_W = 1180;
+  const PANEL_W = 1400; // ✅ wider
 
   const dragRef = useRef({
     dragging: false,
@@ -239,10 +237,9 @@ export default function GraphicDisplaySettingsModal({
     startTop: 0,
   });
 
-  // ✅ IMPORTANT: start centered immediately (no visible jump)
   const [pos, setPos] = useState(() => {
     try {
-      return calcCenteredPos(PANEL_W, 640);
+      return calcCenteredPos(PANEL_W, 660);
     } catch {
       return { left: 12, top: 12 };
     }
@@ -250,20 +247,18 @@ export default function GraphicDisplaySettingsModal({
 
   const [isDragging, setIsDragging] = useState(false);
 
-  // ✅ Ensure centering happens BEFORE paint every time you open (no flash at top-left)
   useLayoutEffect(() => {
     if (!open) return;
-    setPos(calcCenteredPos(PANEL_W, 640));
+    setPos(calcCenteredPos(PANEL_W, 660));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
-  // Optional: keep centered if user resizes window (only when not dragging)
   useEffect(() => {
     if (!open) return;
 
     const onResize = () => {
       if (dragRef.current.dragging) return;
-      setPos(calcCenteredPos(PANEL_W, 640));
+      setPos(calcCenteredPos(PANEL_W, 660));
     };
 
     window.addEventListener("resize", onResize);
@@ -278,23 +273,20 @@ export default function GraphicDisplaySettingsModal({
     setTimeUnit(tank.timeUnit ?? "seconds");
     setWindowSize(tank.window ?? 60);
 
-    // ✅ if old saved value was 1s (1000), force to 3s (3000)
     const incomingSample = Number(tank.sampleMs ?? 3000);
     const normalizedSample = incomingSample === 1000 ? 3000 : incomingSample;
-
     setSampleMs(SAMPLE_OPTIONS.includes(normalizedSample) ? normalizedSample : 3000);
 
     setYMin(Number.isFinite(tank.yMin) ? tank.yMin : 0);
     setYMax(Number.isFinite(tank.yMax) ? tank.yMax : 100);
 
-    // ✅ Load totalizer fields (fallback to old yUnits so existing projects still show units)
     const tEnabled = tank.totalizerEnabled === true;
     const tUnit = String(tank.totalizerUnit ?? tank.yUnits ?? "").trim();
 
     setTotalizerEnabled(tEnabled);
     setTotalizerUnit(tUnit);
 
-    // ✅ keep yUnits synced for backward compatibility
+    // backward-compat sync
     setYUnits(tUnit);
 
     setLineColor(normalizeHexColor(tank.lineColor ?? "#0c5ac8"));
@@ -383,8 +375,11 @@ export default function GraphicDisplaySettingsModal({
     const w = window.innerWidth || 1200;
     const h = window.innerHeight || 800;
 
-    const maxLeft = Math.max(margin, w - margin - 240);
-    const maxTop = Math.max(margin, h - margin - 120);
+    const actualW = Math.min(PANEL_W, Math.floor(w * 0.96));
+    const estH = 660;
+
+    const maxLeft = Math.max(margin, w - margin - actualW);
+    const maxTop = Math.max(margin, h - margin - estH);
 
     setPos({
       left: Math.min(Math.max(margin, nextLeft), maxLeft),
@@ -496,7 +491,7 @@ export default function GraphicDisplaySettingsModal({
             background: "#f8fafc",
           }}
         >
-          {/* ✅ LEFT COLUMN: Totalizer + Settings */}
+          {/* LEFT COLUMN */}
           <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
             <GraphicDisplayTotalizerSection
               enabled={totalizerEnabled}
@@ -505,7 +500,7 @@ export default function GraphicDisplaySettingsModal({
               onChangeUnit={(u) => {
                 const unit = String(u ?? "");
                 setTotalizerUnit(unit);
-                setYUnits(unit); // backward compat
+                setYUnits(unit);
               }}
             />
 
@@ -522,17 +517,21 @@ export default function GraphicDisplaySettingsModal({
               setYMin={setYMin}
               yMax={safeYMax}
               setYMax={setYMax}
+              // keep sync for now
+              yUnits={yUnits}
+              setYUnits={(u) => {
+                const unit = String(u ?? "");
+                setYUnits(unit);
+                setTotalizerUnit(unit);
+              }}
               lineColor={safeLineColor}
               setLineColor={setLineColor}
             />
           </div>
 
+          {/* MIDDLE */}
           <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
-            <GraphicDisplayMathPanel
-              value={liveValue}
-              formula={mathFormula}
-              setFormula={setMathFormula}
-            />
+            <GraphicDisplayMathPanel value={liveValue} formula={mathFormula} setFormula={setMathFormula} />
 
             {liveErr && (
               <div
@@ -551,6 +550,7 @@ export default function GraphicDisplaySettingsModal({
             )}
           </div>
 
+          {/* RIGHT */}
           <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
             <GraphicDisplayBindingPanel
               bindModel={bindModel}
@@ -591,9 +591,8 @@ export default function GraphicDisplaySettingsModal({
                     yMin: safeYMin,
                     yMax: safeYMax,
 
-                    // ✅ Units label (still used by display info row)
-                    // If totalizer is enabled, we show unit; if disabled but user chose unit, still OK.
-                    yUnits: String(totalizerUnit ?? yUnits ?? "").trim(),
+                    // Backward compatible units
+                    yUnits: totalizerUnit,
 
                     graphStyle: FIXED_GRAPH_STYLE,
                     lineColor: safeLineColor,
@@ -602,7 +601,7 @@ export default function GraphicDisplaySettingsModal({
                     bindDeviceId,
                     bindField,
 
-                    // ✅ NEW: totalizer config
+                    // totalizer config
                     totalizerEnabled: !!totalizerEnabled,
                     totalizerUnit: String(totalizerUnit || "").trim(),
                   })
@@ -611,7 +610,9 @@ export default function GraphicDisplaySettingsModal({
                   padding: "10px 14px",
                   borderRadius: 10,
                   border: "1px solid #bfe6c8",
-                  background: canApply ? "linear-gradient(180deg,#bff2c7,#6fdc89)" : "#e5e7eb",
+                  background: canApply
+                    ? "linear-gradient(180deg,#bff2c7,#6fdc89)"
+                    : "#e5e7eb",
                   color: "#0b3b18",
                   fontWeight: 900,
                   cursor: canApply ? "pointer" : "not-allowed",

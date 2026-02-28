@@ -1,170 +1,168 @@
+// src/components/controls/graphicDisplay/GraphicDisplayTotalizerSection.jsx
 import React, { useMemo } from "react";
 
-const DEFAULT_UNITS = [
-  // Volume
-  { value: "gal", label: "Gallons (gal)" },
-  { value: "L", label: "Liters (L)" },
-  { value: "m3", label: "Cubic meters (m³)" },
-  { value: "ft3", label: "Cubic feet (ft³)" },
+const UNIT_PRESETS = [
+  { value: "", label: "Custom..." },
 
-  // Energy
-  { value: "kWh", label: "Kilowatt-hours (kWh)" },
-  { value: "Wh", label: "Watt-hours (Wh)" },
-  { value: "MJ", label: "Megajoules (MJ)" },
+  // Flow totals
+  { value: "gal", label: "gal (gallons)" },
+  { value: "L", label: "L (liters)" },
+  { value: "m³", label: "m³ (cubic meters)" },
+  { value: "ft³", label: "ft³ (cubic feet)" },
 
-  // Mass
-  { value: "lb", label: "Pounds (lb)" },
-  { value: "kg", label: "Kilograms (kg)" },
-  { value: "ton", label: "Tons (ton)" },
+  // Energy totals
+  { value: "kWh", label: "kWh" },
+  { value: "Wh", label: "Wh" },
+  { value: "MJ", label: "MJ" },
 
-  // Count / runtime
-  { value: "count", label: "Count (count)" },
-  { value: "cycles", label: "Cycles (cycles)" },
-  { value: "hrs", label: "Hours (hrs)" },
-  { value: "min", label: "Minutes (min)" },
+  // Mass totals
+  { value: "lb", label: "lb" },
+  { value: "kg", label: "kg" },
+  { value: "ton", label: "ton" },
 ];
 
 export default function GraphicDisplayTotalizerSection({
   enabled = false,
   onToggleEnabled = () => {},
-
-  // This becomes your “units label” but now under Totalizer
   totalizerUnit = "",
   onChangeUnit = () => {},
-
-  // optional: allow injecting custom list later
-  unitOptions = DEFAULT_UNITS,
-
-  // allow “custom” unit entry
-  allowCustomUnit = true,
-
-  // optional helper text
-  helperText = "Use Totalizer when the trend is a RATE (ex: GPM) and you want an accumulated TOTAL (ex: gallons).",
 }) {
-  const normalizedUnit = String(totalizerUnit || "").trim();
+  const presetValue = useMemo(() => {
+    const t = String(totalizerUnit || "").trim();
+    const hit = UNIT_PRESETS.some((u) => u.value && u.value === t);
+    return hit ? t : "";
+  }, [totalizerUnit]);
 
-  const isPreset = useMemo(() => {
-    return (unitOptions || []).some((u) => u.value === normalizedUnit);
-  }, [unitOptions, normalizedUnit]);
+  const customUnit = useMemo(() => {
+    const t = String(totalizerUnit || "").trim();
+    if (!t) return "";
+    const hit = UNIT_PRESETS.some((u) => u.value && u.value === t);
+    return hit ? "" : t;
+  }, [totalizerUnit]);
 
-  const containerStyle = {
-    border: "1px solid rgba(0,0,0,0.08)",
-    borderRadius: 12,
-    padding: 12,
-    background: "#fff",
-  };
-
-  const sectionTitleStyle = {
-    fontWeight: 900,
-    fontSize: 13,
-    color: "#111",
-    marginBottom: 10,
-  };
-
-  const rowStyle = {
-    display: "flex",
-    alignItems: "center",
-    gap: 10,
-    flexWrap: "wrap",
-  };
-
-  const labelStyle = {
-    fontSize: 12,
-    fontWeight: 800,
-    color: "#111",
-    marginBottom: 6,
-  };
-
-  const selectStyle = {
-    height: 36,
-    borderRadius: 10,
-    border: "1px solid rgba(0,0,0,0.15)",
-    padding: "0 10px",
-    fontWeight: 800,
-    width: "100%",
-  };
-
-  const inputStyle = {
-    height: 36,
-    borderRadius: 10,
-    border: "1px solid rgba(0,0,0,0.15)",
-    padding: "0 10px",
-    fontWeight: 800,
-    width: "100%",
-  };
-
-  const toggleBtnStyle = {
+  const btnBase = {
     height: 34,
     padding: "0 12px",
-    borderRadius: 999,
-    border: enabled ? "1px solid rgba(22,163,74,0.35)" : "1px solid rgba(148,163,184,0.45)",
-    background: enabled ? "rgba(187,247,208,0.65)" : "rgba(226,232,240,0.65)",
-    color: enabled ? "#166534" : "#334155",
+    borderRadius: 10,
     fontWeight: 900,
+    fontSize: 13,
     cursor: "pointer",
+    border: "1px solid #d1d5db",
+    background: "#fff",
+    color: "#111827",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
     userSelect: "none",
   };
 
-  return (
-    <div style={containerStyle}>
-      <div style={rowStyle}>
-        <div style={sectionTitleStyle}>Totalizer</div>
+  const btnOn = {
+    ...btnBase,
+    border: "1px solid #86efac",
+    background: "linear-gradient(180deg,#bbf7d0,#86efac)",
+    color: "#064e3b",
+  };
 
-        <div style={{ marginLeft: "auto" }}>
+  const btnOff = {
+    ...btnBase,
+    border: "1px solid #fecaca",
+    background: "linear-gradient(180deg,#fee2e2,#fecaca)",
+    color: "#7f1d1d",
+  };
+
+  return (
+    <div
+      style={{
+        borderRadius: 12,
+        border: "1px solid #e5e7eb",
+        background: "#fff",
+        padding: 14,
+      }}
+    >
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ fontWeight: 900, color: "#111827" }}>Totalizer</div>
+
+        <div style={{ marginLeft: "auto", display: "inline-flex", gap: 8 }}>
           <button
             type="button"
-            onClick={() => onToggleEnabled(!enabled)}
-            style={toggleBtnStyle}
-            title={enabled ? "Disable totalizer" : "Enable totalizer"}
+            onClick={() => onToggleEnabled(true)}
+            style={enabled ? btnOn : btnBase}
+            title="Enable Totalizer"
           >
-            {enabled ? "✅ Enabled" : "⛔ Disabled"}
+            ✅ Enable
+          </button>
+
+          <button
+            type="button"
+            onClick={() => onToggleEnabled(false)}
+            style={!enabled ? btnOff : btnBase}
+            title="Disable Totalizer"
+          >
+            ⛔ Disable
           </button>
         </div>
       </div>
 
-      <div style={{ fontSize: 11, color: "#475569", fontWeight: 700, marginBottom: 10 }}>
-        {helperText}
+      <div style={{ marginTop: 8, fontSize: 12, fontWeight: 800, color: "#6b7280" }}>
+        Use Totalizer when the trend is a <b>RATE</b> (ex: GPM) and you want an accumulated{" "}
+        <b>TOTAL</b> (ex: gallons).
       </div>
 
-      {/* Unit selector */}
-      <div style={{ marginBottom: 10, opacity: enabled ? 1 : 0.55, pointerEvents: enabled ? "auto" : "none" }}>
-        <div style={labelStyle}>Totalizer Units</div>
+      <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+        <label style={{ display: "grid", gap: 6 }}>
+          <span style={{ fontSize: 12, fontWeight: 900, color: "#374151" }}>
+            Totalizer Units
+          </span>
 
-        <select
-          value={isPreset ? normalizedUnit : "__custom__"}
-          onChange={(e) => {
-            const v = e.target.value;
-            if (v === "__custom__") {
-              // keep current unit; user can type below
-              if (!allowCustomUnit) onChangeUnit("");
-              return;
-            }
-            onChangeUnit(v);
-          }}
-          style={selectStyle}
-        >
-          <option value="">Select units…</option>
-          {(unitOptions || []).map((u) => (
-            <option key={u.value} value={u.value}>
-              {u.label}
-            </option>
-          ))}
-          {allowCustomUnit && <option value="__custom__">Custom…</option>}
-        </select>
+          <select
+            value={presetValue}
+            onChange={(e) => {
+              const v = String(e.target.value || "");
+              if (!v) {
+                // Custom... keep current custom unit (or blank)
+                onChangeUnit(customUnit || "");
+              } else {
+                onChangeUnit(v);
+              }
+            }}
+            style={{
+              border: "1px solid #d1d5db",
+              borderRadius: 10,
+              padding: "10px 10px",
+              fontSize: 14,
+              background: enabled ? "#fff" : "#f9fafb",
+              opacity: enabled ? 1 : 0.75,
+            }}
+            disabled={!enabled}
+          >
+            {UNIT_PRESETS.map((u) => (
+              <option key={u.label} value={u.value}>
+                {u.label}
+              </option>
+            ))}
+          </select>
+        </label>
 
-        {allowCustomUnit && (
-          <div style={{ marginTop: 8 }}>
-            <div style={{ fontSize: 11, fontWeight: 800, color: "#111", marginBottom: 6 }}>
-              Custom Unit (optional)
-            </div>
-            <input
-              value={normalizedUnit}
-              onChange={(e) => onChangeUnit(e.target.value)}
-              placeholder='Example: "gal", "kWh", "cycles"'
-              style={inputStyle}
-            />
-          </div>
-        )}
+        <label style={{ display: "grid", gap: 6 }}>
+          <span style={{ fontSize: 12, fontWeight: 900, color: "#374151" }}>
+            Custom Unit (optional)
+          </span>
+
+          <input
+            value={customUnit}
+            onChange={(e) => onChangeUnit(e.target.value)}
+            placeholder="e.g. PSI, gal, kWh"
+            style={{
+              border: "1px solid #d1d5db",
+              borderRadius: 10,
+              padding: "10px 10px",
+              fontSize: 14,
+              background: enabled ? "#fff" : "#f9fafb",
+              opacity: enabled ? 1 : 0.75,
+            }}
+            disabled={!enabled || presetValue !== ""}
+          />
+        </label>
       </div>
     </div>
   );
