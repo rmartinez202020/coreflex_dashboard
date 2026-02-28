@@ -68,18 +68,18 @@ export default function GraphicDisplayPanel({
   mathOutput = null,
   err = "",
 }) {
-  const lineColor = useMemo(
-    () => normalizeLineColor(lineColorProp),
-    [lineColorProp]
-  );
+  const lineColor = useMemo(() => normalizeLineColor(lineColorProp), [lineColorProp]);
 
   const strokeW = isExploreMode ? 2 : 3; // thinner line in Explore
   const yFont = isExploreMode ? 14 : 11; // bigger Y numbers in Explore
 
+  // ✅ show vector/hover/selection visuals ONLY in Explore IN mode
+  const showVectors = !!isExploreMode;
+
   // ✅ wrappers: stop propagation but still call hook handlers
   // IMPORTANT FIX:
-  // - We STOP propagation on Down/Move so the widget doesn't drag while interacting with the plot.
-  // - We DO NOT stop propagation on Up/Cancel so the parent drag/resize system can properly end the gesture.
+  // - Stop propagation on Down/Move so the widget doesn't drag while interacting with the plot.
+  // - Do NOT stop propagation on Up/Cancel so parent drag/resize can end the gesture cleanly.
   const onPointerMove = (e) => {
     e.stopPropagation();
     handlers?.onPointerMove?.(e);
@@ -126,7 +126,7 @@ export default function GraphicDisplayPanel({
     opacity: 0.55,
   };
 
-  // ✅ Bigger Output / Totallizer
+  // ✅ Bigger Output / Totallizer (as requested)
   const bigStatBoxStyle = {
     height: 40,
     display: "inline-flex",
@@ -174,8 +174,11 @@ export default function GraphicDisplayPanel({
     return `Totallizer integrated from ${totalizerRateUnit}`;
   }, [totalizerEnabled, totalizerRateUnit]);
 
-  // ✅ Show vector/hover/selection only when Explore IN is active
-  const showExploreVectors = Boolean(isExploreMode);
+  // ✅ unit to show next to Output value (selected in modal)
+  const outputUnitText = useMemo(() => {
+    const u = String(yUnits || "").trim();
+    return u ? u : "";
+  }, [yUnits]);
 
   return (
     <div
@@ -204,7 +207,7 @@ export default function GraphicDisplayPanel({
           minWidth: 0,
         }}
       >
-        {/* ROW 1: title left, controls pinned to right */}
+        {/* ===================== ROW 1 (title left, controls FIXED right) ===================== */}
         <div
           style={{
             display: "flex",
@@ -214,7 +217,7 @@ export default function GraphicDisplayPanel({
             paddingBottom: 8,
           }}
         >
-          {/* Title grows/shrinks, controls stay fixed on the right */}
+          {/* Title (flexes, never pushes the right controls) */}
           <div
             style={{
               fontWeight: 400,
@@ -223,26 +226,28 @@ export default function GraphicDisplayPanel({
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
-              flex: "1 1 auto",
               minWidth: 0,
+              flex: "1 1 auto",
             }}
             title={title}
           >
             {title}
           </div>
 
-          {/* Right cluster: always pinned to the right */}
+          {/* Right controls (always pinned to top-right) */}
           <div
             style={{
-              marginLeft: "auto",
               display: "inline-flex",
               alignItems: "center",
               gap: 10,
               flex: "0 0 auto",
-              whiteSpace: "nowrap",
-              minWidth: 0,
+              justifyContent: "flex-end",
+              maxWidth: "70%",
+              overflowX: "auto",
+              paddingBottom: 2,
             }}
           >
+            {/* Explore only in play/launch */}
             {isPlay && (
               <button
                 type="button"
@@ -278,12 +283,7 @@ export default function GraphicDisplayPanel({
               ⏸ <span>Pause</span>
             </button>
 
-            <button
-              type="button"
-              onClick={onExport}
-              style={topBtnBase}
-              title="Export visible points to CSV"
-            >
+            <button type="button" onClick={onExport} style={topBtnBase} title="Export visible points to CSV">
               ⬇ <span>Export</span>
             </button>
 
@@ -312,32 +312,23 @@ export default function GraphicDisplayPanel({
                   border: "1px solid rgba(0,0,0,0.15)",
                 }}
               />
-              <span style={{ fontSize: 12, fontWeight: 400, color: "#111" }}>
-                LINE
-              </span>
+              <span style={{ fontSize: 12, fontWeight: 400, color: "#111" }}>LINE</span>
               {styleBadge ? (
-                <span style={{ fontSize: 11, fontWeight: 400, color: "#475569" }}>
-                  {styleBadge}
-                </span>
+                <span style={{ fontSize: 11, fontWeight: 400, color: "#475569" }}>{styleBadge}</span>
               ) : null}
             </div>
 
             {/* ONLINE */}
-            <div
-              style={onlinePillStyle}
-              title={
-                bindDeviceId ? `Device is ${statusLabel.text}` : "No device selected"
-              }
-            >
+            <div style={onlinePillStyle} title={bindDeviceId ? `Device is ${statusLabel.text}` : "No device selected"}>
               {statusLabel.text}
             </div>
           </div>
         </div>
 
-        {/* divider */}
+        {/* ✅ NEW LINE #1 (same style as frame line) */}
         <div style={{ height: 0, borderTop: FRAME_LINE, width: "100%" }} />
 
-        {/* ROW 2 (right aligned stats) */}
+        {/* ===================== ROW 2 (right aligned) ===================== */}
         <div
           style={{
             marginTop: 10,
@@ -347,6 +338,7 @@ export default function GraphicDisplayPanel({
             flexWrap: "wrap",
           }}
         >
+          {/* Output (bigger) + ✅ unit from modal */}
           <div style={bigStatBoxStyle} title="Math Output">
             <span
               style={{
@@ -361,8 +353,23 @@ export default function GraphicDisplayPanel({
             <span style={{ color: "#0b3b18", fontWeight: 400, fontSize: 15 }}>
               {Number.isFinite(mathOutput) ? Number(mathOutput).toFixed(2) : "--"}
             </span>
+            {outputUnitText ? (
+              <span
+                style={{
+                  color: "#475569",
+                  fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+                  fontWeight: 400,
+                  fontSize: 13,
+                  marginLeft: 2,
+                }}
+                title="Unit"
+              >
+                {outputUnitText}
+              </span>
+            ) : null}
           </div>
 
+          {/* Totallizer (bigger) */}
           {totalizerEnabled ? (
             <div style={bigStatBoxStyle} title={totalTitle}>
               <span
@@ -375,9 +382,7 @@ export default function GraphicDisplayPanel({
               >
                 TOTALLIZER:
               </span>
-              <span style={{ color: "#111", fontWeight: 400, fontSize: 15 }}>
-                {totalText}
-              </span>
+              <span style={{ color: "#111", fontWeight: 400, fontSize: 15 }}>{totalText}</span>
             </div>
           ) : null}
         </div>
@@ -410,11 +415,11 @@ export default function GraphicDisplayPanel({
           </span>
           <span>•</span>
           <span>
-            Y: <span>{yMin}</span> → <span>{yMax}</span>{" "}
-            {yUnits ? `(${yUnits})` : ""}
+            Y: <span>{yMin}</span> → <span>{yMax}</span> {yUnits ? `(${yUnits})` : ""}
           </span>
         </div>
 
+        {/* ✅ NEW LINE #2 (same style as frame line) */}
         <div style={{ height: 0, borderTop: FRAME_LINE, width: "100%" }} />
       </div>
 
@@ -500,14 +505,10 @@ export default function GraphicDisplayPanel({
               right: 10,
               top: 10,
               bottom: 36,
-              cursor: showExploreVectors && sel ? "crosshair" : "default",
+              cursor: showVectors && sel ? "crosshair" : "default",
               touchAction: "none",
             }}
-            title={
-              showExploreVectors
-                ? "Move mouse to ping time/value. Drag to zoom. Double-click to reset zoom."
-                : ""
-            }
+            title={showVectors ? "Move mouse to ping time/value. Drag to zoom. Double-click to reset zoom." : ""}
           >
             <svg
               viewBox={`0 0 ${svg.W} ${svg.H}`}
@@ -515,17 +516,12 @@ export default function GraphicDisplayPanel({
               style={{ width: "100%", height: "100%", display: "block" }}
             >
               {(svg?.segs || []).map((pts, idx) => (
-                <polyline
-                  key={idx}
-                  fill="none"
-                  stroke={lineColor}
-                  strokeWidth={strokeW}
-                  points={(pts || []).join(" ")}
-                />
+                <polyline key={idx} fill="none" stroke={lineColor} strokeWidth={strokeW} points={(pts || []).join(" ")} />
               ))}
             </svg>
 
-            {showExploreVectors && sel ? (
+            {/* ✅ Selection + hover vectors ONLY in Explore */}
+            {showVectors && sel ? (
               <div
                 style={{
                   position: "absolute",
@@ -541,7 +537,7 @@ export default function GraphicDisplayPanel({
               />
             ) : null}
 
-            {showExploreVectors && hover ? (
+            {showVectors && hover ? (
               <>
                 <div
                   style={{
