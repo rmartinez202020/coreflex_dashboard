@@ -67,10 +67,7 @@ export default function GraphicDisplayPanel({
   mathOutput = null,
   err = "",
 }) {
-  const lineColor = useMemo(
-    () => normalizeLineColor(lineColorProp),
-    [lineColorProp]
-  );
+  const lineColor = useMemo(() => normalizeLineColor(lineColorProp), [lineColorProp]);
 
   const strokeW = isExploreMode ? 2 : 3; // thinner line in Explore
   const yFont = isExploreMode ? 14 : 11; // bigger Y numbers in Explore
@@ -112,6 +109,7 @@ export default function GraphicDisplayPanel({
     display: "inline-flex",
     alignItems: "center",
     gap: 10,
+    whiteSpace: "nowrap",
   };
 
   const topBtnDisabled = {
@@ -121,7 +119,7 @@ export default function GraphicDisplayPanel({
   };
 
   const outputBoxStyle = {
-    height: 36,
+    height: 32,
     display: "inline-flex",
     alignItems: "center",
     gap: 8,
@@ -136,42 +134,13 @@ export default function GraphicDisplayPanel({
     whiteSpace: "nowrap",
   };
 
-  const styleIndicator = (
-    <div
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 8,
-        height: 36,
-        padding: "0 6px",
-        fontSize: 12,
-        fontWeight: 900,
-        color: "#111",
-        whiteSpace: "nowrap",
-      }}
-      title={`Line color: ${lineColor}`}
-    >
-      <span
-        style={{
-          width: 12,
-          height: 12,
-          borderRadius: 999,
-          background: lineColor,
-          border: "1px solid rgba(0,0,0,0.15)",
-        }}
-      />
-      <span>{styleBadge}</span>
-    </div>
-  );
-
-  // ✅ Totalizer pill style (matches Output + Status style)
-  const totalizerPillStyle = {
-    height: 22,
-    padding: "0 10px",
+  const onlinePillStyle = {
+    height: 26,
+    padding: "0 12px",
     borderRadius: 999,
-    border: "1px solid rgba(0,0,0,0.10)",
-    background: "rgba(255,255,255,0.92)",
-    color: "#111",
+    border: `1px solid ${statusLabel.border}`,
+    background: statusLabel.bg,
+    color: statusLabel.color,
     fontSize: 11,
     fontWeight: 900,
     display: "inline-flex",
@@ -183,17 +152,24 @@ export default function GraphicDisplayPanel({
     whiteSpace: "nowrap",
   };
 
+  const totalizerBoxStyle = {
+    ...outputBoxStyle,
+    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+    fontSize: 11,
+    fontWeight: 900,
+  };
+
   const totalText = useMemo(() => {
-    if (!totalizerEnabled) return "";
-    if (!totalizerTotalUnit) return "TOTAL: --";
-    if (!Number.isFinite(totalizerValue)) return "TOTAL: --";
-    return `TOTAL: ${Number(totalizerValue).toFixed(2)} ${totalizerTotalUnit}`;
+    if (!totalizerEnabled) return "--";
+    if (!totalizerTotalUnit) return "--";
+    if (!Number.isFinite(totalizerValue)) return "--";
+    return `${Number(totalizerValue).toFixed(2)} ${totalizerTotalUnit}`;
   }, [totalizerEnabled, totalizerTotalUnit, totalizerValue]);
 
   const totalTitle = useMemo(() => {
     if (!totalizerEnabled) return "";
-    if (!totalizerRateUnit) return "Totalizer";
-    return `Total integrated from ${totalizerRateUnit}`;
+    if (!totalizerRateUnit) return "Totallizer";
+    return `Totallizer integrated from ${totalizerRateUnit}`;
   }, [totalizerEnabled, totalizerRateUnit]);
 
   return (
@@ -218,13 +194,23 @@ export default function GraphicDisplayPanel({
       <div
         style={{
           padding: "8px 10px",
-          borderBottom: "1px solid #e6e6e6",
           background: "linear-gradient(180deg, #ffffff 0%, #f4f4f4 100%)",
           flex: "0 0 auto",
           minWidth: 0,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        {/* ===================== ROW 1 (full width) ===================== */}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: 10,
+            minWidth: 0,
+            overflowX: "auto",
+            paddingBottom: 2,
+          }}
+        >
+          {/* Title */}
           <div
             style={{
               fontWeight: 800,
@@ -233,131 +219,131 @@ export default function GraphicDisplayPanel({
               whiteSpace: "nowrap",
               overflow: "hidden",
               textOverflow: "ellipsis",
-              minWidth: 0,
+              minWidth: 120,
+              flex: "0 0 auto",
             }}
+            title={title}
           >
             {title}
           </div>
 
+          {/* Explore only in play/launch */}
+          {isPlay && (
+            <button
+              type="button"
+              onClick={onToggleExplore}
+              style={{
+                ...topBtnBase,
+                background: isExploreMode ? "#fee2e2" : "#fff",
+                border: isExploreMode ? "1px solid #fecaca" : topBtnBase.border,
+              }}
+              title={isExploreMode ? "Close Explore" : "Open Explore"}
+            >
+              🔎 <span>{isExploreMode ? "Explore OUT" : "Explore IN"}</span>
+            </button>
+          )}
+
+          <button
+            type="button"
+            onClick={onPlay}
+            style={isPlaying ? topBtnDisabled : topBtnBase}
+            disabled={isPlaying}
+            title="Resume"
+          >
+            ▶ <span>Play</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onPause}
+            style={!isPlaying ? topBtnDisabled : topBtnBase}
+            disabled={!isPlaying}
+            title="Pause"
+          >
+            ⏸ <span>Pause</span>
+          </button>
+
+          <button
+            type="button"
+            onClick={onExport}
+            style={topBtnBase}
+            title="Export visible points to CSV"
+          >
+            ⬇ <span>Export</span>
+          </button>
+
+          {/* LINE indicator */}
           <div
             style={{
-              marginLeft: "auto",
               display: "inline-flex",
               alignItems: "center",
-              gap: 12,
+              gap: 8,
+              height: 36,
+              padding: "0 10px",
+              borderRadius: 10,
+              border: "1px solid rgba(0,0,0,0.10)",
+              background: "rgba(255,255,255,0.92)",
+              whiteSpace: "nowrap",
               flex: "0 0 auto",
             }}
+            title={`Line color: ${lineColor}`}
           >
-            {/* Explore only in play/launch */}
-            {isPlay && (
-              <button
-                type="button"
-                onClick={onToggleExplore}
-                style={{
-                  ...topBtnBase,
-                  background: isExploreMode ? "#fee2e2" : "#fff",
-                  border: isExploreMode
-                    ? "1px solid #fecaca"
-                    : topBtnBase.border,
-                }}
-                title={isExploreMode ? "Close Explore" : "Open Explore"}
-              >
-                🔎 <span>{isExploreMode ? "Explore OUT" : "Explore IN"}</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={onPlay}
-              style={isPlaying ? topBtnDisabled : topBtnBase}
-              disabled={isPlaying}
-              title="Resume"
-            >
-              ▶ <span>Play</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={onPause}
-              style={!isPlaying ? topBtnDisabled : topBtnBase}
-              disabled={!isPlaying}
-              title="Pause"
-            >
-              ⏸ <span>Pause</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={onExport}
-              style={topBtnBase}
-              title="Export visible points to CSV"
-            >
-              ⬇ <span>Export</span>
-            </button>
-
-            {styleIndicator}
-
-            <div
+            <span
               style={{
-                display: "inline-flex",
-                flexDirection: "column",
-                alignItems: "flex-end",
-                gap: 4,
+                width: 12,
+                height: 12,
+                borderRadius: 999,
+                background: lineColor,
+                border: "1px solid rgba(0,0,0,0.15)",
               }}
-            >
-              <div style={outputBoxStyle} title="Math Output">
-                <span style={{ color: "#555" }}>Output:</span>
-                <span style={{ color: "#0b3b18" }}>
-                  {Number.isFinite(mathOutput)
-                    ? Number(mathOutput).toFixed(2)
-                    : "--"}
-                </span>
-              </div>
+            />
+            <span style={{ fontSize: 12, fontWeight: 900, color: "#111" }}>LINE</span>
+            {styleBadge ? (
+              <span style={{ fontSize: 11, fontWeight: 800, color: "#475569" }}>
+                {styleBadge}
+              </span>
+            ) : null}
+          </div>
 
-              <div
-                style={{
-                  height: 22,
-                  padding: "0 10px",
-                  borderRadius: 999,
-                  border: `1px solid ${statusLabel.border}`,
-                  background: statusLabel.bg,
-                  color: statusLabel.color,
-                  fontSize: 11,
-                  fontWeight: 900,
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontFamily:
-                    "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-                  letterSpacing: 0.2,
-                  userSelect: "none",
-                }}
-                title={
-                  bindDeviceId
-                    ? `Device is ${statusLabel.text}`
-                    : "No device selected"
-                }
-              >
-                {statusLabel.text}
-              </div>
-
-              {/* ✅ NEW: Totalizer value pill (shows where your red circle is) */}
-              {totalizerEnabled ? (
-                <div style={totalizerPillStyle} title={totalTitle}>
-                  <span style={{ color: "#555" }}>TOTAL:</span>
-                  <span style={{ marginLeft: 6, fontFamily: "monospace" }}>
-                    {Number.isFinite(totalizerValue)
-                      ? `${Number(totalizerValue).toFixed(2)} ${
-                          totalizerTotalUnit || ""
-                        }`
-                      : "--"}
-                  </span>
-                </div>
-              ) : null}
-            </div>
+          {/* ONLINE (inline on row 1) */}
+          <div
+            style={onlinePillStyle}
+            title={bindDeviceId ? `Device is ${statusLabel.text}` : "No device selected"}
+          >
+            {statusLabel.text}
           </div>
         </div>
 
+        {/* ===================== ROW 2 (right aligned) ===================== */}
+        <div
+          style={{
+            marginTop: 6,
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 10,
+            flexWrap: "wrap",
+          }}
+        >
+          {/* Output */}
+          <div style={outputBoxStyle} title="Math Output">
+            <span style={{ color: "#555", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial" }}>
+              Output:
+            </span>
+            <span style={{ color: "#0b3b18" }}>
+              {Number.isFinite(mathOutput) ? Number(mathOutput).toFixed(2) : "--"}
+            </span>
+          </div>
+
+          {/* Totallizer */}
+          {totalizerEnabled ? (
+            <div style={totalizerBoxStyle} title={totalTitle}>
+              <span style={{ color: "#555" }}>TOTALLIZER:</span>
+              <span style={{ color: "#111" }}>{totalText}</span>
+            </div>
+          ) : null}
+        </div>
+
+        {/* info row (stays above divider like your screenshot) */}
         <div
           style={{
             display: "flex",
@@ -365,7 +351,7 @@ export default function GraphicDisplayPanel({
             gap: 8,
             color: "#444",
             fontSize: 11,
-            marginTop: 6,
+            marginTop: 8,
             minWidth: 0,
             flexWrap: "wrap",
           }}
@@ -387,6 +373,9 @@ export default function GraphicDisplayPanel({
           </span>
         </div>
       </div>
+
+      {/* ✅ BLACK DIVIDER (graphic starts below this) */}
+      <div style={{ height: 2, background: "#000", width: "100%" }} />
 
       {/* BODY */}
       <div
