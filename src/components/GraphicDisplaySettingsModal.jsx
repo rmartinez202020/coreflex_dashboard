@@ -12,7 +12,8 @@ import GraphicDisplaySettingsPanel from "./GraphicDisplaySettingsPanel";
 import GraphicDisplayMathPanel from "./GraphicDisplayMathPanel";
 import GraphicDisplayBindingPanel from "./GraphicDisplayBindingPanel";
 
-const SAMPLE_OPTIONS = [1000, 3000, 6000, 30000, 60000, 300000, 600000];
+// ✅ REMOVE 1s option (1000ms)
+const SAMPLE_OPTIONS = [3000, 6000, 30000, 60000, 300000, 600000];
 const FIXED_GRAPH_STYLE = "line";
 
 // ✅ Models allowed
@@ -142,7 +143,7 @@ async function loadLiveRowForDevice(
 }
 
 function formatSampleLabel(ms) {
-  if (ms === 1000) return "1s";
+  // ✅ 1s removed
   if (ms === 3000) return "3s";
   if (ms === 6000) return "6s";
   if (ms === 30000) return "30s";
@@ -192,7 +193,9 @@ export default function GraphicDisplaySettingsModal({
   const [title, setTitle] = useState("Graphic Display");
   const [timeUnit, setTimeUnit] = useState("seconds");
   const [windowSize, setWindowSize] = useState(60);
-  const [sampleMs, setSampleMs] = useState(1000);
+
+  // ✅ default sample to 3s now
+  const [sampleMs, setSampleMs] = useState(3000);
 
   const [yMin, setYMin] = useState(0);
   const [yMax, setYMax] = useState(100);
@@ -233,8 +236,6 @@ export default function GraphicDisplaySettingsModal({
 
   // ✅ IMPORTANT: start centered immediately (no visible jump)
   const [pos, setPos] = useState(() => {
-    // This initializer runs on mount (and we only mount when open=true)
-    // so it centers before the first paint in most cases.
     try {
       return calcCenteredPos(PANEL_W, 640);
     } catch {
@@ -247,7 +248,6 @@ export default function GraphicDisplaySettingsModal({
   // ✅ Ensure centering happens BEFORE paint every time you open (no flash at top-left)
   useLayoutEffect(() => {
     if (!open) return;
-
     setPos(calcCenteredPos(PANEL_W, 640));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
@@ -273,8 +273,14 @@ export default function GraphicDisplaySettingsModal({
     setTimeUnit(tank.timeUnit ?? "seconds");
     setWindowSize(tank.window ?? 60);
 
-    const incomingSample = Number(tank.sampleMs ?? 1000);
-    setSampleMs(SAMPLE_OPTIONS.includes(incomingSample) ? incomingSample : 1000);
+    // ✅ if old saved value was 1s (1000), force to 3s (3000)
+    const incomingSample = Number(tank.sampleMs ?? 3000);
+    const normalizedSample =
+      incomingSample === 1000 ? 3000 : incomingSample;
+
+    setSampleMs(
+      SAMPLE_OPTIONS.includes(normalizedSample) ? normalizedSample : 3000
+    );
 
     setYMin(Number.isFinite(tank.yMin) ? tank.yMin : 0);
     setYMax(Number.isFinite(tank.yMax) ? tank.yMax : 100);
@@ -319,7 +325,7 @@ export default function GraphicDisplaySettingsModal({
         setLiveErr("");
 
         const row = await loadLiveRowForDevice(bindModel, bindDeviceId, {
-          telemetryMap, // ✅ use common poller if available
+          telemetryMap,
           signal: ctrl.signal,
         });
 
@@ -345,7 +351,7 @@ export default function GraphicDisplaySettingsModal({
     };
 
     tick();
-    const id = window.setInterval(tick, Math.max(250, Number(sampleMs) || 1000));
+    const id = window.setInterval(tick, Math.max(250, Number(sampleMs) || 3000));
 
     return () => {
       cancelled = true;
@@ -389,9 +395,7 @@ export default function GraphicDisplaySettingsModal({
 
     const t = e.target;
     if (
-      t?.closest?.(
-        "button, input, select, textarea, a, [data-no-drag='true']"
-      )
+      t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")
     )
       return;
 
