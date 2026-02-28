@@ -374,6 +374,7 @@ export default function GraphicDisplay({
     yMin: Number(yMin),
     yMax: Number(yMax),
     fmtTimeWithDate,
+    hoverAnywhere: exploreOpen, // ✅ ONLY while Explore modal is open (Explore IN)
   });
 
   const { svg } = useTrendSvg({

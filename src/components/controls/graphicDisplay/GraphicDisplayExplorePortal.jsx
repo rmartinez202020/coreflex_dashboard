@@ -7,7 +7,7 @@ export default function GraphicDisplayExplorePortal({
   onClose = () => {},
   title = "Graphic Display",
   children,
-  modalContent = null, // ✅ NEW: content rendered inside the modal
+  modalContent = null, // ✅ content rendered inside the modal
 }) {
   // close on ESC
   useEffect(() => {
@@ -70,6 +70,7 @@ export default function GraphicDisplayExplorePortal({
               flexDirection: "column",
               minWidth: 0,
               minHeight: 0,
+              position: "relative", // ✅ for optional overlays later
             }}
           >
             {/* Top bar */}
@@ -122,7 +123,16 @@ export default function GraphicDisplayExplorePortal({
 
             {/* Content */}
             <div style={{ flex: "1 1 auto", minHeight: 0, minWidth: 0 }}>
-              <div style={{ width: "100%", height: "100%" }}>{contentInsideModal}</div>
+              <div
+                style={{
+                  width: "100%",
+                  height: "100%",
+                  // ✅ Helps pointer math be stable for hover/drag
+                  position: "relative",
+                }}
+              >
+                {contentInsideModal}
+              </div>
             </div>
           </div>
         </div>,
