@@ -12,7 +12,7 @@ import GraphicDisplaySettingsPanel from "./GraphicDisplaySettingsPanel";
 import GraphicDisplayMathPanel from "./GraphicDisplayMathPanel";
 import GraphicDisplayBindingPanel from "./GraphicDisplayBindingPanel";
 
-// ✅ Totalizer UI section
+// ✅ Totalizer UI section (now includes Single Units too)
 import GraphicDisplayTotalizerSection from "./controls/graphicDisplay/GraphicDisplayTotalizerSection";
 
 // ✅ REMOVE 1s option (1000ms)
@@ -203,6 +203,10 @@ export default function GraphicDisplaySettingsModal({
   const [totalizerEnabled, setTotalizerEnabled] = useState(false);
   const [totalizerUnit, setTotalizerUnit] = useState("");
 
+  // ✅ SINGLE UNITS (NEW)
+  const [singleUnitsEnabled, setSingleUnitsEnabled] = useState(false);
+  const [singleUnit, setSingleUnit] = useState("");
+
   // MIDDLE: math
   const [mathFormula, setMathFormula] = useState("");
 
@@ -272,13 +276,19 @@ export default function GraphicDisplaySettingsModal({
     setYMin(Number.isFinite(tank.yMin) ? tank.yMin : 0);
     setYMax(Number.isFinite(tank.yMax) ? tank.yMax : 100);
 
+    // ✅ TOTALIZER load
     const tEnabled = tank.totalizerEnabled === true;
     const tUnit = String(tank.totalizerUnit ?? tank.yUnits ?? "").trim();
-
     setTotalizerEnabled(tEnabled);
     setTotalizerUnit(tUnit);
 
-    // backward compat sync
+    // ✅ SINGLE UNITS load (NEW)
+    const sEnabled = tank.singleUnitsEnabled === true;
+    const sUnit = String(tank.singleUnit ?? "").trim();
+    setSingleUnitsEnabled(sEnabled);
+    setSingleUnit(sUnit);
+
+    // backward compat sync (keep yUnits mirroring totalizerUnit)
     setYUnits(tUnit);
 
     setLineColor(normalizeHexColor(tank.lineColor ?? "#0c5ac8"));
@@ -488,16 +498,34 @@ export default function GraphicDisplaySettingsModal({
             alignItems: "start",
           }}
         >
-          {/* 1) Totalizer */}
+          {/* 1) Totalizer + Single Units */}
           <div style={{ minWidth: 0 }}>
             <GraphicDisplayTotalizerSection
+              // TOTALIZER
               enabled={totalizerEnabled}
-              onToggleEnabled={(v) => setTotalizerEnabled(!!v)}
+              onToggleEnabled={(v) => {
+                const next = !!v;
+                // ✅ if enabling totalizer, force single OFF
+                if (next) setSingleUnitsEnabled(false);
+                setTotalizerEnabled(next);
+              }}
               totalizerUnit={totalizerUnit}
               onChangeUnit={(u) => {
                 const unit = String(u ?? "");
                 setTotalizerUnit(unit);
                 setYUnits(unit); // backward compat
+              }}
+              // SINGLE UNITS (NEW)
+              singleEnabled={singleUnitsEnabled}
+              onToggleSingleEnabled={(v) => {
+                const next = !!v;
+                // ✅ if enabling single units, force totalizer OFF
+                if (next) setTotalizerEnabled(false);
+                setSingleUnitsEnabled(next);
+              }}
+              singleUnit={singleUnit}
+              onChangeSingleUnit={(u) => {
+                setSingleUnit(String(u ?? ""));
               }}
             />
           </div>
@@ -517,7 +545,7 @@ export default function GraphicDisplaySettingsModal({
               setYMin={setYMin}
               yMax={safeYMax}
               setYMax={setYMax}
-              // keep sync for now
+              // keep sync for now (legacy)
               yUnits={yUnits}
               setYUnits={(u) => {
                 const unit = String(u ?? "");
@@ -595,7 +623,7 @@ export default function GraphicDisplaySettingsModal({
                     yMin: safeYMin,
                     yMax: safeYMax,
 
-                    // Backward compatible units
+                    // Backward compatible units (keep old behavior)
                     yUnits: totalizerUnit,
 
                     graphStyle: FIXED_GRAPH_STYLE,
@@ -608,6 +636,10 @@ export default function GraphicDisplaySettingsModal({
                     // totalizer config
                     totalizerEnabled: !!totalizerEnabled,
                     totalizerUnit: String(totalizerUnit || "").trim(),
+
+                    // ✅ single units config (NEW)
+                    singleUnitsEnabled: !!singleUnitsEnabled,
+                    singleUnit: String(singleUnit || "").trim(),
                   })
                 }
                 style={{

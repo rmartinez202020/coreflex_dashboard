@@ -3,6 +3,7 @@ import React, { useMemo } from "react";
 
 /**
  * TOTALIZER — RATE ONLY (NO CUSTOM)
+ * + SINGLE UNITS (mutually exclusive with totalizer)
  */
 
 const RATE_UNIT_PRESETS = [
@@ -73,11 +74,42 @@ const RATE_TO_TOTAL_UNIT = {
   "MBTU/h": "MBTU",
 };
 
+// ✅ Single Units (flat list like Rate Units)
+const SINGLE_UNIT_PRESETS = [
+  { value: "", label: "Select unit..." },
+
+  // Pressure
+  { value: "PSI", label: "PSI" },
+  { value: "bar", label: "bar" },
+  { value: "kPa", label: "kPa" },
+  { value: "inH₂O", label: "inH₂O" },
+  { value: "mbar", label: "mbar" },
+
+  // Temperature
+  { value: "°F", label: "°F" },
+  { value: "°C", label: "°C" },
+  { value: "K", label: "K" },
+
+  // Level
+  { value: "ft", label: "ft" },
+  { value: "in", label: "in" },
+  { value: "m", label: "m" },
+  { value: "mm", label: "mm" },
+  { value: "%", label: "%" },
+];
+
 export default function GraphicDisplayTotalizerSection({
+  // TOTALIZER
   enabled = false,
   onToggleEnabled = () => {},
   totalizerUnit = "",
   onChangeUnit = () => {},
+
+  // ✅ SINGLE UNITS (NEW)
+  singleEnabled = false,
+  onToggleSingleEnabled = () => {},
+  singleUnit = "",
+  onChangeSingleUnit = () => {},
 }) {
   const selectedRateUnit = useMemo(() => {
     const t = String(totalizerUnit || "").trim();
@@ -88,6 +120,12 @@ export default function GraphicDisplayTotalizerSection({
   const derivedTotalUnit = useMemo(() => {
     return RATE_TO_TOTAL_UNIT[selectedRateUnit] || "";
   }, [selectedRateUnit]);
+
+  const selectedSingleUnit = useMemo(() => {
+    const t = String(singleUnit || "").trim();
+    const hit = SINGLE_UNIT_PRESETS.some((u) => u.value && u.value === t);
+    return hit ? t : "";
+  }, [singleUnit]);
 
   const btnBase = {
     height: 34,
@@ -119,6 +157,31 @@ export default function GraphicDisplayTotalizerSection({
     color: "#7f1d1d",
   };
 
+  // ✅ Mutual exclusion helpers
+  const enableTotalizer = () => {
+    // if turning totalizer ON, force single OFF
+    if (!enabled) {
+      if (singleEnabled) onToggleSingleEnabled(false);
+      onToggleEnabled(true);
+    }
+  };
+
+  const disableTotalizer = () => {
+    if (enabled) onToggleEnabled(false);
+  };
+
+  const enableSingle = () => {
+    // if turning single ON, force totalizer OFF
+    if (!singleEnabled) {
+      if (enabled) onToggleEnabled(false);
+      onToggleSingleEnabled(true);
+    }
+  };
+
+  const disableSingle = () => {
+    if (singleEnabled) onToggleSingleEnabled(false);
+  };
+
   return (
     <div
       style={{
@@ -128,23 +191,16 @@ export default function GraphicDisplayTotalizerSection({
         padding: 14,
       }}
     >
+      {/* ====================== TOTALIZER ====================== */}
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ fontWeight: 900, color: "#111827" }}>Totalizer</div>
 
         <div style={{ marginLeft: "auto", display: "inline-flex", gap: 8 }}>
-          <button
-            type="button"
-            onClick={() => onToggleEnabled(true)}
-            style={enabled ? btnOn : btnBase}
-          >
+          <button type="button" onClick={enableTotalizer} style={enabled ? btnOn : btnBase}>
             ✅ Enable
           </button>
 
-          <button
-            type="button"
-            onClick={() => onToggleEnabled(false)}
-            style={!enabled ? btnOff : btnBase}
-          >
+          <button type="button" onClick={disableTotalizer} style={!enabled ? btnOff : btnBase}>
             ⛔ Disable
           </button>
         </div>
@@ -156,9 +212,7 @@ export default function GraphicDisplayTotalizerSection({
 
       <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
         <label style={{ display: "grid", gap: 6 }}>
-          <span style={{ fontSize: 12, fontWeight: 900, color: "#374151" }}>
-            Rate Units (input)
-          </span>
+          <span style={{ fontSize: 12, fontWeight: 900, color: "#374151" }}>Rate Units (input)</span>
 
           <select
             value={selectedRateUnit}
@@ -195,10 +249,55 @@ export default function GraphicDisplayTotalizerSection({
           }}
         >
           <span>Total accumulates in:</span>
-          <span style={{ fontFamily: "monospace" }}>
-            {derivedTotalUnit || "--"}
-          </span>
+          <span style={{ fontFamily: "monospace" }}>{derivedTotalUnit || "--"}</span>
         </div>
+      </div>
+
+      {/* ====================== SINGLE UNITS ====================== */}
+      <div style={{ height: 1, background: "#e5e7eb", margin: "14px 0" }} />
+
+      <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+        <div style={{ fontWeight: 900, color: "#111827" }}>Single Units</div>
+
+        <div style={{ marginLeft: "auto", display: "inline-flex", gap: 8 }}>
+          <button type="button" onClick={enableSingle} style={singleEnabled ? btnOn : btnBase}>
+            ✅ Enable
+          </button>
+
+          <button type="button" onClick={disableSingle} style={!singleEnabled ? btnOff : btnBase}>
+            ⛔ Disable
+          </button>
+        </div>
+      </div>
+
+      <div style={{ marginTop: 8, fontSize: 12, fontWeight: 800, color: "#6b7280" }}>
+        Use Single Units for <b>instant measurements</b> (Pressure, Temperature, Level). Enabling this will disable the Totalizer.
+      </div>
+
+      <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
+        <label style={{ display: "grid", gap: 6 }}>
+          <span style={{ fontSize: 12, fontWeight: 900, color: "#374151" }}>Unit</span>
+
+          <select
+            value={selectedSingleUnit}
+            onChange={(e) => onChangeSingleUnit(e.target.value)}
+            style={{
+              border: "1px solid #d1d5db",
+              borderRadius: 10,
+              padding: "10px 10px",
+              fontSize: 14,
+              background: singleEnabled ? "#fff" : "#f9fafb",
+              opacity: singleEnabled ? 1 : 0.75,
+            }}
+            disabled={!singleEnabled}
+          >
+            {SINGLE_UNIT_PRESETS.map((u) => (
+              <option key={u.label} value={u.value}>
+                {u.label}
+              </option>
+            ))}
+          </select>
+        </label>
       </div>
     </div>
   );
