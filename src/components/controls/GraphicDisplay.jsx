@@ -220,6 +220,13 @@ export default function GraphicDisplay({
   const mathFormula = tank?.mathFormula ?? "";
   const lineColor = normalizeLineColor(tank?.lineColor);
 
+  // ✅ Single Units config saved from modal
+  const tankSingleEnabled = tank?.singleUnitsEnabled === true;
+  const tankSingleUnit = String(tank?.singleUnitsUnit ?? "").trim();
+
+  const [singleUnitsEnabled, setSingleUnitsEnabled] = useState(tankSingleEnabled);
+  const [singleUnitsUnit, setSingleUnitsUnit] = useState(tankSingleUnit);
+
   // ✅ Totalizer config saved from modal
   const tankTotEnabled = tank?.totalizerEnabled === true;
   const totalizerRateUnit = String(tank?.totalizerUnit ?? "").trim();
@@ -231,9 +238,32 @@ export default function GraphicDisplay({
 
   // keep runtime in sync if tank changes (like loading a different widget)
   useEffect(() => {
-    setTotEnabled(tankTotEnabled);
+    const nextSingleEnabled = tank?.singleUnitsEnabled === true;
+    const nextSingleUnit = String(tank?.singleUnitsUnit ?? "").trim();
+
+    setSingleUnitsEnabled(nextSingleEnabled);
+    setSingleUnitsUnit(nextSingleUnit);
+
+    // If Single Units is enabled, Totalizer must be OFF (runtime)
+    const nextTotEnabled = nextSingleEnabled ? false : tankTotEnabled;
+    setTotEnabled(nextTotEnabled);
+
     setTotalizerResetAt(0);
-  }, [tankTotEnabled, tank?.id, tank?.widgetId, tank?.widget_id, bindDeviceId, bindField]);
+  }, [
+    tankTotEnabled,
+    tank?.singleUnitsEnabled,
+    tank?.singleUnitsUnit,
+    tank?.id,
+    tank?.widgetId,
+    tank?.widget_id,
+    bindDeviceId,
+    bindField,
+  ]);
+
+  // Safety: if Single Units becomes enabled at runtime, force totalizer off.
+  useEffect(() => {
+    if (singleUnitsEnabled && totEnabled) setTotEnabled(false);
+  }, [singleUnitsEnabled, totEnabled]);
 
   const DEBUG = useMemo(() => {
     if (tank?.debug) return true;
@@ -312,6 +342,8 @@ export default function GraphicDisplay({
       totEnabled,
       totalizerRateUnit,
       totalizerTotalUnit,
+      singleUnitsEnabled,
+      singleUnitsUnit,
       telemetryMapType: telemetryMap ? typeof telemetryMap : "null",
       telemetryMapKeys:
         telemetryMap && typeof telemetryMap === "object"
@@ -503,6 +535,7 @@ export default function GraphicDisplay({
   // ✅ Compute totalizer value over the CURRENT VISIBLE data (pointsForView)
   // ✅ If reset is used, integrate only points AFTER totalizerResetAt
   const totalizerValue = useMemo(() => {
+    if (singleUnitsEnabled) return null;
     if (!totEnabled) return null;
     if (!totalizerRateUnit) return null;
     if (!totalizerTotalUnit) return null;
@@ -514,7 +547,15 @@ export default function GraphicDisplay({
 
     const total = integrateRateToTotal(src, totalizerRateUnit);
     return Number.isFinite(total) ? total : null;
-  }, [totEnabled, totalizerRateUnit, totalizerTotalUnit, pointsForView, points, totalizerResetAt]);
+  }, [
+    singleUnitsEnabled,
+    totEnabled,
+    totalizerRateUnit,
+    totalizerTotalUnit,
+    pointsForView,
+    points,
+    totalizerResetAt,
+  ]);
 
   const statusLabel = useMemo(() => {
     if (!bindDeviceId)
@@ -548,6 +589,7 @@ export default function GraphicDisplay({
 
   // ✅ Totalizer header control handlers
   const onTotalizerEnable = () => {
+    if (singleUnitsEnabled) return; // Single Units wins
     setTotEnabled(true);
     dbg("TOTALIZER: enabled from header");
   };
@@ -558,11 +600,19 @@ export default function GraphicDisplay({
   };
 
   const onTotalizerReset = () => {
+    if (singleUnitsEnabled) return; // Single Units wins
     // reset means "start accumulating from now"
     const t = Date.now();
     setTotalizerResetAt(t);
     dbg("TOTALIZER: reset from header", { resetAt: t });
   };
+
+  // ✅ Unit label used on the chart/UI
+  const displayUnits = useMemo(() => {
+    const su = String(singleUnitsUnit || "").trim();
+    const yu = String(yUnits || "").trim();
+    return singleUnitsEnabled ? (su || yu || "") : (yu || "");
+  }, [singleUnitsEnabled, singleUnitsUnit, yUnits]);
 
   function buildPanel(isExploreMode) {
     return (
@@ -577,7 +627,7 @@ export default function GraphicDisplay({
         statusLabel={statusLabel}
         bindDeviceId={bindDeviceId}
         // ✅ Totalizer display (header)
-        totalizerEnabled={totEnabled}
+        totalizerEnabled={singleUnitsEnabled ? false : totEnabled}
         totalizerRateUnit={totalizerRateUnit}
         totalizerTotalUnit={totalizerTotalUnit}
         totalizerValue={totalizerValue}
@@ -585,6 +635,9 @@ export default function GraphicDisplay({
         onTotalizerEnable={onTotalizerEnable}
         onTotalizerDisable={onTotalizerDisable}
         onTotalizerReset={onTotalizerReset}
+        // ✅ Single Units (NEW)
+        singleUnitsEnabled={singleUnitsEnabled}
+        singleUnitsUnit={singleUnitsUnit}
         // controls
         isPlaying={isPlaying}
         onPlay={() => setIsPlaying(true)}
@@ -606,7 +659,7 @@ export default function GraphicDisplay({
         windowSize={windowSize}
         yMin={yMin}
         yMax={yMax}
-        yUnits={yUnits}
+        yUnits={displayUnits}
         // layout/plot
         gridBackground={gridBackground}
         yTicks={yTicks}

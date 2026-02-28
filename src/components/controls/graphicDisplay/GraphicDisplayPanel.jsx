@@ -34,10 +34,15 @@ export default function GraphicDisplayPanel({
   totalizerTotalUnit = "",
   totalizerValue = null,
 
-  // ✅ NEW: totalizer enable/disable controls (parent MUST wire these to persist setting)
+  // ✅ totalizer enable/disable controls (parent MUST wire these to persist setting)
   onTotalizerEnable = () => {},
   onTotalizerDisable = () => {},
   onTotalizerReset = () => {},
+
+  // ✅ Single Units (NEW)
+  // If enabled, we hide Totalizer Controls row and show a Unit box on the right.
+  singleUnitsEnabled = false,
+  singleUnitsUnit = "",
 
   // (kept for backwards compatibility if parent still passes them; not used now)
   totalizerIsPlaying: _totalizerIsPlayingProp,
@@ -86,13 +91,19 @@ export default function GraphicDisplayPanel({
   // show vector/hover/selection visuals ONLY in Explore IN mode
   const showVectors = !!isExploreMode;
 
-  // ✅ show Totalizer Controls ONLY in Play/Launch mode
-  const showTotalizerControls = !!isPlay;
+  // ✅ show Totalizer Controls ONLY in Play/Launch mode AND only if Single Units is NOT enabled
+  const showTotalizerControls = !!isPlay && !singleUnitsEnabled;
+
+  // ✅ Unit text:
+  // - For Single Units: prefer singleUnitsUnit prop, else fall back to yUnits
+  // - For normal: yUnits
+  const unitText = useMemo(() => {
+    const su = String(singleUnitsUnit || "").trim();
+    const yu = String(yUnits || "").trim();
+    return singleUnitsEnabled ? (su || yu || "") : (yu || "");
+  }, [singleUnitsEnabled, singleUnitsUnit, yUnits]);
 
   // wrappers: stop propagation but still call hook handlers
-  // IMPORTANT FIX:
-  // - Stop propagation on Down/Move so the widget doesn't drag while interacting with the plot.
-  // - Do NOT stop propagation on Up/Cancel so parent drag/resize can end the gesture cleanly.
   const onPointerMove = (e) => {
     e.stopPropagation();
     handlers?.onPointerMove?.(e);
@@ -226,11 +237,6 @@ export default function GraphicDisplayPanel({
     if (!totalizerRateUnit) return "Totalizer";
     return `Totalizer integrated from ${totalizerRateUnit}`;
   }, [totalizerEnabled, totalizerRateUnit]);
-
-  const outputUnitText = useMemo(() => {
-    const u = String(yUnits || "").trim();
-    return u ? u : "";
-  }, [yUnits]);
 
   return (
     <div
@@ -381,7 +387,7 @@ export default function GraphicDisplayPanel({
         {/* LINE between row 1 and row 2 */}
         <div style={{ height: 0, borderTop: FRAME_LINE, width: "100%" }} />
 
-        {/* ROW 2: left = totalizer controls (Enable/Disable), right = output/totallizer boxes */}
+        {/* ROW 2: left = totalizer controls (Enable/Disable) [hidden when Single Units], right = output/totallizer/units boxes */}
         <div
           style={{
             marginTop: 10,
@@ -394,7 +400,7 @@ export default function GraphicDisplayPanel({
             minWidth: 0,
           }}
         >
-          {/* LEFT: Totalizer Controls (ONLY in Play/Launch) */}
+          {/* LEFT: Totalizer Controls (ONLY in Play/Launch AND only if Single Units is NOT enabled) */}
           {showTotalizerControls ? (
             <div
               style={{
@@ -480,7 +486,7 @@ export default function GraphicDisplayPanel({
             <div style={{ flex: "1 1 auto", minWidth: 240 }} />
           )}
 
-          {/* RIGHT: Output + Totalizer boxes */}
+          {/* RIGHT: Output + Unit + Totalizer boxes */}
           <div
             style={{
               display: "inline-flex",
@@ -505,7 +511,9 @@ export default function GraphicDisplayPanel({
               <span style={{ color: "#0b3b18", fontWeight: 400, fontSize: 15 }}>
                 {Number.isFinite(mathOutput) ? Number(mathOutput).toFixed(2) : "--"}
               </span>
-              {outputUnitText ? (
+
+              {/* keep inline unit after output (works for both totalizer + single units) */}
+              {unitText ? (
                 <span
                   style={{
                     color: "#475569",
@@ -516,12 +524,30 @@ export default function GraphicDisplayPanel({
                   }}
                   title="Unit"
                 >
-                  {outputUnitText}
+                  {unitText}
                 </span>
               ) : null}
             </div>
 
-            {totalizerEnabled ? (
+            {/* ✅ Single Units box (shows when enabled) */}
+            {singleUnitsEnabled ? (
+              <div style={bigStatBoxStyle} title="Single Units (instant measurement)">
+                <span
+                  style={{
+                    color: "#555",
+                    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+                    fontWeight: 400,
+                    fontSize: 13,
+                  }}
+                >
+                  UNIT:
+                </span>
+                <span style={{ color: "#111", fontWeight: 400, fontSize: 15 }}>{unitText || "--"}</span>
+              </div>
+            ) : null}
+
+            {/* ✅ Totalizer box (hide if Single Units enabled) */}
+            {!singleUnitsEnabled && totalizerEnabled ? (
               <div style={bigStatBoxStyle} title={totalTitle}>
                 <span
                   style={{
@@ -570,7 +596,7 @@ export default function GraphicDisplayPanel({
           </span>
           <span>•</span>
           <span>
-            Y: <span>{yMin}</span> → <span>{yMax}</span> {yUnits ? `(${yUnits})` : ""}
+            Y: <span>{yMin}</span> → <span>{yMax}</span> {unitText ? `(${unitText})` : ""}
           </span>
         </div>
 
@@ -670,13 +696,7 @@ export default function GraphicDisplayPanel({
               style={{ width: "100%", height: "100%", display: "block" }}
             >
               {(svg?.segs || []).map((pts, idx) => (
-                <polyline
-                  key={idx}
-                  fill="none"
-                  stroke={lineColor}
-                  strokeWidth={strokeW}
-                  points={(pts || []).join(" ")}
-                />
+                <polyline key={idx} fill="none" stroke={lineColor} strokeWidth={strokeW} points={(pts || []).join(" ")} />
               ))}
             </svg>
 
