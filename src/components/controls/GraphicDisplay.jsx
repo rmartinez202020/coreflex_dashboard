@@ -1,15 +1,10 @@
 // src/components/controls/GraphicDisplay.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import {
-  computeMathOutput,
-  msPerUnit,
-  fmtTimeWithDate,
-} from "./graphicDisplay/utils";
+import { computeMathOutput, msPerUnit, fmtTimeWithDate } from "./graphicDisplay/utils";
 import { getRowFromTelemetryMap, readAiField } from "./graphicDisplay/loader";
 import usePingZoom from "./graphicDisplay/hooks/usePingZoom";
 import useTrendSvg from "./graphicDisplay/hooks/useTrendSvg";
 import useTrendLayout from "./graphicDisplay/hooks/useTrendLayout";
-import GraphicDisplayExplorePortal from "./graphicDisplay/GraphicDisplayExplorePortal";
 
 const DEFAULT_LINE_COLOR = "#0c5ac8";
 
@@ -38,15 +33,9 @@ function normalizeOnlineStatusFromRow(row) {
   if (raw === true || raw === 1) return { online: true, label: "ONLINE" };
   if (raw === false || raw === 0) return { online: false, label: "OFFLINE" };
 
-  if (
-    ["online", "connected", "ok", "active", "up", "true", "yes", "1"].includes(s)
-  )
+  if (["online", "connected", "ok", "active", "up", "true", "yes", "1"].includes(s))
     return { online: true, label: "ONLINE" };
-  if (
-    ["offline", "disconnected", "down", "inactive", "false", "no", "0"].includes(
-      s
-    )
-  )
+  if (["offline", "disconnected", "down", "inactive", "false", "no", "0"].includes(s))
     return { online: false, label: "OFFLINE" };
 
   return { online: null, label: "--" };
@@ -118,7 +107,8 @@ function prunePointsByWindow(points, windowSize, timeUnit) {
 export default function GraphicDisplay({
   tank,
   telemetryMap = null, // ✅ common poller map
-  isPlay = false, // ✅ should be true in Play/Launch
+  isPlay = false, // ✅ true in Play/Launch
+  isExplore = false, // ✅ true only inside Explore overlay
 }) {
   const title = tank?.title ?? "Graphic Display";
   const timeUnit = tank?.timeUnit ?? "seconds";
@@ -198,18 +188,11 @@ export default function GraphicDisplay({
 
   const [isPlaying, setIsPlaying] = useState(true);
 
-  // ✅ NEW: Explore state (fullscreen)
-  const [isExploring, setIsExploring] = useState(false);
-
-  // ✅ Safety: if user leaves play mode, force exit Explore
-  useEffect(() => {
-    if (!isPlay && isExploring) setIsExploring(false);
-  }, [isPlay, isExploring]);
-
   // 🔎 one-time: log binding
   useEffect(() => {
     dbg("MOUNT / bind", {
       isPlay,
+      isExplore,
       isPlaying,
       bindModel,
       bindDeviceId,
@@ -312,13 +295,6 @@ export default function GraphicDisplay({
             points: finalPoints,
           })
         );
-        dbg("SAVE: wrote localStorage", {
-          storageKey,
-          inCount: points.length,
-          prunedCount: pruned.length,
-          finalCount: finalPoints.length,
-          limit,
-        });
       } catch (e) {
         dbgWarn("SAVE: localStorage error (quota?)", e);
       }
@@ -333,20 +309,10 @@ export default function GraphicDisplay({
 
   // ✅ MAIN POLL (telemetryMap sync)
   useEffect(() => {
-    if (!isPlay) {
-      dbgWarn("POLL SKIP: isPlay=false");
-      return;
-    }
-    if (!isPlaying) {
-      dbgWarn("POLL SKIP: isPlaying=false (paused)");
-      return;
-    }
+    if (!isPlay) return;
+    if (!isPlaying) return;
 
     if (!bindDeviceId || !bindField) {
-      dbgWarn("POLL RESET: missing bindDeviceId/bindField", {
-        bindDeviceId,
-        bindField,
-      });
       setLiveValue(null);
       setMathOutput(null);
       setErr("");
@@ -358,22 +324,13 @@ export default function GraphicDisplay({
     try {
       setErr("");
 
-      // ✅ FIX: sync row read (NOT async)
       const row = getRowFromTelemetryMap(telemetryMap, bindModel, bindDeviceId);
-
-      dbg("POLL: got row", {
-        hasRow: !!row,
-        rowType: typeof row,
-        rowKeys: row ? Object.keys(row).slice(0, 30) : [],
-      });
 
       const st = normalizeOnlineStatusFromRow(row);
       setDeviceOnline(st.online);
 
       const raw = row ? readAiField(row, bindField) : null;
-      dbg("POLL: readAiField", { bindField, raw, rawType: typeof raw });
 
-      // ✅ strong number parse
       let safeLive = null;
       if (raw === null || raw === undefined || raw === "") {
         safeLive = null;
@@ -384,14 +341,11 @@ export default function GraphicDisplay({
         safeLive = Number.isFinite(parsed) ? parsed : null;
       }
 
-      dbg("POLL: strong number parse", { raw, parsed: safeLive });
-
       const out = computeMathOutput(safeLive, mathFormula);
 
       setLiveValue(safeLive);
       setMathOutput(out);
 
-      // ✅ throttle point add using sampleMs
       const now = Date.now();
       const smp = Math.max(250, Number(sampleMs) || 1000);
       const last = lastSampleAtRef.current || 0;
@@ -441,6 +395,12 @@ export default function GraphicDisplay({
     dbg,
     dbgWarn,
   });
+
+  // ✅ Explore style knobs
+  const polyStrokeWidth = isExplore ? 2 : 3; // thinner in Explore
+  const yTickFont = isExplore ? 13 : 11; // bigger labels in Explore
+  const yTickPad = isExplore ? "2px 8px" : "1px 6px";
+  const topValueFont = isExplore ? 14 : 12;
 
   const topBtnBase = {
     height: 36,
@@ -539,27 +499,7 @@ export default function GraphicDisplay({
     };
   }, [deviceOnline, bindDeviceId]);
 
-  // ✅ Explore button (only in Play/Launch mode)
-  const exploreBtnStyle = {
-    height: 36,
-    padding: "0 16px",
-    borderRadius: 10,
-    border: "1px solid #d1d5db",
-    background: isExploring
-      ? "linear-gradient(180deg,#ffe4e6,#fecdd3)"
-      : "linear-gradient(180deg,#e0f2fe,#bae6fd)",
-    color: "#111",
-    fontSize: 13,
-    fontWeight: 900,
-    cursor: "pointer",
-    lineHeight: "36px",
-    userSelect: "none",
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 10,
-  };
-
-  const content = (
+  return (
     <div
       style={{
         width: "100%",
@@ -611,19 +551,6 @@ export default function GraphicDisplay({
               flex: "0 0 auto",
             }}
           >
-            {/* ✅ NEW: Explore button (ONLY in play/launch mode) */}
-            {isPlay && (
-              <button
-                type="button"
-                onClick={() => setIsExploring((v) => !v)}
-                style={exploreBtnStyle}
-                title={isExploring ? "Explore OUT (exit fullscreen)" : "Explore IN (fullscreen)"}
-              >
-                {isExploring ? "🔍➖" : "🔍➕"}{" "}
-                <span>{isExploring ? "Explore OUT" : "Explore IN"}</span>
-              </button>
-            )}
-
             <button
               type="button"
               onClick={() => setIsPlaying(true)}
@@ -689,14 +616,11 @@ export default function GraphicDisplay({
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontFamily:
-                    "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+                  fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
                   letterSpacing: 0.2,
                   userSelect: "none",
                 }}
-                title={
-                  bindDeviceId ? `Device is ${statusLabel.text}` : "No device selected"
-                }
+                title={bindDeviceId ? `Device is ${statusLabel.text}` : "No device selected"}
               >
                 {statusLabel.text}
               </div>
@@ -774,7 +698,7 @@ export default function GraphicDisplay({
                 left: 8,
                 top: 8,
                 bottom: 36,
-                width: 64,
+                width: 72,
                 pointerEvents: "none",
                 display: "flex",
                 flexDirection: "column",
@@ -786,10 +710,10 @@ export default function GraphicDisplay({
                   key={idx}
                   style={{
                     fontFamily: "monospace",
-                    fontSize: 11,
+                    fontSize: yTickFont,
                     color: "#555",
                     background: "rgba(255,255,255,0.78)",
-                    padding: "1px 6px",
+                    padding: yTickPad,
                     borderRadius: 6,
                     alignSelf: "flex-start",
                   }}
@@ -807,7 +731,7 @@ export default function GraphicDisplay({
             onPointerMoveCapture={(e) => e.stopPropagation()}
             style={{
               position: "absolute",
-              left: 84,
+              left: 92,
               right: 10,
               top: 10,
               bottom: 36,
@@ -826,7 +750,7 @@ export default function GraphicDisplay({
                   key={idx}
                   fill="none"
                   stroke={lineColor}
-                  strokeWidth="3"
+                  strokeWidth={polyStrokeWidth}
                   points={pts.join(" ")}
                 />
               ))}
@@ -866,13 +790,11 @@ export default function GraphicDisplay({
                     position: "absolute",
                     left: Math.min(
                       Math.max(hover.xPx + 10, 8),
-                      (plotRef.current?.getBoundingClientRect?.().width || 0) -
-                        260
+                      (plotRef.current?.getBoundingClientRect?.().width || 0) - 260
                     ),
                     top: Math.min(
                       Math.max(hover.yPx - 26, 8),
-                      (plotRef.current?.getBoundingClientRect?.().height || 0) -
-                        60
+                      (plotRef.current?.getBoundingClientRect?.().height || 0) - 60
                     ),
                     fontFamily: "monospace",
                     fontSize: 11,
@@ -894,9 +816,7 @@ export default function GraphicDisplay({
                   <div>
                     Y:{" "}
                     <span style={{ color: "#0b3b18" }}>
-                      {Number.isFinite(hover.y)
-                        ? Number(hover.y).toFixed(2)
-                        : "--"}
+                      {Number.isFinite(hover.y) ? Number(hover.y).toFixed(2) : "--"}
                     </span>
                   </div>
                 </div>
@@ -909,7 +829,7 @@ export default function GraphicDisplay({
                 right: 10,
                 top: 10,
                 fontFamily: "monospace",
-                fontSize: 12,
+                fontSize: topValueFont,
                 fontWeight: 900,
                 color: "#0b3b18",
                 background: "rgba(255,255,255,0.85)",
@@ -947,7 +867,7 @@ export default function GraphicDisplay({
           <div
             style={{
               position: "absolute",
-              left: 84,
+              left: 92,
               right: 10,
               bottom: 10,
               height: 22,
@@ -997,16 +917,5 @@ export default function GraphicDisplay({
         </div>
       </div>
     </div>
-  );
-
-  // ✅ Wrap with Explore portal (ONLY works in play/launch mode)
-  return (
-    <GraphicDisplayExplorePortal
-      open={isPlay && isExploring}
-      onClose={() => setIsExploring(false)}
-      title={title}
-    >
-      {content}
-    </GraphicDisplayExplorePortal>
   );
 }

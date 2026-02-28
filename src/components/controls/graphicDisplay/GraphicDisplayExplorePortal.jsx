@@ -1,5 +1,5 @@
-   // src/components/controls/graphicDisplay/GraphicDisplayExplorePortal.jsx
-import React, { useEffect } from "react";
+// src/components/controls/graphicDisplay/GraphicDisplayExplorePortal.jsx
+import React, { useEffect, useMemo } from "react";
 import { createPortal } from "react-dom";
 
 export default function GraphicDisplayExplorePortal({
@@ -8,6 +8,19 @@ export default function GraphicDisplayExplorePortal({
   title = "Graphic Display",
   children,
 }) {
+  // ✅ If child is a React element (GraphicDisplay), clone it and inject explore props
+  const exploreChild = useMemo(() => {
+    if (!React.isValidElement(children)) return children;
+
+    // Inject explore flags without breaking existing props
+    return React.cloneElement(children, {
+      ...(children.props || {}),
+      isExplore: true,
+      // ✅ force play behavior inside explore (so it works only in play/launch experience)
+      isPlay: true,
+    });
+  }, [children]);
+
   // close on ESC
   useEffect(() => {
     if (!open) return;
@@ -118,8 +131,7 @@ export default function GraphicDisplayExplorePortal({
 
             {/* Content */}
             <div style={{ flex: "1 1 auto", minHeight: 0, minWidth: 0 }}>
-              {/* clone the same UI but inside fullscreen container */}
-              <div style={{ width: "100%", height: "100%" }}>{children}</div>
+              <div style={{ width: "100%", height: "100%" }}>{exploreChild}</div>
             </div>
           </div>
         </div>,
