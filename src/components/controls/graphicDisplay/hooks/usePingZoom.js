@@ -5,19 +5,22 @@ function interpolateYAtTime(pointsArr, t) {
   const arr = Array.isArray(pointsArr) ? pointsArr : [];
   if (!arr.length || !Number.isFinite(t)) return null;
 
-  // Build a cleaned view (ignore gaps / non-finite)
-  const pts = arr.filter((p) => {
-    const tt = Number(p?.t);
-    const yy = Number(p?.y);
-    return !!p && !p.gap && Number.isFinite(tt) && Number.isFinite(yy);
-  });
+  // ignore gaps / non-finite
+  const pts = arr
+    .map((p) => ({
+      t: Number(p?.t),
+      y: Number(p?.y),
+      gap: !!p?.gap,
+    }))
+    .filter((p) => !p.gap && Number.isFinite(p.t) && Number.isFinite(p.y));
+
   if (!pts.length) return null;
 
-  // If t is outside range, clamp to ends
+  // clamp ends
   if (t <= pts[0].t) return pts[0].y;
   if (t >= pts[pts.length - 1].t) return pts[pts.length - 1].y;
 
-  // Binary search for first point with time >= t
+  // first point with time >= t
   let lo = 0;
   let hi = pts.length - 1;
   while (lo < hi) {
@@ -46,7 +49,7 @@ export default function usePingZoom({
   yMin,
   yMax,
   fmtTimeWithDate,
-  hoverAnywhere = false, // ✅ NEW: when true, show hover value anywhere along X
+  hoverAnywhere = false, // ✅ new
 }) {
   const plotRef = useRef(null);
 
@@ -56,18 +59,15 @@ export default function usePingZoom({
 
   const [hover, setHover] = useState(null);
 
-  // Reset zoom when data changes heavily
-  useEffect(() => {
-    setZoom(null);
-    setSel(null);
-    setHover(null);
-  }, [points]);
+  // ✅ IMPORTANT: do NOT reset zoom/hover on every points update (points changes constantly)
+  // If you ever want to auto-reset zoom when binding changes, do it in GraphicDisplay.jsx
+  // using a key (bindDeviceId/bindField), not the points array.
 
   const pointsForView = useMemo(() => {
     if (!zoom) return points;
     const a = Math.min(zoom.t0, zoom.t1);
     const b = Math.max(zoom.t0, zoom.t1);
-    return points.filter((p) => p.t >= a && p.t <= b);
+    return (points || []).filter((p) => p.t >= a && p.t <= b);
   }, [points, zoom]);
 
   const timeRange = useMemo(() => {
@@ -120,6 +120,17 @@ export default function usePingZoom({
     return Math.abs(p1.t - t) < Math.abs(p0.t - t) ? p1 : p0;
   }
 
+  function setHoverFromTimeAndY(rect, xClamped, t, y) {
+    const span = yMax - yMin;
+    if (!Number.isFinite(span) || span === 0) return setHover(null);
+    if (!Number.isFinite(y) || !Number.isFinite(t)) return setHover(null);
+
+    const yy = Math.min(Math.max(y, yMin), yMax);
+    const yPx = rect.height - ((yy - yMin) / span) * rect.height;
+
+    setHover({ xPx: xClamped, yPx, t, y });
+  }
+
   function handlePointerMove(e) {
     const el = plotRef.current;
     if (!el) return;
@@ -136,45 +147,24 @@ export default function usePingZoom({
 
     const t = pxToTime(xClamped);
 
-    // ✅ Explore-only "hover anywhere": interpolate Y at the mouse time
+    // ✅ Explore: hover ANYWHERE (interpolated)
     if (hoverAnywhere) {
       const y = interpolateYAtTime(pointsForView, t);
       if (!Number.isFinite(y)) {
         setHover(null);
         return;
       }
-
-      const span = yMax - yMin;
-      if (!Number.isFinite(span) || span === 0) {
-        setHover(null);
-        return;
-      }
-
-      const yy = Math.min(Math.max(y, yMin), yMax);
-      const yPx = rect.height - ((yy - yMin) / span) * rect.height;
-
-      setHover({ xPx: xClamped, yPx, t, y });
+      setHoverFromTimeAndY(rect, xClamped, t, y);
       return;
     }
 
-    // default behavior (nearest sampled point)
+    // default: nearest sampled point
     const p = findNearestPointByTime(t);
     if (!p) {
       setHover(null);
       return;
     }
-
-    const span = yMax - yMin;
-    if (!Number.isFinite(span) || span === 0) {
-      setHover(null);
-      return;
-    }
-
-    const py = Number(p?.y);
-    const yy = Math.min(Math.max(py, yMin), yMax);
-    const yPx = rect.height - ((yy - yMin) / span) * rect.height;
-
-    setHover({ xPx: xClamped, yPx, t: p.t, y: p.y });
+    setHoverFromTimeAndY(rect, xClamped, p.t, Number(p.y));
   }
 
   function handlePointerDown(e) {
