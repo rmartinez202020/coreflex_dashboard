@@ -2,6 +2,7 @@
 import React, { useMemo } from "react";
 
 const DEFAULT_LINE_COLOR = "#0c5ac8";
+const FRAME_LINE = "1px solid #cfcfcf";
 
 function normalizeLineColor(c) {
   const s = String(c || "").trim();
@@ -179,7 +180,7 @@ export default function GraphicDisplayPanel({
         height: "100%",
         background: "#fff",
         borderRadius: 10,
-        border: "1px solid #cfcfcf",
+        border: FRAME_LINE,
         boxShadow: "0 10px 22px rgba(0,0,0,0.10)",
         overflow: "hidden",
         userSelect: "none",
@@ -207,7 +208,7 @@ export default function GraphicDisplayPanel({
             gap: 10,
             minWidth: 0,
             overflowX: "auto",
-            paddingBottom: 2,
+            paddingBottom: 8,
           }}
         >
           {/* Title */}
@@ -314,10 +315,13 @@ export default function GraphicDisplayPanel({
           </div>
         </div>
 
+        {/* ✅ NEW LINE #1 (same style as frame line) */}
+        <div style={{ height: 0, borderTop: FRAME_LINE, width: "100%" }} />
+
         {/* ===================== ROW 2 (right aligned) ===================== */}
         <div
           style={{
-            marginTop: 6,
+            marginTop: 8,
             display: "flex",
             justifyContent: "flex-end",
             gap: 10,
@@ -326,7 +330,12 @@ export default function GraphicDisplayPanel({
         >
           {/* Output */}
           <div style={outputBoxStyle} title="Math Output">
-            <span style={{ color: "#555", fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial" }}>
+            <span
+              style={{
+                color: "#555",
+                fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+              }}
+            >
               Output:
             </span>
             <span style={{ color: "#0b3b18" }}>
@@ -343,7 +352,7 @@ export default function GraphicDisplayPanel({
           ) : null}
         </div>
 
-        {/* info row (stays above divider like your screenshot) */}
+        {/* info row */}
         <div
           style={{
             display: "flex",
@@ -354,6 +363,7 @@ export default function GraphicDisplayPanel({
             marginTop: 8,
             minWidth: 0,
             flexWrap: "wrap",
+            paddingBottom: 8,
           }}
         >
           <span>
@@ -372,10 +382,10 @@ export default function GraphicDisplayPanel({
             Y: <b>{yMin}</b> → <b>{yMax}</b> {yUnits ? `(${yUnits})` : ""}
           </span>
         </div>
-      </div>
 
-      {/* ✅ BLACK DIVIDER (graphic starts below this) */}
-      <div style={{ height: 2, background: "#000", width: "100%" }} />
+        {/* ✅ NEW LINE #2 (same style as frame line) */}
+        <div style={{ height: 0, borderTop: FRAME_LINE, width: "100%" }} />
+      </div>
 
       {/* BODY */}
       <div
