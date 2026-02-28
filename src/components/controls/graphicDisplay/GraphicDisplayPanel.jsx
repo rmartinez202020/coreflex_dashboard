@@ -103,7 +103,7 @@ export default function GraphicDisplayPanel({
     background: "#fff",
     color: "#111",
     fontSize: 13,
-    fontWeight: 900,
+    fontWeight: 400,
     cursor: "pointer",
     lineHeight: "36px",
     userSelect: "none",
@@ -130,7 +130,7 @@ export default function GraphicDisplayPanel({
     background: "rgba(255,255,255,0.92)",
     fontFamily: "monospace",
     fontSize: 12,
-    fontWeight: 900,
+    fontWeight: 400,
     color: "#111",
     whiteSpace: "nowrap",
   };
@@ -143,7 +143,7 @@ export default function GraphicDisplayPanel({
     background: statusLabel.bg,
     color: statusLabel.color,
     fontSize: 11,
-    fontWeight: 900,
+    fontWeight: 400,
     display: "inline-flex",
     alignItems: "center",
     justifyContent: "center",
@@ -157,7 +157,7 @@ export default function GraphicDisplayPanel({
     ...outputBoxStyle,
     fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
     fontSize: 11,
-    fontWeight: 900,
+    fontWeight: 400,
   };
 
   const totalText = useMemo(() => {
@@ -214,7 +214,7 @@ export default function GraphicDisplayPanel({
           {/* Title */}
           <div
             style={{
-              fontWeight: 800,
+              fontWeight: 400,
               fontSize: 14,
               color: "#111",
               whiteSpace: "nowrap",
@@ -298,9 +298,9 @@ export default function GraphicDisplayPanel({
                 border: "1px solid rgba(0,0,0,0.15)",
               }}
             />
-            <span style={{ fontSize: 12, fontWeight: 900, color: "#111" }}>LINE</span>
+            <span style={{ fontSize: 12, fontWeight: 400, color: "#111" }}>LINE</span>
             {styleBadge ? (
-              <span style={{ fontSize: 11, fontWeight: 800, color: "#475569" }}>
+              <span style={{ fontSize: 11, fontWeight: 400, color: "#475569" }}>
                 {styleBadge}
               </span>
             ) : null}
@@ -334,11 +334,12 @@ export default function GraphicDisplayPanel({
               style={{
                 color: "#555",
                 fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+                fontWeight: 400,
               }}
             >
               Output:
             </span>
-            <span style={{ color: "#0b3b18" }}>
+            <span style={{ color: "#0b3b18", fontWeight: 400 }}>
               {Number.isFinite(mathOutput) ? Number(mathOutput).toFixed(2) : "--"}
             </span>
           </div>
@@ -346,8 +347,8 @@ export default function GraphicDisplayPanel({
           {/* Totallizer */}
           {totalizerEnabled ? (
             <div style={totalizerBoxStyle} title={totalTitle}>
-              <span style={{ color: "#555" }}>TOTALLIZER:</span>
-              <span style={{ color: "#111" }}>{totalText}</span>
+              <span style={{ color: "#555", fontWeight: 400 }}>TOTALLIZER:</span>
+              <span style={{ color: "#111", fontWeight: 400 }}>{totalText}</span>
             </div>
           ) : null}
         </div>
@@ -364,22 +365,23 @@ export default function GraphicDisplayPanel({
             minWidth: 0,
             flexWrap: "wrap",
             paddingBottom: 8,
+            fontWeight: 400,
           }}
         >
           <span>
-            Time: <b>{timeUnit}</b>
+            Time: <span>{timeUnit}</span>
           </span>
           <span>•</span>
           <span>
-            Sample: <b>{sampleMs} ms</b>
+            Sample: <span>{sampleMs} ms</span>
           </span>
           <span>•</span>
           <span>
-            Window: <b>{windowSize}</b>
+            Window: <span>{windowSize}</span>
           </span>
           <span>•</span>
           <span>
-            Y: <b>{yMin}</b> → <b>{yMax}</b> {yUnits ? `(${yUnits})` : ""}
+            Y: <span>{yMin}</span> → <span>{yMax}</span> {yUnits ? `(${yUnits})` : ""}
           </span>
         </div>
 
@@ -446,6 +448,7 @@ export default function GraphicDisplayPanel({
                     borderRadius: 8,
                     alignSelf: "flex-start",
                     border: "1px solid rgba(0,0,0,0.06)",
+                    fontWeight: 400,
                   }}
                 >
                   {Number(v).toFixed(2)}
@@ -530,7 +533,6 @@ export default function GraphicDisplayPanel({
                     ),
                     fontFamily: "monospace",
                     fontSize: 11,
-                    fontWeight: 900,
                     color: "#111",
                     background: "rgba(255,255,255,0.92)",
                     padding: "6px 10px",
@@ -542,12 +544,13 @@ export default function GraphicDisplayPanel({
                     whiteSpace: "nowrap",
                     overflow: "hidden",
                     textOverflow: "ellipsis",
+                    fontWeight: 400,
                   }}
                 >
                   <div>{fmtTime(hover.t)}</div>
                   <div>
                     Y:{" "}
-                    <span style={{ color: "#0b3b18" }}>
+                    <span style={{ color: "#0b3b18", fontWeight: 400 }}>
                       {Number.isFinite(hover.y) ? Number(hover.y).toFixed(2) : "--"}
                     </span>
                   </div>
@@ -562,13 +565,13 @@ export default function GraphicDisplayPanel({
                 top: 10,
                 fontFamily: "monospace",
                 fontSize: 12,
-                fontWeight: 900,
                 color: "#0b3b18",
                 background: "rgba(255,255,255,0.85)",
                 padding: "6px 10px",
                 borderRadius: 10,
                 border: "1px solid rgba(0,0,0,0.08)",
                 pointerEvents: "none",
+                fontWeight: 400,
               }}
               title="Current math output"
             >
@@ -582,13 +585,13 @@ export default function GraphicDisplayPanel({
                   left: 10,
                   bottom: 10,
                   fontSize: 12,
-                  fontWeight: 900,
                   color: "#991b1b",
                   background: "rgba(255,241,242,0.92)",
                   border: "1px solid #fecaca",
                   padding: "6px 10px",
                   borderRadius: 10,
                   pointerEvents: "none",
+                  fontWeight: 400,
                 }}
               >
                 {err}
@@ -610,8 +613,8 @@ export default function GraphicDisplayPanel({
               pointerEvents: "none",
               fontFamily: "monospace",
               fontSize: 10,
-              fontWeight: 900,
               color: "#444",
+              fontWeight: 400,
             }}
           >
             {timeTicks.length ? (
@@ -627,6 +630,7 @@ export default function GraphicDisplayPanel({
                     border: "1px solid rgba(0,0,0,0.06)",
                     padding: "2px 6px",
                     borderRadius: 8,
+                    fontWeight: 400,
                   }}
                   title={tk.label}
                 >
@@ -640,6 +644,7 @@ export default function GraphicDisplayPanel({
                   border: "1px solid rgba(0,0,0,0.06)",
                   padding: "2px 6px",
                   borderRadius: 8,
+                  fontWeight: 400,
                 }}
               >
                 --
