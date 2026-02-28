@@ -6,6 +6,7 @@ import usePingZoom from "./graphicDisplay/hooks/usePingZoom";
 import useTrendSvg from "./graphicDisplay/hooks/useTrendSvg";
 import useTrendLayout from "./graphicDisplay/hooks/useTrendLayout";
 import GraphicDisplayExplorePortal from "./graphicDisplay/GraphicDisplayExplorePortal";
+import GraphicDisplayPanel from "./graphicDisplay/GraphicDisplayPanel";
 
 const DEFAULT_LINE_COLOR = "#0c5ac8";
 
@@ -384,73 +385,6 @@ export default function GraphicDisplay({
     dbgWarn,
   });
 
-  const topBtnBase = {
-    height: 36,
-    padding: "0 18px",
-    borderRadius: 10,
-    border: "1px solid #d1d5db",
-    background: "#fff",
-    color: "#111",
-    fontSize: 13,
-    fontWeight: 900,
-    cursor: "pointer",
-    lineHeight: "36px",
-    userSelect: "none",
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 10,
-  };
-
-  const topBtnDisabled = {
-    ...topBtnBase,
-    cursor: "not-allowed",
-    opacity: 0.55,
-  };
-
-  const outputBoxStyle = {
-    height: 36,
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 8,
-    padding: "0 12px",
-    borderRadius: 10,
-    border: "1px solid rgba(0,0,0,0.10)",
-    background: "rgba(255,255,255,0.92)",
-    fontFamily: "monospace",
-    fontSize: 12,
-    fontWeight: 900,
-    color: "#111",
-    whiteSpace: "nowrap",
-  };
-
-  const styleIndicator = (
-    <div
-      style={{
-        display: "inline-flex",
-        alignItems: "center",
-        gap: 8,
-        height: 36,
-        padding: "0 6px",
-        fontSize: 12,
-        fontWeight: 900,
-        color: "#111",
-        whiteSpace: "nowrap",
-      }}
-      title={`Line color: ${lineColor}`}
-    >
-      <span
-        style={{
-          width: 12,
-          height: 12,
-          borderRadius: 999,
-          background: lineColor,
-          border: "1px solid rgba(0,0,0,0.15)",
-        }}
-      />
-      <span>{styleBadge}</span>
-    </div>
-  );
-
   const statusLabel = useMemo(() => {
     if (!bindDeviceId)
       return {
@@ -481,461 +415,66 @@ export default function GraphicDisplay({
     };
   }, [deviceOnline, bindDeviceId]);
 
-  // ✅ render UI with explore flag
-  function renderPanel(isExploreMode) {
-    const strokeW = isExploreMode ? 2 : 3; // ✅ thinner line in Explore
-    const yFont = isExploreMode ? 14 : 11; // ✅ bigger Y numbers in Explore
-
+  function buildPanel(isExploreMode) {
     return (
-      <div
-        style={{
-          width: "100%",
-          height: "100%",
-          background: "#fff",
-          borderRadius: 10,
-          border: "1px solid #cfcfcf",
-          boxShadow: "0 10px 22px rgba(0,0,0,0.10)",
-          overflow: "hidden",
-          userSelect: "none",
-          pointerEvents: "auto",
-          display: "flex",
-          flexDirection: "column",
-          minWidth: 0,
-          minHeight: 0,
+      <GraphicDisplayPanel
+        // mode
+        isExploreMode={isExploreMode}
+        isPlay={isPlay}
+        // header/meta
+        title={title}
+        lineColor={lineColor}
+        styleBadge={styleBadge}
+        statusLabel={statusLabel}
+        bindDeviceId={bindDeviceId}
+        // controls
+        isPlaying={isPlaying}
+        onPlay={() => setIsPlaying(true)}
+        onPause={() => setIsPlaying(false)}
+        onToggleExplore={() => {
+          if (isExploreMode) setExploreOpen(false);
+          else setExploreOpen(true);
         }}
-      >
-        {/* HEADER */}
-        <div
-          style={{
-            padding: "8px 10px",
-            borderBottom: "1px solid #e6e6e6",
-            background: "linear-gradient(180deg, #ffffff 0%, #f4f4f4 100%)",
-            flex: "0 0 auto",
-            minWidth: 0,
-          }}
-        >
-          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-            <div
-              style={{
-                fontWeight: 800,
-                fontSize: 14,
-                color: "#111",
-                whiteSpace: "nowrap",
-                overflow: "hidden",
-                textOverflow: "ellipsis",
-                minWidth: 0,
-              }}
-            >
-              {title}
-            </div>
-
-            <div
-              style={{
-                marginLeft: "auto",
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 12,
-                flex: "0 0 auto",
-              }}
-            >
-              {/* ✅ Explore button: only in play/launch */}
-              {isPlay && (
-                <button
-                  type="button"
-                  onClick={() => {
-                    if (isExploreMode) setExploreOpen(false);
-                    else setExploreOpen(true);
-                  }}
-                  style={{
-                    ...topBtnBase,
-                    background: isExploreMode ? "#fee2e2" : "#fff",
-                    border: isExploreMode ? "1px solid #fecaca" : topBtnBase.border,
-                  }}
-                  title={isExploreMode ? "Close Explore" : "Open Explore"}
-                >
-                  🔎 <span>{isExploreMode ? "Explore OUT" : "Explore IN"}</span>
-                </button>
-              )}
-
-              <button
-                type="button"
-                onClick={() => setIsPlaying(true)}
-                style={isPlaying ? topBtnDisabled : topBtnBase}
-                disabled={isPlaying}
-                title="Resume"
-              >
-                ▶ <span>Play</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => setIsPlaying(false)}
-                style={!isPlaying ? topBtnDisabled : topBtnBase}
-                disabled={!isPlaying}
-                title="Pause"
-              >
-                ⏸ <span>Pause</span>
-              </button>
-
-              <button
-                type="button"
-                onClick={() =>
-                  exportPointsCsv({
-                    title,
-                    points: pointsForView?.length ? pointsForView : points,
-                    fmt: fmtTimeWithDate,
-                  })
-                }
-                style={topBtnBase}
-                title="Export visible points to CSV"
-              >
-                ⬇ <span>Export</span>
-              </button>
-
-              {styleIndicator}
-
-              <div
-                style={{
-                  display: "inline-flex",
-                  flexDirection: "column",
-                  alignItems: "flex-end",
-                  gap: 4,
-                }}
-              >
-                <div style={outputBoxStyle} title="Math Output">
-                  <span style={{ color: "#555" }}>Output:</span>
-                  <span style={{ color: "#0b3b18" }}>
-                    {Number.isFinite(mathOutput) ? mathOutput.toFixed(2) : "--"}
-                  </span>
-                </div>
-
-                <div
-                  style={{
-                    height: 22,
-                    padding: "0 10px",
-                    borderRadius: 999,
-                    border: `1px solid ${statusLabel.border}`,
-                    background: statusLabel.bg,
-                    color: statusLabel.color,
-                    fontSize: 11,
-                    fontWeight: 900,
-                    display: "inline-flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-                    letterSpacing: 0.2,
-                    userSelect: "none",
-                  }}
-                  title={bindDeviceId ? `Device is ${statusLabel.text}` : "No device selected"}
-                >
-                  {statusLabel.text}
-                </div>
-              </div>
-            </div>
-          </div>
-
-          <div
-            style={{
-              display: "flex",
-              alignItems: "center",
-              gap: 8,
-              color: "#444",
-              fontSize: 11,
-              marginTop: 6,
-              minWidth: 0,
-              flexWrap: "wrap",
-            }}
-          >
-            <span>
-              Time: <b>{timeUnit}</b>
-            </span>
-            <span>•</span>
-            <span>
-              Sample: <b>{sampleMs} ms</b>
-            </span>
-            <span>•</span>
-            <span>
-              Window: <b>{windowSize}</b>
-            </span>
-            <span>•</span>
-            <span>
-              Y: <b>{yMin}</b> → <b>{yMax}</b> {yUnits ? `(${yUnits})` : ""}
-            </span>
-          </div>
-        </div>
-
-        {/* BODY */}
-        <div
-          style={{
-            flex: "1 1 auto",
-            minHeight: 0,
-            minWidth: 0,
-            padding: 12,
-            display: "flex",
-          }}
-        >
-          <div
-            style={{
-              flex: "1 1 auto",
-              minWidth: 0,
-              minHeight: 0,
-              width: "100%",
-              height: "100%",
-              borderRadius: 10,
-              background: "linear-gradient(180deg,#ffffff,#fbfbfb)",
-              position: "relative",
-              overflow: "hidden",
-              border: "1px solid #d9d9d9",
-            }}
-          >
-            <div
-              style={{
-                position: "absolute",
-                inset: 0,
-                ...gridBackground,
-                pointerEvents: "none",
-              }}
-            />
-
-            {yTicks.length > 0 && (
-              <div
-                style={{
-                  position: "absolute",
-                  left: 8,
-                  top: 8,
-                  bottom: 36,
-                  width: 72,
-                  pointerEvents: "none",
-                  display: "flex",
-                  flexDirection: "column",
-                  justifyContent: "space-between",
-                }}
-              >
-                {[...yTicks].reverse().map((v, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      fontFamily: "monospace",
-                      fontSize: yFont, // ✅ bigger in Explore
-                      color: "#111",
-                      background: "rgba(255,255,255,0.86)",
-                      padding: "2px 8px",
-                      borderRadius: 8,
-                      alignSelf: "flex-start",
-                      border: "1px solid rgba(0,0,0,0.06)",
-                    }}
-                  >
-                    {Number(v).toFixed(2)}
-                  </div>
-                ))}
-              </div>
-            )}
-
-            <div
-              ref={plotRef}
-              {...handlers}
-              onPointerDownCapture={(e) => e.stopPropagation()}
-              onPointerMoveCapture={(e) => e.stopPropagation()}
-              style={{
-                position: "absolute",
-                left: 92,
-                right: 10,
-                top: 10,
-                bottom: 36,
-                cursor: sel ? "crosshair" : "default",
-                touchAction: "none",
-              }}
-              title="Move mouse to ping time/value. Drag to zoom. Double-click to reset zoom."
-            >
-              <svg
-                viewBox={`0 0 ${svg.W} ${svg.H}`}
-                preserveAspectRatio="none"
-                style={{ width: "100%", height: "100%", display: "block" }}
-              >
-                {svg.segs.map((pts, idx) => (
-                  <polyline
-                    key={idx}
-                    fill="none"
-                    stroke={lineColor}
-                    strokeWidth={strokeW} // ✅ thinner in Explore
-                    points={pts.join(" ")}
-                  />
-                ))}
-              </svg>
-
-              {sel ? (
-                <div
-                  style={{
-                    position: "absolute",
-                    top: 0,
-                    bottom: 0,
-                    left: Math.min(sel.x0, sel.x1),
-                    width: Math.max(1, Math.abs(sel.x1 - sel.x0)),
-                    background: "rgba(59, 130, 246, 0.12)",
-                    border: "1px solid rgba(59, 130, 246, 0.35)",
-                    borderRadius: 6,
-                    pointerEvents: "none",
-                  }}
-                />
-              ) : null}
-
-              {hover ? (
-                <>
-                  <div
-                    style={{
-                      position: "absolute",
-                      left: hover.xPx,
-                      top: 0,
-                      bottom: 0,
-                      width: 1,
-                      background: "rgba(0,0,0,0.18)",
-                      pointerEvents: "none",
-                    }}
-                  />
-                  <div
-                    style={{
-                      position: "absolute",
-                      left: Math.min(
-                        Math.max(hover.xPx + 10, 8),
-                        (plotRef.current?.getBoundingClientRect?.().width || 0) - 260
-                      ),
-                      top: Math.min(
-                        Math.max(hover.yPx - 26, 8),
-                        (plotRef.current?.getBoundingClientRect?.().height || 0) - 60
-                      ),
-                      fontFamily: "monospace",
-                      fontSize: 11,
-                      fontWeight: 900,
-                      color: "#111",
-                      background: "rgba(255,255,255,0.92)",
-                      padding: "6px 10px",
-                      borderRadius: 10,
-                      border: "1px solid rgba(0,0,0,0.10)",
-                      boxShadow: "0 8px 18px rgba(0,0,0,0.10)",
-                      pointerEvents: "none",
-                      maxWidth: 260,
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                    }}
-                  >
-                    <div>{fmtTimeWithDate(hover.t)}</div>
-                    <div>
-                      Y:{" "}
-                      <span style={{ color: "#0b3b18" }}>
-                        {Number.isFinite(hover.y) ? Number(hover.y).toFixed(2) : "--"}
-                      </span>
-                    </div>
-                  </div>
-                </>
-              ) : null}
-
-              <div
-                style={{
-                  position: "absolute",
-                  right: 10,
-                  top: 10,
-                  fontFamily: "monospace",
-                  fontSize: 12,
-                  fontWeight: 900,
-                  color: "#0b3b18",
-                  background: "rgba(255,255,255,0.85)",
-                  padding: "6px 10px",
-                  borderRadius: 10,
-                  border: "1px solid rgba(0,0,0,0.08)",
-                  pointerEvents: "none",
-                }}
-                title="Current math output"
-              >
-                {Number.isFinite(mathOutput) ? mathOutput.toFixed(2) : "--"}
-              </div>
-
-              {err ? (
-                <div
-                  style={{
-                    position: "absolute",
-                    left: 10,
-                    bottom: 10,
-                    fontSize: 12,
-                    fontWeight: 900,
-                    color: "#991b1b",
-                    background: "rgba(255,241,242,0.92)",
-                    border: "1px solid #fecaca",
-                    padding: "6px 10px",
-                    borderRadius: 10,
-                    pointerEvents: "none",
-                  }}
-                >
-                  {err}
-                </div>
-              ) : null}
-            </div>
-
-            <div
-              style={{
-                position: "absolute",
-                left: 92,
-                right: 10,
-                bottom: 10,
-                height: 22,
-                display: "flex",
-                alignItems: "flex-end",
-                justifyContent: "space-between",
-                gap: 8,
-                pointerEvents: "none",
-                fontFamily: "monospace",
-                fontSize: 10,
-                fontWeight: 900,
-                color: "#444",
-              }}
-            >
-              {timeTicks.length ? (
-                timeTicks.map((tk, idx) => (
-                  <div
-                    key={idx}
-                    style={{
-                      maxWidth: "22%",
-                      whiteSpace: "nowrap",
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      background: "rgba(255,255,255,0.78)",
-                      border: "1px solid rgba(0,0,0,0.06)",
-                      padding: "2px 6px",
-                      borderRadius: 8,
-                    }}
-                    title={tk.label}
-                  >
-                    {tk.label}
-                  </div>
-                ))
-              ) : (
-                <div
-                  style={{
-                    background: "rgba(255,255,255,0.78)",
-                    border: "1px solid rgba(0,0,0,0.06)",
-                    padding: "2px 6px",
-                    borderRadius: 8,
-                  }}
-                >
-                  --
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
-      </div>
+        onExport={() =>
+          exportPointsCsv({
+            title,
+            points: pointsForView?.length ? pointsForView : points,
+            fmt: fmtTimeWithDate,
+          })
+        }
+        // info row
+        timeUnit={timeUnit}
+        sampleMs={sampleMs}
+        windowSize={windowSize}
+        yMin={yMin}
+        yMax={yMax}
+        yUnits={yUnits}
+        // layout/plot
+        gridBackground={gridBackground}
+        yTicks={yTicks}
+        plotRef={plotRef}
+        handlers={handlers}
+        sel={sel}
+        hover={hover}
+        timeTicks={timeTicks}
+        fmtTime={fmtTimeWithDate}
+        svg={svg}
+        // output/errors
+        mathOutput={mathOutput}
+        err={err}
+      />
     );
   }
 
-  // ✅ Use portal: normal view uses renderPanel(false), modal uses renderPanel(true)
+  // ✅ Use portal: normal view uses buildPanel(false), modal uses buildPanel(true)
   return (
     <GraphicDisplayExplorePortal
       open={exploreOpen}
       onClose={() => setExploreOpen(false)}
       title={title}
-      modalContent={renderPanel(true)}
+      modalContent={buildPanel(true)}
     >
-      {renderPanel(false)}
+      {buildPanel(false)}
     </GraphicDisplayExplorePortal>
   );
 }
