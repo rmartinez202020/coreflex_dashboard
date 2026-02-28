@@ -12,6 +12,9 @@ import GraphicDisplaySettingsPanel from "./GraphicDisplaySettingsPanel";
 import GraphicDisplayMathPanel from "./GraphicDisplayMathPanel";
 import GraphicDisplayBindingPanel from "./GraphicDisplayBindingPanel";
 
+// ✅ NEW: Totalizer UI section (new file you created)
+import GraphicDisplayTotalizerSection from "./controls/graphicDisplay/GraphicDisplayTotalizerSection";
+
 // ✅ REMOVE 1s option (1000ms)
 const SAMPLE_OPTIONS = [3000, 6000, 30000, 60000, 300000, 600000];
 const FIXED_GRAPH_STYLE = "line";
@@ -118,11 +121,7 @@ function getRowFromTelemetryMap(telemetryMap, modelKey, deviceId) {
  * - Prefer telemetryMap (common poller)
  * - Otherwise ONLY call /{base}/my-devices
  */
-async function loadLiveRowForDevice(
-  modelKey,
-  deviceId,
-  { telemetryMap, signal } = {}
-) {
+async function loadLiveRowForDevice(modelKey, deviceId, { telemetryMap, signal } = {}) {
   const mk = String(modelKey || "").trim();
   const id = String(deviceId || "").trim();
   if (!mk || !id) return null;
@@ -136,9 +135,7 @@ async function loadLiveRowForDevice(
   const data = await apiGet(`/${base}/my-devices`, { signal });
   const arr = normalizeArray(data);
 
-  const found =
-    arr.find((r) => String(readDeviceId(r) || "").trim() === id) || null;
-
+  const found = arr.find((r) => String(readDeviceId(r) || "").trim() === id) || null;
   return found;
 }
 
@@ -199,9 +196,17 @@ export default function GraphicDisplaySettingsModal({
 
   const [yMin, setYMin] = useState(0);
   const [yMax, setYMax] = useState(100);
+
+  // ✅ Units moved under Totalizer section (still keep yUnits for backward compatibility)
   const [yUnits, setYUnits] = useState("");
 
   const [lineColor, setLineColor] = useState("#0c5ac8");
+
+  // -------------------------
+  // ✅ TOTALIZER (UI-first)
+  // -------------------------
+  const [totalizerEnabled, setTotalizerEnabled] = useState(false);
+  const [totalizerUnit, setTotalizerUnit] = useState("");
 
   // -------------------------
   // MIDDLE: math
@@ -275,16 +280,22 @@ export default function GraphicDisplaySettingsModal({
 
     // ✅ if old saved value was 1s (1000), force to 3s (3000)
     const incomingSample = Number(tank.sampleMs ?? 3000);
-    const normalizedSample =
-      incomingSample === 1000 ? 3000 : incomingSample;
+    const normalizedSample = incomingSample === 1000 ? 3000 : incomingSample;
 
-    setSampleMs(
-      SAMPLE_OPTIONS.includes(normalizedSample) ? normalizedSample : 3000
-    );
+    setSampleMs(SAMPLE_OPTIONS.includes(normalizedSample) ? normalizedSample : 3000);
 
     setYMin(Number.isFinite(tank.yMin) ? tank.yMin : 0);
     setYMax(Number.isFinite(tank.yMax) ? tank.yMax : 100);
-    setYUnits(tank.yUnits ?? "");
+
+    // ✅ Load totalizer fields (fallback to old yUnits so existing projects still show units)
+    const tEnabled = tank.totalizerEnabled === true;
+    const tUnit = String(tank.totalizerUnit ?? tank.yUnits ?? "").trim();
+
+    setTotalizerEnabled(tEnabled);
+    setTotalizerUnit(tUnit);
+
+    // ✅ keep yUnits synced for backward compatibility
+    setYUnits(tUnit);
 
     setLineColor(normalizeHexColor(tank.lineColor ?? "#0c5ac8"));
     setMathFormula(tank.mathFormula ?? "");
@@ -344,9 +355,7 @@ export default function GraphicDisplaySettingsModal({
       } catch (e) {
         if (cancelled) return;
         if (String(e?.name || "").toLowerCase().includes("abort")) return;
-        setLiveErr(
-          "Could not read live value (check /my-devices response & fields)."
-        );
+        setLiveErr("Could not read live value (check /my-devices response & fields).");
       }
     };
 
@@ -394,10 +403,7 @@ export default function GraphicDisplaySettingsModal({
     if (e.button !== 0) return;
 
     const t = e.target;
-    if (
-      t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")
-    )
-      return;
+    if (t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")) return;
 
     e.preventDefault();
 
@@ -490,24 +496,36 @@ export default function GraphicDisplaySettingsModal({
             background: "#f8fafc",
           }}
         >
-          <GraphicDisplaySettingsPanel
-            title={title}
-            setTitle={setTitle}
-            timeUnit={timeUnit}
-            setTimeUnit={setTimeUnit}
-            windowSize={windowSize}
-            setWindowSize={setWindowSize}
-            sampleMs={sampleMs}
-            setSampleMs={setSampleMs}
-            yMin={safeYMin}
-            setYMin={setYMin}
-            yMax={safeYMax}
-            setYMax={setYMax}
-            yUnits={yUnits}
-            setYUnits={setYUnits}
-            lineColor={safeLineColor}
-            setLineColor={setLineColor}
-          />
+          {/* ✅ LEFT COLUMN: Totalizer + Settings */}
+          <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
+            <GraphicDisplayTotalizerSection
+              enabled={totalizerEnabled}
+              onToggleEnabled={(v) => setTotalizerEnabled(!!v)}
+              totalizerUnit={totalizerUnit}
+              onChangeUnit={(u) => {
+                const unit = String(u ?? "");
+                setTotalizerUnit(unit);
+                setYUnits(unit); // backward compat
+              }}
+            />
+
+            <GraphicDisplaySettingsPanel
+              title={title}
+              setTitle={setTitle}
+              timeUnit={timeUnit}
+              setTimeUnit={setTimeUnit}
+              windowSize={windowSize}
+              setWindowSize={setWindowSize}
+              sampleMs={sampleMs}
+              setSampleMs={setSampleMs}
+              yMin={safeYMin}
+              setYMin={setYMin}
+              yMax={safeYMax}
+              setYMax={setYMax}
+              lineColor={safeLineColor}
+              setLineColor={setLineColor}
+            />
+          </div>
 
           <div style={{ display: "grid", gap: 12, alignContent: "start" }}>
             <GraphicDisplayMathPanel
@@ -572,22 +590,28 @@ export default function GraphicDisplaySettingsModal({
                     sampleMs,
                     yMin: safeYMin,
                     yMax: safeYMax,
-                    yUnits,
+
+                    // ✅ Units label (still used by display info row)
+                    // If totalizer is enabled, we show unit; if disabled but user chose unit, still OK.
+                    yUnits: String(totalizerUnit ?? yUnits ?? "").trim(),
+
                     graphStyle: FIXED_GRAPH_STYLE,
                     lineColor: safeLineColor,
                     mathFormula,
                     bindModel,
                     bindDeviceId,
                     bindField,
+
+                    // ✅ NEW: totalizer config
+                    totalizerEnabled: !!totalizerEnabled,
+                    totalizerUnit: String(totalizerUnit || "").trim(),
                   })
                 }
                 style={{
                   padding: "10px 14px",
                   borderRadius: 10,
                   border: "1px solid #bfe6c8",
-                  background: canApply
-                    ? "linear-gradient(180deg,#bff2c7,#6fdc89)"
-                    : "#e5e7eb",
+                  background: canApply ? "linear-gradient(180deg,#bff2c7,#6fdc89)" : "#e5e7eb",
                   color: "#0b3b18",
                   fontWeight: 900,
                   cursor: canApply ? "pointer" : "not-allowed",

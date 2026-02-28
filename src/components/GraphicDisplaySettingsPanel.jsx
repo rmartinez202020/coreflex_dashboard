@@ -1,3 +1,4 @@
+// src/components/GraphicDisplaySettingsPanel.jsx
 import React from "react";
 
 // ✅ Updated sampling options (ms)
@@ -49,10 +50,12 @@ export default function GraphicDisplaySettingsPanel({
   setYMin,
   yMax,
   setYMax,
-  yUnits,
-  setYUnits,
 
-  // ✅ NEW
+  // ✅ REMOVED from this panel (moved to Totalizer section)
+  // yUnits,
+  // setYUnits,
+
+  // ✅ Line color
   lineColor,
   setLineColor,
 }) {
@@ -98,7 +101,7 @@ export default function GraphicDisplaySettingsPanel({
           />
         </label>
 
-        {/* ✅ NEW: Line Color */}
+        {/* ✅ Line Color */}
         <div
           style={{
             border: "1px solid #e5e7eb",
@@ -283,23 +286,6 @@ export default function GraphicDisplaySettingsPanel({
               />
             </label>
           </div>
-
-          <label style={{ display: "grid", gap: 6 }}>
-            <span style={{ fontSize: 12, fontWeight: 800, color: "#374151" }}>
-              Units label (optional)
-            </span>
-            <input
-              value={yUnits}
-              onChange={(e) => setYUnits(e.target.value)}
-              placeholder="e.g. %, PSI, °F"
-              style={{
-                border: "1px solid #d1d5db",
-                borderRadius: 10,
-                padding: "10px 10px",
-                fontSize: 14,
-              }}
-            />
-          </label>
 
           {safeYMax <= safeYMin && (
             <div style={{ color: "#b42318", fontWeight: 800, fontSize: 12 }}>
