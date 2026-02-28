@@ -1,5 +1,5 @@
 // src/components/controls/graphicDisplay/GraphicDisplayPanel.jsx
-import React, { useMemo, useState, useEffect } from "react";
+import React, { useMemo } from "react";
 
 const DEFAULT_LINE_COLOR = "#0c5ac8";
 const FRAME_LINE = "1px solid #cfcfcf";
@@ -34,11 +34,15 @@ export default function GraphicDisplayPanel({
   totalizerTotalUnit = "",
   totalizerValue = null,
 
-  // ✅ NEW: totalizer controls (parent should wire these to actually pause/reset integration)
-  totalizerIsPlaying: totalizerIsPlayingProp, // optional
-  onTotalizerPlay = () => {},
-  onTotalizerPause = () => {},
+  // ✅ NEW: totalizer enable/disable controls (parent MUST wire these to persist setting)
+  onTotalizerEnable = () => {},
+  onTotalizerDisable = () => {},
   onTotalizerReset = () => {},
+
+  // (kept for backwards compatibility if parent still passes them; not used now)
+  totalizerIsPlaying: _totalizerIsPlayingProp,
+  onTotalizerPlay: _onTotalizerPlay,
+  onTotalizerPause: _onTotalizerPause,
 
   // control state + handlers
   isPlaying = true,
@@ -82,20 +86,8 @@ export default function GraphicDisplayPanel({
   // show vector/hover/selection visuals ONLY in Explore IN mode
   const showVectors = !!isExploreMode;
 
-  // ✅ Totalizer controls should ONLY be visible in Play/Launch mode
-  const showTotalizerControls = !!isPlay && !!totalizerEnabled;
-
-  // Local UI state for totalizer play/pause (parent can override with prop)
-  const [localTotPlaying, setLocalTotPlaying] = useState(true);
-  const totalizerIsPlaying =
-    typeof totalizerIsPlayingProp === "boolean" ? totalizerIsPlayingProp : localTotPlaying;
-
-  useEffect(() => {
-    // when totalizer gets enabled, default to play (as requested)
-    if (totalizerEnabled && typeof totalizerIsPlayingProp !== "boolean") {
-      setLocalTotPlaying(true);
-    }
-  }, [totalizerEnabled, totalizerIsPlayingProp]);
+  // ✅ show Totalizer Controls ONLY in Play/Launch mode
+  const showTotalizerControls = !!isPlay;
 
   // wrappers: stop propagation but still call hook handlers
   // IMPORTANT FIX:
@@ -185,6 +177,7 @@ export default function GraphicDisplayPanel({
   // Totalizer controls section title (professional)
   const totalizerSectionTitle = "Totalizer Controls";
 
+  // ✅ Totalizer header buttons (Enable/Disable/Reset) — same vibe as modal
   const totBtnBase = {
     height: 32,
     padding: "0 14px",
@@ -205,19 +198,15 @@ export default function GraphicDisplayPanel({
   const totBtnDisabled = {
     ...totBtnBase,
     cursor: "not-allowed",
-    opacity: 0.5,
+    opacity: 0.55,
   };
 
-  const onTotPlayClick = () => {
-    if (!totalizerEnabled) return;
-    if (typeof totalizerIsPlayingProp !== "boolean") setLocalTotPlaying(true);
-    onTotalizerPlay?.();
+  const onTotEnableClick = () => {
+    onTotalizerEnable?.();
   };
 
-  const onTotPauseClick = () => {
-    if (!totalizerEnabled) return;
-    if (typeof totalizerIsPlayingProp !== "boolean") setLocalTotPlaying(false);
-    onTotalizerPause?.();
+  const onTotDisableClick = () => {
+    onTotalizerDisable?.();
   };
 
   const onTotResetClick = () => {
@@ -386,7 +375,7 @@ export default function GraphicDisplayPanel({
         {/* LINE between row 1 and row 2 */}
         <div style={{ height: 0, borderTop: FRAME_LINE, width: "100%" }} />
 
-        {/* ROW 2: left = totalizer controls (PLAY ONLY), right = output/totallizer boxes */}
+        {/* ROW 2: left = totalizer controls (Enable/Disable), right = output/totallizer boxes */}
         <div
           style={{
             marginTop: 10,
@@ -399,7 +388,7 @@ export default function GraphicDisplayPanel({
             minWidth: 0,
           }}
         >
-          {/* LEFT: Totalizer controls (ONLY in Play/Launch) */}
+          {/* LEFT: Totalizer Controls (ONLY in Play/Launch) */}
           {showTotalizerControls ? (
             <div
               style={{
@@ -431,51 +420,34 @@ export default function GraphicDisplayPanel({
                   flexWrap: "wrap",
                 }}
               >
+                {/* ✅ ENABLE */}
                 <button
                   type="button"
-                  onClick={onTotPlayClick}
-                  style={
-                    !totalizerEnabled
-                      ? totBtnDisabled
-                      : totalizerIsPlaying
-                      ? {
-                          ...totBtnBase,
-                          background: "rgba(220,252,231,0.9)",
-                          border: "1px solid rgba(34,197,94,0.35)",
-                        }
-                      : totBtnBase
-                  }
-                  disabled={!totalizerEnabled}
-                  title="Resume totalizer accumulation"
+                  onClick={onTotEnableClick}
+                  disabled={!!totalizerEnabled}
+                  style={totalizerEnabled ? totBtnDisabled : { ...totBtnBase, background: "rgba(220,252,231,0.90)", border: "1px solid rgba(34,197,94,0.35)" }}
+                  title="Enable totalizer accumulation"
                 >
-                  ▶ <span>Play</span>
+                  ✅ <span>Enable</span>
                 </button>
 
+                {/* ✅ DISABLE */}
                 <button
                   type="button"
-                  onClick={onTotPauseClick}
-                  style={
-                    !totalizerEnabled
-                      ? totBtnDisabled
-                      : !totalizerIsPlaying
-                      ? {
-                          ...totBtnBase,
-                          background: "rgba(254,242,242,0.95)",
-                          border: "1px solid rgba(239,68,68,0.25)",
-                        }
-                      : totBtnBase
-                  }
+                  onClick={onTotDisableClick}
                   disabled={!totalizerEnabled}
-                  title="Pause totalizer accumulation"
+                  style={!totalizerEnabled ? totBtnDisabled : { ...totBtnBase, background: "rgba(254,242,242,0.95)", border: "1px solid rgba(239,68,68,0.25)" }}
+                  title="Disable totalizer accumulation"
                 >
-                  ⏸ <span>Pause</span>
+                  ⛔ <span>Disable</span>
                 </button>
 
+                {/* ✅ RESET (only when enabled) */}
                 <button
                   type="button"
                   onClick={onTotResetClick}
-                  style={!totalizerEnabled ? totBtnDisabled : totBtnBase}
                   disabled={!totalizerEnabled}
+                  style={!totalizerEnabled ? totBtnDisabled : totBtnBase}
                   title="Reset totalizer total to zero"
                 >
                   ↺ <span>Reset</span>
@@ -483,7 +455,6 @@ export default function GraphicDisplayPanel({
               </div>
             </div>
           ) : (
-            // keep spacing consistent when controls are hidden
             <div style={{ flex: "1 1 auto", minWidth: 240 }} />
           )}
 
