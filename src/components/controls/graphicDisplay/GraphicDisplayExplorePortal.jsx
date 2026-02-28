@@ -1,4 +1,3 @@
-// src/components/controls/GraphicDisplay.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   computeMathOutput,
@@ -10,7 +9,7 @@ import usePingZoom from "./graphicDisplay/hooks/usePingZoom";
 import useTrendSvg from "./graphicDisplay/hooks/useTrendSvg";
 import useTrendLayout from "./graphicDisplay/hooks/useTrendLayout";
 
-// ✅ NEW: Explore (fullscreen) wrapper (create this new file)
+// ✅ NEW (Explore portal)
 import GraphicDisplayExplorePortal from "./graphicDisplay/GraphicDisplayExplorePortal";
 
 const DEFAULT_LINE_COLOR = "#0c5ac8";
@@ -45,9 +44,7 @@ function normalizeOnlineStatusFromRow(row) {
   )
     return { online: true, label: "ONLINE" };
   if (
-    ["offline", "disconnected", "down", "inactive", "false", "no", "0"].includes(
-      s
-    )
+    ["offline", "disconnected", "down", "inactive", "false", "no", "0"].includes(s)
   )
     return { online: false, label: "OFFLINE" };
 
@@ -200,10 +197,10 @@ export default function GraphicDisplay({
 
   const [isPlaying, setIsPlaying] = useState(true);
 
-  // ✅ NEW: Explore state (fullscreen)
+  // ✅ Explore (fullscreen) — play only
   const [isExploring, setIsExploring] = useState(false);
 
-  // ✅ Safety: if user leaves play mode, force exit Explore
+  // ✅ If user leaves play mode, force-close Explore
   useEffect(() => {
     if (!isPlay && isExploring) setIsExploring(false);
   }, [isPlay, isExploring]);
@@ -467,6 +464,24 @@ export default function GraphicDisplay({
     opacity: 0.55,
   };
 
+  // ✅ Explore button (smaller, lives near the title)
+  const exploreBtnBase = {
+    height: 30,
+    padding: "0 12px",
+    borderRadius: 10,
+    border: "1px solid rgba(0,0,0,0.15)",
+    background: "#fff",
+    color: "#111",
+    fontSize: 12,
+    fontWeight: 900,
+    cursor: "pointer",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    userSelect: "none",
+    boxShadow: "0 6px 14px rgba(0,0,0,0.08)",
+  };
+
   const outputBoxStyle = {
     height: 36,
     display: "inline-flex",
@@ -541,27 +556,8 @@ export default function GraphicDisplay({
     };
   }, [deviceOnline, bindDeviceId]);
 
-  // ✅ Explore button (only in Play/Launch mode)
-  const exploreBtnStyle = {
-    height: 36,
-    padding: "0 16px",
-    borderRadius: 10,
-    border: "1px solid #d1d5db",
-    background: isExploring
-      ? "linear-gradient(180deg,#ffe4e6,#fecdd3)"
-      : "linear-gradient(180deg,#e0f2fe,#bae6fd)",
-    color: "#111",
-    fontSize: 13,
-    fontWeight: 900,
-    cursor: "pointer",
-    lineHeight: "36px",
-    userSelect: "none",
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 10,
-  };
-
-  const content = (
+  // ✅ This is the SAME visual card used both normal + explore (portal moves it)
+  const card = (
     <div
       style={{
         width: "100%",
@@ -569,7 +565,7 @@ export default function GraphicDisplay({
         background: "#fff",
         borderRadius: 10,
         border: "1px solid #cfcfcf",
-        boxShadow: "0 10px 22px rgba(0,0,0,0.10)",
+        boxShadow: isExploring ? "0 30px 80px rgba(0,0,0,0.35)" : "0 10px 22px rgba(0,0,0,0.10)",
         overflow: "hidden",
         userSelect: "none",
         pointerEvents: "auto",
@@ -604,6 +600,30 @@ export default function GraphicDisplay({
             {title}
           </div>
 
+          {/* ✅ Explore button (ONLY in play/launch) */}
+          {isPlay && (
+            <button
+              type="button"
+              onClick={(e) => {
+                e.preventDefault();
+                e.stopPropagation();
+                setIsExploring((v) => !v);
+              }}
+              style={exploreBtnBase}
+              title={isExploring ? "Explore OUT" : "Explore IN"}
+            >
+              {isExploring ? (
+                <>
+                  🔍➖ <span>Explore OUT</span>
+                </>
+              ) : (
+                <>
+                  🔍➕ <span>Explore IN</span>
+                </>
+              )}
+            </button>
+          )}
+
           <div
             style={{
               marginLeft: "auto",
@@ -613,19 +633,6 @@ export default function GraphicDisplay({
               flex: "0 0 auto",
             }}
           >
-            {/* ✅ NEW: Explore button (ONLY in play/launch mode) */}
-            {isPlay && (
-              <button
-                type="button"
-                onClick={() => setIsExploring((v) => !v)}
-                style={exploreBtnStyle}
-                title={isExploring ? "Explore OUT (exit fullscreen)" : "Explore IN (fullscreen)"}
-              >
-                {isExploring ? "🔍➖" : "🔍➕"}{" "}
-                <span>{isExploring ? "Explore OUT" : "Explore IN"}</span>
-              </button>
-            )}
-
             <button
               type="button"
               onClick={() => setIsPlaying(true)}
@@ -691,14 +698,11 @@ export default function GraphicDisplay({
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontFamily:
-                    "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+                  fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
                   letterSpacing: 0.2,
                   userSelect: "none",
                 }}
-                title={
-                  bindDeviceId ? `Device is ${statusLabel.text}` : "No device selected"
-                }
+                title={bindDeviceId ? `Device is ${statusLabel.text}` : "No device selected"}
               >
                 {statusLabel.text}
               </div>
@@ -868,13 +872,11 @@ export default function GraphicDisplay({
                     position: "absolute",
                     left: Math.min(
                       Math.max(hover.xPx + 10, 8),
-                      (plotRef.current?.getBoundingClientRect?.().width || 0) -
-                        260
+                      (plotRef.current?.getBoundingClientRect?.().width || 0) - 260
                     ),
                     top: Math.min(
                       Math.max(hover.yPx - 26, 8),
-                      (plotRef.current?.getBoundingClientRect?.().height || 0) -
-                        60
+                      (plotRef.current?.getBoundingClientRect?.().height || 0) - 60
                     ),
                     fontFamily: "monospace",
                     fontSize: 11,
@@ -896,9 +898,7 @@ export default function GraphicDisplay({
                   <div>
                     Y:{" "}
                     <span style={{ color: "#0b3b18" }}>
-                      {Number.isFinite(hover.y)
-                        ? Number(hover.y).toFixed(2)
-                        : "--"}
+                      {Number.isFinite(hover.y) ? Number(hover.y).toFixed(2) : "--"}
                     </span>
                   </div>
                 </div>
@@ -1001,14 +1001,14 @@ export default function GraphicDisplay({
     </div>
   );
 
-  // ✅ Wrap with Explore portal (ONLY works in play/launch mode)
+  // ✅ Move the SAME card into a fullscreen portal when exploring
   return (
     <GraphicDisplayExplorePortal
       open={isPlay && isExploring}
       onClose={() => setIsExploring(false)}
       title={title}
     >
-      {content}
+      {card}
     </GraphicDisplayExplorePortal>
   );
 }
