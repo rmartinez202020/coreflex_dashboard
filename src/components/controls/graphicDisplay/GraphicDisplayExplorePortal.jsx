@@ -1,5 +1,5 @@
 // src/components/controls/graphicDisplay/GraphicDisplayExplorePortal.jsx
-import React, { useEffect, useMemo } from "react";
+import React, { useEffect } from "react";
 import { createPortal } from "react-dom";
 
 export default function GraphicDisplayExplorePortal({
@@ -7,20 +7,8 @@ export default function GraphicDisplayExplorePortal({
   onClose = () => {},
   title = "Graphic Display",
   children,
+  modalContent = null, // ✅ NEW: content rendered inside the modal
 }) {
-  // ✅ If child is a React element (GraphicDisplay), clone it and inject explore props
-  const exploreChild = useMemo(() => {
-    if (!React.isValidElement(children)) return children;
-
-    // Inject explore flags without breaking existing props
-    return React.cloneElement(children, {
-      ...(children.props || {}),
-      isExplore: true,
-      // ✅ force play behavior inside explore (so it works only in play/launch experience)
-      isPlay: true,
-    });
-  }, [children]);
-
   // close on ESC
   useEffect(() => {
     if (!open) return;
@@ -45,8 +33,11 @@ export default function GraphicDisplayExplorePortal({
 
   if (!open) return <>{children}</>;
 
+  const contentInsideModal = modalContent ?? children;
+
   return (
     <>
+      {/* keep original widget behind the modal */}
       {children}
 
       {createPortal(
@@ -131,7 +122,7 @@ export default function GraphicDisplayExplorePortal({
 
             {/* Content */}
             <div style={{ flex: "1 1 auto", minHeight: 0, minWidth: 0 }}>
-              <div style={{ width: "100%", height: "100%" }}>{exploreChild}</div>
+              <div style={{ width: "100%", height: "100%" }}>{contentInsideModal}</div>
             </div>
           </div>
         </div>,

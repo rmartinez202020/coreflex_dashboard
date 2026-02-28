@@ -5,6 +5,7 @@ import { getRowFromTelemetryMap, readAiField } from "./graphicDisplay/loader";
 import usePingZoom from "./graphicDisplay/hooks/usePingZoom";
 import useTrendSvg from "./graphicDisplay/hooks/useTrendSvg";
 import useTrendLayout from "./graphicDisplay/hooks/useTrendLayout";
+import GraphicDisplayExplorePortal from "./graphicDisplay/GraphicDisplayExplorePortal";
 
 const DEFAULT_LINE_COLOR = "#0c5ac8";
 
@@ -107,8 +108,7 @@ function prunePointsByWindow(points, windowSize, timeUnit) {
 export default function GraphicDisplay({
   tank,
   telemetryMap = null, // ✅ common poller map
-  isPlay = false, // ✅ true in Play/Launch
-  isExplore = false, // ✅ true only inside Explore overlay
+  isPlay = false, // ✅ should be true in Play/Launch
 }) {
   const title = tank?.title ?? "Graphic Display";
   const timeUnit = tank?.timeUnit ?? "seconds";
@@ -133,11 +133,8 @@ export default function GraphicDisplay({
   }, [tank]);
 
   const dbgKey = useMemo(() => {
-    const widgetId =
-      tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
-    return widgetId
-      ? `widget:${widgetId}`
-      : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
+    const widgetId = tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
+    return widgetId ? `widget:${widgetId}` : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
   }, [tank, bindModel, bindDeviceId, bindField]);
 
   function dbg(...args) {
@@ -157,11 +154,8 @@ export default function GraphicDisplay({
   }
 
   const storageKey = useMemo(() => {
-    const widgetId =
-      tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
-    const base = widgetId
-      ? `widget:${widgetId}`
-      : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
+    const widgetId = tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
+    const base = widgetId ? `widget:${widgetId}` : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
     return `coreflex:graphicDisplay:points:${base}`;
   }, [tank, bindModel, bindDeviceId, bindField]);
 
@@ -188,11 +182,13 @@ export default function GraphicDisplay({
 
   const [isPlaying, setIsPlaying] = useState(true);
 
+  // ✅ Explore modal state
+  const [exploreOpen, setExploreOpen] = useState(false);
+
   // 🔎 one-time: log binding
   useEffect(() => {
     dbg("MOUNT / bind", {
       isPlay,
-      isExplore,
       isPlaying,
       bindModel,
       bindDeviceId,
@@ -249,12 +245,7 @@ export default function GraphicDisplay({
     const raw = localStorage.getItem(storageKey);
     const parsed = raw ? safeJsonParse(raw) : null;
 
-    const loaded = Array.isArray(parsed?.points)
-      ? parsed.points
-      : Array.isArray(parsed)
-      ? parsed
-      : [];
-
+    const loaded = Array.isArray(parsed?.points) ? parsed.points : Array.isArray(parsed) ? parsed : [];
     const pruned = prunePointsByWindow(loaded, windowSize, timeUnit);
 
     dbg("LOAD: localStorage", {
@@ -266,9 +257,7 @@ export default function GraphicDisplay({
 
     setPoints(pruned);
 
-    const lastNumeric = [...pruned]
-      .reverse()
-      .find((p) => Number.isFinite(Number(p?.y)));
+    const lastNumeric = [...pruned].reverse().find((p) => Number.isFinite(Number(p?.y)));
     if (lastNumeric) setMathOutput(Number(lastNumeric.y));
   }, [storageKey, bindDeviceId, bindField, windowSize, timeUnit]);
 
@@ -282,8 +271,7 @@ export default function GraphicDisplay({
     saveTimerRef.current = window.setTimeout(() => {
       const pruned = prunePointsByWindow(points, windowSize, timeUnit);
       const limit = Math.max(50, Number(maxPointsRef.current || 200));
-      const finalPoints =
-        pruned.length > limit ? pruned.slice(pruned.length - limit) : pruned;
+      const finalPoints = pruned.length > limit ? pruned.slice(pruned.length - limit) : pruned;
 
       try {
         localStorage.setItem(
@@ -396,12 +384,6 @@ export default function GraphicDisplay({
     dbgWarn,
   });
 
-  // ✅ Explore style knobs
-  const polyStrokeWidth = isExplore ? 2 : 3; // thinner in Explore
-  const yTickFont = isExplore ? 13 : 11; // bigger labels in Explore
-  const yTickPad = isExplore ? "2px 8px" : "1px 6px";
-  const topValueFont = isExplore ? 14 : 12;
-
   const topBtnBase = {
     height: 36,
     padding: "0 18px",
@@ -499,423 +481,461 @@ export default function GraphicDisplay({
     };
   }, [deviceOnline, bindDeviceId]);
 
-  return (
-    <div
-      style={{
-        width: "100%",
-        height: "100%",
-        background: "#fff",
-        borderRadius: 10,
-        border: "1px solid #cfcfcf",
-        boxShadow: "0 10px 22px rgba(0,0,0,0.10)",
-        overflow: "hidden",
-        userSelect: "none",
-        pointerEvents: "auto",
-        display: "flex",
-        flexDirection: "column",
-        minWidth: 0,
-        minHeight: 0,
-      }}
-    >
-      {/* HEADER */}
+  // ✅ render UI with explore flag
+  function renderPanel(isExploreMode) {
+    const strokeW = isExploreMode ? 2 : 3; // ✅ thinner line in Explore
+    const yFont = isExploreMode ? 14 : 11; // ✅ bigger Y numbers in Explore
+
+    return (
       <div
         style={{
-          padding: "8px 10px",
-          borderBottom: "1px solid #e6e6e6",
-          background: "linear-gradient(180deg, #ffffff 0%, #f4f4f4 100%)",
-          flex: "0 0 auto",
+          width: "100%",
+          height: "100%",
+          background: "#fff",
+          borderRadius: 10,
+          border: "1px solid #cfcfcf",
+          boxShadow: "0 10px 22px rgba(0,0,0,0.10)",
+          overflow: "hidden",
+          userSelect: "none",
+          pointerEvents: "auto",
+          display: "flex",
+          flexDirection: "column",
           minWidth: 0,
+          minHeight: 0,
         }}
       >
-        <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
-          <div
-            style={{
-              fontWeight: 800,
-              fontSize: 14,
-              color: "#111",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              minWidth: 0,
-            }}
-          >
-            {title}
-          </div>
-
-          <div
-            style={{
-              marginLeft: "auto",
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 12,
-              flex: "0 0 auto",
-            }}
-          >
-            <button
-              type="button"
-              onClick={() => setIsPlaying(true)}
-              style={isPlaying ? topBtnDisabled : topBtnBase}
-              disabled={isPlaying}
-              title="Resume"
+        {/* HEADER */}
+        <div
+          style={{
+            padding: "8px 10px",
+            borderBottom: "1px solid #e6e6e6",
+            background: "linear-gradient(180deg, #ffffff 0%, #f4f4f4 100%)",
+            flex: "0 0 auto",
+            minWidth: 0,
+          }}
+        >
+          <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
+            <div
+              style={{
+                fontWeight: 800,
+                fontSize: 14,
+                color: "#111",
+                whiteSpace: "nowrap",
+                overflow: "hidden",
+                textOverflow: "ellipsis",
+                minWidth: 0,
+              }}
             >
-              ▶ <span>Play</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() => setIsPlaying(false)}
-              style={!isPlaying ? topBtnDisabled : topBtnBase}
-              disabled={!isPlaying}
-              title="Pause"
-            >
-              ⏸ <span>Pause</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={() =>
-                exportPointsCsv({
-                  title,
-                  points: pointsForView?.length ? pointsForView : points,
-                  fmt: fmtTimeWithDate,
-                })
-              }
-              style={topBtnBase}
-              title="Export visible points to CSV"
-            >
-              ⬇ <span>Export</span>
-            </button>
-
-            {styleIndicator}
+              {title}
+            </div>
 
             <div
               style={{
+                marginLeft: "auto",
                 display: "inline-flex",
-                flexDirection: "column",
-                alignItems: "flex-end",
-                gap: 4,
+                alignItems: "center",
+                gap: 12,
+                flex: "0 0 auto",
               }}
             >
-              <div style={outputBoxStyle} title="Math Output">
-                <span style={{ color: "#555" }}>Output:</span>
-                <span style={{ color: "#0b3b18" }}>
-                  {Number.isFinite(mathOutput) ? mathOutput.toFixed(2) : "--"}
-                </span>
-              </div>
+              {/* ✅ Explore button: only in play/launch */}
+              {isPlay && (
+                <button
+                  type="button"
+                  onClick={() => {
+                    if (isExploreMode) setExploreOpen(false);
+                    else setExploreOpen(true);
+                  }}
+                  style={{
+                    ...topBtnBase,
+                    background: isExploreMode ? "#fee2e2" : "#fff",
+                    border: isExploreMode ? "1px solid #fecaca" : topBtnBase.border,
+                  }}
+                  title={isExploreMode ? "Close Explore" : "Open Explore"}
+                >
+                  🔎 <span>{isExploreMode ? "Explore OUT" : "Explore IN"}</span>
+                </button>
+              )}
+
+              <button
+                type="button"
+                onClick={() => setIsPlaying(true)}
+                style={isPlaying ? topBtnDisabled : topBtnBase}
+                disabled={isPlaying}
+                title="Resume"
+              >
+                ▶ <span>Play</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() => setIsPlaying(false)}
+                style={!isPlaying ? topBtnDisabled : topBtnBase}
+                disabled={!isPlaying}
+                title="Pause"
+              >
+                ⏸ <span>Pause</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={() =>
+                  exportPointsCsv({
+                    title,
+                    points: pointsForView?.length ? pointsForView : points,
+                    fmt: fmtTimeWithDate,
+                  })
+                }
+                style={topBtnBase}
+                title="Export visible points to CSV"
+              >
+                ⬇ <span>Export</span>
+              </button>
+
+              {styleIndicator}
 
               <div
                 style={{
-                  height: 22,
-                  padding: "0 10px",
-                  borderRadius: 999,
-                  border: `1px solid ${statusLabel.border}`,
-                  background: statusLabel.bg,
-                  color: statusLabel.color,
-                  fontSize: 11,
-                  fontWeight: 900,
                   display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-                  letterSpacing: 0.2,
-                  userSelect: "none",
+                  flexDirection: "column",
+                  alignItems: "flex-end",
+                  gap: 4,
                 }}
-                title={bindDeviceId ? `Device is ${statusLabel.text}` : "No device selected"}
               >
-                {statusLabel.text}
+                <div style={outputBoxStyle} title="Math Output">
+                  <span style={{ color: "#555" }}>Output:</span>
+                  <span style={{ color: "#0b3b18" }}>
+                    {Number.isFinite(mathOutput) ? mathOutput.toFixed(2) : "--"}
+                  </span>
+                </div>
+
+                <div
+                  style={{
+                    height: 22,
+                    padding: "0 10px",
+                    borderRadius: 999,
+                    border: `1px solid ${statusLabel.border}`,
+                    background: statusLabel.bg,
+                    color: statusLabel.color,
+                    fontSize: 11,
+                    fontWeight: 900,
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+                    letterSpacing: 0.2,
+                    userSelect: "none",
+                  }}
+                  title={bindDeviceId ? `Device is ${statusLabel.text}` : "No device selected"}
+                >
+                  {statusLabel.text}
+                </div>
               </div>
             </div>
           </div>
+
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 8,
+              color: "#444",
+              fontSize: 11,
+              marginTop: 6,
+              minWidth: 0,
+              flexWrap: "wrap",
+            }}
+          >
+            <span>
+              Time: <b>{timeUnit}</b>
+            </span>
+            <span>•</span>
+            <span>
+              Sample: <b>{sampleMs} ms</b>
+            </span>
+            <span>•</span>
+            <span>
+              Window: <b>{windowSize}</b>
+            </span>
+            <span>•</span>
+            <span>
+              Y: <b>{yMin}</b> → <b>{yMax}</b> {yUnits ? `(${yUnits})` : ""}
+            </span>
+          </div>
         </div>
 
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            color: "#444",
-            fontSize: 11,
-            marginTop: 6,
-            minWidth: 0,
-            flexWrap: "wrap",
-          }}
-        >
-          <span>
-            Time: <b>{timeUnit}</b>
-          </span>
-          <span>•</span>
-          <span>
-            Sample: <b>{sampleMs} ms</b>
-          </span>
-          <span>•</span>
-          <span>
-            Window: <b>{windowSize}</b>
-          </span>
-          <span>•</span>
-          <span>
-            Y: <b>{yMin}</b> → <b>{yMax}</b> {yUnits ? `(${yUnits})` : ""}
-          </span>
-        </div>
-      </div>
-
-      {/* BODY */}
-      <div
-        style={{
-          flex: "1 1 auto",
-          minHeight: 0,
-          minWidth: 0,
-          padding: 12,
-          display: "flex",
-        }}
-      >
+        {/* BODY */}
         <div
           style={{
             flex: "1 1 auto",
-            minWidth: 0,
             minHeight: 0,
-            width: "100%",
-            height: "100%",
-            borderRadius: 10,
-            background: "linear-gradient(180deg,#ffffff,#fbfbfb)",
-            position: "relative",
-            overflow: "hidden",
-            border: "1px solid #d9d9d9",
+            minWidth: 0,
+            padding: 12,
+            display: "flex",
           }}
         >
           <div
             style={{
-              position: "absolute",
-              inset: 0,
-              ...gridBackground,
-              pointerEvents: "none",
+              flex: "1 1 auto",
+              minWidth: 0,
+              minHeight: 0,
+              width: "100%",
+              height: "100%",
+              borderRadius: 10,
+              background: "linear-gradient(180deg,#ffffff,#fbfbfb)",
+              position: "relative",
+              overflow: "hidden",
+              border: "1px solid #d9d9d9",
             }}
-          />
-
-          {yTicks.length > 0 && (
-            <div
-              style={{
-                position: "absolute",
-                left: 8,
-                top: 8,
-                bottom: 36,
-                width: 72,
-                pointerEvents: "none",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
-              }}
-            >
-              {[...yTicks].reverse().map((v, idx) => (
-                <div
-                  key={idx}
-                  style={{
-                    fontFamily: "monospace",
-                    fontSize: yTickFont,
-                    color: "#555",
-                    background: "rgba(255,255,255,0.78)",
-                    padding: yTickPad,
-                    borderRadius: 6,
-                    alignSelf: "flex-start",
-                  }}
-                >
-                  {Number(v).toFixed(2)}
-                </div>
-              ))}
-            </div>
-          )}
-
-          <div
-            ref={plotRef}
-            {...handlers}
-            onPointerDownCapture={(e) => e.stopPropagation()}
-            onPointerMoveCapture={(e) => e.stopPropagation()}
-            style={{
-              position: "absolute",
-              left: 92,
-              right: 10,
-              top: 10,
-              bottom: 36,
-              cursor: sel ? "crosshair" : "default",
-              touchAction: "none",
-            }}
-            title="Move mouse to ping time/value. Drag to zoom. Double-click to reset zoom."
           >
-            <svg
-              viewBox={`0 0 ${svg.W} ${svg.H}`}
-              preserveAspectRatio="none"
-              style={{ width: "100%", height: "100%", display: "block" }}
-            >
-              {svg.segs.map((pts, idx) => (
-                <polyline
-                  key={idx}
-                  fill="none"
-                  stroke={lineColor}
-                  strokeWidth={polyStrokeWidth}
-                  points={pts.join(" ")}
-                />
-              ))}
-            </svg>
-
-            {sel ? (
-              <div
-                style={{
-                  position: "absolute",
-                  top: 0,
-                  bottom: 0,
-                  left: Math.min(sel.x0, sel.x1),
-                  width: Math.max(1, Math.abs(sel.x1 - sel.x0)),
-                  background: "rgba(59, 130, 246, 0.12)",
-                  border: "1px solid rgba(59, 130, 246, 0.35)",
-                  borderRadius: 6,
-                  pointerEvents: "none",
-                }}
-              />
-            ) : null}
-
-            {hover ? (
-              <>
-                <div
-                  style={{
-                    position: "absolute",
-                    left: hover.xPx,
-                    top: 0,
-                    bottom: 0,
-                    width: 1,
-                    background: "rgba(0,0,0,0.18)",
-                    pointerEvents: "none",
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    left: Math.min(
-                      Math.max(hover.xPx + 10, 8),
-                      (plotRef.current?.getBoundingClientRect?.().width || 0) - 260
-                    ),
-                    top: Math.min(
-                      Math.max(hover.yPx - 26, 8),
-                      (plotRef.current?.getBoundingClientRect?.().height || 0) - 60
-                    ),
-                    fontFamily: "monospace",
-                    fontSize: 11,
-                    fontWeight: 900,
-                    color: "#111",
-                    background: "rgba(255,255,255,0.92)",
-                    padding: "6px 10px",
-                    borderRadius: 10,
-                    border: "1px solid rgba(0,0,0,0.10)",
-                    boxShadow: "0 8px 18px rgba(0,0,0,0.10)",
-                    pointerEvents: "none",
-                    maxWidth: 260,
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
-                  }}
-                >
-                  <div>{fmtTimeWithDate(hover.t)}</div>
-                  <div>
-                    Y:{" "}
-                    <span style={{ color: "#0b3b18" }}>
-                      {Number.isFinite(hover.y) ? Number(hover.y).toFixed(2) : "--"}
-                    </span>
-                  </div>
-                </div>
-              </>
-            ) : null}
-
             <div
               style={{
                 position: "absolute",
-                right: 10,
-                top: 10,
-                fontFamily: "monospace",
-                fontSize: topValueFont,
-                fontWeight: 900,
-                color: "#0b3b18",
-                background: "rgba(255,255,255,0.85)",
-                padding: "6px 10px",
-                borderRadius: 10,
-                border: "1px solid rgba(0,0,0,0.08)",
+                inset: 0,
+                ...gridBackground,
                 pointerEvents: "none",
               }}
-              title="Current math output"
-            >
-              {Number.isFinite(mathOutput) ? mathOutput.toFixed(2) : "--"}
-            </div>
+            />
 
-            {err ? (
+            {yTicks.length > 0 && (
               <div
                 style={{
                   position: "absolute",
-                  left: 10,
-                  bottom: 10,
-                  fontSize: 12,
-                  fontWeight: 900,
-                  color: "#991b1b",
-                  background: "rgba(255,241,242,0.92)",
-                  border: "1px solid #fecaca",
-                  padding: "6px 10px",
-                  borderRadius: 10,
+                  left: 8,
+                  top: 8,
+                  bottom: 36,
+                  width: 72,
                   pointerEvents: "none",
+                  display: "flex",
+                  flexDirection: "column",
+                  justifyContent: "space-between",
                 }}
               >
-                {err}
+                {[...yTicks].reverse().map((v, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      fontFamily: "monospace",
+                      fontSize: yFont, // ✅ bigger in Explore
+                      color: "#111",
+                      background: "rgba(255,255,255,0.86)",
+                      padding: "2px 8px",
+                      borderRadius: 8,
+                      alignSelf: "flex-start",
+                      border: "1px solid rgba(0,0,0,0.06)",
+                    }}
+                  >
+                    {Number(v).toFixed(2)}
+                  </div>
+                ))}
               </div>
-            ) : null}
-          </div>
+            )}
 
-          <div
-            style={{
-              position: "absolute",
-              left: 92,
-              right: 10,
-              bottom: 10,
-              height: 22,
-              display: "flex",
-              alignItems: "flex-end",
-              justifyContent: "space-between",
-              gap: 8,
-              pointerEvents: "none",
-              fontFamily: "monospace",
-              fontSize: 10,
-              fontWeight: 900,
-              color: "#444",
-            }}
-          >
-            {timeTicks.length ? (
-              timeTicks.map((tk, idx) => (
+            <div
+              ref={plotRef}
+              {...handlers}
+              onPointerDownCapture={(e) => e.stopPropagation()}
+              onPointerMoveCapture={(e) => e.stopPropagation()}
+              style={{
+                position: "absolute",
+                left: 92,
+                right: 10,
+                top: 10,
+                bottom: 36,
+                cursor: sel ? "crosshair" : "default",
+                touchAction: "none",
+              }}
+              title="Move mouse to ping time/value. Drag to zoom. Double-click to reset zoom."
+            >
+              <svg
+                viewBox={`0 0 ${svg.W} ${svg.H}`}
+                preserveAspectRatio="none"
+                style={{ width: "100%", height: "100%", display: "block" }}
+              >
+                {svg.segs.map((pts, idx) => (
+                  <polyline
+                    key={idx}
+                    fill="none"
+                    stroke={lineColor}
+                    strokeWidth={strokeW} // ✅ thinner in Explore
+                    points={pts.join(" ")}
+                  />
+                ))}
+              </svg>
+
+              {sel ? (
                 <div
-                  key={idx}
                   style={{
-                    maxWidth: "22%",
-                    whiteSpace: "nowrap",
-                    overflow: "hidden",
-                    textOverflow: "ellipsis",
+                    position: "absolute",
+                    top: 0,
+                    bottom: 0,
+                    left: Math.min(sel.x0, sel.x1),
+                    width: Math.max(1, Math.abs(sel.x1 - sel.x0)),
+                    background: "rgba(59, 130, 246, 0.12)",
+                    border: "1px solid rgba(59, 130, 246, 0.35)",
+                    borderRadius: 6,
+                    pointerEvents: "none",
+                  }}
+                />
+              ) : null}
+
+              {hover ? (
+                <>
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: hover.xPx,
+                      top: 0,
+                      bottom: 0,
+                      width: 1,
+                      background: "rgba(0,0,0,0.18)",
+                      pointerEvents: "none",
+                    }}
+                  />
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: Math.min(
+                        Math.max(hover.xPx + 10, 8),
+                        (plotRef.current?.getBoundingClientRect?.().width || 0) - 260
+                      ),
+                      top: Math.min(
+                        Math.max(hover.yPx - 26, 8),
+                        (plotRef.current?.getBoundingClientRect?.().height || 0) - 60
+                      ),
+                      fontFamily: "monospace",
+                      fontSize: 11,
+                      fontWeight: 900,
+                      color: "#111",
+                      background: "rgba(255,255,255,0.92)",
+                      padding: "6px 10px",
+                      borderRadius: 10,
+                      border: "1px solid rgba(0,0,0,0.10)",
+                      boxShadow: "0 8px 18px rgba(0,0,0,0.10)",
+                      pointerEvents: "none",
+                      maxWidth: 260,
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                    }}
+                  >
+                    <div>{fmtTimeWithDate(hover.t)}</div>
+                    <div>
+                      Y:{" "}
+                      <span style={{ color: "#0b3b18" }}>
+                        {Number.isFinite(hover.y) ? Number(hover.y).toFixed(2) : "--"}
+                      </span>
+                    </div>
+                  </div>
+                </>
+              ) : null}
+
+              <div
+                style={{
+                  position: "absolute",
+                  right: 10,
+                  top: 10,
+                  fontFamily: "monospace",
+                  fontSize: 12,
+                  fontWeight: 900,
+                  color: "#0b3b18",
+                  background: "rgba(255,255,255,0.85)",
+                  padding: "6px 10px",
+                  borderRadius: 10,
+                  border: "1px solid rgba(0,0,0,0.08)",
+                  pointerEvents: "none",
+                }}
+                title="Current math output"
+              >
+                {Number.isFinite(mathOutput) ? mathOutput.toFixed(2) : "--"}
+              </div>
+
+              {err ? (
+                <div
+                  style={{
+                    position: "absolute",
+                    left: 10,
+                    bottom: 10,
+                    fontSize: 12,
+                    fontWeight: 900,
+                    color: "#991b1b",
+                    background: "rgba(255,241,242,0.92)",
+                    border: "1px solid #fecaca",
+                    padding: "6px 10px",
+                    borderRadius: 10,
+                    pointerEvents: "none",
+                  }}
+                >
+                  {err}
+                </div>
+              ) : null}
+            </div>
+
+            <div
+              style={{
+                position: "absolute",
+                left: 92,
+                right: 10,
+                bottom: 10,
+                height: 22,
+                display: "flex",
+                alignItems: "flex-end",
+                justifyContent: "space-between",
+                gap: 8,
+                pointerEvents: "none",
+                fontFamily: "monospace",
+                fontSize: 10,
+                fontWeight: 900,
+                color: "#444",
+              }}
+            >
+              {timeTicks.length ? (
+                timeTicks.map((tk, idx) => (
+                  <div
+                    key={idx}
+                    style={{
+                      maxWidth: "22%",
+                      whiteSpace: "nowrap",
+                      overflow: "hidden",
+                      textOverflow: "ellipsis",
+                      background: "rgba(255,255,255,0.78)",
+                      border: "1px solid rgba(0,0,0,0.06)",
+                      padding: "2px 6px",
+                      borderRadius: 8,
+                    }}
+                    title={tk.label}
+                  >
+                    {tk.label}
+                  </div>
+                ))
+              ) : (
+                <div
+                  style={{
                     background: "rgba(255,255,255,0.78)",
                     border: "1px solid rgba(0,0,0,0.06)",
                     padding: "2px 6px",
                     borderRadius: 8,
                   }}
-                  title={tk.label}
                 >
-                  {tk.label}
+                  --
                 </div>
-              ))
-            ) : (
-              <div
-                style={{
-                  background: "rgba(255,255,255,0.78)",
-                  border: "1px solid rgba(0,0,0,0.06)",
-                  padding: "2px 6px",
-                  borderRadius: 8,
-                }}
-              >
-                --
-              </div>
-            )}
+              )}
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    );
+  }
+
+  // ✅ Use portal: normal view uses renderPanel(false), modal uses renderPanel(true)
+  return (
+    <GraphicDisplayExplorePortal
+      open={exploreOpen}
+      onClose={() => setExploreOpen(false)}
+      title={title}
+      modalContent={renderPanel(true)}
+    >
+      {renderPanel(false)}
+    </GraphicDisplayExplorePortal>
   );
 }
