@@ -28,21 +28,24 @@ export default function GraphicDisplayPanel({
   },
   bindDeviceId = "",
 
+  // ✅ Single Units (NEW)
+  // If enabled:
+  // - Hide Totalizer Controls
+  // - Hide Totalizer box
+  // - Display UNIT badge/box and use it for Output units
+  singleUnitsEnabled = false,
+  singleUnit = "",
+
   // totalizer (computed in parent GraphicDisplay.jsx)
   totalizerEnabled = false,
   totalizerRateUnit = "",
   totalizerTotalUnit = "",
   totalizerValue = null,
 
-  // ✅ totalizer enable/disable controls (parent MUST wire these to persist setting)
+  // totalizer controls (parent MUST wire these to persist setting)
   onTotalizerEnable = () => {},
   onTotalizerDisable = () => {},
   onTotalizerReset = () => {},
-
-  // ✅ Single Units (NEW)
-  // If enabled, we hide Totalizer Controls row and show a Unit box on the right.
-  singleUnitsEnabled = false,
-  singleUnitsUnit = "",
 
   // (kept for backwards compatibility if parent still passes them; not used now)
   totalizerIsPlaying: _totalizerIsPlayingProp,
@@ -91,19 +94,16 @@ export default function GraphicDisplayPanel({
   // show vector/hover/selection visuals ONLY in Explore IN mode
   const showVectors = !!isExploreMode;
 
-  // ✅ show Totalizer Controls ONLY in Play/Launch mode AND only if Single Units is NOT enabled
+  // ✅ If Single Units is enabled, hide Totalizer Controls
   const showTotalizerControls = !!isPlay && !singleUnitsEnabled;
 
-  // ✅ Unit text:
-  // - For Single Units: prefer singleUnitsUnit prop, else fall back to yUnits
-  // - For normal: yUnits
-  const unitText = useMemo(() => {
-    const su = String(singleUnitsUnit || "").trim();
-    const yu = String(yUnits || "").trim();
-    return singleUnitsEnabled ? (su || yu || "") : (yu || "");
-  }, [singleUnitsEnabled, singleUnitsUnit, yUnits]);
+  // ✅ If Single Units is enabled, totalizer display is suppressed
+  const totalizerEnabledEffective = !!totalizerEnabled && !singleUnitsEnabled;
 
   // wrappers: stop propagation but still call hook handlers
+  // IMPORTANT FIX:
+  // - Stop propagation on Down/Move so the widget doesn't drag while interacting with the plot.
+  // - Do NOT stop propagation on Up/Cancel so parent drag/resize can end the gesture cleanly.
   const onPointerMove = (e) => {
     e.stopPropagation();
     handlers?.onPointerMove?.(e);
@@ -150,7 +150,7 @@ export default function GraphicDisplayPanel({
     opacity: 0.55,
   };
 
-  // Bigger Output / Totallizer
+  // Bigger Output / Totallizer / Unit
   const bigStatBoxStyle = {
     height: 40,
     display: "inline-flex",
@@ -188,7 +188,7 @@ export default function GraphicDisplayPanel({
   // Totalizer controls section title (professional)
   const totalizerSectionTitle = "Totalizer Controls";
 
-  // ✅ Totalizer header buttons (Enable/Disable/Reset) — same vibe as modal
+  // Totalizer header buttons (Enable/Disable/Reset) — same vibe as modal
   const totBtnBase = {
     height: 32,
     padding: "0 14px",
@@ -212,31 +212,41 @@ export default function GraphicDisplayPanel({
     opacity: 0.55,
   };
 
-  const onTotEnableClick = () => {
-    onTotalizerEnable?.();
-  };
-
-  const onTotDisableClick = () => {
-    onTotalizerDisable?.();
-  };
-
+  const onTotEnableClick = () => onTotalizerEnable?.();
+  const onTotDisableClick = () => onTotalizerDisable?.();
   const onTotResetClick = () => {
-    if (!totalizerEnabled) return;
+    if (!totalizerEnabledEffective) return;
     onTotalizerReset?.();
   };
 
   const totalText = useMemo(() => {
-    if (!totalizerEnabled) return "--";
+    if (!totalizerEnabledEffective) return "--";
     if (!totalizerTotalUnit) return "--";
     if (!Number.isFinite(totalizerValue)) return "--";
     return `${Number(totalizerValue).toFixed(2)} ${totalizerTotalUnit}`;
-  }, [totalizerEnabled, totalizerTotalUnit, totalizerValue]);
+  }, [totalizerEnabledEffective, totalizerTotalUnit, totalizerValue]);
 
   const totalTitle = useMemo(() => {
-    if (!totalizerEnabled) return "";
+    if (!totalizerEnabledEffective) return "";
     if (!totalizerRateUnit) return "Totalizer";
     return `Totalizer integrated from ${totalizerRateUnit}`;
-  }, [totalizerEnabled, totalizerRateUnit]);
+  }, [totalizerEnabledEffective, totalizerRateUnit]);
+
+  // ✅ OUTPUT UNIT PRIORITY:
+  // - If Single Units enabled, show singleUnit
+  // - Else fallback to yUnits
+  const outputUnitText = useMemo(() => {
+    const su = String(singleUnit || "").trim();
+    if (singleUnitsEnabled && su) return su;
+
+    const u = String(yUnits || "").trim();
+    return u ? u : "";
+  }, [singleUnitsEnabled, singleUnit, yUnits]);
+
+  const unitBadgeText = useMemo(() => {
+    const su = String(singleUnit || "").trim();
+    return singleUnitsEnabled && su ? su : "";
+  }, [singleUnitsEnabled, singleUnit]);
 
   return (
     <div
@@ -387,7 +397,7 @@ export default function GraphicDisplayPanel({
         {/* LINE between row 1 and row 2 */}
         <div style={{ height: 0, borderTop: FRAME_LINE, width: "100%" }} />
 
-        {/* ROW 2: left = totalizer controls (Enable/Disable) [hidden when Single Units], right = output/totallizer/units boxes */}
+        {/* ROW 2: left = totalizer controls OR (blank), right = output/totallizer/unit boxes */}
         <div
           style={{
             marginTop: 10,
@@ -400,7 +410,7 @@ export default function GraphicDisplayPanel({
             minWidth: 0,
           }}
         >
-          {/* LEFT: Totalizer Controls (ONLY in Play/Launch AND only if Single Units is NOT enabled) */}
+          {/* LEFT: Totalizer Controls (ONLY in Play/Launch AND only when Single Units disabled) */}
           {showTotalizerControls ? (
             <div
               style={{
@@ -432,13 +442,13 @@ export default function GraphicDisplayPanel({
                   flexWrap: "wrap",
                 }}
               >
-                {/* ✅ ENABLE */}
+                {/* ENABLE */}
                 <button
                   type="button"
                   onClick={onTotEnableClick}
-                  disabled={!!totalizerEnabled}
+                  disabled={!!totalizerEnabledEffective}
                   style={
-                    totalizerEnabled
+                    totalizerEnabledEffective
                       ? totBtnDisabled
                       : {
                           ...totBtnBase,
@@ -451,13 +461,13 @@ export default function GraphicDisplayPanel({
                   ✅ <span>Enable</span>
                 </button>
 
-                {/* ✅ DISABLE */}
+                {/* DISABLE */}
                 <button
                   type="button"
                   onClick={onTotDisableClick}
-                  disabled={!totalizerEnabled}
+                  disabled={!totalizerEnabledEffective}
                   style={
-                    !totalizerEnabled
+                    !totalizerEnabledEffective
                       ? totBtnDisabled
                       : {
                           ...totBtnBase,
@@ -470,12 +480,12 @@ export default function GraphicDisplayPanel({
                   ⛔ <span>Disable</span>
                 </button>
 
-                {/* ✅ RESET (only when enabled) */}
+                {/* RESET (only when enabled) */}
                 <button
                   type="button"
                   onClick={onTotResetClick}
-                  disabled={!totalizerEnabled}
-                  style={!totalizerEnabled ? totBtnDisabled : totBtnBase}
+                  disabled={!totalizerEnabledEffective}
+                  style={!totalizerEnabledEffective ? totBtnDisabled : totBtnBase}
                   title="Reset totalizer total to zero"
                 >
                   ↺ <span>Reset</span>
@@ -486,7 +496,7 @@ export default function GraphicDisplayPanel({
             <div style={{ flex: "1 1 auto", minWidth: 240 }} />
           )}
 
-          {/* RIGHT: Output + Unit + Totalizer boxes */}
+          {/* RIGHT: Output + (Unit) + (Totalizer) boxes */}
           <div
             style={{
               display: "inline-flex",
@@ -511,9 +521,7 @@ export default function GraphicDisplayPanel({
               <span style={{ color: "#0b3b18", fontWeight: 400, fontSize: 15 }}>
                 {Number.isFinite(mathOutput) ? Number(mathOutput).toFixed(2) : "--"}
               </span>
-
-              {/* keep inline unit after output (works for both totalizer + single units) */}
-              {unitText ? (
+              {outputUnitText ? (
                 <span
                   style={{
                     color: "#475569",
@@ -524,14 +532,14 @@ export default function GraphicDisplayPanel({
                   }}
                   title="Unit"
                 >
-                  {unitText}
+                  {outputUnitText}
                 </span>
               ) : null}
             </div>
 
-            {/* ✅ Single Units box (shows when enabled) */}
-            {singleUnitsEnabled ? (
-              <div style={bigStatBoxStyle} title="Single Units (instant measurement)">
+            {/* ✅ Show UNIT box only when Single Units enabled */}
+            {unitBadgeText ? (
+              <div style={bigStatBoxStyle} title="Single Unit">
                 <span
                   style={{
                     color: "#555",
@@ -542,12 +550,12 @@ export default function GraphicDisplayPanel({
                 >
                   UNIT:
                 </span>
-                <span style={{ color: "#111", fontWeight: 400, fontSize: 15 }}>{unitText || "--"}</span>
+                <span style={{ color: "#111", fontWeight: 400, fontSize: 15 }}>{unitBadgeText}</span>
               </div>
             ) : null}
 
-            {/* ✅ Totalizer box (hide if Single Units enabled) */}
-            {!singleUnitsEnabled && totalizerEnabled ? (
+            {/* ✅ Totalizer box only when totalizer is enabled AND Single Units is disabled */}
+            {totalizerEnabledEffective ? (
               <div style={bigStatBoxStyle} title={totalTitle}>
                 <span
                   style={{
@@ -596,7 +604,7 @@ export default function GraphicDisplayPanel({
           </span>
           <span>•</span>
           <span>
-            Y: <span>{yMin}</span> → <span>{yMax}</span> {unitText ? `(${unitText})` : ""}
+            Y: <span>{yMin}</span> → <span>{yMax}</span> {outputUnitText ? `(${outputUnitText})` : ""}
           </span>
         </div>
 
@@ -690,11 +698,7 @@ export default function GraphicDisplayPanel({
             }}
             title={showVectors ? "Move mouse to ping time/value. Drag to zoom. Double-click to reset zoom." : ""}
           >
-            <svg
-              viewBox={`0 0 ${svg.W} ${svg.H}`}
-              preserveAspectRatio="none"
-              style={{ width: "100%", height: "100%", display: "block" }}
-            >
+            <svg viewBox={`0 0 ${svg.W} ${svg.H}`} preserveAspectRatio="none" style={{ width: "100%", height: "100%", display: "block" }}>
               {(svg?.segs || []).map((pts, idx) => (
                 <polyline key={idx} fill="none" stroke={lineColor} strokeWidth={strokeW} points={(pts || []).join(" ")} />
               ))}
@@ -762,6 +766,7 @@ export default function GraphicDisplayPanel({
                     <span style={{ color: "#0b3b18", fontWeight: 400 }}>
                       {Number.isFinite(hover.y) ? Number(hover.y).toFixed(2) : "--"}
                     </span>
+                    {outputUnitText ? <span style={{ color: "#475569" }}> {outputUnitText}</span> : null}
                   </div>
                 </div>
               </>
