@@ -27,6 +27,12 @@ export default function GraphicDisplayPanel({
   },
   bindDeviceId = "",
 
+  // ✅ NEW: TOTALIZER (computed in parent GraphicDisplay.jsx)
+  totalizerEnabled = false,
+  totalizerRateUnit = "",
+  totalizerTotalUnit = "",
+  totalizerValue = null,
+
   // control state + handlers
   isPlaying = true,
   onPlay = () => {},
@@ -61,7 +67,10 @@ export default function GraphicDisplayPanel({
   mathOutput = null,
   err = "",
 }) {
-  const lineColor = useMemo(() => normalizeLineColor(lineColorProp), [lineColorProp]);
+  const lineColor = useMemo(
+    () => normalizeLineColor(lineColorProp),
+    [lineColorProp]
+  );
 
   const strokeW = isExploreMode ? 2 : 3; // thinner line in Explore
   const yFont = isExploreMode ? 14 : 11; // bigger Y numbers in Explore
@@ -155,6 +164,38 @@ export default function GraphicDisplayPanel({
     </div>
   );
 
+  // ✅ Totalizer pill style (matches Output + Status style)
+  const totalizerPillStyle = {
+    height: 22,
+    padding: "0 10px",
+    borderRadius: 999,
+    border: "1px solid rgba(0,0,0,0.10)",
+    background: "rgba(255,255,255,0.92)",
+    color: "#111",
+    fontSize: 11,
+    fontWeight: 900,
+    display: "inline-flex",
+    alignItems: "center",
+    justifyContent: "center",
+    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+    letterSpacing: 0.2,
+    userSelect: "none",
+    whiteSpace: "nowrap",
+  };
+
+  const totalText = useMemo(() => {
+    if (!totalizerEnabled) return "";
+    if (!totalizerTotalUnit) return "TOTAL: --";
+    if (!Number.isFinite(totalizerValue)) return "TOTAL: --";
+    return `TOTAL: ${Number(totalizerValue).toFixed(2)} ${totalizerTotalUnit}`;
+  }, [totalizerEnabled, totalizerTotalUnit, totalizerValue]);
+
+  const totalTitle = useMemo(() => {
+    if (!totalizerEnabled) return "";
+    if (!totalizerRateUnit) return "Totalizer";
+    return `Total integrated from ${totalizerRateUnit}`;
+  }, [totalizerEnabled, totalizerRateUnit]);
+
   return (
     <div
       style={{
@@ -215,7 +256,9 @@ export default function GraphicDisplayPanel({
                 style={{
                   ...topBtnBase,
                   background: isExploreMode ? "#fee2e2" : "#fff",
-                  border: isExploreMode ? "1px solid #fecaca" : topBtnBase.border,
+                  border: isExploreMode
+                    ? "1px solid #fecaca"
+                    : topBtnBase.border,
                 }}
                 title={isExploreMode ? "Close Explore" : "Open Explore"}
               >
@@ -243,7 +286,12 @@ export default function GraphicDisplayPanel({
               ⏸ <span>Pause</span>
             </button>
 
-            <button type="button" onClick={onExport} style={topBtnBase} title="Export visible points to CSV">
+            <button
+              type="button"
+              onClick={onExport}
+              style={topBtnBase}
+              title="Export visible points to CSV"
+            >
               ⬇ <span>Export</span>
             </button>
 
@@ -260,7 +308,9 @@ export default function GraphicDisplayPanel({
               <div style={outputBoxStyle} title="Math Output">
                 <span style={{ color: "#555" }}>Output:</span>
                 <span style={{ color: "#0b3b18" }}>
-                  {Number.isFinite(mathOutput) ? Number(mathOutput).toFixed(2) : "--"}
+                  {Number.isFinite(mathOutput)
+                    ? Number(mathOutput).toFixed(2)
+                    : "--"}
                 </span>
               </div>
 
@@ -277,14 +327,33 @@ export default function GraphicDisplayPanel({
                   display: "inline-flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+                  fontFamily:
+                    "system-ui, -apple-system, Segoe UI, Roboto, Arial",
                   letterSpacing: 0.2,
                   userSelect: "none",
                 }}
-                title={bindDeviceId ? `Device is ${statusLabel.text}` : "No device selected"}
+                title={
+                  bindDeviceId
+                    ? `Device is ${statusLabel.text}`
+                    : "No device selected"
+                }
               >
                 {statusLabel.text}
               </div>
+
+              {/* ✅ NEW: Totalizer value pill (shows where your red circle is) */}
+              {totalizerEnabled ? (
+                <div style={totalizerPillStyle} title={totalTitle}>
+                  <span style={{ color: "#555" }}>TOTAL:</span>
+                  <span style={{ marginLeft: 6, fontFamily: "monospace" }}>
+                    {Number.isFinite(totalizerValue)
+                      ? `${Number(totalizerValue).toFixed(2)} ${
+                          totalizerTotalUnit || ""
+                        }`
+                      : "--"}
+                  </span>
+                </div>
+              ) : null}
             </div>
           </div>
         </div>

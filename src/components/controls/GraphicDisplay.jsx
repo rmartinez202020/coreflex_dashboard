@@ -1,6 +1,10 @@
 // src/components/controls/GraphicDisplay.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { computeMathOutput, msPerUnit, fmtTimeWithDate } from "./graphicDisplay/utils";
+import {
+  computeMathOutput,
+  msPerUnit,
+  fmtTimeWithDate,
+} from "./graphicDisplay/utils";
 import { getRowFromTelemetryMap, readAiField } from "./graphicDisplay/loader";
 import usePingZoom from "./graphicDisplay/hooks/usePingZoom";
 import useTrendSvg from "./graphicDisplay/hooks/useTrendSvg";
@@ -106,6 +110,102 @@ function prunePointsByWindow(points, windowSize, timeUnit) {
   return cleaned;
 }
 
+/**
+ * ✅ TOTALIZER HELPERS
+ * totalizerUnit = RATE unit (ex: GPM, kW, kg/s)
+ * We integrate rate over time to get TOTAL.
+ */
+const RATE_TO_TOTAL_UNIT = {
+  GPM: "gal",
+  GPH: "gal",
+  BPD: "bbl",
+  "BBL/h": "bbl",
+
+  CFM: "ft³",
+  SCFM: "ft³",
+  ACFM: "ft³",
+
+  LPM: "L",
+  LPH: "L",
+  "m³/h": "m³",
+  "m³/min": "m³",
+
+  "kg/h": "kg",
+  "kg/min": "kg",
+  "kg/s": "kg",
+
+  "lb/h": "lb",
+  "lb/min": "lb",
+  "ton/h": "ton",
+
+  kW: "kWh",
+  W: "Wh",
+  MW: "MWh",
+  "BTU/h": "BTU",
+  "MBTU/h": "MBTU",
+};
+
+function rateUnitToTimeBase(rateUnit) {
+  const u = String(rateUnit || "").trim();
+
+  // per minute
+  if (["GPM", "CFM", "SCFM", "ACFM", "LPM", "m³/min", "kg/min", "lb/min"].includes(u))
+    return "minute";
+
+  // per hour
+  if (
+    ["GPH", "BBL/h", "LPH", "m³/h", "kg/h", "lb/h", "ton/h", "kW", "BTU/h", "MBTU/h"].includes(u)
+  )
+    return "hour";
+
+  // per second
+  if (["kg/s", "W"].includes(u)) return "second";
+
+  // per day
+  if (["BPD"].includes(u)) return "day";
+
+  // unknown
+  return "";
+}
+
+function integrateRateToTotal(points, rateUnit) {
+  const base = rateUnitToTimeBase(rateUnit);
+  if (!base) return null;
+
+  const arr = Array.isArray(points) ? points : [];
+  const clean = arr
+    .filter((p) => !p?.gap)
+    .map((p) => ({ t: Number(p?.t), y: Number(p?.y) }))
+    .filter((p) => Number.isFinite(p.t) && Number.isFinite(p.y))
+    .sort((a, b) => a.t - b.t);
+
+  if (clean.length < 2) return 0;
+
+  let total = 0;
+
+  for (let i = 1; i < clean.length; i++) {
+    const p1 = clean[i - 1];
+    const p2 = clean[i];
+
+    const dtMs = p2.t - p1.t;
+    if (!Number.isFinite(dtMs) || dtMs <= 0) continue;
+
+    let dtBase = 0;
+    if (base === "minute") dtBase = dtMs / 60000;
+    else if (base === "hour") dtBase = dtMs / 3600000;
+    else if (base === "second") dtBase = dtMs / 1000;
+    else if (base === "day") dtBase = dtMs / 86400000;
+
+    if (!Number.isFinite(dtBase) || dtBase <= 0) continue;
+
+    // trapezoidal integration
+    const avgRate = (p1.y + p2.y) / 2;
+    total += avgRate * dtBase;
+  }
+
+  return total;
+}
+
 export default function GraphicDisplay({
   tank,
   telemetryMap = null, // ✅ common poller map
@@ -117,13 +217,21 @@ export default function GraphicDisplay({
   const sampleMs = Number(tank?.sampleMs ?? 1000);
   const yMin = Number.isFinite(tank?.yMin) ? tank.yMin : 0;
   const yMax = Number.isFinite(tank?.yMax) ? tank.yMax : 100;
+
+  // NOTE: yUnits is still used for Y axis labeling.
   const yUnits = tank?.yUnits ?? "";
+
   const graphStyle = tank?.graphStyle ?? "line";
   const bindModel = tank?.bindModel ?? "zhc1921";
   const bindDeviceId = String(tank?.bindDeviceId ?? "").trim();
   const bindField = String(tank?.bindField ?? "ai1").trim();
   const mathFormula = tank?.mathFormula ?? "";
   const lineColor = normalizeLineColor(tank?.lineColor);
+
+  // ✅ Totalizer config saved from modal
+  const totalizerEnabled = tank?.totalizerEnabled === true;
+  const totalizerRateUnit = String(tank?.totalizerUnit ?? "").trim();
+  const totalizerTotalUnit = RATE_TO_TOTAL_UNIT[totalizerRateUnit] || "";
 
   const DEBUG = useMemo(() => {
     if (tank?.debug) return true;
@@ -134,8 +242,11 @@ export default function GraphicDisplay({
   }, [tank]);
 
   const dbgKey = useMemo(() => {
-    const widgetId = tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
-    return widgetId ? `widget:${widgetId}` : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
+    const widgetId =
+      tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
+    return widgetId
+      ? `widget:${widgetId}`
+      : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
   }, [tank, bindModel, bindDeviceId, bindField]);
 
   function dbg(...args) {
@@ -155,8 +266,11 @@ export default function GraphicDisplay({
   }
 
   const storageKey = useMemo(() => {
-    const widgetId = tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
-    const base = widgetId ? `widget:${widgetId}` : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
+    const widgetId =
+      tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
+    const base = widgetId
+      ? `widget:${widgetId}`
+      : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
     return `coreflex:graphicDisplay:points:${base}`;
   }, [tank, bindModel, bindDeviceId, bindField]);
 
@@ -198,6 +312,9 @@ export default function GraphicDisplay({
       windowSize,
       timeUnit,
       mathFormula,
+      totalizerEnabled,
+      totalizerRateUnit,
+      totalizerTotalUnit,
       telemetryMapType: telemetryMap ? typeof telemetryMap : "null",
       telemetryMapKeys:
         telemetryMap && typeof telemetryMap === "object"
@@ -246,7 +363,11 @@ export default function GraphicDisplay({
     const raw = localStorage.getItem(storageKey);
     const parsed = raw ? safeJsonParse(raw) : null;
 
-    const loaded = Array.isArray(parsed?.points) ? parsed.points : Array.isArray(parsed) ? parsed : [];
+    const loaded = Array.isArray(parsed?.points)
+      ? parsed.points
+      : Array.isArray(parsed)
+      ? parsed
+      : [];
     const pruned = prunePointsByWindow(loaded, windowSize, timeUnit);
 
     dbg("LOAD: localStorage", {
@@ -258,7 +379,9 @@ export default function GraphicDisplay({
 
     setPoints(pruned);
 
-    const lastNumeric = [...pruned].reverse().find((p) => Number.isFinite(Number(p?.y)));
+    const lastNumeric = [...pruned]
+      .reverse()
+      .find((p) => Number.isFinite(Number(p?.y)));
     if (lastNumeric) setMathOutput(Number(lastNumeric.y));
   }, [storageKey, bindDeviceId, bindField, windowSize, timeUnit]);
 
@@ -272,7 +395,8 @@ export default function GraphicDisplay({
     saveTimerRef.current = window.setTimeout(() => {
       const pruned = prunePointsByWindow(points, windowSize, timeUnit);
       const limit = Math.max(50, Number(maxPointsRef.current || 200));
-      const finalPoints = pruned.length > limit ? pruned.slice(pruned.length - limit) : pruned;
+      const finalPoints =
+        pruned.length > limit ? pruned.slice(pruned.length - limit) : pruned;
 
       try {
         localStorage.setItem(
@@ -386,6 +510,24 @@ export default function GraphicDisplay({
     dbgWarn,
   });
 
+  // ✅ Compute totalizer value over the CURRENT VISIBLE data (pointsForView)
+  const totalizerValue = useMemo(() => {
+    if (!totalizerEnabled) return null;
+    if (!totalizerRateUnit) return null;
+    if (!totalizerTotalUnit) return null;
+
+    const src = (pointsForView?.length ? pointsForView : points) || [];
+    const total = integrateRateToTotal(src, totalizerRateUnit);
+
+    return Number.isFinite(total) ? total : null;
+  }, [
+    totalizerEnabled,
+    totalizerRateUnit,
+    totalizerTotalUnit,
+    pointsForView,
+    points,
+  ]);
+
   const statusLabel = useMemo(() => {
     if (!bindDeviceId)
       return {
@@ -428,6 +570,13 @@ export default function GraphicDisplay({
         styleBadge={styleBadge}
         statusLabel={statusLabel}
         bindDeviceId={bindDeviceId}
+
+        // ✅ NEW: Totalizer display (for the red-circled area)
+        totalizerEnabled={totalizerEnabled}
+        totalizerRateUnit={totalizerRateUnit}
+        totalizerTotalUnit={totalizerTotalUnit}
+        totalizerValue={totalizerValue}
+
         // controls
         isPlaying={isPlaying}
         onPlay={() => setIsPlaying(true)}
