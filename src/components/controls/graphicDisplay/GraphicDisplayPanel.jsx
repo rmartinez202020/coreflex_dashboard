@@ -1,5 +1,5 @@
 // src/components/controls/graphicDisplay/GraphicDisplayPanel.jsx
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
 
 const DEFAULT_LINE_COLOR = "#0c5ac8";
 const FRAME_LINE = "1px solid #cfcfcf";
@@ -28,11 +28,17 @@ export default function GraphicDisplayPanel({
   },
   bindDeviceId = "",
 
-  // ✅ NEW: TOTALIZER (computed in parent GraphicDisplay.jsx)
+  // totalizer (computed in parent GraphicDisplay.jsx)
   totalizerEnabled = false,
   totalizerRateUnit = "",
   totalizerTotalUnit = "",
   totalizerValue = null,
+
+  // ✅ NEW: totalizer controls (parent should wire these to actually pause/reset integration)
+  totalizerIsPlaying: totalizerIsPlayingProp, // optional
+  onTotalizerPlay = () => {},
+  onTotalizerPause = () => {},
+  onTotalizerReset = () => {},
 
   // control state + handlers
   isPlaying = true,
@@ -70,13 +76,25 @@ export default function GraphicDisplayPanel({
 }) {
   const lineColor = useMemo(() => normalizeLineColor(lineColorProp), [lineColorProp]);
 
-  const strokeW = isExploreMode ? 2 : 3; // thinner line in Explore
-  const yFont = isExploreMode ? 14 : 11; // bigger Y numbers in Explore
+  const strokeW = isExploreMode ? 2 : 3;
+  const yFont = isExploreMode ? 14 : 11;
 
-  // ✅ show vector/hover/selection visuals ONLY in Explore IN mode
+  // show vector/hover/selection visuals ONLY in Explore IN mode
   const showVectors = !!isExploreMode;
 
-  // ✅ wrappers: stop propagation but still call hook handlers
+  // Local UI state for totalizer play/pause (parent can override with prop)
+  const [localTotPlaying, setLocalTotPlaying] = useState(true);
+  const totalizerIsPlaying =
+    typeof totalizerIsPlayingProp === "boolean" ? totalizerIsPlayingProp : localTotPlaying;
+
+  useEffect(() => {
+    // when totalizer gets enabled, default to play (as requested)
+    if (totalizerEnabled && typeof totalizerIsPlayingProp !== "boolean") {
+      setLocalTotPlaying(true);
+    }
+  }, [totalizerEnabled, totalizerIsPlayingProp]);
+
+  // wrappers: stop propagation but still call hook handlers
   // IMPORTANT FIX:
   // - Stop propagation on Down/Move so the widget doesn't drag while interacting with the plot.
   // - Do NOT stop propagation on Up/Cancel so parent drag/resize can end the gesture cleanly.
@@ -126,7 +144,7 @@ export default function GraphicDisplayPanel({
     opacity: 0.55,
   };
 
-  // ✅ Bigger Output / Totallizer
+  // Bigger Output / Totallizer
   const bigStatBoxStyle = {
     height: 40,
     display: "inline-flex",
@@ -161,6 +179,49 @@ export default function GraphicDisplayPanel({
     whiteSpace: "nowrap",
   };
 
+  // Totalizer controls section title (professional)
+  const totalizerSectionTitle = "Totalizer Controls";
+
+  const totBtnBase = {
+    height: 32,
+    padding: "0 14px",
+    borderRadius: 10,
+    border: "1px solid rgba(0,0,0,0.12)",
+    background: "rgba(255,255,255,0.96)",
+    fontSize: 12,
+    fontWeight: 400,
+    cursor: "pointer",
+    lineHeight: "32px",
+    userSelect: "none",
+    display: "inline-flex",
+    alignItems: "center",
+    gap: 8,
+    whiteSpace: "nowrap",
+  };
+
+  const totBtnDisabled = {
+    ...totBtnBase,
+    cursor: "not-allowed",
+    opacity: 0.5,
+  };
+
+  const onTotPlayClick = () => {
+    if (!totalizerEnabled) return;
+    if (typeof totalizerIsPlayingProp !== "boolean") setLocalTotPlaying(true);
+    onTotalizerPlay?.();
+  };
+
+  const onTotPauseClick = () => {
+    if (!totalizerEnabled) return;
+    if (typeof totalizerIsPlayingProp !== "boolean") setLocalTotPlaying(false);
+    onTotalizerPause?.();
+  };
+
+  const onTotResetClick = () => {
+    if (!totalizerEnabled) return;
+    onTotalizerReset?.();
+  };
+
   const totalText = useMemo(() => {
     if (!totalizerEnabled) return "--";
     if (!totalizerTotalUnit) return "--";
@@ -170,11 +231,10 @@ export default function GraphicDisplayPanel({
 
   const totalTitle = useMemo(() => {
     if (!totalizerEnabled) return "";
-    if (!totalizerRateUnit) return "Totallizer";
-    return `Totallizer integrated from ${totalizerRateUnit}`;
+    if (!totalizerRateUnit) return "Totalizer";
+    return `Totalizer integrated from ${totalizerRateUnit}`;
   }, [totalizerEnabled, totalizerRateUnit]);
 
-  // ✅ unit to show next to Output value
   const outputUnitText = useMemo(() => {
     const u = String(yUnits || "").trim();
     return u ? u : "";
@@ -323,49 +383,106 @@ export default function GraphicDisplayPanel({
         {/* LINE between row 1 and row 2 */}
         <div style={{ height: 0, borderTop: FRAME_LINE, width: "100%" }} />
 
-        {/* ROW 2 (Output/Totallizer right aligned) */}
+        {/* ROW 2: left = totalizer controls, right = output/totallizer boxes */}
         <div
           style={{
             marginTop: 10,
             display: "flex",
-            justifyContent: "flex-end",
+            alignItems: "center",
+            justifyContent: "space-between",
             gap: 12,
             flexWrap: "wrap",
-            paddingBottom: 10, // ✅ gives space before the new splitter line
+            paddingBottom: 10,
+            minWidth: 0,
           }}
         >
-          <div style={bigStatBoxStyle} title="Math Output">
-            <span
+          {/* LEFT: Totalizer controls */}
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              gap: 10,
+              flex: "1 1 auto",
+              minWidth: 240,
+            }}
+          >
+            <div
               style={{
-                color: "#555",
+                fontSize: 12,
+                color: "#111",
                 fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
                 fontWeight: 400,
-                fontSize: 13,
+                whiteSpace: "nowrap",
+              }}
+              title="Totalizer controls"
+            >
+              {totalizerSectionTitle}
+            </div>
+
+            <div
+              style={{
+                display: "inline-flex",
+                alignItems: "center",
+                gap: 8,
+                flexWrap: "wrap",
               }}
             >
-              Output:
-            </span>
-            <span style={{ color: "#0b3b18", fontWeight: 400, fontSize: 15 }}>
-              {Number.isFinite(mathOutput) ? Number(mathOutput).toFixed(2) : "--"}
-            </span>
-            {outputUnitText ? (
-              <span
-                style={{
-                  color: "#475569",
-                  fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-                  fontWeight: 400,
-                  fontSize: 13,
-                  marginLeft: 2,
-                }}
-                title="Unit"
+              <button
+                type="button"
+                onClick={onTotPlayClick}
+                style={
+                  !totalizerEnabled
+                    ? totBtnDisabled
+                    : totalizerIsPlaying
+                    ? { ...totBtnBase, background: "rgba(220,252,231,0.9)", border: "1px solid rgba(34,197,94,0.35)" }
+                    : totBtnBase
+                }
+                disabled={!totalizerEnabled}
+                title="Resume totalizer accumulation"
               >
-                {outputUnitText}
-              </span>
-            ) : null}
+                ▶ <span>Play</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onTotPauseClick}
+                style={
+                  !totalizerEnabled
+                    ? totBtnDisabled
+                    : !totalizerIsPlaying
+                    ? { ...totBtnBase, background: "rgba(254,242,242,0.95)", border: "1px solid rgba(239,68,68,0.25)" }
+                    : totBtnBase
+                }
+                disabled={!totalizerEnabled}
+                title="Pause totalizer accumulation"
+              >
+                ⏸ <span>Pause</span>
+              </button>
+
+              <button
+                type="button"
+                onClick={onTotResetClick}
+                style={!totalizerEnabled ? totBtnDisabled : totBtnBase}
+                disabled={!totalizerEnabled}
+                title="Reset totalizer total to zero"
+              >
+                ↺ <span>Reset</span>
+              </button>
+            </div>
           </div>
 
-          {totalizerEnabled ? (
-            <div style={bigStatBoxStyle} title={totalTitle}>
+          {/* RIGHT: Output + Totalizer boxes */}
+          <div
+            style={{
+              display: "inline-flex",
+              alignItems: "center",
+              justifyContent: "flex-end",
+              gap: 12,
+              flex: "0 0 auto",
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={bigStatBoxStyle} title="Math Output">
               <span
                 style={{
                   color: "#555",
@@ -374,14 +491,46 @@ export default function GraphicDisplayPanel({
                   fontSize: 13,
                 }}
               >
-                TOTALLIZER:
+                Output:
               </span>
-              <span style={{ color: "#111", fontWeight: 400, fontSize: 15 }}>{totalText}</span>
+              <span style={{ color: "#0b3b18", fontWeight: 400, fontSize: 15 }}>
+                {Number.isFinite(mathOutput) ? Number(mathOutput).toFixed(2) : "--"}
+              </span>
+              {outputUnitText ? (
+                <span
+                  style={{
+                    color: "#475569",
+                    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+                    fontWeight: 400,
+                    fontSize: 13,
+                    marginLeft: 2,
+                  }}
+                  title="Unit"
+                >
+                  {outputUnitText}
+                </span>
+              ) : null}
             </div>
-          ) : null}
+
+            {totalizerEnabled ? (
+              <div style={bigStatBoxStyle} title={totalTitle}>
+                <span
+                  style={{
+                    color: "#555",
+                    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+                    fontWeight: 400,
+                    fontSize: 13,
+                  }}
+                >
+                  TOTALLIZER:
+                </span>
+                <span style={{ color: "#111", fontWeight: 400, fontSize: 15 }}>{totalText}</span>
+              </div>
+            ) : null}
+          </div>
         </div>
 
-        {/* ✅ NEW: splitter line below row 2 (like your screenshot) */}
+        {/* splitter line below row 2 */}
         <div style={{ height: 0, borderTop: FRAME_LINE, width: "100%" }} />
 
         {/* info row */}
@@ -416,7 +565,6 @@ export default function GraphicDisplayPanel({
           </span>
         </div>
 
-        {/* LINE between header and body */}
         <div style={{ height: 0, borderTop: FRAME_LINE, width: "100%" }} />
       </div>
 
