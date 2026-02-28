@@ -1,44 +1,121 @@
 // src/components/controls/graphicDisplay/GraphicDisplayTotalizerSection.jsx
 import React, { useMemo } from "react";
 
-const UNIT_PRESETS = [
-  { value: "", label: "Custom..." },
+/**
+ * ✅ TOTALIZER SHOULD ONLY USE RATE UNITS (NOT TOTAL UNITS)
+ * - user selects RATE unit (ex: GPM)
+ * - CoreFlex totalizer will integrate over time to produce TOTAL (ex: gal)
+ *
+ * We also show the auto-derived TOTAL unit to the user (read-only).
+ */
 
-  // Flow totals
-  { value: "gal", label: "gal (gallons)" },
-  { value: "L", label: "L (liters)" },
-  { value: "m³", label: "m³ (cubic meters)" },
-  { value: "ft³", label: "ft³ (cubic feet)" },
+const RATE_UNIT_PRESETS = [
+  { value: "", label: "Select rate unit..." },
 
-  // Energy totals
-  { value: "kWh", label: "kWh" },
-  { value: "Wh", label: "Wh" },
-  { value: "MJ", label: "MJ" },
+  // 🇺🇸 US / Imperial — Liquid Flow
+  { value: "GPM", label: "GPM — gallons per minute" },
+  { value: "GPH", label: "GPH — gallons per hour" },
+  { value: "BPD", label: "BPD — barrels per day" },
+  { value: "BBL/h", label: "BBL/h — barrels per hour" },
 
-  // Mass totals
-  { value: "lb", label: "lb" },
-  { value: "kg", label: "kg" },
-  { value: "ton", label: "ton" },
+  // 🇺🇸 US / Imperial — Air / Gas
+  { value: "CFM", label: "CFM — cubic feet per minute" },
+  { value: "SCFM", label: "SCFM — standard cubic feet per minute" },
+  { value: "ACFM", label: "ACFM — actual cubic feet per minute" },
+
+  // 🌍 Metric — Flow
+  { value: "LPM", label: "LPM — liters per minute" },
+  { value: "LPH", label: "LPH — liters per hour" },
+  { value: "m³/h", label: "m³/h — cubic meters per hour" },
+  { value: "m³/min", label: "m³/min — cubic meters per minute" },
+
+  // 🌍 Metric — Mass Flow
+  { value: "kg/h", label: "kg/h — kilograms per hour" },
+  { value: "kg/min", label: "kg/min — kilograms per minute" },
+  { value: "kg/s", label: "kg/s — kilograms per second" },
+
+  // 🇺🇸 Mass Flow
+  { value: "lb/h", label: "lb/h — pounds per hour" },
+  { value: "lb/min", label: "lb/min — pounds per minute" },
+  { value: "ton/h", label: "ton/h — tons per hour" },
+
+  // ⚡ Energy / Power (rate)
+  { value: "kW", label: "kW — kilowatts (power)" },
+  { value: "W", label: "W — watts (power)" },
+  { value: "MW", label: "MW — megawatts (power)" },
+  { value: "BTU/h", label: "BTU/h — BTU per hour" },
+  { value: "MBTU/h", label: "MBTU/h — MBTU per hour" },
 ];
+
+// ✅ Rate → Total mapping (shown to user, and later used by the integrator)
+const RATE_TO_TOTAL_UNIT = {
+  // Liquid
+  GPM: "gal",
+  GPH: "gal",
+  BPD: "bbl",
+  "BBL/h": "bbl",
+
+  // Air/Gas
+  CFM: "ft³",
+  SCFM: "ft³",
+  ACFM: "ft³",
+
+  // Metric flow
+  LPM: "L",
+  LPH: "L",
+  "m³/h": "m³",
+  "m³/min": "m³",
+
+  // Mass
+  "kg/h": "kg",
+  "kg/min": "kg",
+  "kg/s": "kg",
+  "lb/h": "lb",
+  "lb/min": "lb",
+  "ton/h": "ton",
+
+  // Power → Energy
+  kW: "kWh",
+  W: "Wh",
+  MW: "MWh",
+  "BTU/h": "BTU",
+  "MBTU/h": "MBTU",
+};
+
+function inferTotalUnitFromRate(rateUnit) {
+  const k = String(rateUnit || "").trim();
+  return RATE_TO_TOTAL_UNIT[k] || "";
+}
 
 export default function GraphicDisplayTotalizerSection({
   enabled = false,
   onToggleEnabled = () => {},
+
+  // ✅ IMPORTANT: this prop is now the RATE unit (ex: "GPM")
   totalizerUnit = "",
   onChangeUnit = () => {},
 }) {
-  const presetValue = useMemo(() => {
+  const selectedRateUnit = useMemo(() => {
     const t = String(totalizerUnit || "").trim();
-    const hit = UNIT_PRESETS.some((u) => u.value && u.value === t);
+    const hit = RATE_UNIT_PRESETS.some((u) => u.value && u.value === t);
     return hit ? t : "";
   }, [totalizerUnit]);
 
-  const customUnit = useMemo(() => {
+  const customRateUnit = useMemo(() => {
     const t = String(totalizerUnit || "").trim();
     if (!t) return "";
-    const hit = UNIT_PRESETS.some((u) => u.value && u.value === t);
+    const hit = RATE_UNIT_PRESETS.some((u) => u.value && u.value === t);
     return hit ? "" : t;
   }, [totalizerUnit]);
+
+  const derivedTotalUnit = useMemo(() => {
+    // If user picked from preset, show mapped total unit.
+    if (selectedRateUnit) return inferTotalUnitFromRate(selectedRateUnit);
+
+    // If custom rate unit typed, we cannot infer reliably.
+    // We'll show blank and let future UI support custom mapping if needed.
+    return "";
+  }, [selectedRateUnit]);
 
   const btnBase = {
     height: 34,
@@ -104,23 +181,23 @@ export default function GraphicDisplayTotalizerSection({
       </div>
 
       <div style={{ marginTop: 8, fontSize: 12, fontWeight: 800, color: "#6b7280" }}>
-        Use Totalizer when the trend is a <b>RATE</b> (ex: GPM) and you want an accumulated{" "}
-        <b>TOTAL</b> (ex: gallons).
+        Use Totalizer when the trend is a <b>RATE</b> (ex: <b>GPM</b>) and you want an
+        accumulated <b>TOTAL</b> (ex: <b>gallons</b>).
       </div>
 
       <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
         <label style={{ display: "grid", gap: 6 }}>
           <span style={{ fontSize: 12, fontWeight: 900, color: "#374151" }}>
-            Totalizer Units
+            Rate Units (input)
           </span>
 
           <select
-            value={presetValue}
+            value={selectedRateUnit}
             onChange={(e) => {
               const v = String(e.target.value || "");
               if (!v) {
-                // Custom... keep current custom unit (or blank)
-                onChangeUnit(customUnit || "");
+                // "Select..." keeps current custom unit (or blank)
+                onChangeUnit(customRateUnit || "");
               } else {
                 onChangeUnit(v);
               }
@@ -135,7 +212,7 @@ export default function GraphicDisplayTotalizerSection({
             }}
             disabled={!enabled}
           >
-            {UNIT_PRESETS.map((u) => (
+            {RATE_UNIT_PRESETS.map((u) => (
               <option key={u.label} value={u.value}>
                 {u.label}
               </option>
@@ -145,13 +222,13 @@ export default function GraphicDisplayTotalizerSection({
 
         <label style={{ display: "grid", gap: 6 }}>
           <span style={{ fontSize: 12, fontWeight: 900, color: "#374151" }}>
-            Custom Unit (optional)
+            Custom Rate Unit (optional)
           </span>
 
           <input
-            value={customUnit}
+            value={customRateUnit}
             onChange={(e) => onChangeUnit(e.target.value)}
-            placeholder="e.g. PSI, gal, kWh"
+            placeholder="e.g. g/s, ACFH, Nm³/h"
             style={{
               border: "1px solid #d1d5db",
               borderRadius: 10,
@@ -160,9 +237,37 @@ export default function GraphicDisplayTotalizerSection({
               background: enabled ? "#fff" : "#f9fafb",
               opacity: enabled ? 1 : 0.75,
             }}
-            disabled={!enabled || presetValue !== ""}
+            disabled={!enabled || selectedRateUnit !== ""}
           />
         </label>
+
+        <div
+          style={{
+            border: "1px dashed rgba(0,0,0,0.12)",
+            background: "rgba(248,250,252,0.9)",
+            borderRadius: 12,
+            padding: "10px 12px",
+            fontSize: 12,
+            fontWeight: 900,
+            color: "#111827",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            gap: 10,
+          }}
+          title="This is the accumulated total unit CoreFlex will compute from the selected rate."
+        >
+          <span style={{ color: "#374151" }}>Total accumulates in:</span>
+          <span style={{ fontFamily: "monospace", color: derivedTotalUnit ? "#0b3b18" : "#6b7280" }}>
+            {derivedTotalUnit || "--"}
+          </span>
+        </div>
+
+        {enabled && selectedRateUnit && !derivedTotalUnit ? (
+          <div style={{ color: "#b42318", fontWeight: 900, fontSize: 12 }}>
+            Total unit mapping not found for this rate unit.
+          </div>
+        ) : null}
       </div>
     </div>
   );
