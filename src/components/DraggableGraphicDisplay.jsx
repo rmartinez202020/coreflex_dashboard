@@ -1,4 +1,4 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import GraphicDisplay from "./controls/GraphicDisplay";
 
@@ -88,16 +88,28 @@ export default function DraggableGraphicDisplay({
       let newH = startRef.current.h;
 
       if (resizeDir === "right") {
-        newW = Math.max(300, startRef.current.w + (e.clientX - startRef.current.x));
+        newW = Math.max(
+          300,
+          startRef.current.w + (e.clientX - startRef.current.x)
+        );
       }
       if (resizeDir === "left") {
-        newW = Math.max(300, startRef.current.w - (e.clientX - startRef.current.x));
+        newW = Math.max(
+          300,
+          startRef.current.w - (e.clientX - startRef.current.x)
+        );
       }
       if (resizeDir === "bottom") {
-        newH = Math.max(180, startRef.current.h + (e.clientY - startRef.current.y));
+        newH = Math.max(
+          180,
+          startRef.current.h + (e.clientY - startRef.current.y)
+        );
       }
       if (resizeDir === "top") {
-        newH = Math.max(180, startRef.current.h - (e.clientY - startRef.current.y));
+        newH = Math.max(
+          180,
+          startRef.current.h - (e.clientY - startRef.current.y)
+        );
       }
 
       safeOnUpdate({ ...tank, w: newW, h: newH });
@@ -116,6 +128,45 @@ export default function DraggableGraphicDisplay({
       window.removeEventListener("mouseup", stopMove);
     };
   }, [isResizing, resizeDir, safeOnUpdate, tank]);
+
+  // ✅ IMPORTANT: persist GraphicDisplay settings (Single Units / Totalizer / etc.)
+  // This wires the Settings modal "Apply" into the parent layout state,
+  // so Launch (which loads from DB) gets the updated properties.
+  const handleSaveSettings = useCallback(
+    (nextTank) => {
+      // Keep dashboardId injected in Launch, if present.
+      const existingDashId = String(
+        tank?.properties?.dashboardId ||
+          tank?.properties?.dashboard_id ||
+          tank?.dashboardId ||
+          ""
+      ).trim();
+
+      safeOnUpdate({
+        ...tank,
+        ...nextTank,
+
+        // ✅ Make sure we merge/keep properties correctly
+        properties: {
+          ...(tank?.properties || {}),
+          ...(nextTank?.properties || {}),
+
+          // ✅ Persist these keys (root cause of Launch mismatch)
+          singleUnitsEnabled: nextTank?.singleUnitsEnabled,
+          singleUnit: nextTank?.singleUnit ?? nextTank?.singleUnitsUnit ?? "",
+          singleUnitsUnit:
+            nextTank?.singleUnitsUnit ?? nextTank?.singleUnit ?? "",
+
+          totalizerEnabled: nextTank?.totalizerEnabled,
+          totalizerUnit: nextTank?.totalizerUnit,
+
+          // ✅ Preserve dashboardId if it was injected by Launch screen
+          ...(existingDashId ? { dashboardId: existingDashId } : {}),
+        },
+      });
+    },
+    [safeOnUpdate, tank]
+  );
 
   return (
     <div
@@ -153,11 +204,12 @@ export default function DraggableGraphicDisplay({
           pointerEvents: "auto",
         }}
       >
-        {/* ✅ NOW uses common poller */}
+        {/* ✅ NOW uses common poller + persists settings to parent */}
         <GraphicDisplay
           tank={tank}
           telemetryMap={telemetryMap}
           isPlay={isPlay} // ✅ true in play/launch/launched
+          onSaveSettings={handleSaveSettings} // ✅ FIX: persist units/settings so Launch matches
         />
       </div>
 
