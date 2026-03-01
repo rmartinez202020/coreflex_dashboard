@@ -239,25 +239,6 @@ export default function GraphicDisplay({
   // If not provided, we still update locally so the widget reflects the new config.
   onSaveSettings,
 }) {
-  // ✅ Treat Launch like Play for unit logic + controls
-  // Some parents only pass isPlay=true for Play, not Launch.
-  // In Launch, dashboardMode is usually in the URL (?mode=launch or ?launch=1).
-  const isRunMode = useMemo(() => {
-    if (isPlay) return true;
-    if (typeof window === "undefined") return false;
-
-    try {
-      const url = new URL(window.location.href);
-      const mode = String(url.searchParams.get("mode") || "").toLowerCase();
-      const launch =
-        url.searchParams.get("launch") === "1" ||
-        url.searchParams.get("launch") === "true";
-      return mode === "launch" || launch;
-    } catch {
-      return false;
-    }
-  }, [isPlay]);
-
   // ✅ Local override so Settings changes reflect immediately even if parent saves async
   const [localTank, setLocalTank] = useState(null);
   useEffect(() => {
@@ -291,9 +272,12 @@ export default function GraphicDisplay({
   // - older key: singleUnitsUnit
   // - NEW modal key: singleUnit
   const tankSingleEnabled = T?.singleUnitsEnabled === true;
-  const tankSingleUnit = String(T?.singleUnitsUnit ?? T?.singleUnit ?? "").trim();
+  const tankSingleUnit = String(
+    T?.singleUnitsUnit ?? T?.singleUnit ?? ""
+  ).trim();
 
-  const [singleUnitsEnabled, setSingleUnitsEnabled] = useState(tankSingleEnabled);
+  const [singleUnitsEnabled, setSingleUnitsEnabled] =
+    useState(tankSingleEnabled);
   const [singleUnitsUnit, setSingleUnitsUnit] = useState(tankSingleUnit);
 
   // ✅ Totalizer config saved from modal
@@ -308,7 +292,9 @@ export default function GraphicDisplay({
   // keep runtime in sync if tank changes (like loading a different widget)
   useEffect(() => {
     const nextSingleEnabled = T?.singleUnitsEnabled === true;
-    const nextSingleUnit = String(T?.singleUnitsUnit ?? T?.singleUnit ?? "").trim();
+    const nextSingleUnit = String(
+      T?.singleUnitsUnit ?? T?.singleUnit ?? ""
+    ).trim();
 
     setSingleUnitsEnabled(nextSingleEnabled);
     setSingleUnitsUnit(nextSingleUnit);
@@ -344,8 +330,11 @@ export default function GraphicDisplay({
   }, [T]);
 
   const dbgKey = useMemo(() => {
-    const widgetId = T?.id ?? T?.widgetId ?? T?.widget_id ?? T?.uuid ?? "";
-    return widgetId ? `widget:${widgetId}` : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
+    const widgetId =
+      T?.id ?? T?.widgetId ?? T?.widget_id ?? T?.uuid ?? "";
+    return widgetId
+      ? `widget:${widgetId}`
+      : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
   }, [T, bindModel, bindDeviceId, bindField]);
 
   function dbg(...args) {
@@ -365,8 +354,11 @@ export default function GraphicDisplay({
   }
 
   const storageKey = useMemo(() => {
-    const widgetId = T?.id ?? T?.widgetId ?? T?.widget_id ?? T?.uuid ?? "";
-    const base = widgetId ? `widget:${widgetId}` : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
+    const widgetId =
+      T?.id ?? T?.widgetId ?? T?.widget_id ?? T?.uuid ?? "";
+    const base = widgetId
+      ? `widget:${widgetId}`
+      : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
     return `coreflex:graphicDisplay:points:${base}`;
   }, [T, bindModel, bindDeviceId, bindField]);
 
@@ -400,7 +392,6 @@ export default function GraphicDisplay({
   useEffect(() => {
     dbg("MOUNT / bind", {
       isPlay,
-      isRunMode,
       isPlaying,
       bindModel,
       bindDeviceId,
@@ -516,14 +507,21 @@ export default function GraphicDisplay({
     return () => {
       if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
     };
-  }, [points, storageKey, bindDeviceId, bindField, windowSize, timeUnit, bindModel]);
+  }, [
+    points,
+    storageKey,
+    bindDeviceId,
+    bindField,
+    windowSize,
+    timeUnit,
+    bindModel,
+  ]);
 
   const lastSampleAtRef = useRef(0);
 
   // ✅ MAIN POLL (telemetryMap sync)
   useEffect(() => {
-    // ✅ run in Play OR Launch (run-mode)
-    if (!isRunMode) return;
+    if (!isPlay) return;
     if (!isPlaying) return;
 
     if (!bindDeviceId || !bindField) {
@@ -582,7 +580,7 @@ export default function GraphicDisplay({
       setDeviceOnline(false);
     }
   }, [
-    isRunMode,
+    isPlay,
     isPlaying,
     telemetryMap,
     bindModel,
@@ -594,13 +592,14 @@ export default function GraphicDisplay({
     timeUnit,
   ]);
 
-  const { plotRef, sel, hover, timeTicks, pointsForView, handlers } = usePingZoom({
-    points,
-    yMin: Number(yMin),
-    yMax: Number(yMax),
-    fmtTimeWithDate,
-    hoverAnywhere: exploreOpen, // ✅ ONLY while Explore modal is open (Explore IN)
-  });
+  const { plotRef, sel, hover, timeTicks, pointsForView, handlers } =
+    usePingZoom({
+      points,
+      yMin: Number(yMin),
+      yMax: Number(yMax),
+      fmtTimeWithDate,
+      hoverAnywhere: exploreOpen, // ✅ ONLY while Explore modal is open (Explore IN)
+    });
 
   const { svg } = useTrendSvg({
     points,
@@ -686,7 +685,7 @@ export default function GraphicDisplay({
     dbg("TOTALIZER: reset from header", { resetAt: t });
   };
 
-  // ✅ Unit label used on the chart/UI (works for Edit + Play + Launch now)
+  // ✅ Unit label used on the chart/UI
   // Priority:
   // 1) Single Units enabled -> singleUnitsUnit
   // 2) Totalizer enabled -> totalizerRateUnit (RATE unit)
@@ -699,7 +698,13 @@ export default function GraphicDisplay({
     if (singleUnitsEnabled) return su || yu || "";
     if (totEnabled && rateU) return rateU;
     return yu || "";
-  }, [singleUnitsEnabled, singleUnitsUnit, yUnits, totEnabled, totalizerRateUnit]);
+  }, [
+    singleUnitsEnabled,
+    singleUnitsUnit,
+    yUnits,
+    totEnabled,
+    totalizerRateUnit,
+  ]);
 
   // ✅ Settings button handler
   const onOpenSettings = () => {
@@ -743,15 +748,14 @@ export default function GraphicDisplay({
       <GraphicDisplayPanel
         // mode
         isExploreMode={isExploreMode}
-        // ✅ treat Launch like Play for showing play/totalizer buttons, explore button, etc.
-        isPlay={isRunMode}
+        isPlay={isPlay}
         // header/meta
         title={title}
         lineColor={lineColor}
         styleBadge={styleBadge}
         statusLabel={statusLabel}
         bindDeviceId={bindDeviceId}
-        // ✅ Settings button opens modal
+        // ✅ NEW: Settings button opens modal
         onOpenSettings={onOpenSettings}
         // ✅ Totalizer display (header)
         totalizerEnabled={singleUnitsEnabled ? false : totEnabled}

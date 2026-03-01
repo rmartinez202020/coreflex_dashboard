@@ -9,16 +9,48 @@ function normalizeLineColor(c) {
   return s || DEFAULT_LINE_COLOR;
 }
 
+// ✅ Detect Launch mode robustly (query, path, hash)
+function detectLaunchMode() {
+  if (typeof window === "undefined") return false;
+
+  const href = String(window.location.href || "").toLowerCase();
+  const path = String(window.location.pathname || "").toLowerCase();
+  const hash = String(window.location.hash || "").toLowerCase();
+
+  // common patterns:
+  // - ?mode=launch
+  // - ?launch=1 / true
+  // - /launch route
+  // - #/launch or contains "launch" in hash
+  try {
+    const url = new URL(window.location.href);
+    const mode = String(url.searchParams.get("mode") || "").toLowerCase();
+    const launch =
+      url.searchParams.get("launch") === "1" ||
+      url.searchParams.get("launch") === "true";
+    if (mode === "launch" || launch) return true;
+  } catch {
+    // ignore
+  }
+
+  if (path.includes("launch")) return true;
+  if (hash.includes("launch")) return true;
+
+  // last resort: any hint in href (still safe)
+  if (href.includes("mode=launch")) return true;
+  if (href.includes("launch=1") || href.includes("launch=true")) return true;
+
+  return false;
+}
+
 export default function GraphicDisplayPanel({
   // mode
   isExploreMode = false,
   isPlay = false,
-
   // header basics
   title = "Graphic Display",
   lineColor: lineColorProp,
   styleBadge = "",
-
   // status pill (already computed in parent)
   statusLabel = {
     text: "--",
@@ -27,31 +59,21 @@ export default function GraphicDisplayPanel({
     border: "rgba(148,163,184,0.35)",
   },
   bindDeviceId = "",
-
-  // ✅ Single Units (NEW)
-  // If enabled:
-  // - Hide Totalizer Controls
-  // - Hide Totalizer box
-  // - Display UNIT badge/box and use it for Output units
   singleUnitsEnabled = false,
   singleUnit = "",
-
   // totalizer (computed in parent GraphicDisplay.jsx)
   totalizerEnabled = false,
   totalizerRateUnit = "",
   totalizerTotalUnit = "",
   totalizerValue = null,
-
   // totalizer controls (parent MUST wire these to persist setting)
   onTotalizerEnable = () => {},
   onTotalizerDisable = () => {},
   onTotalizerReset = () => {},
-
   // (kept for backwards compatibility if parent still passes them; not used now)
   totalizerIsPlaying: _totalizerIsPlayingProp,
   onTotalizerPlay: _onTotalizerPlay,
   onTotalizerPause: _onTotalizerPause,
-
   // ✅ NEW: Settings button handler (parent should open GraphicDisplaySettingsModal)
   onOpenSettings = () => {},
 
@@ -100,8 +122,13 @@ export default function GraphicDisplayPanel({
   // show vector/hover/selection visuals ONLY in Explore IN mode
   const showVectors = !!isExploreMode;
 
+  // ✅ Treat Launch like Play (so controls + unit behaviors match)
+  const isRunMode = useMemo(() => {
+    return !!isPlay || detectLaunchMode();
+  }, [isPlay]);
+
   // ✅ If Single Units is enabled, hide Totalizer Controls
-  const showTotalizerControls = !!isPlay && !singleUnitsEnabled;
+  const showTotalizerControls = !!isRunMode && !singleUnitsEnabled;
 
   // ✅ If Single Units is enabled, totalizer display is suppressed
   const totalizerEnabledEffective = !!totalizerEnabled && !singleUnitsEnabled;
@@ -238,16 +265,20 @@ export default function GraphicDisplayPanel({
     return `Totalizer integrated from ${totalizerRateUnit}`;
   }, [totalizerEnabledEffective, totalizerRateUnit]);
 
-  // ✅ OUTPUT UNIT PRIORITY:
+  // ✅ OUTPUT UNIT PRIORITY (works in Edit + Play + Launch):
   // - If Single Units enabled, show singleUnit
+  // - Else if Totalizer is enabled, show totalizerRateUnit (rate unit)
   // - Else fallback to yUnits
   const outputUnitText = useMemo(() => {
     const su = String(singleUnit || "").trim();
     if (singleUnitsEnabled && su) return su;
 
+    const rateU = String(totalizerRateUnit || "").trim();
+    if (totalizerEnabledEffective && rateU) return rateU;
+
     const u = String(yUnits || "").trim();
     return u ? u : "";
-  }, [singleUnitsEnabled, singleUnit, yUnits]);
+  }, [singleUnitsEnabled, singleUnit, totalizerEnabledEffective, totalizerRateUnit, yUnits]);
 
   const unitBadgeText = useMemo(() => {
     const su = String(singleUnit || "").trim();
@@ -256,7 +287,6 @@ export default function GraphicDisplayPanel({
 
   // ✅ Settings button:
   // - Show ONLY in normal panel (not inside Explore modal)
-  // - Show in both Edit + Play (you decide in parent if it should open modal in Play)
   const showSettingsBtn = !isExploreMode;
 
   return (
@@ -336,7 +366,8 @@ export default function GraphicDisplayPanel({
               </button>
             )}
 
-            {isPlay && (
+            {/* ✅ Explore button in Play OR Launch */}
+            {isRunMode && (
               <button
                 type="button"
                 onClick={onToggleExplore}
@@ -427,7 +458,7 @@ export default function GraphicDisplayPanel({
         {/* LINE between row 1 and row 2 */}
         <div style={{ height: 0, borderTop: FRAME_LINE, width: "100%" }} />
 
-        {/* ROW 2: left = totalizer controls OR (blank), right = output/totallizer/unit boxes */}
+        {/* ROW 2 */}
         <div
           style={{
             marginTop: 10,
@@ -472,7 +503,6 @@ export default function GraphicDisplayPanel({
                   flexWrap: "wrap",
                 }}
               >
-                {/* ENABLE */}
                 <button
                   type="button"
                   onClick={onTotEnableClick}
@@ -491,7 +521,6 @@ export default function GraphicDisplayPanel({
                   ✅ <span>Enable</span>
                 </button>
 
-                {/* DISABLE */}
                 <button
                   type="button"
                   onClick={onTotDisableClick}
@@ -510,7 +539,6 @@ export default function GraphicDisplayPanel({
                   ⛔ <span>Disable</span>
                 </button>
 
-                {/* RESET (only when enabled) */}
                 <button
                   type="button"
                   onClick={onTotResetClick}
