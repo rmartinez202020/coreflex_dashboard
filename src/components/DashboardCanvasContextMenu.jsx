@@ -16,6 +16,12 @@ export default function DashboardCanvasContextMenu({
   onDelete,
   onPaste,
   onClose,
+
+  // ✅ OPTIONAL: if provided, canvas-right-click can show only Undo/Redo
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
 }) {
   const [openScale, setOpenScale] = React.useState(false);
   const closeTimerRef = React.useRef(null);
@@ -37,7 +43,7 @@ export default function DashboardCanvasContextMenu({
   const vh = typeof window !== "undefined" ? window.innerHeight : 99999;
 
   const MENU_W = 180;
-  const MENU_H_EST = 290;
+  const MENU_H_EST = 260;
 
   const left = Math.min(Math.max(8, x), vw - MENU_W - 8);
   const top = Math.min(Math.max(8, y), vh - MENU_H_EST - 8);
@@ -54,7 +60,6 @@ export default function DashboardCanvasContextMenu({
 
   // helper to collect target ids:
   const collectTargetIds = () => {
-    // 1) find selected draggable items in DOM
     const selEls = Array.from(
       document.querySelectorAll(".draggable-item.selected")
     );
@@ -64,8 +69,6 @@ export default function DashboardCanvasContextMenu({
 
     if (selIds.length) return selIds;
 
-    // 2) if nothing selected, try to find element under the menu point
-    // x,y are viewport coords (clientX/clientY)
     const ex = Math.round(x);
     const ey = Math.round(y);
 
@@ -104,7 +107,7 @@ export default function DashboardCanvasContextMenu({
   };
 
   const baseStyle = {
-    position: "fixed", // ✅ KEY FIX: prevents offset issues
+    position: "fixed",
     left,
     top,
     zIndex: 999999,
@@ -128,12 +131,65 @@ export default function DashboardCanvasContextMenu({
     gap: 10,
   };
 
+  const disabledItemStyle = {
+    ...itemStyle,
+    opacity: 0.45,
+    pointerEvents: "none",
+  };
+
   const sepStyle = {
     height: 1,
     background: "rgba(0,0,0,0.06)",
     margin: "6px 0",
   };
 
+  // =====================================================
+  // ✅ EMPTY CANVAS MENU: ONLY Undo / Redo
+  // =====================================================
+  if (!hasTarget) {
+    const hasUndoRedo = typeof onUndo === "function" || typeof onRedo === "function";
+
+    return (
+      <div
+        style={baseStyle}
+        onMouseDown={(e) => e.stopPropagation()}
+        onClick={(e) => e.stopPropagation()}
+      >
+        <div
+          style={canUndo ? itemStyle : disabledItemStyle}
+          onClick={() => {
+            if (!canUndo) return;
+            onUndo?.();
+            onClose?.();
+          }}
+        >
+          <span>Undo</span>
+        </div>
+
+        <div
+          style={canRedo ? itemStyle : disabledItemStyle}
+          onClick={() => {
+            if (!canRedo) return;
+            onRedo?.();
+            onClose?.();
+          }}
+        >
+          <span>Redo</span>
+        </div>
+
+        {/* If undo/redo not wired yet, at least give a close */}
+        {!hasUndoRedo && <div style={sepStyle} />}
+
+        <div style={itemStyle} onClick={() => onClose?.()}>
+          <span>Close</span>
+        </div>
+      </div>
+    );
+  }
+
+  // =====================================================
+  // ✅ TARGET MENU (widget right-click): full menu
+  // =====================================================
   return (
     <div
       style={baseStyle}
@@ -157,7 +213,6 @@ export default function DashboardCanvasContextMenu({
         onMouseEnter={openScaleNow}
         onMouseLeave={closeScaleSoon}
         onClick={(e) => {
-          // ✅ optional: click to toggle (helps touchpads)
           e.stopPropagation();
           setOpenScale((v) => !v);
         }}
@@ -167,14 +222,13 @@ export default function DashboardCanvasContextMenu({
 
         {openScale && (
           <>
-            {/* ✅ Invisible "bridge" so mouse can move to submenu without losing hover */}
             <div
               style={{
                 position: "absolute",
                 left: "100%",
                 top: -6,
-                width: 14, // bridge width
-                height: 42, // covers the Scale row height area
+                width: 14,
+                height: 42,
                 background: "transparent",
               }}
               onMouseEnter={openScaleNow}
@@ -185,8 +239,8 @@ export default function DashboardCanvasContextMenu({
               style={{
                 position: "absolute",
                 left: "100%",
-                top: -6, // align better with row
-                marginLeft: 14, // match bridge width (no gap)
+                top: -6,
+                marginLeft: 14,
                 zIndex: 1000000,
                 background: "white",
                 border: "1px solid rgba(0,0,0,0.12)",
