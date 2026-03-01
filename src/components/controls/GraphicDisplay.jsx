@@ -11,8 +11,6 @@ import useTrendSvg from "./graphicDisplay/hooks/useTrendSvg";
 import useTrendLayout from "./graphicDisplay/hooks/useTrendLayout";
 import GraphicDisplayExplorePortal from "./graphicDisplay/GraphicDisplayExplorePortal";
 import GraphicDisplayPanel from "./graphicDisplay/GraphicDisplayPanel";
-
-// ✅ Settings modal (button opens this)
 import GraphicDisplaySettingsModal from "../GraphicDisplaySettingsModal";
 
 const DEFAULT_LINE_COLOR = "#0c5ac8";
@@ -54,6 +52,40 @@ function normalizeOnlineStatusFromRow(row) {
     return { online: false, label: "OFFLINE" };
 
   return { online: null, label: "--" };
+}
+
+// ✅ Detect Launch mode robustly (query, path, hash)
+function detectLaunchMode() {
+  if (typeof window === "undefined") return false;
+
+  const href = String(window.location.href || "").toLowerCase();
+  const path = String(window.location.pathname || "").toLowerCase();
+  const hash = String(window.location.hash || "").toLowerCase();
+
+  // common patterns:
+  // - ?mode=launch
+  // - ?launch=1 / true
+  // - /launch route
+  // - #/launch or contains "launch" in hash
+  try {
+    const url = new URL(window.location.href);
+    const mode = String(url.searchParams.get("mode") || "").toLowerCase();
+    const launch =
+      url.searchParams.get("launch") === "1" ||
+      url.searchParams.get("launch") === "true";
+    if (mode === "launch" || launch) return true;
+  } catch {
+    // ignore
+  }
+
+  if (path.includes("launch")) return true;
+  if (hash.includes("launch")) return true;
+
+  // last resort: any hint in href (still safe)
+  if (href.includes("mode=launch")) return true;
+  if (href.includes("launch=1") || href.includes("launch=true")) return true;
+
+  return false;
 }
 
 function exportPointsCsv({
@@ -239,6 +271,11 @@ export default function GraphicDisplay({
   // If not provided, we still update locally so the widget reflects the new config.
   onSaveSettings,
 }) {
+  // ✅ Treat Launch like Play (Run mode)
+  const isRunMode = useMemo(() => {
+    return !!isPlay || detectLaunchMode();
+  }, [isPlay]);
+
   // ✅ Local override so Settings changes reflect immediately even if parent saves async
   const [localTank, setLocalTank] = useState(null);
   useEffect(() => {
@@ -268,16 +305,10 @@ export default function GraphicDisplay({
   const lineColor = normalizeLineColor(T?.lineColor);
 
   // ✅ Single Units config saved from modal
-  // IMPORTANT:
-  // - older key: singleUnitsUnit
-  // - NEW modal key: singleUnit
   const tankSingleEnabled = T?.singleUnitsEnabled === true;
-  const tankSingleUnit = String(
-    T?.singleUnitsUnit ?? T?.singleUnit ?? ""
-  ).trim();
+  const tankSingleUnit = String(T?.singleUnitsUnit ?? T?.singleUnit ?? "").trim();
 
-  const [singleUnitsEnabled, setSingleUnitsEnabled] =
-    useState(tankSingleEnabled);
+  const [singleUnitsEnabled, setSingleUnitsEnabled] = useState(tankSingleEnabled);
   const [singleUnitsUnit, setSingleUnitsUnit] = useState(tankSingleUnit);
 
   // ✅ Totalizer config saved from modal
@@ -292,9 +323,7 @@ export default function GraphicDisplay({
   // keep runtime in sync if tank changes (like loading a different widget)
   useEffect(() => {
     const nextSingleEnabled = T?.singleUnitsEnabled === true;
-    const nextSingleUnit = String(
-      T?.singleUnitsUnit ?? T?.singleUnit ?? ""
-    ).trim();
+    const nextSingleUnit = String(T?.singleUnitsUnit ?? T?.singleUnit ?? "").trim();
 
     setSingleUnitsEnabled(nextSingleEnabled);
     setSingleUnitsUnit(nextSingleUnit);
@@ -330,11 +359,8 @@ export default function GraphicDisplay({
   }, [T]);
 
   const dbgKey = useMemo(() => {
-    const widgetId =
-      T?.id ?? T?.widgetId ?? T?.widget_id ?? T?.uuid ?? "";
-    return widgetId
-      ? `widget:${widgetId}`
-      : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
+    const widgetId = T?.id ?? T?.widgetId ?? T?.widget_id ?? T?.uuid ?? "";
+    return widgetId ? `widget:${widgetId}` : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
   }, [T, bindModel, bindDeviceId, bindField]);
 
   function dbg(...args) {
@@ -354,11 +380,8 @@ export default function GraphicDisplay({
   }
 
   const storageKey = useMemo(() => {
-    const widgetId =
-      T?.id ?? T?.widgetId ?? T?.widget_id ?? T?.uuid ?? "";
-    const base = widgetId
-      ? `widget:${widgetId}`
-      : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
+    const widgetId = T?.id ?? T?.widgetId ?? T?.widget_id ?? T?.uuid ?? "";
+    const base = widgetId ? `widget:${widgetId}` : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
     return `coreflex:graphicDisplay:points:${base}`;
   }, [T, bindModel, bindDeviceId, bindField]);
 
@@ -392,6 +415,7 @@ export default function GraphicDisplay({
   useEffect(() => {
     dbg("MOUNT / bind", {
       isPlay,
+      isRunMode,
       isPlaying,
       bindModel,
       bindDeviceId,
@@ -470,9 +494,7 @@ export default function GraphicDisplay({
 
     setPoints(pruned);
 
-    const lastNumeric = [...pruned]
-      .reverse()
-      .find((p) => Number.isFinite(Number(p?.y)));
+    const lastNumeric = [...pruned].reverse().find((p) => Number.isFinite(Number(p?.y)));
     if (lastNumeric) setMathOutput(Number(lastNumeric.y));
   }, [storageKey, bindDeviceId, bindField, windowSize, timeUnit]);
 
@@ -486,8 +508,7 @@ export default function GraphicDisplay({
     saveTimerRef.current = window.setTimeout(() => {
       const pruned = prunePointsByWindow(points, windowSize, timeUnit);
       const limit = Math.max(50, Number(maxPointsRef.current || 200));
-      const finalPoints =
-        pruned.length > limit ? pruned.slice(pruned.length - limit) : pruned;
+      const finalPoints = pruned.length > limit ? pruned.slice(pruned.length - limit) : pruned;
 
       try {
         localStorage.setItem(
@@ -507,21 +528,14 @@ export default function GraphicDisplay({
     return () => {
       if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
     };
-  }, [
-    points,
-    storageKey,
-    bindDeviceId,
-    bindField,
-    windowSize,
-    timeUnit,
-    bindModel,
-  ]);
+  }, [points, storageKey, bindDeviceId, bindField, windowSize, timeUnit, bindModel]);
 
   const lastSampleAtRef = useRef(0);
 
   // ✅ MAIN POLL (telemetryMap sync)
   useEffect(() => {
-    if (!isPlay) return;
+    // ✅ IMPORTANT: Launch must behave like Play
+    if (!isRunMode) return;
     if (!isPlaying) return;
 
     if (!bindDeviceId || !bindField) {
@@ -580,7 +594,7 @@ export default function GraphicDisplay({
       setDeviceOnline(false);
     }
   }, [
-    isPlay,
+    isRunMode,
     isPlaying,
     telemetryMap,
     bindModel,
@@ -592,14 +606,13 @@ export default function GraphicDisplay({
     timeUnit,
   ]);
 
-  const { plotRef, sel, hover, timeTicks, pointsForView, handlers } =
-    usePingZoom({
-      points,
-      yMin: Number(yMin),
-      yMax: Number(yMax),
-      fmtTimeWithDate,
-      hoverAnywhere: exploreOpen, // ✅ ONLY while Explore modal is open (Explore IN)
-    });
+  const { plotRef, sel, hover, timeTicks, pointsForView, handlers } = usePingZoom({
+    points,
+    yMin: Number(yMin),
+    yMax: Number(yMax),
+    fmtTimeWithDate,
+    hoverAnywhere: exploreOpen, // ✅ ONLY while Explore modal is open (Explore IN)
+  });
 
   const { svg } = useTrendSvg({
     points,
@@ -679,17 +692,12 @@ export default function GraphicDisplay({
 
   const onTotalizerReset = () => {
     if (singleUnitsEnabled) return; // Single Units wins
-    // reset means "start accumulating from now"
     const t = Date.now();
     setTotalizerResetAt(t);
     dbg("TOTALIZER: reset from header", { resetAt: t });
   };
 
   // ✅ Unit label used on the chart/UI
-  // Priority:
-  // 1) Single Units enabled -> singleUnitsUnit
-  // 2) Totalizer enabled -> totalizerRateUnit (RATE unit)
-  // 3) fallback -> yUnits
   const displayUnits = useMemo(() => {
     const su = String(singleUnitsUnit || "").trim();
     const yu = String(yUnits || "").trim();
@@ -698,17 +706,10 @@ export default function GraphicDisplay({
     if (singleUnitsEnabled) return su || yu || "";
     if (totEnabled && rateU) return rateU;
     return yu || "";
-  }, [
-    singleUnitsEnabled,
-    singleUnitsUnit,
-    yUnits,
-    totEnabled,
-    totalizerRateUnit,
-  ]);
+  }, [singleUnitsEnabled, singleUnitsUnit, yUnits, totEnabled, totalizerRateUnit]);
 
   // ✅ Settings button handler
   const onOpenSettings = () => {
-    // keep Explore separate (settings is for config)
     setSettingsOpen(true);
     dbg("SETTINGS: open");
   };
@@ -716,17 +717,12 @@ export default function GraphicDisplay({
   // ✅ When modal applies: update local tank + call optional parent saver
   const handleSettingsSave = (nextTank) => {
     setSettingsOpen(false);
-
-    // update local immediately so the widget reflects the new config right away
     setLocalTank(nextTank);
 
-    // if parent gave us a save callback, call it
     if (typeof onSaveSettings === "function") {
       onSaveSettings(nextTank);
       return;
     }
-
-    // fallback: if tank carries a callable save/update handler (some builds do this), use it
     if (typeof tank?.onSave === "function") {
       tank.onSave(nextTank);
       return;
@@ -736,7 +732,6 @@ export default function GraphicDisplay({
       return;
     }
 
-    // last fallback: just keep local override
     // eslint-disable-next-line no-console
     console.warn(
       "[GraphicDisplay] Settings saved locally, but no parent onSaveSettings / tank.onSave handler was found."
@@ -748,25 +743,26 @@ export default function GraphicDisplay({
       <GraphicDisplayPanel
         // mode
         isExploreMode={isExploreMode}
-        isPlay={isPlay}
+        // ✅ IMPORTANT: pass run-mode to panel (launch behaves like play)
+        isPlay={isRunMode}
         // header/meta
         title={title}
         lineColor={lineColor}
         styleBadge={styleBadge}
         statusLabel={statusLabel}
         bindDeviceId={bindDeviceId}
-        // ✅ NEW: Settings button opens modal
+        // settings
         onOpenSettings={onOpenSettings}
-        // ✅ Totalizer display (header)
+        // totalizer display (header)
         totalizerEnabled={singleUnitsEnabled ? false : totEnabled}
         totalizerRateUnit={totalizerRateUnit}
         totalizerTotalUnit={totalizerTotalUnit}
         totalizerValue={totalizerValue}
-        // ✅ Totalizer header controls (Enable/Disable/Reset)
+        // totalizer header controls
         onTotalizerEnable={onTotalizerEnable}
         onTotalizerDisable={onTotalizerDisable}
         onTotalizerReset={onTotalizerReset}
-        // ✅ Single Units
+        // single units
         singleUnitsEnabled={singleUnitsEnabled}
         singleUnit={singleUnitsUnit}
         // controls
@@ -790,7 +786,7 @@ export default function GraphicDisplay({
         windowSize={windowSize}
         yMin={yMin}
         yMax={yMax}
-        // ✅ Use displayUnits so Single Units wins (and Totalizer uses RATE unit)
+        // units
         yUnits={displayUnits}
         // layout/plot
         gridBackground={gridBackground}
@@ -811,7 +807,7 @@ export default function GraphicDisplay({
 
   return (
     <>
-      {/* ✅ Settings Modal (opened by the new Settings button) */}
+      {/* ✅ Settings Modal */}
       <GraphicDisplaySettingsModal
         open={settingsOpen}
         tank={T}
@@ -820,7 +816,7 @@ export default function GraphicDisplay({
         onSave={handleSettingsSave}
       />
 
-      {/* ✅ Use portal: normal view uses buildPanel(false), modal uses buildPanel(true) */}
+      {/* ✅ Explore Portal */}
       <GraphicDisplayExplorePortal
         open={exploreOpen}
         onClose={() => setExploreOpen(false)}
