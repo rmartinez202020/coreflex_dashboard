@@ -540,6 +540,11 @@ const deleteSelectionOrTarget = useCallback(() => {
           onDelete={deleteSelectionOrTarget}
           onPaste={pasteAtContext}
           onClose={hideContextMenu}
+          canUndo={canUndo}
+          canRedo={canRedo}
+          onUndo={handleUndo}
+          onRedo={handleRedo}
+
         />
 
         {activePage === "home" ? (
