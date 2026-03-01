@@ -134,9 +134,6 @@ export default function GraphicDisplayPanel({
   const totalizerEnabledEffective = !!totalizerEnabled && !singleUnitsEnabled;
 
   // wrappers: stop propagation but still call hook handlers
-  // IMPORTANT FIX:
-  // - Stop propagation on Down/Move so the widget doesn't drag while interacting with the plot.
-  // - Do NOT stop propagation on Up/Cancel so parent drag/resize can end the gesture cleanly.
   const onPointerMove = (e) => {
     e.stopPropagation();
     handlers?.onPointerMove?.(e);
@@ -183,7 +180,6 @@ export default function GraphicDisplayPanel({
     opacity: 0.55,
   };
 
-  // Bigger Output / Totallizer / Unit
   const bigStatBoxStyle = {
     height: 40,
     display: "inline-flex",
@@ -218,10 +214,8 @@ export default function GraphicDisplayPanel({
     whiteSpace: "nowrap",
   };
 
-  // Totalizer controls section title (professional)
   const totalizerSectionTitle = "Totalizer Controls";
 
-  // Totalizer header buttons (Enable/Disable/Reset) — same vibe as modal
   const totBtnBase = {
     height: 32,
     padding: "0 14px",
@@ -265,10 +259,10 @@ export default function GraphicDisplayPanel({
     return `Totalizer integrated from ${totalizerRateUnit}`;
   }, [totalizerEnabledEffective, totalizerRateUnit]);
 
-  // ✅ OUTPUT UNIT PRIORITY (works in Edit + Play + Launch):
-  // - If Single Units enabled, show singleUnit
-  // - Else if Totalizer is enabled, show totalizerRateUnit (rate unit)
-  // - Else fallback to yUnits
+  // ✅ OUTPUT UNIT PRIORITY:
+  // - Single Units -> singleUnit
+  // - Totalizer enabled -> totalizerRateUnit
+  // - fallback -> yUnits
   const outputUnitText = useMemo(() => {
     const su = String(singleUnit || "").trim();
     if (singleUnitsEnabled && su) return su;
@@ -278,7 +272,13 @@ export default function GraphicDisplayPanel({
 
     const u = String(yUnits || "").trim();
     return u ? u : "";
-  }, [singleUnitsEnabled, singleUnit, totalizerEnabledEffective, totalizerRateUnit, yUnits]);
+  }, [
+    singleUnitsEnabled,
+    singleUnit,
+    totalizerEnabledEffective,
+    totalizerRateUnit,
+    yUnits,
+  ]);
 
   const unitBadgeText = useMemo(() => {
     const su = String(singleUnit || "").trim();
@@ -286,8 +286,9 @@ export default function GraphicDisplayPanel({
   }, [singleUnitsEnabled, singleUnit]);
 
   // ✅ Settings button:
-  // - Show ONLY in normal panel (not inside Explore modal)
-  const showSettingsBtn = !isExploreMode;
+  // - Show ONLY in normal panel (not Explore)
+  // - Hide in Play + Launch (Run mode)
+  const showSettingsBtn = !isExploreMode && !isRunMode;
 
   return (
     <div
@@ -354,7 +355,7 @@ export default function GraphicDisplayPanel({
               paddingBottom: 2,
             }}
           >
-            {/* ✅ NEW SETTINGS BUTTON */}
+            {/* ✅ SETTINGS (HIDDEN in Play + Launch) */}
             {showSettingsBtn && (
               <button
                 type="button"
@@ -366,7 +367,7 @@ export default function GraphicDisplayPanel({
               </button>
             )}
 
-            {/* ✅ Explore button in Play OR Launch */}
+            {/* Explore button in Play OR Launch */}
             {isRunMode && (
               <button
                 type="button"
@@ -402,7 +403,6 @@ export default function GraphicDisplayPanel({
               ⏸ <span>Pause</span>
             </button>
 
-            {/* ✅ RENAMED BUTTON */}
             <button
               type="button"
               onClick={onExport}
@@ -455,7 +455,6 @@ export default function GraphicDisplayPanel({
           </div>
         </div>
 
-        {/* LINE between row 1 and row 2 */}
         <div style={{ height: 0, borderTop: FRAME_LINE, width: "100%" }} />
 
         {/* ROW 2 */}
@@ -471,7 +470,7 @@ export default function GraphicDisplayPanel({
             minWidth: 0,
           }}
         >
-          {/* LEFT: Totalizer Controls (ONLY in Play/Launch AND only when Single Units disabled) */}
+          {/* LEFT: Totalizer Controls */}
           {showTotalizerControls ? (
             <div
               style={{
@@ -492,7 +491,7 @@ export default function GraphicDisplayPanel({
                 }}
                 title="Totalizer controls"
               >
-                {totalizerSectionTitle}
+                Totalizer Controls
               </div>
 
               <div
@@ -595,7 +594,6 @@ export default function GraphicDisplayPanel({
               ) : null}
             </div>
 
-            {/* ✅ Show UNIT box only when Single Units enabled */}
             {unitBadgeText ? (
               <div style={bigStatBoxStyle} title="Single Unit">
                 <span
@@ -614,7 +612,6 @@ export default function GraphicDisplayPanel({
               </div>
             ) : null}
 
-            {/* ✅ Totalizer box only when totalizer is enabled AND Single Units is disabled */}
             {totalizerEnabledEffective ? (
               <div style={bigStatBoxStyle} title={totalTitle}>
                 <span
@@ -635,7 +632,6 @@ export default function GraphicDisplayPanel({
           </div>
         </div>
 
-        {/* splitter line below row 2 */}
         <div style={{ height: 0, borderTop: FRAME_LINE, width: "100%" }} />
 
         {/* info row */}
