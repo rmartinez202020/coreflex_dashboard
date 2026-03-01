@@ -5,24 +5,6 @@ import useUndoRedo from "./useUndoRedo";
 /**
  * useDashboardHistory
  * Wraps useUndoRedo + keeps all history-related refs in ONE place.
- *
- * You pass it:
- *  - activePage, dashboardMode
- *  - droppedTanks state (array) + droppedRef (ref) so we avoid stale snapshots
- *  - setDroppedTanks (so undo/redo can apply snapshots)
- *  - clearSelection (so undo/redo clears selected objects)
- *
- * It returns:
- *  - canUndo, canRedo
- *  - handleUndo(), handleRedo()
- *  - hardResetHistory(arr)     // use after Save / Restore / Switch dashboards
- *  - pushSnapshot(arr)         // manual push when you want
- *  - onDragMoveBegin()         // call once at first drag move (push BEFORE snapshot)
- *  - onDragEndCommit()         // call after drag end (push AFTER snapshot)
- *  - beginRestore(), endRestore()
- *
- * NOTE:
- * - App.jsx should NOT manage history refs anymore.
  */
 export default function useDashboardHistory({
   limit = 6,
@@ -43,7 +25,7 @@ export default function useDashboardHistory({
   // avoids pushing the initial empty snapshot twice
   const hasUndoInitRef = useRef(false);
 
-  // blocks snapshot effect while dragging objects
+  // blocks snapshot effect while dragging objects / scaling
   const isObjectDraggingRef = useRef(false);
 
   // prevents duplicate undo snapshots
@@ -55,12 +37,13 @@ export default function useDashboardHistory({
   // blocks snapshot pushes while restoring from DB
   const isRestoringRef = useRef(false);
 
-  // drag flags (kept here so App.jsx is not full of refs)
+  // drag flags
   const dragStartedRef = useRef(false);
   const dragStartPushedRef = useRef(false);
 
-  // ✅ scale flags (avoid duplicate commits while multiple widgets receive the same event)
+  // ✅ scale flags
   const scaleInFlightRef = useRef(false);
+  const scaleTimerRef = useRef(null);
 
   // ----------------------------------------
   // ✅ History auto-push effect (when NOT dragging)
@@ -72,7 +55,7 @@ export default function useDashboardHistory({
     // do not snapshot while restoring
     if (isRestoringRef.current) return;
 
-    // do not snapshot while dragging
+    // do not snapshot while dragging/scaling
     if (isObjectDraggingRef.current) return;
 
     const snapshot = JSON.stringify(droppedTanks || []);
@@ -119,21 +102,21 @@ export default function useDashboardHistory({
       baselineSnapshotRef.current = snap;
       lastPushedSnapshotRef.current = snap;
 
-      // fully reset stacks
       reset();
 
-      // seed baseline snapshot
       skipHistoryPushRef.current = true;
       hasUndoInitRef.current = true;
       push(safeArr);
 
-      // also reset drag state
+      // reset drag state
       isObjectDraggingRef.current = false;
       dragStartedRef.current = false;
       dragStartPushedRef.current = false;
 
       // reset scale state
       scaleInFlightRef.current = false;
+      if (scaleTimerRef.current) clearTimeout(scaleTimerRef.current);
+      scaleTimerRef.current = null;
     },
     [push, reset]
   );
@@ -153,21 +136,17 @@ export default function useDashboardHistory({
   );
 
   // ----------------------------------------
-  // ✅ Drag helpers (this removes drag-history code from App.jsx)
+  // ✅ Drag helpers
   // ----------------------------------------
   const onDragMoveBegin = useCallback(() => {
     if (activePage !== "dashboard") return;
     if (dashboardMode !== "edit") return;
     if (isRestoringRef.current) return;
 
-    // first time we detect dragging in this action
     if (!dragStartedRef.current) {
       dragStartedRef.current = true;
-
-      // block auto snapshot effect during drag
       isObjectDraggingRef.current = true;
 
-      // push BEFORE-drag snapshot ONCE
       if (!dragStartPushedRef.current) {
         const beforeArr = deepClone(droppedRef?.current || []);
         const beforeSnap = JSON.stringify(beforeArr);
@@ -185,19 +164,15 @@ export default function useDashboardHistory({
   const onDragEndCommit = useCallback(() => {
     if (activePage !== "dashboard") return;
 
-    // commit AFTER drag (end of action) once DOM/state settled
     setTimeout(() => {
       const afterArr = deepClone(droppedRef?.current || []);
       const afterSnap = JSON.stringify(afterArr);
 
-      // unblock auto snapshot effect
       isObjectDraggingRef.current = false;
 
-      // reset drag flags
       dragStartedRef.current = false;
       dragStartPushedRef.current = false;
 
-      // push only if changed
       if (afterSnap !== lastPushedSnapshotRef.current) {
         lastPushedSnapshotRef.current = afterSnap;
         push(afterArr);
@@ -206,7 +181,9 @@ export default function useDashboardHistory({
   }, [activePage, droppedRef, push]);
 
   // ----------------------------------------
-  // ✅ NEW: Scale commits should be undoable (multi-select scale)
+  // ✅ NEW: Scale commits should be undoable
+  // - We PUSH before immediately
+  // - Then we WAIT until droppedRef reflects the new scales
   // ----------------------------------------
   useEffect(() => {
     const onScale = () => {
@@ -214,34 +191,66 @@ export default function useDashboardHistory({
       if (dashboardMode !== "edit") return;
       if (isRestoringRef.current) return;
 
-      // prevent duplicate commits while each widget receives the same event
+      // prevent duplicate commits from the same action
       if (scaleInFlightRef.current) return;
       scaleInFlightRef.current = true;
 
-      // push BEFORE snapshot (current state)
+      // block auto snapshot while we commit this action
+      isObjectDraggingRef.current = true;
+
       const beforeArr = deepClone(droppedRef?.current || []);
       const beforeSnap = JSON.stringify(beforeArr);
+
       if (beforeSnap !== lastPushedSnapshotRef.current) {
         lastPushedSnapshotRef.current = beforeSnap;
         push(beforeArr);
       }
 
-      // push AFTER snapshot on next tick after updates apply
-      setTimeout(() => {
+      // Poll for updated ref (App updates droppedRef in useEffect)
+      const start = Date.now();
+      const maxMs = 600; // safety
+      const intervalMs = 30;
+
+      const poll = () => {
         const afterArr = deepClone(droppedRef?.current || []);
         const afterSnap = JSON.stringify(afterArr);
 
-        if (afterSnap !== lastPushedSnapshotRef.current) {
-          lastPushedSnapshotRef.current = afterSnap;
-          push(afterArr);
+        const changed = afterSnap !== beforeSnap;
+
+        if (changed) {
+          if (afterSnap !== lastPushedSnapshotRef.current) {
+            lastPushedSnapshotRef.current = afterSnap;
+            push(afterArr);
+          }
+
+          // unblock
+          isObjectDraggingRef.current = false;
+          scaleInFlightRef.current = false;
+          scaleTimerRef.current = null;
+          return;
         }
 
-        scaleInFlightRef.current = false;
-      }, 0);
+        if (Date.now() - start > maxMs) {
+          // give up but unblock (prevents locking history)
+          isObjectDraggingRef.current = false;
+          scaleInFlightRef.current = false;
+          scaleTimerRef.current = null;
+          return;
+        }
+
+        scaleTimerRef.current = setTimeout(poll, intervalMs);
+      };
+
+      // start polling slightly later
+      scaleTimerRef.current = setTimeout(poll, intervalMs);
     };
 
     window.addEventListener("coreflex-scale", onScale);
-    return () => window.removeEventListener("coreflex-scale", onScale);
+    return () => {
+      window.removeEventListener("coreflex-scale", onScale);
+      if (scaleTimerRef.current) clearTimeout(scaleTimerRef.current);
+      scaleTimerRef.current = null;
+    };
   }, [activePage, dashboardMode, droppedRef, push]);
 
   // ----------------------------------------
@@ -250,26 +259,24 @@ export default function useDashboardHistory({
   const beginRestore = useCallback(() => {
     isRestoringRef.current = true;
 
-    // hard reset undo state BEFORE touching droppedTanks
     hasUndoInitRef.current = false;
     reset();
     lastPushedSnapshotRef.current = "";
     baselineSnapshotRef.current = "";
     skipHistoryPushRef.current = true;
 
-    // also stop drag mode
     isObjectDraggingRef.current = false;
     dragStartedRef.current = false;
     dragStartPushedRef.current = false;
 
-    // stop scale mode
     scaleInFlightRef.current = false;
+    if (scaleTimerRef.current) clearTimeout(scaleTimerRef.current);
+    scaleTimerRef.current = null;
   }, [reset]);
 
   const endRestore = useCallback(() => {
     isRestoringRef.current = false;
 
-    // let next real edit push snapshots normally
     setTimeout(() => {
       skipHistoryPushRef.current = false;
     }, 0);
@@ -283,7 +290,6 @@ export default function useDashboardHistory({
 
     const current = deepClone(droppedRef?.current || []);
 
-    // stop if at baseline
     if (JSON.stringify(current || []) === baselineSnapshotRef.current) return;
 
     let res = undo();
@@ -333,15 +339,12 @@ export default function useDashboardHistory({
     hardResetHistory,
     pushSnapshot,
 
-    // ✅ NEW: use these in App.jsx drag wrappers
     onDragMoveBegin,
     onDragEndCommit,
 
-    // ✅ NEW: use these in App.jsx restore flow
     beginRestore,
     endRestore,
 
-    // (optional) expose refs if you still need them temporarily
     refs: {
       skipHistoryPushRef,
       hasUndoInitRef,
