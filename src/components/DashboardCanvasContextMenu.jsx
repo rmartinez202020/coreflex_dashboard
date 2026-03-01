@@ -2,7 +2,8 @@
 import React from "react";
 import { SCALE_MIN, SCALE_MAX } from "../config/scaleLimits";
 
-const SCALE_PRESETS = [0.25, 0.5, 0.75, 1, 1.25, 1.5, 1.75, 2];
+// ✅ Updated presets (removed 1x, adjusted multipliers)
+const SCALE_PRESETS = [0.75, 0.8, 0.85, 0.9, 1.1, 1.15, 1.2, 1.25];
 
 export default function DashboardCanvasContextMenu({
   show,
@@ -147,7 +148,8 @@ export default function DashboardCanvasContextMenu({
   // ✅ EMPTY CANVAS MENU: ONLY Undo / Redo
   // =====================================================
   if (!hasTarget) {
-    const hasUndoRedo = typeof onUndo === "function" || typeof onRedo === "function";
+    const hasUndoRedo =
+      typeof onUndo === "function" || typeof onRedo === "function";
 
     return (
       <div
