@@ -1,101 +1,39 @@
-import { useState, useRef, useEffect, useMemo } from "react";
+import { useState, useRef, useEffect } from "react";
 import { useDraggable } from "@dnd-kit/core";
-
-// ✅ Convert anything to 0/1 (for status)
-function to01(v) {
-  if (v === undefined || v === null) return null;
-  if (typeof v === "boolean") return v ? 1 : 0;
-  if (typeof v === "number") return v > 0 ? 1 : 0;
-  const s = String(v).trim().toLowerCase();
-  if (s === "1" || s === "true" || s === "on" || s === "yes") return 1;
-  if (s === "0" || s === "false" || s === "off" || s === "no") return 0;
-  const n = Number(s);
-  if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
-  return null;
-}
 
 export default function DraggableTextBox({
   tank,
   onUpdate,
   onSelect,
-  onRightClick,
-  onDoubleClick,
+  onRightClick, // ✅ NEW
+  onDoubleClick, // ✅ optional (if parent wants)
   selected,
   selectedIds = [],
   dragDelta = { x: 0, y: 0 },
-  dashboardMode = "edit",
+  dashboardMode = "edit", // ✅ optional (defaults edit)
 }) {
   if (!tank) return null;
 
-  // ✅ Runtime modes = only these should react to live status
-  const isRuntime =
-    dashboardMode === "play" ||
-    dashboardMode === "launch" ||
-    dashboardMode === "launched";
-
+  const isPlay = dashboardMode === "play";
   const safeOnUpdate = typeof onUpdate === "function" ? onUpdate : () => {};
 
   const [showEditor, setShowEditor] = useState(false);
-
-  // ✅ Local editable style state (design-time)
   const [text, setText] = useState(tank.text || "Text...");
   const [fontSize, setFontSize] = useState(tank.fontSize || 16);
   const [color, setColor] = useState(tank.color || "#000000");
   const [borderColor, setBorderColor] = useState(tank.borderColor || "#000000");
 
   const [isResizing, setIsResizing] = useState(false);
-  const [resizeDir, setResizeDir] = useState(null);
+  const [resizeDir, setResizeDir] = useState(null); // "left" | "right" | "top" | "bottom"
   const startRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
 
   const width = tank.width || 150;
   const height = tank.height || 50;
 
-  // ✅ IMPORTANT: Freeze design-time text so Edit NEVER changes
-  // even if parent updates tank.text from telemetry.
-  const designTextRef = useRef(tank.text || "Text...");
-
-  // ✅ Reset designTextRef only when switching to a DIFFERENT widget id
-  const lastIdRef = useRef(tank.id);
-  useEffect(() => {
-    if (lastIdRef.current !== tank.id) {
-      lastIdRef.current = tank.id;
-      designTextRef.current = tank.text || "Text...";
-      setText(tank.text || "Text...");
-      setFontSize(tank.fontSize || 16);
-      setColor(tank.color || "#000000");
-      setBorderColor(tank.borderColor || "#000000");
-    }
-  }, [tank.id]); // intentionally only tank.id
-
-  // ✅ What to show on the box
-  const displayText = useMemo(() => {
-    // EDIT MODE: always show frozen design text (never live)
-    if (!isRuntime) return designTextRef.current;
-
-    // RUNTIME: show ON/OFF based on live value if available
-    const raw =
-      tank.statusValue ?? tank.value ?? tank.liveValue ?? tank.tagValue ?? null;
-
-    const v01 = to01(raw);
-    if (v01 === null) return designTextRef.current;
-
-    const onTxt = tank.onText ?? "ON";
-    const offTxt = tank.offText ?? "OFF";
-    return v01 ? onTxt : offTxt;
-  }, [
-    isRuntime,
-    tank.statusValue,
-    tank.value,
-    tank.liveValue,
-    tank.tagValue,
-    tank.onText,
-    tank.offText,
-  ]);
-
-  // ✅ Disable drag while runtime OR editor open OR resizing
+  // ✅ If editor is open or resizing or play mode: disable DnD to avoid fighting
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: tank.id,
-    disabled: isRuntime || showEditor || isResizing,
+    disabled: isPlay || showEditor || isResizing,
   });
 
   const baseTransform = transform
@@ -109,6 +47,7 @@ export default function DraggableTextBox({
     ? `translate(${dragDelta.x}px, ${dragDelta.y}px)`
     : baseTransform;
 
+  // ✅ FIX: prefer new z, fallback to legacy zIndex
   const resolvedZ = tank.z ?? tank.zIndex ?? 1;
 
   const style = {
@@ -123,15 +62,16 @@ export default function DraggableTextBox({
     border: selected ? "2px solid #2563eb" : `2px solid ${borderColor}`,
     background: "white",
     padding: 4,
-    cursor: isRuntime ? "default" : isResizing ? "default" : "move",
+    cursor: isPlay ? "default" : isResizing ? "default" : "move",
     userSelect: "none",
     zIndex: resolvedZ,
   };
 
+  // Start resize
   const startResize = (dir, e) => {
     e.stopPropagation();
     e.preventDefault();
-    if (isRuntime) return;
+    if (isPlay) return;
 
     setIsResizing(true);
     setResizeDir(dir);
@@ -144,6 +84,7 @@ export default function DraggableTextBox({
     };
   };
 
+  // Resize logic
   useEffect(() => {
     const handleMove = (e) => {
       if (!isResizing || !resizeDir) return;
@@ -195,12 +136,9 @@ export default function DraggableTextBox({
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", stopMove);
     };
-  }, [isResizing, resizeDir, safeOnUpdate, tank, width, height]);
+  }, [isResizing, resizeDir, safeOnUpdate, tank]);
 
   const applyChanges = () => {
-    // ✅ Update frozen design text (so Edit keeps this)
-    designTextRef.current = text;
-
     safeOnUpdate({
       ...tank,
       text,
@@ -210,7 +148,6 @@ export default function DraggableTextBox({
       width,
       height,
     });
-
     setShowEditor(false);
   };
 
@@ -219,30 +156,35 @@ export default function DraggableTextBox({
       <div
         className="draggable-item"
         ref={setNodeRef}
-        {...(!isRuntime ? listeners : {})}
+        {...(!isPlay ? listeners : {})}
         {...attributes}
         style={style}
         onClick={(e) => {
           e.stopPropagation();
-          if (isRuntime) return;
+          if (isPlay) return;
           onSelect?.(tank.id);
         }}
         onDoubleClick={(e) => {
           e.stopPropagation();
-          if (isRuntime) return;
+          if (isPlay) return;
           onSelect?.(tank.id);
           setShowEditor(true);
           onDoubleClick?.(tank);
         }}
+        // ✅ FIX: OPEN YOUR CONTEXT MENU
         onContextMenu={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          if (isRuntime) return;
+          if (isPlay) return;
 
+          // select the object first (nice UX)
           onSelect?.(tank.id);
+
+          // forward event to App.jsx context menu handler
           onRightClick?.(e);
         }}
       >
+        {/* TEXT */}
         <div
           style={{
             width: "100%",
@@ -250,17 +192,14 @@ export default function DraggableTextBox({
             fontSize,
             color,
             overflow: "hidden",
-            pointerEvents: "none",
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "center",
-            fontWeight: tank.fontWeight ?? 800,
+            pointerEvents: "none", // ✅ prevents inner div from stealing right-click/drag
           }}
         >
-          {displayText}
+          {text}
         </div>
 
-        {!isRuntime && (
+        {/* ⭐ 4px invisible resize edges ⭐ */}
+        {!isPlay && (
           <>
             <div
               onMouseDown={(e) => startResize("left", e)}
@@ -333,7 +272,8 @@ export default function DraggableTextBox({
         )}
       </div>
 
-      {showEditor && !isRuntime && (
+      {/* EDITOR POPUP */}
+      {showEditor && !isPlay && (
         <div
           style={{
             position: "absolute",
@@ -343,7 +283,7 @@ export default function DraggableTextBox({
             border: "1px solid #ccc",
             padding: 18,
             borderRadius: 10,
-            zIndex: 999999,
+            zIndex: 999999, // ✅ above everything
             width: 260,
             boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
           }}

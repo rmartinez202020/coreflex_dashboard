@@ -13,6 +13,10 @@ import { getToken } from "../../utils/authToken";
  * - Polls backend every 3 seconds (like Indicator Light)
  * - Shows OFF/ON text based on live value (0/1)
  * - Still stays a TEXT ONLY widget (no dot)
+ *
+ * ✅ NEW FIX (Platform Creation 116):
+ * - Only changes status in PLAY / LAUNCH / LAUNCHED
+ * - In EDIT, it stays frozen (no polling)
  */
 
 // ✅ Model meta (must match backend routers)
@@ -78,6 +82,9 @@ export default function DraggableStatusTextBox({
   // Canvas mode
   tank,
 
+  // ✅ NEW: mode from dashboard (edit/play/launch/launched)
+  dashboardMode = "edit",
+
   // Palette mode
   label = "Status Text Box",
   onDragStart,
@@ -94,24 +101,28 @@ export default function DraggableStatusTextBox({
   };
 
   // =========================
-  // ✅ CANVAS MODE (LIVE)
+  // ✅ CANVAS MODE
   // =========================
   if (tank) {
     const w = tank.w ?? tank.width ?? payload.w;
     const h = tank.h ?? tank.height ?? payload.h;
+
+    // ✅ Runtime modes (ONLY these can change live)
+    const isRuntime =
+      dashboardMode === "play" ||
+      dashboardMode === "launch" ||
+      dashboardMode === "launched";
 
     // OFF/ON text logic
     const offText = String(tank.properties?.offText ?? "");
     const onText = String(tank.properties?.onText ?? "");
 
     const legacyText =
-      tank.text ??
-      tank.properties?.text ??
-      tank.properties?.label ??
-      payload.text;
+      tank.text ?? tank.properties?.text ?? tank.properties?.label ?? payload.text;
 
     // Tag binding
-    const tagModelRaw = String(tank.properties?.tag?.model || "zhc1921").trim() || "zhc1921";
+    const tagModelRaw =
+      String(tank.properties?.tag?.model || "zhc1921").trim() || "zhc1921";
     const tagModel = MODEL_META[tagModelRaw] ? tagModelRaw : "zhc1921";
     const deviceId = String(tank.properties?.tag?.deviceId || "").trim();
     const field = String(tank.properties?.tag?.field || "").trim();
@@ -128,11 +139,23 @@ export default function DraggableStatusTextBox({
     const textAlign = tank.properties?.textAlign ?? "center";
     const textTransform = tank.properties?.textTransform ?? "none";
 
-    // ✅ Telemetry polling
+    // ✅ Saved design-time state (freeze in EDIT)
+    // (Your modal can store this; fallback to tank.properties.value if present)
+    const savedIsOn = !!(
+      tank.properties?.savedIsOn ??
+      tank.properties?.isOn ??
+      tank.properties?.value ??
+      false
+    );
+
+    // ✅ Telemetry state (runtime only)
     const [telemetryRow, setTelemetryRow] = React.useState(null);
     const telemetryRef = React.useRef({ loading: false });
 
     const fetchTelemetryRow = React.useCallback(async () => {
+      // ✅ DO NOT POLL in EDIT
+      if (!isRuntime) return;
+
       if (!deviceId) {
         setTelemetryRow(null);
         return;
@@ -161,7 +184,8 @@ export default function DraggableStatusTextBox({
         const data = await res.json();
         const list = Array.isArray(data) ? data : [];
         const row =
-          list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === deviceId) || null;
+          list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === deviceId) ||
+          null;
 
         setTelemetryRow(row);
       } catch {
@@ -169,16 +193,22 @@ export default function DraggableStatusTextBox({
       } finally {
         telemetryRef.current.loading = false;
       }
-    }, [deviceId, tagModel]);
+    }, [deviceId, tagModel, isRuntime]);
 
     React.useEffect(() => {
+      // ✅ When leaving runtime, clear live state (so Edit won't reflect old live)
+      if (!isRuntime) {
+        setTelemetryRow(null);
+        return;
+      }
+
       fetchTelemetryRow();
       const t = setInterval(() => {
         if (document.hidden) return;
         fetchTelemetryRow();
       }, 3000);
       return () => clearInterval(t);
-    }, [fetchTelemetryRow]);
+    }, [fetchTelemetryRow, isRuntime]);
 
     const deviceStatus = React.useMemo(() => {
       return String(telemetryRow?.status || "").trim().toLowerCase();
@@ -198,6 +228,12 @@ export default function DraggableStatusTextBox({
       const safeOff = (offText || legacyText || "OFF").toString();
       const safeOn = (onText || legacyText || "ON").toString();
 
+      // ✅ EDIT: frozen (no live)
+      if (!isRuntime) {
+        return savedIsOn ? safeOn : safeOff;
+      }
+
+      // ✅ RUNTIME: live rules
       if (!deviceId || !field) return safeOff;
       if (!deviceIsOnline) return safeOff;
       if (backendTagValue === undefined || backendTagValue === null) return safeOff;
@@ -210,6 +246,8 @@ export default function DraggableStatusTextBox({
       offText,
       onText,
       legacyText,
+      isRuntime,
+      savedIsOn,
       deviceId,
       field,
       deviceIsOnline,
@@ -220,9 +258,15 @@ export default function DraggableStatusTextBox({
     const titleText = React.useMemo(() => {
       if (!deviceId || !field) return displayText;
       const base = MODEL_META[tagModel]?.base || "zhc1921";
+
+      // In edit, don't expose live v/status because it's frozen anyway
+      if (!isRuntime) return `${displayText} • (edit mode)`;
+
       const v = backendTagValue === undefined ? "—" : String(backendTagValue);
-      return `${displayText} • ${base}/${deviceId}/${field} • status=${deviceStatus || "—"} • v=${v}`;
-    }, [displayText, deviceId, field, tagModel, backendTagValue, deviceStatus]);
+      return `${displayText} • ${base}/${deviceId}/${field} • status=${
+        deviceStatus || "—"
+      } • v=${v}`;
+    }, [displayText, deviceId, field, tagModel, backendTagValue, deviceStatus, isRuntime]);
 
     return (
       <div
