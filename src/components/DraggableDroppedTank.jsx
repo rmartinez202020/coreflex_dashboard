@@ -1,5 +1,7 @@
+// src/components/DraggableDroppedTank.jsx
 import { useDraggable } from "@dnd-kit/core";
 import { useState, useEffect, useCallback, useRef } from "react";
+import { SCALE_MIN, SCALE_MAX } from "../config/scaleLimits"; // adjust path if you put config elsewhere
 
 export default function DraggableDroppedTank({
   tank,
@@ -34,6 +36,36 @@ export default function DraggableDroppedTank({
     },
     [setNodeRef]
   );
+
+  // ---------- Scale event listener ----------
+  useEffect(() => {
+    const handler = (ev) => {
+      try {
+        const detail = ev?.detail || {};
+        const ids = Array.isArray(detail?.ids) ? detail.ids.filter(Boolean) : [];
+        const scaleValue = Number(detail?.scale || NaN);
+        if (!Number.isFinite(scaleValue)) return;
+
+        // if this widget id is targeted, update it via onUpdate
+        const wid = String(tank?.id || "").trim();
+        if (!wid) return;
+
+        if (ids.includes(wid)) {
+          // clamp
+          const clamped = Math.min(SCALE_MAX, Math.max(SCALE_MIN, scaleValue));
+          // only update if changed
+          if (Number(tank?.scale || 1) !== clamped) {
+            onUpdate?.({ ...tank, scale: clamped });
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+    };
+
+    window.addEventListener("coreflex-scale", handler);
+    return () => window.removeEventListener("coreflex-scale", handler);
+  }, [tank, onUpdate]);
 
   const startResize = (e) => {
     e.stopPropagation();
@@ -198,6 +230,7 @@ export default function DraggableDroppedTank({
     <div
       ref={setRefs}
       className="draggable-item"
+      data-widget-id={String(tank.id)}
       style={outerStyle}
       {...attributes}
       {...(!isPlay ? dragListeners : {})}
