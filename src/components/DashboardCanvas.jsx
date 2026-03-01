@@ -27,25 +27,37 @@ import {
   DraggableCounterInput,
 } from "./indicators";
 import useDashboardTelemetryPoller from "../hooks/useDashboardTelemetryPoller";
+import useMultiSelectClick from "../hooks/useMultiSelectClick";
 
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-function resolveDashboardId({ activeDashboardId, dashboardId, selectedTank, droppedTanks }) {
+function resolveDashboardId({
+  activeDashboardId,
+  dashboardId,
+  selectedTank,
+  droppedTanks,
+}) {
   const z = String(activeDashboardId || "").trim();
   if (z) return z;
 
   const a = String(dashboardId || "").trim();
   if (a) return a;
 
-  const b = String(selectedTank?.dashboard_id || selectedTank?.dashboardId || "").trim();
+  const b = String(
+    selectedTank?.dashboard_id || selectedTank?.dashboardId || ""
+  ).trim();
   if (b) return b;
 
   const first = Array.isArray(droppedTanks) ? droppedTanks[0] : null;
-  const c = String(first?.dashboard_id || first?.dashboardId || first?.properties?.dashboard_id || "")
-    .trim();
+  const c = String(
+    first?.dashboard_id ||
+      first?.dashboardId ||
+      first?.properties?.dashboard_id ||
+      ""
+  ).trim();
   if (c) return c;
 
   return null;
@@ -78,6 +90,8 @@ export default function DashboardCanvas({
   setActiveVerticalTankId,
   setShowVerticalTankProps,
 
+  // note: we keep handleSelect in props to avoid breaking other callers,
+  // but we won't use it (multi-select replaces it here)
   handleSelect,
   handleRightClick,
   handleDrop,
@@ -103,6 +117,17 @@ export default function DashboardCanvas({
   dashboardId,
 }) {
   const isPlay = dashboardMode === "play" || dashboardMode === "launch";
+
+  // =====================================================
+  // ✅ Ctrl/Cmd + click multi-select handler (EDIT only)
+  // =====================================================
+  const handleObjectSelect = useMultiSelectClick({
+    isPlay,
+    selectedIds,
+    setSelectedIds,
+    setSelectedTank,
+    hideContextMenu,
+  });
 
   // =====================================================
   // ✅ ONE POLL PER DASHBOARD (Play/Launch): shared telemetryMap
@@ -190,7 +215,8 @@ export default function DashboardCanvas({
           const incomingCount = Number(incomingObj?.count ?? 0) || 0;
           const incomingRun = Number(incomingObj?.run_seconds ?? 0) || 0;
 
-          if (currentCount === incomingCount && currentRun === incomingRun) return t;
+          if (currentCount === incomingCount && currentRun === incomingRun)
+            return t;
 
           changed = true;
           return {
@@ -316,7 +342,8 @@ export default function DashboardCanvas({
   const resetCounterOnBackend = React.useCallback(
     async ({ widgetId, dash }) => {
       const token = String(getToken() || "").trim();
-      if (!token) throw new Error("Missing auth token. Please logout and login again.");
+      if (!token)
+        throw new Error("Missing auth token. Please logout and login again.");
 
       const res = await fetch(`${API_URL}/device-counters/reset`, {
         method: "POST",
@@ -373,10 +400,15 @@ export default function DashboardCanvas({
               selectedIds,
               dragDelta,
               dashboardMode,
-              onSelect: handleSelect,
+
+              // ✅ NEW: multi-select handler
+              onSelect: handleObjectSelect,
+
               onRightClick: (e) => handleRightClick?.(e, tank),
               onUpdate: (updated) =>
-                setDroppedTanks((prev) => prev.map((t) => (t.id === updated.id ? updated : t))),
+                setDroppedTanks((prev) =>
+                  prev.map((t) => (t.id === updated.id ? updated : t))
+                ),
             };
 
             if (tank.shape === "alarmLog" && tank.minimized) {
@@ -385,8 +417,10 @@ export default function DashboardCanvas({
                   key={tank.id}
                   obj={tank}
                   selected={isSelected && !isPlay}
-                  onSelect={() => handleSelect(tank.id)}
-                  onOpen={() => commonProps.onUpdate?.({ ...tank, minimized: false })}
+                  onSelect={(e) => handleObjectSelect(tank.id, e)}
+                  onOpen={() =>
+                    commonProps.onUpdate?.({ ...tank, minimized: false })
+                  }
                   onLaunch={() => onLaunchAlarmLog?.(tank)}
                 />
               );
@@ -421,22 +455,26 @@ export default function DashboardCanvas({
                     if (!isPlay) onOpenDisplaySettings?.(tank);
                   }}
                 >
-                  <DisplayOutputTextBoxStyle tank={tank} isPlay={isPlay} onUpdate={commonProps.onUpdate} />
+                  <DisplayOutputTextBoxStyle
+                    tank={tank}
+                    isPlay={isPlay}
+                    onUpdate={commonProps.onUpdate}
+                  />
                 </DraggableDroppedTank>
               );
             }
 
-               if (tank.shape === "graphicDisplay") {
+            if (tank.shape === "graphicDisplay") {
               return (
                 <DraggableGraphicDisplay
                   key={tank.id}
                   tank={tank}
-                  telemetryMap={telemetryMap} // ✅ NEW
+                  telemetryMap={telemetryMap}
                   selected={isSelected && !isPlay}
                   selectedIds={selectedIds}
                   dragDelta={dragDelta}
                   dashboardMode={dashboardMode}
-                  onSelect={handleSelect}
+                  onSelect={handleObjectSelect}
                   onUpdate={commonProps.onUpdate}
                   onRightClick={(e) => handleRightClick?.(e, tank)}
                   onDoubleClick={() => {
@@ -445,7 +483,6 @@ export default function DashboardCanvas({
                 />
               );
             }
-
 
             if (tank.shape === "alarmLog") {
               const w = tank.w ?? tank.width ?? 780;
@@ -466,12 +503,23 @@ export default function DashboardCanvas({
                     <AlarmLogWindow
                       onOpenSettings={() => onOpenAlarmLog?.(tank)}
                       onLaunch={() => onLaunchAlarmLog?.(tank)}
-                      onMinimize={() => commonProps.onUpdate?.({ ...tank, minimized: true })}
-                      onClose={() => setDroppedTanks((prev) => prev.filter((t) => t.id !== tank.id))}
+                      onMinimize={() =>
+                        commonProps.onUpdate?.({ ...tank, minimized: true })
+                      }
+                      onClose={() =>
+                        setDroppedTanks((prev) =>
+                          prev.filter((t) => t.id !== tank.id)
+                        )
+                      }
                     />
 
                     {!isPlay && (
-                      <AlarmLogResizeEdges tank={tank} onUpdate={commonProps.onUpdate} minW={520} minH={240} />
+                      <AlarmLogResizeEdges
+                        tank={tank}
+                        onUpdate={commonProps.onUpdate}
+                        minW={520}
+                        minH={240}
+                      />
                     )}
                   </div>
                 </DraggableDroppedTank>
@@ -513,7 +561,12 @@ export default function DashboardCanvas({
 
               return (
                 <DraggableDroppedTank {...commonProps}>
-                  <PushButtonControl variant="NO" width={w} height={h} pressed={pressed} />
+                  <PushButtonControl
+                    variant="NO"
+                    width={w}
+                    height={h}
+                    pressed={pressed}
+                  />
                 </DraggableDroppedTank>
               );
             }
@@ -525,7 +578,12 @@ export default function DashboardCanvas({
 
               return (
                 <DraggableDroppedTank {...commonProps}>
-                  <PushButtonControl variant="NC" width={w} height={h} pressed={pressed} />
+                  <PushButtonControl
+                    variant="NC"
+                    width={w}
+                    height={h}
+                    pressed={pressed}
+                  />
                 </DraggableDroppedTank>
               );
             }
@@ -542,7 +600,11 @@ export default function DashboardCanvas({
                   }}
                 >
                   <div className="flex flex-col items-center">
-                    <DraggableStandardTank tank={tank} isPlay={isPlay} telemetryMap={telemetryMap} />
+                    <DraggableStandardTank
+                      tank={tank}
+                      isPlay={isPlay}
+                      telemetryMap={telemetryMap}
+                    />
                   </div>
                 </DraggableDroppedTank>
               );
@@ -583,7 +645,11 @@ export default function DashboardCanvas({
                   }}
                 >
                   <div className="flex flex-col items-center">
-                    <DraggableVerticalTank tank={tank} isPlay={isPlay} telemetryMap={telemetryMap} />
+                    <DraggableVerticalTank
+                      tank={tank}
+                      isPlay={isPlay}
+                      telemetryMap={telemetryMap}
+                    />
                   </div>
                 </DraggableDroppedTank>
               );
@@ -601,7 +667,11 @@ export default function DashboardCanvas({
                   }}
                 >
                   <div className="flex flex-col items-center">
-                    <DraggableSiloTank tank={tank} isPlay={isPlay} telemetryMap={telemetryMap} />
+                    <DraggableSiloTank
+                      tank={tank}
+                      isPlay={isPlay}
+                      telemetryMap={telemetryMap}
+                    />
                   </div>
                 </DraggableDroppedTank>
               );
@@ -627,7 +697,11 @@ export default function DashboardCanvas({
                     if (!isPlay) onOpenIndicatorSettings?.(tank);
                   }}
                 >
-                  <DraggableLedCircle tank={tank} isPlay={isPlay} telemetryMap={telemetryMap} />
+                  <DraggableLedCircle
+                    tank={tank}
+                    isPlay={isPlay}
+                    telemetryMap={telemetryMap}
+                  />
                 </DraggableDroppedTank>
               );
             }
@@ -653,7 +727,12 @@ export default function DashboardCanvas({
                     if (!isPlay) onOpenBlinkingAlarmSettings?.(tank);
                   }}
                 >
-                  <DraggableBlinkingAlarm tank={tank} isPlay={isPlay} telemetryMap={telemetryMap} sensorsData={sensorsData} />
+                  <DraggableBlinkingAlarm
+                    tank={tank}
+                    isPlay={isPlay}
+                    telemetryMap={telemetryMap}
+                    sensorsData={sensorsData}
+                  />
                 </DraggableDroppedTank>
               );
             }
@@ -666,7 +745,12 @@ export default function DashboardCanvas({
                     if (!isPlay) onOpenStateImageSettings?.(tank);
                   }}
                 >
-                  <DraggableStateImage tank={tank} isPlay={isPlay} telemetryMap={telemetryMap} sensorsData={sensorsData} />
+                  <DraggableStateImage
+                    tank={tank}
+                    isPlay={isPlay}
+                    telemetryMap={telemetryMap}
+                    sensorsData={sensorsData}
+                  />
                 </DraggableDroppedTank>
               );
             }
@@ -696,7 +780,10 @@ export default function DashboardCanvas({
                     onReset={async (widgetId) => {
                       if (!isPlay) return;
                       try {
-                        await resetCounterOnBackend({ widgetId, dash: resolvedDash });
+                        await resetCounterOnBackend({
+                          widgetId,
+                          dash: resolvedDash,
+                        });
                       } catch (e) {
                         console.error("Reset failed:", e);
                         alert(e?.message || "Reset failed");

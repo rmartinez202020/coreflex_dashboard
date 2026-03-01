@@ -17,7 +17,12 @@ export default function DraggableDroppedTank({
     id: tank.id,
   });
 
-  const isPlay = dashboardMode === "play";
+  // ✅ FIX: Launch/Launched should behave like Play
+  const isPlay =
+    dashboardMode === "play" ||
+    dashboardMode === "launch" ||
+    dashboardMode === "launched";
+
   const [resizing, setResizing] = useState(false);
 
   const elRef = useRef(null);
@@ -99,7 +104,7 @@ export default function DraggableDroppedTank({
   const isGraphicDisplay = tank.shape === "graphicDisplay";
   const isDisplayOutput = tank.shape === "displayOutput";
 
-  // ✅ NEW: treat counterInput as interactive in play mode so its internal button can show pointer
+  // ✅ treat counterInput as interactive in play mode so its internal button can show pointer
   const isCounterInput = tank.shape === "counterInput";
 
   const contentStyle = {
@@ -199,7 +204,8 @@ export default function DraggableDroppedTank({
       onClick={(e) => {
         if (!isPlay) {
           e.stopPropagation();
-          onSelect?.(tank.id);
+          // ✅ IMPORTANT: pass the event so Ctrl/Cmd multi-select works
+          onSelect?.(tank.id, e);
         }
       }}
       onDoubleClick={(e) => {
