@@ -17,6 +17,9 @@ import { getToken } from "../../utils/authToken";
  * ✅ NEW FIX (Platform Creation 116):
  * - Only changes status in PLAY / LAUNCH / LAUNCHED
  * - In EDIT, it stays frozen (no polling)
+ *
+ * ✅ NEW FIX (PC-116 update):
+ * - In EDIT mode, ALWAYS show OFF text ONLY (ignore savedIsOn)
  */
 
 // ✅ Model meta (must match backend routers)
@@ -82,7 +85,7 @@ export default function DraggableStatusTextBox({
   // Canvas mode
   tank,
 
-  // ✅ NEW: mode from dashboard (edit/play/launch/launched)
+  // ✅ mode from dashboard (edit/play/launch/launched)
   dashboardMode = "edit",
 
   // Palette mode
@@ -118,7 +121,10 @@ export default function DraggableStatusTextBox({
     const onText = String(tank.properties?.onText ?? "");
 
     const legacyText =
-      tank.text ?? tank.properties?.text ?? tank.properties?.label ?? payload.text;
+      tank.text ??
+      tank.properties?.text ??
+      tank.properties?.label ??
+      payload.text;
 
     // Tag binding
     const tagModelRaw =
@@ -138,15 +144,6 @@ export default function DraggableStatusTextBox({
     const paddingX = tank.properties?.paddingX ?? 14;
     const textAlign = tank.properties?.textAlign ?? "center";
     const textTransform = tank.properties?.textTransform ?? "none";
-
-    // ✅ Saved design-time state (freeze in EDIT)
-    // (Your modal can store this; fallback to tank.properties.value if present)
-    const savedIsOn = !!(
-      tank.properties?.savedIsOn ??
-      tank.properties?.isOn ??
-      tank.properties?.value ??
-      false
-    );
 
     // ✅ Telemetry state (runtime only)
     const [telemetryRow, setTelemetryRow] = React.useState(null);
@@ -184,8 +181,9 @@ export default function DraggableStatusTextBox({
         const data = await res.json();
         const list = Array.isArray(data) ? data : [];
         const row =
-          list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === deviceId) ||
-          null;
+          list.find(
+            (r) => String(r.deviceId ?? r.device_id ?? "").trim() === deviceId
+          ) || null;
 
         setTelemetryRow(row);
       } catch {
@@ -196,7 +194,7 @@ export default function DraggableStatusTextBox({
     }, [deviceId, tagModel, isRuntime]);
 
     React.useEffect(() => {
-      // ✅ When leaving runtime, clear live state (so Edit won't reflect old live)
+      // ✅ When leaving runtime, clear live state
       if (!isRuntime) {
         setTelemetryRow(null);
         return;
@@ -228,26 +226,22 @@ export default function DraggableStatusTextBox({
       const safeOff = (offText || legacyText || "OFF").toString();
       const safeOn = (onText || legacyText || "ON").toString();
 
-      // ✅ EDIT: frozen (no live)
-      if (!isRuntime) {
-        return savedIsOn ? safeOn : safeOff;
-      }
+      // ✅ EDIT MODE: ALWAYS show OFF text ONLY
+      if (!isRuntime) return safeOff;
 
       // ✅ RUNTIME: live rules
       if (!deviceId || !field) return safeOff;
       if (!deviceIsOnline) return safeOff;
-      if (backendTagValue === undefined || backendTagValue === null) return safeOff;
+      if (backendTagValue === undefined || backendTagValue === null)
+        return safeOff;
 
       if (tag01 === 1) return safeOn;
-      if (tag01 === 0) return safeOff;
-
       return safeOff;
     }, [
       offText,
       onText,
       legacyText,
       isRuntime,
-      savedIsOn,
       deviceId,
       field,
       deviceIsOnline,
@@ -259,14 +253,22 @@ export default function DraggableStatusTextBox({
       if (!deviceId || !field) return displayText;
       const base = MODEL_META[tagModel]?.base || "zhc1921";
 
-      // In edit, don't expose live v/status because it's frozen anyway
+      // ✅ In edit, show simple title
       if (!isRuntime) return `${displayText} • (edit mode)`;
 
       const v = backendTagValue === undefined ? "—" : String(backendTagValue);
       return `${displayText} • ${base}/${deviceId}/${field} • status=${
         deviceStatus || "—"
       } • v=${v}`;
-    }, [displayText, deviceId, field, tagModel, backendTagValue, deviceStatus, isRuntime]);
+    }, [
+      displayText,
+      deviceId,
+      field,
+      tagModel,
+      backendTagValue,
+      deviceStatus,
+      isRuntime,
+    ]);
 
     return (
       <div
