@@ -387,7 +387,7 @@ export default function GraphicDisplaySettingsModal({
     if (!dragRef.current.dragging) return;
 
     // ✅ prevent the widget/container from seeing drag move
-    e.stopPropagation();
+    if (e?.stopPropagation) e.stopPropagation();
 
     const dx = e.clientX - dragRef.current.startX;
     const dy = e.clientY - dragRef.current.startY;
@@ -442,6 +442,8 @@ export default function GraphicDisplaySettingsModal({
     dragRef.current.startLeft = pos.left;
     dragRef.current.startTop = pos.top;
 
+    // ✅ IMPORTANT: do NOT block mousemove bubbling on overlay,
+    // because these are window listeners and must receive events.
     window.addEventListener("mousemove", onDragMove, { passive: false });
     window.addEventListener("mouseup", endDrag, { passive: false });
   };
@@ -459,13 +461,10 @@ export default function GraphicDisplaySettingsModal({
 
   const modal = (
     <div
-      // ✅ stop ALL bubbling so the underlying widget never moves
+      // ✅ Stop ONLY the "down" events so the underlying widget never starts dragging.
+      // ❌ DO NOT stop mousemove/mouseup here or the modal drag will break.
       onMouseDown={(e) => e.stopPropagation()}
-      onMouseMove={(e) => e.stopPropagation()}
-      onMouseUp={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
-      onPointerMove={(e) => e.stopPropagation()}
-      onPointerUp={(e) => e.stopPropagation()}
       style={{
         position: "fixed",
         inset: 0,
@@ -601,7 +600,14 @@ export default function GraphicDisplaySettingsModal({
           </div>
 
           {/* 3) Math */}
-          <div style={{ display: "grid", gap: 12, alignContent: "start", minWidth: 0 }}>
+          <div
+            style={{
+              display: "grid",
+              gap: 12,
+              alignContent: "start",
+              minWidth: 0,
+            }}
+          >
             <GraphicDisplayMathPanel
               value={liveValue}
               formula={mathFormula}
@@ -626,7 +632,14 @@ export default function GraphicDisplaySettingsModal({
           </div>
 
           {/* 4) Tag that drives the trend */}
-          <div style={{ display: "grid", gap: 12, alignContent: "start", minWidth: 0 }}>
+          <div
+            style={{
+              display: "grid",
+              gap: 12,
+              alignContent: "start",
+              minWidth: 0,
+            }}
+          >
             <GraphicDisplayBindingPanel
               bindModel={bindModel}
               setBindModel={setBindModel}
