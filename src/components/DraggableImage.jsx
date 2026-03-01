@@ -1,13 +1,20 @@
 // src/components/DraggableImage.jsx
-export default function DraggableImage({ src, scale }) {
+import React from "react";
+
+const BASE_W = 120; // ✅ this is your 1:1 size
+
+export default function DraggableImage({ src }) {
+  if (!src) return null;
+
   return (
     <img
       src={src}
       draggable={false}
+      alt=""
       style={{
-        width: `${120 * (scale || 1)}px`,       // consistent base width
-        maxWidth: 300,
-        minWidth: 20,                           // allow very small scaling
+        width: BASE_W,        // ✅ 1:1 base size
+        height: "auto",
+        maxWidth: "none",     // ✅ don't clamp (parent scale handles it)
         objectFit: "contain",
         pointerEvents: "none",
         userSelect: "none",
