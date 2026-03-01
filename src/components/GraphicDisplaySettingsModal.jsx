@@ -6,6 +6,7 @@ import React, {
   useRef,
   useState,
 } from "react";
+import { createPortal } from "react-dom";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 import GraphicDisplaySettingsPanel from "./GraphicDisplaySettingsPanel";
@@ -121,7 +122,11 @@ function getRowFromTelemetryMap(telemetryMap, modelKey, deviceId) {
  * - Prefer telemetryMap (common poller)
  * - Otherwise ONLY call /{base}/my-devices
  */
-async function loadLiveRowForDevice(modelKey, deviceId, { telemetryMap, signal } = {}) {
+async function loadLiveRowForDevice(
+  modelKey,
+  deviceId,
+  { telemetryMap, signal } = {}
+) {
   const mk = String(modelKey || "").trim();
   const id = String(deviceId || "").trim();
   if (!mk || !id) return null;
@@ -183,7 +188,21 @@ export default function GraphicDisplaySettingsModal({
   onSave,
   telemetryMap = null,
 }) {
-  if (!open) return null;
+  // ✅ IMPORTANT:
+  // We now render using createPortal(document.body)
+  // so "position: fixed" is truly viewport-fixed and centers correctly.
+  const portalTarget =
+    typeof document !== "undefined" ? document.body : null;
+
+  // lock scroll while open
+  useEffect(() => {
+    if (!open) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = "hidden";
+    return () => {
+      document.body.style.overflow = prev;
+    };
+  }, [open]);
 
   // LEFT: chart settings
   const [title, setTitle] = useState("Graphic Display");
@@ -284,7 +303,7 @@ export default function GraphicDisplaySettingsModal({
 
     // ✅ SINGLE UNITS load (NEW)
     const sEnabled = tank.singleUnitsEnabled === true;
-    const sUnit = String(tank.singleUnit ?? "").trim();
+    const sUnit = String(tank.singleUnit ?? tank.singleUnitsUnit ?? "").trim();
     setSingleUnitsEnabled(sEnabled);
     setSingleUnit(sUnit);
 
@@ -367,6 +386,9 @@ export default function GraphicDisplaySettingsModal({
   const onDragMove = (e) => {
     if (!dragRef.current.dragging) return;
 
+    // ✅ prevent the widget/container from seeing drag move
+    e.stopPropagation();
+
     const dx = e.clientX - dragRef.current.startX;
     const dy = e.clientY - dragRef.current.startY;
 
@@ -389,7 +411,10 @@ export default function GraphicDisplaySettingsModal({
     });
   };
 
-  const endDrag = () => {
+  const endDrag = (e) => {
+    // ✅ prevent bubbling into widget drag
+    if (e?.stopPropagation) e.stopPropagation();
+
     dragRef.current.dragging = false;
     setIsDragging(false);
     window.removeEventListener("mousemove", onDragMove);
@@ -398,6 +423,9 @@ export default function GraphicDisplaySettingsModal({
 
   const startDrag = (e) => {
     if (e.button !== 0) return;
+
+    // ✅ prevent widget drag from starting
+    e.stopPropagation();
 
     const t = e.target;
     if (
@@ -414,8 +442,8 @@ export default function GraphicDisplaySettingsModal({
     dragRef.current.startLeft = pos.left;
     dragRef.current.startTop = pos.top;
 
-    window.addEventListener("mousemove", onDragMove);
-    window.addEventListener("mouseup", endDrag);
+    window.addEventListener("mousemove", onDragMove, { passive: false });
+    window.addEventListener("mouseup", endDrag, { passive: false });
   };
 
   useEffect(() => {
@@ -426,9 +454,18 @@ export default function GraphicDisplaySettingsModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  return (
+  if (!open) return null;
+  if (!portalTarget) return null;
+
+  const modal = (
     <div
+      // ✅ stop ALL bubbling so the underlying widget never moves
       onMouseDown={(e) => e.stopPropagation()}
+      onMouseMove={(e) => e.stopPropagation()}
+      onMouseUp={(e) => e.stopPropagation()}
+      onPointerDown={(e) => e.stopPropagation()}
+      onPointerMove={(e) => e.stopPropagation()}
+      onPointerUp={(e) => e.stopPropagation()}
       style={{
         position: "fixed",
         inset: 0,
@@ -437,6 +474,9 @@ export default function GraphicDisplaySettingsModal({
       }}
     >
       <div
+        // ✅ also stop bubbling on the panel itself
+        onMouseDown={(e) => e.stopPropagation()}
+        onPointerDown={(e) => e.stopPropagation()}
         style={{
           position: "fixed",
           left: pos.left,
@@ -470,7 +510,10 @@ export default function GraphicDisplaySettingsModal({
           <div>Graphic Display</div>
           <button
             data-no-drag="true"
-            onClick={onClose}
+            onClick={(e) => {
+              e.stopPropagation();
+              onClose?.();
+            }}
             style={{
               width: 34,
               height: 34,
@@ -598,7 +641,10 @@ export default function GraphicDisplaySettingsModal({
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
               <button
-                onClick={onClose}
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onClose?.();
+                }}
                 style={{
                   padding: "10px 14px",
                   borderRadius: 10,
@@ -613,8 +659,9 @@ export default function GraphicDisplaySettingsModal({
 
               <button
                 disabled={!canApply}
-                onClick={() =>
-                  onSave({
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onSave?.({
                     ...tank,
                     title,
                     timeUnit,
@@ -640,8 +687,8 @@ export default function GraphicDisplaySettingsModal({
                     // ✅ single units config (NEW)
                     singleUnitsEnabled: !!singleUnitsEnabled,
                     singleUnit: String(singleUnit || "").trim(),
-                  })
-                }
+                  });
+                }}
                 style={{
                   padding: "10px 14px",
                   borderRadius: 10,
@@ -662,4 +709,6 @@ export default function GraphicDisplaySettingsModal({
       </div>
     </div>
   );
+
+  return createPortal(modal, portalTarget);
 }
