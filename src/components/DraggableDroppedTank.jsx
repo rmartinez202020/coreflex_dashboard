@@ -19,7 +19,6 @@ export default function DraggableDroppedTank({
     id: tank.id,
   });
 
-  // ✅ FIX: Launch/Launched should behave like Play
   const isPlay =
     dashboardMode === "play" ||
     dashboardMode === "launch" ||
@@ -37,11 +36,7 @@ export default function DraggableDroppedTank({
     [setNodeRef]
   );
 
-  // =====================================================
-  // ✅ SCALE EVENT LISTENER (absolute set)
-  // NOTE: Option A = scale ONLY at wrapper level.
-  // So children (e.g., DraggableImage) should NOT apply extra scaling.
-  // =====================================================
+  // ---------- Scale event listener (MULTIPLY mode supported) ----------
   useEffect(() => {
     const handler = (ev) => {
       try {
@@ -49,19 +44,25 @@ export default function DraggableDroppedTank({
         const ids = Array.isArray(detail?.ids)
           ? detail.ids.filter(Boolean)
           : [];
-        const scaleValue = Number(detail?.scale || NaN);
-        if (!Number.isFinite(scaleValue)) return;
+
+        const raw = Number(detail?.scale || NaN);
+        if (!Number.isFinite(raw)) return;
+
+        const mode = String(detail?.mode || "set").toLowerCase(); // "mul" | "set"
 
         const wid = String(tank?.id || "").trim();
         if (!wid) return;
-
         if (!ids.includes(wid)) return;
 
-        // clamp + absolute set
-        const clamped = Math.min(
-          SCALE_MAX,
-          Math.max(SCALE_MIN, scaleValue)
-        );
+        const current = Number(tank?.scale ?? 1) || 1;
+
+        // ✅ if mode=mul, scale is a multiplier factor
+        const next =
+          mode === "mul"
+            ? current * raw
+            : raw; // absolute set fallback
+
+        const clamped = Math.min(SCALE_MAX, Math.max(SCALE_MIN, next));
 
         if (Number(tank?.scale || 1) !== clamped) {
           onUpdate?.({ ...tank, scale: clamped });
@@ -87,13 +88,11 @@ export default function DraggableDroppedTank({
     (e) => {
       if (!resizing) return;
 
-      // ✅ resize via handle uses delta (still wrapper-only scale)
       const cur = Number(tank.scale ?? 1) || 1;
       const next = cur + e.movementX * 0.01;
-
       const clamped = Math.min(SCALE_MAX, Math.max(SCALE_MIN, next));
-      if (clamped === cur) return;
 
+      if (clamped === cur) return;
       onUpdate?.({ ...tank, scale: clamped });
     },
     [resizing, tank, onUpdate]
@@ -121,7 +120,6 @@ export default function DraggableDroppedTank({
 
   const effectiveZ = tank.z ?? tank.zIndex ?? 1;
 
-  // ✅ FIX: Cursor only active in EDIT mode. In play mode default cursor.
   const outerStyle = {
     position: "absolute",
     left: tank.x,
@@ -150,8 +148,6 @@ export default function DraggableDroppedTank({
 
   const isGraphicDisplay = tank.shape === "graphicDisplay";
   const isDisplayOutput = tank.shape === "displayOutput";
-
-  // ✅ treat counterInput as interactive in play mode so its internal button can show pointer
   const isCounterInput = tank.shape === "counterInput";
 
   const contentStyle = {
@@ -173,22 +169,16 @@ export default function DraggableDroppedTank({
       onUpdate?.({ ...tank, isOn: !(tank.isOn ?? true) });
       return;
     }
-
-    if (isPushButton) {
-      onUpdate?.({ ...tank, pressed: true });
-    }
+    if (isPushButton) onUpdate?.({ ...tank, pressed: true });
   };
 
   const handleMouseUp = (e) => {
     if (!isPlay) return;
     e.stopPropagation();
 
-    if (isPushButton) {
-      onUpdate?.({ ...tank, pressed: false });
-    }
+    if (isPushButton) onUpdate?.({ ...tank, pressed: false });
   };
 
-  // allow dragging only when NOT in play mode (except display output special case)
   const dragListeners = isPlay && isDisplayOutput ? undefined : listeners;
 
   // Auto measure size
@@ -252,7 +242,6 @@ export default function DraggableDroppedTank({
       onClick={(e) => {
         if (!isPlay) {
           e.stopPropagation();
-          // ✅ IMPORTANT: pass the event so Ctrl/Cmd multi-select works
           onSelect?.(tank.id, e);
         }
       }}
@@ -294,8 +283,6 @@ export default function DraggableDroppedTank({
             cursor: "nwse-resize",
             border: "1px solid white",
             zIndex: 99999,
-
-            // keep handle visually same size regardless of widget scale
             transform: `scale(${1 / safeScale})`,
             transformOrigin: "bottom right",
           }}
