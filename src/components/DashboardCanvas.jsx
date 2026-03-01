@@ -706,18 +706,24 @@ export default function DashboardCanvas({
               );
             }
 
-            if (tank.shape === "statusTextBox") {
-              return (
-                <DraggableDroppedTank
-                  {...commonProps}
-                  onDoubleClick={() => {
-                    if (!isPlay) onOpenStatusTextSettings?.(tank);
-                  }}
-                >
-                  <DraggableStatusTextBox tank={tank} />
-                </DraggableDroppedTank>
-              );
-            }
+          if (tank.shape === "statusTextBox") {
+  return (
+    <DraggableDroppedTank
+      {...commonProps}
+      onDoubleClick={() => {
+        if (!isPlay) onOpenStatusTextSettings?.(tank);
+      }}
+    >
+      <DraggableStatusTextBox
+        tank={tank}
+        isPlay={isPlay}
+        dashboardMode={dashboardMode}
+        telemetryMap={telemetryMap}
+        sensorsData={sensorsData} // optional fallback like BlinkingAlarm
+      />
+    </DraggableDroppedTank>
+  );
+}
 
             if (tank.shape === "blinkingAlarm") {
               return (
