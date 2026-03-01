@@ -2,8 +2,11 @@
 import React from "react";
 
 export default function DraggableImage({ src, scale = 1, baseW = 120 }) {
-  const s = Number(scale || 1);
-  const bw = Number(baseW || 120);
+  const sRaw = Number(scale);
+  const s = Number.isFinite(sRaw) && sRaw > 0 ? sRaw : 1;
+
+  const bwRaw = Number(baseW);
+  const bw = Number.isFinite(bwRaw) && bwRaw > 0 ? bwRaw : 120;
 
   return (
     <img
@@ -11,8 +14,8 @@ export default function DraggableImage({ src, scale = 1, baseW = 120 }) {
       draggable={false}
       alt=""
       style={{
-        width: `${bw * s}px`,   // ✅ base width * scale
-        maxWidth: "none",       // ✅ no cap
+        width: `${bw * s}px`, // ✅ base width * scale
+        maxWidth: "none", // ✅ no cap
         minWidth: 20,
         height: "auto",
         objectFit: "contain",

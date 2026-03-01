@@ -1,5 +1,18 @@
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef, useEffect, useMemo } from "react";
 import { useDraggable } from "@dnd-kit/core";
+
+// ✅ Convert anything to 0/1 (for status)
+function to01(v) {
+  if (v === undefined || v === null) return null;
+  if (typeof v === "boolean") return v ? 1 : 0;
+  if (typeof v === "number") return v > 0 ? 1 : 0;
+  const s = String(v).trim().toLowerCase();
+  if (s === "1" || s === "true" || s === "on" || s === "yes") return 1;
+  if (s === "0" || s === "false" || s === "off" || s === "no") return 0;
+  const n = Number(s);
+  if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
+  return null;
+}
 
 export default function DraggableTextBox({
   tank,
@@ -14,14 +27,23 @@ export default function DraggableTextBox({
 }) {
   if (!tank) return null;
 
-  const isPlay = dashboardMode === "play";
+  // ✅ FIX: Runtime modes (Play + Launch + Launched)
+  const isRuntime =
+    dashboardMode === "play" ||
+    dashboardMode === "launch" ||
+    dashboardMode === "launched";
+
   const safeOnUpdate = typeof onUpdate === "function" ? onUpdate : () => {};
 
   const [showEditor, setShowEditor] = useState(false);
+
+  // ✅ Base text user edits (this is the "design time" text)
   const [text, setText] = useState(tank.text || "Text...");
   const [fontSize, setFontSize] = useState(tank.fontSize || 16);
   const [color, setColor] = useState(tank.color || "#000000");
-  const [borderColor, setBorderColor] = useState(tank.borderColor || "#000000");
+  const [borderColor, setBorderColor] = useState(
+    tank.borderColor || "#000000"
+  );
 
   const [isResizing, setIsResizing] = useState(false);
   const [resizeDir, setResizeDir] = useState(null); // "left" | "right" | "top" | "bottom"
@@ -30,10 +52,52 @@ export default function DraggableTextBox({
   const width = tank.width || 150;
   const height = tank.height || 50;
 
-  // ✅ If editor is open or resizing or play mode: disable DnD to avoid fighting
+  // ✅ IMPORTANT:
+  // In runtime, we allow status to drive what is displayed (OFF/ON text).
+  // In edit, we display ONLY the configured base text (no live changes).
+  //
+  // Assumption: your StatusTextBox stores these optional fields in `tank`:
+  // - tank.offText, tank.onText
+  // - tank.statusValue OR tank.value OR tank.liveValue (1/0 or truthy)
+  const displayText = useMemo(() => {
+    if (!isRuntime) return text; // ✅ DO NOT CHANGE in Edit
+
+    const raw =
+      tank.statusValue ?? tank.value ?? tank.liveValue ?? tank.tagValue ?? null;
+
+    const v01 = to01(raw);
+
+    // if no live value yet, keep base text (or OFF text if you prefer)
+    if (v01 === null) return text;
+
+    const onTxt = tank.onText ?? "ON";
+    const offTxt = tank.offText ?? "OFF";
+    return v01 ? onTxt : offTxt;
+  }, [
+    isRuntime,
+    text,
+    tank.statusValue,
+    tank.value,
+    tank.liveValue,
+    tank.tagValue,
+    tank.onText,
+    tank.offText,
+  ]);
+
+  // ✅ Keep local editor state in sync ONLY when tank changes (design-time)
+  // (Do NOT force overwrite while editing)
+  useEffect(() => {
+    if (showEditor) return;
+    setText(tank.text || "Text...");
+    setFontSize(tank.fontSize || 16);
+    setColor(tank.color || "#000000");
+    setBorderColor(tank.borderColor || "#000000");
+  }, [tank, showEditor]);
+
+  // ✅ If editor is open or resizing or runtime: disable DnD to avoid fighting
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: tank.id,
-    disabled: isPlay || showEditor || isResizing,
+    disabled: isRuntime || showEditor || isResizing,
   });
 
   const baseTransform = transform
@@ -62,7 +126,7 @@ export default function DraggableTextBox({
     border: selected ? "2px solid #2563eb" : `2px solid ${borderColor}`,
     background: "white",
     padding: 4,
-    cursor: isPlay ? "default" : isResizing ? "default" : "move",
+    cursor: isRuntime ? "default" : isResizing ? "default" : "move",
     userSelect: "none",
     zIndex: resolvedZ,
   };
@@ -71,7 +135,7 @@ export default function DraggableTextBox({
   const startResize = (dir, e) => {
     e.stopPropagation();
     e.preventDefault();
-    if (isPlay) return;
+    if (isRuntime) return;
 
     setIsResizing(true);
     setResizeDir(dir);
@@ -156,31 +220,27 @@ export default function DraggableTextBox({
       <div
         className="draggable-item"
         ref={setNodeRef}
-        {...(!isPlay ? listeners : {})}
+        {...(!isRuntime ? listeners : {})}
         {...attributes}
         style={style}
         onClick={(e) => {
           e.stopPropagation();
-          if (isPlay) return;
+          if (isRuntime) return;
           onSelect?.(tank.id);
         }}
         onDoubleClick={(e) => {
           e.stopPropagation();
-          if (isPlay) return;
+          if (isRuntime) return;
           onSelect?.(tank.id);
           setShowEditor(true);
           onDoubleClick?.(tank);
         }}
-        // ✅ FIX: OPEN YOUR CONTEXT MENU
         onContextMenu={(e) => {
           e.preventDefault();
           e.stopPropagation();
-          if (isPlay) return;
+          if (isRuntime) return;
 
-          // select the object first (nice UX)
           onSelect?.(tank.id);
-
-          // forward event to App.jsx context menu handler
           onRightClick?.(e);
         }}
       >
@@ -192,14 +252,18 @@ export default function DraggableTextBox({
             fontSize,
             color,
             overflow: "hidden",
-            pointerEvents: "none", // ✅ prevents inner div from stealing right-click/drag
+            pointerEvents: "none",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontWeight: tank.fontWeight ?? 800,
           }}
         >
-          {text}
+          {displayText}
         </div>
 
         {/* ⭐ 4px invisible resize edges ⭐ */}
-        {!isPlay && (
+        {!isRuntime && (
           <>
             <div
               onMouseDown={(e) => startResize("left", e)}
@@ -273,7 +337,7 @@ export default function DraggableTextBox({
       </div>
 
       {/* EDITOR POPUP */}
-      {showEditor && !isPlay && (
+      {showEditor && !isRuntime && (
         <div
           style={{
             position: "absolute",
@@ -283,7 +347,7 @@ export default function DraggableTextBox({
             border: "1px solid #ccc",
             padding: 18,
             borderRadius: 10,
-            zIndex: 999999, // ✅ above everything
+            zIndex: 999999,
             width: 260,
             boxShadow: "0 4px 16px rgba(0,0,0,0.15)",
           }}
@@ -295,7 +359,7 @@ export default function DraggableTextBox({
           }}
         >
           <div className="flex flex-col gap-4">
-            <label className="text-sm font-semibold">Text</label>
+            <label className="text-sm font-semibold">Text (design-time)</label>
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
