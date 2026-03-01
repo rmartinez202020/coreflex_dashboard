@@ -1,7 +1,7 @@
 // src/components/DraggableDroppedTank.jsx
 import { useDraggable } from "@dnd-kit/core";
 import { useState, useEffect, useCallback, useRef } from "react";
-import { SCALE_MIN, SCALE_MAX } from "../config/scaleLimits"; // adjust path if you put config elsewhere
+import { SCALE_MIN, SCALE_MAX } from "../config/scaleLimits";
 
 export default function DraggableDroppedTank({
   tank,
@@ -37,28 +37,36 @@ export default function DraggableDroppedTank({
     [setNodeRef]
   );
 
-  // ---------- Scale event listener ----------
+  // =====================================================
+  // ✅ SCALE EVENT LISTENER (absolute set)
+  // NOTE: Option A = scale ONLY at wrapper level.
+  // So children (e.g., DraggableImage) should NOT apply extra scaling.
+  // =====================================================
   useEffect(() => {
     const handler = (ev) => {
       try {
         const detail = ev?.detail || {};
-        const ids = Array.isArray(detail?.ids) ? detail.ids.filter(Boolean) : [];
+        const ids = Array.isArray(detail?.ids)
+          ? detail.ids.filter(Boolean)
+          : [];
         const scaleValue = Number(detail?.scale || NaN);
         if (!Number.isFinite(scaleValue)) return;
 
-        // if this widget id is targeted, update it via onUpdate
         const wid = String(tank?.id || "").trim();
         if (!wid) return;
 
-        if (ids.includes(wid)) {
-          // clamp
-          const clamped = Math.min(SCALE_MAX, Math.max(SCALE_MIN, scaleValue));
-          // only update if changed
-          if (Number(tank?.scale || 1) !== clamped) {
-            onUpdate?.({ ...tank, scale: clamped });
-          }
+        if (!ids.includes(wid)) return;
+
+        // clamp + absolute set
+        const clamped = Math.min(
+          SCALE_MAX,
+          Math.max(SCALE_MIN, scaleValue)
+        );
+
+        if (Number(tank?.scale || 1) !== clamped) {
+          onUpdate?.({ ...tank, scale: clamped });
         }
-      } catch (e) {
+      } catch {
         // ignore
       }
     };
@@ -78,8 +86,15 @@ export default function DraggableDroppedTank({
   const handleResize = useCallback(
     (e) => {
       if (!resizing) return;
-      const newScale = Math.max(0.15, (tank.scale || 1) + e.movementX * 0.01);
-      onUpdate?.({ ...tank, scale: newScale });
+
+      // ✅ resize via handle uses delta (still wrapper-only scale)
+      const cur = Number(tank.scale ?? 1) || 1;
+      const next = cur + e.movementX * 0.01;
+
+      const clamped = Math.min(SCALE_MAX, Math.max(SCALE_MIN, next));
+      if (clamped === cur) return;
+
+      onUpdate?.({ ...tank, scale: clamped });
     },
     [resizing, tank, onUpdate]
   );
@@ -98,11 +113,11 @@ export default function DraggableDroppedTank({
   const isMultiDragging =
     selectedIds.length > 1 && selectedIds.includes(tank.id);
 
+  const safeScale = Number(tank.scale ?? 1) || 1;
+
   const liveTransform = isMultiDragging
-    ? `translate(${dragDelta.x}px, ${dragDelta.y}px) scale(${tank.scale || 1})`
-    : `translate(${transform?.x || 0}px, ${transform?.y || 0}px) scale(${
-        tank.scale || 1
-      })`;
+    ? `translate(${dragDelta.x}px, ${dragDelta.y}px) scale(${safeScale})`
+    : `translate(${transform?.x || 0}px, ${transform?.y || 0}px) scale(${safeScale})`;
 
   const effectiveZ = tank.z ?? tank.zIndex ?? 1;
 
@@ -184,7 +199,7 @@ export default function DraggableDroppedTank({
     let raf = 0;
 
     const writeSize = () => {
-      const scale = typeof tank.scale === "number" ? tank.scale : 1;
+      const scale = Number(tank.scale ?? 1) || 1;
       const r = el.getBoundingClientRect();
 
       const unscaledW = Math.max(1, Math.round(r.width / scale));
@@ -229,7 +244,7 @@ export default function DraggableDroppedTank({
   return (
     <div
       ref={setRefs}
-      className={`draggable-item ${selected && !isPlay ? "selected" : ""}`} // ✅ FIX FOR MULTI-SCALE
+      className={`draggable-item ${selected && !isPlay ? "selected" : ""}`}
       data-widget-id={String(tank.id)}
       style={outerStyle}
       {...attributes}
@@ -279,7 +294,9 @@ export default function DraggableDroppedTank({
             cursor: "nwse-resize",
             border: "1px solid white",
             zIndex: 99999,
-            transform: `scale(${1 / (tank.scale || 1)})`,
+
+            // keep handle visually same size regardless of widget scale
+            transform: `scale(${1 / safeScale})`,
             transformOrigin: "bottom right",
           }}
         />
