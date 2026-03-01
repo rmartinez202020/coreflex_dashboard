@@ -22,7 +22,7 @@ export default function useDashboardHistory({
   // prevents re-pushing history when applying undo/redo snapshot
   const skipHistoryPushRef = useRef(false);
 
-  // avoids pushing the initial empty snapshot twice
+  // avoids pushing the initial snapshot twice
   const hasUndoInitRef = useRef(false);
 
   // blocks snapshot effect while dragging objects / scaling
@@ -58,24 +58,24 @@ export default function useDashboardHistory({
     // do not snapshot while dragging/scaling
     if (isObjectDraggingRef.current) return;
 
-    const snapshot = JSON.stringify(droppedTanks || []);
+    const safeArr = deepClone(droppedTanks || []);
+    const snapshot = JSON.stringify(safeArr);
 
-    // init once per dashboard load
+    // ✅ init once per dashboard load (INCLUDING empty dashboard)
     if (!hasUndoInitRef.current) {
-      // do NOT init on empty dashboard (prevents white undo)
-      if (!droppedTanks || droppedTanks.length === 0) return;
-
       hasUndoInitRef.current = true;
 
       reset();
 
+      // baseline is whatever the dashboard starts as (even [])
       baselineSnapshotRef.current = snapshot;
       lastPushedSnapshotRef.current = snapshot;
 
       // prevent duplicate push on next render
       skipHistoryPushRef.current = true;
 
-      push(deepClone(droppedTanks));
+      // ✅ push baseline snapshot (even if empty) so we can undo back to empty
+      push(safeArr);
       return;
     }
 
@@ -88,7 +88,7 @@ export default function useDashboardHistory({
     if (snapshot === lastPushedSnapshotRef.current) return;
 
     lastPushedSnapshotRef.current = snapshot;
-    push(deepClone(droppedTanks));
+    push(safeArr);
   }, [activePage, dashboardMode, droppedTanks, push, reset]);
 
   // ----------------------------------------
@@ -106,6 +106,8 @@ export default function useDashboardHistory({
 
       skipHistoryPushRef.current = true;
       hasUndoInitRef.current = true;
+
+      // ✅ baseline push (can be empty)
       push(safeArr);
 
       // reset drag state
@@ -181,9 +183,7 @@ export default function useDashboardHistory({
   }, [activePage, droppedRef, push]);
 
   // ----------------------------------------
-  // ✅ NEW: Scale commits should be undoable
-  // - We PUSH before immediately
-  // - Then we WAIT until droppedRef reflects the new scales
+  // ✅ Scale commits should be undoable
   // ----------------------------------------
   useEffect(() => {
     const onScale = () => {
@@ -241,7 +241,6 @@ export default function useDashboardHistory({
         scaleTimerRef.current = setTimeout(poll, intervalMs);
       };
 
-      // start polling slightly later
       scaleTimerRef.current = setTimeout(poll, intervalMs);
     };
 
@@ -289,18 +288,15 @@ export default function useDashboardHistory({
     if (activePage !== "dashboard") return;
 
     const current = deepClone(droppedRef?.current || []);
-
-    if (JSON.stringify(current || []) === baselineSnapshotRef.current) return;
+    if (JSON.stringify(current) === baselineSnapshotRef.current) return;
 
     let res = undo();
-    if (!res.ok) return;
+    if (!res?.ok) return;
 
-    const same =
-      JSON.stringify(res.snapshot || []) === JSON.stringify(current || []);
-
-    if (same) {
-      res = undo(deepClone(res.snapshot));
-      if (!res.ok) return;
+    // if undo returned same snapshot (rare), try one more step
+    if (JSON.stringify(res.snapshot || []) === JSON.stringify(current)) {
+      res = undo();
+      if (!res?.ok) return;
     }
 
     skipHistoryPushRef.current = true;
@@ -314,14 +310,11 @@ export default function useDashboardHistory({
     const current = deepClone(droppedRef?.current || []);
 
     let res = redo();
-    if (!res.ok) return;
+    if (!res?.ok) return;
 
-    const same =
-      JSON.stringify(res.snapshot || []) === JSON.stringify(current || []);
-
-    if (same) {
-      res = redo(deepClone(res.snapshot));
-      if (!res.ok) return;
+    if (JSON.stringify(res.snapshot || []) === JSON.stringify(current)) {
+      res = redo();
+      if (!res?.ok) return;
     }
 
     skipHistoryPushRef.current = true;
