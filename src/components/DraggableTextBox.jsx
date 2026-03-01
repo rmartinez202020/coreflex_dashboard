@@ -18,16 +18,16 @@ export default function DraggableTextBox({
   tank,
   onUpdate,
   onSelect,
-  onRightClick, // ✅ NEW
-  onDoubleClick, // ✅ optional (if parent wants)
+  onRightClick,
+  onDoubleClick,
   selected,
   selectedIds = [],
   dragDelta = { x: 0, y: 0 },
-  dashboardMode = "edit", // ✅ optional (defaults edit)
+  dashboardMode = "edit",
 }) {
   if (!tank) return null;
 
-  // ✅ FIX: Runtime modes (Play + Launch + Launched)
+  // ✅ Runtime modes = only these should react to live status
   const isRuntime =
     dashboardMode === "play" ||
     dashboardMode === "launch" ||
@@ -37,45 +37,53 @@ export default function DraggableTextBox({
 
   const [showEditor, setShowEditor] = useState(false);
 
-  // ✅ Base text user edits (this is the "design time" text)
+  // ✅ Local editable style state (design-time)
   const [text, setText] = useState(tank.text || "Text...");
   const [fontSize, setFontSize] = useState(tank.fontSize || 16);
   const [color, setColor] = useState(tank.color || "#000000");
-  const [borderColor, setBorderColor] = useState(
-    tank.borderColor || "#000000"
-  );
+  const [borderColor, setBorderColor] = useState(tank.borderColor || "#000000");
 
   const [isResizing, setIsResizing] = useState(false);
-  const [resizeDir, setResizeDir] = useState(null); // "left" | "right" | "top" | "bottom"
+  const [resizeDir, setResizeDir] = useState(null);
   const startRef = useRef({ x: 0, y: 0, width: 0, height: 0 });
 
   const width = tank.width || 150;
   const height = tank.height || 50;
 
-  // ✅ IMPORTANT:
-  // In runtime, we allow status to drive what is displayed (OFF/ON text).
-  // In edit, we display ONLY the configured base text (no live changes).
-  //
-  // Assumption: your StatusTextBox stores these optional fields in `tank`:
-  // - tank.offText, tank.onText
-  // - tank.statusValue OR tank.value OR tank.liveValue (1/0 or truthy)
-  const displayText = useMemo(() => {
-    if (!isRuntime) return text; // ✅ DO NOT CHANGE in Edit
+  // ✅ IMPORTANT: Freeze design-time text so Edit NEVER changes
+  // even if parent updates tank.text from telemetry.
+  const designTextRef = useRef(tank.text || "Text...");
 
+  // ✅ Reset designTextRef only when switching to a DIFFERENT widget id
+  const lastIdRef = useRef(tank.id);
+  useEffect(() => {
+    if (lastIdRef.current !== tank.id) {
+      lastIdRef.current = tank.id;
+      designTextRef.current = tank.text || "Text...";
+      setText(tank.text || "Text...");
+      setFontSize(tank.fontSize || 16);
+      setColor(tank.color || "#000000");
+      setBorderColor(tank.borderColor || "#000000");
+    }
+  }, [tank.id]); // intentionally only tank.id
+
+  // ✅ What to show on the box
+  const displayText = useMemo(() => {
+    // EDIT MODE: always show frozen design text (never live)
+    if (!isRuntime) return designTextRef.current;
+
+    // RUNTIME: show ON/OFF based on live value if available
     const raw =
       tank.statusValue ?? tank.value ?? tank.liveValue ?? tank.tagValue ?? null;
 
     const v01 = to01(raw);
-
-    // if no live value yet, keep base text (or OFF text if you prefer)
-    if (v01 === null) return text;
+    if (v01 === null) return designTextRef.current;
 
     const onTxt = tank.onText ?? "ON";
     const offTxt = tank.offText ?? "OFF";
     return v01 ? onTxt : offTxt;
   }, [
     isRuntime,
-    text,
     tank.statusValue,
     tank.value,
     tank.liveValue,
@@ -84,17 +92,7 @@ export default function DraggableTextBox({
     tank.offText,
   ]);
 
-  // ✅ Keep local editor state in sync ONLY when tank changes (design-time)
-  // (Do NOT force overwrite while editing)
-  useEffect(() => {
-    if (showEditor) return;
-    setText(tank.text || "Text...");
-    setFontSize(tank.fontSize || 16);
-    setColor(tank.color || "#000000");
-    setBorderColor(tank.borderColor || "#000000");
-  }, [tank, showEditor]);
-
-  // ✅ If editor is open or resizing or runtime: disable DnD to avoid fighting
+  // ✅ Disable drag while runtime OR editor open OR resizing
   const { attributes, listeners, setNodeRef, transform } = useDraggable({
     id: tank.id,
     disabled: isRuntime || showEditor || isResizing,
@@ -111,7 +109,6 @@ export default function DraggableTextBox({
     ? `translate(${dragDelta.x}px, ${dragDelta.y}px)`
     : baseTransform;
 
-  // ✅ FIX: prefer new z, fallback to legacy zIndex
   const resolvedZ = tank.z ?? tank.zIndex ?? 1;
 
   const style = {
@@ -131,7 +128,6 @@ export default function DraggableTextBox({
     zIndex: resolvedZ,
   };
 
-  // Start resize
   const startResize = (dir, e) => {
     e.stopPropagation();
     e.preventDefault();
@@ -148,7 +144,6 @@ export default function DraggableTextBox({
     };
   };
 
-  // Resize logic
   useEffect(() => {
     const handleMove = (e) => {
       if (!isResizing || !resizeDir) return;
@@ -200,9 +195,12 @@ export default function DraggableTextBox({
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", stopMove);
     };
-  }, [isResizing, resizeDir, safeOnUpdate, tank]);
+  }, [isResizing, resizeDir, safeOnUpdate, tank, width, height]);
 
   const applyChanges = () => {
+    // ✅ Update frozen design text (so Edit keeps this)
+    designTextRef.current = text;
+
     safeOnUpdate({
       ...tank,
       text,
@@ -212,6 +210,7 @@ export default function DraggableTextBox({
       width,
       height,
     });
+
     setShowEditor(false);
   };
 
@@ -244,7 +243,6 @@ export default function DraggableTextBox({
           onRightClick?.(e);
         }}
       >
-        {/* TEXT */}
         <div
           style={{
             width: "100%",
@@ -262,7 +260,6 @@ export default function DraggableTextBox({
           {displayText}
         </div>
 
-        {/* ⭐ 4px invisible resize edges ⭐ */}
         {!isRuntime && (
           <>
             <div
@@ -336,7 +333,6 @@ export default function DraggableTextBox({
         )}
       </div>
 
-      {/* EDITOR POPUP */}
       {showEditor && !isRuntime && (
         <div
           style={{
@@ -359,7 +355,7 @@ export default function DraggableTextBox({
           }}
         >
           <div className="flex flex-col gap-4">
-            <label className="text-sm font-semibold">Text (design-time)</label>
+            <label className="text-sm font-semibold">Text</label>
             <textarea
               value={text}
               onChange={(e) => setText(e.target.value)}
