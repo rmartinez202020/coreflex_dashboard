@@ -18,17 +18,46 @@ export default function DashboardCanvasContextMenu({
   onClose,
 }) {
   const [openScale, setOpenScale] = React.useState(false);
+  const closeTimerRef = React.useRef(null);
 
   React.useEffect(() => {
     if (!show) setOpenScale(false);
   }, [show]);
 
+  React.useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    };
+  }, []);
+
   if (!show) return null;
+
+  // ✅ clamp menu to viewport so it doesn't go off-screen
+  const vw = typeof window !== "undefined" ? window.innerWidth : 99999;
+  const vh = typeof window !== "undefined" ? window.innerHeight : 99999;
+
+  const MENU_W = 180;
+  const MENU_H_EST = 290;
+
+  const left = Math.min(Math.max(8, x), vw - MENU_W - 8);
+  const top = Math.min(Math.max(8, y), vh - MENU_H_EST - 8);
+
+  const openScaleNow = () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    setOpenScale(true);
+  };
+
+  const closeScaleSoon = () => {
+    if (closeTimerRef.current) clearTimeout(closeTimerRef.current);
+    closeTimerRef.current = setTimeout(() => setOpenScale(false), 140);
+  };
 
   // helper to collect target ids:
   const collectTargetIds = () => {
     // 1) find selected draggable items in DOM
-    const selEls = Array.from(document.querySelectorAll(".draggable-item.selected"));
+    const selEls = Array.from(
+      document.querySelectorAll(".draggable-item.selected")
+    );
     const selIds = selEls
       .map((el) => el.getAttribute("data-widget-id"))
       .filter(Boolean);
@@ -36,13 +65,13 @@ export default function DashboardCanvasContextMenu({
     if (selIds.length) return selIds;
 
     // 2) if nothing selected, try to find element under the menu point
-    // x,y are relative to viewport as passed from App — elementFromPoint expects viewport coords
+    // x,y are viewport coords (clientX/clientY)
     const ex = Math.round(x);
     const ey = Math.round(y);
 
     let el = document.elementFromPoint(ex, ey);
     let attempts = 0;
-    while (el && attempts < 8) {
+    while (el && attempts < 10) {
       if (el.classList && el.classList.contains("draggable-item")) break;
       el = el.parentElement;
       attempts++;
@@ -53,7 +82,6 @@ export default function DashboardCanvasContextMenu({
       if (id) return [id];
     }
 
-    // none found
     return [];
   };
 
@@ -62,35 +90,30 @@ export default function DashboardCanvasContextMenu({
     const ids = collectTargetIds();
 
     if (!ids.length) {
-      // nothing to scale — just close menu and return
       onClose?.();
       return;
     }
 
-    // dispatch global event
-    const ev = new CustomEvent("coreflex-scale", {
-      detail: {
-        ids,
-        scale: s,
-      },
-    });
-    window.dispatchEvent(ev);
+    window.dispatchEvent(
+      new CustomEvent("coreflex-scale", {
+        detail: { ids, scale: s },
+      })
+    );
 
-    // close menu after action
     onClose?.();
   };
 
   const baseStyle = {
-    position: "absolute",
-    left: x,
-    top: y,
+    position: "fixed", // ✅ KEY FIX: prevents offset issues
+    left,
+    top,
     zIndex: 999999,
     background: "white",
     border: "1px solid rgba(0,0,0,0.12)",
     borderRadius: 10,
     boxShadow: "0 10px 30px rgba(0,0,0,0.18)",
     padding: 6,
-    minWidth: 180,
+    minWidth: MENU_W,
   };
 
   const itemStyle = {
@@ -105,7 +128,11 @@ export default function DashboardCanvasContextMenu({
     gap: 10,
   };
 
-  const sepStyle = { height: 1, background: "rgba(0,0,0,0.06)", margin: "6px 0" };
+  const sepStyle = {
+    height: 1,
+    background: "rgba(0,0,0,0.06)",
+    margin: "6px 0",
+  };
 
   return (
     <div
@@ -127,55 +154,81 @@ export default function DashboardCanvasContextMenu({
       {/* Scale submenu */}
       <div
         style={{ ...itemStyle, position: "relative" }}
-        onMouseEnter={() => setOpenScale(true)}
-        onMouseLeave={() => setOpenScale(false)}
+        onMouseEnter={openScaleNow}
+        onMouseLeave={closeScaleSoon}
+        onClick={(e) => {
+          // ✅ optional: click to toggle (helps touchpads)
+          e.stopPropagation();
+          setOpenScale((v) => !v);
+        }}
       >
         <span>Scale</span>
         <span style={{ opacity: 0.7 }}>▸</span>
 
         {openScale && (
-          <div
-            style={{
-              position: "absolute",
-              left: "100%",
-              top: 0,
-              marginLeft: 8,
-              zIndex: 1000000,
-              background: "white",
-              border: "1px solid rgba(0,0,0,0.12)",
-              borderRadius: 8,
-              boxShadow: "0 8px 20px rgba(0,0,0,0.12)",
-              padding: 6,
-              minWidth: 120,
-            }}
-            onMouseDown={(e) => e.stopPropagation()}
-          >
-            {SCALE_PRESETS.map((s) => (
-              <div
-                key={s}
-                style={{
-                  padding: "8px 8px",
-                  cursor: "pointer",
-                  borderRadius: 6,
-                  fontSize: 13,
-                }}
-                onClick={() => applyScale(s)}
-              >
-                {s}x
-              </div>
-            ))}
-            <div style={{ height: 6 }} />
+          <>
+            {/* ✅ Invisible "bridge" so mouse can move to submenu without losing hover */}
             <div
               style={{
-                fontSize: 12,
-                opacity: 0.7,
-                padding: "4px 4px",
-                textAlign: "center",
+                position: "absolute",
+                left: "100%",
+                top: -6,
+                width: 14, // bridge width
+                height: 42, // covers the Scale row height area
+                background: "transparent",
               }}
+              onMouseEnter={openScaleNow}
+              onMouseLeave={closeScaleSoon}
+            />
+
+            <div
+              style={{
+                position: "absolute",
+                left: "100%",
+                top: -6, // align better with row
+                marginLeft: 14, // match bridge width (no gap)
+                zIndex: 1000000,
+                background: "white",
+                border: "1px solid rgba(0,0,0,0.12)",
+                borderRadius: 8,
+                boxShadow: "0 8px 20px rgba(0,0,0,0.12)",
+                padding: 6,
+                minWidth: 120,
+              }}
+              onMouseEnter={openScaleNow}
+              onMouseLeave={closeScaleSoon}
+              onMouseDown={(e) => e.stopPropagation()}
+              onClick={(e) => e.stopPropagation()}
             >
-              Range: {SCALE_MIN} — {SCALE_MAX}x
+              {SCALE_PRESETS.map((s) => (
+                <div
+                  key={s}
+                  style={{
+                    padding: "8px 8px",
+                    cursor: "pointer",
+                    borderRadius: 6,
+                    fontSize: 13,
+                  }}
+                  onClick={() => applyScale(s)}
+                  onMouseEnter={openScaleNow}
+                >
+                  {s}x
+                </div>
+              ))}
+
+              <div style={{ height: 6 }} />
+              <div
+                style={{
+                  fontSize: 12,
+                  opacity: 0.7,
+                  padding: "4px 4px",
+                  textAlign: "center",
+                }}
+              >
+                Range: {SCALE_MIN} — {SCALE_MAX}x
+              </div>
             </div>
-          </div>
+          </>
         )}
       </div>
 
@@ -191,6 +244,7 @@ export default function DashboardCanvasContextMenu({
       >
         <span>Bring to Front</span>
       </div>
+
       <div
         style={itemStyle}
         onClick={() => {

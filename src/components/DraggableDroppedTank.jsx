@@ -229,7 +229,7 @@ export default function DraggableDroppedTank({
   return (
     <div
       ref={setRefs}
-      className="draggable-item"
+      className={`draggable-item ${selected && !isPlay ? "selected" : ""}`} // ✅ FIX FOR MULTI-SCALE
       data-widget-id={String(tank.id)}
       style={outerStyle}
       {...attributes}

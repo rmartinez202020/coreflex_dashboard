@@ -17,8 +17,6 @@ export default function useContextMenu() {
     x: 0,
     y: 0,
     targetId: null,
-
-    // ✅ Optional: store full object reference (useful for menu labels later)
     target: null,
   });
 
@@ -28,7 +26,6 @@ export default function useContextMenu() {
 
   const handleRightClick = useCallback((a, b, c) => {
     // ✅ New signature: (event, tank)
-    // DashboardCanvas will call: handleRightClick(e, tank)
     if (a && typeof a === "object" && typeof a.preventDefault === "function") {
       const e = a;
       const tank = b || null;
@@ -36,19 +33,9 @@ export default function useContextMenu() {
       e.preventDefault();
       e.stopPropagation?.();
 
-      const x =
-        typeof e.clientX === "number"
-          ? e.clientX
-          : typeof e.pageX === "number"
-          ? e.pageX
-          : 0;
-
-      const y =
-        typeof e.clientY === "number"
-          ? e.clientY
-          : typeof e.pageY === "number"
-          ? e.pageY
-          : 0;
+      // ✅ FIX: always use viewport coords
+      const x = typeof e.clientX === "number" ? e.clientX : 0;
+      const y = typeof e.clientY === "number" ? e.clientY : 0;
 
       setContextMenu({
         visible: true,
