@@ -426,13 +426,14 @@ export default function DashboardCanvas({
               );
             }
 
-         if (tank.shape === "img") {
-  return (
-    <DraggableDroppedTank {...commonProps}>
-      <DraggableImage src={tank.src} />
-    </DraggableDroppedTank>
-  );
-}
+            if (tank.shape === "img") {
+              return (
+                <DraggableDroppedTank {...commonProps}>
+                  <DraggableImage src={tank.src} scale={tank.scale} />
+                </DraggableDroppedTank>
+              );
+            }
+
             if (tank.shape === "displayBox") {
               return (
                 <DraggableDroppedTank
