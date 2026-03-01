@@ -1,5 +1,6 @@
 // src/components/controls/graphicDisplay/GraphicDisplayPanel.jsx
 import React, { useMemo } from "react";
+import GraphicDisplayHeader from "./GraphicDisplayHeader";
 
 const DEFAULT_LINE_COLOR = "#0c5ac8";
 const FRAME_LINE = "1px solid #cfcfcf";
@@ -17,11 +18,6 @@ function detectLaunchMode() {
   const path = String(window.location.pathname || "").toLowerCase();
   const hash = String(window.location.hash || "").toLowerCase();
 
-  // common patterns:
-  // - ?mode=launch
-  // - ?launch=1 / true
-  // - /launch route
-  // - #/launch or contains "launch" in hash
   try {
     const url = new URL(window.location.href);
     const mode = String(url.searchParams.get("mode") || "").toLowerCase();
@@ -36,7 +32,6 @@ function detectLaunchMode() {
   if (path.includes("launch")) return true;
   if (hash.includes("launch")) return true;
 
-  // last resort: any hint in href (still safe)
   if (href.includes("mode=launch")) return true;
   if (href.includes("launch=1") || href.includes("launch=true")) return true;
 
@@ -47,10 +42,12 @@ export default function GraphicDisplayPanel({
   // mode
   isExploreMode = false,
   isPlay = false,
+
   // header basics
   title = "Graphic Display",
   lineColor: lineColorProp,
   styleBadge = "",
+
   // status pill (already computed in parent)
   statusLabel = {
     text: "--",
@@ -59,21 +56,26 @@ export default function GraphicDisplayPanel({
     border: "rgba(148,163,184,0.35)",
   },
   bindDeviceId = "",
+
   singleUnitsEnabled = false,
   singleUnit = "",
+
   // totalizer (computed in parent GraphicDisplay.jsx)
   totalizerEnabled = false,
   totalizerRateUnit = "",
   totalizerTotalUnit = "",
   totalizerValue = null,
+
   // totalizer controls (parent MUST wire these to persist setting)
   onTotalizerEnable = () => {},
   onTotalizerDisable = () => {},
   onTotalizerReset = () => {},
+
   // (kept for backwards compatibility if parent still passes them; not used now)
   totalizerIsPlaying: _totalizerIsPlayingProp,
   onTotalizerPlay: _onTotalizerPlay,
   onTotalizerPause: _onTotalizerPause,
+
   // ✅ NEW: Settings button handler (parent should open GraphicDisplaySettingsModal)
   onOpenSettings = () => {},
 
@@ -156,89 +158,6 @@ export default function GraphicDisplayPanel({
     handlers?.onDoubleClick?.(e);
   };
 
-  const topBtnBase = {
-    height: 36,
-    padding: "0 18px",
-    borderRadius: 10,
-    border: "1px solid #d1d5db",
-    background: "#fff",
-    color: "#111",
-    fontSize: 13,
-    fontWeight: 400,
-    cursor: "pointer",
-    lineHeight: "36px",
-    userSelect: "none",
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 10,
-    whiteSpace: "nowrap",
-  };
-
-  const topBtnDisabled = {
-    ...topBtnBase,
-    cursor: "not-allowed",
-    opacity: 0.55,
-  };
-
-  const bigStatBoxStyle = {
-    height: 40,
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 10,
-    padding: "0 16px",
-    borderRadius: 12,
-    border: "1px solid rgba(0,0,0,0.12)",
-    background: "rgba(255,255,255,0.96)",
-    fontFamily: "monospace",
-    fontSize: 14,
-    fontWeight: 400,
-    color: "#111",
-    whiteSpace: "nowrap",
-  };
-
-  const onlinePillStyle = {
-    height: 26,
-    padding: "0 12px",
-    borderRadius: 999,
-    border: `1px solid ${statusLabel.border}`,
-    background: statusLabel.bg,
-    color: statusLabel.color,
-    fontSize: 11,
-    fontWeight: 400,
-    display: "inline-flex",
-    alignItems: "center",
-    justifyContent: "center",
-    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-    letterSpacing: 0.2,
-    userSelect: "none",
-    whiteSpace: "nowrap",
-  };
-
-  const totalizerSectionTitle = "Totalizer Controls";
-
-  const totBtnBase = {
-    height: 32,
-    padding: "0 14px",
-    borderRadius: 10,
-    border: "1px solid rgba(0,0,0,0.12)",
-    background: "rgba(255,255,255,0.96)",
-    fontSize: 12,
-    fontWeight: 400,
-    cursor: "pointer",
-    lineHeight: "32px",
-    userSelect: "none",
-    display: "inline-flex",
-    alignItems: "center",
-    gap: 8,
-    whiteSpace: "nowrap",
-  };
-
-  const totBtnDisabled = {
-    ...totBtnBase,
-    cursor: "not-allowed",
-    opacity: 0.55,
-  };
-
   const onTotEnableClick = () => onTotalizerEnable?.();
   const onTotDisableClick = () => onTotalizerDisable?.();
   const onTotResetClick = () => {
@@ -308,367 +227,38 @@ export default function GraphicDisplayPanel({
         minHeight: 0,
       }}
     >
-      {/* HEADER */}
-      <div
-        style={{
-          padding: "8px 10px",
-          background: "linear-gradient(180deg, #ffffff 0%, #f4f4f4 100%)",
-          flex: "0 0 auto",
-          minWidth: 0,
-        }}
-      >
-        {/* ROW 1 (title left, controls pinned right) */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 10,
-            minWidth: 0,
-            paddingBottom: 8,
-          }}
-        >
-          <div
-            style={{
-              fontWeight: 400,
-              fontSize: 14,
-              color: "#111",
-              whiteSpace: "nowrap",
-              overflow: "hidden",
-              textOverflow: "ellipsis",
-              minWidth: 0,
-              flex: "1 1 auto",
-            }}
-            title={title}
-          >
-            {title}
-          </div>
-
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              gap: 10,
-              flex: "0 0 auto",
-              justifyContent: "flex-end",
-              maxWidth: "70%",
-              overflowX: "auto",
-              paddingBottom: 2,
-            }}
-          >
-            {/* ✅ SETTINGS (HIDDEN in Play + Launch) */}
-            {showSettingsBtn && (
-              <button
-                type="button"
-                onClick={onOpenSettings}
-                style={topBtnBase}
-                title="Open Settings"
-              >
-                ⚙ <span>Settings</span>
-              </button>
-            )}
-
-            {/* Explore button in Play OR Launch */}
-            {isRunMode && (
-              <button
-                type="button"
-                onClick={onToggleExplore}
-                style={{
-                  ...topBtnBase,
-                  background: isExploreMode ? "#fee2e2" : "#fff",
-                  border: isExploreMode ? "1px solid #fecaca" : topBtnBase.border,
-                }}
-                title={isExploreMode ? "Close Explore" : "Open Explore"}
-              >
-                🔎 <span>{isExploreMode ? "Explore OUT" : "Explore IN"}</span>
-              </button>
-            )}
-
-            <button
-              type="button"
-              onClick={onPlay}
-              style={isPlaying ? topBtnDisabled : topBtnBase}
-              disabled={isPlaying}
-              title="Resume"
-            >
-              ▶ <span>Play</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={onPause}
-              style={!isPlaying ? topBtnDisabled : topBtnBase}
-              disabled={!isPlaying}
-              title="Pause"
-            >
-              ⏸ <span>Pause</span>
-            </button>
-
-            <button
-              type="button"
-              onClick={onExport}
-              style={topBtnBase}
-              title="Export (Download Data) - CSV"
-            >
-              ⬇ <span>Export (Download Data)</span>
-            </button>
-
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 8,
-                height: 36,
-                padding: "0 10px",
-                borderRadius: 10,
-                border: "1px solid rgba(0,0,0,0.10)",
-                background: "rgba(255,255,255,0.92)",
-                whiteSpace: "nowrap",
-                flex: "0 0 auto",
-              }}
-              title={`Line color: ${lineColor}`}
-            >
-              <span
-                style={{
-                  width: 12,
-                  height: 12,
-                  borderRadius: 999,
-                  background: lineColor,
-                  border: "1px solid rgba(0,0,0,0.15)",
-                }}
-              />
-              <span style={{ fontSize: 12, fontWeight: 400, color: "#111" }}>
-                LINE
-              </span>
-              {styleBadge ? (
-                <span style={{ fontSize: 11, fontWeight: 400, color: "#475569" }}>
-                  {styleBadge}
-                </span>
-              ) : null}
-            </div>
-
-            <div
-              style={onlinePillStyle}
-              title={bindDeviceId ? `Device is ${statusLabel.text}` : "No device selected"}
-            >
-              {statusLabel.text}
-            </div>
-          </div>
-        </div>
-
-        <div style={{ height: 0, borderTop: FRAME_LINE, width: "100%" }} />
-
-        {/* ROW 2 */}
-        <div
-          style={{
-            marginTop: 10,
-            display: "flex",
-            alignItems: "center",
-            justifyContent: "space-between",
-            gap: 12,
-            flexWrap: "wrap",
-            paddingBottom: 10,
-            minWidth: 0,
-          }}
-        >
-          {/* LEFT: Totalizer Controls */}
-          {showTotalizerControls ? (
-            <div
-              style={{
-                display: "inline-flex",
-                alignItems: "center",
-                gap: 10,
-                flex: "1 1 auto",
-                minWidth: 240,
-              }}
-            >
-              <div
-                style={{
-                  fontSize: 12,
-                  color: "#111",
-                  fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-                  fontWeight: 400,
-                  whiteSpace: "nowrap",
-                }}
-                title="Totalizer controls"
-              >
-                Totalizer Controls
-              </div>
-
-              <div
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: 8,
-                  flexWrap: "wrap",
-                }}
-              >
-                <button
-                  type="button"
-                  onClick={onTotEnableClick}
-                  disabled={!!totalizerEnabledEffective}
-                  style={
-                    totalizerEnabledEffective
-                      ? totBtnDisabled
-                      : {
-                          ...totBtnBase,
-                          background: "rgba(220,252,231,0.90)",
-                          border: "1px solid rgba(34,197,94,0.35)",
-                        }
-                  }
-                  title="Enable totalizer accumulation"
-                >
-                  ✅ <span>Enable</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={onTotDisableClick}
-                  disabled={!totalizerEnabledEffective}
-                  style={
-                    !totalizerEnabledEffective
-                      ? totBtnDisabled
-                      : {
-                          ...totBtnBase,
-                          background: "rgba(254,242,242,0.95)",
-                          border: "1px solid rgba(239,68,68,0.25)",
-                        }
-                  }
-                  title="Disable totalizer accumulation"
-                >
-                  ⛔ <span>Disable</span>
-                </button>
-
-                <button
-                  type="button"
-                  onClick={onTotResetClick}
-                  disabled={!totalizerEnabledEffective}
-                  style={!totalizerEnabledEffective ? totBtnDisabled : totBtnBase}
-                  title="Reset totalizer total to zero"
-                >
-                  ↺ <span>Reset</span>
-                </button>
-              </div>
-            </div>
-          ) : (
-            <div style={{ flex: "1 1 auto", minWidth: 240 }} />
-          )}
-
-          {/* RIGHT: Output + (Unit) + (Totalizer) boxes */}
-          <div
-            style={{
-              display: "inline-flex",
-              alignItems: "center",
-              justifyContent: "flex-end",
-              gap: 12,
-              flex: "0 0 auto",
-              flexWrap: "wrap",
-            }}
-          >
-            <div style={bigStatBoxStyle} title="Math Output">
-              <span
-                style={{
-                  color: "#555",
-                  fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-                  fontWeight: 400,
-                  fontSize: 13,
-                }}
-              >
-                Output:
-              </span>
-              <span style={{ color: "#0b3b18", fontWeight: 400, fontSize: 15 }}>
-                {Number.isFinite(mathOutput) ? Number(mathOutput).toFixed(2) : "--"}
-              </span>
-              {outputUnitText ? (
-                <span
-                  style={{
-                    color: "#475569",
-                    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-                    fontWeight: 400,
-                    fontSize: 13,
-                    marginLeft: 2,
-                  }}
-                  title="Unit"
-                >
-                  {outputUnitText}
-                </span>
-              ) : null}
-            </div>
-
-            {unitBadgeText ? (
-              <div style={bigStatBoxStyle} title="Single Unit">
-                <span
-                  style={{
-                    color: "#555",
-                    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-                    fontWeight: 400,
-                    fontSize: 13,
-                  }}
-                >
-                  UNIT:
-                </span>
-                <span style={{ color: "#111", fontWeight: 400, fontSize: 15 }}>
-                  {unitBadgeText}
-                </span>
-              </div>
-            ) : null}
-
-            {totalizerEnabledEffective ? (
-              <div style={bigStatBoxStyle} title={totalTitle}>
-                <span
-                  style={{
-                    color: "#555",
-                    fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
-                    fontWeight: 400,
-                    fontSize: 13,
-                  }}
-                >
-                  TOTALLIZER:
-                </span>
-                <span style={{ color: "#111", fontWeight: 400, fontSize: 15 }}>
-                  {totalText}
-                </span>
-              </div>
-            ) : null}
-          </div>
-        </div>
-
-        <div style={{ height: 0, borderTop: FRAME_LINE, width: "100%" }} />
-
-        {/* info row */}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: 8,
-            color: "#444",
-            fontSize: 11,
-            marginTop: 10,
-            minWidth: 0,
-            flexWrap: "wrap",
-            paddingBottom: 8,
-            fontWeight: 400,
-          }}
-        >
-          <span>
-            Time: <span>{timeUnit}</span>
-          </span>
-          <span>•</span>
-          <span>
-            Sample: <span>{sampleMs} ms</span>
-          </span>
-          <span>•</span>
-          <span>
-            Window: <span>{windowSize}</span>
-          </span>
-          <span>•</span>
-          <span>
-            Y: <span>{yMin}</span> → <span>{yMax}</span>{" "}
-            {outputUnitText ? `(${outputUnitText})` : ""}
-          </span>
-        </div>
-
-        <div style={{ height: 0, borderTop: FRAME_LINE, width: "100%" }} />
-      </div>
+      {/* ✅ HEADER extracted */}
+      <GraphicDisplayHeader
+        isExploreMode={isExploreMode}
+        isRunMode={isRunMode}
+        title={title}
+        lineColor={lineColor}
+        styleBadge={styleBadge}
+        statusLabel={statusLabel}
+        bindDeviceId={bindDeviceId}
+        showSettingsBtn={showSettingsBtn}
+        onOpenSettings={onOpenSettings}
+        isPlaying={isPlaying}
+        onPlay={onPlay}
+        onPause={onPause}
+        onToggleExplore={onToggleExplore}
+        onExport={onExport}
+        showTotalizerControls={showTotalizerControls}
+        totalizerEnabledEffective={totalizerEnabledEffective}
+        onTotEnableClick={onTotEnableClick}
+        onTotDisableClick={onTotDisableClick}
+        onTotResetClick={onTotResetClick}
+        mathOutput={mathOutput}
+        outputUnitText={outputUnitText}
+        unitBadgeText={unitBadgeText}
+        totalText={totalText}
+        totalTitle={totalTitle}
+        timeUnit={timeUnit}
+        sampleMs={sampleMs}
+        windowSize={windowSize}
+        yMin={yMin}
+        yMax={yMax}
+      />
 
       {/* BODY */}
       <div
