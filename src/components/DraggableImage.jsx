@@ -1,8 +1,9 @@
 // src/components/DraggableImage.jsx
 import React from "react";
 
-export default function DraggableImage({ src, scale }) {
+export default function DraggableImage({ src, scale = 1, baseW = 120 }) {
   const s = Number(scale || 1);
+  const bw = Number(baseW || 120);
 
   return (
     <img
@@ -10,8 +11,8 @@ export default function DraggableImage({ src, scale }) {
       draggable={false}
       alt=""
       style={{
-        width: `${120 * s}px`,        // ✅ your 1:1 stays the same
-        maxWidth: "none",             // ✅ IMPORTANT: remove 300px cap
+        width: `${bw * s}px`,   // ✅ base width * scale
+        maxWidth: "none",       // ✅ no cap
         minWidth: 20,
         height: "auto",
         objectFit: "contain",

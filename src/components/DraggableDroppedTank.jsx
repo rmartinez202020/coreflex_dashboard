@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from "react";
 import { SCALE_MIN, SCALE_MAX } from "../config/scaleLimits";
 
 const IMAGE_SCALE_MAX = 4.0; // ✅ images can go bigger
+const IMAGE_BASE_W_DEFAULT = 120; // ✅ your desired "1:1" base width
 
 export default function DraggableDroppedTank({
   tank,
@@ -79,7 +80,24 @@ export default function DraggableDroppedTank({
     setResizing(true);
   };
 
-  const stopResize = useCallback(() => setResizing(false), []);
+  // ✅ IMPORTANT: on resize end, "bake" image scale into baseW so it becomes the new 1:1
+  const stopResize = useCallback(() => {
+    setResizing(false);
+
+    if (!isImage) return;
+
+    const currentScale = Number(tank?.scale || 1);
+    if (!Number.isFinite(currentScale) || currentScale === 1) return;
+
+    const baseW = Number(tank?.baseW || IMAGE_BASE_W_DEFAULT);
+    const nextBaseW = Math.max(20, Math.round(baseW * currentScale));
+
+    onUpdate?.({
+      ...tank,
+      baseW: nextBaseW, // ✅ new "1:1" for this image
+      scale: 1, // ✅ reset scale so it doesn't snap small on reload
+    });
+  }, [isImage, tank, onUpdate]);
 
   const handleResize = useCallback(
     (e) => {

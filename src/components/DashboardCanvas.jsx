@@ -429,7 +429,7 @@ export default function DashboardCanvas({
             if (tank.shape === "img") {
               return (
                 <DraggableDroppedTank {...commonProps}>
-                  <DraggableImage src={tank.src} />
+                  <DraggableImage src={tank.src} baseW={tank.baseW}  />
                 </DraggableDroppedTank>
               );
             }
