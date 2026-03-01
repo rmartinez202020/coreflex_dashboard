@@ -59,6 +59,9 @@ export default function useDashboardHistory({
   const dragStartedRef = useRef(false);
   const dragStartPushedRef = useRef(false);
 
+  // ✅ scale flags (avoid duplicate commits while multiple widgets receive the same event)
+  const scaleInFlightRef = useRef(false);
+
   // ----------------------------------------
   // ✅ History auto-push effect (when NOT dragging)
   // ----------------------------------------
@@ -128,6 +131,9 @@ export default function useDashboardHistory({
       isObjectDraggingRef.current = false;
       dragStartedRef.current = false;
       dragStartPushedRef.current = false;
+
+      // reset scale state
+      scaleInFlightRef.current = false;
     },
     [push, reset]
   );
@@ -200,6 +206,45 @@ export default function useDashboardHistory({
   }, [activePage, droppedRef, push]);
 
   // ----------------------------------------
+  // ✅ NEW: Scale commits should be undoable (multi-select scale)
+  // ----------------------------------------
+  useEffect(() => {
+    const onScale = () => {
+      if (activePage !== "dashboard") return;
+      if (dashboardMode !== "edit") return;
+      if (isRestoringRef.current) return;
+
+      // prevent duplicate commits while each widget receives the same event
+      if (scaleInFlightRef.current) return;
+      scaleInFlightRef.current = true;
+
+      // push BEFORE snapshot (current state)
+      const beforeArr = deepClone(droppedRef?.current || []);
+      const beforeSnap = JSON.stringify(beforeArr);
+      if (beforeSnap !== lastPushedSnapshotRef.current) {
+        lastPushedSnapshotRef.current = beforeSnap;
+        push(beforeArr);
+      }
+
+      // push AFTER snapshot on next tick after updates apply
+      setTimeout(() => {
+        const afterArr = deepClone(droppedRef?.current || []);
+        const afterSnap = JSON.stringify(afterArr);
+
+        if (afterSnap !== lastPushedSnapshotRef.current) {
+          lastPushedSnapshotRef.current = afterSnap;
+          push(afterArr);
+        }
+
+        scaleInFlightRef.current = false;
+      }, 0);
+    };
+
+    window.addEventListener("coreflex-scale", onScale);
+    return () => window.removeEventListener("coreflex-scale", onScale);
+  }, [activePage, dashboardMode, droppedRef, push]);
+
+  // ----------------------------------------
   // ✅ Restore helpers
   // ----------------------------------------
   const beginRestore = useCallback(() => {
@@ -216,6 +261,9 @@ export default function useDashboardHistory({
     isObjectDraggingRef.current = false;
     dragStartedRef.current = false;
     dragStartPushedRef.current = false;
+
+    // stop scale mode
+    scaleInFlightRef.current = false;
   }, [reset]);
 
   const endRestore = useCallback(() => {
@@ -303,6 +351,7 @@ export default function useDashboardHistory({
       lastPushedSnapshotRef,
       baselineSnapshotRef,
       isRestoringRef,
+      scaleInFlightRef,
     },
   };
 }
