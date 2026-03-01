@@ -52,6 +52,9 @@ export default function GraphicDisplayPanel({
   onTotalizerPlay: _onTotalizerPlay,
   onTotalizerPause: _onTotalizerPause,
 
+  // ✅ NEW: Settings button handler (parent should open GraphicDisplaySettingsModal)
+  onOpenSettings = () => {},
+
   // control state + handlers
   isPlaying = true,
   onPlay = () => {},
@@ -86,7 +89,10 @@ export default function GraphicDisplayPanel({
   mathOutput = null,
   err = "",
 }) {
-  const lineColor = useMemo(() => normalizeLineColor(lineColorProp), [lineColorProp]);
+  const lineColor = useMemo(
+    () => normalizeLineColor(lineColorProp),
+    [lineColorProp]
+  );
 
   const strokeW = isExploreMode ? 2 : 3;
   const yFont = isExploreMode ? 14 : 11;
@@ -248,6 +254,11 @@ export default function GraphicDisplayPanel({
     return singleUnitsEnabled && su ? su : "";
   }, [singleUnitsEnabled, singleUnit]);
 
+  // ✅ Settings button:
+  // - Show ONLY in normal panel (not inside Explore modal)
+  // - Show in both Edit + Play (you decide in parent if it should open modal in Play)
+  const showSettingsBtn = !isExploreMode;
+
   return (
     <div
       style={{
@@ -313,6 +324,18 @@ export default function GraphicDisplayPanel({
               paddingBottom: 2,
             }}
           >
+            {/* ✅ NEW SETTINGS BUTTON */}
+            {showSettingsBtn && (
+              <button
+                type="button"
+                onClick={onOpenSettings}
+                style={topBtnBase}
+                title="Open Settings"
+              >
+                ⚙ <span>Settings</span>
+              </button>
+            )}
+
             {isPlay && (
               <button
                 type="button"
@@ -382,13 +405,20 @@ export default function GraphicDisplayPanel({
                   border: "1px solid rgba(0,0,0,0.15)",
                 }}
               />
-              <span style={{ fontSize: 12, fontWeight: 400, color: "#111" }}>LINE</span>
+              <span style={{ fontSize: 12, fontWeight: 400, color: "#111" }}>
+                LINE
+              </span>
               {styleBadge ? (
-                <span style={{ fontSize: 11, fontWeight: 400, color: "#475569" }}>{styleBadge}</span>
+                <span style={{ fontSize: 11, fontWeight: 400, color: "#475569" }}>
+                  {styleBadge}
+                </span>
               ) : null}
             </div>
 
-            <div style={onlinePillStyle} title={bindDeviceId ? `Device is ${statusLabel.text}` : "No device selected"}>
+            <div
+              style={onlinePillStyle}
+              title={bindDeviceId ? `Device is ${statusLabel.text}` : "No device selected"}
+            >
               {statusLabel.text}
             </div>
           </div>
@@ -550,7 +580,9 @@ export default function GraphicDisplayPanel({
                 >
                   UNIT:
                 </span>
-                <span style={{ color: "#111", fontWeight: 400, fontSize: 15 }}>{unitBadgeText}</span>
+                <span style={{ color: "#111", fontWeight: 400, fontSize: 15 }}>
+                  {unitBadgeText}
+                </span>
               </div>
             ) : null}
 
@@ -567,7 +599,9 @@ export default function GraphicDisplayPanel({
                 >
                   TOTALLIZER:
                 </span>
-                <span style={{ color: "#111", fontWeight: 400, fontSize: 15 }}>{totalText}</span>
+                <span style={{ color: "#111", fontWeight: 400, fontSize: 15 }}>
+                  {totalText}
+                </span>
               </div>
             ) : null}
           </div>
@@ -604,7 +638,8 @@ export default function GraphicDisplayPanel({
           </span>
           <span>•</span>
           <span>
-            Y: <span>{yMin}</span> → <span>{yMax}</span> {outputUnitText ? `(${outputUnitText})` : ""}
+            Y: <span>{yMin}</span> → <span>{yMax}</span>{" "}
+            {outputUnitText ? `(${outputUnitText})` : ""}
           </span>
         </div>
 
@@ -696,11 +731,25 @@ export default function GraphicDisplayPanel({
               cursor: showVectors && sel ? "crosshair" : "default",
               touchAction: "none",
             }}
-            title={showVectors ? "Move mouse to ping time/value. Drag to zoom. Double-click to reset zoom." : ""}
+            title={
+              showVectors
+                ? "Move mouse to ping time/value. Drag to zoom. Double-click to reset zoom."
+                : ""
+            }
           >
-            <svg viewBox={`0 0 ${svg.W} ${svg.H}`} preserveAspectRatio="none" style={{ width: "100%", height: "100%", display: "block" }}>
+            <svg
+              viewBox={`0 0 ${svg.W} ${svg.H}`}
+              preserveAspectRatio="none"
+              style={{ width: "100%", height: "100%", display: "block" }}
+            >
               {(svg?.segs || []).map((pts, idx) => (
-                <polyline key={idx} fill="none" stroke={lineColor} strokeWidth={strokeW} points={(pts || []).join(" ")} />
+                <polyline
+                  key={idx}
+                  fill="none"
+                  stroke={lineColor}
+                  strokeWidth={strokeW}
+                  points={(pts || []).join(" ")}
+                />
               ))}
             </svg>
 
@@ -766,7 +815,9 @@ export default function GraphicDisplayPanel({
                     <span style={{ color: "#0b3b18", fontWeight: 400 }}>
                       {Number.isFinite(hover.y) ? Number(hover.y).toFixed(2) : "--"}
                     </span>
-                    {outputUnitText ? <span style={{ color: "#475569" }}> {outputUnitText}</span> : null}
+                    {outputUnitText ? (
+                      <span style={{ color: "#475569" }}> {outputUnitText}</span>
+                    ) : null}
                   </div>
                 </div>
               </>

@@ -12,6 +12,9 @@ import useTrendLayout from "./graphicDisplay/hooks/useTrendLayout";
 import GraphicDisplayExplorePortal from "./graphicDisplay/GraphicDisplayExplorePortal";
 import GraphicDisplayPanel from "./graphicDisplay/GraphicDisplayPanel";
 
+// ✅ Settings modal (button opens this)
+import GraphicDisplaySettingsModal from "../GraphicDisplaySettingsModal";
+
 const DEFAULT_LINE_COLOR = "#0c5ac8";
 
 function normalizeLineColor(c) {
@@ -231,31 +234,46 @@ export default function GraphicDisplay({
   tank,
   telemetryMap = null, // ✅ common poller map
   isPlay = false, // ✅ should be true in Play/Launch
+
+  // ✅ OPTIONAL: if parent provides a saver, we will call it.
+  // If not provided, we still update locally so the widget reflects the new config.
+  onSaveSettings,
 }) {
-  const title = tank?.title ?? "Graphic Display";
-  const timeUnit = tank?.timeUnit ?? "seconds";
-  const windowSize = Number(tank?.window ?? 60);
-  const sampleMs = Number(tank?.sampleMs ?? 1000);
-  const yMin = Number.isFinite(tank?.yMin) ? tank.yMin : 0;
-  const yMax = Number.isFinite(tank?.yMax) ? tank.yMax : 100;
+  // ✅ Local override so Settings changes reflect immediately even if parent saves async
+  const [localTank, setLocalTank] = useState(null);
+  useEffect(() => {
+    setLocalTank(null);
+  }, [tank]);
 
-  // NOTE: yUnits is still used for Y axis labeling.
-  const yUnits = tank?.yUnits ?? "";
+  const T = localTank ?? tank;
 
-  const graphStyle = tank?.graphStyle ?? "line";
-  const bindModel = tank?.bindModel ?? "zhc1921";
-  const bindDeviceId = String(tank?.bindDeviceId ?? "").trim();
-  const bindField = String(tank?.bindField ?? "ai1").trim();
-  const mathFormula = tank?.mathFormula ?? "";
-  const lineColor = normalizeLineColor(tank?.lineColor);
+  // ✅ Settings modal open state
+  const [settingsOpen, setSettingsOpen] = useState(false);
+
+  const title = T?.title ?? "Graphic Display";
+  const timeUnit = T?.timeUnit ?? "seconds";
+  const windowSize = Number(T?.window ?? 60);
+  const sampleMs = Number(T?.sampleMs ?? 1000);
+  const yMin = Number.isFinite(T?.yMin) ? T.yMin : 0;
+  const yMax = Number.isFinite(T?.yMax) ? T.yMax : 100;
+
+  // NOTE: yUnits is still used for Y axis labeling (legacy)
+  const yUnits = T?.yUnits ?? "";
+
+  const graphStyle = T?.graphStyle ?? "line";
+  const bindModel = T?.bindModel ?? "zhc1921";
+  const bindDeviceId = String(T?.bindDeviceId ?? "").trim();
+  const bindField = String(T?.bindField ?? "ai1").trim();
+  const mathFormula = T?.mathFormula ?? "";
+  const lineColor = normalizeLineColor(T?.lineColor);
 
   // ✅ Single Units config saved from modal
   // IMPORTANT:
   // - older key: singleUnitsUnit
   // - NEW modal key: singleUnit
-  const tankSingleEnabled = tank?.singleUnitsEnabled === true;
+  const tankSingleEnabled = T?.singleUnitsEnabled === true;
   const tankSingleUnit = String(
-    tank?.singleUnitsUnit ?? tank?.singleUnit ?? ""
+    T?.singleUnitsUnit ?? T?.singleUnit ?? ""
   ).trim();
 
   const [singleUnitsEnabled, setSingleUnitsEnabled] =
@@ -263,8 +281,8 @@ export default function GraphicDisplay({
   const [singleUnitsUnit, setSingleUnitsUnit] = useState(tankSingleUnit);
 
   // ✅ Totalizer config saved from modal
-  const tankTotEnabled = tank?.totalizerEnabled === true;
-  const totalizerRateUnit = String(tank?.totalizerUnit ?? "").trim();
+  const tankTotEnabled = T?.totalizerEnabled === true;
+  const totalizerRateUnit = String(T?.totalizerUnit ?? "").trim();
   const totalizerTotalUnit = RATE_TO_TOTAL_UNIT[totalizerRateUnit] || "";
 
   // ✅ Runtime control for Enable/Disable from header buttons
@@ -273,9 +291,9 @@ export default function GraphicDisplay({
 
   // keep runtime in sync if tank changes (like loading a different widget)
   useEffect(() => {
-    const nextSingleEnabled = tank?.singleUnitsEnabled === true;
+    const nextSingleEnabled = T?.singleUnitsEnabled === true;
     const nextSingleUnit = String(
-      tank?.singleUnitsUnit ?? tank?.singleUnit ?? ""
+      T?.singleUnitsUnit ?? T?.singleUnit ?? ""
     ).trim();
 
     setSingleUnitsEnabled(nextSingleEnabled);
@@ -288,12 +306,12 @@ export default function GraphicDisplay({
     setTotalizerResetAt(0);
   }, [
     tankTotEnabled,
-    tank?.singleUnitsEnabled,
-    tank?.singleUnitsUnit,
-    tank?.singleUnit,
-    tank?.id,
-    tank?.widgetId,
-    tank?.widget_id,
+    T?.singleUnitsEnabled,
+    T?.singleUnitsUnit,
+    T?.singleUnit,
+    T?.id,
+    T?.widgetId,
+    T?.widget_id,
     bindDeviceId,
     bindField,
   ]);
@@ -304,20 +322,20 @@ export default function GraphicDisplay({
   }, [singleUnitsEnabled, totEnabled]);
 
   const DEBUG = useMemo(() => {
-    if (tank?.debug) return true;
+    if (T?.debug) return true;
     if (typeof window === "undefined") return false;
     const url = new URL(window.location.href);
     if (url.searchParams.get("gddebug") === "1") return true;
     return false;
-  }, [tank]);
+  }, [T]);
 
   const dbgKey = useMemo(() => {
     const widgetId =
-      tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
+      T?.id ?? T?.widgetId ?? T?.widget_id ?? T?.uuid ?? "";
     return widgetId
       ? `widget:${widgetId}`
       : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
-  }, [tank, bindModel, bindDeviceId, bindField]);
+  }, [T, bindModel, bindDeviceId, bindField]);
 
   function dbg(...args) {
     if (!DEBUG) return;
@@ -337,17 +355,17 @@ export default function GraphicDisplay({
 
   const storageKey = useMemo(() => {
     const widgetId =
-      tank?.id ?? tank?.widgetId ?? tank?.widget_id ?? tank?.uuid ?? "";
+      T?.id ?? T?.widgetId ?? T?.widget_id ?? T?.uuid ?? "";
     const base = widgetId
       ? `widget:${widgetId}`
       : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
     return `coreflex:graphicDisplay:points:${base}`;
-  }, [tank, bindModel, bindDeviceId, bindField]);
+  }, [T, bindModel, bindDeviceId, bindField]);
 
-  const yDivs = Number.isFinite(tank?.yDivs) ? Math.max(2, tank.yDivs) : 10;
-  const xDivs = Number.isFinite(tank?.xDivs) ? Math.max(2, tank.xDivs) : 12;
-  const yMinor = Number.isFinite(tank?.yMinor) ? Math.max(1, tank.yMinor) : 2;
-  const xMinor = Number.isFinite(tank?.xMinor) ? Math.max(1, tank.xMinor) : 2;
+  const yDivs = Number.isFinite(T?.yDivs) ? Math.max(2, T.yDivs) : 10;
+  const xDivs = Number.isFinite(T?.xDivs) ? Math.max(2, T.xDivs) : 12;
+  const yMinor = Number.isFinite(T?.yMinor) ? Math.max(1, T.yMinor) : 2;
+  const xMinor = Number.isFinite(T?.xMinor) ? Math.max(1, T.xMinor) : 2;
 
   const { styleBadge, yTicks, gridBackground } = useTrendLayout({
     graphStyle,
@@ -489,7 +507,15 @@ export default function GraphicDisplay({
     return () => {
       if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
     };
-  }, [points, storageKey, bindDeviceId, bindField, windowSize, timeUnit, bindModel]);
+  }, [
+    points,
+    storageKey,
+    bindDeviceId,
+    bindField,
+    windowSize,
+    timeUnit,
+    bindModel,
+  ]);
 
   const lastSampleAtRef = useRef(0);
 
@@ -566,13 +592,14 @@ export default function GraphicDisplay({
     timeUnit,
   ]);
 
-  const { plotRef, sel, hover, timeTicks, pointsForView, handlers } = usePingZoom({
-    points,
-    yMin: Number(yMin),
-    yMax: Number(yMax),
-    fmtTimeWithDate,
-    hoverAnywhere: exploreOpen, // ✅ ONLY while Explore modal is open (Explore IN)
-  });
+  const { plotRef, sel, hover, timeTicks, pointsForView, handlers } =
+    usePingZoom({
+      points,
+      yMin: Number(yMin),
+      yMax: Number(yMax),
+      fmtTimeWithDate,
+      hoverAnywhere: exploreOpen, // ✅ ONLY while Explore modal is open (Explore IN)
+    });
 
   const { svg } = useTrendSvg({
     points,
@@ -671,7 +698,50 @@ export default function GraphicDisplay({
     if (singleUnitsEnabled) return su || yu || "";
     if (totEnabled && rateU) return rateU;
     return yu || "";
-  }, [singleUnitsEnabled, singleUnitsUnit, yUnits, totEnabled, totalizerRateUnit]);
+  }, [
+    singleUnitsEnabled,
+    singleUnitsUnit,
+    yUnits,
+    totEnabled,
+    totalizerRateUnit,
+  ]);
+
+  // ✅ Settings button handler
+  const onOpenSettings = () => {
+    // keep Explore separate (settings is for config)
+    setSettingsOpen(true);
+    dbg("SETTINGS: open");
+  };
+
+  // ✅ When modal applies: update local tank + call optional parent saver
+  const handleSettingsSave = (nextTank) => {
+    setSettingsOpen(false);
+
+    // update local immediately so the widget reflects the new config right away
+    setLocalTank(nextTank);
+
+    // if parent gave us a save callback, call it
+    if (typeof onSaveSettings === "function") {
+      onSaveSettings(nextTank);
+      return;
+    }
+
+    // fallback: if tank carries a callable save/update handler (some builds do this), use it
+    if (typeof tank?.onSave === "function") {
+      tank.onSave(nextTank);
+      return;
+    }
+    if (typeof tank?.onUpdate === "function") {
+      tank.onUpdate(nextTank);
+      return;
+    }
+
+    // last fallback: just keep local override
+    // eslint-disable-next-line no-console
+    console.warn(
+      "[GraphicDisplay] Settings saved locally, but no parent onSaveSettings / tank.onSave handler was found."
+    );
+  };
 
   function buildPanel(isExploreMode) {
     return (
@@ -685,6 +755,8 @@ export default function GraphicDisplay({
         styleBadge={styleBadge}
         statusLabel={statusLabel}
         bindDeviceId={bindDeviceId}
+        // ✅ NEW: Settings button opens modal
+        onOpenSettings={onOpenSettings}
         // ✅ Totalizer display (header)
         totalizerEnabled={singleUnitsEnabled ? false : totEnabled}
         totalizerRateUnit={totalizerRateUnit}
@@ -694,7 +766,7 @@ export default function GraphicDisplay({
         onTotalizerEnable={onTotalizerEnable}
         onTotalizerDisable={onTotalizerDisable}
         onTotalizerReset={onTotalizerReset}
-        // ✅ Single Units (NEW)
+        // ✅ Single Units
         singleUnitsEnabled={singleUnitsEnabled}
         singleUnit={singleUnitsUnit}
         // controls
@@ -737,15 +809,26 @@ export default function GraphicDisplay({
     );
   }
 
-  // ✅ Use portal: normal view uses buildPanel(false), modal uses buildPanel(true)
   return (
-    <GraphicDisplayExplorePortal
-      open={exploreOpen}
-      onClose={() => setExploreOpen(false)}
-      title={title}
-      modalContent={buildPanel(true)}
-    >
-      {buildPanel(false)}
-    </GraphicDisplayExplorePortal>
+    <>
+      {/* ✅ Settings Modal (opened by the new Settings button) */}
+      <GraphicDisplaySettingsModal
+        open={settingsOpen}
+        tank={T}
+        telemetryMap={telemetryMap}
+        onClose={() => setSettingsOpen(false)}
+        onSave={handleSettingsSave}
+      />
+
+      {/* ✅ Use portal: normal view uses buildPanel(false), modal uses buildPanel(true) */}
+      <GraphicDisplayExplorePortal
+        open={exploreOpen}
+        onClose={() => setExploreOpen(false)}
+        title={title}
+        modalContent={buildPanel(true)}
+      >
+        {buildPanel(false)}
+      </GraphicDisplayExplorePortal>
+    </>
   );
 }
