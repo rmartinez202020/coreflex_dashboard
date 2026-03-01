@@ -250,9 +250,13 @@ export default function GraphicDisplay({
   const lineColor = normalizeLineColor(tank?.lineColor);
 
   // ✅ Single Units config saved from modal
-  // IMPORTANT: the saved key is singleUnitsUnit (per your modal screenshot)
+  // IMPORTANT:
+  // - older key: singleUnitsUnit
+  // - NEW modal key: singleUnit
   const tankSingleEnabled = tank?.singleUnitsEnabled === true;
-  const tankSingleUnit = String(tank?.singleUnitsUnit ?? "").trim();
+  const tankSingleUnit = String(
+    tank?.singleUnitsUnit ?? tank?.singleUnit ?? ""
+  ).trim();
 
   const [singleUnitsEnabled, setSingleUnitsEnabled] =
     useState(tankSingleEnabled);
@@ -270,7 +274,9 @@ export default function GraphicDisplay({
   // keep runtime in sync if tank changes (like loading a different widget)
   useEffect(() => {
     const nextSingleEnabled = tank?.singleUnitsEnabled === true;
-    const nextSingleUnit = String(tank?.singleUnitsUnit ?? "").trim();
+    const nextSingleUnit = String(
+      tank?.singleUnitsUnit ?? tank?.singleUnit ?? ""
+    ).trim();
 
     setSingleUnitsEnabled(nextSingleEnabled);
     setSingleUnitsUnit(nextSingleUnit);
@@ -284,6 +290,7 @@ export default function GraphicDisplay({
     tankTotEnabled,
     tank?.singleUnitsEnabled,
     tank?.singleUnitsUnit,
+    tank?.singleUnit,
     tank?.id,
     tank?.widgetId,
     tank?.widget_id,
@@ -652,13 +659,19 @@ export default function GraphicDisplay({
   };
 
   // ✅ Unit label used on the chart/UI
-  // IMPORTANT: when Single Units is enabled, use singleUnitsUnit (not totalizer unit)
+  // Priority:
+  // 1) Single Units enabled -> singleUnitsUnit
+  // 2) Totalizer enabled -> totalizerRateUnit (RATE unit)
+  // 3) fallback -> yUnits
   const displayUnits = useMemo(() => {
     const su = String(singleUnitsUnit || "").trim();
     const yu = String(yUnits || "").trim();
+    const rateU = String(totalizerRateUnit || "").trim();
+
     if (singleUnitsEnabled) return su || yu || "";
+    if (totEnabled && rateU) return rateU;
     return yu || "";
-  }, [singleUnitsEnabled, singleUnitsUnit, yUnits]);
+  }, [singleUnitsEnabled, singleUnitsUnit, yUnits, totEnabled, totalizerRateUnit]);
 
   function buildPanel(isExploreMode) {
     return (
@@ -682,9 +695,6 @@ export default function GraphicDisplay({
         onTotalizerDisable={onTotalizerDisable}
         onTotalizerReset={onTotalizerReset}
         // ✅ Single Units (NEW)
-        // IMPORTANT: GraphicDisplayPanel expects:
-        //   singleUnitsEnabled
-        //   singleUnit
         singleUnitsEnabled={singleUnitsEnabled}
         singleUnit={singleUnitsUnit}
         // controls
@@ -708,7 +718,7 @@ export default function GraphicDisplay({
         windowSize={windowSize}
         yMin={yMin}
         yMax={yMax}
-        // ✅ Use displayUnits so Single Units wins
+        // ✅ Use displayUnits so Single Units wins (and Totalizer uses RATE unit)
         yUnits={displayUnits}
         // layout/plot
         gridBackground={gridBackground}
