@@ -83,7 +83,7 @@ export default function DraggableDroppedTank({
   // ✅ IMPORTANT:
   // On resize end, "bake" the scale into the widget so it becomes the new 1:1 size.
   // - Images: bake into baseW (existing behavior)
-  // - Toggles: bake into w/h (NEW) so ToggleSwitchControl uses the new base size immediately
+  // - Toggles: bake into w/h + measuredW/H (NEW) so future scales (0.75 etc) use new base
   const stopResize = useCallback(() => {
     setResizing(false);
 
@@ -93,7 +93,7 @@ export default function DraggableDroppedTank({
     const isToggle =
       tank?.shape === "toggleSwitch" || tank?.shape === "toggleControl";
 
-    // ✅ NEW: bake toggle scale into w/h so it becomes the new 1:1 (no snapback)
+    // ✅ NEW: bake toggle scale into w/h so it becomes the new 1:1 (and update measured base)
     if (isToggle) {
       // Prefer existing base size (w/h), fallback to defaults
       const baseW = Number(tank?.w ?? tank?.width ?? 180) || 180;
@@ -109,6 +109,11 @@ export default function DraggableDroppedTank({
         h: nextH,
         width: nextW,
         height: nextH,
+
+        // ✅ CRITICAL: new 1:1 reference for future global scaling
+        measuredW: nextW,
+        measuredH: nextH,
+
         scale: 1, // ✅ reset scale so new size is now "1:1"
       });
       return;
