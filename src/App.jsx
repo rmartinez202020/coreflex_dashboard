@@ -1,11 +1,9 @@
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
-
 import { API_URL } from "./config/api";
 import LaunchedMainDashboard from "./pages/LaunchedMainDashboard";
 import AlarmLogPage from "./pages/AlarmLogPage";
-
 import Header from "./components/Header";
 import AppTopBar from "./components/AppTopBar";
 import RightPanel from "./components/RightPanel";
@@ -14,7 +12,6 @@ import DashboardCanvas from "./components/DashboardCanvas";
 import DashboardCanvasContextMenu from "./components/DashboardCanvasContextMenu";
 import AppModals from "./components/AppModals";
 import HomeSubPageRouter from "./components/HomeSubPageRouter";
-
 import useAuthController from "./hooks/useAuthController";
 import usePageNavigation from "./hooks/usePageNavigation";
 import useDevicesData from "./hooks/useDevicesData";

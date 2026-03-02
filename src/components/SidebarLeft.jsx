@@ -127,17 +127,22 @@ export default function SidebarLeft({
     onRequestRestore();
   };
 
+  // ✅ target size to feel like “90% zoom” while staying at 100%
+  const EXPANDED_W = 190; // was 225
+  const COLLAPSED_W = 45;
+
   return (
     <aside
       className={
         "relative bg-[#0f172a] text-white h-full border-r border-gray-800 transition-all duration-300 overflow-hidden " +
-        (isLeftCollapsed ? "w-[45px]" : "w-[225px] p-4")
+        (isLeftCollapsed ? `w-[${COLLAPSED_W}px]` : `w-[${EXPANDED_W}px] px-3 py-3`)
       }
     >
       {/* Collapse / Expand */}
       <button
         className="absolute top-3 z-50 text-white px-2 py-1 rounded hover:bg-[#1e293b]"
-        style={{ left: isLeftCollapsed ? "5px" : "197px" }}
+        // ✅ keep the button near the right edge of the sidebar
+        style={{ left: isLeftCollapsed ? "5px" : `${EXPANDED_W - 28}px` }}
         onClick={(e) => {
           e.stopPropagation();
           if (dashboardMode === "play") return;
@@ -149,13 +154,14 @@ export default function SidebarLeft({
 
       {!isLeftCollapsed && (
         <div className="mt-10">
-          <h1 className="text-xl font-bold mb-2">CoreFlex IOTs V1.18</h1>
+          {/* ✅ slightly smaller title */}
+          <h1 className="text-[15px] font-bold mb-2">CoreFlex IOTs V1.18</h1>
 
           {/* SAVE */}
           <button
             onClick={handleSaveClick}
             disabled={isSaving}
-            className={`w-full px-3 py-2 rounded-md text-sm mb-1
+            className={`w-full px-2 py-[7px] rounded-md text-[12.5px] mb-1
               ${
                 isSaving
                   ? "bg-blue-600"
@@ -167,20 +173,20 @@ export default function SidebarLeft({
             {isSaving ? "⏳ Saving..." : saved ? "✅ Saved" : "💾 Save Project"}
           </button>
 
-          <div className="text-xs text-gray-400 mb-4">
+          <div className="text-[11px] text-gray-400 mb-3">
             Last saved: {formatDate(lastSavedAt)}
           </div>
 
           <button
             onClick={handleUploadClick}
-            className="w-full px-3 py-2 rounded-md text-sm mb-6 bg-gray-800 hover:bg-gray-700 text-blue-400"
+            className="w-full px-2 py-[7px] rounded-md text-[12.5px] mb-5 bg-gray-800 hover:bg-gray-700 text-blue-400"
           >
             ⬆ Restore Project
           </button>
 
           {/* Navigation */}
           <div
-            className={`cursor-pointer mb-4 ${
+            className={`cursor-pointer mb-3 text-[13px] ${
               activePage === "home" ? "font-bold" : ""
             }`}
             onClick={() => {
@@ -192,7 +198,7 @@ export default function SidebarLeft({
           </div>
 
           <div
-            className={`cursor-pointer mb-4 ${
+            className={`cursor-pointer mb-3 text-[13px] ${
               activePage === "dashboard" ? "font-bold" : ""
             }`}
             onClick={() => {
@@ -205,7 +211,7 @@ export default function SidebarLeft({
 
           {/* DEVICES (no badge icon) */}
           <div
-            className="cursor-pointer mb-2 flex items-center gap-2"
+            className="cursor-pointer mb-2 flex items-center gap-2 text-[13px]"
             onClick={() =>
               setShowDevices((prev) => {
                 const next = !prev;
@@ -225,7 +231,7 @@ export default function SidebarLeft({
             <div className="ml-0">
               {/* INDICATORS */}
               <div
-                className="cursor-pointer mb-2 flex items-center gap-2"
+                className="cursor-pointer mb-2 flex items-center gap-2 text-[13px]"
                 onClick={() => openOnly("indicators")}
               >
                 Indicators <span>{showIndicators ? "▾" : "▸"}</span>
@@ -235,32 +241,32 @@ export default function SidebarLeft({
                 // ✅ Make children align flush-left like other sections
                 <div className="ml-0">
                   {/* ✅ no small icons */}
-                  <div className="mb-2 text-sm flex items-center">
+                  <div className="mb-2 text-[12.5px] flex items-center">
                     <div className="flex-1">
                       <DraggableLedCircle label="Led Circle (DI)" />
                     </div>
                   </div>
 
-                  <div className="mb-2 text-sm flex items-center">
+                  <div className="mb-2 text-[12.5px] flex items-center">
                     <div className="flex-1">
                       <DraggableStatusTextBox label="Status Text Box (DI)" />
                     </div>
                   </div>
 
-                  <div className="mb-2 text-sm flex items-center">
+                  <div className="mb-2 text-[12.5px] flex items-center">
                     <div className="flex-1">
                       <DraggableBlinkingAlarm label="Blinking Alarm (DI)" />
                     </div>
                   </div>
 
-                  <div className="mb-2 text-sm flex items-center">
+                  <div className="mb-2 text-[12.5px] flex items-center">
                     <div className="flex-1">
                       <DraggableStateImage label="State Image (DI)" />
                     </div>
                   </div>
 
                   {/* ✅ Counter Input aligned + renamed */}
-                  <div className="mb-2 text-sm flex items-center">
+                  <div className="mb-2 text-[12.5px] flex items-center">
                     <div className="flex-1">
                       <DraggableCounterInput label="Counter Input (DI)" />
                     </div>
@@ -270,7 +276,7 @@ export default function SidebarLeft({
 
               {/* LEVEL SENSORS */}
               <div
-                className="cursor-pointer mb-2 flex items-center gap-2"
+                className="cursor-pointer mb-2 flex items-center gap-2 text-[13px]"
                 onClick={() => openOnly("levelsensors")}
               >
                 Level Sensors <span>{showLevelSensors ? "▾" : "▸"}</span>
@@ -278,7 +284,9 @@ export default function SidebarLeft({
 
               {showLevelSensors && (
                 <div className="ml-0">
-                  <h3 className="text-sm text-gray-400 mb-2">Tank Models-AI</h3>
+                  <h3 className="text-[12px] text-gray-400 mb-2">
+                    Tank Models-AI
+                  </h3>
 
                   {[
                     { Icon: StandardTankIcon, name: "standardTank" },
@@ -293,11 +301,11 @@ export default function SidebarLeft({
                         e.dataTransfer.setData("shape", name);
                         e.dataTransfer.setData("text/plain", name);
                       }}
-                      className="cursor-pointer flex flex-col items-center mb-4 cursor-grab active:cursor-grabbing"
+                      className="cursor-pointer flex flex-col items-center mb-3 cursor-grab active:cursor-grabbing"
                       style={{ userSelect: "none" }}
                     >
-                      <Icon size={45} />
-                      <span className="text-xs mt-1">{name}</span>
+                      <Icon size={40} />
+                      <span className="text-[11px] mt-1">{name}</span>
                     </div>
                   ))}
                 </div>
@@ -305,7 +313,7 @@ export default function SidebarLeft({
 
               {/* DEVICE CONTROLS */}
               <div
-                className="cursor-pointer mb-2 flex items-center gap-2"
+                className="cursor-pointer mb-2 flex items-center gap-2 text-[13px]"
                 onClick={() => openOnly("devicecontrols")}
               >
                 Controls <span>{showDeviceControls ? "▾" : "▸"}</span>
