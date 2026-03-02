@@ -80,14 +80,42 @@ export default function DraggableDroppedTank({
     setResizing(true);
   };
 
-  // ✅ IMPORTANT: on resize end, "bake" image scale into baseW so it becomes the new 1:1
+  // ✅ IMPORTANT:
+  // On resize end, "bake" the scale into the widget so it becomes the new 1:1 size.
+  // - Images: bake into baseW (existing behavior)
+  // - Toggles: bake into w/h (NEW) so ToggleSwitchControl uses the new base size immediately
   const stopResize = useCallback(() => {
     setResizing(false);
 
-    if (!isImage) return;
-
     const currentScale = Number(tank?.scale || 1);
     if (!Number.isFinite(currentScale) || currentScale === 1) return;
+
+    const isToggle =
+      tank?.shape === "toggleSwitch" || tank?.shape === "toggleControl";
+
+    // ✅ NEW: bake toggle scale into w/h so it becomes the new 1:1 (no snapback)
+    if (isToggle) {
+      // Prefer existing base size (w/h), fallback to defaults
+      const baseW = Number(tank?.w ?? tank?.width ?? 180) || 180;
+
+      // Keep perfect toggle ratio (recommended)
+      const ratio = 180 / 70;
+      const nextW = Math.max(90, Math.round(baseW * currentScale));
+      const nextH = Math.max(40, Math.round(nextW / ratio));
+
+      onUpdate?.({
+        ...tank,
+        w: nextW,
+        h: nextH,
+        width: nextW,
+        height: nextH,
+        scale: 1, // ✅ reset scale so new size is now "1:1"
+      });
+      return;
+    }
+
+    // ✅ Existing: bake image scale into baseW
+    if (!isImage) return;
 
     const baseW = Number(tank?.baseW || IMAGE_BASE_W_DEFAULT);
     const nextBaseW = Math.max(20, Math.round(baseW * currentScale));
