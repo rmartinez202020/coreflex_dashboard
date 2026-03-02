@@ -1,33 +1,36 @@
-import { API_URL } from "./config/api";
-import { PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
-import LaunchedMainDashboard from "./pages/LaunchedMainDashboard";
-import useDashboardHistory from "./hooks/useDashboardHistory";
 import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
+import { PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
+
+import { API_URL } from "./config/api";
+import LaunchedMainDashboard from "./pages/LaunchedMainDashboard";
+import AlarmLogPage from "./pages/AlarmLogPage";
+
 import Header from "./components/Header";
 import AppTopBar from "./components/AppTopBar";
 import RightPanel from "./components/RightPanel";
-import useDashboardPersistence from "./hooks/useDashboardPersistence";
-import useAuthController from "./hooks/useAuthController";
-import useHomeReset from "./hooks/useHomeReset";
-import useDevicesData from "./hooks/useDevicesData";
 import SidebarLeft from "./components/SidebarLeft";
 import DashboardCanvas from "./components/DashboardCanvas";
+import DashboardCanvasContextMenu from "./components/DashboardCanvasContextMenu";
+import AppModals from "./components/AppModals";
+import HomeSubPageRouter from "./components/HomeSubPageRouter";
+
+import useAuthController from "./hooks/useAuthController";
+import usePageNavigation from "./hooks/usePageNavigation";
+import useDevicesData from "./hooks/useDevicesData";
+import useDashboardHistory from "./hooks/useDashboardHistory";
+import useDashboardPersistence from "./hooks/useDashboardPersistence";
+import useDeleteSelected from "./hooks/useDeleteSelected";
+import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
+import useContextMenu from "./hooks/useContextMenu";
+import useDashboardCanvasClipboard from "./hooks/useDashboardCanvasClipboard";
+import useDashboardZOrder from "./hooks/useDashboardZOrder";
+import useHomeReset from "./hooks/useHomeReset";
 import useCanvasSelection from "./hooks/useCanvasSelection";
 import useObjectDragging from "./hooks/useObjectDragging";
 import useDropHandler from "./hooks/useDropHandler";
-import usePageNavigation from "./hooks/usePageNavigation";
-import AppModals from "./components/AppModals";
-import HomeSubPageRouter from "./components/HomeSubPageRouter";
-import useContextMenu from "./hooks/useContextMenu";
-import useKeyboardShortcuts from "./hooks/useKeyboardShortcuts";
 import useWindowDragResize from "./hooks/useWindowDragResize";
-import DashboardCanvasContextMenu from "./components/DashboardCanvasContextMenu";
-import useDashboardCanvasClipboard from "./hooks/useDashboardCanvasClipboard";
-import useDashboardZOrder from "./hooks/useDashboardZOrder";
 import useDashboardModalsController from "./hooks/useDashboardModalsController";
-import AlarmLogPage from "./pages/AlarmLogPage";
-import useDeleteSelected from "./hooks/useDeleteSelected";
 
 export default function App() {
   const navigate = useNavigate();
@@ -131,44 +134,7 @@ export default function App() {
     clearSelection,
   });
 
-    // ===============================
-// ✅ Delete hook (UI + backend for counters)
-// ===============================
-const { deleteSelected } = useDeleteSelected({
-  activePage,
-  dashboardMode,
-  selectedIds,
-  droppedTanks,
-  setDroppedTanks,
-  clearSelection,
-  activeDashboardId: activeDashboard?.dashboardId || null,
-  dashboardId: effectiveDashboardId, // "main" or UUID
-});
-
-
-  // ⌨️ KEYBOARD SHORTCUTS (arrows + copy/paste + ✅ undo/redo)
-  useKeyboardShortcuts({
-    selectedIds,
-    setSelectedIds,
-    selectedTank,
-    setSelectedTank,
-    droppedTanks,
-    setDroppedTanks,
-
-    // ✅ add these
-    onUndo: handleUndo,
-    onRedo: handleRedo,
-    canUndo,
-    canRedo,
-
-// ✅ IMPORTANT: use the same delete logic as right-click
-     onDelete: deleteSelected,
-
-    // ✅ recommended gating
-    activePage,
-    dashboardMode,
-  });
-
+  // ✅ DASHBOARD PERSISTENCE (MUST be before anything that uses activeDashboard/effectiveDashboardId)
   const {
     activeDashboard,
     setActiveDashboard,
@@ -214,6 +180,44 @@ const { deleteSelected } = useDeleteSelected({
     return id || null;
   }, [activeDashboard]);
 
+  // ===============================
+  // ✅ Delete hook (UI + backend for counters)
+  // ✅ MUST be after activeDashboard/effectiveDashboardId exist (prevents TDZ prod crash)
+  // ===============================
+  const { deleteSelected } = useDeleteSelected({
+    activePage,
+    dashboardMode,
+    selectedIds,
+    droppedTanks,
+    setDroppedTanks,
+    clearSelection,
+    activeDashboardId: activeDashboard?.dashboardId || null,
+    dashboardId: effectiveDashboardId, // "main" or UUID
+  });
+
+  // ⌨️ KEYBOARD SHORTCUTS (arrows + copy/paste + ✅ undo/redo)
+  useKeyboardShortcuts({
+    selectedIds,
+    setSelectedIds,
+    selectedTank,
+    setSelectedTank,
+    droppedTanks,
+    setDroppedTanks,
+
+    // ✅ add these
+    onUndo: handleUndo,
+    onRedo: handleRedo,
+    canUndo,
+    canRedo,
+
+    // ✅ IMPORTANT: use the same delete logic as right-click
+    onDelete: deleteSelected,
+
+    // ✅ recommended gating
+    activePage,
+    dashboardMode,
+  });
+
   // SIDEBARS
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
   const [isRightCollapsed, setIsRightCollapsed] = useState(false);
@@ -233,19 +237,17 @@ const { deleteSelected } = useDeleteSelected({
   const [activeSiloId, setActiveSiloId] = useState(null);
   const [showSiloProps, setShowSiloProps] = useState(false);
 
-    // ✅ ACTIVE HORIZONTAL TANK (same pattern as silo)
+  // ✅ ACTIVE HORIZONTAL TANK (same pattern as silo)
   const [activeHorizontalTankId, setActiveHorizontalTankId] = useState(null);
   const [showHorizontalTankProps, setShowHorizontalTankProps] = useState(false);
 
   // ✅ ACTIVE STANDARD TANK (same pattern as silo + horizontal)
-const [activeStandardTankId, setActiveStandardTankId] = useState(null);
-const [showStandardTankProps, setShowStandardTankProps] = useState(false);
+  const [activeStandardTankId, setActiveStandardTankId] = useState(null);
+  const [showStandardTankProps, setShowStandardTankProps] = useState(false);
 
-// ✅ ACTIVE VERTICAL TANK (same pattern as silo + horizontal + standard)
-const [activeVerticalTankId, setActiveVerticalTankId] = useState(null);
-const [showVerticalTankProps, setShowVerticalTankProps] = useState(false);
-
-
+  // ✅ ACTIVE VERTICAL TANK (same pattern as silo + horizontal + standard)
+  const [activeVerticalTankId, setActiveVerticalTankId] = useState(null);
+  const [showVerticalTankProps, setShowVerticalTankProps] = useState(false);
 
   // ✅ MODALS (extracted)
   const {
@@ -271,7 +273,7 @@ const [showVerticalTankProps, setShowVerticalTankProps] = useState(false);
     closeGraphicDisplaySettings,
   } = useDashboardModalsController({ droppedTanks });
 
-  // ✅ Counter Input Settings (NEW)
+  // ✅ Counter Input Settings
   const [counterInputSettingsId, setCounterInputSettingsId] = useState(null);
 
   const openCounterInputSettings = (tank) => {
@@ -327,36 +329,35 @@ const [showVerticalTankProps, setShowVerticalTankProps] = useState(false);
     });
 
   // ✅ Delete selected items OR right-click target
-// (uses hook so counter rows are also deleted in backend)
-const deleteSelectionOrTarget = useCallback(() => {
-  const idsToDelete =
-    (selectedIds?.length || 0) > 0
-      ? selectedIds
-      : contextMenu?.targetId
-      ? [contextMenu.targetId]
-      : [];
+  // (uses hook so counter rows are also deleted in backend)
+  const deleteSelectionOrTarget = useCallback(() => {
+    const idsToDelete =
+      (selectedIds?.length || 0) > 0
+        ? selectedIds
+        : contextMenu?.targetId
+        ? [contextMenu.targetId]
+        : [];
 
-  if (!idsToDelete.length) return;
+    if (!idsToDelete.length) return;
 
-  // If deleting from right-click and nothing is selected yet
-  if ((selectedIds?.length || 0) === 0 && contextMenu?.targetId) {
-    setSelectedIds([contextMenu.targetId]);
-    setSelectedTank(contextMenu.targetId);
-  } else {
-    setSelectedIds(idsToDelete);
-    setSelectedTank(idsToDelete[0] || null);
-  }
+    // If deleting from right-click and nothing is selected yet
+    if ((selectedIds?.length || 0) === 0 && contextMenu?.targetId) {
+      setSelectedIds([contextMenu.targetId]);
+      setSelectedTank(contextMenu.targetId);
+    } else {
+      setSelectedIds(idsToDelete);
+      setSelectedTank(idsToDelete[0] || null);
+    }
 
-  // ✅ This calls your hook (which deletes backend rows for counterInput)
-  void deleteSelected();
-}, [
-  selectedIds,
-  contextMenu,
-  setSelectedIds,
-  setSelectedTank,
-  deleteSelected,
-]);
-
+    // ✅ This calls your hook (which deletes backend rows for counterInput)
+    void deleteSelected();
+  }, [
+    selectedIds,
+    contextMenu,
+    setSelectedIds,
+    setSelectedTank,
+    deleteSelected,
+  ]);
 
   const { copyFromContext, pasteAtContext, hasClipboard } =
     useDashboardCanvasClipboard({
@@ -438,13 +439,13 @@ const deleteSelectionOrTarget = useCallback(() => {
 
   // ✅ DROP HANDLER
   const { handleDrop } = useDropHandler({
-  setDroppedTanks,
+    setDroppedTanks,
 
-  // ✅ give the hook dashboard context for the create-placeholder call
-  activeDashboardId: activeDashboard?.dashboardId || null,
-  dashboardId: effectiveDashboardId, // "main" or UUID
-  selectedTank,
-});
+    // ✅ give the hook dashboard context for the create-placeholder call
+    activeDashboardId: activeDashboard?.dashboardId || null,
+    dashboardId: effectiveDashboardId, // "main" or UUID
+    selectedTank,
+  });
 
   const handleSelect = (id) => {
     setSelectedTank(id);
@@ -514,7 +515,6 @@ const deleteSelectionOrTarget = useCallback(() => {
               );
             }
           }}
-          
           onUndo={handleUndo}
           onRedo={handleRedo}
           canUndo={canUndo}
@@ -548,7 +548,6 @@ const deleteSelectionOrTarget = useCallback(() => {
           canRedo={canRedo}
           onUndo={handleUndo}
           onRedo={handleRedo}
-
         />
 
         {activePage === "home" ? (
@@ -620,7 +619,6 @@ const deleteSelectionOrTarget = useCallback(() => {
             setActiveVerticalTankId={setActiveVerticalTankId}
             setShowVerticalTankProps={setShowVerticalTankProps}
             onSaveProject={handleSaveProject}
-
           />
         ) : activePage === "deviceControls" ? (
           <div className="w-full h-full border rounded-lg bg-white p-6">
@@ -677,7 +675,6 @@ const deleteSelectionOrTarget = useCallback(() => {
           setShowVerticalTankProps={setShowVerticalTankProps}
           activeVerticalTankId={activeVerticalTankId}
           setActiveVerticalTankId={setActiveVerticalTankId}
-
         />
       </main>
 
