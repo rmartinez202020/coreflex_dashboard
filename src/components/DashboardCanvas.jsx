@@ -89,9 +89,8 @@ export default function DashboardCanvas({
   activeVerticalTankId,
   setActiveVerticalTankId,
   setShowVerticalTankProps,
+  onSaveProject,
 
-  // note: we keep handleSelect in props to avoid breaking other callers,
-  // but we won't use it (multi-select replaces it here)
   handleSelect,
   handleRightClick,
   handleDrop,
@@ -549,6 +548,7 @@ export default function DashboardCanvas({
                     widget={tank}
                     onSaveWidget={commonProps.onUpdate}
                     dashboardId={resolvedDash}
+                    onSaveProject={onSaveProject} 
                   />
                 </DraggableDroppedTank>
               );

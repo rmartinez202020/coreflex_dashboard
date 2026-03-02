@@ -38,6 +38,9 @@ export default function ToggleSwitchPropertiesModal({
   // ✅ NEW (recommended): pass this from parent/dashboard
   // It is required for backend uniqueness per dashboard.
   dashboardId: dashboardIdProp,
+
+  // ✅ NEW: Save Project callback
+  onSaveProject = null,
 }) {
   // ✅ DO NOT early return before hooks
   const p = toggleSwitch?.properties || {};
@@ -407,22 +410,9 @@ export default function ToggleSwitchPropertiesModal({
     if (!dev || !/^do[1-4]$/.test(f)) return;
 
     setSaving(true);
+
     try {
-      await bindControlDO({
-        dashboardId: dash,
-        widgetId: wid,
-        widgetType: "toggle",
-        title: String(
-          toggleSwitch?.properties?.title || toggleSwitch?.title || "Toggle"
-        )
-          .trim()
-          .slice(0, 120),
-        deviceId: dev,
-        field: f,
-      });
-
-      await loadUsed();
-
+      // 1) Build updated widget FIRST
       const nextProps = {
         ...(toggleSwitch?.properties || {}),
         dashboardId: dash,
@@ -439,7 +429,33 @@ export default function ToggleSwitchPropertiesModal({
       };
 
       const next = { ...toggleSwitch, properties: nextProps };
+
+      // 2) Update canvas immediately (so it will be persisted)
       onSave?.(next);
+
+      // 3) Save Project (persist dashboard JSON)
+      if (typeof onSaveProject === "function") {
+        await onSaveProject();
+      }
+
+      // 4) Bind DO in backend (locks the DO)
+      await bindControlDO({
+        dashboardId: dash,
+        widgetId: wid,
+        widgetType: "toggle",
+        title: String(
+          toggleSwitch?.properties?.title || toggleSwitch?.title || "Toggle"
+        )
+          .trim()
+          .slice(0, 120),
+        deviceId: dev,
+        field: f,
+      });
+
+      // 5) Refresh used list
+      await loadUsed();
+
+      // 6) Close modal
       onClose?.();
     } catch (e) {
       if (e?.code === 409) {
@@ -474,7 +490,6 @@ export default function ToggleSwitchPropertiesModal({
         background: "rgba(0,0,0,0.35)",
         zIndex: 999999,
       }}
-      // ✅ close on overlay click (but do NOT break the X button)
       onMouseDown={(e) => {
         e.preventDefault();
         e.stopPropagation();
@@ -503,7 +518,6 @@ export default function ToggleSwitchPropertiesModal({
           display: "flex",
           flexDirection: "column",
         }}
-        // ✅ block any down events from reaching the overlay/canvas
         onMouseDown={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
       >
@@ -527,7 +541,6 @@ export default function ToggleSwitchPropertiesModal({
         >
           <span>Toggle Switch (CF-2000)</span>
 
-          {/* ✅ FIX: mark as no-drag + stop pointerdown so header drag doesn't cancel the click */}
           <button
             data-no-drag="true"
             onPointerDown={(e) => {
@@ -565,7 +578,6 @@ export default function ToggleSwitchPropertiesModal({
             Bind this toggle to a <b>CF-2000 Digital Output (DO)</b>.
           </div>
 
-          {/* dashboardId helper */}
           {!dashboardId && (
             <div
               style={{

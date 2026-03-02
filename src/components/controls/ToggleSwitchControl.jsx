@@ -140,6 +140,7 @@ export default function ToggleSwitchControl({
   widget = null,
   onSaveWidget = null,
   dashboardId = null,
+  onSaveProject = null,
   onWrite = null,
   lockMs = 12000, // used as manual cooldown too
   pollMs = 12000, // ✅ Continuous sync interval (10s)
@@ -717,6 +718,7 @@ export default function ToggleSwitchControl({
         }}
         isLaunched={play}
         dashboardId={dashboardId}
+        onSaveProject={onSaveProject}
       />
     </>
   );
