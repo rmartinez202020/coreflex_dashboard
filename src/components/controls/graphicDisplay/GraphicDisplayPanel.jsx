@@ -119,7 +119,9 @@ export default function GraphicDisplayPanel({
   );
 
   const strokeW = isExploreMode ? 2 : 3;
-  const yFont = isExploreMode ? 14 : 11;
+
+  // ✅ SMALLER Y font
+  const yFont = isExploreMode ? 12 : 10;
 
   // show vector/hover/selection visuals ONLY in Explore IN mode
   const showVectors = !!isExploreMode;
@@ -308,7 +310,7 @@ export default function GraphicDisplayPanel({
             }}
           />
 
-          {/* ✅ Y AXIS labels: NO pills, pinned to their grid line */}
+          {/* ✅ Y AXIS labels: smaller, no pills */}
           {yTickItems.length > 0 && (
             <div
               style={{
@@ -329,16 +331,14 @@ export default function GraphicDisplayPanel({
                     top: `${it.topPct}%`,
                     transform: "translateY(-50%)",
                     fontFamily: "monospace",
-                    fontSize: yFont,
+                    fontSize: yFont, // ✅ smaller now
                     color: "#111",
                     fontWeight: 400,
-
-                    // ✅ tiny flat wipe (NOT a pill)
-                    background: "rgba(255,255,255,0.75)",
-                    padding: "0 2px",
+                    background: "rgba(255,255,255,0.70)",
+                    padding: "0 1px", // ✅ tighter
                     borderRadius: 0,
                     border: "none",
-                    lineHeight: 1.1,
+                    lineHeight: 1.05, // ✅ tighter
                   }}
                 >
                   {Number(it.v).toFixed(2)}
