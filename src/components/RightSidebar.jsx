@@ -23,49 +23,50 @@ export default function RightSidebar({
     // ✅ OPTIONAL: match the sidebar width so it opens nicely near the right area
     window.dispatchEvent(
       new CustomEvent("coreflex-alarm-log-open-at", {
-        detail: { x: 220, y: 120 }, // was 260
+        detail: { x: 175, y: 120 }, // ✅ smaller sidebar -> move left a bit
       })
     );
 
     onOpenAlarmLog?.();
   };
 
-  // ✅ tweak these two numbers to taste
-  const EXPANDED_W = 220; // was 260
-  const COLLAPSED_W = 30; // was 40
+  // ✅ Make it smaller like SidebarLeft (feel like “90% zoom” at 100%)
+  const EXPANDED_W = 175; // was 200
+  const COLLAPSED_W = 28; // keep
 
   return (
     <aside
       className={
-        // ✅ IMPORTANT:
-        // Tailwind cannot generate dynamic classes like `w-[${EXPANDED_W}px]`
-        // so we keep classes static and use inline style for width/padding.
-        "shrink-0 border-l border-gray-300 flex flex-col transition-all duration-300 ease-in-out overflow-hidden bg-white"
+        // ✅ Keep classes static and use inline style for width/padding.
+        "shrink-0 border-l border-gray-300 flex flex-col transition-all duration-300 ease-in-out overflow-visible bg-white"
       }
       style={{
         width: isRightCollapsed ? COLLAPSED_W : EXPANDED_W,
-        padding: isRightCollapsed ? 8 : 20, // p-2 / p-5
+        padding: isRightCollapsed ? 6 : 10, // ✅ tighter
       }}
     >
       {/* COLLAPSE BUTTON */}
       <button
         className={
-          "text-lg mb-4 rounded focus:outline-none transition-colors " +
+          "text-base mb-2 rounded focus:outline-none transition-colors " +
           (isRightCollapsed
             ? "w-full flex items-center justify-center py-2 hover:bg-gray-100"
             : "self-start px-2 py-1 hover:bg-gray-100")
         }
         onClick={() => setIsRightCollapsed((prev) => !prev)}
         type="button"
+        title={isRightCollapsed ? "Expand" : "Collapse"}
       >
         {isRightCollapsed ? "📁" : "📁▶"}
       </button>
 
       {!isRightCollapsed && (
         <div className="flex-1">
-          <h2 className="text-xl font-semibold mb-4 text-gray-800">Entities</h2>
+          <h2 className="text-[15px] font-semibold mb-2 text-gray-800">
+            Entities
+          </h2>
 
-          <div className="space-y-6 mb-6">
+          <div className="space-y-4 mb-4">
             {/* TEXT BOX */}
             <div
               className="cursor-pointer flex flex-col items-center gap-1"
@@ -75,10 +76,10 @@ export default function RightSidebar({
                 e.dataTransfer.setData("text/plain", "textBox");
               }}
             >
-              <div className="w-[80px] h-[45px] border border-gray-400 bg-white flex items-center justify-center text-black text-xs">
+              <div className="w-[66px] h-[36px] border border-gray-400 bg-white flex items-center justify-center text-black text-[10.5px]">
                 Text
               </div>
-              <span className="text-[14px] text-center">Text Box</span>
+              <span className="text-[12px] text-center">Text Box</span>
             </div>
 
             {/* DISPLAY BOX */}
@@ -92,12 +93,12 @@ export default function RightSidebar({
             >
               <div
                 style={{
-                  width: "100px",
-                  height: "40px",
+                  width: 80, // was 88
+                  height: 32, // was 34
                   background: "#e6e6e6",
                   fontFamily: "monospace",
                   fontWeight: 900,
-                  fontSize: "20px",
+                  fontSize: 16, // was 18
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -109,7 +110,9 @@ export default function RightSidebar({
               >
                 00000
               </div>
-              <span className="text-[14px] text-center">Display Input (AI)</span>
+              <span className="text-[12px] text-center">
+                Display Input (AI)
+              </span>
             </div>
 
             {/* GRAPHIC DISPLAY */}
@@ -123,8 +126,8 @@ export default function RightSidebar({
             >
               <div
                 style={{
-                  width: "120px",
-                  height: "55px",
+                  width: 92, // was 104
+                  height: 44, // was 48
                   background:
                     "linear-gradient(180deg, #ffffff 0%, #f3f3f3 100%)",
                   borderRadius: 8,
@@ -138,8 +141,8 @@ export default function RightSidebar({
                   overflow: "hidden",
                 }}
               >
-                {/* ✅ Restored icon (grid + line) */}
-                <svg width="94" height="40" viewBox="0 0 94 40">
+                {/* ✅ Restored icon (grid + line) - smaller */}
+                <svg width="76" height="30" viewBox="0 0 94 40">
                   {/* grid */}
                   <path d="M10 32H84" stroke="#e5e7eb" strokeWidth="1" />
                   <path d="M10 24H84" stroke="#e5e7eb" strokeWidth="1" />
@@ -171,14 +174,16 @@ export default function RightSidebar({
                 </svg>
               </div>
 
-              <span className="text-[14px] text-center">
+              <span className="text-[12px] text-center">
                 Graphic Display (AI)
               </span>
             </div>
           </div>
 
           {/* LIBRARIES */}
-          <h3 className="text-sm font-semibold mb-3 text-gray-600">Libraries</h3>
+          <h3 className="text-[12px] font-semibold mb-2 text-gray-600">
+            Libraries
+          </h3>
 
           {[
             ["image", "Image Library"],
@@ -194,36 +199,39 @@ export default function RightSidebar({
             <button
               key={key}
               type="button"
-              className="mt-3 w-full text-left text-sm font-semibold text-gray-600 hover:text-blue-500 flex items-center gap-2"
+              className="mt-2 w-full text-left text-[12px] font-semibold text-gray-600 hover:text-blue-500 flex items-center gap-2 leading-tight"
               onClick={() => openLibrary(key)}
+              title={label}
             >
-              📁 <span>{label}</span>
+              <span style={{ fontSize: 13, lineHeight: 1 }}>📁</span>
+              <span className="truncate">{label}</span>
             </button>
           ))}
 
           {/* 🔥 ALARM LOGS */}
-          <h3 className="text-sm font-semibold mt-8 mb-3 text-gray-600">
+          <h3 className="text-[12px] font-semibold mt-5 mb-2 text-gray-600">
             Alarm Logs
           </h3>
 
           <button
             type="button"
-            className="w-full text-left text-sm font-semibold text-gray-700 hover:text-red-600 flex items-center gap-3"
+            className="w-full text-left text-[12px] font-semibold text-gray-700 hover:text-red-600 flex items-center gap-2 leading-tight"
             onClick={openAlarmLog}
           >
             <span
               style={{
-                fontSize: "26px",
-                width: 28,
-                height: 28,
+                fontSize: 18, // was 20
+                width: 20,
+                height: 20,
                 display: "inline-flex",
                 alignItems: "center",
                 justifyContent: "center",
+                lineHeight: 1,
               }}
             >
               ⚠️
             </span>
-            <span>Alarms Log (DI-AI)</span>
+            <span className="truncate">Alarms Log (DI-AI)</span>
           </button>
         </div>
       )}
