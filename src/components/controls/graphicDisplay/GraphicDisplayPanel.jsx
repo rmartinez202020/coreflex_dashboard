@@ -209,6 +209,21 @@ export default function GraphicDisplayPanel({
   // - Hide in Play + Launch (Run mode)
   const showSettingsBtn = !isExploreMode && !isRunMode;
 
+  // ✅ build positioned Y ticks (top aligned to matching grid line)
+  const yTickItems = useMemo(() => {
+    const arr = Array.isArray(yTicks) ? yTicks : [];
+    if (arr.length === 0) return [];
+
+    const sorted = [...arr].sort((a, b) => Number(a) - Number(b)); // low->high
+    const denom = Math.max(1, sorted.length - 1);
+
+    // top should be max, bottom should be min -> invert
+    return sorted.map((v, i) => {
+      const pctFromTop = (1 - i / denom) * 100; // 100->0
+      return { v: Number(v), topPct: pctFromTop };
+    });
+  }, [yTicks]);
+
   return (
     <div
       style={{
@@ -293,36 +308,40 @@ export default function GraphicDisplayPanel({
             }}
           />
 
-          {yTicks.length > 0 && (
+          {/* ✅ Y AXIS labels: NO pills, pinned to their grid line */}
+          {yTickItems.length > 0 && (
             <div
               style={{
                 position: "absolute",
                 left: 8,
-                top: 8,
+                top: 10,
                 bottom: 36,
                 width: 72,
                 pointerEvents: "none",
-                display: "flex",
-                flexDirection: "column",
-                justifyContent: "space-between",
               }}
             >
-              {[...yTicks].reverse().map((v, idx) => (
+              {yTickItems.map((it, idx) => (
                 <div
                   key={idx}
                   style={{
+                    position: "absolute",
+                    left: 0,
+                    top: `${it.topPct}%`,
+                    transform: "translateY(-50%)",
                     fontFamily: "monospace",
                     fontSize: yFont,
                     color: "#111",
-                    background: "rgba(255,255,255,0.86)",
-                    padding: "2px 8px",
-                    borderRadius: 8,
-                    alignSelf: "flex-start",
-                    border: "1px solid rgba(0,0,0,0.06)",
                     fontWeight: 400,
+
+                    // ✅ tiny flat wipe (NOT a pill)
+                    background: "rgba(255,255,255,0.75)",
+                    padding: "0 2px",
+                    borderRadius: 0,
+                    border: "none",
+                    lineHeight: 1.1,
                   }}
                 >
-                  {Number(v).toFixed(2)}
+                  {Number(it.v).toFixed(2)}
                 </div>
               ))}
             </div>
