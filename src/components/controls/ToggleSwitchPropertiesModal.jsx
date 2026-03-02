@@ -65,6 +65,10 @@ export default function ToggleSwitchPropertiesModal({
 
   const [deviceSearch, setDeviceSearch] = React.useState("");
 
+  // ✅ NEW: Optional Title (shows above the toggle widget)
+  const initialTitle = String(p.title ?? toggleSwitch?.title ?? "").trim();
+  const [title, setTitle] = React.useState(initialTitle);
+
   // =========================
   // ✅ HARD GUARANTEE: NEVER IN PLAY MODE
   // =========================
@@ -85,6 +89,9 @@ export default function ToggleSwitchPropertiesModal({
     setDeviceId(String(pp.bindDeviceId || pp?.tag?.deviceId || ""));
     setField(/^do[1-4]$/.test(f.toLowerCase()) ? f : "do1");
     setDeviceSearch("");
+
+    // ✅ NEW: rehydrate title when opening
+    setTitle(String(pp.title ?? toggleSwitch?.title ?? "").trim());
   }, [open, toggleSwitch?.id, isLaunched]);
 
   // =========================
@@ -401,6 +408,10 @@ export default function ToggleSwitchPropertiesModal({
     const dev = String(deviceId || "").trim();
     const f = String(effectiveField || "").trim().toLowerCase();
 
+    const safeTitle = String(title || "")
+      .trim()
+      .slice(0, 40); // ✅ keep it short so it looks good above the toggle
+
     if (!dash || !wid) {
       setSaveErr(
         "Missing dashboardId / widgetId. Pass dashboardId into the modal from the dashboard page."
@@ -416,6 +427,9 @@ export default function ToggleSwitchPropertiesModal({
       const nextProps = {
         ...(toggleSwitch?.properties || {}),
         dashboardId: dash,
+
+        // ✅ NEW: optional title
+        title: safeTitle,
 
         bindModel: forcedModel,
         bindDeviceId: dev,
@@ -443,11 +457,7 @@ export default function ToggleSwitchPropertiesModal({
         dashboardId: dash,
         widgetId: wid,
         widgetType: "toggle",
-        title: String(
-          toggleSwitch?.properties?.title || toggleSwitch?.title || "Toggle"
-        )
-          .trim()
-          .slice(0, 120),
+        title: String(safeTitle || "Toggle").trim().slice(0, 120),
         deviceId: dev,
         field: f,
       });
@@ -576,6 +586,37 @@ export default function ToggleSwitchPropertiesModal({
         <div style={{ padding: 16, overflow: "auto", flex: "1 1 auto" }}>
           <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
             Bind this toggle to a <b>CF-2000 Digital Output (DO)</b>.
+          </div>
+
+          {/* ✅ NEW: TITLE */}
+          <div
+            style={{
+              border: "1px solid #e5e7eb",
+              borderRadius: 12,
+              padding: 14,
+              marginBottom: 12,
+            }}
+          >
+            <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 10 }}>
+              Display Title (optional)
+            </div>
+
+            <Label>Title shown above the toggle</Label>
+            <input
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Example: Main Pump"
+              style={{
+                width: "100%",
+                padding: "10px 12px",
+                borderRadius: 10,
+                border: "1px solid #cbd5e1",
+                fontSize: 14,
+              }}
+            />
+            <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
+              Leave blank to hide the title. Max 40 characters.
+            </div>
           </div>
 
           {!dashboardId && (

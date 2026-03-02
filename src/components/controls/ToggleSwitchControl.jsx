@@ -177,6 +177,9 @@ export default function ToggleSwitchControl({
 
   const hasBinding = !!bindDeviceId && /^do[1-4]$/.test(bindField);
 
+  // ✅ NEW: Optional Title (from modal)
+  const title = String(p.title || "").trim();
+
   // =========================
   // ✅ Mapping:
   // DO=1 -> UI OFF
@@ -268,11 +271,6 @@ export default function ToggleSwitchControl({
 
   // =========================
   // ✅ Fetch DO + status
-  // Rules:
-  // - Always update status
-  // - If offline: do not sync DO
-  // - Always sync DO position to real telemetry every poll (online)
-  // - If pendingWriteRef is set AND DO matches, clear pending and show success
   // =========================
   const fetchRemote = React.useCallback(async () => {
     if (!play) return;
@@ -520,6 +518,29 @@ export default function ToggleSwitchControl({
   return (
     <>
       <div style={{ display: "inline-flex", flexDirection: "column" }}>
+        {/* ✅ NEW: Title above toggle */}
+        {title && (
+          <div
+            style={{
+              marginBottom: 6,
+              textAlign: "center",
+              fontWeight: 900,
+              fontSize: 14,
+              color: "#0f172a",
+              letterSpacing: 0.2,
+              userSelect: "none",
+              pointerEvents: "none",
+              maxWidth: safeW,
+              overflow: "hidden",
+              textOverflow: "ellipsis",
+              whiteSpace: "nowrap",
+            }}
+            title={title}
+          >
+            {title}
+          </div>
+        )}
+
         <div
           title={
             !hasBinding
