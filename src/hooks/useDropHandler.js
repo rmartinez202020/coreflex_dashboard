@@ -236,7 +236,7 @@ export default function useDropHandler({
       setDroppedTanks((prev) => {
         const z = nextTopZ(prev);
 
-        const DEFAULT_W = 920; // ✅ bigger (matches your AFTER screenshot)
+        const DEFAULT_W = 820;
         const DEFAULT_H = 340;
 
         return [
