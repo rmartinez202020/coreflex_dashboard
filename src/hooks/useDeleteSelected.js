@@ -2,6 +2,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
+import { deleteControlBinding } from "../components/controls/controlBindings";
 
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
@@ -44,6 +45,7 @@ async function deleteCounterRowOnBackend({ widgetId, dashboardId }) {
  *
  * NEW:
  * - If the deleted widget is a Counter Input (DI), also delete its backend row
+ * - If the deleted widget is a Control (Toggle/Push), also delete its control binding (release DO)
  *
  * IMPORTANT FIX:
  * - Avoid stale droppedTanks by mirroring it into a ref
@@ -90,16 +92,31 @@ export default function useDeleteSelected({
       .map((obj) => String(obj.id || "").trim())
       .filter(Boolean);
 
+    // ✅ Controls that may have DO bindings (release on delete)
+    const controlWidgetIds = selectedObjs
+      .filter((obj) =>
+        obj?.shape === "toggleSwitch" ||
+        obj?.shape === "toggleControl" ||
+        obj?.shape === "pushButtonNO" ||
+        obj?.shape === "pushButtonNC"
+      )
+      .map((obj) => String(obj.id || "").trim())
+      .filter(Boolean);
+
     // ✅ remove from UI immediately
     setDroppedTanks((prev) =>
-      (Array.isArray(prev) ? prev : []).filter((obj) => !selectedIds.includes(obj.id))
+      (Array.isArray(prev) ? prev : []).filter(
+        (obj) => !selectedIds.includes(obj.id)
+      )
     );
     clearSelection();
 
+    const dashForBackend = String(
+      activeDashboardId || dashboardId || "main"
+    ).trim();
+
     // ✅ delete backend rows ONLY for counters
     if (counterIds.length > 0) {
-      const dashForBackend = String(activeDashboardId || dashboardId || "main").trim();
-
       // fire sequentially (safer / easier on backend)
       for (const wid of counterIds) {
         try {
@@ -109,6 +126,21 @@ export default function useDeleteSelected({
           });
         } catch (err) {
           console.error("❌ Failed to delete counter row:", wid, err);
+          // keep silent to avoid annoying UX
+        }
+      }
+    }
+
+    // ✅ delete control bindings for deleted control widgets (release DO immediately)
+    if (controlWidgetIds.length > 0) {
+      for (const wid of controlWidgetIds) {
+        try {
+          await deleteControlBinding({
+            dashboardId: dashForBackend,
+            widgetId: wid,
+          });
+        } catch (err) {
+          console.error("❌ Failed to delete control binding:", wid, err);
           // keep silent to avoid annoying UX
         }
       }
