@@ -31,7 +31,9 @@ export default function useDropHandler({
     const b = String(dashboardId || "").trim();
     if (b) return b;
 
-    const c = String(selectedTank?.dashboard_id || selectedTank?.dashboardId || "").trim();
+    const c = String(
+      selectedTank?.dashboard_id || selectedTank?.dashboardId || ""
+    ).trim();
     if (c) return c;
 
     return "main";
@@ -229,9 +231,14 @@ export default function useDropHandler({
     if (!shape) return;
 
     // ✅ GRAPHIC DISPLAY (canvas object)
+    // ✅ FIX: make it drop in the "AFTER" size by default
     if (shape === "graphicDisplay") {
       setDroppedTanks((prev) => {
         const z = nextTopZ(prev);
+
+        const DEFAULT_W = 920; // ✅ bigger (matches your AFTER screenshot)
+        const DEFAULT_H = 340;
+
         return [
           ...prev,
           {
@@ -239,8 +246,17 @@ export default function useDropHandler({
             shape: "graphicDisplay",
             x,
             y,
-            w: 520,
-            h: 260,
+
+            // ✅ default drop size
+            w: DEFAULT_W,
+            h: DEFAULT_H,
+
+            // ✅ optional helpers (safe if your resizer uses them)
+            baseW: DEFAULT_W,
+            baseH: DEFAULT_H,
+            minW: 520,
+            minH: 260,
+
             z,
             title: "Graphic Display",
             timeUnit: "seconds",
