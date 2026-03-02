@@ -615,7 +615,7 @@ const deleteSelectionOrTarget = useCallback(() => {
             activeVerticalTankId={activeVerticalTankId}
             setActiveVerticalTankId={setActiveVerticalTankId}
             setShowVerticalTankProps={setShowVerticalTankProps}
-            onSaveProject={onSaveProject}
+            onSaveProject={handleSaveProject}
 
           />
         ) : activePage === "deviceControls" ? (
