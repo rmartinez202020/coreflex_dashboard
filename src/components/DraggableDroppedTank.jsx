@@ -43,27 +43,58 @@ export default function DraggableDroppedTank({
   const isImage = tank?.shape === "img";
   const maxForThisWidget = isImage ? IMAGE_SCALE_MAX : SCALE_MAX;
 
+  const isToggle =
+    tank?.shape === "toggleSwitch" || tank?.shape === "toggleControl";
+
   // ---------- Scale event listener ----------
   useEffect(() => {
     const handler = (ev) => {
       try {
         const detail = ev?.detail || {};
         const ids = Array.isArray(detail?.ids) ? detail.ids.filter(Boolean) : [];
-        const scaleValue = Number(detail?.scale || NaN);
-        if (!Number.isFinite(scaleValue)) return;
+        const scaleValueRaw = Number(detail?.scale || NaN);
+        if (!Number.isFinite(scaleValueRaw)) return;
 
         const wid = String(tank?.id || "").trim();
         if (!wid) return;
+        if (!ids.includes(wid)) return;
 
-        if (ids.includes(wid)) {
-          const clamped = Math.min(
-            maxForThisWidget,
-            Math.max(SCALE_MIN, scaleValue)
-          );
+        // clamp the incoming scale request
+        const mult = Math.min(
+          maxForThisWidget,
+          Math.max(SCALE_MIN, scaleValueRaw)
+        );
 
-          if (Number(tank?.scale || 1) !== clamped) {
-            onUpdate?.({ ...tank, scale: clamped });
-          }
+        // ✅ KEY FIX:
+        // For toggles, treat coreflex-scale as a MULTIPLIER and bake into w/h immediately.
+        // This makes every apply (0.75, then 0.75 again, etc.) work repeatedly.
+        if (isToggle) {
+          const baseW =
+            Number(tank?.w ?? tank?.width ?? tank?.measuredW ?? 180) || 180;
+
+          // keep perfect ratio
+          const ratio = 180 / 70;
+
+          const nextW = Math.max(90, Math.round(baseW * mult));
+          const nextH = Math.max(40, Math.round(nextW / ratio));
+
+          onUpdate?.({
+            ...tank,
+            w: nextW,
+            h: nextH,
+            width: nextW,
+            height: nextH,
+            measuredW: nextW,
+            measuredH: nextH,
+            scale: 1, // ✅ baked, new base is now 1:1
+          });
+          return;
+        }
+
+        // default behavior for other widgets: store as scale
+        const clamped = mult;
+        if (Number(tank?.scale || 1) !== clamped) {
+          onUpdate?.({ ...tank, scale: clamped });
         }
       } catch {
         // ignore
@@ -72,7 +103,7 @@ export default function DraggableDroppedTank({
 
     window.addEventListener("coreflex-scale", handler);
     return () => window.removeEventListener("coreflex-scale", handler);
-  }, [tank, onUpdate, maxForThisWidget]);
+  }, [tank, onUpdate, maxForThisWidget, isToggle]);
 
   const startResize = (e) => {
     e.stopPropagation();
@@ -83,22 +114,17 @@ export default function DraggableDroppedTank({
   // ✅ IMPORTANT:
   // On resize end, "bake" the scale into the widget so it becomes the new 1:1 size.
   // - Images: bake into baseW (existing behavior)
-  // - Toggles: bake into w/h + measuredW/H (NEW) so future scales (0.75 etc) use new base
+  // - Toggles: bake into w/h + measuredW/H (so future scales use new base)
   const stopResize = useCallback(() => {
     setResizing(false);
 
     const currentScale = Number(tank?.scale || 1);
     if (!Number.isFinite(currentScale) || currentScale === 1) return;
 
-    const isToggle =
-      tank?.shape === "toggleSwitch" || tank?.shape === "toggleControl";
-
-    // ✅ NEW: bake toggle scale into w/h so it becomes the new 1:1 (and update measured base)
+    // ✅ bake toggle scale into w/h so it becomes the new 1:1 (and update measured base)
     if (isToggle) {
-      // Prefer existing base size (w/h), fallback to defaults
       const baseW = Number(tank?.w ?? tank?.width ?? 180) || 180;
 
-      // Keep perfect toggle ratio (recommended)
       const ratio = 180 / 70;
       const nextW = Math.max(90, Math.round(baseW * currentScale));
       const nextH = Math.max(40, Math.round(nextW / ratio));
@@ -109,12 +135,9 @@ export default function DraggableDroppedTank({
         h: nextH,
         width: nextW,
         height: nextH,
-
-        // ✅ CRITICAL: new 1:1 reference for future global scaling
         measuredW: nextW,
         measuredH: nextH,
-
-        scale: 1, // ✅ reset scale so new size is now "1:1"
+        scale: 1,
       });
       return;
     }
@@ -127,10 +150,10 @@ export default function DraggableDroppedTank({
 
     onUpdate?.({
       ...tank,
-      baseW: nextBaseW, // ✅ new "1:1" for this image
-      scale: 1, // ✅ reset scale so it doesn't snap small on reload
+      baseW: nextBaseW,
+      scale: 1,
     });
-  }, [isImage, tank, onUpdate]);
+  }, [isImage, isToggle, tank, onUpdate]);
 
   const handleResize = useCallback(
     (e) => {
@@ -139,7 +162,6 @@ export default function DraggableDroppedTank({
       const current = Number(tank.scale || 1);
       const rawNext = current + e.movementX * 0.01;
 
-      // ✅ clamp resize too (image can go to 4x)
       const nextScale = Math.min(
         maxForThisWidget,
         Math.max(SCALE_MIN, rawNext)
@@ -189,9 +211,6 @@ export default function DraggableDroppedTank({
     borderRadius: 8,
     border: selected && !isPlay ? "1px solid #2563eb" : "1px solid transparent",
   };
-
-  const isToggle =
-    tank.shape === "toggleSwitch" || tank.shape === "toggleControl";
 
   const isPushButton =
     tank.shape === "pushButtonNO" ||
