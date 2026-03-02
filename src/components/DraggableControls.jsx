@@ -4,7 +4,7 @@ import React from "react";
 const CONTROLS = [
   {
     type: "toggleControl",
-    label: "  Toggle Switch (DO)",
+    label: "Toggle Switch (DO)",
     icon: "🔘",
   },
 
@@ -29,18 +29,17 @@ const CONTROLS = [
 ];
 
 function DisplayOutputIcon() {
-  // small “mini display” icon to match the Display Output concept
-  // (rectangular, LCD-ish, but compact for sidebar)
+  // ✅ Smaller “mini display” icon for tighter sidebar layout
   return (
     <div
       style={{
-        width: 38,
-        height: 22,
-        borderRadius: 6,
+        width: 30, // was 38
+        height: 18, // was 22
+        borderRadius: 5, // was 6
         background: "linear-gradient(#f1f5f9, #dbeafe)",
         border: "1px solid rgba(255,255,255,0.25)",
         boxShadow:
-          "0 2px 8px rgba(0,0,0,0.35), inset 0 0 0 1px rgba(15,23,42,0.35)",
+          "0 2px 6px rgba(0,0,0,0.32), inset 0 0 0 1px rgba(15,23,42,0.35)",
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
@@ -51,11 +50,11 @@ function DisplayOutputIcon() {
       {/* inner lcd */}
       <div
         style={{
-          width: "84%",
-          height: "68%",
+          width: "86%",
+          height: "70%",
           borderRadius: 4,
           background: "linear-gradient(#0b1220, #111827)",
-          boxShadow: "inset 0 0 10px rgba(0,0,0,0.55)",
+          boxShadow: "inset 0 0 8px rgba(0,0,0,0.55)",
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
@@ -64,12 +63,13 @@ function DisplayOutputIcon() {
       >
         <span
           style={{
-            fontFamily: "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
+            fontFamily:
+              "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
             fontWeight: 900,
-            fontSize: 10,
-            letterSpacing: 1.2,
+            fontSize: 8, // was 10
+            letterSpacing: 1.0, // was 1.2
             color: "#93c5fd",
-            textShadow: "0 0 6px rgba(147,197,253,0.25)",
+            textShadow: "0 0 6px rgba(147,197,253,0.22)",
             lineHeight: 1,
           }}
         >
@@ -81,13 +81,13 @@ function DisplayOutputIcon() {
       <div
         style={{
           position: "absolute",
-          right: 3,
-          bottom: 3,
-          width: 5,
-          height: 5,
+          right: 2, // was 3
+          bottom: 2, // was 3
+          width: 4, // was 5
+          height: 4, // was 5
           borderRadius: 999,
           background: "#22c55e",
-          boxShadow: "0 0 8px rgba(34,197,94,0.45)",
+          boxShadow: "0 0 7px rgba(34,197,94,0.42)",
           opacity: 0.9,
         }}
       />
@@ -97,42 +97,48 @@ function DisplayOutputIcon() {
 
 export default function DraggableControls() {
   return (
-    <div className="ml-4 space-y-2 mb-4">
+    // ✅ tighter indent + tighter spacing
+    <div className="ml-2 space-y-1.5 mb-3">
       {CONTROLS.map((ctrl) => (
         <div
           key={ctrl.type}
           draggable
           onDragStart={(e) => e.dataTransfer.setData("control", ctrl.type)}
           className="cursor-grab active:cursor-grabbing
-                     text-sm text-gray-300 hover:text-white
-                     flex items-center gap-2"
+                     text-[12px] text-gray-300 hover:text-white
+                     flex items-center gap-1.5 leading-tight"
+          style={{ userSelect: "none" }}
         >
-          {/* Toggle + Interlock keep emoji icons */}
-          {ctrl.icon && <span>{ctrl.icon}</span>}
+          {/* ✅ Toggle keeps emoji but smaller */}
+          {ctrl.icon && (
+            <span style={{ fontSize: 12, lineHeight: 1 }}>{ctrl.icon}</span>
+          )}
 
-          {/* Push Buttons use the NO/NC badge */}
+          {/* ✅ Push Buttons use smaller NO/NC badge */}
           {ctrl.badge && (
             <span
               style={{
                 background: ctrl.badge.bg,
                 color: "white",
                 fontWeight: 800,
-                fontSize: 11,
-                padding: "2px 6px",
+                fontSize: 9, // was 11
+                padding: "1px 5px", // was 2px 6px
                 borderRadius: 999,
-                lineHeight: "14px",
-                minWidth: 26,
+                lineHeight: "12px", // was 14px
+                minWidth: 22, // was 26
                 textAlign: "center",
+                flexShrink: 0,
               }}
             >
               {ctrl.badge.text}
             </span>
           )}
 
-          {/* ✅ Display Output uses a mini display icon */}
+          {/* ✅ Display Output uses smaller mini display icon */}
           {ctrl.render === "displayOutput" && <DisplayOutputIcon />}
 
-          <span>{ctrl.label}</span>
+          {/* ✅ tighter text */}
+          <span style={{ lineHeight: 1.1 }}>{ctrl.label}</span>
         </div>
       ))}
     </div>
