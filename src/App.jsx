@@ -146,6 +146,9 @@ export default function App() {
     canUndo,
     canRedo,
 
+// ✅ IMPORTANT: use the same delete logic as right-click
+     onDelete: deleteSelected,
+
     // ✅ recommended gating
     activePage,
     dashboardMode,

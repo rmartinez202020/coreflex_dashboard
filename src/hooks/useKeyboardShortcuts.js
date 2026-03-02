@@ -15,6 +15,10 @@ export default function useKeyboardShortcuts({
   canUndo,
   canRedo,
 
+  // ✅ NEW (optional): central delete handler (recommended)
+  // Pass deleteSelected from useDeleteSelected
+  onDelete,
+
   // ✅ optional: gate shortcuts by page/mode (recommended)
   activePage,
   dashboardMode,
@@ -104,11 +108,25 @@ export default function useKeyboardShortcuts({
       }
 
       // =========================
-      // DELETE (supports Backspace too)
+      // ✅ DELETE (supports Backspace too)
+      // IMPORTANT:
+      // - If onDelete is provided, we call it so backend rows are deleted too
+      // - Otherwise fallback to legacy UI-only delete
       // =========================
       if ((e.key === "Delete" || e.key === "Backspace") && selected.length) {
         e.preventDefault();
+        e.stopPropagation();
 
+        if (typeof onDelete === "function") {
+          // ✅ Centralized delete handles:
+          // - UI remove
+          // - counter backend row delete
+          // - control binding delete (/control-bindings)
+          void onDelete();
+          return;
+        }
+
+        // Fallback (UI-only)
         setDroppedTanks((prev) => prev.filter((t) => !selected.includes(t.id)));
         setSelectedIds([]);
         setSelectedTank(null);
@@ -218,6 +236,7 @@ export default function useKeyboardShortcuts({
     onRedo,
     canUndo,
     canRedo,
+    onDelete,
     activePage,
     dashboardMode,
   ]);
