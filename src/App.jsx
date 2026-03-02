@@ -131,6 +131,21 @@ export default function App() {
     clearSelection,
   });
 
+    // ===============================
+// ✅ Delete hook (UI + backend for counters)
+// ===============================
+const { deleteSelected } = useDeleteSelected({
+  activePage,
+  dashboardMode,
+  selectedIds,
+  droppedTanks,
+  setDroppedTanks,
+  clearSelection,
+  activeDashboardId: activeDashboard?.dashboardId || null,
+  dashboardId: effectiveDashboardId, // "main" or UUID
+});
+
+
   // ⌨️ KEYBOARD SHORTCUTS (arrows + copy/paste + ✅ undo/redo)
   useKeyboardShortcuts({
     selectedIds,
@@ -198,20 +213,6 @@ export default function App() {
     const id = String(activeDashboard?.dashboardId || "").trim();
     return id || null;
   }, [activeDashboard]);
-
-  // ===============================
-// ✅ Delete hook (UI + backend for counters)
-// ===============================
-const { deleteSelected } = useDeleteSelected({
-  activePage,
-  dashboardMode,
-  selectedIds,
-  droppedTanks,
-  setDroppedTanks,
-  clearSelection,
-  activeDashboardId: activeDashboard?.dashboardId || null,
-  dashboardId: effectiveDashboardId, // "main" or UUID
-});
 
   // SIDEBARS
   const [isLeftCollapsed, setIsLeftCollapsed] = useState(false);
