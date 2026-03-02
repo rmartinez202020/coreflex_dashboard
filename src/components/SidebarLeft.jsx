@@ -134,20 +134,24 @@ export default function SidebarLeft({
   return (
     <aside
       className={
-        "relative bg-[#0f172a] text-white h-full border-r border-gray-800 transition-all duration-300 overflow-hidden " +
-        (isLeftCollapsed ? `w-[${COLLAPSED_W}px]` : `w-[${EXPANDED_W}px] px-3 py-3`)
+        // ✅ overflow-visible so the button never gets clipped
+        "relative bg-[#0f172a] text-white h-full border-r border-gray-800 transition-all duration-300 overflow-visible " +
+        // ✅ padding only when expanded
+        (isLeftCollapsed ? "" : "px-3 py-3")
       }
+      // ✅ IMPORTANT: use inline width (Tailwind can't compile dynamic w-[${...}])
+      style={{ width: isLeftCollapsed ? COLLAPSED_W : EXPANDED_W }}
     >
       {/* Collapse / Expand */}
       <button
-        className="absolute top-3 z-50 text-white px-2 py-1 rounded hover:bg-[#1e293b]"
-        // ✅ keep the button near the right edge of the sidebar
-        style={{ left: isLeftCollapsed ? "5px" : `${EXPANDED_W - 28}px` }}
+        // ✅ anchor to right edge so it stays visible in both states
+        className="absolute top-3 right-2 z-50 text-white bg-[#1e293b] px-2 py-1 rounded hover:bg-[#334155] shadow-md"
         onClick={(e) => {
           e.stopPropagation();
           if (dashboardMode === "play") return;
           setIsLeftCollapsed((prev) => !prev);
         }}
+        title={isLeftCollapsed ? "Expand" : "Collapse"}
       >
         {isLeftCollapsed ? "▶" : "◀"}
       </button>
