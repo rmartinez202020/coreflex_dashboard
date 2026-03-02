@@ -49,16 +49,6 @@ async function deleteCounterRowOnBackend({ widgetId, dashboardId }) {
  *
  * IMPORTANT FIX:
  * - Avoid stale droppedTanks by mirroring it into a ref
- *
- * Params:
- * - activePage: string
- * - dashboardMode: "edit" | "play"
- * - selectedIds: array of ids
- * - droppedTanks: array of canvas objects (used to keep ref updated)
- * - setDroppedTanks: setState for droppedTanks
- * - clearSelection: function to clear selectedIds + selectedTank
- * - activeDashboardId: string (preferred)
- * - dashboardId: string (fallback)
  */
 export default function useDeleteSelected({
   activePage,
@@ -87,19 +77,31 @@ export default function useDeleteSelected({
       (obj) => obj && selectedIds.includes(obj.id)
     );
 
+    const dashForBackend = String(activeDashboardId || dashboardId || "main").trim();
+
+    // -------------------------
+    // ✅ Counters (delete backend row)
+    // -------------------------
     const counterIds = selectedObjs
-      .filter((obj) => obj?.shape === "counterInput")
+      .filter((obj) => String(obj?.shape || "").trim() === "counterInput")
       .map((obj) => String(obj.id || "").trim())
       .filter(Boolean);
 
-    // ✅ Controls that may have DO bindings (release on delete)
+    // -------------------------
+    // ✅ Controls (release DO binding)
+    // IMPORTANT FIX:
+    // - your old filter used `{}` without return -> always false
+    // -------------------------
     const controlWidgetIds = selectedObjs
-      .filter((obj) =>
-        obj?.shape === "toggleSwitch" ||
-        obj?.shape === "toggleControl" ||
-        obj?.shape === "pushButtonNO" ||
-        obj?.shape === "pushButtonNC"
-      )
+      .filter((obj) => {
+        const s = String(obj?.shape || "").trim();
+        return (
+          s === "toggleSwitch" ||
+          s === "toggleControl" ||
+          s === "pushButtonNO" ||
+          s === "pushButtonNC"
+        );
+      })
       .map((obj) => String(obj.id || "").trim())
       .filter(Boolean);
 
@@ -111,38 +113,27 @@ export default function useDeleteSelected({
     );
     clearSelection();
 
-    const dashForBackend = String(
-      activeDashboardId || dashboardId || "main"
-    ).trim();
-
-    // ✅ delete backend rows ONLY for counters
-    if (counterIds.length > 0) {
-      // fire sequentially (safer / easier on backend)
-      for (const wid of counterIds) {
-        try {
-          await deleteCounterRowOnBackend({
-            widgetId: wid,
-            dashboardId: dashForBackend,
-          });
-        } catch (err) {
-          console.error("❌ Failed to delete counter row:", wid, err);
-          // keep silent to avoid annoying UX
-        }
+    // ✅ delete backend rows ONLY for counters (sequential = safer)
+    for (const wid of counterIds) {
+      try {
+        await deleteCounterRowOnBackend({
+          widgetId: wid,
+          dashboardId: dashForBackend,
+        });
+      } catch (err) {
+        console.error("❌ Failed to delete counter row:", wid, err);
       }
     }
 
-    // ✅ delete control bindings for deleted control widgets (release DO immediately)
-    if (controlWidgetIds.length > 0) {
-      for (const wid of controlWidgetIds) {
-        try {
-          await deleteControlBinding({
-            dashboardId: dashForBackend,
-            widgetId: wid,
-          });
-        } catch (err) {
-          console.error("❌ Failed to delete control binding:", wid, err);
-          // keep silent to avoid annoying UX
-        }
+    // ✅ delete control bindings for deleted control widgets (release DO)
+    for (const wid of controlWidgetIds) {
+      try {
+        await deleteControlBinding({
+          dashboardId: dashForBackend,
+          widgetId: wid,
+        });
+      } catch (err) {
+        console.error("❌ Failed to delete control binding:", wid, err);
       }
     }
   }, [

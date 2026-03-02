@@ -99,10 +99,15 @@ export async function bindControlDO({
 // ===============================
 // 🗑️ Delete Binding (release DO)
 // ===============================
-export async function deleteControlBinding({ dashboardId, widgetId, signal } = {}) {
+export async function deleteControlBinding({
+  dashboardId,
+  widgetId,
+  signal,
+} = {}) {
   const q = qs({ dashboardId, widgetId });
 
-  const res = await fetch(`${API_URL}/control-bindings?${q}`, {
+  // ✅ IMPORTANT: use trailing slash so it matches @router.delete("/")
+  const res = await fetch(`${API_URL}/control-bindings/?${q}`, {
     method: "DELETE",
     headers: {
       ...getAuthHeaders(),
@@ -112,12 +117,29 @@ export async function deleteControlBinding({ dashboardId, widgetId, signal } = {
     signal,
   });
 
-  if (!res.ok) {
-    const txt = await res.text().catch(() => "");
-    throw new Error(txt || `Delete binding failed (${res.status})`);
+  if (res.ok) {
+    try {
+      return await res.json();
+    } catch {
+      return { ok: true };
+    }
   }
 
-  return res.json();
+  // ✅ return useful backend detail if present
+  let payload = null;
+  try {
+    payload = await res.json();
+  } catch {}
+
+  const msg =
+    payload?.detail ||
+    payload?.error ||
+    `Delete binding failed (${res.status})`;
+
+  const err = new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+  err.code = res.status;
+  err.detail = payload;
+  throw err;
 }
 
 // ===============================
@@ -125,7 +147,12 @@ export async function deleteControlBinding({ dashboardId, widgetId, signal } = {
 // Frontend sends: dashboardId, widgetId, value01 (0/1)
 // Backend resolves binding -> forwards to Node-RED
 // ===============================
-export async function writeControlDO({ dashboardId, widgetId, value01, signal } = {}) {
+export async function writeControlDO({
+  dashboardId,
+  widgetId,
+  value01,
+  signal,
+} = {}) {
   const res = await fetch(`${API_URL}/control-bindings/write`, {
     method: "POST",
     headers: {
