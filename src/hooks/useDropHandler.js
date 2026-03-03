@@ -157,9 +157,8 @@ export default function useDropHandler({
               x,
               y,
 
-              // ✅ NEW: smaller default size
-              w: 140, // was 180
-              h: 55, // was 70
+              w: 120, 
+              h: 45, 
 
               isOn: true,
               z,
