@@ -115,6 +115,12 @@ export default function useDropHandler({
     if (imgSrc) {
       setDroppedTanks((prev) => {
         const z = nextTopZ(prev);
+
+        // ✅ NEW: bigger default image drop size
+        // (DraggableImage can read these if you already support w/h, otherwise it will ignore safely)
+        const DEFAULT_IMG_W = 260;
+        const DEFAULT_IMG_H = 160;
+
         return [
           ...prev,
           {
@@ -125,6 +131,10 @@ export default function useDropHandler({
             scale: 1,
             src: imgSrc,
             z,
+
+            // ✅ NEW: give images an explicit size (so they don’t drop tiny)
+            w: DEFAULT_IMG_W,
+            h: DEFAULT_IMG_H,
           },
         ];
       });
@@ -146,8 +156,11 @@ export default function useDropHandler({
               shape: "toggleSwitch",
               x,
               y,
-              w: 180,
-              h: 70,
+
+              // ✅ NEW: smaller default size
+              w: 140, // was 180
+              h: 55, // was 70
+
               isOn: true,
               z,
             },
