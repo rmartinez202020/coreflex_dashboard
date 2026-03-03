@@ -84,18 +84,19 @@ export default function Header({ onLogout }) {
   }, []);
 
   return (
-    <header className="absolute top-2 right-4 flex items-center gap-4">
-      <div className="text-right">
-        <div className="text-gray-800 font-medium text-sm">
+    // ✅ Smaller header block (tighter spacing + smaller fonts + smaller button)
+    <header className="absolute top-2 right-3 flex items-center gap-3">
+      <div className="text-right leading-tight">
+        <div className="text-gray-800 font-medium text-[12.5px]">
           Welcome, {userName || "User"}
         </div>
-        <div className="text-gray-500 text-xs">{userEmail || ""}</div>
+        <div className="text-gray-500 text-[11px]">{userEmail || ""}</div>
       </div>
 
       <button
         type="button"
         onClick={onLogout}
-        className="px-3 py-1 rounded-md text-sm bg-red-600 text-white hover:bg-red-700 shadow"
+        className="px-2.5 py-1 rounded-md text-[12px] bg-red-600 text-white hover:bg-red-700 shadow-sm"
       >
         Logout
       </button>
