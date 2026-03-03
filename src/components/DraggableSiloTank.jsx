@@ -29,17 +29,15 @@ function readAiField(row, bindField) {
   return null;
 }
 
-// ✅ Get row from shared telemetryMap (telemetryMap[model][deviceId] = row)
+// ✅ Get row from shared telemetryMap
 function getTelemetryRow(telemetryMap, model, deviceId) {
   const id = String(deviceId || "").trim();
   if (!telemetryMap || !id) return null;
 
   const m = String(model || "").trim();
 
-  // Preferred: explicit model bucket
   if (m && telemetryMap?.[m]?.[id]) return telemetryMap[m][id];
 
-  // Fallback: scan all models (for older widgets or mismatched model storage)
   for (const mk of Object.keys(telemetryMap || {})) {
     if (telemetryMap?.[mk]?.[id]) return telemetryMap[mk][id];
   }
@@ -47,7 +45,6 @@ function getTelemetryRow(telemetryMap, model, deviceId) {
   return null;
 }
 
-// ✅ empty math => output == liveValue
 function computeMathOutput(liveValue, formula) {
   const f = String(formula || "").trim();
   if (!f) return liveValue;
@@ -82,7 +79,6 @@ function computeMathOutput(liveValue, formula) {
 
         try {
           const expr = p.replace(/\bVALUE\b/gi, "VALUE");
-          // eslint-disable-next-line no-new-func
           const fn = new Function("VALUE", `return (${expr});`);
           const r = fn(VALUE);
           return r ?? "";
@@ -95,7 +91,6 @@ function computeMathOutput(liveValue, formula) {
 
   try {
     const expr = f.replace(/\bVALUE\b/gi, "VALUE");
-    // eslint-disable-next-line no-new-func
     const fn = new Function("VALUE", `return (${expr});`);
     return fn(VALUE);
   } catch {
@@ -119,13 +114,15 @@ function ensureAlphaHex(hex, alphaHex = "88") {
 
 /**
  * DraggableSiloTank
- * ✅ Uses shared telemetryMap (NO fetch, NO interval)
- * ✅ Live updates ONLY in Play/Launch (isPlay=true)
- *
- * ✅ NEW RULE:
- * - In EDIT mode -> HIDE LIQUID (force level=0)
+ * ✅ Uses shared telemetryMap
+ * ✅ Live updates ONLY in Play/Launch
+ * ✅ EDIT mode hides liquid
  */
-export default function DraggableSiloTank({ tank, isPlay = false, telemetryMap = null }) {
+export default function DraggableSiloTank({
+  tank,
+  isPlay = false,
+  telemetryMap = null,
+}) {
   const props = tank?.properties || {};
   const scale = tank?.scale || 1;
 
@@ -133,7 +130,9 @@ export default function DraggableSiloTank({ tank, isPlay = false, telemetryMap =
   const unit = String(props.unit || "").trim();
 
   const maxCapacity =
-    props.maxCapacity === "" || props.maxCapacity === null || props.maxCapacity === undefined
+    props.maxCapacity === "" ||
+    props.maxCapacity === null ||
+    props.maxCapacity === undefined
       ? 0
       : Number(props.maxCapacity);
 
@@ -149,24 +148,18 @@ export default function DraggableSiloTank({ tank, isPlay = false, telemetryMap =
 
   const hasBinding = !!bindDeviceId && !!bindField;
 
-  // ✅ Live row from common poller (PLAY only)
   const telemetryRow = useMemo(() => {
-    if (!isPlay) return null;
-    if (!hasBinding) return null;
+    if (!isPlay || !hasBinding) return null;
     return getTelemetryRow(telemetryMap, bindModel, bindDeviceId);
   }, [isPlay, hasBinding, telemetryMap, bindModel, bindDeviceId]);
 
   const backendStatus = String(telemetryRow?.status || "").trim().toLowerCase();
   const deviceIsOnline = backendStatus ? backendStatus === "online" : true;
 
-  // ✅ raw analog value
   const liveValue = useMemo(() => {
-    if (!isPlay) return null;
-    if (!hasBinding) return null;
-    if (!deviceIsOnline) return null;
+    if (!isPlay || !hasBinding || !deviceIsOnline) return null;
 
     const raw = telemetryRow ? readAiField(telemetryRow, bindField) : null;
-
     const num =
       raw === null || raw === undefined || raw === ""
         ? null
@@ -185,38 +178,26 @@ export default function DraggableSiloTank({ tank, isPlay = false, telemetryMap =
   const numericOutput = useMemo(() => {
     const v = outputValue;
     if (v === null || v === undefined || v === "") return null;
-
-    if (typeof v === "string") {
-      const n = Number(v);
-      return Number.isFinite(n) ? n : null;
-    }
-
     const n = typeof v === "number" ? v : Number(v);
     return Number.isFinite(n) ? n : null;
   }, [outputValue]);
 
   const levelPctLive = useMemo(() => {
-    if (!Number.isFinite(Number(maxCapacity)) || Number(maxCapacity) <= 0) return 0;
+    if (!Number.isFinite(Number(maxCapacity)) || Number(maxCapacity) <= 0)
+      return 0;
     const frac = clamp01((numericOutput ?? 0) / Number(maxCapacity));
     return frac * 100;
   }, [numericOutput, maxCapacity]);
 
-  // ✅ EDIT MODE: NO LIQUID
   const levelPct = isPlay ? levelPctLive : 0;
 
   const outputText = useMemo(() => {
-    if (!hasBinding) return "--";
-    if (!isPlay) return "--";
-    if (!deviceIsOnline) return "--";
-
-    if (typeof outputValue === "string") return outputValue || "--";
-
+    if (!hasBinding || !isPlay || !deviceIsOnline) return "--";
     const n = Number(outputValue);
     if (!Number.isFinite(n)) return "--";
     return String(Math.round(n));
   }, [hasBinding, isPlay, deviceIsOnline, outputValue]);
 
-  // ✅ EDIT MODE: hide percent text so it looks truly "empty"
   const showPercent = isPlay;
 
   return (
@@ -225,7 +206,7 @@ export default function DraggableSiloTank({ tank, isPlay = false, telemetryMap =
         <div
           style={{
             marginBottom: 4,
-            fontSize: `${16 * scale}px`,
+            fontSize: `${14 * scale}px`,
             fontWeight: 600,
             color: "#111827",
             lineHeight: 1.1,
@@ -236,7 +217,8 @@ export default function DraggableSiloTank({ tank, isPlay = false, telemetryMap =
       ) : null}
 
       <div style={{ display: "inline-block" }}>
-        <div style={{ width: `${140 * scale}px`, height: `${220 * scale}px` }}>
+        {/* ✅ SMALLER SIZE */}
+        <div style={{ width: `${100 * scale}px`, height: `${170 * scale}px` }}>
           <SiloTank
             level={levelPct}
             fillColor={materialColor}
@@ -250,20 +232,6 @@ export default function DraggableSiloTank({ tank, isPlay = false, telemetryMap =
             bottomTextColor="#111827"
           />
         </div>
-      </div>
-
-      <div
-        style={{
-          marginTop: 2,
-          fontFamily: "monospace",
-          fontSize: `${18 * scale}px`,
-          fontWeight: 700,
-          color: "#111827",
-          display: "none",
-        }}
-      >
-        {outputText}
-        {unit ? ` ${unit}` : ""}
       </div>
     </div>
   );
