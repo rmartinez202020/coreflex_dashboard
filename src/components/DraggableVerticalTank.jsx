@@ -139,7 +139,9 @@ export default function DraggableVerticalTank({
   const unit = String(props.unit || "").trim();
 
   const maxCapacity =
-    props.maxCapacity === "" || props.maxCapacity === null || props.maxCapacity === undefined
+    props.maxCapacity === "" ||
+    props.maxCapacity === null ||
+    props.maxCapacity === undefined
       ? 0
       : Number(props.maxCapacity);
 
@@ -204,7 +206,8 @@ export default function DraggableVerticalTank({
 
   // ✅ level calculation (PLAY only). EDIT = 0 (no liquid)
   const levelPctLive = useMemo(() => {
-    if (!Number.isFinite(Number(maxCapacity)) || Number(maxCapacity) <= 0) return 0;
+    if (!Number.isFinite(Number(maxCapacity)) || Number(maxCapacity) <= 0)
+      return 0;
     const frac = clamp01((numericOutput ?? 0) / Number(maxCapacity));
     return frac * 100;
   }, [numericOutput, maxCapacity]);
@@ -244,7 +247,8 @@ export default function DraggableVerticalTank({
 
       {/* ✅ VERTICAL TANK */}
       <div style={{ display: "inline-block" }}>
-        <div style={{ width: `${120 * scale}px`, height: `${160 * scale}px` }}>
+        {/* ✅ CHANGED: smaller default render size */}
+        <div style={{ width: `${90 * scale}px`, height: `${120 * scale}px` }}>
           <VerticalTank
             level={levelPct}
             fillColor={materialColor}
