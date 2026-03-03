@@ -36,10 +36,8 @@ function getTelemetryRow(telemetryMap, model, deviceId) {
 
   const m = String(model || "").trim();
 
-  // Preferred: explicit model bucket
   if (m && telemetryMap?.[m]?.[id]) return telemetryMap[m][id];
 
-  // Fallback: scan all models (for older widgets or mismatched model storage)
   for (const mk of Object.keys(telemetryMap || {})) {
     if (telemetryMap?.[mk]?.[id]) return telemetryMap[mk][id];
   }
@@ -82,7 +80,6 @@ function computeMathOutput(liveValue, formula) {
 
         try {
           const expr = p.replace(/\bVALUE\b/gi, "VALUE");
-          // eslint-disable-next-line no-new-func
           const fn = new Function("VALUE", `return (${expr});`);
           const r = fn(VALUE);
           return r ?? "";
@@ -95,7 +92,6 @@ function computeMathOutput(liveValue, formula) {
 
   try {
     const expr = f.replace(/\bVALUE\b/gi, "VALUE");
-    // eslint-disable-next-line no-new-func
     const fn = new Function("VALUE", `return (${expr});`);
     return fn(VALUE);
   } catch {
@@ -117,14 +113,6 @@ function ensureAlphaHex(hex, alphaHex = "88") {
   return s;
 }
 
-/**
- * DraggableVerticalTank
- * ✅ NOW uses shared telemetryMap (NO fetch, NO interval)
- * ✅ Live updates ONLY in Play/Launch (isPlay=true)
- *
- * Binding expected:
- * props.bindModel, props.bindDeviceId, props.bindField (ai1..ai8)
- */
 export default function DraggableVerticalTank({
   tank,
   isPlay = false,
@@ -134,8 +122,6 @@ export default function DraggableVerticalTank({
   const scale = tank?.scale || 1;
 
   const name = String(props.name || props.title || "").trim();
-
-  // (optional) unit — allow if you add later
   const unit = String(props.unit || "").trim();
 
   const maxCapacity =
@@ -151,31 +137,24 @@ export default function DraggableVerticalTank({
   const bindDeviceId = String(props.bindDeviceId || "").trim();
   const bindField = String(props.bindField || "ai1").trim();
 
-  // match others: accept multiple keys but keep formula precedence
   const formula = String(
     props.formula ?? props.mathFormula ?? props.math ?? props.density ?? ""
   ).trim();
 
   const hasBinding = !!bindDeviceId && !!bindField;
 
-  // ✅ Live row from common poller (PLAY only)
   const telemetryRow = useMemo(() => {
-    if (!isPlay) return null;
-    if (!hasBinding) return null;
+    if (!isPlay || !hasBinding) return null;
     return getTelemetryRow(telemetryMap, bindModel, bindDeviceId);
   }, [isPlay, hasBinding, telemetryMap, bindModel, bindDeviceId]);
 
   const backendStatus = String(telemetryRow?.status || "").trim().toLowerCase();
   const deviceIsOnline = backendStatus ? backendStatus === "online" : true;
 
-  // ✅ raw analog value (PLAY only)
   const liveValue = useMemo(() => {
-    if (!isPlay) return null;
-    if (!hasBinding) return null;
-    if (!deviceIsOnline) return null;
+    if (!isPlay || !hasBinding || !deviceIsOnline) return null;
 
     const raw = telemetryRow ? readAiField(telemetryRow, bindField) : null;
-
     const num =
       raw === null || raw === undefined || raw === ""
         ? null
@@ -194,17 +173,10 @@ export default function DraggableVerticalTank({
   const numericOutput = useMemo(() => {
     const v = outputValue;
     if (v === null || v === undefined || v === "") return null;
-
-    if (typeof v === "string") {
-      const n = Number(v);
-      return Number.isFinite(n) ? n : null;
-    }
-
     const n = typeof v === "number" ? v : Number(v);
     return Number.isFinite(n) ? n : null;
   }, [outputValue]);
 
-  // ✅ level calculation (PLAY only). EDIT = 0 (no liquid)
   const levelPctLive = useMemo(() => {
     if (!Number.isFinite(Number(maxCapacity)) || Number(maxCapacity) <= 0)
       return 0;
@@ -214,20 +186,14 @@ export default function DraggableVerticalTank({
 
   const levelPct = isPlay ? levelPctLive : 0;
 
-  // ✅ output text (PLAY only). EDIT shows "--"
   const outputText = useMemo(() => {
-    if (!hasBinding) return "--";
-    if (!isPlay) return "--";
-    if (!deviceIsOnline) return "--";
-
-    if (typeof outputValue === "string") return outputValue || "--";
-
+    if (!hasBinding || !isPlay || !deviceIsOnline) return "--";
     const n = Number(outputValue);
     if (!Number.isFinite(n)) return "--";
     return String(Math.round(n));
   }, [hasBinding, isPlay, deviceIsOnline, outputValue]);
 
-  const showPercentText = isPlay; // ✅ hide percent in edit mode
+  const showPercentText = isPlay;
 
   return (
     <div style={{ textAlign: "center", pointerEvents: "none" }}>
@@ -235,7 +201,7 @@ export default function DraggableVerticalTank({
         <div
           style={{
             marginBottom: 4,
-            fontSize: `${16 * scale}px`,
+            fontSize: `${14 * scale}px`,
             fontWeight: 600,
             color: "#111827",
             lineHeight: 1.1,
@@ -245,10 +211,9 @@ export default function DraggableVerticalTank({
         </div>
       ) : null}
 
-      {/* ✅ VERTICAL TANK */}
+      {/* ✅ SMALLER SIZE */}
       <div style={{ display: "inline-block" }}>
-        {/* ✅ CHANGED: smaller default render size */}
-        <div style={{ width: `${90 * scale}px`, height: `${120 * scale}px` }}>
+        <div style={{ width: `${70 * scale}px`, height: `${100 * scale}px` }}>
           <VerticalTank
             level={levelPct}
             fillColor={materialColor}
@@ -262,21 +227,6 @@ export default function DraggableVerticalTank({
             bottomTextColor="#111827"
           />
         </div>
-      </div>
-
-      {/* keep hidden (optional) */}
-      <div
-        style={{
-          marginTop: 2,
-          fontFamily: "monospace",
-          fontSize: `${18 * scale}px`,
-          fontWeight: 700,
-          color: "#111827",
-          display: "none",
-        }}
-      >
-        {outputText}
-        {unit ? ` ${unit}` : ""}
       </div>
     </div>
   );
