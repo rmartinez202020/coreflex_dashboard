@@ -59,5 +59,8 @@ export default function AppTopBar({
       ? "Device Controls"
       : "Main Dashboard";
 
-  return <h1 className="text-2xl font-bold mb-4 text-gray-800">{title}</h1>;
+  // ✅ Smaller non-dashboard title to match the tighter top layout
+  return (
+    <h1 className="text-[20px] font-semibold mb-2 text-gray-800">{title}</h1>
+  );
 }
