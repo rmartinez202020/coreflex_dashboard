@@ -167,7 +167,9 @@ export default function DraggableHorizontalTank({
 
   const maxCapacityRaw = props.maxCapacity;
   const maxCapacity =
-    maxCapacityRaw === "" || maxCapacityRaw === null || maxCapacityRaw === undefined
+    maxCapacityRaw === "" ||
+    maxCapacityRaw === null ||
+    maxCapacityRaw === undefined
       ? 0
       : Number(maxCapacityRaw);
 
@@ -241,9 +243,9 @@ export default function DraggableHorizontalTank({
     return formatOutputNoTrailingZeros(outputValue, 2);
   }, [hasBinding, isPlay, deviceIsOnline, outputValue]);
 
-  // ✅ sizing
-  const w = (tank?.w || tank?.width || 220) * scale;
-  const h = (tank?.h || tank?.height || 120) * scale;
+  // ✅ sizing (smaller defaults)
+  const w = (tank?.w || tank?.width || 170) * scale;
+  const h = (tank?.h || tank?.height || 90) * scale;
 
   const modalNode =
     openProps && typeof document !== "undefined"
@@ -277,7 +279,6 @@ export default function DraggableHorizontalTank({
         }}
         title={isPlay ? "" : "Double-click to edit"}
       >
-        {/* ✅ invisible hit-layer ONLY for double click (EDIT MODE ONLY) */}
         {!isPlay && (
           <div
             onDoubleClick={(e) => {
@@ -294,7 +295,6 @@ export default function DraggableHorizontalTank({
           />
         )}
 
-        {/* title */}
         {title ? (
           <div
             style={{
@@ -311,7 +311,6 @@ export default function DraggableHorizontalTank({
           </div>
         ) : null}
 
-        {/* Tank icon */}
         <div
           style={{
             width: w,
@@ -330,13 +329,12 @@ export default function DraggableHorizontalTank({
               showPercentText={showPercentText}
               percentText={percentText}
               percentTextColor="#111827"
-              showBottomText={false} // keep badge outside
+              showBottomText={false}
               pointerEvents="none"
             />
           </div>
         </div>
 
-        {/* output badge (tight) */}
         <div
           style={{
             marginTop: 0,
