@@ -93,34 +93,7 @@ export default function useDropHandler({
     return maxZ + 1;
   };
 
-  // ✅ NEW: Get natural image size (keeps aspect ratio on first drop)
-  const getNaturalSize = (url) =>
-    new Promise((resolve) => {
-      const fallback = { w: 320, h: 220 };
-      const src = String(url || "").trim();
-      if (!src) return resolve(fallback);
-
-      try {
-        const img = new Image();
-        img.onload = () =>
-          resolve({
-            w: img.naturalWidth || fallback.w,
-            h: img.naturalHeight || fallback.h,
-          });
-        img.onerror = () => resolve(fallback);
-        img.src = src;
-      } catch {
-        resolve(fallback);
-      }
-    });
-
-  // ✅ NEW: Larger default image drop size (feel like “duplicate that size”)
-  const DEFAULT_IMAGE_W = 360; // 👈 increase/decrease to taste (320–460)
-  const MIN_IMAGE_W = 260;
-  const MAX_IMAGE_W = 560;
-
-  // ✅ NOTE: make async so we can read natural img size before creating the widget
-  const handleDrop = async (e) => {
+  const handleDrop = (e) => {
     e.preventDefault();
 
     const rect = e.currentTarget.getBoundingClientRect();
@@ -140,16 +113,6 @@ export default function useDropHandler({
       (isLikelyImageUrl(plain) && plain);
 
     if (imgSrc) {
-      // ✅ compute a nicer initial size (bigger + aspect ratio)
-      const { w: nw, h: nh } = await getNaturalSize(imgSrc);
-      const aspect = nh > 0 ? nw / nh : 1.6;
-
-      const startW = Math.min(
-        MAX_IMAGE_W,
-        Math.max(MIN_IMAGE_W, DEFAULT_IMAGE_W)
-      );
-      const startH = Math.round(startW / (aspect || 1.6));
-
       setDroppedTanks((prev) => {
         const z = nextTopZ(prev);
         return [
@@ -159,14 +122,8 @@ export default function useDropHandler({
             shape: "img",
             x,
             y,
-            // ✅ keep old behavior
             scale: 1,
             src: imgSrc,
-            // ✅ NEW: real size for first drop (prevents tiny images)
-            w: startW,
-            h: startH,
-            baseW: startW,
-            baseH: startH,
             z,
           },
         ];
