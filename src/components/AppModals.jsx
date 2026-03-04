@@ -357,20 +357,19 @@ export default function AppModals({
       )}
 
       {graphicTarget && (
-        <GraphicDisplaySettingsModal
-          open={true}
-          tank={graphicTarget}
-          onClose={closeGraphicDisplaySettings}
-          // ✅ NEW: pass down so Apply can auto-save the project
-          onSaveProject={onSaveProject}
-          onSave={(updatedTank) => {
-            setDroppedTanks((prev) =>
-              prev.map((t) => (isSameId(t.id, updatedTank.id) ? updatedTank : t))
-            );
-            closeGraphicDisplaySettings?.();
-          }}
-        />
-      )}
+  <GraphicDisplaySettingsModal
+    open={true}
+    tank={graphicTarget}
+    onClose={closeGraphicDisplaySettings}
+    onSaveProject={onSaveProject}  // ✅ ADD THIS
+    onSave={(updatedTank) => {
+      setDroppedTanks((prev) =>
+        prev.map((t) => (isSameId(t.id, updatedTank.id) ? updatedTank : t))
+      );
+      closeGraphicDisplaySettings?.();
+    }}
+  />
+)}
 
       {showSiloProps && activeSilo && (
         <SiloPropertiesModal
