@@ -31,20 +31,27 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+// ✅ Keep no-cache helper for endpoints that truly must bypass cache
 function withNoCache(path) {
   const sep = path.includes("?") ? "&" : "?";
   return `${path}${sep}_ts=${Date.now()}`;
 }
 
-async function apiGet(path, { signal } = {}) {
-  const res = await fetch(`${API_URL}${withNoCache(path)}`, {
+// ✅ UPDATED: allow noCache flag (default false)
+async function apiGet(path, { signal, noCache = false } = {}) {
+  const url = `${API_URL}${noCache ? withNoCache(path) : path}`;
+  const res = await fetch(url, {
     method: "GET",
     headers: {
       ...getAuthHeaders(),
-      "Cache-Control": "no-cache",
-      Pragma: "no-cache",
+      ...(noCache
+        ? {
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
+          }
+        : {}),
     },
-    cache: "no-store",
+    cache: noCache ? "no-store" : "default",
     signal,
   });
   if (!res.ok) throw new Error(`GET ${path} failed (${res.status})`);
@@ -138,35 +145,6 @@ function getRowFromTelemetryMap(telemetryMap, modelKey, deviceId) {
   return null;
 }
 
-/**
- * ✅ NO-SPAM LIVE ROW LOADER
- * - Prefer telemetryMap (common poller)
- * - Otherwise ONLY call /{base}/my-devices
- */
-async function loadLiveRowForDevice(
-  modelKey,
-  deviceId,
-  { telemetryMap, signal } = {}
-) {
-  const mk = String(modelKey || "").trim();
-  const id = String(deviceId || "").trim();
-  if (!mk || !id) return null;
-
-  // 1) Common poller
-  const fromCommon = getRowFromTelemetryMap(telemetryMap, mk, id);
-  if (fromCommon) return fromCommon;
-
-  // 2) Fallback: /my-devices only
-  const base = MODEL_META[mk]?.base || mk;
-  const data = await apiGet(`/${base}/my-devices`, { signal });
-  const arr = normalizeArray(data);
-
-  const found =
-    arr.find((r) => String(readDeviceId(r) || "").trim() === id) || null;
-
-  return found;
-}
-
 function formatSampleLabel(ms) {
   if (ms === 3000) return "3s";
   if (ms === 6000) return "6s";
@@ -211,6 +189,57 @@ export default function GraphicDisplaySettingsModal({
 }) {
   const portalTarget =
     typeof document !== "undefined" ? document.body : null;
+
+  // ✅ NEW: cache devices per model while modal open (prevents slow repeated /my-devices)
+  const devicesCacheRef = useRef({}); // { zhc1921: { at: ms, rows: [] }, ... }
+  const DEVICES_TTL_MS = 15000; // 15s
+
+  // ✅ NEW: cached /my-devices fetch (NO _ts spam)
+  const getMyDevicesCached = async (modelKey, { signal } = {}) => {
+    const mk = String(modelKey || "").trim();
+    if (!mk) return [];
+
+    const now = Date.now();
+    const cached = devicesCacheRef.current[mk];
+    if (cached && now - cached.at < DEVICES_TTL_MS) {
+      return cached.rows || [];
+    }
+
+    const base = MODEL_META[mk]?.base || mk;
+
+    // Important: do NOT use no-cache timestamp for device list
+    const data = await apiGet(`/${base}/my-devices`, { signal, noCache: false });
+    const rows = normalizeArray(data);
+
+    devicesCacheRef.current[mk] = { at: now, rows };
+    return rows;
+  };
+
+  /**
+   * ✅ NO-SPAM LIVE ROW LOADER
+   * - Prefer telemetryMap (common poller)
+   * - Otherwise uses cached /{base}/my-devices (TTL)
+   */
+  const loadLiveRowForDevice = async (
+    modelKey,
+    deviceId,
+    { telemetryMap, signal } = {}
+  ) => {
+    const mk = String(modelKey || "").trim();
+    const id = String(deviceId || "").trim();
+    if (!mk || !id) return null;
+
+    // 1) Common poller
+    const fromCommon = getRowFromTelemetryMap(telemetryMap, mk, id);
+    if (fromCommon) return fromCommon;
+
+    // 2) Fallback: cached /my-devices (TTL)
+    const arr = await getMyDevicesCached(mk, { signal });
+    const found =
+      arr.find((r) => String(readDeviceId(r) || "").trim() === id) || null;
+
+    return found;
+  };
 
   // lock scroll while open
   useEffect(() => {
@@ -296,6 +325,15 @@ export default function GraphicDisplaySettingsModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
+  // ✅ NEW: warm cache once when modal opens or model changes
+  useEffect(() => {
+    if (!open) return;
+    const ctrl = new AbortController();
+    getMyDevicesCached(bindModel, { signal: ctrl.signal }).catch(() => {});
+    return () => ctrl.abort();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open, bindModel]);
+
   useEffect(() => {
     if (!tank) return;
 
@@ -347,7 +385,7 @@ export default function GraphicDisplaySettingsModal({
     return yRangeValid && !!bindDeviceId && !!bindField;
   }, [yRangeValid, bindDeviceId, bindField]);
 
-  // ✅ LIVE VALUE POLL
+  // ✅ LIVE VALUE POLL (now no-spam; uses telemetryMap first, then cached /my-devices)
   useEffect(() => {
     if (!open) return;
 
@@ -391,13 +429,14 @@ export default function GraphicDisplaySettingsModal({
     };
 
     tick();
-    const id = window.setInterval(tick, Math.max(250, Number(sampleMs) || 3000));
+    const id = window.setInterval(tick, Math.max(750, Number(sampleMs) || 3000));
 
     return () => {
       cancelled = true;
       ctrl.abort();
       window.clearInterval(id);
     };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, bindModel, bindDeviceId, bindField, sampleMs, telemetryMap]);
 
   // ✅ DRAG handlers
@@ -475,7 +514,8 @@ export default function GraphicDisplaySettingsModal({
     const wid = String(tank?.id || "").trim();
     if (!wid) throw new Error("Missing widget id (tank.id)");
 
-    const dash = String(tank?.dashboard_id || tank?.dashboardId || "main").trim() || "main";
+    const dash =
+      String(tank?.dashboard_id || tank?.dashboardId || "main").trim() || "main";
 
     return apiPost("/graphic-display-bindings/upsert", {
       dashboard_id: dash,
@@ -636,7 +676,14 @@ export default function GraphicDisplaySettingsModal({
             />
           </div>
 
-          <div style={{ display: "grid", gap: 12, alignContent: "start", minWidth: 0 }}>
+          <div
+            style={{
+              display: "grid",
+              gap: 12,
+              alignContent: "start",
+              minWidth: 0,
+            }}
+          >
             <GraphicDisplayMathPanel
               value={liveValue}
               formula={mathFormula}
@@ -660,7 +707,14 @@ export default function GraphicDisplaySettingsModal({
             )}
           </div>
 
-          <div style={{ display: "grid", gap: 12, alignContent: "start", minWidth: 0 }}>
+          <div
+            style={{
+              display: "grid",
+              gap: 12,
+              alignContent: "start",
+              minWidth: 0,
+            }}
+          >
             <GraphicDisplayBindingPanel
               bindModel={bindModel}
               setBindModel={setBindModel}
@@ -673,7 +727,9 @@ export default function GraphicDisplaySettingsModal({
               telemetryMap={telemetryMap}
             />
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+            <div
+              style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}
+            >
               <button
                 onClick={(e) => {
                   e.stopPropagation();
