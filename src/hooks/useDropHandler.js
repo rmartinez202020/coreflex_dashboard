@@ -179,7 +179,7 @@ export default function useDropHandler({
               x,
               y,
               w: 80,
-              h: 80,
+              h: 8,
               pressed: false,
               z,
             },

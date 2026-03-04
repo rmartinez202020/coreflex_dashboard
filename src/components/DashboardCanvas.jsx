@@ -63,6 +63,40 @@ function resolveDashboardId({
   return null;
 }
 
+// ✅ small helper: POST JSON
+async function postJson(path, body) {
+  const token = String(getToken() || "").trim();
+  if (!token) throw new Error("Missing auth token.");
+
+  const res = await fetch(`${API_URL}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify(body || {}),
+  });
+
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(j?.detail || j?.error || `POST ${path} failed (${res.status})`);
+  }
+  return j;
+}
+
+// ✅ Backend cleanup when GraphicDisplay widget is deleted
+async function softDeleteGraphicBinding({ dashboardId = "main", widgetId }) {
+  const dash = String(dashboardId || "main").trim() || "main";
+  const wid = String(widgetId || "").trim();
+  if (!wid) return;
+
+  // backend route: POST /graphic-display-bindings/soft-delete
+  await postJson("/graphic-display-bindings/soft-delete", {
+    dashboard_id: dash,
+    widget_id: wid,
+  });
+}
+
 export default function DashboardCanvas({
   dashboardMode,
   sensors,
@@ -257,6 +291,60 @@ export default function DashboardCanvas({
     return () => clearInterval(t);
   }, [isPlay, fetchCountersForDashboard]);
 
+  // =====================================================
+  // ✅ NEW: Detect deleted GraphicDisplay widgets and soft-delete binding in backend
+  // This catches deletes from ANY place (context menu, toolbar, etc.)
+  // =====================================================
+  const prevGraphicIdsRef = React.useRef(new Set());
+  const deleteQueueRef = React.useRef(new Set()); // prevent double calls
+
+  React.useEffect(() => {
+    const arr = Array.isArray(droppedTanks) ? droppedTanks : [];
+
+    const currentGraphicIds = new Set(
+      arr
+        .filter((t) => t?.shape === "graphicDisplay")
+        .map((t) => String(t?.id || "").trim())
+        .filter(Boolean)
+    );
+
+    const prev = prevGraphicIdsRef.current || new Set();
+
+    // removed = in prev but not in current
+    const removed = [];
+    for (const id of prev) {
+      if (!currentGraphicIds.has(id)) removed.push(id);
+    }
+
+    prevGraphicIdsRef.current = currentGraphicIds;
+
+    if (removed.length === 0) return;
+
+    const dash =
+      resolveDashboardId({
+        activeDashboardId,
+        dashboardId,
+        selectedTank,
+        droppedTanks: arr,
+      }) || "main";
+
+    // fire-and-forget (never block UI)
+    removed.forEach((wid) => {
+      if (!wid) return;
+      if (deleteQueueRef.current.has(wid)) return;
+      deleteQueueRef.current.add(wid);
+
+      softDeleteGraphicBinding({ dashboardId: dash, widgetId: wid })
+        .catch((e) => {
+          console.log("[GraphicDisplay] soft-delete failed:", e?.message || e);
+        })
+        .finally(() => {
+          // allow future retries if needed
+          deleteQueueRef.current.delete(wid);
+        });
+    });
+  }, [droppedTanks, activeDashboardId, dashboardId, selectedTank]);
+
   // ✅ Z-ORDER HELPERS
   const getTankZ = React.useCallback((t) => {
     return Number(t?.z ?? t?.zIndex ?? 0) || 0;
@@ -428,7 +516,7 @@ export default function DashboardCanvas({
             if (tank.shape === "img") {
               return (
                 <DraggableDroppedTank {...commonProps}>
-                  <DraggableImage src={tank.src} baseW={tank.baseW}  />
+                  <DraggableImage src={tank.src} baseW={tank.baseW} />
                 </DraggableDroppedTank>
               );
             }
@@ -548,7 +636,7 @@ export default function DashboardCanvas({
                     widget={tank}
                     onSaveWidget={commonProps.onUpdate}
                     dashboardId={resolvedDash}
-                    onSaveProject={onSaveProject} 
+                    onSaveProject={onSaveProject}
                   />
                 </DraggableDroppedTank>
               );
@@ -706,24 +794,24 @@ export default function DashboardCanvas({
               );
             }
 
-          if (tank.shape === "statusTextBox") {
-  return (
-    <DraggableDroppedTank
-      {...commonProps}
-      onDoubleClick={() => {
-        if (!isPlay) onOpenStatusTextSettings?.(tank);
-      }}
-    >
-      <DraggableStatusTextBox
-        tank={tank}
-        isPlay={isPlay}
-        dashboardMode={dashboardMode}
-        telemetryMap={telemetryMap}
-        sensorsData={sensorsData} // optional fallback like BlinkingAlarm
-      />
-    </DraggableDroppedTank>
-  );
-}
+            if (tank.shape === "statusTextBox") {
+              return (
+                <DraggableDroppedTank
+                  {...commonProps}
+                  onDoubleClick={() => {
+                    if (!isPlay) onOpenStatusTextSettings?.(tank);
+                  }}
+                >
+                  <DraggableStatusTextBox
+                    tank={tank}
+                    isPlay={isPlay}
+                    dashboardMode={dashboardMode}
+                    telemetryMap={telemetryMap}
+                    sensorsData={sensorsData} // optional fallback like BlinkingAlarm
+                  />
+                </DraggableDroppedTank>
+              );
+            }
 
             if (tank.shape === "blinkingAlarm") {
               return (

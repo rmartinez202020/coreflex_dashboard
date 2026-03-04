@@ -14,7 +14,7 @@ export default function DashboardCanvasContextMenu({
   onCopy,
   onBringToFront,
   onSendToBack,
-  onDelete,
+  onDelete, // ✅ will be called with (ids)
   onPaste,
   onClose,
 
@@ -317,7 +317,11 @@ export default function DashboardCanvasContextMenu({
       <div
         style={{ ...itemStyle, color: "#dc2626" }}
         onClick={() => {
-          onDelete?.();
+          // ✅ IMPORTANT:
+          // pass the ids so the caller can delete UI + backend rows
+          // (counters, control bindings, graphic display bindings, etc.)
+          const ids = collectTargetIds();
+          onDelete?.(ids);
           onClose?.();
         }}
       >

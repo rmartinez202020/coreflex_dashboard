@@ -51,6 +51,39 @@ async function apiGet(path, { signal } = {}) {
   return res.json();
 }
 
+// ✅ POST helper (for bindings upsert / delete)
+async function apiPost(path, body, { signal } = {}) {
+  const res = await fetch(`${API_URL}${withNoCache(path)}`, {
+    method: "POST",
+    headers: {
+      ...getAuthHeaders(),
+      "Content-Type": "application/json",
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    },
+    cache: "no-store",
+    signal,
+    body: JSON.stringify(body || {}),
+  });
+
+  const text = await res.text();
+  let data = null;
+  try {
+    data = text ? JSON.parse(text) : null;
+  } catch {
+    data = text || null;
+  }
+
+  if (!res.ok) {
+    const msg =
+      (data && (data.detail || data.error)) ||
+      `POST ${path} failed (${res.status})`;
+    throw new Error(msg);
+  }
+
+  return data;
+}
+
 function normalizeArray(data) {
   return Array.isArray(data)
     ? data
@@ -181,6 +214,22 @@ function calcCenteredPos(panelW, estH = 660) {
   return { left, top };
 }
 
+// ✅ Exposed helper for other files (when widget is deleted)
+export async function softDeleteGraphicDisplayBinding({
+  dashboardId = "main",
+  widgetId,
+} = {}) {
+  const dash = String(dashboardId || "main").trim() || "main";
+  const wid = String(widgetId || "").trim();
+  if (!wid) throw new Error("softDeleteGraphicDisplayBinding: widgetId required");
+
+  // backend route we created: POST /graphic-display-bindings/soft-delete
+  return apiPost("/graphic-display-bindings/soft-delete", {
+    dashboard_id: dash,
+    widget_id: wid,
+  });
+}
+
 export default function GraphicDisplaySettingsModal({
   open,
   tank,
@@ -237,6 +286,10 @@ export default function GraphicDisplaySettingsModal({
   // Live value for math
   const [liveValue, setLiveValue] = useState(null);
   const [liveErr, setLiveErr] = useState("");
+
+  // ✅ APPLY -> BACKEND status
+  const [applyBusy, setApplyBusy] = useState(false);
+  const [applyErr, setApplyErr] = useState("");
 
   // ✅ DRAG STATE
   const PANEL_W = 1600; // ✅ wider to fit 4 columns nicely
@@ -316,6 +369,9 @@ export default function GraphicDisplaySettingsModal({
     setBindModel(tank.bindModel ?? "zhc1921");
     setBindDeviceId(tank.bindDeviceId ?? "");
     setBindField(tank.bindField ?? "ai1");
+
+    setApplyErr("");
+    setApplyBusy(false);
   }, [tank]);
 
   const safeWindow = Number.isFinite(windowSize) ? windowSize : 0;
@@ -326,8 +382,8 @@ export default function GraphicDisplaySettingsModal({
   const yRangeValid = safeYMax > safeYMin;
 
   const canApply = useMemo(() => {
-    return yRangeValid && !!bindDeviceId && !!bindField;
-  }, [yRangeValid, bindDeviceId, bindField]);
+    return yRangeValid && !!bindDeviceId && !!bindField && !applyBusy;
+  }, [yRangeValid, bindDeviceId, bindField, applyBusy]);
 
   // ✅ LIVE VALUE POLL
   useEffect(() => {
@@ -455,6 +511,94 @@ export default function GraphicDisplaySettingsModal({
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // ✅ Apply -> backend upsert, then save locally
+  async function handleApply(e) {
+    e?.stopPropagation?.();
+    if (!tank) return;
+    if (!yRangeValid || !bindDeviceId || !bindField) return;
+
+    setApplyBusy(true);
+    setApplyErr("");
+
+    const dashboardId = String(
+      tank.dashboard_id || tank.dashboardId || tank.dashboardID || "main"
+    ).trim();
+
+    const widgetId = String(tank.id || tank.widget_id || tank.widgetId || "").trim();
+
+    try {
+      // 1) Create/Update row in Postgres (backend)
+      await apiPost("/graphic-display-bindings/upsert", {
+        dashboard_id: dashboardId || "main",
+        widget_id: widgetId,
+
+        // binding
+        bind_model: String(bindModel || "zhc1921").toLowerCase(),
+        bind_device_id: String(bindDeviceId || "").trim(),
+        bind_field: String(bindField || "ai1").trim(),
+
+        // display settings
+        title: String(title || "Graphic Display").trim(),
+        time_unit: String(timeUnit || "seconds").trim(),
+        window_size: Number.isFinite(safeWindow) ? safeWindow : 60,
+        sample_ms: Number(sampleMs || 3000),
+        y_min: Number.isFinite(safeYMin) ? safeYMin : 0,
+        y_max: Number.isFinite(safeYMax) ? safeYMax : 100,
+        line_color: normalizeHexColor(safeLineColor),
+        graph_style: FIXED_GRAPH_STYLE,
+
+        // math
+        math_formula: String(mathFormula || ""),
+
+        // totalizer
+        totalizer_enabled: !!totalizerEnabled,
+        totalizer_unit: String(totalizerUnit || "").trim(),
+
+        // single units
+        single_units_enabled: !!singleUnitsEnabled,
+        single_unit: String(singleUnit || "").trim(),
+
+        // retention/control (keep defaults)
+        retention_days: 35,
+        is_enabled: true,
+      });
+
+      // 2) Save locally to widget config
+      onSave?.({
+        ...tank,
+        title,
+        timeUnit,
+        window: safeWindow,
+        sampleMs,
+        yMin: safeYMin,
+        yMax: safeYMax,
+
+        // Backward compatible units (keep old behavior)
+        yUnits: totalizerUnit,
+
+        graphStyle: FIXED_GRAPH_STYLE,
+        lineColor: safeLineColor,
+        mathFormula,
+        bindModel,
+        bindDeviceId,
+        bindField,
+
+        // totalizer config
+        totalizerEnabled: !!totalizerEnabled,
+        totalizerUnit: String(totalizerUnit || "").trim(),
+
+        // ✅ single units config (NEW)
+        singleUnitsEnabled: !!singleUnitsEnabled,
+        singleUnit: String(singleUnit || "").trim(),
+      });
+    } catch (err) {
+      setApplyErr(String(err?.message || err || "Apply failed"));
+      return;
+    } finally {
+      setApplyBusy(false);
+    }
+  }
 
   if (!open) return null;
   if (!portalTarget) return null;
@@ -629,6 +773,22 @@ export default function GraphicDisplaySettingsModal({
                 {liveErr}
               </div>
             )}
+
+            {applyErr && (
+              <div
+                style={{
+                  border: "1px solid #fecaca",
+                  background: "#fff1f2",
+                  color: "#991b1b",
+                  borderRadius: 12,
+                  padding: 10,
+                  fontSize: 12,
+                  fontWeight: 900,
+                }}
+              >
+                {applyErr}
+              </div>
+            )}
           </div>
 
           {/* 4) Tag that drives the trend */}
@@ -672,36 +832,7 @@ export default function GraphicDisplaySettingsModal({
 
               <button
                 disabled={!canApply}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onSave?.({
-                    ...tank,
-                    title,
-                    timeUnit,
-                    window: safeWindow,
-                    sampleMs,
-                    yMin: safeYMin,
-                    yMax: safeYMax,
-
-                    // Backward compatible units (keep old behavior)
-                    yUnits: totalizerUnit,
-
-                    graphStyle: FIXED_GRAPH_STYLE,
-                    lineColor: safeLineColor,
-                    mathFormula,
-                    bindModel,
-                    bindDeviceId,
-                    bindField,
-
-                    // totalizer config
-                    totalizerEnabled: !!totalizerEnabled,
-                    totalizerUnit: String(totalizerUnit || "").trim(),
-
-                    // ✅ single units config (NEW)
-                    singleUnitsEnabled: !!singleUnitsEnabled,
-                    singleUnit: String(singleUnit || "").trim(),
-                  });
-                }}
+                onClick={handleApply}
                 style={{
                   padding: "10px 14px",
                   borderRadius: 10,
@@ -712,9 +843,11 @@ export default function GraphicDisplaySettingsModal({
                   color: "#0b3b18",
                   fontWeight: 900,
                   cursor: canApply ? "pointer" : "not-allowed",
+                  opacity: applyBusy ? 0.85 : 1,
                 }}
+                title={applyBusy ? "Saving..." : "Apply"}
               >
-                Apply
+                {applyBusy ? "Applying..." : "Apply"}
               </button>
             </div>
           </div>

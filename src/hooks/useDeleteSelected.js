@@ -34,6 +34,34 @@ async function deleteCounterRowOnBackend({ widgetId, dashboardId }) {
     throw new Error(j?.detail || `Delete counter row failed (${res.status})`);
 }
 
+// ✅ NEW: soft-delete the graphic display binding row
+async function deleteGraphicBindingRowOnBackend({ widgetId, dashboardId }) {
+  const wid = String(widgetId || "").trim();
+  if (!wid) return;
+
+  const dash = String(dashboardId || "main").trim() || "main";
+
+  const token = String(getToken() || "").trim();
+  if (!token) throw new Error("Missing auth token");
+
+  const res = await fetch(`${API_URL}/graphic-display-bindings/soft-delete`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+    body: JSON.stringify({
+      dashboard_id: dash,
+      widget_id: wid,
+    }),
+  });
+
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(j?.detail || `Delete graphic binding failed (${res.status})`);
+  }
+}
+
 /**
  * useDeleteSelected
  * - Handles Delete / Backspace to remove selected canvas objects
@@ -46,6 +74,7 @@ async function deleteCounterRowOnBackend({ widgetId, dashboardId }) {
  * NEW:
  * - If the deleted widget is a Counter Input (DI), also delete its backend row
  * - If the deleted widget is a Control (Toggle/Push), also delete its control binding (release DO)
+ * - ✅ If the deleted widget is a Graphic Display, also soft-delete its backend binding row
  *
  * IMPORTANT FIX:
  * - Avoid stale droppedTanks by mirroring it into a ref
@@ -77,13 +106,23 @@ export default function useDeleteSelected({
       (obj) => obj && selectedIds.includes(obj.id)
     );
 
-    const dashForBackend = String(activeDashboardId || dashboardId || "main").trim();
+    const dashForBackend = String(
+      activeDashboardId || dashboardId || "main"
+    ).trim();
 
     // -------------------------
     // ✅ Counters (delete backend row)
     // -------------------------
     const counterIds = selectedObjs
       .filter((obj) => String(obj?.shape || "").trim() === "counterInput")
+      .map((obj) => String(obj.id || "").trim())
+      .filter(Boolean);
+
+    // -------------------------
+    // ✅ Graphic Displays (soft-delete backend binding row)
+    // -------------------------
+    const graphicDisplayIds = selectedObjs
+      .filter((obj) => String(obj?.shape || "").trim() === "graphicDisplay")
       .map((obj) => String(obj.id || "").trim())
       .filter(Boolean);
 
@@ -122,6 +161,18 @@ export default function useDeleteSelected({
         });
       } catch (err) {
         console.error("❌ Failed to delete counter row:", wid, err);
+      }
+    }
+
+    // ✅ soft-delete backend rows for graphic displays
+    for (const wid of graphicDisplayIds) {
+      try {
+        await deleteGraphicBindingRowOnBackend({
+          widgetId: wid,
+          dashboardId: dashForBackend,
+        });
+      } catch (err) {
+        console.error("❌ Failed to delete graphic binding:", wid, err);
       }
     }
 
