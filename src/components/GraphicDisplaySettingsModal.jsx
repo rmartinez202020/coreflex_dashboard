@@ -51,7 +51,7 @@ async function apiGet(path, { signal } = {}) {
   return res.json();
 }
 
-// ✅ NEW: POST helper (for Apply -> backend upsert)
+// ✅ POST helper (for Apply -> backend upsert)
 async function apiPost(path, body) {
   const token = String(getToken() || "").trim();
   if (!token) throw new Error("Missing auth token. Please login again.");
@@ -143,11 +143,7 @@ function getRowFromTelemetryMap(telemetryMap, modelKey, deviceId) {
  * - Prefer telemetryMap (common poller)
  * - Otherwise ONLY call /{base}/my-devices
  */
-async function loadLiveRowForDevice(
-  modelKey,
-  deviceId,
-  { telemetryMap, signal } = {}
-) {
+async function loadLiveRowForDevice(modelKey, deviceId, { telemetryMap, signal } = {}) {
   const mk = String(modelKey || "").trim();
   const id = String(deviceId || "").trim();
   if (!mk || !id) return null;
@@ -161,9 +157,7 @@ async function loadLiveRowForDevice(
   const data = await apiGet(`/${base}/my-devices`, { signal });
   const arr = normalizeArray(data);
 
-  const found =
-    arr.find((r) => String(readDeviceId(r) || "").trim() === id) || null;
-
+  const found = arr.find((r) => String(readDeviceId(r) || "").trim() === id) || null;
   return found;
 }
 
@@ -202,6 +196,20 @@ function calcCenteredPos(panelW, estH = 660) {
   return { left, top };
 }
 
+// ✅ wait helpers: ensure React state commits BEFORE saving project
+const nextFrame = () =>
+  new Promise((r) => {
+    if (typeof window === "undefined") return r();
+    window.requestAnimationFrame(() => r());
+  });
+
+async function waitForReactCommit() {
+  // React 18 batching can delay commits; 2 frames is more reliable than setTimeout(0)
+  await Promise.resolve();
+  await nextFrame();
+  await nextFrame();
+}
+
 export default function GraphicDisplaySettingsModal({
   open,
   tank,
@@ -209,11 +217,10 @@ export default function GraphicDisplaySettingsModal({
   onSave,
   telemetryMap = null,
 
-  // ✅ NEW: allow Apply to auto-save project (same as Sidebar "Save Project")
+  // ✅ Apply should auto-save project every time
   onSaveProject,
 }) {
-  const portalTarget =
-    typeof document !== "undefined" ? document.body : null;
+  const portalTarget = typeof document !== "undefined" ? document.body : null;
 
   // lock scroll while open
   useEffect(() => {
@@ -280,6 +287,9 @@ export default function GraphicDisplaySettingsModal({
 
   const [isDragging, setIsDragging] = useState(false);
 
+  // ✅ prevent double-click spam and show disabled Apply while saving
+  const [isApplying, setIsApplying] = useState(false);
+
   useLayoutEffect(() => {
     if (!open) return;
     setPos(calcCenteredPos(PANEL_W, 700));
@@ -309,9 +319,7 @@ export default function GraphicDisplaySettingsModal({
     const incomingSample = Number(tank.sampleMs ?? 3000);
     const normalizedSample = incomingSample === 1000 ? 3000 : incomingSample;
 
-    setSampleMs(
-      SAMPLE_OPTIONS.includes(normalizedSample) ? normalizedSample : 3000
-    );
+    setSampleMs(SAMPLE_OPTIONS.includes(normalizedSample) ? normalizedSample : 3000);
 
     setYMin(Number.isFinite(tank.yMin) ? tank.yMin : 0);
     setYMax(Number.isFinite(tank.yMax) ? tank.yMax : 100);
@@ -347,8 +355,8 @@ export default function GraphicDisplaySettingsModal({
   const yRangeValid = safeYMax > safeYMin;
 
   const canApply = useMemo(() => {
-    return yRangeValid && !!bindDeviceId && !!bindField;
-  }, [yRangeValid, bindDeviceId, bindField]);
+    return yRangeValid && !!bindDeviceId && !!bindField && !isApplying;
+  }, [yRangeValid, bindDeviceId, bindField, isApplying]);
 
   // ✅ LIVE VALUE POLL
   useEffect(() => {
@@ -387,9 +395,7 @@ export default function GraphicDisplaySettingsModal({
       } catch (e) {
         if (cancelled) return;
         if (String(e?.name || "").toLowerCase().includes("abort")) return;
-        setLiveErr(
-          "Could not read live value (check /my-devices response & fields)."
-        );
+        setLiveErr("Could not read live value (check /my-devices response & fields).");
       }
     };
 
@@ -444,10 +450,7 @@ export default function GraphicDisplaySettingsModal({
     e.stopPropagation();
 
     const t = e.target;
-    if (
-      t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")
-    )
-      return;
+    if (t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")) return;
 
     e.preventDefault();
 
@@ -473,13 +476,12 @@ export default function GraphicDisplaySettingsModal({
   if (!open) return null;
   if (!portalTarget) return null;
 
-  // ✅ NEW: persist binding to backend (Option A)
+  // ✅ persist binding to backend (Option A)
   const persistBinding = async () => {
     const wid = String(tank?.id || "").trim();
     if (!wid) throw new Error("Missing widget id (tank.id)");
 
-    const dash =
-      String(tank?.dashboard_id || tank?.dashboardId || "main").trim() || "main";
+    const dash = String(tank?.dashboard_id || tank?.dashboardId || "main").trim() || "main";
 
     return apiPost("/graphic-display-bindings/upsert", {
       dashboard_id: dash,
@@ -640,19 +642,8 @@ export default function GraphicDisplaySettingsModal({
             />
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gap: 12,
-              alignContent: "start",
-              minWidth: 0,
-            }}
-          >
-            <GraphicDisplayMathPanel
-              value={liveValue}
-              formula={mathFormula}
-              setFormula={setMathFormula}
-            />
+          <div style={{ display: "grid", gap: 12, alignContent: "start", minWidth: 0 }}>
+            <GraphicDisplayMathPanel value={liveValue} formula={mathFormula} setFormula={setMathFormula} />
 
             {liveErr && (
               <div
@@ -671,14 +662,7 @@ export default function GraphicDisplaySettingsModal({
             )}
           </div>
 
-          <div
-            style={{
-              display: "grid",
-              gap: 12,
-              alignContent: "start",
-              minWidth: 0,
-            }}
-          >
+          <div style={{ display: "grid", gap: 12, alignContent: "start", minWidth: 0 }}>
             <GraphicDisplayBindingPanel
               bindModel={bindModel}
               setBindModel={setBindModel}
@@ -713,14 +697,16 @@ export default function GraphicDisplaySettingsModal({
                 disabled={!canApply}
                 onClick={async (e) => {
                   e.stopPropagation();
-                  if (!canApply) return;
+                  if (!yRangeValid || !bindDeviceId || !bindField) return;
+                  if (isApplying) return;
+
+                  setIsApplying(true);
 
                   try {
                     // ✅ APPLY -> upsert backend row then save widget
                     await persistBinding();
 
-                    // ✅ update widget in UI/state
-                    onSave?.({
+                    const nextTank = {
                       ...tank,
                       title,
                       timeUnit,
@@ -743,16 +729,21 @@ export default function GraphicDisplaySettingsModal({
 
                       singleUnitsEnabled: !!singleUnitsEnabled,
                       singleUnit: String(singleUnit || "").trim(),
-                    });
+                    };
 
-                    // ✅ NEW: let React apply state, then auto-save project
+                    // ✅ update widget in UI/state
+                    onSave?.(nextTank);
+
+                    // ✅ IMPORTANT: wait for React to commit the new droppedTanks, then save project
                     if (typeof onSaveProject === "function") {
-                      await new Promise((r) => setTimeout(r, 0));
+                      await waitForReactCommit();
                       await onSaveProject();
                     }
                   } catch (err) {
                     console.error("❌ Apply failed:", err);
                     alert(err?.message || "Apply failed");
+                  } finally {
+                    setIsApplying(false);
                   }
                 }}
                 style={{
@@ -765,9 +756,15 @@ export default function GraphicDisplaySettingsModal({
                   color: "#0b3b18",
                   fontWeight: 900,
                   cursor: canApply ? "pointer" : "not-allowed",
+                  opacity: isApplying ? 0.85 : 1,
                 }}
+                title={
+                  typeof onSaveProject === "function"
+                    ? "Apply + Save Project"
+                    : "Apply (project auto-save not wired)"
+                }
               >
-                Apply
+                {isApplying ? "Saving..." : "Apply"}
               </button>
             </div>
           </div>
