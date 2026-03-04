@@ -208,6 +208,9 @@ export default function GraphicDisplaySettingsModal({
   onClose,
   onSave,
   telemetryMap = null,
+
+  // ✅ NEW: allow Apply to auto-save project (same as Sidebar "Save Project")
+  onSaveProject,
 }) {
   const portalTarget =
     typeof document !== "undefined" ? document.body : null;
@@ -475,7 +478,8 @@ export default function GraphicDisplaySettingsModal({
     const wid = String(tank?.id || "").trim();
     if (!wid) throw new Error("Missing widget id (tank.id)");
 
-    const dash = String(tank?.dashboard_id || tank?.dashboardId || "main").trim() || "main";
+    const dash =
+      String(tank?.dashboard_id || tank?.dashboardId || "main").trim() || "main";
 
     return apiPost("/graphic-display-bindings/upsert", {
       dashboard_id: dash,
@@ -636,7 +640,14 @@ export default function GraphicDisplaySettingsModal({
             />
           </div>
 
-          <div style={{ display: "grid", gap: 12, alignContent: "start", minWidth: 0 }}>
+          <div
+            style={{
+              display: "grid",
+              gap: 12,
+              alignContent: "start",
+              minWidth: 0,
+            }}
+          >
             <GraphicDisplayMathPanel
               value={liveValue}
               formula={mathFormula}
@@ -660,7 +671,14 @@ export default function GraphicDisplaySettingsModal({
             )}
           </div>
 
-          <div style={{ display: "grid", gap: 12, alignContent: "start", minWidth: 0 }}>
+          <div
+            style={{
+              display: "grid",
+              gap: 12,
+              alignContent: "start",
+              minWidth: 0,
+            }}
+          >
             <GraphicDisplayBindingPanel
               bindModel={bindModel}
               setBindModel={setBindModel}
@@ -698,9 +716,10 @@ export default function GraphicDisplaySettingsModal({
                   if (!canApply) return;
 
                   try {
-                    // ✅ NEW: APPLY -> upsert backend row then save widget
+                    // ✅ APPLY -> upsert backend row then save widget
                     await persistBinding();
 
+                    // ✅ update widget in UI/state
                     onSave?.({
                       ...tank,
                       title,
@@ -725,6 +744,12 @@ export default function GraphicDisplaySettingsModal({
                       singleUnitsEnabled: !!singleUnitsEnabled,
                       singleUnit: String(singleUnit || "").trim(),
                     });
+
+                    // ✅ NEW: let React apply state, then auto-save project
+                    if (typeof onSaveProject === "function") {
+                      await new Promise((r) => setTimeout(r, 0));
+                      await onSaveProject();
+                    }
                   } catch (err) {
                     console.error("❌ Apply failed:", err);
                     alert(err?.message || "Apply failed");
