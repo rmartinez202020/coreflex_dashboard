@@ -725,6 +725,7 @@ export default function GraphicDisplaySettingsModal({
               sampleMs={sampleMs}
               formatSampleLabel={formatSampleLabel}
               telemetryMap={telemetryMap}
+              devices={devices}
             />
 
             <div

@@ -1,5 +1,5 @@
 // src/components/GraphicDisplayBindingPanel.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 
@@ -22,22 +22,27 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-// ✅ add cache-buster so Vercel/CDN/browser never serves a cached JSON
+// ✅ optional cache-buster (ONLY use when truly needed)
 function withNoCache(path) {
   const sep = path.includes("?") ? "&" : "?";
   return `${path}${sep}_ts=${Date.now()}`;
 }
 
-// ✅ resilient JSON fetch (NO-CACHE)
-async function apiGet(path, { signal } = {}) {
-  const res = await fetch(`${API_URL}${withNoCache(path)}`, {
+// ✅ resilient JSON fetch (default uses normal cache behavior)
+async function apiGet(path, { signal, noCache = false } = {}) {
+  const url = `${API_URL}${noCache ? withNoCache(path) : path}`;
+  const res = await fetch(url, {
     method: "GET",
     headers: {
       ...getAuthHeaders(),
-      "Cache-Control": "no-cache",
-      Pragma: "no-cache",
+      ...(noCache
+        ? {
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
+          }
+        : {}),
     },
-    cache: "no-store",
+    cache: noCache ? "no-store" : "default",
     signal,
   });
   if (!res.ok) throw new Error(`GET ${path} failed (${res.status})`);
@@ -93,7 +98,7 @@ function readAiField(row, bindField) {
   return null;
 }
 
-// ✅ COMMON POLLER READER
+// ✅ COMMON POLLER READER (ONLY for LIVE VALUE, NOT for device list)
 function getRowFromTelemetryMap(telemetryMap, modelKey, deviceId) {
   if (!telemetryMap || !modelKey || !deviceId) return null;
 
@@ -114,36 +119,18 @@ function getRowFromTelemetryMap(telemetryMap, modelKey, deviceId) {
 }
 
 /**
- * ✅ DEVICE LIST LOADER (NO-SPAM)
- * Prefer telemetryMap keys if present (instant, no network),
- * else ONLY call /{base}/my-devices (the endpoint you confirmed works).
+ * ✅ DEVICE LIST LOADER (SECURE)
+ * IMPORTANT: user must ONLY see devices they registered.
+ * Therefore: device list MUST come from /{base}/my-devices (or parent-provided rows from that endpoint),
+ * NOT from telemetryMap.
  */
-async function loadDevicesForModel(modelKey, { telemetryMap, signal } = {}) {
+async function loadDevicesForModelSecure(modelKey, { signal } = {}) {
   const mk = String(modelKey || "").trim();
   const base = MODEL_META[mk]?.base || mk;
 
-  // 1) If telemetryMap exists, we can build a list from it (no API call).
-  const bucket = telemetryMap?.[mk] || telemetryMap?.[base] || null;
-  if (bucket && typeof bucket === "object") {
-    const out = Object.entries(bucket)
-      .map(([deviceId, row]) => {
-        const id = String(deviceId || "").trim();
-        if (!id) return null;
-        return {
-          deviceId: id,
-          status: String(row?.status ?? row?.online ?? "").toLowerCase(),
-          lastSeen: row?.lastSeen ?? row?.last_seen ?? row?.updatedAt ?? row?.updated_at,
-        };
-      })
-      .filter(Boolean);
-
-    // Keep stable ordering
-    out.sort((a, b) => String(a.deviceId).localeCompare(String(b.deviceId)));
-    return out;
-  }
-
-  // 2) Fallback: ONLY /my-devices
-  const data = await apiGet(`/${base}/my-devices`, { signal });
+  // ✅ /my-devices should already be "current user's registered devices"
+  // ✅ no cache-buster spam needed here
+  const data = await apiGet(`/${base}/my-devices`, { signal, noCache: false });
   const arr = normalizeArray(data);
 
   const out = arr
@@ -165,9 +152,13 @@ async function loadDevicesForModel(modelKey, { telemetryMap, signal } = {}) {
 /**
  * ✅ LIVE ROW LOADER (NO-SPAM)
  * - Prefer telemetryMap (common poller)
- * - Otherwise ONLY call /{base}/my-devices and find the device row
+ * - Otherwise call /{base}/my-devices and find the device row
  */
-async function loadLiveRowForDevice(modelKey, deviceId, { telemetryMap, signal } = {}) {
+async function loadLiveRowForDevice(
+  modelKey,
+  deviceId,
+  { telemetryMap, signal } = {}
+) {
   const mk = String(modelKey || "").trim();
   const id = String(deviceId || "").trim();
   if (!mk || !id) return null;
@@ -176,9 +167,9 @@ async function loadLiveRowForDevice(modelKey, deviceId, { telemetryMap, signal }
   const fromCommon = getRowFromTelemetryMap(telemetryMap, mk, id);
   if (fromCommon) return fromCommon;
 
-  // 2) Fallback: /my-devices only
+  // 2) Fallback: /my-devices only (secure)
   const base = MODEL_META[mk]?.base || mk;
-  const data = await apiGet(`/${base}/my-devices`, { signal });
+  const data = await apiGet(`/${base}/my-devices`, { signal, noCache: false });
   const arr = normalizeArray(data);
 
   const found =
@@ -197,31 +188,93 @@ export default function GraphicDisplayBindingPanel({
   sampleMs,
   formatSampleLabel,
 
-  // ✅ NEW: pass the common poller map to stop modal spam
+  // ✅ common poller map is allowed ONLY for live value (not device list)
   telemetryMap = null,
+
+  // ✅ NEW: if parent already loaded /my-devices, pass it here to avoid any extra fetch
+  devices: devicesProp = null,
 }) {
   const [devices, setDevices] = useState([]);
   const [loadingDevices, setLoadingDevices] = useState(false);
   const [deviceErr, setDeviceErr] = useState("");
 
+  // ✅ NEW: search devices
+  const [deviceSearch, setDeviceSearch] = useState("");
+
   const [currentValue, setCurrentValue] = useState(null);
   const [valueErr, setValueErr] = useState("");
 
-  // Load devices when model changes (NO-SPAM)
+  // ✅ tiny in-panel cache to prevent refetch storms (if parent doesn't pass devices)
+  const devicesCacheRef = useRef({}); // { zhc1921: { at, list } }
+  const DEVICES_TTL_MS = 15000;
+
+  const filteredDevices = useMemo(() => {
+    const q = String(deviceSearch || "").trim().toLowerCase();
+    if (!q) return devices;
+    return devices.filter((d) =>
+      String(d?.deviceId || "").toLowerCase().includes(q)
+    );
+  }, [devices, deviceSearch]);
+
+  // Load devices when model changes (SECURE + SEARCHABLE)
   useEffect(() => {
     let cancelled = false;
     const ctrl = new AbortController();
 
     async function run() {
-      setLoadingDevices(true);
       setDeviceErr("");
+
+      // ✅ If parent passed devices, use them (assumed already filtered to "my devices")
+      if (Array.isArray(devicesProp)) {
+        setLoadingDevices(false);
+        const list = (devicesProp || [])
+          .map((r) => {
+            // accept either {deviceId,...} or raw rows
+            const id = r?.deviceId ?? readDeviceId(r);
+            if (!id) return null;
+            return {
+              deviceId: String(id),
+              status: String(r?.status ?? r?.online ?? "").toLowerCase(),
+              lastSeen:
+                r?.lastSeen ?? r?.last_seen ?? r?.updatedAt ?? r?.updated_at,
+            };
+          })
+          .filter(Boolean)
+          .sort((a, b) => String(a.deviceId).localeCompare(String(b.deviceId)));
+
+        setDevices(list);
+
+        // auto-pick first device if empty
+        if (!bindDeviceId && list.length > 0) {
+          setBindDeviceId(list[0].deviceId);
+        }
+        return;
+      }
+
+      // ✅ Otherwise, fetch securely from /my-devices with TTL cache
+      const mk = String(bindModel || "").trim();
+      const now = Date.now();
+      const cached = devicesCacheRef.current[mk];
+
+      if (cached && now - cached.at < DEVICES_TTL_MS) {
+        const list = cached.list || [];
+        setDevices(list);
+
+        if (!bindDeviceId && list.length > 0) {
+          setBindDeviceId(list[0].deviceId);
+        }
+        return;
+      }
+
+      setLoadingDevices(true);
+
       try {
-        const list = await loadDevicesForModel(bindModel, {
-          telemetryMap,
+        const list = await loadDevicesForModelSecure(mk, {
           signal: ctrl.signal,
         });
         if (cancelled) return;
 
+        devicesCacheRef.current[mk] = { at: now, list };
         setDevices(list);
 
         // auto-pick first device if empty
@@ -245,7 +298,7 @@ export default function GraphicDisplayBindingPanel({
       ctrl.abort();
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [bindModel, telemetryMap]);
+  }, [bindModel, devicesProp]);
 
   const selectedDevice = useMemo(() => {
     return devices.find((d) => d.deviceId === bindDeviceId) || null;
@@ -266,7 +319,7 @@ export default function GraphicDisplayBindingPanel({
     return "#6b7280";
   }, [deviceStatusLabel]);
 
-  // ✅ Poll current value using the selected sampleMs (NO-SPAM)
+  // ✅ Poll current value using the selected sampleMs
   useEffect(() => {
     if (!bindDeviceId || !bindField || !bindModel) {
       setCurrentValue(null);
@@ -306,7 +359,7 @@ export default function GraphicDisplayBindingPanel({
     };
 
     tick();
-    const id = window.setInterval(tick, Math.max(250, Number(sampleMs) || 1000));
+    const id = window.setInterval(tick, Math.max(750, Number(sampleMs) || 3000));
 
     return () => {
       cancelled = true;
@@ -349,6 +402,7 @@ export default function GraphicDisplayBindingPanel({
             setBindDeviceId("");
             setCurrentValue(null);
             setValueErr("");
+            setDeviceSearch("");
           }}
           style={{
             border: "1px solid #d1d5db",
@@ -363,6 +417,25 @@ export default function GraphicDisplayBindingPanel({
             </option>
           ))}
         </select>
+      </label>
+
+      {/* ✅ Search device */}
+      <label style={{ display: "grid", gap: 6 }}>
+        <span style={{ fontSize: 12, fontWeight: 800, color: "#374151" }}>
+          Search Device
+        </span>
+        <input
+          value={deviceSearch}
+          onChange={(e) => setDeviceSearch(e.target.value)}
+          placeholder="Type to search device ID…"
+          style={{
+            border: "1px solid #d1d5db",
+            borderRadius: 10,
+            padding: "10px 10px",
+            fontSize: 14,
+            outline: "none",
+          }}
+        />
       </label>
 
       {/* Device */}
@@ -387,9 +460,14 @@ export default function GraphicDisplayBindingPanel({
           }}
         >
           <option value="">
-            {loadingDevices ? "Loading devices..." : "Select a device…"}
+            {loadingDevices
+              ? "Loading devices..."
+              : filteredDevices.length === 0 && devices.length > 0
+              ? "No matches (clear search)"
+              : "Select a device…"}
           </option>
-          {devices.map((d) => (
+
+          {filteredDevices.map((d) => (
             <option key={d.deviceId} value={d.deviceId}>
               {d.deviceId}
             </option>
