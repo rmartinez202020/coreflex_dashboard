@@ -672,7 +672,7 @@ export default function App() {
           setShowVerticalTankProps={setShowVerticalTankProps}
           activeVerticalTankId={activeVerticalTankId}
           setActiveVerticalTankId={setActiveVerticalTankId}
-          onSaveProject={onSaveProject}
+          onSaveProject={handleSaveProject}
         
         />
       </main>
