@@ -51,37 +51,25 @@ async function apiGet(path, { signal } = {}) {
   return res.json();
 }
 
-// ✅ POST helper (for bindings upsert / delete)
-async function apiPost(path, body, { signal } = {}) {
-  const res = await fetch(`${API_URL}${withNoCache(path)}`, {
+// ✅ NEW: POST helper (for Apply -> backend upsert)
+async function apiPost(path, body) {
+  const token = String(getToken() || "").trim();
+  if (!token) throw new Error("Missing auth token. Please login again.");
+
+  const res = await fetch(`${API_URL}${path}`, {
     method: "POST",
     headers: {
-      ...getAuthHeaders(),
       "Content-Type": "application/json",
-      "Cache-Control": "no-cache",
-      Pragma: "no-cache",
+      ...getAuthHeaders(),
     },
-    cache: "no-store",
-    signal,
     body: JSON.stringify(body || {}),
   });
 
-  const text = await res.text();
-  let data = null;
-  try {
-    data = text ? JSON.parse(text) : null;
-  } catch {
-    data = text || null;
-  }
-
+  const j = await res.json().catch(() => ({}));
   if (!res.ok) {
-    const msg =
-      (data && (data.detail || data.error)) ||
-      `POST ${path} failed (${res.status})`;
-    throw new Error(msg);
+    throw new Error(j?.detail || `POST ${path} failed (${res.status})`);
   }
-
-  return data;
+  return j;
 }
 
 function normalizeArray(data) {
@@ -214,22 +202,6 @@ function calcCenteredPos(panelW, estH = 660) {
   return { left, top };
 }
 
-// ✅ Exposed helper for other files (when widget is deleted)
-export async function softDeleteGraphicDisplayBinding({
-  dashboardId = "main",
-  widgetId,
-} = {}) {
-  const dash = String(dashboardId || "main").trim() || "main";
-  const wid = String(widgetId || "").trim();
-  if (!wid) throw new Error("softDeleteGraphicDisplayBinding: widgetId required");
-
-  // backend route we created: POST /graphic-display-bindings/soft-delete
-  return apiPost("/graphic-display-bindings/soft-delete", {
-    dashboard_id: dash,
-    widget_id: wid,
-  });
-}
-
 export default function GraphicDisplaySettingsModal({
   open,
   tank,
@@ -237,9 +209,6 @@ export default function GraphicDisplaySettingsModal({
   onSave,
   telemetryMap = null,
 }) {
-  // ✅ IMPORTANT:
-  // We now render using createPortal(document.body)
-  // so "position: fixed" is truly viewport-fixed and centers correctly.
   const portalTarget =
     typeof document !== "undefined" ? document.body : null;
 
@@ -287,12 +256,8 @@ export default function GraphicDisplaySettingsModal({
   const [liveValue, setLiveValue] = useState(null);
   const [liveErr, setLiveErr] = useState("");
 
-  // ✅ APPLY -> BACKEND status
-  const [applyBusy, setApplyBusy] = useState(false);
-  const [applyErr, setApplyErr] = useState("");
-
   // ✅ DRAG STATE
-  const PANEL_W = 1600; // ✅ wider to fit 4 columns nicely
+  const PANEL_W = 1600;
 
   const dragRef = useRef({
     dragging: false,
@@ -369,9 +334,6 @@ export default function GraphicDisplaySettingsModal({
     setBindModel(tank.bindModel ?? "zhc1921");
     setBindDeviceId(tank.bindDeviceId ?? "");
     setBindField(tank.bindField ?? "ai1");
-
-    setApplyErr("");
-    setApplyBusy(false);
   }, [tank]);
 
   const safeWindow = Number.isFinite(windowSize) ? windowSize : 0;
@@ -382,8 +344,8 @@ export default function GraphicDisplaySettingsModal({
   const yRangeValid = safeYMax > safeYMin;
 
   const canApply = useMemo(() => {
-    return yRangeValid && !!bindDeviceId && !!bindField && !applyBusy;
-  }, [yRangeValid, bindDeviceId, bindField, applyBusy]);
+    return yRangeValid && !!bindDeviceId && !!bindField;
+  }, [yRangeValid, bindDeviceId, bindField]);
 
   // ✅ LIVE VALUE POLL
   useEffect(() => {
@@ -441,8 +403,6 @@ export default function GraphicDisplaySettingsModal({
   // ✅ DRAG handlers
   const onDragMove = (e) => {
     if (!dragRef.current.dragging) return;
-
-    // ✅ prevent the widget/container from seeing drag move
     if (e?.stopPropagation) e.stopPropagation();
 
     const dx = e.clientX - dragRef.current.startX;
@@ -468,9 +428,7 @@ export default function GraphicDisplaySettingsModal({
   };
 
   const endDrag = (e) => {
-    // ✅ prevent bubbling into widget drag
     if (e?.stopPropagation) e.stopPropagation();
-
     dragRef.current.dragging = false;
     setIsDragging(false);
     window.removeEventListener("mousemove", onDragMove);
@@ -480,7 +438,6 @@ export default function GraphicDisplaySettingsModal({
   const startDrag = (e) => {
     if (e.button !== 0) return;
 
-    // ✅ prevent widget drag from starting
     e.stopPropagation();
 
     const t = e.target;
@@ -498,8 +455,6 @@ export default function GraphicDisplaySettingsModal({
     dragRef.current.startLeft = pos.left;
     dragRef.current.startTop = pos.top;
 
-    // ✅ IMPORTANT: do NOT block mousemove bubbling on overlay,
-    // because these are window listeners and must receive events.
     window.addEventListener("mousemove", onDragMove, { passive: false });
     window.addEventListener("mouseup", endDrag, { passive: false });
   };
@@ -512,101 +467,48 @@ export default function GraphicDisplaySettingsModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ Apply -> backend upsert, then save locally
-  async function handleApply(e) {
-    e?.stopPropagation?.();
-    if (!tank) return;
-    if (!yRangeValid || !bindDeviceId || !bindField) return;
-
-    setApplyBusy(true);
-    setApplyErr("");
-
-    const dashboardId = String(
-      tank.dashboard_id || tank.dashboardId || tank.dashboardID || "main"
-    ).trim();
-
-    const widgetId = String(tank.id || tank.widget_id || tank.widgetId || "").trim();
-
-    try {
-      // 1) Create/Update row in Postgres (backend)
-      await apiPost("/graphic-display-bindings/upsert", {
-        dashboard_id: dashboardId || "main",
-        widget_id: widgetId,
-
-        // binding
-        bind_model: String(bindModel || "zhc1921").toLowerCase(),
-        bind_device_id: String(bindDeviceId || "").trim(),
-        bind_field: String(bindField || "ai1").trim(),
-
-        // display settings
-        title: String(title || "Graphic Display").trim(),
-        time_unit: String(timeUnit || "seconds").trim(),
-        window_size: Number.isFinite(safeWindow) ? safeWindow : 60,
-        sample_ms: Number(sampleMs || 3000),
-        y_min: Number.isFinite(safeYMin) ? safeYMin : 0,
-        y_max: Number.isFinite(safeYMax) ? safeYMax : 100,
-        line_color: normalizeHexColor(safeLineColor),
-        graph_style: FIXED_GRAPH_STYLE,
-
-        // math
-        math_formula: String(mathFormula || ""),
-
-        // totalizer
-        totalizer_enabled: !!totalizerEnabled,
-        totalizer_unit: String(totalizerUnit || "").trim(),
-
-        // single units
-        single_units_enabled: !!singleUnitsEnabled,
-        single_unit: String(singleUnit || "").trim(),
-
-        // retention/control (keep defaults)
-        retention_days: 35,
-        is_enabled: true,
-      });
-
-      // 2) Save locally to widget config
-      onSave?.({
-        ...tank,
-        title,
-        timeUnit,
-        window: safeWindow,
-        sampleMs,
-        yMin: safeYMin,
-        yMax: safeYMax,
-
-        // Backward compatible units (keep old behavior)
-        yUnits: totalizerUnit,
-
-        graphStyle: FIXED_GRAPH_STYLE,
-        lineColor: safeLineColor,
-        mathFormula,
-        bindModel,
-        bindDeviceId,
-        bindField,
-
-        // totalizer config
-        totalizerEnabled: !!totalizerEnabled,
-        totalizerUnit: String(totalizerUnit || "").trim(),
-
-        // ✅ single units config (NEW)
-        singleUnitsEnabled: !!singleUnitsEnabled,
-        singleUnit: String(singleUnit || "").trim(),
-      });
-    } catch (err) {
-      setApplyErr(String(err?.message || err || "Apply failed"));
-      return;
-    } finally {
-      setApplyBusy(false);
-    }
-  }
-
   if (!open) return null;
   if (!portalTarget) return null;
 
+  // ✅ NEW: persist binding to backend (Option A)
+  const persistBinding = async () => {
+    const wid = String(tank?.id || "").trim();
+    if (!wid) throw new Error("Missing widget id (tank.id)");
+
+    const dash = String(tank?.dashboard_id || tank?.dashboardId || "main").trim() || "main";
+
+    return apiPost("/graphic-display-bindings/upsert", {
+      dashboard_id: dash,
+      widget_id: wid,
+
+      bind_model: String(bindModel || "zhc1921").toLowerCase(),
+      bind_device_id: String(bindDeviceId || "").trim(),
+      bind_field: String(bindField || "ai1").trim(),
+
+      title: String(title || "Graphic Display").trim(),
+      time_unit: String(timeUnit || "seconds").trim(),
+      window_size: Number(safeWindow) || 60,
+      sample_ms: Number(sampleMs) || 3000,
+      y_min: Number.isFinite(safeYMin) ? safeYMin : 0,
+      y_max: Number.isFinite(safeYMax) ? safeYMax : 100,
+      line_color: String(safeLineColor || "#0c5ac8").trim(),
+      graph_style: "line",
+
+      math_formula: String(mathFormula || ""),
+
+      totalizer_enabled: !!totalizerEnabled,
+      totalizer_unit: String(totalizerUnit || "").trim(),
+
+      single_units_enabled: !!singleUnitsEnabled,
+      single_unit: String(singleUnit || "").trim(),
+
+      retention_days: 35,
+      is_enabled: true,
+    });
+  };
+
   const modal = (
     <div
-      // ✅ Stop ONLY the "down" events so the underlying widget never starts dragging.
-      // ❌ DO NOT stop mousemove/mouseup here or the modal drag will break.
       onMouseDown={(e) => e.stopPropagation()}
       onPointerDown={(e) => e.stopPropagation()}
       style={{
@@ -617,7 +519,6 @@ export default function GraphicDisplaySettingsModal({
       }}
     >
       <div
-        // ✅ also stop bubbling on the panel itself
         onMouseDown={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
         style={{
@@ -673,7 +574,6 @@ export default function GraphicDisplaySettingsModal({
           </button>
         </div>
 
-        {/* ✅ 4 COLUMNS: Totalizer | Settings | Math | Binding */}
         <div
           style={{
             display: "grid",
@@ -684,14 +584,11 @@ export default function GraphicDisplaySettingsModal({
             alignItems: "start",
           }}
         >
-          {/* 1) Totalizer + Single Units */}
           <div style={{ minWidth: 0 }}>
             <GraphicDisplayTotalizerSection
-              // TOTALIZER
               enabled={totalizerEnabled}
               onToggleEnabled={(v) => {
                 const next = !!v;
-                // ✅ if enabling totalizer, force single OFF
                 if (next) setSingleUnitsEnabled(false);
                 setTotalizerEnabled(next);
               }}
@@ -699,13 +596,11 @@ export default function GraphicDisplaySettingsModal({
               onChangeUnit={(u) => {
                 const unit = String(u ?? "");
                 setTotalizerUnit(unit);
-                setYUnits(unit); // backward compat
+                setYUnits(unit);
               }}
-              // SINGLE UNITS (NEW)
               singleEnabled={singleUnitsEnabled}
               onToggleSingleEnabled={(v) => {
                 const next = !!v;
-                // ✅ if enabling single units, force totalizer OFF
                 if (next) setTotalizerEnabled(false);
                 setSingleUnitsEnabled(next);
               }}
@@ -716,7 +611,6 @@ export default function GraphicDisplaySettingsModal({
             />
           </div>
 
-          {/* 2) Display Settings */}
           <div style={{ minWidth: 0 }}>
             <GraphicDisplaySettingsPanel
               title={title}
@@ -731,7 +625,6 @@ export default function GraphicDisplaySettingsModal({
               setYMin={setYMin}
               yMax={safeYMax}
               setYMax={setYMax}
-              // keep sync for now (legacy)
               yUnits={yUnits}
               setYUnits={(u) => {
                 const unit = String(u ?? "");
@@ -743,15 +636,7 @@ export default function GraphicDisplaySettingsModal({
             />
           </div>
 
-          {/* 3) Math */}
-          <div
-            style={{
-              display: "grid",
-              gap: 12,
-              alignContent: "start",
-              minWidth: 0,
-            }}
-          >
+          <div style={{ display: "grid", gap: 12, alignContent: "start", minWidth: 0 }}>
             <GraphicDisplayMathPanel
               value={liveValue}
               formula={mathFormula}
@@ -773,33 +658,9 @@ export default function GraphicDisplaySettingsModal({
                 {liveErr}
               </div>
             )}
-
-            {applyErr && (
-              <div
-                style={{
-                  border: "1px solid #fecaca",
-                  background: "#fff1f2",
-                  color: "#991b1b",
-                  borderRadius: 12,
-                  padding: 10,
-                  fontSize: 12,
-                  fontWeight: 900,
-                }}
-              >
-                {applyErr}
-              </div>
-            )}
           </div>
 
-          {/* 4) Tag that drives the trend */}
-          <div
-            style={{
-              display: "grid",
-              gap: 12,
-              alignContent: "start",
-              minWidth: 0,
-            }}
-          >
+          <div style={{ display: "grid", gap: 12, alignContent: "start", minWidth: 0 }}>
             <GraphicDisplayBindingPanel
               bindModel={bindModel}
               setBindModel={setBindModel}
@@ -832,7 +693,43 @@ export default function GraphicDisplaySettingsModal({
 
               <button
                 disabled={!canApply}
-                onClick={handleApply}
+                onClick={async (e) => {
+                  e.stopPropagation();
+                  if (!canApply) return;
+
+                  try {
+                    // ✅ NEW: APPLY -> upsert backend row then save widget
+                    await persistBinding();
+
+                    onSave?.({
+                      ...tank,
+                      title,
+                      timeUnit,
+                      window: safeWindow,
+                      sampleMs,
+                      yMin: safeYMin,
+                      yMax: safeYMax,
+
+                      yUnits: totalizerUnit,
+
+                      graphStyle: FIXED_GRAPH_STYLE,
+                      lineColor: safeLineColor,
+                      mathFormula,
+                      bindModel,
+                      bindDeviceId,
+                      bindField,
+
+                      totalizerEnabled: !!totalizerEnabled,
+                      totalizerUnit: String(totalizerUnit || "").trim(),
+
+                      singleUnitsEnabled: !!singleUnitsEnabled,
+                      singleUnit: String(singleUnit || "").trim(),
+                    });
+                  } catch (err) {
+                    console.error("❌ Apply failed:", err);
+                    alert(err?.message || "Apply failed");
+                  }
+                }}
                 style={{
                   padding: "10px 14px",
                   borderRadius: 10,
@@ -843,11 +740,9 @@ export default function GraphicDisplaySettingsModal({
                   color: "#0b3b18",
                   fontWeight: 900,
                   cursor: canApply ? "pointer" : "not-allowed",
-                  opacity: applyBusy ? 0.85 : 1,
                 }}
-                title={applyBusy ? "Saving..." : "Apply"}
               >
-                {applyBusy ? "Applying..." : "Apply"}
+                Apply
               </button>
             </div>
           </div>

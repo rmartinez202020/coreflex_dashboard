@@ -35,7 +35,7 @@ async function deleteCounterRowOnBackend({ widgetId, dashboardId }) {
 }
 
 // ✅ NEW: soft-delete the graphic display binding row
-async function deleteGraphicBindingRowOnBackend({ widgetId, dashboardId }) {
+async function softDeleteGraphicBindingOnBackend({ widgetId, dashboardId }) {
   const wid = String(widgetId || "").trim();
   if (!wid) return;
 
@@ -58,8 +58,12 @@ async function deleteGraphicBindingRowOnBackend({ widgetId, dashboardId }) {
 
   const j = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(j?.detail || `Delete graphic binding failed (${res.status})`);
+    throw new Error(
+      j?.detail || `Soft delete graphic binding failed (${res.status})`
+    );
   }
+
+  return j;
 }
 
 /**
@@ -128,8 +132,6 @@ export default function useDeleteSelected({
 
     // -------------------------
     // ✅ Controls (release DO binding)
-    // IMPORTANT FIX:
-    // - your old filter used `{}` without return -> always false
     // -------------------------
     const controlWidgetIds = selectedObjs
       .filter((obj) => {
@@ -167,12 +169,12 @@ export default function useDeleteSelected({
     // ✅ soft-delete backend rows for graphic displays
     for (const wid of graphicDisplayIds) {
       try {
-        await deleteGraphicBindingRowOnBackend({
+        await softDeleteGraphicBindingOnBackend({
           widgetId: wid,
           dashboardId: dashForBackend,
         });
       } catch (err) {
-        console.error("❌ Failed to delete graphic binding:", wid, err);
+        console.error("❌ Failed to soft-delete graphic binding:", wid, err);
       }
     }
 
