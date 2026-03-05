@@ -334,34 +334,54 @@ export default function AppModals({
         />
       )}
 
-      {/* ✅ Graphic Display Settings (Apply MUST auto-save project) */}
-      {graphicTarget && (
-        <GraphicDisplaySettingsModal
-          open={true}
-          tank={graphicTarget}
-          onClose={closeGraphicDisplaySettings}
-          onSave={(updatedTank) => {
-            console.log("✅ [AppModals] Graphic onSave(updatedTank) fired:", {
-              id: updatedTank?.id,
-              shape: updatedTank?.shape,
-              title: updatedTank?.title,
-            });
+    {/* ✅ Graphic Display Settings (Apply MUST auto-save project) */}
+{graphicTarget && (
+  <GraphicDisplaySettingsModal
+    open={true}
+    tank={graphicTarget}
+    onClose={closeGraphicDisplaySettings}
+    onSave={async (updatedTank) => {
+      console.log("✅ [AppModals] Graphic onSave(updatedTank) fired:", {
+        id: updatedTank?.id,
+        shape: updatedTank?.shape,
+        title: updatedTank?.title,
+      });
 
-            setDroppedTanks((prev) => {
-              const next = prev.map((t) =>
-                isSameId(t.id, updatedTank.id) ? updatedTank : t
-              );
+      // ✅ 1) Build the exact next snapshot NOW (no React timing games)
+      const next = (droppedTanks || []).map((t) =>
+        isSameId(t.id, updatedTank.id) ? updatedTank : t
+      );
 
-              // ✅ SAVE EXACT snapshot we computed
-              saveSnapshotNow(next, "graphicDisplayApply");
+      console.log("🧱 [AppModals] Graphic snapshot computed (direct):", {
+        prevLen: droppedTanks?.length,
+        nextLen: next?.length,
+        updatedId: updatedTank?.id,
+        hasOnSaveProject: typeof onSaveProject === "function",
+      });
 
-              return next;
-            });
+      // ✅ 2) Apply UI state immediately
+      setDroppedTanks(next);
 
-            closeGraphicDisplaySettings?.();
-          }}
-        />
-      )}
+      // ✅ 3) SAVE using the SAME snapshot (like left sidebar, but stronger)
+      if (typeof onSaveProject === "function") {
+        try {
+          console.log("💾 [AppModals] calling onSaveProject(next)...");
+          await onSaveProject(next); // <-- IMPORTANT: pass snapshot override
+          console.log("✅ [AppModals] onSaveProject(next) finished");
+        } catch (e) {
+          console.error("❌ [AppModals] onSaveProject(next) failed:", e);
+          alert(e?.message || "Save failed");
+          return; // ✅ do NOT close modal if save failed
+        }
+      } else {
+        console.warn("⚠️ [AppModals] onSaveProject is not a function:", onSaveProject);
+      }
+
+      // ✅ 4) only close AFTER save succeeds
+      closeGraphicDisplaySettings?.();
+    }}
+  />
+)}
 
       {showSiloProps && activeSilo && (
         <SiloPropertiesModal
