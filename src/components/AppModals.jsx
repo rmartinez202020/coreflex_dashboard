@@ -232,16 +232,14 @@ export default function AppModals({
       setActiveStandardTankId(null);
   };
 
-  // ✅ HARD SAVE (bulletproof)
-  // - Save after we compute the EXACT next snapshot
-  // - Try passing snapshot, but if your handleSaveProject ignores args / differs,
-  //   fallback to calling with no args.
-  const saveProjectWithSnapshot = (snapshot, reason = "unknown") => {
-    console.log("💾 [AppModals] SAVE REQUEST", {
+  // ✅ SAVE HELPER: always call the SAME function used by left "Save Project"
+  // - uses a microtask so it runs AFTER React queues the state update
+  const saveSnapshotNow = (snapshot, reason = "unknown") => {
+    console.log("💾 [AppModals] saveSnapshotNow()", {
       reason,
-      hasOnSaveProject: typeof onSaveProject === "function",
       dashboardId: safeDashboardId,
-      snapshotLen: Array.isArray(snapshot) ? snapshot.length : null,
+      hasOnSaveProject: typeof onSaveProject === "function",
+      snapshotCount: Array.isArray(snapshot) ? snapshot.length : null,
     });
 
     if (typeof onSaveProject !== "function") {
@@ -249,25 +247,15 @@ export default function AppModals({
       return;
     }
 
-    // run on next tick (lets React apply state)
-    window.setTimeout(() => {
+    // run asap after state queue
+    queueMicrotask(() => {
       try {
-        console.log("💾 [AppModals] calling onSaveProject(snapshot)...");
-        const r = onSaveProject(snapshot);
-        console.log("✅ [AppModals] onSaveProject(snapshot) returned:", r);
-      } catch (e1) {
-        console.error("💥 [AppModals] onSaveProject(snapshot) threw:", e1);
-
-        // fallback: call with no args
-        try {
-          console.log("💾 [AppModals] fallback calling onSaveProject()...");
-          const r2 = onSaveProject();
-          console.log("✅ [AppModals] onSaveProject() returned:", r2);
-        } catch (e2) {
-          console.error("💥 [AppModals] onSaveProject() threw:", e2);
-        }
+        const p = onSaveProject(snapshot);
+        console.log("✅ [AppModals] onSaveProject(snapshot) called. return=", p);
+      } catch (e) {
+        console.error("💥 [AppModals] onSaveProject(snapshot) threw:", e);
       }
-    }, 0);
+    });
   };
 
   return (
@@ -334,7 +322,6 @@ export default function AppModals({
           open={true}
           tank={counterInputTarget}
           sensorsData={sensorsData}
-          // ✅ this is the missing piece:
           dashboardId={safeDashboardId}
           onClose={() => closeCounterInputSettings?.()}
           onSave={(updated) => {
@@ -363,18 +350,15 @@ export default function AppModals({
         />
       )}
 
-      {/* ✅ Graphic Display Settings (Apply should auto-save project) */}
+      {/* ✅ Graphic Display Settings (Apply MUST auto-save project) */}
       {graphicTarget && (
         <GraphicDisplaySettingsModal
           open={true}
           tank={graphicTarget}
           onClose={closeGraphicDisplaySettings}
-
           // ✅ IMPORTANT:
-          // Do NOT let the modal try to save the project itself.
-          // AppModals will do it after state is updated.
-          onSaveProject={undefined}
-
+          // DO NOT pass onSaveProject into the modal anymore.
+          // Modal only updates the widget; AppModals triggers the real save.
           onSave={(updatedTank) => {
             console.log("✅ [AppModals] Graphic onSave(updatedTank) fired:", {
               id: updatedTank?.id,
@@ -387,18 +371,18 @@ export default function AppModals({
                 isSameId(t.id, updatedTank.id) ? updatedTank : t
               );
 
-              console.log("🧱 [AppModals] Graphic computed next snapshot:", {
-                nextLen: next.length,
+              console.log("🧱 [AppModals] Graphic snapshot computed:", {
+                prevLen: prev?.length,
+                nextLen: next?.length,
                 updatedId: updatedTank?.id,
               });
 
-              // ✅ SAVE THE PROJECT using the exact snapshot
-              saveProjectWithSnapshot(next, "graphicDisplayApply");
+              // ✅ THIS is the same thing your left Save button does
+              saveSnapshotNow(next, "graphicDisplayApply");
 
               return next;
             });
 
-            console.log("🚪 [AppModals] closing Graphic modal");
             closeGraphicDisplaySettings?.();
           }}
         />
