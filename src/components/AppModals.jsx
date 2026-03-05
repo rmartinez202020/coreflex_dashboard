@@ -132,8 +132,7 @@ export default function AppModals({
   const activeStandardTank = useMemo(() => {
     if (activeStandardTankId == null) return null;
     return droppedTanks.find(
-      (t) =>
-        isSameId(t.id, activeStandardTankId) && t.shape === "standardTank"
+      (t) => isSameId(t.id, activeStandardTankId) && t.shape === "standardTank"
     );
   }, [droppedTanks, activeStandardTankId]);
 
@@ -232,11 +231,9 @@ export default function AppModals({
       setActiveStandardTankId(null);
   };
 
-  // ✅ NEW: single helper for "Apply -> Save Project"
-  // - saves 2s after state update so droppedRef + state are consistent
-  // - adds loud logs so we know exactly why it didn't save
+  // ✅ SAVE PROJECT IMMEDIATELY from AppModals (the modal should NOT own saving)
   const scheduleProjectSave = (objectsSnapshot, reason = "unknown") => {
-    console.log("🧭 [AppModals] scheduleProjectSave()", {
+    console.log("💾 [AppModals] SAVE NOW", {
       reason,
       hasOnSaveProject: typeof onSaveProject === "function",
       dashboardId: safeDashboardId,
@@ -244,23 +241,19 @@ export default function AppModals({
     });
 
     if (typeof onSaveProject !== "function") {
-      console.warn("⚠️ [AppModals] onSaveProject is NOT a function:", onSaveProject);
+      console.warn(
+        "⚠️ [AppModals] onSaveProject is NOT a function:",
+        onSaveProject
+      );
       return;
     }
 
-    // delay per your request
-    window.setTimeout(() => {
-      console.log("💾 [AppModals] calling onSaveProject(snapshot) now...", {
-        objects: Array.isArray(objectsSnapshot) ? objectsSnapshot.length : null,
-      });
-
-      try {
-        const p = onSaveProject(objectsSnapshot);
-        console.log("✅ [AppModals] onSaveProject() returned:", p);
-      } catch (e) {
-        console.error("💥 [AppModals] onSaveProject threw:", e);
-      }
-    }, 2000);
+    try {
+      const p = onSaveProject(objectsSnapshot);
+      console.log("✅ [AppModals] onSaveProject() returned:", p);
+    } catch (e) {
+      console.error("💥 [AppModals] onSaveProject threw:", e);
+    }
   };
 
   return (
@@ -358,12 +351,11 @@ export default function AppModals({
 
       {/* ✅ Graphic Display Settings (Apply should auto-save project) */}
       {graphicTarget && (
-
         <GraphicDisplaySettingsModal
           open={true}
           tank={graphicTarget}
           onClose={closeGraphicDisplaySettings}
-          onSaveProject={onSaveProject} // ✅ PASS THE REAL FUNCTION
+          // ✅ DO NOT pass onSaveProject into the modal anymore (modal should not save)
           onSave={(updatedTank) => {
             console.log("✅ [AppModals] onSave(updatedTank) fired:", {
               id: updatedTank?.id,
@@ -372,7 +364,10 @@ export default function AppModals({
             });
 
             setDroppedTanks((prev) => {
-              console.log("🧱 [AppModals] setDroppedTanks(prev) length:", prev?.length);
+              console.log(
+                "🧱 [AppModals] setDroppedTanks(prev) length:",
+                prev?.length
+              );
 
               const next = prev.map((t) =>
                 isSameId(t.id, updatedTank.id) ? updatedTank : t
@@ -383,7 +378,7 @@ export default function AppModals({
                 updatedId: updatedTank?.id,
               });
 
-              // ✅ THE KEY: save EXACTLY the computed snapshot
+              // ✅ SAVE IMMEDIATELY using the exact snapshot
               scheduleProjectSave(next, "graphicDisplayApply");
 
               return next;

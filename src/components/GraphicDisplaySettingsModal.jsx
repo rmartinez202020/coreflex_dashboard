@@ -26,7 +26,7 @@ const MODEL_META = {
   zhc1661: { label: "CF-1600", base: "zhc1661" },
 };
 
-// ✅ DEBUG SWITCH (keep true until we find the issue)
+// ✅ DEBUG SWITCH
 const DEBUG_APPLY = true;
 
 function dbgWarn(...args) {
@@ -217,14 +217,8 @@ export default function GraphicDisplaySettingsModal({
   onClose,
   onSave,
   telemetryMap = null,
-
-  // ✅ Apply should auto-save project every time (may be null depending on AppModals strategy)
-  onSaveProject,
 }) {
   const portalTarget = typeof document !== "undefined" ? document.body : null;
-
-  // ✅ hard lock to prevent double-fire (click + pointerup / rapid taps)
-  const applyLockRef = useRef(false);
 
   // ✅ DEBUG: prove this file is actually running in the browser
   useEffect(() => {
@@ -233,9 +227,8 @@ export default function GraphicDisplaySettingsModal({
       widgetId: tank?.id,
       shape: tank?.shape,
       hasOnSave: typeof onSave === "function",
-      hasOnSaveProject: typeof onSaveProject === "function",
     });
-  }, [open, tank, onSave, onSaveProject]);
+  }, [open, tank, onSave]);
 
   // lock scroll while open
   useEffect(() => {
@@ -372,13 +365,7 @@ export default function GraphicDisplaySettingsModal({
   const yRangeValid = safeYMax > safeYMin;
 
   const canApply = useMemo(() => {
-    return (
-      yRangeValid &&
-      !!bindDeviceId &&
-      !!bindField &&
-      !isApplying &&
-      !applyLockRef.current
-    );
+    return yRangeValid && !!bindDeviceId && !!bindField && !isApplying;
   }, [yRangeValid, bindDeviceId, bindField, isApplying]);
 
   // ✅ LIVE VALUE POLL
@@ -506,7 +493,7 @@ export default function GraphicDisplaySettingsModal({
   if (!open) return null;
   if (!portalTarget) return null;
 
-  // ✅ persist binding to backend (Option A)
+  // ✅ persist binding to backend
   const persistBinding = async () => {
     const wid = String(tank?.id || "").trim();
     if (!wid) throw new Error("Missing widget id (tank.id)");
@@ -555,13 +542,6 @@ export default function GraphicDisplaySettingsModal({
     return res;
   };
 
-  // ✅ helper: yield 1 tick so parent setState can commit before saving
-  const yieldToReact = async () => {
-    await Promise.resolve(); // microtask
-    await new Promise((r) => setTimeout(r, 0)); // next macrotask
-  };
-
-  // ✅ SINGLE click handler (IMMEDIATE SAVE)
   const handleApply = async (e) => {
     try {
       e?.stopPropagation?.();
@@ -573,21 +553,17 @@ export default function GraphicDisplaySettingsModal({
         bindDeviceId,
         bindField,
         isApplying,
-        locked: applyLockRef.current,
-        hasOnSaveProject: typeof onSaveProject === "function",
       });
 
       if (!yRangeValid || !bindDeviceId || !bindField) return;
       if (isApplying) return;
-      if (applyLockRef.current) return;
 
-      applyLockRef.current = true;
       setIsApplying(true);
 
-      // ✅ 1) persist binding row
+      // ✅ 1) persist backend row
       await persistBinding();
 
-      // ✅ 2) update widget in UI/state
+      // ✅ 2) update widget in UI/state (AppModals will handle project save)
       const nextTank = {
         ...tank,
         title,
@@ -619,25 +595,11 @@ export default function GraphicDisplaySettingsModal({
       });
 
       onSave?.(nextTank);
-
-      // ✅ 3) IMMEDIATE project save (no 2s delay)
-      if (typeof onSaveProject === "function") {
-        // give React a moment to commit the onSave state
-        await yieldToReact();
-
-        dbgErr("💾 [GraphicDisplaySettingsModal] calling onSaveProject() NOW");
-        await Promise.resolve(onSaveProject());
-        dbgErr("✅ [GraphicDisplaySettingsModal] onSaveProject() finished");
-      } else {
-        dbgWarn("⚠️ [GraphicDisplaySettingsModal] onSaveProject is NOT a function");
-      }
     } catch (err) {
       console.error("❌ Apply failed:", err);
-      // eslint-disable-next-line no-alert
       alert(err?.message || "Apply failed");
     } finally {
       setIsApplying(false);
-      applyLockRef.current = false;
     }
   };
 
@@ -845,7 +807,6 @@ export default function GraphicDisplaySettingsModal({
                 type="button"
                 disabled={!canApply}
                 onClick={handleApply}
-                // ✅ REMOVED onPointerUp to prevent double-fire
                 style={{
                   padding: "10px 14px",
                   borderRadius: 10,
@@ -858,17 +819,12 @@ export default function GraphicDisplaySettingsModal({
                   cursor: canApply ? "pointer" : "not-allowed",
                   opacity: isApplying ? 0.85 : 1,
                 }}
-                title={
-                  typeof onSaveProject === "function"
-                    ? "Apply + Save Project"
-                    : "Apply (project auto-save not wired)"
-                }
+                title="Apply (AppModals will save project immediately)"
               >
                 {isApplying ? "Saving..." : "Apply"}
               </button>
             </div>
 
-            {/* ✅ DEBUG indicator inside UI so we know the new build is loaded */}
             {DEBUG_APPLY && (
               <div
                 style={{
