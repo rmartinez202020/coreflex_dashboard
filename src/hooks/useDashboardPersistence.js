@@ -113,15 +113,30 @@ export default function useDashboardPersistence({
   // ✅ IMPORTANT: supports passing an explicit canvas snapshot (for Modal Apply)
   const handleSaveProject = useCallback(
     async (overrideObjects = null) => {
+      // ✅ DEBUG: trace save entry + snapshot sources
+      console.log("🧪 [Persistence] handleSaveProject START", {
+        activePage,
+        dashboardType: activeDashboard?.type,
+        dashboardId: activeDashboard?.dashboardId,
+        dashboardMode,
+        overrideCount: Array.isArray(overrideObjects)
+          ? overrideObjects.length
+          : null,
+        droppedRefCount: Array.isArray(droppedRef?.current)
+          ? droppedRef.current.length
+          : null,
+        droppedStateCount: Array.isArray(droppedTanks) ? droppedTanks.length : null,
+      });
+
       // ✅ only allow saving from dashboard editor
       if (activePage !== "dashboard") {
-        console.warn("⚠️ Save ignored: not on dashboard editor page");
+        console.warn("⚠️ [Persistence] Save ignored: not on dashboard editor page");
         return;
       }
 
       // ✅ customer dashboard must have an id
       if (activeDashboard.type === "customer" && !activeDashboard.dashboardId) {
-        console.error("❌ Cannot save customer dashboard: missing dashboardId");
+        console.error("❌ [Persistence] Cannot save customer dashboard: missing dashboardId");
         return;
       }
 
@@ -155,7 +170,14 @@ export default function useDashboardPersistence({
         const token = getToken();
         if (!token) throw new Error("No auth token found");
 
+        console.log("💾 [Persistence] about to call saveMainDashboard", {
+          objects: objectsToSave.length,
+          endpoint: getDashboardEndpoint(activeDashboard),
+        });
+
         await saveMainDashboard(dashboardPayload, activeDashboard);
+
+        console.log("✅ [Persistence] saveMainDashboard finished");
 
         const now = new Date();
         setLastSavedAt(now);
@@ -163,7 +185,7 @@ export default function useDashboardPersistence({
         // ✅ make SAVE the new undo baseline (use the SAME objects we saved)
         hardResetHistory?.(objectsToSave);
       } catch (err) {
-        console.error("❌ Save failed:", err);
+        console.error("❌ [Persistence] Save failed (catch):", err);
       }
     },
     [
@@ -173,6 +195,7 @@ export default function useDashboardPersistence({
       droppedTanks,
       droppedRef,
       hardResetHistory,
+      getDashboardEndpoint, // ✅ used in debug log
     ]
   );
 
@@ -210,7 +233,8 @@ export default function useDashboardPersistence({
       // ✅ make RESTORE the new undo baseline
       hardResetHistory?.(restoredObjects);
 
-      const mode = data?.layout?.meta?.dashboardMode || data?.meta?.dashboardMode;
+      const mode =
+        data?.layout?.meta?.dashboardMode || data?.meta?.dashboardMode;
       if (mode) setDashboardMode(mode);
 
       const savedAt = data?.layout?.meta?.savedAt || data?.meta?.savedAt;
@@ -295,7 +319,8 @@ export default function useDashboardPersistence({
 
         setDroppedTanks(objects);
 
-        const mode = data?.layout?.meta?.dashboardMode || data?.meta?.dashboardMode;
+        const mode =
+          data?.layout?.meta?.dashboardMode || data?.meta?.dashboardMode;
         if (mode) setDashboardMode(mode);
 
         const savedAt = data?.layout?.meta?.savedAt || data?.meta?.savedAt;

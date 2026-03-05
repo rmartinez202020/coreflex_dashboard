@@ -363,22 +363,48 @@ export default function AppModals({
     onClose={closeGraphicDisplaySettings}
     onSaveProject={null}
     onSave={(updatedTank) => {
+      console.log("✅ [AppModals] onSave(updatedTank) fired:", {
+        id: updatedTank?.id,
+        shape: updatedTank?.shape,
+        title: updatedTank?.title,
+      });
+
       setDroppedTanks((prev) => {
+        console.log("🧱 [AppModals] setDroppedTanks(prev) length:", prev?.length);
+
         const next = prev.map((t) =>
           isSameId(t.id, updatedTank.id) ? updatedTank : t
         );
 
-        // ✅ wait 2 seconds before saving project
+        const changed =
+          prev.find((t) => isSameId(t.id, updatedTank.id)) !==
+          next.find((t) => isSameId(t.id, updatedTank.id));
+
+        console.log("🧱 [AppModals] computed next snapshot:", {
+          nextLen: next.length,
+          changed,
+          updatedId: updatedTank?.id,
+        });
+
         if (typeof onSaveProject === "function") {
+          console.log("⏳ [AppModals] scheduling save in 2000ms...");
           setTimeout(() => {
-            console.log("💾 Auto-saving project after Apply...");
-            onSaveProject(next);
+            console.log("💾 [AppModals] calling onSaveProject(next) now...");
+            try {
+              const p = onSaveProject(next);
+              console.log("📌 [AppModals] onSaveProject returned:", p);
+            } catch (e) {
+              console.error("💥 [AppModals] onSaveProject threw:", e);
+            }
           }, 2000);
+        } else {
+          console.warn("⚠️ [AppModals] onSaveProject is NOT a function:", onSaveProject);
         }
 
         return next;
       });
 
+      console.log("🚪 [AppModals] closing Graphic modal");
       closeGraphicDisplaySettings?.();
     }}
   />
