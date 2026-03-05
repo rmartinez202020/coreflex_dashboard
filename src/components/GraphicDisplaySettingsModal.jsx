@@ -26,6 +26,16 @@ const MODEL_META = {
   zhc1661: { label: "CF-1600", base: "zhc1661" },
 };
 
+// ✅ DEBUG SWITCH (keep true until we find the issue)
+const DEBUG_APPLY = true;
+
+function dbgWarn(...args) {
+  if (DEBUG_APPLY) console.warn(...args);
+}
+function dbgErr(...args) {
+  if (DEBUG_APPLY) console.error(...args);
+}
+
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -201,20 +211,6 @@ function calcCenteredPos(panelW, estH = 660) {
   return { left, top };
 }
 
-// ✅ wait helpers: ensure React state commits BEFORE saving project
-const nextFrame = () =>
-  new Promise((r) => {
-    if (typeof window === "undefined") return r();
-    window.requestAnimationFrame(() => r());
-  });
-
-async function waitForReactCommit() {
-  // React 18 batching can delay commits; 2 frames is more reliable than setTimeout(0)
-  await Promise.resolve();
-  await nextFrame();
-  await nextFrame();
-}
-
 export default function GraphicDisplaySettingsModal({
   open,
   tank,
@@ -222,10 +218,21 @@ export default function GraphicDisplaySettingsModal({
   onSave,
   telemetryMap = null,
 
-  // ✅ Apply should auto-save project every time
+  // ✅ Apply should auto-save project every time (may be null depending on AppModals strategy)
   onSaveProject,
 }) {
   const portalTarget = typeof document !== "undefined" ? document.body : null;
+
+  // ✅ DEBUG: prove this file is actually running in the browser
+  useEffect(() => {
+    if (!open) return;
+    dbgErr("🧪 [GraphicDisplaySettingsModal] OPENED (file is running)", {
+      widgetId: tank?.id,
+      shape: tank?.shape,
+      hasOnSave: typeof onSave === "function",
+      hasOnSaveProject: typeof onSaveProject === "function",
+    });
+  }, [open, tank, onSave, onSaveProject]);
 
   // lock scroll while open
   useEffect(() => {
@@ -402,7 +409,9 @@ export default function GraphicDisplaySettingsModal({
       } catch (e) {
         if (cancelled) return;
         if (String(e?.name || "").toLowerCase().includes("abort")) return;
-        setLiveErr("Could not read live value (check /my-devices response & fields).");
+        setLiveErr(
+          "Could not read live value (check /my-devices response & fields)."
+        );
       }
     };
 
@@ -493,10 +502,19 @@ export default function GraphicDisplaySettingsModal({
     const wid = String(tank?.id || "").trim();
     if (!wid) throw new Error("Missing widget id (tank.id)");
 
-    const dash =
-      String(tank?.dashboard_id || tank?.dashboardId || "main").trim() || "main";
+    const dash = String(
+      tank?.dashboard_id || tank?.dashboardId || "main"
+    ).trim() || "main";
 
-    return apiPost("/graphic-display-bindings/upsert", {
+    dbgWarn("🌐 [GraphicDisplaySettingsModal] persistBinding START", {
+      wid,
+      dash,
+      bindModel,
+      bindDeviceId,
+      bindField,
+    });
+
+    const res = await apiPost("/graphic-display-bindings/upsert", {
       dashboard_id: dash,
       widget_id: wid,
 
@@ -524,6 +542,79 @@ export default function GraphicDisplaySettingsModal({
       retention_days: 35,
       is_enabled: true,
     });
+
+    dbgWarn("🌐 [GraphicDisplaySettingsModal] persistBinding OK", res);
+    return res;
+  };
+
+  // ✅ SINGLE click handler used by onClick + onPointerUp (to prove the event fires)
+  const handleApply = async (e) => {
+    try {
+      e?.stopPropagation?.();
+      e?.preventDefault?.();
+
+      // 🔥 If you click and STILL don’t see this, the build you are running is NOT updated.
+      dbgErr("🧪 [GraphicDisplaySettingsModal] APPLY CLICKED", {
+        canApply,
+        yRangeValid,
+        bindDeviceId,
+        bindField,
+        isApplying,
+      });
+
+      // TEMP: make it impossible to miss (remove later)
+      if (DEBUG_APPLY) {
+        // eslint-disable-next-line no-alert
+        alert("APPLY CLICKED (debug)");
+      }
+
+      if (!yRangeValid || !bindDeviceId || !bindField) return;
+      if (isApplying) return;
+
+      setIsApplying(true);
+
+      // ✅ APPLY -> upsert backend row then save widget
+      await persistBinding();
+
+      const nextTank = {
+        ...tank,
+        title,
+        timeUnit,
+        window: safeWindow,
+        sampleMs,
+        yMin: safeYMin,
+        yMax: safeYMax,
+
+        yUnits: totalizerUnit,
+
+        graphStyle: FIXED_GRAPH_STYLE,
+        lineColor: safeLineColor,
+        mathFormula,
+        bindModel,
+        bindDeviceId,
+        bindField,
+
+        totalizerEnabled: !!totalizerEnabled,
+        totalizerUnit: String(totalizerUnit || "").trim(),
+
+        singleUnitsEnabled: !!singleUnitsEnabled,
+        singleUnit: String(singleUnit || "").trim(),
+      };
+
+      dbgWarn("✅ [GraphicDisplaySettingsModal] calling onSave(nextTank)", {
+        id: nextTank?.id,
+        shape: nextTank?.shape,
+      });
+
+      // ✅ update widget in UI/state
+      onSave?.(nextTank);
+    } catch (err) {
+      console.error("❌ Apply failed:", err);
+      // eslint-disable-next-line no-alert
+      alert(err?.message || "Apply failed");
+    } finally {
+      setIsApplying(false);
+    }
   };
 
   const modal = (
@@ -572,6 +663,7 @@ export default function GraphicDisplaySettingsModal({
         >
           <div>Graphic Display</div>
           <button
+            type="button"
             data-no-drag="true"
             onClick={(e) => {
               e.stopPropagation();
@@ -708,6 +800,7 @@ export default function GraphicDisplaySettingsModal({
 
             <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
               <button
+                type="button"
                 onClick={(e) => {
                   e.stopPropagation();
                   onClose?.();
@@ -725,62 +818,10 @@ export default function GraphicDisplaySettingsModal({
               </button>
 
               <button
+                type="button"
                 disabled={!canApply}
-                onClick={async (e) => {
-                  e.stopPropagation();
-                  if (!yRangeValid || !bindDeviceId || !bindField) return;
-                  if (isApplying) return;
-
-                  setIsApplying(true);
-
-                  try {
-                    // ✅ APPLY -> upsert backend row then save widget
-                    await persistBinding();
-
-                    const nextTank = {
-                      ...tank,
-                      title,
-                      timeUnit,
-                      window: safeWindow,
-                      sampleMs,
-                      yMin: safeYMin,
-                      yMax: safeYMax,
-
-                      yUnits: totalizerUnit,
-
-                      graphStyle: FIXED_GRAPH_STYLE,
-                      lineColor: safeLineColor,
-                      mathFormula,
-                      bindModel,
-                      bindDeviceId,
-                      bindField,
-
-                      totalizerEnabled: !!totalizerEnabled,
-                      totalizerUnit: String(totalizerUnit || "").trim(),
-
-                      singleUnitsEnabled: !!singleUnitsEnabled,
-                      singleUnit: String(singleUnit || "").trim(),
-                    };
-
-                    // ✅ update widget in UI/state
-                    onSave?.(nextTank);
-
-                    // ✅ NEW: ensure state is committed, THEN save project (same behavior as SidebarLeft)
-                    await waitForReactCommit();
-
-                    if (typeof onSaveProject === "function") {
-                      await onSaveProject();
-                    }
-
-                    // ✅ optional: close modal after success
-                    onClose?.();
-                  } catch (err) {
-                    console.error("❌ Apply failed:", err);
-                    alert(err?.message || "Apply failed");
-                  } finally {
-                    setIsApplying(false);
-                  }
-                }}
+                onClick={handleApply}
+                onPointerUp={handleApply} // ✅ fallback to prove event fires on your device
                 style={{
                   padding: "10px 14px",
                   borderRadius: 10,
@@ -802,6 +843,21 @@ export default function GraphicDisplaySettingsModal({
                 {isApplying ? "Saving..." : "Apply"}
               </button>
             </div>
+
+            {/* ✅ DEBUG indicator inside UI so we know the new build is loaded */}
+            {DEBUG_APPLY && (
+              <div
+                style={{
+                  marginTop: 8,
+                  fontSize: 11,
+                  fontWeight: 900,
+                  color: "#991b1b",
+                  textAlign: "right",
+                }}
+              >
+                DEBUG_APPLY ON
+              </div>
+            )}
           </div>
         </div>
       </div>
