@@ -223,6 +223,9 @@ export default function GraphicDisplaySettingsModal({
 }) {
   const portalTarget = typeof document !== "undefined" ? document.body : null;
 
+  // ✅ schedule delayed save after Apply
+  const saveTimerRef = useRef(null);
+
   // ✅ DEBUG: prove this file is actually running in the browser
   useEffect(() => {
     if (!open) return;
@@ -243,6 +246,16 @@ export default function GraphicDisplaySettingsModal({
       document.body.style.overflow = prev;
     };
   }, [open]);
+
+  // ✅ cleanup delayed save timer on unmount
+  useEffect(() => {
+    return () => {
+      if (saveTimerRef.current) {
+        window.clearTimeout(saveTimerRef.current);
+        saveTimerRef.current = null;
+      }
+    };
+  }, []);
 
   // LEFT: chart settings
   const [title, setTitle] = useState("Graphic Display");
@@ -502,9 +515,8 @@ export default function GraphicDisplaySettingsModal({
     const wid = String(tank?.id || "").trim();
     if (!wid) throw new Error("Missing widget id (tank.id)");
 
-    const dash = String(
-      tank?.dashboard_id || tank?.dashboardId || "main"
-    ).trim() || "main";
+    const dash =
+      String(tank?.dashboard_id || tank?.dashboardId || "main").trim() || "main";
 
     dbgWarn("🌐 [GraphicDisplaySettingsModal] persistBinding START", {
       wid,
@@ -553,20 +565,14 @@ export default function GraphicDisplaySettingsModal({
       e?.stopPropagation?.();
       e?.preventDefault?.();
 
-      // 🔥 If you click and STILL don’t see this, the build you are running is NOT updated.
       dbgErr("🧪 [GraphicDisplaySettingsModal] APPLY CLICKED", {
         canApply,
         yRangeValid,
         bindDeviceId,
         bindField,
         isApplying,
+        hasOnSaveProject: typeof onSaveProject === "function",
       });
-
-      // TEMP: make it impossible to miss (remove later)
-      if (DEBUG_APPLY) {
-        // eslint-disable-next-line no-alert
-        alert("APPLY CLICKED (debug)");
-      }
 
       if (!yRangeValid || !bindDeviceId || !bindField) return;
       if (isApplying) return;
@@ -608,6 +614,25 @@ export default function GraphicDisplaySettingsModal({
 
       // ✅ update widget in UI/state
       onSave?.(nextTank);
+
+      // ✅ NOW: save the project 2 seconds after Apply (lets droppedRef update in App)
+      if (typeof onSaveProject === "function") {
+        if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+
+        saveTimerRef.current = window.setTimeout(async () => {
+          try {
+            dbgErr(
+              "💾 [GraphicDisplaySettingsModal] calling onSaveProject() (delayed 2s)"
+            );
+            await Promise.resolve(onSaveProject());
+            dbgErr("✅ [GraphicDisplaySettingsModal] onSaveProject() finished");
+          } catch (err) {
+            dbgErr("❌ [GraphicDisplaySettingsModal] onSaveProject() failed", err);
+          }
+        }, 2000);
+      } else {
+        dbgWarn("⚠️ [GraphicDisplaySettingsModal] onSaveProject is NOT a function");
+      }
     } catch (err) {
       console.error("❌ Apply failed:", err);
       // eslint-disable-next-line no-alert
