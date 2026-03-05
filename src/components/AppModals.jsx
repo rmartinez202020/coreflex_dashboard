@@ -358,11 +358,12 @@ export default function AppModals({
 
       {/* ✅ Graphic Display Settings (Apply should auto-save project) */}
       {graphicTarget && (
+
         <GraphicDisplaySettingsModal
           open={true}
           tank={graphicTarget}
           onClose={closeGraphicDisplaySettings}
-          onSaveProject={null} // ✅ we save from AppModals so we can pass the exact snapshot
+          onSaveProject={onSaveProject} // ✅ PASS THE REAL FUNCTION
           onSave={(updatedTank) => {
             console.log("✅ [AppModals] onSave(updatedTank) fired:", {
               id: updatedTank?.id,
