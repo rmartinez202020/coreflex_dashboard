@@ -223,8 +223,8 @@ export default function GraphicDisplaySettingsModal({
 }) {
   const portalTarget = typeof document !== "undefined" ? document.body : null;
 
-  // ✅ schedule delayed save after Apply
-  const saveTimerRef = useRef(null);
+  // ✅ hard lock to prevent double-fire (click + pointerup / rapid taps)
+  const applyLockRef = useRef(false);
 
   // ✅ DEBUG: prove this file is actually running in the browser
   useEffect(() => {
@@ -246,16 +246,6 @@ export default function GraphicDisplaySettingsModal({
       document.body.style.overflow = prev;
     };
   }, [open]);
-
-  // ✅ cleanup delayed save timer on unmount
-  useEffect(() => {
-    return () => {
-      if (saveTimerRef.current) {
-        window.clearTimeout(saveTimerRef.current);
-        saveTimerRef.current = null;
-      }
-    };
-  }, []);
 
   // LEFT: chart settings
   const [title, setTitle] = useState("Graphic Display");
@@ -382,7 +372,13 @@ export default function GraphicDisplaySettingsModal({
   const yRangeValid = safeYMax > safeYMin;
 
   const canApply = useMemo(() => {
-    return yRangeValid && !!bindDeviceId && !!bindField && !isApplying;
+    return (
+      yRangeValid &&
+      !!bindDeviceId &&
+      !!bindField &&
+      !isApplying &&
+      !applyLockRef.current
+    );
   }, [yRangeValid, bindDeviceId, bindField, isApplying]);
 
   // ✅ LIVE VALUE POLL
@@ -559,7 +555,13 @@ export default function GraphicDisplaySettingsModal({
     return res;
   };
 
-  // ✅ SINGLE click handler used by onClick + onPointerUp (to prove the event fires)
+  // ✅ helper: yield 1 tick so parent setState can commit before saving
+  const yieldToReact = async () => {
+    await Promise.resolve(); // microtask
+    await new Promise((r) => setTimeout(r, 0)); // next macrotask
+  };
+
+  // ✅ SINGLE click handler (IMMEDIATE SAVE)
   const handleApply = async (e) => {
     try {
       e?.stopPropagation?.();
@@ -571,17 +573,21 @@ export default function GraphicDisplaySettingsModal({
         bindDeviceId,
         bindField,
         isApplying,
+        locked: applyLockRef.current,
         hasOnSaveProject: typeof onSaveProject === "function",
       });
 
       if (!yRangeValid || !bindDeviceId || !bindField) return;
       if (isApplying) return;
+      if (applyLockRef.current) return;
 
+      applyLockRef.current = true;
       setIsApplying(true);
 
-      // ✅ APPLY -> upsert backend row then save widget
+      // ✅ 1) persist binding row
       await persistBinding();
 
+      // ✅ 2) update widget in UI/state
       const nextTank = {
         ...tank,
         title,
@@ -612,24 +618,16 @@ export default function GraphicDisplaySettingsModal({
         shape: nextTank?.shape,
       });
 
-      // ✅ update widget in UI/state
       onSave?.(nextTank);
 
-      // ✅ NOW: save the project 2 seconds after Apply (lets droppedRef update in App)
+      // ✅ 3) IMMEDIATE project save (no 2s delay)
       if (typeof onSaveProject === "function") {
-        if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+        // give React a moment to commit the onSave state
+        await yieldToReact();
 
-        saveTimerRef.current = window.setTimeout(async () => {
-          try {
-            dbgErr(
-              "💾 [GraphicDisplaySettingsModal] calling onSaveProject() (delayed 2s)"
-            );
-            await Promise.resolve(onSaveProject());
-            dbgErr("✅ [GraphicDisplaySettingsModal] onSaveProject() finished");
-          } catch (err) {
-            dbgErr("❌ [GraphicDisplaySettingsModal] onSaveProject() failed", err);
-          }
-        }, 2000);
+        dbgErr("💾 [GraphicDisplaySettingsModal] calling onSaveProject() NOW");
+        await Promise.resolve(onSaveProject());
+        dbgErr("✅ [GraphicDisplaySettingsModal] onSaveProject() finished");
       } else {
         dbgWarn("⚠️ [GraphicDisplaySettingsModal] onSaveProject is NOT a function");
       }
@@ -639,6 +637,7 @@ export default function GraphicDisplaySettingsModal({
       alert(err?.message || "Apply failed");
     } finally {
       setIsApplying(false);
+      applyLockRef.current = false;
     }
   };
 
@@ -846,7 +845,7 @@ export default function GraphicDisplaySettingsModal({
                 type="button"
                 disabled={!canApply}
                 onClick={handleApply}
-                onPointerUp={handleApply} // ✅ fallback to prove event fires on your device
+                // ✅ REMOVED onPointerUp to prevent double-fire
                 style={{
                   padding: "10px 14px",
                   borderRadius: 10,
