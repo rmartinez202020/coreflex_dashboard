@@ -356,9 +356,7 @@ export default function AppModals({
           open={true}
           tank={graphicTarget}
           onClose={closeGraphicDisplaySettings}
-          // ✅ IMPORTANT:
-          // DO NOT pass onSaveProject into the modal anymore.
-          // Modal only updates the widget; AppModals triggers the real save.
+          onSaveProject={handleSaveProject}
           onSave={(updatedTank) => {
             console.log("✅ [AppModals] Graphic onSave(updatedTank) fired:", {
               id: updatedTank?.id,

@@ -217,8 +217,14 @@ export default function GraphicDisplaySettingsModal({
   onClose,
   onSave,
   telemetryMap = null,
+
+  // ✅ NEW: optional direct save function (can be passed from AppModals/App.jsx)
+  onSaveProject,
 }) {
   const portalTarget = typeof document !== "undefined" ? document.body : null;
+
+  // ✅ timer so we don't spam saves
+  const saveTimerRef = useRef(null);
 
   // ✅ DEBUG: prove this file is actually running in the browser
   useEffect(() => {
@@ -227,8 +233,12 @@ export default function GraphicDisplaySettingsModal({
       widgetId: tank?.id,
       shape: tank?.shape,
       hasOnSave: typeof onSave === "function",
+      hasOnSaveProjectProp: typeof onSaveProject === "function",
+      hasGlobalSave:
+        typeof window !== "undefined" &&
+        typeof window.__coreflexSaveProject === "function",
     });
-  }, [open, tank, onSave]);
+  }, [open, tank, onSave, onSaveProject]);
 
   // lock scroll while open
   useEffect(() => {
@@ -486,6 +496,7 @@ export default function GraphicDisplaySettingsModal({
     return () => {
       window.removeEventListener("mousemove", onDragMove);
       window.removeEventListener("mouseup", endDrag);
+      if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -542,6 +553,52 @@ export default function GraphicDisplaySettingsModal({
     return res;
   };
 
+  // ✅ choose the best available save function (prop > global)
+  const pickSaveProjectFn = () => {
+    if (typeof onSaveProject === "function") return onSaveProject;
+    if (
+      typeof window !== "undefined" &&
+      typeof window.__coreflexSaveProject === "function"
+    ) {
+      return window.__coreflexSaveProject;
+    }
+    return null;
+  };
+
+  const scheduleSaveProject = (reason = "apply") => {
+    const fn = pickSaveProjectFn();
+
+    dbgWarn("🧭 [GraphicDisplaySettingsModal] scheduleSaveProject()", {
+      reason,
+      hasProp: typeof onSaveProject === "function",
+      hasGlobal:
+        typeof window !== "undefined" &&
+        typeof window.__coreflexSaveProject === "function",
+    });
+
+    if (!fn) {
+      dbgErr("❌ [GraphicDisplaySettingsModal] No save function available.");
+      return;
+    }
+
+    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
+
+    // ✅ IMPORTANT:
+    // We delay a bit so:
+    // - AppModals setDroppedTanks(prev=>next) runs
+    // - App.jsx droppedRef syncs to latest
+    // Then handleSaveProject() will behave like the left "Save Project" button.
+    saveTimerRef.current = window.setTimeout(async () => {
+      try {
+        dbgWarn("💾 [GraphicDisplaySettingsModal] calling save function now...");
+        await Promise.resolve(fn(null)); // handleSaveProject reads droppedRef.current
+        dbgWarn("✅ [GraphicDisplaySettingsModal] save finished");
+      } catch (e) {
+        dbgErr("💥 [GraphicDisplaySettingsModal] save failed:", e);
+      }
+    }, 350);
+  };
+
   const handleApply = async (e) => {
     try {
       e?.stopPropagation?.();
@@ -563,7 +620,7 @@ export default function GraphicDisplaySettingsModal({
       // ✅ 1) persist backend row
       await persistBinding();
 
-      // ✅ 2) update widget in UI/state (AppModals will handle project save)
+      // ✅ 2) update widget in UI/state
       const nextTank = {
         ...tank,
         title,
@@ -595,6 +652,9 @@ export default function GraphicDisplaySettingsModal({
       });
 
       onSave?.(nextTank);
+
+      // ✅ 3) FORCE SAVE PROJECT (prop or global fallback) — this is the missing piece
+      scheduleSaveProject("graphicDisplayApply");
     } catch (err) {
       console.error("❌ Apply failed:", err);
       alert(err?.message || "Apply failed");
@@ -819,7 +879,7 @@ export default function GraphicDisplaySettingsModal({
                   cursor: canApply ? "pointer" : "not-allowed",
                   opacity: isApplying ? 0.85 : 1,
                 }}
-                title="Apply (AppModals will save project immediately)"
+                title="Apply (persists binding + updates widget + saves dashboard)"
               >
                 {isApplying ? "Saving..." : "Apply"}
               </button>
