@@ -1,5 +1,5 @@
 // src/components/AppModals.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import IndicatorLightSettingsModal from "./indicators/IndicatorLightSettingsModal";
 import StatusTextSettingsModal from "./indicators/StatusTextSettingsModal";
 import BlinkingAlarmSettingsModal from "./indicators/BlinkingAlarmSettingsModal";
@@ -71,6 +71,21 @@ export default function AppModals({
     return s ? s : null;
   }, [dashboardId]);
 
+  // ✅ PROOF: if you DO NOT see this in the console, you are NOT running this file in prod.
+  // (This is the #1 reason your AppModals logs "never show".)
+  console.warn("🧪 [AppModals] RENDER PROOF (if you see this, AppModals is running)", {
+    dashboardId: safeDashboardId,
+    hasOnSaveProject: typeof onSaveProject === "function",
+    tanks: Array.isArray(droppedTanks) ? droppedTanks.length : null,
+    graphicSettingsId,
+  });
+
+  // ✅ always keep latest droppedTanks (avoids stale closure issues)
+  const droppedTanksRef = useRef([]);
+  useEffect(() => {
+    droppedTanksRef.current = Array.isArray(droppedTanks) ? droppedTanks : [];
+  }, [droppedTanks]);
+
   // ✅ Fallback position (only used if windowDrag isn't provided yet)
   const [alarmLogPos, setAlarmLogPos] = useState({ x: 140, y: 90 });
 
@@ -104,6 +119,15 @@ export default function AppModals({
       (t) => isSameId(t.id, graphicSettingsId) && t.shape === "graphicDisplay"
     );
   }, [droppedTanks, graphicSettingsId]);
+
+  useEffect(() => {
+    if (!graphicTarget) return;
+    console.warn("🧪 [AppModals] Graphic modal TARGET found", {
+      id: graphicTarget?.id,
+      shape: graphicTarget?.shape,
+      hasOnSaveProject: typeof onSaveProject === "function",
+    });
+  }, [graphicTarget, onSaveProject]);
 
   const activeSilo = useMemo(() => {
     if (activeSiloId == null) return null;
@@ -220,36 +244,6 @@ export default function AppModals({
       setActiveStandardTankId(null);
   };
 
-  // ✅ The actual save call (same logic as SidebarLeft uses)
-  const saveSnapshotNow = (snapshot, reason = "unknown") => {
-    console.log("💾 [AppModals] saveSnapshotNow()", {
-      reason,
-      dashboardId: safeDashboardId,
-      hasOnSaveProject: typeof onSaveProject === "function",
-      snapshotCount: Array.isArray(snapshot) ? snapshot.length : null,
-    });
-
-    if (typeof onSaveProject !== "function") {
-      console.warn(
-        "⚠️ [AppModals] onSaveProject is NOT a function:",
-        onSaveProject
-      );
-      return;
-    }
-
-    const run = () => {
-      try {
-        const p = onSaveProject(snapshot);
-        console.log("✅ [AppModals] onSaveProject(snapshot) called. return=", p);
-      } catch (e) {
-        console.error("💥 [AppModals] onSaveProject(snapshot) threw:", e);
-      }
-    };
-
-    if (typeof queueMicrotask === "function") queueMicrotask(run);
-    else window.setTimeout(run, 0);
-  };
-
   return (
     <>
       {indicatorTarget && (
@@ -344,46 +338,45 @@ export default function AppModals({
           tank={graphicTarget}
           onClose={closeGraphicDisplaySettings}
           onSave={async (updatedTank) => {
-            console.log("✅ [AppModals] Graphic onSave(updatedTank) fired:", {
+            console.warn("✅ [AppModals] Graphic onSave(updatedTank) HIT", {
               id: updatedTank?.id,
               shape: updatedTank?.shape,
               title: updatedTank?.title,
-            });
-
-            // ✅ 1) Build the exact next snapshot NOW (no React timing games)
-            const next = (droppedTanks || []).map((t) =>
-              isSameId(t.id, updatedTank.id) ? updatedTank : t
-            );
-
-            console.log("🧱 [AppModals] Graphic snapshot computed (direct):", {
-              prevLen: droppedTanks?.length,
-              nextLen: next?.length,
-              updatedId: updatedTank?.id,
               hasOnSaveProject: typeof onSaveProject === "function",
             });
 
-            // ✅ 2) Apply UI state immediately
+            // ✅ Use the LATEST tanks, not a stale closure
+            const base = droppedTanksRef.current || [];
+
+            // ✅ Build next snapshot NOW
+            const next = base.map((t) =>
+              isSameId(t.id, updatedTank.id) ? updatedTank : t
+            );
+
+            // ✅ Apply UI state
             setDroppedTanks(next);
 
-            // ✅ 3) SAVE using the SAME snapshot (like left sidebar, but stronger)
+            // ✅ Save project using snapshot override
             if (typeof onSaveProject === "function") {
               try {
-                console.log("💾 [AppModals] calling onSaveProject(next)...");
-                await onSaveProject(next); // ✅ IMPORTANT: pass snapshot override
-                console.log("✅ [AppModals] onSaveProject(next) finished");
+                console.warn("💾 [AppModals] calling onSaveProject(next)...");
+                await onSaveProject(next);
+                console.warn("✅ [AppModals] onSaveProject(next) FINISHED");
               } catch (e) {
-                console.error("❌ [AppModals] onSaveProject(next) failed:", e);
+                console.error("❌ [AppModals] onSaveProject(next) FAILED:", e);
                 alert(e?.message || "Save failed");
                 return; // ✅ do NOT close modal if save failed
               }
             } else {
-              console.warn(
-                "⚠️ [AppModals] onSaveProject is not a function:",
+              console.error(
+                "❌ [AppModals] onSaveProject is NOT a function:",
                 onSaveProject
               );
+              alert("onSaveProject is missing (not a function).");
+              return;
             }
 
-            // ✅ 4) only close AFTER save succeeds
+            // ✅ Close only AFTER save succeeds
             closeGraphicDisplaySettings?.();
           }}
         />
