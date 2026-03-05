@@ -20,77 +20,46 @@ export default function AppModals({
 
   // ✅ NEW: passed from App.jsx so Graphic Display Apply can auto-save project
   onSaveProject,
-
   droppedTanks,
   setDroppedTanks,
-
   showRestoreWarning,
   setShowRestoreWarning,
   lastSavedAt,
   handleUploadProject,
-
   displaySettingsId,
   closeDisplaySettings,
-
   graphicSettingsId,
   closeGraphicDisplaySettings,
-
   showSiloProps,
   setShowSiloProps,
   activeSiloId,
-
-  // ✅ NEW: Horizontal Tank (same pattern as silo)
   showHorizontalTankProps,
   setShowHorizontalTankProps,
   activeHorizontalTankId,
-
-  // ✅ NEW: Vertical Tank (same idea)
   showVerticalTankProps,
   setShowVerticalTankProps,
   activeVerticalTankId,
-  // ✅ optional (if you pass it from App) – prevents stale active id after closing
   setActiveVerticalTankId,
-
-  // ✅ NEW: Standard Tank (same idea)
   showStandardTankProps,
   setShowStandardTankProps,
   activeStandardTankId,
-  // ✅ optional (if you pass it from App) – prevents stale active id after closing
   setActiveStandardTankId,
-
   alarmLogOpen,
   closeAlarmLog,
-
   onMinimizeAlarmLog,
   onLaunchAlarmLog,
-
-  // ✅ LED Indicator settings
   indicatorSettingsId,
   closeIndicatorSettings,
-
-  // ✅ Status Text settings
   statusTextSettingsId,
   closeStatusTextSettings,
-
-  // ✅ NEW: Blinking Alarm settings
   blinkingAlarmSettingsId,
   closeBlinkingAlarmSettings,
-
-  // ✅ NEW: State Image settings
   stateImageSettingsId,
   closeStateImageSettings,
-
-  // ✅ NEW: Counter Input settings
   counterInputSettingsId,
   closeCounterInputSettings,
-
-  // ✅ give indicator modal access to available devices/tags
   sensorsData,
-
-  // ✅ NEW: passed from App.jsx (useWindowDragResize result)
   windowDrag,
-
-  // ✅ OPTIONAL: enable console logs for modal saves
   debug = false,
 }) {
   const isSameId = (a, b) => String(a) === String(b);
@@ -263,6 +232,37 @@ export default function AppModals({
       setActiveStandardTankId(null);
   };
 
+  // ✅ NEW: single helper for "Apply -> Save Project"
+  // - saves 2s after state update so droppedRef + state are consistent
+  // - adds loud logs so we know exactly why it didn't save
+  const scheduleProjectSave = (objectsSnapshot, reason = "unknown") => {
+    console.log("🧭 [AppModals] scheduleProjectSave()", {
+      reason,
+      hasOnSaveProject: typeof onSaveProject === "function",
+      dashboardId: safeDashboardId,
+      objects: Array.isArray(objectsSnapshot) ? objectsSnapshot.length : null,
+    });
+
+    if (typeof onSaveProject !== "function") {
+      console.warn("⚠️ [AppModals] onSaveProject is NOT a function:", onSaveProject);
+      return;
+    }
+
+    // delay per your request
+    window.setTimeout(() => {
+      console.log("💾 [AppModals] calling onSaveProject(snapshot) now...", {
+        objects: Array.isArray(objectsSnapshot) ? objectsSnapshot.length : null,
+      });
+
+      try {
+        const p = onSaveProject(objectsSnapshot);
+        console.log("✅ [AppModals] onSaveProject() returned:", p);
+      } catch (e) {
+        console.error("💥 [AppModals] onSaveProject threw:", e);
+      }
+    }, 2000);
+  };
+
   return (
     <>
       {/* ✅ LED Indicator Settings */}
@@ -356,60 +356,43 @@ export default function AppModals({
         />
       )}
 
-{graphicTarget && (
-  <GraphicDisplaySettingsModal
-    open={true}
-    tank={graphicTarget}
-    onClose={closeGraphicDisplaySettings}
-    onSaveProject={null}
-    onSave={(updatedTank) => {
-      console.log("✅ [AppModals] onSave(updatedTank) fired:", {
-        id: updatedTank?.id,
-        shape: updatedTank?.shape,
-        title: updatedTank?.title,
-      });
+      {/* ✅ Graphic Display Settings (Apply should auto-save project) */}
+      {graphicTarget && (
+        <GraphicDisplaySettingsModal
+          open={true}
+          tank={graphicTarget}
+          onClose={closeGraphicDisplaySettings}
+          onSaveProject={null} // ✅ we save from AppModals so we can pass the exact snapshot
+          onSave={(updatedTank) => {
+            console.log("✅ [AppModals] onSave(updatedTank) fired:", {
+              id: updatedTank?.id,
+              shape: updatedTank?.shape,
+              title: updatedTank?.title,
+            });
 
-      setDroppedTanks((prev) => {
-        console.log("🧱 [AppModals] setDroppedTanks(prev) length:", prev?.length);
+            setDroppedTanks((prev) => {
+              console.log("🧱 [AppModals] setDroppedTanks(prev) length:", prev?.length);
 
-        const next = prev.map((t) =>
-          isSameId(t.id, updatedTank.id) ? updatedTank : t
-        );
+              const next = prev.map((t) =>
+                isSameId(t.id, updatedTank.id) ? updatedTank : t
+              );
 
-        const changed =
-          prev.find((t) => isSameId(t.id, updatedTank.id)) !==
-          next.find((t) => isSameId(t.id, updatedTank.id));
+              console.log("🧱 [AppModals] computed next snapshot:", {
+                nextLen: next.length,
+                updatedId: updatedTank?.id,
+              });
 
-        console.log("🧱 [AppModals] computed next snapshot:", {
-          nextLen: next.length,
-          changed,
-          updatedId: updatedTank?.id,
-        });
+              // ✅ THE KEY: save EXACTLY the computed snapshot
+              scheduleProjectSave(next, "graphicDisplayApply");
 
-        if (typeof onSaveProject === "function") {
-          console.log("⏳ [AppModals] scheduling save in 2000ms...");
-          setTimeout(() => {
-            console.log("💾 [AppModals] calling onSaveProject(next) now...");
-            try {
-              const p = onSaveProject(next);
-              console.log("📌 [AppModals] onSaveProject returned:", p);
-            } catch (e) {
-              console.error("💥 [AppModals] onSaveProject threw:", e);
-            }
-          }, 2000);
-        } else {
-          console.warn("⚠️ [AppModals] onSaveProject is NOT a function:", onSaveProject);
-        }
+              return next;
+            });
 
-        return next;
-      });
-
-      console.log("🚪 [AppModals] closing Graphic modal");
-      closeGraphicDisplaySettings?.();
-    }}
-  />
-)}
-
+            console.log("🚪 [AppModals] closing Graphic modal");
+            closeGraphicDisplaySettings?.();
+          }}
+        />
+      )}
 
       {showSiloProps && activeSilo && (
         <SiloPropertiesModal
