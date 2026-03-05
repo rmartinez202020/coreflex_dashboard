@@ -11,7 +11,6 @@ import useTrendSvg from "./graphicDisplay/hooks/useTrendSvg";
 import useTrendLayout from "./graphicDisplay/hooks/useTrendLayout";
 import GraphicDisplayExplorePortal from "./graphicDisplay/GraphicDisplayExplorePortal";
 import GraphicDisplayPanel from "./graphicDisplay/GraphicDisplayPanel";
-import GraphicDisplaySettingsModal from "../GraphicDisplaySettingsModal";
 
 const DEFAULT_LINE_COLOR = "#0c5ac8";
 
@@ -270,6 +269,9 @@ export default function GraphicDisplay({
   // ✅ OPTIONAL: if parent provides a saver, we will call it.
   // If not provided, we still update locally so the widget reflects the new config.
   onSaveSettings,
+
+  // ✅ NEW: delegate opening the settings modal to AppModals (so Apply saves project)
+  onOpenSettings: onOpenSettingsProp = null,
 }) {
   // ✅ Treat Launch like Play (Run mode)
   const isRunMode = useMemo(() => {
@@ -283,9 +285,6 @@ export default function GraphicDisplay({
   }, [tank]);
 
   const T = localTank ?? tank;
-
-  // ✅ Settings modal open state
-  const [settingsOpen, setSettingsOpen] = useState(false);
 
   const title = T?.title ?? "Graphic Display";
   const timeUnit = T?.timeUnit ?? "seconds";
@@ -306,9 +305,12 @@ export default function GraphicDisplay({
 
   // ✅ Single Units config saved from modal
   const tankSingleEnabled = T?.singleUnitsEnabled === true;
-  const tankSingleUnit = String(T?.singleUnitsUnit ?? T?.singleUnit ?? "").trim();
+  const tankSingleUnit = String(
+    T?.singleUnitsUnit ?? T?.singleUnit ?? ""
+  ).trim();
 
-  const [singleUnitsEnabled, setSingleUnitsEnabled] = useState(tankSingleEnabled);
+  const [singleUnitsEnabled, setSingleUnitsEnabled] =
+    useState(tankSingleEnabled);
   const [singleUnitsUnit, setSingleUnitsUnit] = useState(tankSingleUnit);
 
   // ✅ Totalizer config saved from modal
@@ -323,7 +325,9 @@ export default function GraphicDisplay({
   // keep runtime in sync if tank changes (like loading a different widget)
   useEffect(() => {
     const nextSingleEnabled = T?.singleUnitsEnabled === true;
-    const nextSingleUnit = String(T?.singleUnitsUnit ?? T?.singleUnit ?? "").trim();
+    const nextSingleUnit = String(
+      T?.singleUnitsUnit ?? T?.singleUnit ?? ""
+    ).trim();
 
     setSingleUnitsEnabled(nextSingleEnabled);
     setSingleUnitsUnit(nextSingleUnit);
@@ -360,7 +364,9 @@ export default function GraphicDisplay({
 
   const dbgKey = useMemo(() => {
     const widgetId = T?.id ?? T?.widgetId ?? T?.widget_id ?? T?.uuid ?? "";
-    return widgetId ? `widget:${widgetId}` : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
+    return widgetId
+      ? `widget:${widgetId}`
+      : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
   }, [T, bindModel, bindDeviceId, bindField]);
 
   function dbg(...args) {
@@ -381,7 +387,9 @@ export default function GraphicDisplay({
 
   const storageKey = useMemo(() => {
     const widgetId = T?.id ?? T?.widgetId ?? T?.widget_id ?? T?.uuid ?? "";
-    const base = widgetId ? `widget:${widgetId}` : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
+    const base = widgetId
+      ? `widget:${widgetId}`
+      : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
     return `coreflex:graphicDisplay:points:${base}`;
   }, [T, bindModel, bindDeviceId, bindField]);
 
@@ -494,7 +502,9 @@ export default function GraphicDisplay({
 
     setPoints(pruned);
 
-    const lastNumeric = [...pruned].reverse().find((p) => Number.isFinite(Number(p?.y)));
+    const lastNumeric = [...pruned]
+      .reverse()
+      .find((p) => Number.isFinite(Number(p?.y)));
     if (lastNumeric) setMathOutput(Number(lastNumeric.y));
   }, [storageKey, bindDeviceId, bindField, windowSize, timeUnit]);
 
@@ -508,7 +518,8 @@ export default function GraphicDisplay({
     saveTimerRef.current = window.setTimeout(() => {
       const pruned = prunePointsByWindow(points, windowSize, timeUnit);
       const limit = Math.max(50, Number(maxPointsRef.current || 200));
-      const finalPoints = pruned.length > limit ? pruned.slice(pruned.length - limit) : pruned;
+      const finalPoints =
+        pruned.length > limit ? pruned.slice(pruned.length - limit) : pruned;
 
       try {
         localStorage.setItem(
@@ -528,7 +539,15 @@ export default function GraphicDisplay({
     return () => {
       if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
     };
-  }, [points, storageKey, bindDeviceId, bindField, windowSize, timeUnit, bindModel]);
+  }, [
+    points,
+    storageKey,
+    bindDeviceId,
+    bindField,
+    windowSize,
+    timeUnit,
+    bindModel,
+  ]);
 
   const lastSampleAtRef = useRef(0);
 
@@ -606,13 +625,14 @@ export default function GraphicDisplay({
     timeUnit,
   ]);
 
-  const { plotRef, sel, hover, timeTicks, pointsForView, handlers } = usePingZoom({
-    points,
-    yMin: Number(yMin),
-    yMax: Number(yMax),
-    fmtTimeWithDate,
-    hoverAnywhere: exploreOpen, // ✅ ONLY while Explore modal is open (Explore IN)
-  });
+  const { plotRef, sel, hover, timeTicks, pointsForView, handlers } =
+    usePingZoom({
+      points,
+      yMin: Number(yMin),
+      yMax: Number(yMax),
+      fmtTimeWithDate,
+      hoverAnywhere: exploreOpen, // ✅ ONLY while Explore modal is open (Explore IN)
+    });
 
   const { svg } = useTrendSvg({
     points,
@@ -706,17 +726,31 @@ export default function GraphicDisplay({
     if (singleUnitsEnabled) return su || yu || "";
     if (totEnabled && rateU) return rateU;
     return yu || "";
-  }, [singleUnitsEnabled, singleUnitsUnit, yUnits, totEnabled, totalizerRateUnit]);
+  }, [
+    singleUnitsEnabled,
+    singleUnitsUnit,
+    yUnits,
+    totEnabled,
+    totalizerRateUnit,
+  ]);
 
-  // ✅ Settings button handler
+  // ✅ Settings button handler (delegates to parent/AppModals)
   const onOpenSettings = () => {
-    setSettingsOpen(true);
     dbg("SETTINGS: open");
+    if (typeof onOpenSettingsProp === "function") {
+      onOpenSettingsProp();
+      return;
+    }
+    // eslint-disable-next-line no-console
+    console.warn(
+      "[GraphicDisplay] onOpenSettings was clicked, but no onOpenSettings prop was provided. Pass it from DraggableGraphicDisplay so AppModals opens the settings modal."
+    );
   };
 
   // ✅ When modal applies: update local tank + call optional parent saver
+  // NOTE: This still exists for compatibility if you reuse this component elsewhere,
+  // but the main dashboard flow should save via AppModals.
   const handleSettingsSave = (nextTank) => {
-    setSettingsOpen(false);
     setLocalTank(nextTank);
 
     if (typeof onSaveSettings === "function") {
@@ -751,7 +785,7 @@ export default function GraphicDisplay({
         styleBadge={styleBadge}
         statusLabel={statusLabel}
         bindDeviceId={bindDeviceId}
-        // settings
+        // settings (✅ opens AppModals)
         onOpenSettings={onOpenSettings}
         // totalizer display (header)
         totalizerEnabled={singleUnitsEnabled ? false : totEnabled}
@@ -807,15 +841,6 @@ export default function GraphicDisplay({
 
   return (
     <>
-      {/* ✅ Settings Modal */}
-      <GraphicDisplaySettingsModal
-        open={settingsOpen}
-        tank={T}
-        telemetryMap={telemetryMap}
-        onClose={() => setSettingsOpen(false)}
-        onSave={handleSettingsSave}
-      />
-
       {/* ✅ Explore Portal */}
       <GraphicDisplayExplorePortal
         open={exploreOpen}

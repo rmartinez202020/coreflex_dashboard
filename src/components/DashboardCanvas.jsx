@@ -553,21 +553,24 @@ export default function DashboardCanvas({
 
             if (tank.shape === "graphicDisplay") {
               return (
-                <DraggableGraphicDisplay
-                  key={tank.id}
-                  tank={tank}
-                  telemetryMap={telemetryMap}
-                  selected={isSelected && !isPlay}
-                  selectedIds={selectedIds}
-                  dragDelta={dragDelta}
-                  dashboardMode={dashboardMode}
-                  onSelect={handleObjectSelect}
-                  onUpdate={commonProps.onUpdate}
-                  onRightClick={(e) => handleRightClick?.(e, tank)}
-                  onDoubleClick={() => {
-                    if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
-                  }}
-                />
+            <DraggableGraphicDisplay
+  key={tank.id}
+  tank={tank}
+  telemetryMap={telemetryMap}
+  selected={isSelected && !isPlay}
+  selectedIds={selectedIds}
+  dragDelta={dragDelta}
+  dashboardMode={dashboardMode}
+  onSelect={handleObjectSelect}
+  onUpdate={commonProps.onUpdate}
+  onRightClick={(e) => handleRightClick?.(e, tank)}
+  onOpenSettings={() => {
+    if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
+  }}
+  onDoubleClick={() => {
+    if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
+  }}
+/>
               );
             }
 

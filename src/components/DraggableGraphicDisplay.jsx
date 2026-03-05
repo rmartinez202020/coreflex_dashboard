@@ -1,3 +1,4 @@
+// src/components/DraggableGraphicDisplay.jsx
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import GraphicDisplay from "./controls/GraphicDisplay";
@@ -8,6 +9,7 @@ export default function DraggableGraphicDisplay({
   onSelect,
   onDoubleClick,
   onRightClick, // ✅ NEW
+  onOpenSettings, // ✅ NEW: allow widget Settings button to open AppModals modal
   selected,
   selectedIds = [],
   dragDelta = { x: 0, y: 0 },
@@ -127,7 +129,7 @@ export default function DraggableGraphicDisplay({
       window.removeEventListener("mousemove", handleMove);
       window.removeEventListener("mouseup", stopMove);
     };
-  }, [isResizing, resizeDir, safeOnUpdate, tank]);
+  }, [isResizing, resizeDir, safeOnUpdate, tank, width, height]);
 
   // ✅ IMPORTANT: persist GraphicDisplay settings (Single Units / Totalizer / etc.)
   // This wires the Settings modal "Apply" into the parent layout state,
@@ -167,6 +169,22 @@ export default function DraggableGraphicDisplay({
     },
     [safeOnUpdate, tank]
   );
+
+  // ✅ NEW: unified way to open settings (Settings button should call this)
+  const handleOpenSettings = useCallback(() => {
+    if (isPlay) return;
+
+    // Preferred: open AppModals (provided by DashboardCanvas)
+    if (typeof onOpenSettings === "function") {
+      onOpenSettings();
+      return;
+    }
+
+    // Fallback: behave like double-click (older wiring)
+    if (typeof onDoubleClick === "function") {
+      onDoubleClick(tank);
+    }
+  }, [isPlay, onOpenSettings, onDoubleClick, tank]);
 
   return (
     <div
@@ -209,7 +227,11 @@ export default function DraggableGraphicDisplay({
           tank={tank}
           telemetryMap={telemetryMap}
           isPlay={isPlay} // ✅ true in play/launch/launched
-          onSaveSettings={handleSaveSettings} // ✅ FIX: persist units/settings so Launch matches
+          onSaveSettings={handleSaveSettings} // ✅ persist units/settings so Launch matches
+
+          // ✅ NEW: Settings button inside GraphicDisplay should call this
+          // so it opens the AppModals GraphicDisplaySettingsModal (which auto-saves project on Apply)
+          onOpenSettings={handleOpenSettings}
         />
       </div>
 
