@@ -143,7 +143,11 @@ function getRowFromTelemetryMap(telemetryMap, modelKey, deviceId) {
  * - Prefer telemetryMap (common poller)
  * - Otherwise ONLY call /{base}/my-devices
  */
-async function loadLiveRowForDevice(modelKey, deviceId, { telemetryMap, signal } = {}) {
+async function loadLiveRowForDevice(
+  modelKey,
+  deviceId,
+  { telemetryMap, signal } = {}
+) {
   const mk = String(modelKey || "").trim();
   const id = String(deviceId || "").trim();
   if (!mk || !id) return null;
@@ -157,7 +161,8 @@ async function loadLiveRowForDevice(modelKey, deviceId, { telemetryMap, signal }
   const data = await apiGet(`/${base}/my-devices`, { signal });
   const arr = normalizeArray(data);
 
-  const found = arr.find((r) => String(readDeviceId(r) || "").trim() === id) || null;
+  const found =
+    arr.find((r) => String(readDeviceId(r) || "").trim() === id) || null;
   return found;
 }
 
@@ -319,7 +324,9 @@ export default function GraphicDisplaySettingsModal({
     const incomingSample = Number(tank.sampleMs ?? 3000);
     const normalizedSample = incomingSample === 1000 ? 3000 : incomingSample;
 
-    setSampleMs(SAMPLE_OPTIONS.includes(normalizedSample) ? normalizedSample : 3000);
+    setSampleMs(
+      SAMPLE_OPTIONS.includes(normalizedSample) ? normalizedSample : 3000
+    );
 
     setYMin(Number.isFinite(tank.yMin) ? tank.yMin : 0);
     setYMax(Number.isFinite(tank.yMax) ? tank.yMax : 100);
@@ -450,7 +457,12 @@ export default function GraphicDisplaySettingsModal({
     e.stopPropagation();
 
     const t = e.target;
-    if (t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")) return;
+    if (
+      t?.closest?.(
+        "button, input, select, textarea, a, [data-no-drag='true']"
+      )
+    )
+      return;
 
     e.preventDefault();
 
@@ -481,7 +493,8 @@ export default function GraphicDisplaySettingsModal({
     const wid = String(tank?.id || "").trim();
     if (!wid) throw new Error("Missing widget id (tank.id)");
 
-    const dash = String(tank?.dashboard_id || tank?.dashboardId || "main").trim() || "main";
+    const dash =
+      String(tank?.dashboard_id || tank?.dashboardId || "main").trim() || "main";
 
     return apiPost("/graphic-display-bindings/upsert", {
       dashboard_id: dash,
@@ -642,8 +655,19 @@ export default function GraphicDisplaySettingsModal({
             />
           </div>
 
-          <div style={{ display: "grid", gap: 12, alignContent: "start", minWidth: 0 }}>
-            <GraphicDisplayMathPanel value={liveValue} formula={mathFormula} setFormula={setMathFormula} />
+          <div
+            style={{
+              display: "grid",
+              gap: 12,
+              alignContent: "start",
+              minWidth: 0,
+            }}
+          >
+            <GraphicDisplayMathPanel
+              value={liveValue}
+              formula={mathFormula}
+              setFormula={setMathFormula}
+            />
 
             {liveErr && (
               <div
@@ -662,7 +686,14 @@ export default function GraphicDisplaySettingsModal({
             )}
           </div>
 
-          <div style={{ display: "grid", gap: 12, alignContent: "start", minWidth: 0 }}>
+          <div
+            style={{
+              display: "grid",
+              gap: 12,
+              alignContent: "start",
+              minWidth: 0,
+            }}
+          >
             <GraphicDisplayBindingPanel
               bindModel={bindModel}
               setBindModel={setBindModel}
@@ -733,7 +764,16 @@ export default function GraphicDisplaySettingsModal({
 
                     // ✅ update widget in UI/state
                     onSave?.(nextTank);
-                 
+
+                    // ✅ NEW: ensure state is committed, THEN save project (same behavior as SidebarLeft)
+                    await waitForReactCommit();
+
+                    if (typeof onSaveProject === "function") {
+                      await onSaveProject();
+                    }
+
+                    // ✅ optional: close modal after success
+                    onClose?.();
                   } catch (err) {
                     console.error("❌ Apply failed:", err);
                     alert(err?.message || "Apply failed");
