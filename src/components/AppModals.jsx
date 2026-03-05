@@ -361,16 +361,30 @@ export default function AppModals({
     open={true}
     tank={graphicTarget}
     onClose={closeGraphicDisplaySettings}
-    onSaveProject={onSaveProject}   // ✅ PASS IT
+    onSaveProject={null}
     onSave={(updatedTank) => {
-      setDroppedTanks((prev) =>
-        prev.map((t) => (isSameId(t.id, updatedTank.id) ? updatedTank : t))
-      );
-      // ✅ DO NOT save here anymore — modal handles it
+      setDroppedTanks((prev) => {
+        const next = prev.map((t) =>
+          isSameId(t.id, updatedTank.id) ? updatedTank : t
+        );
+
+        // ✅ wait 2 seconds before saving project
+        if (typeof onSaveProject === "function") {
+          setTimeout(() => {
+            console.log("💾 Auto-saving project after Apply...");
+            onSaveProject(next);
+          }, 2000);
+        }
+
+        return next;
+      });
+
       closeGraphicDisplaySettings?.();
     }}
   />
 )}
+
+
       {showSiloProps && activeSilo && (
         <SiloPropertiesModal
           open={showSiloProps}
