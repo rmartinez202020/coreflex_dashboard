@@ -18,7 +18,7 @@ export default function AppModals({
   // ✅ required for Counter API (upsert/reset/poll by dashboard)
   dashboardId = null,
 
-  // ✅ passed from App.jsx (THIS is handleSaveProject)
+  // ✅ THIS must be handleSaveProject from useDashboardPersistence
   onSaveProject,
 
   droppedTanks,
@@ -112,7 +112,6 @@ export default function AppModals({
     );
   }, [droppedTanks, activeSiloId]);
 
-  // ✅ Horizontal Tank active target
   const activeHorizontalTank = useMemo(() => {
     if (activeHorizontalTankId == null) return null;
     return droppedTanks.find(
@@ -121,7 +120,6 @@ export default function AppModals({
     );
   }, [droppedTanks, activeHorizontalTankId]);
 
-  // ✅ Vertical Tank active target
   const activeVerticalTank = useMemo(() => {
     if (activeVerticalTankId == null) return null;
     return droppedTanks.find(
@@ -129,7 +127,6 @@ export default function AppModals({
     );
   }, [droppedTanks, activeVerticalTankId]);
 
-  // ✅ Standard Tank active target
   const activeStandardTank = useMemo(() => {
     if (activeStandardTankId == null) return null;
     return droppedTanks.find(
@@ -138,7 +135,6 @@ export default function AppModals({
     );
   }, [droppedTanks, activeStandardTankId]);
 
-  // ✅ LED Indicator target
   const indicatorTarget = useMemo(() => {
     if (indicatorSettingsId == null) return null;
     return droppedTanks.find(
@@ -146,7 +142,6 @@ export default function AppModals({
     );
   }, [droppedTanks, indicatorSettingsId]);
 
-  // ✅ Status Text target
   const statusTextTarget = useMemo(() => {
     if (statusTextSettingsId == null) return null;
     return droppedTanks.find(
@@ -154,7 +149,6 @@ export default function AppModals({
     );
   }, [droppedTanks, statusTextSettingsId]);
 
-  // ✅ Blinking Alarm target
   const blinkingAlarmTarget = useMemo(() => {
     if (blinkingAlarmSettingsId == null) return null;
     return droppedTanks.find(
@@ -163,7 +157,6 @@ export default function AppModals({
     );
   }, [droppedTanks, blinkingAlarmSettingsId]);
 
-  // ✅ State Image target
   const stateImageTarget = useMemo(() => {
     if (stateImageSettingsId == null) return null;
     return droppedTanks.find(
@@ -171,7 +164,6 @@ export default function AppModals({
     );
   }, [droppedTanks, stateImageSettingsId]);
 
-  // ✅ Counter Input target
   const counterInputTarget = useMemo(() => {
     if (counterInputSettingsId == null) return null;
     return droppedTanks.find(
@@ -184,15 +176,11 @@ export default function AppModals({
     ? windowDrag.getWindowProps("alarmLog")
     : null;
 
-  // ✅ Accept either:
-  // 1) onSave({ properties: {...} })  (preferred)
-  // 2) onSave({ ...flatProps })       (fallback - we wrap into properties)
   const normalizeUpdated = (updated) => {
     if (!updated || typeof updated !== "object") return { properties: {} };
     if (updated.properties && typeof updated.properties === "object")
       return updated;
 
-    // Fallback: treat the whole object as properties
     const { id, shape, x, y, w, h, width, height, ...rest } = updated;
     return { properties: rest };
   };
@@ -220,7 +208,6 @@ export default function AppModals({
     );
   };
 
-  // ✅ close helpers
   const closeVerticalTankModal = () => {
     setShowVerticalTankProps?.(false);
     if (typeof setActiveVerticalTankId === "function")
@@ -233,8 +220,7 @@ export default function AppModals({
       setActiveStandardTankId(null);
   };
 
-  // ✅ SAVE HELPER: call the SAME function used by left "Save Project"
-  // - schedule after React state queue so persistence sees the same snapshot
+  // ✅ The actual save call (same logic as SidebarLeft uses)
   const saveSnapshotNow = (snapshot, reason = "unknown") => {
     console.log("💾 [AppModals] saveSnapshotNow()", {
       reason,
@@ -244,10 +230,7 @@ export default function AppModals({
     });
 
     if (typeof onSaveProject !== "function") {
-      console.warn(
-        "⚠️ [AppModals] onSaveProject is NOT a function:",
-        onSaveProject
-      );
+      console.warn("⚠️ [AppModals] onSaveProject is NOT a function:", onSaveProject);
       return;
     }
 
@@ -260,14 +243,12 @@ export default function AppModals({
       }
     };
 
-    // queueMicrotask is great, but fallback for older browsers
     if (typeof queueMicrotask === "function") queueMicrotask(run);
     else window.setTimeout(run, 0);
   };
 
   return (
     <>
-      {/* ✅ LED Indicator Settings */}
       {indicatorTarget && (
         <IndicatorLightSettingsModal
           open={true}
@@ -281,7 +262,6 @@ export default function AppModals({
         />
       )}
 
-      {/* ✅ Status Text Settings */}
       {statusTextTarget && (
         <StatusTextSettingsModal
           open={true}
@@ -295,7 +275,6 @@ export default function AppModals({
         />
       )}
 
-      {/* ✅ Blinking Alarm Settings */}
       {blinkingAlarmTarget && (
         <BlinkingAlarmSettingsModal
           open={true}
@@ -309,7 +288,6 @@ export default function AppModals({
         />
       )}
 
-      {/* ✅ State Image Settings */}
       {stateImageTarget && (
         <StateImageSettingsModal
           open={true}
@@ -323,7 +301,6 @@ export default function AppModals({
         />
       )}
 
-      {/* ✅ Counter Input Settings */}
       {counterInputTarget && (
         <CounterInputSettingsModal
           open={true}
@@ -375,13 +352,7 @@ export default function AppModals({
                 isSameId(t.id, updatedTank.id) ? updatedTank : t
               );
 
-              console.log("🧱 [AppModals] Graphic snapshot computed:", {
-                prevLen: prev?.length,
-                nextLen: next?.length,
-                updatedId: updatedTank?.id,
-              });
-
-              // ✅ do the real save with the exact snapshot we just computed
+              // ✅ SAVE EXACT snapshot we computed
               saveSnapshotNow(next, "graphicDisplayApply");
 
               return next;
@@ -405,7 +376,6 @@ export default function AppModals({
         />
       )}
 
-      {/* ✅ Horizontal Tank Properties */}
       {showHorizontalTankProps && activeHorizontalTank && (
         <HorizontalTankPropertiesModal
           open={showHorizontalTankProps}
@@ -420,7 +390,6 @@ export default function AppModals({
         />
       )}
 
-      {/* ✅ Vertical Tank Properties */}
       {showVerticalTankProps && activeVerticalTank && (
         <VerticalTankSettingsModal
           open={showVerticalTankProps}
@@ -435,7 +404,6 @@ export default function AppModals({
         />
       )}
 
-      {/* ✅ Standard Tank Properties */}
       {showStandardTankProps && activeStandardTank && (
         <StandardTankPropertiesModal
           open={showStandardTankProps}
@@ -450,7 +418,6 @@ export default function AppModals({
         />
       )}
 
-      {/* 🚨 Alarm Log */}
       <AlarmLogModal
         open={!!alarmLogOpen}
         onClose={closeAlarmLog}
