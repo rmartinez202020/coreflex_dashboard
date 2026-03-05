@@ -132,7 +132,8 @@ export default function AppModals({
   const activeStandardTank = useMemo(() => {
     if (activeStandardTankId == null) return null;
     return droppedTanks.find(
-      (t) => isSameId(t.id, activeStandardTankId) && t.shape === "standardTank"
+      (t) =>
+        isSameId(t.id, activeStandardTankId) && t.shape === "standardTank"
     );
   }, [droppedTanks, activeStandardTankId]);
 
@@ -231,29 +232,42 @@ export default function AppModals({
       setActiveStandardTankId(null);
   };
 
-  // ✅ SAVE PROJECT IMMEDIATELY from AppModals (the modal should NOT own saving)
-  const scheduleProjectSave = (objectsSnapshot, reason = "unknown") => {
-    console.log("💾 [AppModals] SAVE NOW", {
+  // ✅ HARD SAVE (bulletproof)
+  // - Save after we compute the EXACT next snapshot
+  // - Try passing snapshot, but if your handleSaveProject ignores args / differs,
+  //   fallback to calling with no args.
+  const saveProjectWithSnapshot = (snapshot, reason = "unknown") => {
+    console.log("💾 [AppModals] SAVE REQUEST", {
       reason,
       hasOnSaveProject: typeof onSaveProject === "function",
       dashboardId: safeDashboardId,
-      objects: Array.isArray(objectsSnapshot) ? objectsSnapshot.length : null,
+      snapshotLen: Array.isArray(snapshot) ? snapshot.length : null,
     });
 
     if (typeof onSaveProject !== "function") {
-      console.warn(
-        "⚠️ [AppModals] onSaveProject is NOT a function:",
-        onSaveProject
-      );
+      console.warn("⚠️ [AppModals] onSaveProject is NOT a function:", onSaveProject);
       return;
     }
 
-    try {
-      const p = onSaveProject(objectsSnapshot);
-      console.log("✅ [AppModals] onSaveProject() returned:", p);
-    } catch (e) {
-      console.error("💥 [AppModals] onSaveProject threw:", e);
-    }
+    // run on next tick (lets React apply state)
+    window.setTimeout(() => {
+      try {
+        console.log("💾 [AppModals] calling onSaveProject(snapshot)...");
+        const r = onSaveProject(snapshot);
+        console.log("✅ [AppModals] onSaveProject(snapshot) returned:", r);
+      } catch (e1) {
+        console.error("💥 [AppModals] onSaveProject(snapshot) threw:", e1);
+
+        // fallback: call with no args
+        try {
+          console.log("💾 [AppModals] fallback calling onSaveProject()...");
+          const r2 = onSaveProject();
+          console.log("✅ [AppModals] onSaveProject() returned:", r2);
+        } catch (e2) {
+          console.error("💥 [AppModals] onSaveProject() threw:", e2);
+        }
+      }
+    }, 0);
   };
 
   return (
@@ -355,31 +369,31 @@ export default function AppModals({
           open={true}
           tank={graphicTarget}
           onClose={closeGraphicDisplaySettings}
-          // ✅ DO NOT pass onSaveProject into the modal anymore (modal should not save)
+
+          // ✅ IMPORTANT:
+          // Do NOT let the modal try to save the project itself.
+          // AppModals will do it after state is updated.
+          onSaveProject={undefined}
+
           onSave={(updatedTank) => {
-            console.log("✅ [AppModals] onSave(updatedTank) fired:", {
+            console.log("✅ [AppModals] Graphic onSave(updatedTank) fired:", {
               id: updatedTank?.id,
               shape: updatedTank?.shape,
               title: updatedTank?.title,
             });
 
             setDroppedTanks((prev) => {
-              console.log(
-                "🧱 [AppModals] setDroppedTanks(prev) length:",
-                prev?.length
-              );
-
               const next = prev.map((t) =>
                 isSameId(t.id, updatedTank.id) ? updatedTank : t
               );
 
-              console.log("🧱 [AppModals] computed next snapshot:", {
+              console.log("🧱 [AppModals] Graphic computed next snapshot:", {
                 nextLen: next.length,
                 updatedId: updatedTank?.id,
               });
 
-              // ✅ SAVE IMMEDIATELY using the exact snapshot
-              scheduleProjectSave(next, "graphicDisplayApply");
+              // ✅ SAVE THE PROJECT using the exact snapshot
+              saveProjectWithSnapshot(next, "graphicDisplayApply");
 
               return next;
             });
