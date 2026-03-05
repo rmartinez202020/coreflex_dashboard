@@ -101,61 +101,80 @@ export default function useDashboardPersistence({
 
     // allow auto-restore to run again
     autoRestoreRanRef.current = false;
-  }, [setActivePage, setDashboardMode, setDroppedTanks, setSelectedIds, setSelectedTank]);
+  }, [
+    setActivePage,
+    setDashboardMode,
+    setDroppedTanks,
+    setSelectedIds,
+    setSelectedTank,
+  ]);
 
   // 💾 SAVE PROJECT (MAIN or CUSTOMER)
-  const handleSaveProject = useCallback(async () => {
-    // ✅ only allow saving from dashboard editor
-    if (activePage !== "dashboard") {
-      console.warn("⚠️ Save ignored: not on dashboard editor page");
-      return;
-    }
+  // ✅ IMPORTANT: supports passing an explicit canvas snapshot (for Modal Apply)
+  const handleSaveProject = useCallback(
+    async (overrideObjects = null) => {
+      // ✅ only allow saving from dashboard editor
+      if (activePage !== "dashboard") {
+        console.warn("⚠️ Save ignored: not on dashboard editor page");
+        return;
+      }
 
-    // ✅ customer dashboard must have an id
-    if (activeDashboard.type === "customer" && !activeDashboard.dashboardId) {
-      console.error("❌ Cannot save customer dashboard: missing dashboardId");
-      return;
-    }
+      // ✅ customer dashboard must have an id
+      if (activeDashboard.type === "customer" && !activeDashboard.dashboardId) {
+        console.error("❌ Cannot save customer dashboard: missing dashboardId");
+        return;
+      }
 
-    const dashboardPayload = {
-      version: "1.0",
-      type:
-        activeDashboard.type === "main"
-          ? "main_dashboard"
-          : "customer_dashboard",
-      dashboardId: activeDashboard.dashboardId || null,
-      canvas: { objects: droppedTanks || [] },
-      meta: {
-        dashboardMode,
-        savedAt: new Date().toISOString(),
-        dashboardName: activeDashboard.dashboardName || "",
-        customerName: activeDashboard.customerName || "",
-      },
-    };
+      // ✅ choose what we save:
+      // 1) explicit override (modal Apply)
+      // 2) droppedRef (latest) to avoid stale state
+      // 3) fallback droppedTanks
+      const objectsToSave = Array.isArray(overrideObjects)
+        ? overrideObjects
+        : Array.isArray(droppedRef?.current)
+        ? droppedRef.current
+        : droppedTanks || [];
 
-    try {
-      const token = getToken();
-      if (!token) throw new Error("No auth token found");
+      const dashboardPayload = {
+        version: "1.0",
+        type:
+          activeDashboard.type === "main"
+            ? "main_dashboard"
+            : "customer_dashboard",
+        dashboardId: activeDashboard.dashboardId || null,
+        canvas: { objects: objectsToSave },
+        meta: {
+          dashboardMode,
+          savedAt: new Date().toISOString(),
+          dashboardName: activeDashboard.dashboardName || "",
+          customerName: activeDashboard.customerName || "",
+        },
+      };
 
-      await saveMainDashboard(dashboardPayload, activeDashboard);
+      try {
+        const token = getToken();
+        if (!token) throw new Error("No auth token found");
 
-      const now = new Date();
-      setLastSavedAt(now);
+        await saveMainDashboard(dashboardPayload, activeDashboard);
 
-      // ✅ make SAVE the new undo baseline
-      hardResetHistory?.(droppedRef?.current || droppedTanks || []);
+        const now = new Date();
+        setLastSavedAt(now);
 
-    } catch (err) {
-      console.error("❌ Save failed:", err);
-    }
-  }, [
-    activePage,
-    activeDashboard,
-    dashboardMode,
-    droppedTanks,
-    droppedRef,
-    hardResetHistory,
-  ]);
+        // ✅ make SAVE the new undo baseline (use the SAME objects we saved)
+        hardResetHistory?.(objectsToSave);
+      } catch (err) {
+        console.error("❌ Save failed:", err);
+      }
+    },
+    [
+      activePage,
+      activeDashboard,
+      dashboardMode,
+      droppedTanks,
+      droppedRef,
+      hardResetHistory,
+    ]
+  );
 
   // ⬆ RESTORE PROJECT (manual button)
   const handleUploadProject = useCallback(async () => {
@@ -191,13 +210,11 @@ export default function useDashboardPersistence({
       // ✅ make RESTORE the new undo baseline
       hardResetHistory?.(restoredObjects);
 
-      const mode =
-        data?.layout?.meta?.dashboardMode || data?.meta?.dashboardMode;
+      const mode = data?.layout?.meta?.dashboardMode || data?.meta?.dashboardMode;
       if (mode) setDashboardMode(mode);
 
       const savedAt = data?.layout?.meta?.savedAt || data?.meta?.savedAt;
       setLastSavedAt(savedAt ? new Date(savedAt) : null);
-
     } catch (err) {
       console.error("❌ Upload failed:", err);
     } finally {
@@ -278,13 +295,11 @@ export default function useDashboardPersistence({
 
         setDroppedTanks(objects);
 
-        const mode =
-          data?.layout?.meta?.dashboardMode || data?.meta?.dashboardMode;
+        const mode = data?.layout?.meta?.dashboardMode || data?.meta?.dashboardMode;
         if (mode) setDashboardMode(mode);
 
         const savedAt = data?.layout?.meta?.savedAt || data?.meta?.savedAt;
         setLastSavedAt(savedAt ? new Date(savedAt) : null);
-
       } catch (err) {
         console.error("❌ Auto restore failed:", err);
       }

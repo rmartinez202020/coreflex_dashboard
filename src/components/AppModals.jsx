@@ -356,21 +356,34 @@ export default function AppModals({
         />
       )}
 
-      {graphicTarget && (
+ {graphicTarget && (
   <GraphicDisplaySettingsModal
     open={true}
     tank={graphicTarget}
     onClose={closeGraphicDisplaySettings}
-    onSaveProject={onSaveProject}  // ✅ ADD THIS
+
+    // ✅ DO NOT let the modal save the project
+    onSaveProject={null}
+
     onSave={(updatedTank) => {
-      setDroppedTanks((prev) =>
-        prev.map((t) => (isSameId(t.id, updatedTank.id) ? updatedTank : t))
-      );
+      // ✅ build the NEW canvas snapshot right here (no waiting, no stale refs)
+      setDroppedTanks((prev) => {
+        const next = prev.map((t) =>
+          isSameId(t.id, updatedTank.id) ? updatedTank : t
+        );
+
+        // ✅ save EXACTLY what we just computed
+        if (typeof onSaveProject === "function") {
+          Promise.resolve().then(() => onSaveProject(next));
+        }
+
+        return next;
+      });
+
       closeGraphicDisplaySettings?.();
     }}
   />
 )}
-
       {showSiloProps && activeSilo && (
         <SiloPropertiesModal
           open={showSiloProps}

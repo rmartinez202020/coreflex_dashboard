@@ -733,12 +733,7 @@ export default function GraphicDisplaySettingsModal({
 
                     // ✅ update widget in UI/state
                     onSave?.(nextTank);
-
-                    // ✅ IMPORTANT: wait for React to commit the new droppedTanks, then save project
-                    if (typeof onSaveProject === "function") {
-                      await waitForReactCommit();
-                      await onSaveProject();
-                    }
+                 
                   } catch (err) {
                     console.error("❌ Apply failed:", err);
                     alert(err?.message || "Apply failed");
