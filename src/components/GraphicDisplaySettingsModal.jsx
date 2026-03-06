@@ -16,11 +16,17 @@ import GraphicDisplayBindingPanel from "./GraphicDisplayBindingPanel";
 // ✅ Totalizer UI section (now includes Single Units too)
 import GraphicDisplayTotalizerSection from "./controls/graphicDisplay/GraphicDisplayTotalizerSection";
 
+// ✅ IMPORTANT: use SAME loader as the runtime GraphicDisplay (single source of truth)
+import {
+  getRowFromTelemetryMap,
+  readAiField,
+} from "./controls/graphicDisplay/loader";
+
 // ✅ REMOVE 1s option (1000ms)
 const SAMPLE_OPTIONS = [3000, 6000, 30000, 60000, 300000, 600000];
 const FIXED_GRAPH_STYLE = "line";
 
-// ✅ Models allowed
+// ✅ Models allowed (UI labels + bases)
 const MODEL_META = {
   zhc1921: { label: "CF-2000", base: "zhc1921" },
   zhc1661: { label: "CF-1600", base: "zhc1661" },
@@ -104,48 +110,14 @@ function readDeviceId(row) {
   );
 }
 
-function readAiField(row, bindField) {
-  if (!row || !bindField) return null;
-  const f = String(bindField).toLowerCase();
-
-  const candidates = [
-    f,
-    f.toUpperCase(),
-    f.replace("ai", "a"),
-    f.replace("ai", "A"),
-    f.replace("ai", "analog"),
-    f.replace("ai", "ANALOG"),
-  ];
-
-  for (const k of candidates) {
-    if (row[k] !== undefined) return row[k];
-  }
-
-  const n = f.replace("ai", "");
-  const extra = [`ai_${n}`, `AI_${n}`, `ai-${n}`, `AI-${n}`];
-  for (const k of extra) {
-    if (row[k] !== undefined) return row[k];
-  }
-
-  return null;
-}
-
-// ✅ COMMON POLLER READER
-function getRowFromTelemetryMap(telemetryMap, modelKey, deviceId) {
-  if (!telemetryMap || !modelKey || !deviceId) return null;
-
-  const mk = String(modelKey || "").trim();
-  const id = String(deviceId || "").trim();
-  if (!mk || !id) return null;
-
-  const direct = telemetryMap?.[mk]?.[id];
-  if (direct) return direct;
-
-  const base = MODEL_META?.[mk]?.base || mk;
-  const byBase = telemetryMap?.[base]?.[id];
-  if (byBase) return byBase;
-
-  return null;
+// ✅ Ensure bindModel is always canonical keys used by backend + common poller
+function normalizeModelKey(m) {
+  const s = String(m || "").trim().toLowerCase();
+  if (s === "cf-2000" || s === "cf2000") return "zhc1921";
+  if (s === "cf-1600" || s === "cf1600") return "zhc1661";
+  // allow already-canonical
+  if (s === "zhc1921" || s === "zhc1661") return s;
+  return s;
 }
 
 /**
@@ -158,11 +130,11 @@ async function loadLiveRowForDevice(
   deviceId,
   { telemetryMap, signal } = {}
 ) {
-  const mk = String(modelKey || "").trim();
+  const mk = normalizeModelKey(modelKey);
   const id = String(deviceId || "").trim();
   if (!mk || !id) return null;
 
-  // 1) Common poller
+  // 1) Common poller (uses shared loader)
   const fromCommon = getRowFromTelemetryMap(telemetryMap, mk, id);
   if (fromCommon) return fromCommon;
 
@@ -346,7 +318,8 @@ export default function GraphicDisplaySettingsModal({
     setLineColor(normalizeHexColor(tank.lineColor ?? "#0c5ac8"));
     setMathFormula(tank.mathFormula ?? "");
 
-    setBindModel(tank.bindModel ?? "zhc1921");
+    // ✅ normalize model key so the modal + apply always use canonical values
+    setBindModel(normalizeModelKey(tank.bindModel ?? "zhc1921"));
     setBindDeviceId(tank.bindDeviceId ?? "");
     setBindField(tank.bindField ?? "ai1");
   }, [tank]);
@@ -491,13 +464,22 @@ export default function GraphicDisplaySettingsModal({
     const wid = String(tank?.id || "").trim();
     if (!wid) throw new Error("Missing widget id (tank.id)");
 
+    // ✅ include properties.* dashboardId too (Launch injects here sometimes)
     const dash =
-      String(tank?.dashboard_id || tank?.dashboardId || "main").trim() || "main";
+      String(
+        tank?.dashboard_id ||
+          tank?.dashboardId ||
+          tank?.properties?.dashboardId ||
+          tank?.properties?.dashboard_id ||
+          "main"
+      ).trim() || "main";
+
+    const normModel = normalizeModelKey(bindModel);
 
     dbgWarn("🌐 [GraphicDisplaySettingsModal] persistBinding START", {
       wid,
       dash,
-      bindModel,
+      bindModel: normModel,
       bindDeviceId,
       bindField,
     });
@@ -506,7 +488,7 @@ export default function GraphicDisplaySettingsModal({
       dashboard_id: dash,
       widget_id: wid,
 
-      bind_model: String(bindModel || "zhc1921").toLowerCase(),
+      bind_model: String(normModel || "zhc1921").toLowerCase(),
       bind_device_id: String(bindDeviceId || "").trim(),
       bind_field: String(bindField || "ai1").trim(),
 
@@ -553,6 +535,8 @@ export default function GraphicDisplaySettingsModal({
 
       setIsApplying(true);
 
+      const normModel = normalizeModelKey(bindModel);
+
       // ✅ 1) persist backend row
       await persistBinding();
 
@@ -571,7 +555,7 @@ export default function GraphicDisplaySettingsModal({
         graphStyle: FIXED_GRAPH_STYLE,
         lineColor: safeLineColor,
         mathFormula,
-        bindModel,
+        bindModel: normModel,
         bindDeviceId,
         bindField,
 
@@ -726,7 +710,14 @@ export default function GraphicDisplaySettingsModal({
             />
           </div>
 
-          <div style={{ display: "grid", gap: 12, alignContent: "start", minWidth: 0 }}>
+          <div
+            style={{
+              display: "grid",
+              gap: 12,
+              alignContent: "start",
+              minWidth: 0,
+            }}
+          >
             <GraphicDisplayMathPanel
               value={liveValue}
               formula={mathFormula}
@@ -750,10 +741,17 @@ export default function GraphicDisplaySettingsModal({
             )}
           </div>
 
-          <div style={{ display: "grid", gap: 12, alignContent: "start", minWidth: 0 }}>
+          <div
+            style={{
+              display: "grid",
+              gap: 12,
+              alignContent: "start",
+              minWidth: 0,
+            }}
+          >
             <GraphicDisplayBindingPanel
               bindModel={bindModel}
-              setBindModel={setBindModel}
+              setBindModel={(v) => setBindModel(normalizeModelKey(v))}
               bindDeviceId={bindDeviceId}
               setBindDeviceId={setBindDeviceId}
               bindField={bindField}
