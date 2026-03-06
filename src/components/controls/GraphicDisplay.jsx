@@ -556,10 +556,13 @@ export default function GraphicDisplay({
         safeLive = Number.isFinite(parsed) ? parsed : null;
       }
 
-      // ✅ FIX: when formula is empty, use raw live value directly
+      // ✅ FIX: normalize VALUE placeholder so runtime matches modal preview
       const trimmedFormula = String(mathFormula || "").trim();
-      const out = trimmedFormula
-        ? computeMathOutput(safeLive, trimmedFormula)
+      const normalizedFormula = trimmedFormula.replace(/\bvalue\b/gi, "VALUE");
+
+      // ✅ FIX: when formula is empty, use raw live value directly
+      const out = normalizedFormula
+        ? computeMathOutput(safeLive, normalizedFormula)
         : safeLive;
 
       dbg("POLL", {
@@ -572,6 +575,7 @@ export default function GraphicDisplay({
         raw,
         safeLive,
         mathFormula: trimmedFormula,
+        normalizedFormula,
         out,
         deviceOnline: st.online,
       });
@@ -599,6 +603,7 @@ export default function GraphicDisplay({
           raw,
           safeLive,
           mathFormula: trimmedFormula,
+          normalizedFormula,
           out,
         });
       }
