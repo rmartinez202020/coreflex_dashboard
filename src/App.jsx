@@ -45,7 +45,9 @@ export default function App() {
   } = usePageNavigation("coreflex_activePage");
 
   // DEVICE DATA
-  const sensorsData = useDevicesData(API_URL);
+  const devicesData = useDevicesData(API_URL, { pollMs: 2000 }); // pick 1000/2000/3000
+const sensorsData = devicesData.rows;          // keep old props alive
+const telemetryMap = devicesData.telemetryMap; // ✅ the common poller map
 
   // OBJECTS ON CANVAS
   const [droppedTanks, setDroppedTanks] = useState([]);
@@ -570,7 +572,6 @@ export default function App() {
             dashboardId={effectiveDashboardId} // ✅ THE KEY FIX
             dashboardMode={dashboardMode}
             sensors={sensors}
-            sensorsData={sensorsData}
             droppedTanks={droppedTanks}
             setDroppedTanks={setDroppedTanks}
             selectedIds={selectedIds}
@@ -616,6 +617,9 @@ export default function App() {
             setActiveVerticalTankId={setActiveVerticalTankId}
             setShowVerticalTankProps={setShowVerticalTankProps}
             onSaveProject={handleSaveProject}
+            telemetryMap={telemetryMap}
+            sensorsData={sensorsData}
+
           />
         ) : activePage === "deviceControls" ? (
           <div className="w-full h-full border rounded-lg bg-white p-6">
@@ -651,7 +655,6 @@ export default function App() {
           windowDrag={windowDrag}
           indicatorSettingsId={indicatorSettingsId}
           closeIndicatorSettings={closeIndicatorSettings}
-          sensorsData={sensorsData} // ✅ IMPORTANT (for device/tag dropdown)
           statusTextSettingsId={statusTextSettingsId}
           closeStatusTextSettings={closeStatusTextSettings}
           blinkingAlarmSettingsId={blinkingAlarmSettingsId}
@@ -673,6 +676,8 @@ export default function App() {
           activeVerticalTankId={activeVerticalTankId}
           setActiveVerticalTankId={setActiveVerticalTankId}
           onSaveProject={handleSaveProject}
+          telemetryMap={telemetryMap}
+          sensorsData={sensorsData}
         
         />
       </main>
