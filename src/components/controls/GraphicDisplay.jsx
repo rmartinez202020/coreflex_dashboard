@@ -40,7 +40,9 @@ function normalizeOnlineStatusFromRow(row) {
   if (raw === false || raw === 0) return { online: false, label: "OFFLINE" };
 
   if (
-    ["online", "connected", "ok", "active", "up", "true", "yes", "1"].includes(s)
+    ["online", "connected", "ok", "active", "up", "true", "yes", "1"].includes(
+      s
+    )
   )
     return { online: true, label: "ONLINE" };
   if (
@@ -61,11 +63,6 @@ function detectLaunchMode() {
   const path = String(window.location.pathname || "").toLowerCase();
   const hash = String(window.location.hash || "").toLowerCase();
 
-  // common patterns:
-  // - ?mode=launch
-  // - ?launch=1 / true
-  // - /launch route
-  // - #/launch or contains "launch" in hash
   try {
     const url = new URL(window.location.href);
     const mode = String(url.searchParams.get("mode") || "").toLowerCase();
@@ -80,7 +77,6 @@ function detectLaunchMode() {
   if (path.includes("launch")) return true;
   if (hash.includes("launch")) return true;
 
-  // last resort: any hint in href (still safe)
   if (href.includes("mode=launch")) return true;
   if (href.includes("launch=1") || href.includes("launch=true")) return true;
 
@@ -189,7 +185,6 @@ const RATE_TO_TOTAL_UNIT = {
 function rateUnitToTimeBase(rateUnit) {
   const u = String(rateUnit || "").trim();
 
-  // per minute
   if (
     ["GPM", "CFM", "SCFM", "ACFM", "LPM", "m³/min", "kg/min", "lb/min"].includes(
       u
@@ -197,7 +192,6 @@ function rateUnitToTimeBase(rateUnit) {
   )
     return "minute";
 
-  // per hour
   if (
     [
       "GPH",
@@ -214,10 +208,7 @@ function rateUnitToTimeBase(rateUnit) {
   )
     return "hour";
 
-  // per second
   if (["kg/s", "W"].includes(u)) return "second";
-
-  // per day
   if (["BPD"].includes(u)) return "day";
 
   return "";
@@ -253,7 +244,6 @@ function integrateRateToTotal(points, rateUnit) {
 
     if (!Number.isFinite(dtBase) || dtBase <= 0) continue;
 
-    // trapezoidal integration
     const avgRate = (p1.y + p2.y) / 2;
     total += avgRate * dtBase;
   }
@@ -263,22 +253,15 @@ function integrateRateToTotal(points, rateUnit) {
 
 export default function GraphicDisplay({
   tank,
-  telemetryMap = null, // ✅ common poller map
-  isPlay = false, // ✅ should be true in Play/Launch
-
-  // ✅ OPTIONAL: if parent provides a saver, we will call it.
-  // If not provided, we still update locally so the widget reflects the new config.
+  telemetryMap = null,
+  isPlay = false,
   onSaveSettings,
-
-  // ✅ NEW: delegate opening the settings modal to AppModals (so Apply saves project)
   onOpenSettings: onOpenSettingsProp = null,
 }) {
-  // ✅ Treat Launch like Play (Run mode)
   const isRunMode = useMemo(() => {
     return !!isPlay || detectLaunchMode();
   }, [isPlay]);
 
-  // ✅ Local override so Settings changes reflect immediately even if parent saves async
   const [localTank, setLocalTank] = useState(null);
   useEffect(() => {
     setLocalTank(null);
@@ -289,11 +272,13 @@ export default function GraphicDisplay({
   const title = T?.title ?? "Graphic Display";
   const timeUnit = T?.timeUnit ?? "seconds";
   const windowSize = Number(T?.window ?? 60);
-  const sampleMs = Number(T?.sampleMs ?? 1000);
+
+  // ✅ FIX: default to 3000ms to match modal/common poller
+  const sampleMs = Number(T?.sampleMs ?? 3000);
+
   const yMin = Number.isFinite(T?.yMin) ? T.yMin : 0;
   const yMax = Number.isFinite(T?.yMax) ? T.yMax : 100;
 
-  // NOTE: yUnits is still used for Y axis labeling (legacy)
   const yUnits = T?.yUnits ?? "";
 
   const graphStyle = T?.graphStyle ?? "line";
@@ -303,7 +288,6 @@ export default function GraphicDisplay({
   const mathFormula = T?.mathFormula ?? "";
   const lineColor = normalizeLineColor(T?.lineColor);
 
-  // ✅ Single Units config saved from modal
   const tankSingleEnabled = T?.singleUnitsEnabled === true;
   const tankSingleUnit = String(
     T?.singleUnitsUnit ?? T?.singleUnit ?? ""
@@ -313,16 +297,13 @@ export default function GraphicDisplay({
     useState(tankSingleEnabled);
   const [singleUnitsUnit, setSingleUnitsUnit] = useState(tankSingleUnit);
 
-  // ✅ Totalizer config saved from modal
   const tankTotEnabled = T?.totalizerEnabled === true;
   const totalizerRateUnit = String(T?.totalizerUnit ?? "").trim();
   const totalizerTotalUnit = RATE_TO_TOTAL_UNIT[totalizerRateUnit] || "";
 
-  // ✅ Runtime control for Enable/Disable from header buttons
   const [totEnabled, setTotEnabled] = useState(tankTotEnabled);
   const [totalizerResetAt, setTotalizerResetAt] = useState(0);
 
-  // keep runtime in sync if tank changes (like loading a different widget)
   useEffect(() => {
     const nextSingleEnabled = T?.singleUnitsEnabled === true;
     const nextSingleUnit = String(
@@ -332,7 +313,6 @@ export default function GraphicDisplay({
     setSingleUnitsEnabled(nextSingleEnabled);
     setSingleUnitsUnit(nextSingleUnit);
 
-    // If Single Units is enabled, Totalizer must be OFF (runtime)
     const nextTotEnabled = nextSingleEnabled ? false : tankTotEnabled;
     setTotEnabled(nextTotEnabled);
 
@@ -349,7 +329,6 @@ export default function GraphicDisplay({
     bindField,
   ]);
 
-  // Safety: if Single Units becomes enabled at runtime, force totalizer off.
   useEffect(() => {
     if (singleUnitsEnabled && totEnabled) setTotEnabled(false);
   }, [singleUnitsEnabled, totEnabled]);
@@ -371,17 +350,14 @@ export default function GraphicDisplay({
 
   function dbg(...args) {
     if (!DEBUG) return;
-    // eslint-disable-next-line no-console
     console.log(`[GraphicDisplay] ${dbgKey}`, ...args);
   }
   function dbgWarn(...args) {
     if (!DEBUG) return;
-    // eslint-disable-next-line no-console
     console.warn(`[GraphicDisplay] ${dbgKey}`, ...args);
   }
   function dbgErr(...args) {
     if (!DEBUG) return;
-    // eslint-disable-next-line no-console
     console.error(`[GraphicDisplay] ${dbgKey}`, ...args);
   }
 
@@ -415,11 +391,8 @@ export default function GraphicDisplay({
   const [points, setPoints] = useState([]);
 
   const [isPlaying, setIsPlaying] = useState(true);
-
-  // ✅ Explore modal state
   const [exploreOpen, setExploreOpen] = useState(false);
 
-  // 🔎 one-time: log binding
   useEffect(() => {
     dbg("MOUNT / bind", {
       isPlay,
@@ -463,7 +436,7 @@ export default function GraphicDisplay({
 
   const maxPoints = useMemo(() => {
     const win = Number.isFinite(windowSize) ? Math.max(2, windowSize) : 60;
-    const smp = Number.isFinite(sampleMs) ? Math.max(250, sampleMs) : 1000;
+    const smp = Number.isFinite(sampleMs) ? Math.max(250, sampleMs) : 3000;
     const units = msPerUnit(timeUnit);
     const totalMs = win * units;
     return Math.max(2, Math.round(totalMs / smp));
@@ -474,7 +447,6 @@ export default function GraphicDisplay({
     maxPointsRef.current = maxPoints;
   }, [maxPoints]);
 
-  // LOAD points on binding change
   useEffect(() => {
     if (!bindDeviceId || !bindField) {
       dbgWarn("LOAD: missing bindDeviceId or bindField -> clearing points");
@@ -506,9 +478,9 @@ export default function GraphicDisplay({
       .reverse()
       .find((p) => Number.isFinite(Number(p?.y)));
     if (lastNumeric) setMathOutput(Number(lastNumeric.y));
+    else setMathOutput(null);
   }, [storageKey, bindDeviceId, bindField, windowSize, timeUnit]);
 
-  // SAVE points debounced
   const saveTimerRef = useRef(null);
   useEffect(() => {
     if (!bindDeviceId || !bindField) return;
@@ -553,7 +525,6 @@ export default function GraphicDisplay({
 
   // ✅ MAIN POLL (telemetryMap sync)
   useEffect(() => {
-    // ✅ IMPORTANT: Launch must behave like Play
     if (!isRunMode) return;
     if (!isPlaying) return;
 
@@ -570,7 +541,6 @@ export default function GraphicDisplay({
       setErr("");
 
       const row = getRowFromTelemetryMap(telemetryMap, bindModel, bindDeviceId);
-
       const st = normalizeOnlineStatusFromRow(row);
       setDeviceOnline(st.online);
 
@@ -586,13 +556,31 @@ export default function GraphicDisplay({
         safeLive = Number.isFinite(parsed) ? parsed : null;
       }
 
-      const out = computeMathOutput(safeLive, mathFormula);
+      // ✅ FIX: when formula is empty, use raw live value directly
+      const trimmedFormula = String(mathFormula || "").trim();
+      const out = trimmedFormula
+        ? computeMathOutput(safeLive, trimmedFormula)
+        : safeLive;
+
+      dbg("POLL", {
+        bindModel,
+        bindDeviceId,
+        bindField,
+        rowFound: !!row,
+        rowKeys:
+          row && typeof row === "object" ? Object.keys(row).slice(0, 20) : null,
+        raw,
+        safeLive,
+        mathFormula: trimmedFormula,
+        out,
+        deviceOnline: st.online,
+      });
 
       setLiveValue(safeLive);
-      setMathOutput(out);
+      setMathOutput(Number.isFinite(out) ? out : null);
 
       const now = Date.now();
-      const smp = Math.max(250, Number(sampleMs) || 1000);
+      const smp = Math.max(250, Number(sampleMs) || 3000);
       const last = lastSampleAtRef.current || 0;
 
       if (now - last < smp) return;
@@ -605,6 +593,13 @@ export default function GraphicDisplay({
           const limit = maxPointsRef.current || 2;
           if (pruned.length > limit) pruned.splice(0, pruned.length - limit);
           return pruned;
+        });
+      } else {
+        dbgWarn("POLL: no numeric output to append", {
+          raw,
+          safeLive,
+          mathFormula: trimmedFormula,
+          out,
         });
       }
     } catch (e) {
@@ -631,7 +626,7 @@ export default function GraphicDisplay({
       yMin: Number(yMin),
       yMax: Number(yMax),
       fmtTimeWithDate,
-      hoverAnywhere: exploreOpen, // ✅ ONLY while Explore modal is open (Explore IN)
+      hoverAnywhere: exploreOpen,
     });
 
   const { svg } = useTrendSvg({
@@ -643,8 +638,6 @@ export default function GraphicDisplay({
     dbgWarn,
   });
 
-  // ✅ Compute totalizer value over the CURRENT VISIBLE data (pointsForView)
-  // ✅ If reset is used, integrate only points AFTER totalizerResetAt
   const totalizerValue = useMemo(() => {
     if (singleUnitsEnabled) return null;
     if (!totEnabled) return null;
@@ -698,9 +691,8 @@ export default function GraphicDisplay({
     };
   }, [deviceOnline, bindDeviceId]);
 
-  // ✅ Totalizer header control handlers
   const onTotalizerEnable = () => {
-    if (singleUnitsEnabled) return; // Single Units wins
+    if (singleUnitsEnabled) return;
     setTotEnabled(true);
     dbg("TOTALIZER: enabled from header");
   };
@@ -711,13 +703,12 @@ export default function GraphicDisplay({
   };
 
   const onTotalizerReset = () => {
-    if (singleUnitsEnabled) return; // Single Units wins
+    if (singleUnitsEnabled) return;
     const t = Date.now();
     setTotalizerResetAt(t);
     dbg("TOTALIZER: reset from header", { resetAt: t });
   };
 
-  // ✅ Unit label used on the chart/UI
   const displayUnits = useMemo(() => {
     const su = String(singleUnitsUnit || "").trim();
     const yu = String(yUnits || "").trim();
@@ -734,22 +725,17 @@ export default function GraphicDisplay({
     totalizerRateUnit,
   ]);
 
-  // ✅ Settings button handler (delegates to parent/AppModals)
   const onOpenSettings = () => {
     dbg("SETTINGS: open");
     if (typeof onOpenSettingsProp === "function") {
       onOpenSettingsProp();
       return;
     }
-    // eslint-disable-next-line no-console
     console.warn(
       "[GraphicDisplay] onOpenSettings was clicked, but no onOpenSettings prop was provided. Pass it from DraggableGraphicDisplay so AppModals opens the settings modal."
     );
   };
 
-  // ✅ When modal applies: update local tank + call optional parent saver
-  // NOTE: This still exists for compatibility if you reuse this component elsewhere,
-  // but the main dashboard flow should save via AppModals.
   const handleSettingsSave = (nextTank) => {
     setLocalTank(nextTank);
 
@@ -766,7 +752,6 @@ export default function GraphicDisplay({
       return;
     }
 
-    // eslint-disable-next-line no-console
     console.warn(
       "[GraphicDisplay] Settings saved locally, but no parent onSaveSettings / tank.onSave handler was found."
     );
@@ -775,31 +760,23 @@ export default function GraphicDisplay({
   function buildPanel(isExploreMode) {
     return (
       <GraphicDisplayPanel
-        // mode
         isExploreMode={isExploreMode}
-        // ✅ IMPORTANT: pass run-mode to panel (launch behaves like play)
         isPlay={isRunMode}
-        // header/meta
         title={title}
         lineColor={lineColor}
         styleBadge={styleBadge}
         statusLabel={statusLabel}
         bindDeviceId={bindDeviceId}
-        // settings (✅ opens AppModals)
         onOpenSettings={onOpenSettings}
-        // totalizer display (header)
         totalizerEnabled={singleUnitsEnabled ? false : totEnabled}
         totalizerRateUnit={totalizerRateUnit}
         totalizerTotalUnit={totalizerTotalUnit}
         totalizerValue={totalizerValue}
-        // totalizer header controls
         onTotalizerEnable={onTotalizerEnable}
         onTotalizerDisable={onTotalizerDisable}
         onTotalizerReset={onTotalizerReset}
-        // single units
         singleUnitsEnabled={singleUnitsEnabled}
         singleUnit={singleUnitsUnit}
-        // controls
         isPlaying={isPlaying}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
@@ -814,15 +791,12 @@ export default function GraphicDisplay({
             fmt: fmtTimeWithDate,
           })
         }
-        // info row
         timeUnit={timeUnit}
         sampleMs={sampleMs}
         windowSize={windowSize}
         yMin={yMin}
         yMax={yMax}
-        // units
         yUnits={displayUnits}
-        // layout/plot
         gridBackground={gridBackground}
         yTicks={yTicks}
         plotRef={plotRef}
@@ -832,7 +806,6 @@ export default function GraphicDisplay({
         timeTicks={timeTicks}
         fmtTime={fmtTimeWithDate}
         svg={svg}
-        // output/errors
         mathOutput={mathOutput}
         err={err}
       />
@@ -841,7 +814,6 @@ export default function GraphicDisplay({
 
   return (
     <>
-      {/* ✅ Explore Portal */}
       <GraphicDisplayExplorePortal
         open={exploreOpen}
         onClose={() => setExploreOpen(false)}
