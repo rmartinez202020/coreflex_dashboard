@@ -71,15 +71,6 @@ export default function AppModals({
     return s ? s : null;
   }, [dashboardId]);
 
-  // ✅ PROOF: if you DO NOT see this in the console, you are NOT running this file in prod.
-  // (This is the #1 reason your AppModals logs "never show".)
-  console.warn("🧪 [AppModals] RENDER PROOF (if you see this, AppModals is running)", {
-    dashboardId: safeDashboardId,
-    hasOnSaveProject: typeof onSaveProject === "function",
-    tanks: Array.isArray(droppedTanks) ? droppedTanks.length : null,
-    graphicSettingsId,
-  });
-
   // ✅ always keep latest droppedTanks (avoids stale closure issues)
   const droppedTanksRef = useRef([]);
   useEffect(() => {
