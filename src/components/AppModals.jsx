@@ -111,15 +111,6 @@ export default function AppModals({
     );
   }, [droppedTanks, graphicSettingsId]);
 
-  useEffect(() => {
-    if (!graphicTarget) return;
-    console.warn("🧪 [AppModals] Graphic modal TARGET found", {
-      id: graphicTarget?.id,
-      shape: graphicTarget?.shape,
-      hasOnSaveProject: typeof onSaveProject === "function",
-    });
-  }, [graphicTarget, onSaveProject]);
-
   const activeSilo = useMemo(() => {
     if (activeSiloId == null) return null;
     return droppedTanks.find(
@@ -329,13 +320,6 @@ export default function AppModals({
           tank={graphicTarget}
           onClose={closeGraphicDisplaySettings}
           onSave={async (updatedTank) => {
-            console.warn("✅ [AppModals] Graphic onSave(updatedTank) HIT", {
-              id: updatedTank?.id,
-              shape: updatedTank?.shape,
-              title: updatedTank?.title,
-              hasOnSaveProject: typeof onSaveProject === "function",
-            });
-
             // ✅ Use the LATEST tanks, not a stale closure
             const base = droppedTanksRef.current || [];
 
@@ -354,15 +338,10 @@ export default function AppModals({
                 await onSaveProject(next);
                 console.warn("✅ [AppModals] onSaveProject(next) FINISHED");
               } catch (e) {
-                console.error("❌ [AppModals] onSaveProject(next) FAILED:", e);
                 alert(e?.message || "Save failed");
                 return; // ✅ do NOT close modal if save failed
               }
             } else {
-              console.error(
-                "❌ [AppModals] onSaveProject is NOT a function:",
-                onSaveProject
-              );
               alert("onSaveProject is missing (not a function).");
               return;
             }
