@@ -32,16 +32,6 @@ const MODEL_META = {
   zhc1661: { label: "CF-1600", base: "zhc1661" },
 };
 
-// ✅ DEBUG SWITCH
-const DEBUG_APPLY = true;
-
-function dbgWarn(...args) {
-  if (DEBUG_APPLY) console.warn(...args);
-}
-function dbgErr(...args) {
-  if (DEBUG_APPLY) console.error(...args);
-}
-
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -115,7 +105,6 @@ function normalizeModelKey(m) {
   const s = String(m || "").trim().toLowerCase();
   if (s === "cf-2000" || s === "cf2000") return "zhc1921";
   if (s === "cf-1600" || s === "cf1600") return "zhc1661";
-  // allow already-canonical
   if (s === "zhc1921" || s === "zhc1661") return s;
   return s;
 }
@@ -190,15 +179,6 @@ export default function GraphicDisplaySettingsModal({
   telemetryMap = null,
 }) {
   const portalTarget = typeof document !== "undefined" ? document.body : null;
-
-  useEffect(() => {
-    if (!open) return;
-    dbgErr("🧪 [GraphicDisplaySettingsModal] OPENED", {
-      widgetId: tank?.id,
-      shape: tank?.shape,
-      hasOnSave: typeof onSave === "function",
-    });
-  }, [open, tank, onSave]);
 
   useEffect(() => {
     if (!open) return;
@@ -326,7 +306,7 @@ export default function GraphicDisplaySettingsModal({
 
   const safeWindow = Number.isFinite(windowSize) ? windowSize : 0;
   const safeYMin = Number.isFinite(yMin) ? yMin : 0;
-  const safeYMax = Number.isFinite(yMax) ? yMax : 0;
+  const safeYMax = Number.isFinite(yMax) ? yMax : 100;
 
   const safeLineColor = normalizeHexColor(lineColor);
   const yRangeValid = safeYMax > safeYMin;
@@ -476,14 +456,6 @@ export default function GraphicDisplaySettingsModal({
 
     const normModel = normalizeModelKey(bindModel);
 
-    dbgWarn("🌐 [GraphicDisplaySettingsModal] persistBinding START", {
-      wid,
-      dash,
-      bindModel: normModel,
-      bindDeviceId,
-      bindField,
-    });
-
     const res = await apiPost("/graphic-display-bindings/upsert", {
       dashboard_id: dash,
       widget_id: wid,
@@ -513,7 +485,6 @@ export default function GraphicDisplaySettingsModal({
       is_enabled: true,
     });
 
-    dbgWarn("🌐 [GraphicDisplaySettingsModal] persistBinding OK", res);
     return res;
   };
 
@@ -521,14 +492,6 @@ export default function GraphicDisplaySettingsModal({
     try {
       e?.stopPropagation?.();
       e?.preventDefault?.();
-
-      dbgErr("🧪 [GraphicDisplaySettingsModal] APPLY CLICKED", {
-        canApply,
-        yRangeValid,
-        bindDeviceId,
-        bindField,
-        isApplying,
-      });
 
       if (!yRangeValid || !bindDeviceId || !bindField) return;
       if (isApplying) return;
@@ -565,11 +528,6 @@ export default function GraphicDisplaySettingsModal({
         singleUnitsEnabled: !!singleUnitsEnabled,
         singleUnit: String(singleUnit || "").trim(),
       };
-
-      dbgWarn("✅ [GraphicDisplaySettingsModal] calling onSave(nextTank)", {
-        id: nextTank?.id,
-        shape: nextTank?.shape,
-      });
 
       onSave?.(nextTank);
     } catch (err) {
@@ -801,20 +759,6 @@ export default function GraphicDisplaySettingsModal({
                 {isApplying ? "Saving..." : "Apply"}
               </button>
             </div>
-
-            {DEBUG_APPLY && (
-              <div
-                style={{
-                  marginTop: 8,
-                  fontSize: 11,
-                  fontWeight: 900,
-                  color: "#991b1b",
-                  textAlign: "right",
-                }}
-              >
-                DEBUG_APPLY ON
-              </div>
-            )}
           </div>
         </div>
       </div>
