@@ -2,6 +2,8 @@
 import { useState, useRef, useEffect, useMemo, useCallback } from "react";
 import { useDraggable } from "@dnd-kit/core";
 import GraphicDisplay from "./controls/GraphicDisplay";
+import { API_URL } from "../config/api";
+import { getToken } from "../utils/authToken";
 
 export default function DraggableGraphicDisplay({
   tank,
@@ -35,6 +37,12 @@ export default function DraggableGraphicDisplay({
   const [isResizing, setIsResizing] = useState(false);
   const [resizeDir, setResizeDir] = useState(null);
   const startRef = useRef({ x: 0, y: 0, w: 0, h: 0 });
+
+  // ✅ NEW: avoid spamming visibility posts
+  const visibilityRef = useRef({
+    mounted: false,
+    lastSent: null,
+  });
 
   const width = tank.w ?? 520;
   const height = tank.h ?? 260;
@@ -185,6 +193,71 @@ export default function DraggableGraphicDisplay({
       onDoubleClick(tank);
     }
   }, [isPlay, onOpenSettings, onDoubleClick, tank]);
+
+  // ✅ NEW: resolve dashboard id used by backend visibility route
+  const resolvedDashboardId = useMemo(() => {
+    return String(
+      tank?.dashboard_id ||
+        tank?.dashboardId ||
+        tank?.properties?.dashboardId ||
+        tank?.properties?.dashboard_id ||
+        "main"
+    ).trim() || "main";
+  }, [tank]);
+
+  // ✅ NEW: tell backend whether this graphic is visible to the user
+  const postGraphicVisibility = useCallback(
+    async (isVisible) => {
+      const widgetId = String(tank?.id || "").trim();
+      if (!widgetId) return;
+
+      const token = String(getToken() || "").trim();
+      if (!token) return;
+
+      // Avoid duplicate posts for same state
+      if (visibilityRef.current.lastSent === !!isVisible) return;
+      visibilityRef.current.lastSent = !!isVisible;
+
+      try {
+        await fetch(`${API_URL}/graphic-display-bindings/visibility`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${token}`,
+          },
+          body: JSON.stringify({
+            dashboard_id: resolvedDashboardId,
+            widget_id: widgetId,
+            is_visible: !!isVisible,
+          }),
+        });
+      } catch (err) {
+        console.warn("Graphic visibility update failed:", err);
+      }
+    },
+    [resolvedDashboardId, tank?.id]
+  );
+
+  // ✅ NEW: when widget is in play/launch/launched, notify visible on mount and hidden on unmount
+  useEffect(() => {
+    const widgetId = String(tank?.id || "").trim();
+    if (!widgetId) return;
+
+    if (!isPlay) {
+      // edit mode should not mark widget as visible
+      visibilityRef.current.lastSent = null;
+      return;
+    }
+
+    visibilityRef.current.mounted = true;
+    postGraphicVisibility(true);
+
+    return () => {
+      visibilityRef.current.mounted = false;
+      // best-effort hidden notification when widget leaves screen/page/mode
+      postGraphicVisibility(false);
+    };
+  }, [isPlay, postGraphicVisibility, tank?.id]);
 
   return (
     <div
