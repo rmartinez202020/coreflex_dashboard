@@ -480,88 +480,136 @@ export default function GraphicDisplay({
   }, []);
 
   // ✅ load full historian from backend once per widget/dashboard
-  useEffect(() => {
-    let cancelled = false;
+useEffect(() => {
+  let cancelled = false;
 
-    async function loadHistory() {
-      if (!widgetId) {
-        setPoints([]);
-        setHistoryLoaded(true);
-        return;
-      }
+  async function loadHistory() {
+    console.log("[GraphicDisplay] loadHistory ENTER", {
+      widgetId,
+      resolvedDashboardId,
+      tankId: T?.id,
+      widgetIdAlt1: T?.widgetId,
+      widgetIdAlt2: T?.widget_id,
+      bindDeviceId,
+      bindField,
+      isRunMode,
+      hasTelemetryMap: !!telemetryMap,
+    });
 
-      const token = String(getToken() || "").trim();
-      if (!token) {
-        dbgWarn("HISTORY: no auth token");
-        setHistoryLoaded(true);
-        return;
-      }
-
-      setHistoryLoading(true);
-      setHistoryLoaded(false);
-
-      try {
-        const url = new URL(`${API_URL}/graphic-display-bindings/history`);
-        url.searchParams.set("dashboard_id", resolvedDashboardId);
-        url.searchParams.set("widget_id", widgetId);
-
-        dbg("HISTORY: request", {
-          url: url.toString(),
-          dashboard_id: resolvedDashboardId,
-          widget_id: widgetId,
-        });
-
-        const res = await fetch(url.toString(), {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
-        });
-
-        if (!res.ok) {
-          const text = await res.text().catch(() => "");
-          throw new Error(`History request failed (${res.status}): ${text}`);
-        }
-
-        const data = await res.json();
-        const normalized = normalizeHistorianPoints(data?.points || []);
-
-        if (cancelled) return;
-
-        dbg("HISTORY: loaded", {
-          files: Array.isArray(data?.files) ? data.files.length : 0,
-          backendCount: data?.count,
-          normalizedCount: normalized.length,
-        });
-
-        setPoints(normalized);
-
-        const lastNumeric = [...normalized]
-          .reverse()
-          .find((p) => Number.isFinite(Number(p?.y)));
-        if (lastNumeric) setMathOutput(Number(lastNumeric.y));
-        else setMathOutput(null);
-
-        setErr("");
-      } catch (e) {
-        if (cancelled) return;
-        dbgErr("HISTORY LOAD ERROR:", e);
-        setErr("Failed to load saved history.");
-        setPoints([]);
-      } finally {
-        if (!cancelled) {
-          setHistoryLoading(false);
-          setHistoryLoaded(true);
-        }
-      }
+    if (!widgetId) {
+      console.warn("[GraphicDisplay] loadHistory SKIP: no widgetId", {
+        widgetId,
+        resolvedDashboardId,
+        tank: T,
+      });
+      setPoints([]);
+      setHistoryLoaded(true);
+      return;
     }
 
-    loadHistory();
+    const token = String(getToken() || "").trim();
+    if (!token) {
+      console.warn("[GraphicDisplay] loadHistory SKIP: no auth token", {
+        widgetId,
+        resolvedDashboardId,
+      });
+      setHistoryLoaded(true);
+      return;
+    }
 
-    return () => {
-      cancelled = true;
-    };
-  }, [widgetId, resolvedDashboardId]);
+    setHistoryLoading(true);
+    setHistoryLoaded(false);
+
+    try {
+      const url = new URL(`${API_URL}/graphic-display-bindings/history`);
+      url.searchParams.set("dashboard_id", resolvedDashboardId);
+      url.searchParams.set("widget_id", widgetId);
+
+      console.log("[GraphicDisplay] HISTORY REQUEST START", {
+        widgetId,
+        resolvedDashboardId,
+        url: url.toString(),
+      });
+
+      const res = await fetch(url.toString(), {
+        method: "GET",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      console.log("[GraphicDisplay] HISTORY RESPONSE RAW", {
+        widgetId,
+        resolvedDashboardId,
+        status: res.status,
+        ok: res.ok,
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        console.error("[GraphicDisplay] HISTORY RESPONSE ERROR TEXT", {
+          widgetId,
+          resolvedDashboardId,
+          status: res.status,
+          text,
+        });
+        throw new Error(`History request failed (${res.status}): ${text}`);
+      }
+
+      const data = await res.json();
+      const normalized = normalizeHistorianPoints(data?.points || []);
+
+      if (cancelled) return;
+
+      console.log("[GraphicDisplay] HISTORY LOADED OK", {
+        widgetId,
+        resolvedDashboardId,
+        files: Array.isArray(data?.files) ? data.files.length : 0,
+        backendCount: data?.count,
+        normalizedCount: normalized.length,
+        data,
+      });
+
+      setPoints(normalized);
+
+      const lastNumeric = [...normalized]
+        .reverse()
+        .find((p) => Number.isFinite(Number(p?.y)));
+      if (lastNumeric) setMathOutput(Number(lastNumeric.y));
+      else setMathOutput(null);
+
+      setErr("");
+    } catch (e) {
+      if (cancelled) return;
+      console.error("[GraphicDisplay] HISTORY LOAD ERROR", {
+        widgetId,
+        resolvedDashboardId,
+        error: e,
+      });
+      setErr("Failed to load saved history.");
+      setPoints([]);
+    } finally {
+      if (!cancelled) {
+        setHistoryLoading(false);
+        setHistoryLoaded(true);
+        console.log("[GraphicDisplay] HISTORY REQUEST END", {
+          widgetId,
+          resolvedDashboardId,
+        });
+      }
+    }
+  }
+
+  loadHistory();
+
+  return () => {
+    cancelled = true;
+    console.log("[GraphicDisplay] loadHistory CANCELLED", {
+      widgetId,
+      resolvedDashboardId,
+    });
+  };
+}, [widgetId, resolvedDashboardId]);
 
   // ✅ if user pauses, insert a gap marker
   useEffect(() => {
