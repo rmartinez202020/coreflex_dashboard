@@ -54,7 +54,6 @@ export default function GraphicDisplayHeader({
   yMin = 0,
   yMax = 100,
 }) {
-  // ✅ top buttons (already smaller)
   const topBtnBase = useMemo(
     () => ({
       height: 28,
@@ -85,19 +84,18 @@ export default function GraphicDisplayHeader({
     [topBtnBase]
   );
 
-  // ✅ SMALLER stat boxes (Output / Unit / Totalizer) — even smaller
   const bigStatBoxStyle = useMemo(
     () => ({
-      height: 26, // ✅ smaller
+      height: 26,
       display: "inline-flex",
       alignItems: "center",
-      gap: 5, // ✅ smaller
-      padding: "0 8px", // ✅ smaller
+      gap: 5,
+      padding: "0 8px",
       borderRadius: 9,
       border: "1px solid rgba(0,0,0,0.12)",
       background: "rgba(255,255,255,0.96)",
       fontFamily: "monospace",
-      fontSize: 11, // ✅ smaller
+      fontSize: 11,
       fontWeight: 400,
       color: "#111",
       whiteSpace: "nowrap",
@@ -105,11 +103,10 @@ export default function GraphicDisplayHeader({
     []
   );
 
-  // ✅ SMALLER online pill
   const onlinePillStyle = useMemo(
     () => ({
-      height: 20, // ✅ smaller
-      padding: "0 9px", // ✅ smaller
+      height: 20,
+      padding: "0 9px",
       borderRadius: 999,
       border: `1px solid ${statusLabel.border}`,
       background: statusLabel.bg,
@@ -127,22 +124,21 @@ export default function GraphicDisplayHeader({
     [statusLabel]
   );
 
-  // ✅ SMALLER totalizer control buttons — even smaller
   const totBtnBase = useMemo(
     () => ({
-      height: 22, // ✅ smaller
-      padding: "0 8px", // ✅ smaller
+      height: 22,
+      padding: "0 8px",
       borderRadius: 7,
       border: "1px solid rgba(0,0,0,0.12)",
       background: "rgba(255,255,255,0.96)",
-      fontSize: 10, // ✅ smaller
+      fontSize: 10,
       fontWeight: 500,
       cursor: "pointer",
       lineHeight: "22px",
       userSelect: "none",
       display: "inline-flex",
       alignItems: "center",
-      gap: 5, // ✅ smaller
+      gap: 5,
       whiteSpace: "nowrap",
     }),
     []
@@ -157,10 +153,14 @@ export default function GraphicDisplayHeader({
     [totBtnBase]
   );
 
+  // ✅ ALWAYS visible now (edit + play + launch)
+  const showSettingsButtonAlways = !!showSettingsBtn;
+  const showExploreButtonAlways = true;
+
   return (
     <div
       style={{
-        padding: "5px 7px", // ✅ tighter overall
+        padding: "5px 7px",
         background: "linear-gradient(180deg, #ffffff 0%, #f4f4f4 100%)",
         flex: "0 0 auto",
         minWidth: 0,
@@ -173,7 +173,7 @@ export default function GraphicDisplayHeader({
           alignItems: "center",
           gap: 8,
           minWidth: 0,
-          paddingBottom: 5, // ✅ tighter
+          paddingBottom: 5,
         }}
       >
         <div
@@ -201,10 +201,10 @@ export default function GraphicDisplayHeader({
             justifyContent: "flex-end",
             maxWidth: "72%",
             overflowX: "auto",
-            paddingBottom: 1, // ✅ tighter
+            paddingBottom: 1,
           }}
         >
-          {showSettingsBtn && (
+          {showSettingsButtonAlways && (
             <button
               type="button"
               onClick={onOpenSettings}
@@ -215,7 +215,7 @@ export default function GraphicDisplayHeader({
             </button>
           )}
 
-          {isRunMode && (
+          {showExploreButtonAlways && (
             <button
               type="button"
               onClick={onToggleExplore}
@@ -259,7 +259,6 @@ export default function GraphicDisplayHeader({
             ⬇ <span>Export</span>
           </button>
 
-          {/* LINE chip */}
           <div
             style={{
               display: "inline-flex",
@@ -307,33 +306,32 @@ export default function GraphicDisplayHeader({
 
       <div style={{ height: 0, borderTop: FRAME_LINE, width: "100%" }} />
 
-      {/* ROW 2 — ✅ MUCH SMALLER */}
+      {/* ROW 2 */}
       <div
         style={{
-          marginTop: 4, // ✅ tighter
+          marginTop: 4,
           display: "flex",
           alignItems: "center",
           justifyContent: "space-between",
-          gap: 8, // ✅ tighter
+          gap: 8,
           flexWrap: "wrap",
-          paddingBottom: 4, // ✅ tighter
+          paddingBottom: 4,
           minWidth: 0,
         }}
       >
-        {/* LEFT: Totalizer Controls */}
         {showTotalizerControls ? (
           <div
             style={{
               display: "inline-flex",
               alignItems: "center",
-              gap: 6, // ✅ tighter
+              gap: 6,
               flex: "1 1 auto",
-              minWidth: 200, // ✅ smaller
+              minWidth: 200,
             }}
           >
             <div
               style={{
-                fontSize: 10, // ✅ smaller
+                fontSize: 10,
                 color: "#111",
                 fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
                 fontWeight: 700,
@@ -348,7 +346,7 @@ export default function GraphicDisplayHeader({
               style={{
                 display: "inline-flex",
                 alignItems: "center",
-                gap: 5, // ✅ tighter
+                gap: 5,
                 flexWrap: "wrap",
               }}
             >
@@ -403,13 +401,12 @@ export default function GraphicDisplayHeader({
           <div style={{ flex: "1 1 auto", minWidth: 200 }} />
         )}
 
-        {/* RIGHT: Output + (Unit) + (Totalizer) boxes */}
         <div
           style={{
             display: "inline-flex",
             alignItems: "center",
             justifyContent: "flex-end",
-            gap: 6, // ✅ tighter
+            gap: 6,
             flex: "0 0 auto",
             flexWrap: "wrap",
           }}
@@ -420,7 +417,7 @@ export default function GraphicDisplayHeader({
                 color: "#555",
                 fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
                 fontWeight: 500,
-                fontSize: 10, // ✅ smaller
+                fontSize: 10,
               }}
             >
               Output:
@@ -434,7 +431,7 @@ export default function GraphicDisplayHeader({
                   color: "#475569",
                   fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
                   fontWeight: 500,
-                  fontSize: 10, // ✅ smaller
+                  fontSize: 10,
                   marginLeft: 2,
                 }}
                 title="Unit"
@@ -484,18 +481,18 @@ export default function GraphicDisplayHeader({
 
       <div style={{ height: 0, borderTop: FRAME_LINE, width: "100%" }} />
 
-      {/* info row — ✅ smaller */}
+      {/* info row */}
       <div
         style={{
           display: "flex",
           alignItems: "center",
-          gap: 5, // ✅ tighter
+          gap: 5,
           color: "#444",
-          fontSize: 9, // ✅ smaller
-          marginTop: 4, // ✅ tighter
+          fontSize: 9,
+          marginTop: 4,
           minWidth: 0,
           flexWrap: "wrap",
-          paddingBottom: 4, // ✅ tighter
+          paddingBottom: 4,
           fontWeight: 500,
         }}
       >
