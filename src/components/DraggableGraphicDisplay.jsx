@@ -38,7 +38,7 @@ export default function DraggableGraphicDisplay({
   const [resizeDir, setResizeDir] = useState(null);
   const startRef = useRef({ x: 0, y: 0, w: 0, h: 0 });
 
-  // ✅ NEW: avoid spamming visibility posts
+  // ✅ NEW: visibility/heartbeat state
   const visibilityRef = useRef({
     mounted: false,
     lastSent: null,
@@ -206,16 +206,16 @@ export default function DraggableGraphicDisplay({
   }, [tank]);
 
   // ✅ NEW: tell backend whether this graphic is visible to the user
+  // force=true bypasses duplicate suppression (used for heartbeat)
   const postGraphicVisibility = useCallback(
-    async (isVisible) => {
+    async (isVisible, force = false) => {
       const widgetId = String(tank?.id || "").trim();
       if (!widgetId) return;
 
       const token = String(getToken() || "").trim();
       if (!token) return;
 
-      // Avoid duplicate posts for same state
-      if (visibilityRef.current.lastSent === !!isVisible) return;
+      if (!force && visibilityRef.current.lastSent === !!isVisible) return;
       visibilityRef.current.lastSent = !!isVisible;
 
       try {
@@ -238,26 +238,36 @@ export default function DraggableGraphicDisplay({
     [resolvedDashboardId, tank?.id]
   );
 
-  // ✅ NEW: when widget is in play/launch/launched, notify visible on mount and hidden on unmount
+  // ✅ NEW: mounted in browser = visible
+  // user asked for play OR edit mode to count as visible while widget is on screen
   useEffect(() => {
     const widgetId = String(tank?.id || "").trim();
     if (!widgetId) return;
-
-    if (!isPlay) {
-      // edit mode should not mark widget as visible
-      visibilityRef.current.lastSent = null;
-      return;
-    }
 
     visibilityRef.current.mounted = true;
     postGraphicVisibility(true);
 
     return () => {
       visibilityRef.current.mounted = false;
-      // best-effort hidden notification when widget leaves screen/page/mode
-      postGraphicVisibility(false);
+
+      // best-effort hidden notification on unmount
+      // browser close may cancel this, so heartbeat + TTL on Node-RED is still needed
+      postGraphicVisibility(false, true);
     };
-  }, [isPlay, postGraphicVisibility, tank?.id]);
+  }, [postGraphicVisibility, tank?.id]);
+
+  // ✅ NEW: heartbeat every 20s while widget exists in browser
+  // if browser/tab closes, heartbeat stops and Node-RED TTL can downgrade to hidden mode
+  useEffect(() => {
+    const widgetId = String(tank?.id || "").trim();
+    if (!widgetId) return;
+
+    const id = window.setInterval(() => {
+      postGraphicVisibility(true, true);
+    }, 20000);
+
+    return () => window.clearInterval(id);
+  }, [postGraphicVisibility, tank?.id]);
 
   return (
     <div
