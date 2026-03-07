@@ -11,6 +11,8 @@ import useTrendSvg from "./graphicDisplay/hooks/useTrendSvg";
 import useTrendLayout from "./graphicDisplay/hooks/useTrendLayout";
 import GraphicDisplayExplorePortal from "./graphicDisplay/GraphicDisplayExplorePortal";
 import GraphicDisplayPanel from "./graphicDisplay/GraphicDisplayPanel";
+import { API_URL } from "../../config/api";
+import { getToken } from "../../utils/authToken";
 
 const DEFAULT_LINE_COLOR = "#0c5ac8";
 
@@ -118,33 +120,76 @@ function exportPointsCsv({
   URL.revokeObjectURL(url);
 }
 
-function safeJsonParse(s) {
-  try {
-    return JSON.parse(s);
-  } catch {
-    return null;
+function parseHistorianTs(value) {
+  if (value === null || value === undefined) return NaN;
+
+  // already epoch
+  if (typeof value === "number") {
+    return Number.isFinite(value) ? value : NaN;
   }
+
+  const s = String(value || "").trim();
+  if (!s) return NaN;
+
+  // ISO or browser-parsable format
+  const direct = Date.parse(s);
+  if (Number.isFinite(direct)) return direct;
+
+  // MM/DD/YYYY HH:MM:SS AM/PM
+  const m = s.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2})(?::(\d{2}))?\s*(AM|PM)$/i
+  );
+  if (m) {
+    let month = Number(m[1]);
+    let day = Number(m[2]);
+    const year = Number(m[3]);
+    let hour = Number(m[4]);
+    const minute = Number(m[5]);
+    const second = Number(m[6] || 0);
+    const ampm = String(m[7] || "").toUpperCase();
+
+    if (ampm === "PM" && hour < 12) hour += 12;
+    if (ampm === "AM" && hour === 12) hour = 0;
+
+    const dt = new Date(year, month - 1, day, hour, minute, second, 0).getTime();
+    return Number.isFinite(dt) ? dt : NaN;
+  }
+
+  return NaN;
 }
 
-function prunePointsByWindow(points, windowSize, timeUnit) {
-  const arr = Array.isArray(points) ? points : [];
-  const win = Number.isFinite(windowSize) ? Math.max(1, Number(windowSize)) : 60;
-  const unitMs = msPerUnit(timeUnit || "seconds");
-  const keepMs = win * unitMs;
-  const bufferMs = Math.min(keepMs * 0.15, 30_000);
-  const cutoff = Date.now() - (keepMs + bufferMs);
+function normalizeHistorianPoints(rows) {
+  const src = Array.isArray(rows) ? rows : [];
 
-  const cleaned = arr
-    .map((p) => ({
-      t: Number(p?.t),
-      y: p?.y,
-      gap: !!p?.gap,
-    }))
+  return src
+    .map((row) => {
+      const t = parseHistorianTs(
+        row?.ts ??
+          row?.timestamp ??
+          row?.time ??
+          row?.t ??
+          row?.created_at ??
+          null
+      );
+
+      const preferredValue =
+        row?.mathOutput ??
+        row?.value ??
+        row?.y ??
+        row?.output ??
+        row?.raw ??
+        null;
+
+      const y = Number(preferredValue);
+
+      return {
+        t,
+        y: Number.isFinite(y) ? y : null,
+        gap: !!row?.gap,
+      };
+    })
     .filter((p) => Number.isFinite(p.t))
-    .sort((a, b) => a.t - b.t)
-    .filter((p) => p.t >= cutoff);
-
-  return cleaned;
+    .sort((a, b) => a.t - b.t);
 }
 
 /**
@@ -257,6 +302,7 @@ export default function GraphicDisplay({
   isPlay = false,
   onSaveSettings,
   onOpenSettings: onOpenSettingsProp = null,
+  dashboardId = null,
 }) {
   const isRunMode = useMemo(() => {
     return !!isPlay || detectLaunchMode();
@@ -287,6 +333,23 @@ export default function GraphicDisplay({
   const bindField = String(T?.bindField ?? "ai1").trim();
   const mathFormula = T?.mathFormula ?? "";
   const lineColor = normalizeLineColor(T?.lineColor);
+
+  const resolvedDashboardId = useMemo(() => {
+    return (
+      String(
+        dashboardId ||
+          T?.dashboard_id ||
+          T?.dashboardId ||
+          T?.properties?.dashboardId ||
+          T?.properties?.dashboard_id ||
+          "main"
+      ).trim() || "main"
+    );
+  }, [dashboardId, T]);
+
+  const widgetId = useMemo(() => {
+    return String(T?.id ?? T?.widgetId ?? T?.widget_id ?? "").trim();
+  }, [T]);
 
   const tankSingleEnabled = T?.singleUnitsEnabled === true;
   const tankSingleUnit = String(
@@ -342,9 +405,9 @@ export default function GraphicDisplay({
   }, [T]);
 
   const dbgKey = useMemo(() => {
-    const widgetId = T?.id ?? T?.widgetId ?? T?.widget_id ?? T?.uuid ?? "";
-    return widgetId
-      ? `widget:${widgetId}`
+    const widgetIdLocal = T?.id ?? T?.widgetId ?? T?.widget_id ?? T?.uuid ?? "";
+    return widgetIdLocal
+      ? `widget:${widgetIdLocal}`
       : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
   }, [T, bindModel, bindDeviceId, bindField]);
 
@@ -360,14 +423,6 @@ export default function GraphicDisplay({
     if (!DEBUG) return;
     console.error(`[GraphicDisplay] ${dbgKey}`, ...args);
   }
-
-  const storageKey = useMemo(() => {
-    const widgetId = T?.id ?? T?.widgetId ?? T?.widget_id ?? T?.uuid ?? "";
-    const base = widgetId
-      ? `widget:${widgetId}`
-      : `bind:${bindModel}:${bindDeviceId}:${bindField}`;
-    return `coreflex:graphicDisplay:points:${base}`;
-  }, [T, bindModel, bindDeviceId, bindField]);
 
   const yDivs = Number.isFinite(T?.yDivs) ? Math.max(2, T.yDivs) : 10;
   const xDivs = Number.isFinite(T?.xDivs) ? Math.max(2, T.xDivs) : 12;
@@ -389,6 +444,8 @@ export default function GraphicDisplay({
   const [err, setErr] = useState("");
   const [deviceOnline, setDeviceOnline] = useState(null);
   const [points, setPoints] = useState([]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyLoaded, setHistoryLoaded] = useState(false);
 
   const [isPlaying, setIsPlaying] = useState(true);
   const [exploreOpen, setExploreOpen] = useState(false);
@@ -401,6 +458,8 @@ export default function GraphicDisplay({
       bindModel,
       bindDeviceId,
       bindField,
+      widgetId,
+      resolvedDashboardId,
       sampleMs,
       windowSize,
       timeUnit,
@@ -420,6 +479,91 @@ export default function GraphicDisplay({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
+  // ✅ load full historian from backend once per widget/dashboard
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadHistory() {
+      if (!widgetId) {
+        setPoints([]);
+        setHistoryLoaded(true);
+        return;
+      }
+
+      const token = String(getToken() || "").trim();
+      if (!token) {
+        dbgWarn("HISTORY: no auth token");
+        setHistoryLoaded(true);
+        return;
+      }
+
+      setHistoryLoading(true);
+      setHistoryLoaded(false);
+
+      try {
+        const url = new URL(`${API_URL}/graphic-display-bindings/history`);
+        url.searchParams.set("dashboard_id", resolvedDashboardId);
+        url.searchParams.set("widget_id", widgetId);
+
+        dbg("HISTORY: request", {
+          url: url.toString(),
+          dashboard_id: resolvedDashboardId,
+          widget_id: widgetId,
+        });
+
+        const res = await fetch(url.toString(), {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(`History request failed (${res.status}): ${text}`);
+        }
+
+        const data = await res.json();
+        const normalized = normalizeHistorianPoints(data?.points || []);
+
+        if (cancelled) return;
+
+        dbg("HISTORY: loaded", {
+          files: Array.isArray(data?.files) ? data.files.length : 0,
+          backendCount: data?.count,
+          normalizedCount: normalized.length,
+        });
+
+        setPoints(normalized);
+
+        const lastNumeric = [...normalized]
+          .reverse()
+          .find((p) => Number.isFinite(Number(p?.y)));
+        if (lastNumeric) setMathOutput(Number(lastNumeric.y));
+        else setMathOutput(null);
+
+        setErr("");
+      } catch (e) {
+        if (cancelled) return;
+        dbgErr("HISTORY LOAD ERROR:", e);
+        setErr("Failed to load saved history.");
+        setPoints([]);
+      } finally {
+        if (!cancelled) {
+          setHistoryLoading(false);
+          setHistoryLoaded(true);
+        }
+      }
+    }
+
+    loadHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [widgetId, resolvedDashboardId]);
+
+  // ✅ if user pauses, insert a gap marker
   useEffect(() => {
     if (!bindDeviceId || !bindField) return;
 
@@ -434,99 +578,13 @@ export default function GraphicDisplay({
     }
   }, [isPlaying, bindDeviceId, bindField]);
 
-  const maxPoints = useMemo(() => {
-    const win = Number.isFinite(windowSize) ? Math.max(2, windowSize) : 60;
-    const smp = Number.isFinite(sampleMs) ? Math.max(250, sampleMs) : 3000;
-    const units = msPerUnit(timeUnit);
-    const totalMs = win * units;
-    return Math.max(2, Math.round(totalMs / smp));
-  }, [windowSize, sampleMs, timeUnit]);
-
-  const maxPointsRef = useRef(maxPoints);
-  useEffect(() => {
-    maxPointsRef.current = maxPoints;
-  }, [maxPoints]);
-
-  useEffect(() => {
-    if (!bindDeviceId || !bindField) {
-      dbgWarn("LOAD: missing bindDeviceId or bindField -> clearing points");
-      setPoints([]);
-      setDeviceOnline(null);
-      return;
-    }
-
-    const raw = localStorage.getItem(storageKey);
-    const parsed = raw ? safeJsonParse(raw) : null;
-
-    const loaded = Array.isArray(parsed?.points)
-      ? parsed.points
-      : Array.isArray(parsed)
-      ? parsed
-      : [];
-    const pruned = prunePointsByWindow(loaded, windowSize, timeUnit);
-
-    dbg("LOAD: localStorage", {
-      storageKey,
-      rawSize: raw ? raw.length : 0,
-      loadedCount: loaded.length,
-      prunedCount: pruned.length,
-    });
-
-    setPoints(pruned);
-
-    const lastNumeric = [...pruned]
-      .reverse()
-      .find((p) => Number.isFinite(Number(p?.y)));
-    if (lastNumeric) setMathOutput(Number(lastNumeric.y));
-    else setMathOutput(null);
-  }, [storageKey, bindDeviceId, bindField, windowSize, timeUnit]);
-
-  const saveTimerRef = useRef(null);
-  useEffect(() => {
-    if (!bindDeviceId || !bindField) return;
-
-    if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
-
-    saveTimerRef.current = window.setTimeout(() => {
-      const pruned = prunePointsByWindow(points, windowSize, timeUnit);
-      const limit = Math.max(50, Number(maxPointsRef.current || 200));
-      const finalPoints =
-        pruned.length > limit ? pruned.slice(pruned.length - limit) : pruned;
-
-      try {
-        localStorage.setItem(
-          storageKey,
-          JSON.stringify({
-            v: 1,
-            savedAt: Date.now(),
-            bind: { bindModel, bindDeviceId, bindField },
-            points: finalPoints,
-          })
-        );
-      } catch (e) {
-        dbgWarn("SAVE: localStorage error (quota?)", e);
-      }
-    }, 350);
-
-    return () => {
-      if (saveTimerRef.current) window.clearTimeout(saveTimerRef.current);
-    };
-  }, [
-    points,
-    storageKey,
-    bindDeviceId,
-    bindField,
-    windowSize,
-    timeUnit,
-    bindModel,
-  ]);
-
   const lastSampleAtRef = useRef(0);
 
-  // ✅ MAIN POLL (telemetryMap sync)
+  // ✅ MAIN LIVE APPEND (common poller)
   useEffect(() => {
     if (!isRunMode) return;
     if (!isPlaying) return;
+    if (!historyLoaded) return;
 
     if (!bindDeviceId || !bindField) {
       setLiveValue(null);
@@ -538,8 +596,6 @@ export default function GraphicDisplay({
     }
 
     try {
-      setErr("");
-
       const row = getRowFromTelemetryMap(telemetryMap, bindModel, bindDeviceId);
       const st = normalizeOnlineStatusFromRow(row);
       setDeviceOnline(st.online);
@@ -565,7 +621,7 @@ export default function GraphicDisplay({
         ? computeMathOutput(safeLive, normalizedFormula)
         : safeLive;
 
-      dbg("POLL", {
+      dbg("LIVE", {
         bindModel,
         bindDeviceId,
         bindField,
@@ -592,14 +648,22 @@ export default function GraphicDisplay({
 
       if (Number.isFinite(out)) {
         setPoints((prev) => {
-          const next = [...prev, { t: now, y: out }];
-          const pruned = prunePointsByWindow(next, windowSize, timeUnit);
-          const limit = maxPointsRef.current || 2;
-          if (pruned.length > limit) pruned.splice(0, pruned.length - limit);
-          return pruned;
+          const lastPoint = prev.length ? prev[prev.length - 1] : null;
+
+          // avoid appending the exact same millisecond/value pair twice
+          if (
+            lastPoint &&
+            !lastPoint.gap &&
+            Number(lastPoint.t) === now &&
+            Number(lastPoint.y) === Number(out)
+          ) {
+            return prev;
+          }
+
+          return [...prev, { t: now, y: out }];
         });
       } else {
-        dbgWarn("POLL: no numeric output to append", {
+        dbgWarn("LIVE: no numeric output to append", {
           raw,
           safeLive,
           mathFormula: trimmedFormula,
@@ -607,22 +671,26 @@ export default function GraphicDisplay({
           out,
         });
       }
+
+      if (err === "Failed to load saved history.") {
+        setErr("");
+      }
     } catch (e) {
-      dbgErr("POLL ERROR:", e);
+      dbgErr("LIVE ERROR:", e);
       setErr("Trend read failed (common poller map).");
       setDeviceOnline(false);
     }
   }, [
     isRunMode,
     isPlaying,
+    historyLoaded,
     telemetryMap,
     bindModel,
     bindDeviceId,
     bindField,
     sampleMs,
     mathFormula,
-    windowSize,
-    timeUnit,
+    err,
   ]);
 
   const { plotRef, sel, hover, timeTicks, pointsForView, handlers } =
@@ -693,7 +761,7 @@ export default function GraphicDisplay({
       color: "#64748b",
       bg: "rgba(148,163,184,0.16)",
       border: "rgba(148,163,184,0.35)",
-    };
+      };
   }, [deviceOnline, bindDeviceId]);
 
   const onTotalizerEnable = () => {
@@ -812,7 +880,8 @@ export default function GraphicDisplay({
         fmtTime={fmtTimeWithDate}
         svg={svg}
         mathOutput={mathOutput}
-        err={err}
+        err={historyLoading ? "Loading saved history..." : err}
+        onSave={handleSettingsSave}
       />
     );
   }

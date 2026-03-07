@@ -196,13 +196,15 @@ export default function DraggableGraphicDisplay({
 
   // ✅ NEW: resolve dashboard id used by backend visibility route
   const resolvedDashboardId = useMemo(() => {
-    return String(
-      tank?.dashboard_id ||
-        tank?.dashboardId ||
-        tank?.properties?.dashboardId ||
-        tank?.properties?.dashboard_id ||
-        "main"
-    ).trim() || "main";
+    return (
+      String(
+        tank?.dashboard_id ||
+          tank?.dashboardId ||
+          tank?.properties?.dashboardId ||
+          tank?.properties?.dashboard_id ||
+          "main"
+      ).trim() || "main"
+    );
   }, [tank]);
 
   // ✅ NEW: tell backend whether this graphic is visible to the user
@@ -311,6 +313,7 @@ export default function DraggableGraphicDisplay({
           telemetryMap={telemetryMap}
           isPlay={isPlay} // ✅ true in play/launch/launched
           onSaveSettings={handleSaveSettings} // ✅ persist units/settings so Launch matches
+          dashboardId={resolvedDashboardId} // ✅ pass dashboard id so GraphicDisplay can load historian correctly
 
           // ✅ NEW: Settings button inside GraphicDisplay should call this
           // so it opens the AppModals GraphicDisplaySettingsModal (which auto-saves project on Apply)
