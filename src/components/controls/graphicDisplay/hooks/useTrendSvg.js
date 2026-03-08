@@ -26,6 +26,11 @@ export default function useTrendSvg({
     const W = 1000;
     const H = 360;
 
+    // ✅ keep line close to Y axis, but not touching
+    const PAD_LEFT = 6;
+    const PAD_RIGHT = 6;
+    const INNER_W = Math.max(1, W - PAD_LEFT - PAD_RIGHT);
+
     const minY = Number(yMin);
     const maxY = Number(yMax);
     const ySpan = maxY - minY;
@@ -102,7 +107,7 @@ export default function useTrendSvg({
         continue;
       }
 
-      const x = ((p.t - tMin) / tSpan) * W;
+      const x = PAD_LEFT + ((p.t - tMin) / tSpan) * INNER_W;
       const yy = clamp(yyNum, minY, maxY);
       const y = H - ((yy - minY) / ySpan) * H;
 
@@ -118,8 +123,20 @@ export default function useTrendSvg({
       tMin,
       tMax,
       tSpan,
+      padLeft: PAD_LEFT,
+      padRight: PAD_RIGHT,
       firstDrawableT: drawable[0]?.t ?? null,
       lastDrawableT: drawable[drawable.length - 1]?.t ?? null,
+      firstX:
+        segs.length && segs[0]?.length
+          ? String(segs[0][0] || "").split(",")[0]
+          : null,
+      lastX:
+        segs.length && segs[segs.length - 1]?.length
+          ? String(
+              segs[segs.length - 1][segs[segs.length - 1].length - 1] || ""
+            ).split(",")[0]
+          : null,
     });
 
     return { svg: { segs, W, H } };
