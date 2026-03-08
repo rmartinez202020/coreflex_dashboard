@@ -100,7 +100,7 @@ function exportPointsCsv({
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const filename = `${filePrefix}-${safeTitle}-${stamp}.csv`;
 
-  const header = "timestamp_iso,epoch_ms,,totalizer,Value\n";
+  const header = "timestamp_iso,epoch_ms,totalizer,Value\n";
 
   const base = rateUnitToTimeBase(totalizerRateUnit);
 
@@ -528,136 +528,143 @@ export default function GraphicDisplay({
   }, []);
 
   // ✅ load full historian from backend once per widget/dashboard
-useEffect(() => {
-  let cancelled = false;
+  useEffect(() => {
+    let cancelled = false;
 
-  async function loadHistory() {
-    console.log("[GraphicDisplay] loadHistory ENTER", {
-      widgetId,
-      resolvedDashboardId,
-      tankId: T?.id,
-      widgetIdAlt1: T?.widgetId,
-      widgetIdAlt2: T?.widget_id,
-      bindDeviceId,
-      bindField,
-      isRunMode,
-      hasTelemetryMap: !!telemetryMap,
-    });
-
-    if (!widgetId) {
-      console.warn("[GraphicDisplay] loadHistory SKIP: no widgetId", {
+    async function loadHistory() {
+      dbg("loadHistory ENTER", {
         widgetId,
         resolvedDashboardId,
-        tank: T,
-      });
-      setPoints([]);
-      setHistoryLoaded(true);
-      return;
-    }
-
-    const token = String(getToken() || "").trim();
-    if (!token) {
-      console.warn("[GraphicDisplay] loadHistory SKIP: no auth token", {
-        widgetId,
-        resolvedDashboardId,
-      });
-      setHistoryLoaded(true);
-      return;
-    }
-
-    setHistoryLoading(true);
-    setHistoryLoaded(false);
-
-    try {
-      const url = new URL(`${API_URL}/graphic-display-bindings/history`);
-      url.searchParams.set("dashboard_id", resolvedDashboardId);
-      url.searchParams.set("widget_id", widgetId);
-
-      console.log("[GraphicDisplay] HISTORY REQUEST START", {
-        widgetId,
-        resolvedDashboardId,
-        url: url.toString(),
+        tankId: T?.id,
+        widgetIdAlt1: T?.widgetId,
+        widgetIdAlt2: T?.widget_id,
+        bindDeviceId,
+        bindField,
+        isRunMode,
+        hasTelemetryMap: !!telemetryMap,
       });
 
-      const res = await fetch(url.toString(), {
-        method: "GET",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
-      });
+      if (!widgetId) {
+        dbgWarn("loadHistory SKIP: no widgetId", {
+          widgetId,
+          resolvedDashboardId,
+          tank: T,
+        });
+        setPoints([]);
+        setHistoryLoaded(true);
+        return;
+      }
 
-      console.log("[GraphicDisplay] HISTORY RESPONSE RAW", {
-        widgetId,
-        resolvedDashboardId,
-        status: res.status,
-        ok: res.ok,
-      });
+      const token = String(getToken() || "").trim();
+      if (!token) {
+        dbgWarn("loadHistory SKIP: no auth token", {
+          widgetId,
+          resolvedDashboardId,
+        });
+        setHistoryLoaded(true);
+        return;
+      }
 
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        console.error("[GraphicDisplay] HISTORY RESPONSE ERROR TEXT", {
+      setHistoryLoading(true);
+      setHistoryLoaded(false);
+
+      try {
+        const url = new URL(`${API_URL}/graphic-display-bindings/history`);
+        url.searchParams.set("dashboard_id", resolvedDashboardId);
+        url.searchParams.set("widget_id", widgetId);
+
+        dbg("HISTORY REQUEST START", {
+          widgetId,
+          resolvedDashboardId,
+          url: url.toString(),
+        });
+
+        const res = await fetch(url.toString(), {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        dbg("HISTORY RESPONSE RAW", {
           widgetId,
           resolvedDashboardId,
           status: res.status,
-          text,
+          ok: res.ok,
         });
-        throw new Error(`History request failed (${res.status}): ${text}`);
-      }
 
-      const data = await res.json();
-      const normalized = normalizeHistorianPoints(data?.points || []);
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          dbgErr("HISTORY RESPONSE ERROR TEXT", {
+            widgetId,
+            resolvedDashboardId,
+            status: res.status,
+            text,
+          });
+          throw new Error(`History request failed (${res.status}): ${text}`);
+        }
 
-      if (cancelled) return;
+        const data = await res.json();
+        const normalized = normalizeHistorianPoints(data?.points || []);
 
-      console.log("[GraphicDisplay] HISTORY LOADED OK", {
-        widgetId,
-        resolvedDashboardId,
-        files: Array.isArray(data?.files) ? data.files.length : 0,
-        backendCount: data?.count,
-        normalizedCount: normalized.length,
-        data,
-      });
+        if (cancelled) return;
 
-      setPoints(normalized);
-
-      const lastNumeric = [...normalized]
-        .reverse()
-        .find((p) => Number.isFinite(Number(p?.y)));
-      if (lastNumeric) setMathOutput(Number(lastNumeric.y));
-      else setMathOutput(null);
-
-      setErr("");
-    } catch (e) {
-      if (cancelled) return;
-      console.error("[GraphicDisplay] HISTORY LOAD ERROR", {
-        widgetId,
-        resolvedDashboardId,
-        error: e,
-      });
-      setErr("Failed to load saved history.");
-      setPoints([]);
-    } finally {
-      if (!cancelled) {
-        setHistoryLoading(false);
-        setHistoryLoaded(true);
-        console.log("[GraphicDisplay] HISTORY REQUEST END", {
+        dbg("HISTORY LOADED OK", {
           widgetId,
           resolvedDashboardId,
+          files: Array.isArray(data?.files) ? data.files.length : 0,
+          backendCount: data?.count,
+          normalizedCount: normalized.length,
         });
+
+        setPoints(normalized);
+
+        const lastNumeric = [...normalized]
+          .reverse()
+          .find((p) => Number.isFinite(Number(p?.y)));
+        if (lastNumeric) setMathOutput(Number(lastNumeric.y));
+        else setMathOutput(null);
+
+        setErr("");
+      } catch (e) {
+        if (cancelled) return;
+        dbgErr("HISTORY LOAD ERROR", {
+          widgetId,
+          resolvedDashboardId,
+          error: e,
+        });
+        setErr("Failed to load saved history.");
+        setPoints([]);
+      } finally {
+        if (!cancelled) {
+          setHistoryLoading(false);
+          setHistoryLoaded(true);
+          dbg("HISTORY REQUEST END", {
+            widgetId,
+            resolvedDashboardId,
+          });
+        }
       }
     }
-  }
 
-  loadHistory();
+    loadHistory();
 
-  return () => {
-    cancelled = true;
-    console.log("[GraphicDisplay] loadHistory CANCELLED", {
-      widgetId,
-      resolvedDashboardId,
-    });
-  };
-}, [widgetId, resolvedDashboardId]);
+    return () => {
+      cancelled = true;
+      dbg("loadHistory CANCELLED", {
+        widgetId,
+        resolvedDashboardId,
+      });
+    };
+  }, [
+    widgetId,
+    resolvedDashboardId,
+    T,
+    bindDeviceId,
+    bindField,
+    isRunMode,
+    telemetryMap,
+  ]);
 
   // ✅ if user pauses, insert a gap marker
   useEffect(() => {
@@ -857,7 +864,7 @@ useEffect(() => {
       color: "#64748b",
       bg: "rgba(148,163,184,0.16)",
       border: "rgba(148,163,184,0.35)",
-      };
+    };
   }, [deviceOnline, bindDeviceId]);
 
   const onTotalizerEnable = () => {
@@ -900,9 +907,6 @@ useEffect(() => {
       onOpenSettingsProp();
       return;
     }
-    console.warn(
-      "[GraphicDisplay] onOpenSettings was clicked, but no onOpenSettings prop was provided. Pass it from DraggableGraphicDisplay so AppModals opens the settings modal."
-    );
   };
 
   const handleSettingsSave = (nextTank) => {
@@ -920,10 +924,6 @@ useEffect(() => {
       tank.onUpdate(nextTank);
       return;
     }
-
-    console.warn(
-      "[GraphicDisplay] Settings saved locally, but no parent onSaveSettings / tank.onSave handler was found."
-    );
   };
 
   function buildPanel(isExploreMode) {
@@ -953,16 +953,15 @@ useEffect(() => {
           if (isExploreMode) setExploreOpen(false);
           else setExploreOpen(true);
         }}
-
- onExport={() =>
-  exportPointsCsv({
-    title,
-    points: pointsForView?.length ? pointsForView : points,
-    fmt: fmtTimeWithDate,
-    totalizerEnabled: totEnabled,
-    totalizerRateUnit,
-  })
-}
+        onExport={() =>
+          exportPointsCsv({
+            title,
+            points: pointsForView?.length ? pointsForView : points,
+            fmt: fmtTimeWithDate,
+            totalizerEnabled: totEnabled,
+            totalizerRateUnit,
+          })
+        }
         timeUnit={timeUnit}
         sampleMs={sampleMs}
         windowSize={windowSize}
