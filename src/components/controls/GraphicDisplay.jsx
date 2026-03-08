@@ -100,7 +100,7 @@ function exportPointsCsv({
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const filename = `${filePrefix}-${safeTitle}-${stamp}.csv`;
 
-  const header = "timestamp_iso,epoch_ms,y,totalizer\n";
+  const header = "timestamp_iso,epoch_ms,Value,totalizer\n";
 
   const base = rateUnitToTimeBase(totalizerRateUnit);
 
@@ -953,7 +953,7 @@ useEffect(() => {
           if (isExploreMode) setExploreOpen(false);
           else setExploreOpen(true);
         }}
-        
+
  onExport={() =>
   exportPointsCsv({
     title,
