@@ -83,15 +83,32 @@ export default function useTrendSvg({
         continue;
       }
 
+      // ✅ Make the first point touch the Y-axis exactly
       const x = ((p.t - tMin) / tSpan) * W;
+
       const yy = clamp(Number(p.y), minY, maxY);
       const y = H - ((yy - minY) / ySpan) * H;
+
       current.push(`${x.toFixed(2)},${y.toFixed(2)}`);
     }
 
     if (current.length >= 2) segs.push(current);
 
-    log("SVG: segs computed", { segsCount: segs.length, arrCount: arr.length });
+    log("SVG: segs computed", {
+      segsCount: segs.length,
+      arrCount: arr.length,
+      tMin,
+      tMax,
+      tSpan,
+      firstX:
+        segs.length && segs[0]?.length
+          ? String(segs[0][0] || "").split(",")[0]
+          : null,
+      lastX:
+        segs.length && segs[segs.length - 1]?.length
+          ? String(segs[segs.length - 1][segs[segs.length - 1].length - 1] || "").split(",")[0]
+          : null,
+    });
 
     return { svg: { segs, W, H } };
   }, [points, pointsForView, yMin, yMax, dbg, dbgWarn]);
