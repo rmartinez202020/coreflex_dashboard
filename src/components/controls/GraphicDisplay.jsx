@@ -152,7 +152,7 @@ function exportPointsCsv({
       prev = null;
     }
 
-    return `${iso},${epoch},,,${totalizerText},${yy}`;
+    return `${iso},${epoch},${totalizerText},${yy}`;
   });
 
   const csv = header + rows.join("\n") + (rows.length ? "\n" : "");
