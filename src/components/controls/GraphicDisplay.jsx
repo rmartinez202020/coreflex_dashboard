@@ -90,6 +90,8 @@ function exportPointsCsv({
   points = [],
   fmt = (t) => new Date(t).toISOString(),
   filePrefix = "graphic-display",
+  totalizerEnabled = false,
+  totalizerRateUnit = "",
 } = {}) {
   const safeTitle =
     String(title || "Graphic Display")
@@ -98,13 +100,59 @@ function exportPointsCsv({
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const filename = `${filePrefix}-${safeTitle}-${stamp}.csv`;
 
-  const header = "timestamp_iso,epoch_ms,y\n";
+  const header = "timestamp_iso,epoch_ms,y,totalizer\n";
+
+  const base = rateUnitToTimeBase(totalizerRateUnit);
+
+  let runningTotal = 0;
+  let prev = null;
+
   const rows = (points || []).map((p) => {
     const t = Number(p?.t);
-    const y = p?.y;
+    const y = Number(p?.y);
+    const gap = !!p?.gap;
+
+    if (
+      totalizerEnabled &&
+      base &&
+      prev &&
+      !prev.gap &&
+      !gap &&
+      Number.isFinite(prev.t) &&
+      Number.isFinite(prev.y) &&
+      Number.isFinite(t) &&
+      Number.isFinite(y) &&
+      t > prev.t
+    ) {
+      const dtMs = t - prev.t;
+
+      let dtBase = 0;
+      if (base === "minute") dtBase = dtMs / 60000;
+      else if (base === "hour") dtBase = dtMs / 3600000;
+      else if (base === "second") dtBase = dtMs / 1000;
+      else if (base === "day") dtBase = dtMs / 86400000;
+
+      if (Number.isFinite(dtBase) && dtBase > 0) {
+        const avgRate = (prev.y + y) / 2;
+        runningTotal += avgRate * dtBase;
+      }
+    }
+
     const iso = Number.isFinite(t) ? fmt(t) : "";
-    const yy = y === null || y === undefined ? "" : String(y);
-    return `${iso},${Number.isFinite(t) ? t : ""},${yy}`;
+    const epoch = Number.isFinite(t) ? t : "";
+    const yy = Number.isFinite(y) ? y : "";
+    const totalizerText =
+      totalizerEnabled && Number.isFinite(runningTotal)
+        ? runningTotal.toFixed(6)
+        : "";
+
+    if (!gap && Number.isFinite(t) && Number.isFinite(y)) {
+      prev = { t, y, gap: false };
+    } else if (gap) {
+      prev = null;
+    }
+
+    return `${iso},${epoch},${yy},${totalizerText}`;
   });
 
   const csv = header + rows.join("\n") + (rows.length ? "\n" : "");
@@ -905,13 +953,15 @@ useEffect(() => {
           if (isExploreMode) setExploreOpen(false);
           else setExploreOpen(true);
         }}
-        onExport={() =>
-          exportPointsCsv({
-            title,
-            points: pointsForView?.length ? pointsForView : points,
-            fmt: fmtTimeWithDate,
-          })
-        }
+     onExport={() =>
+  exportPointsCsv({
+    title,
+    points: pointsForView?.length ? pointsForView : points,
+    fmt: fmtTimeWithDate,
+    totalizerEnabled: totalizerEnabledEffective,
+    totalizerRateUnit,
+  })
+}
         timeUnit={timeUnit}
         sampleMs={sampleMs}
         windowSize={windowSize}
