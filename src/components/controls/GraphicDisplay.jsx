@@ -422,9 +422,10 @@ const windowMs = useMemo(() => {
   const totalizerTotalUnit = RATE_TO_TOTAL_UNIT[totalizerRateUnit] || "";
 
   const [totEnabled, setTotEnabled] = useState(tankTotEnabled);
-  const [totalizerResetAt, setTotalizerResetAt] = useState(0);
-  const totalizerAccumRef = useRef(0);
-  const totalizerLastPointRef = useRef(null);
+const [totalizerResetAt, setTotalizerResetAt] = useState(0);
+const [runningTotalizer, setRunningTotalizer] = useState(0);
+const totalizerAccumRef = useRef(0);
+const totalizerLastPointRef = useRef(null);
 
 
   useEffect(() => {
