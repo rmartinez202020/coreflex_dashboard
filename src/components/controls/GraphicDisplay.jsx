@@ -506,6 +506,9 @@ const windowMs = useMemo(() => {
 
   const [isPlaying, setIsPlaying] = useState(true);
   const [exploreOpen, setExploreOpen] = useState(false);
+  const [exploreStart, setExploreStart] = useState("");
+  const [exploreEnd, setExploreEnd] = useState("");
+
 
   useEffect(() => {
     dbg("MOUNT / bind", {
@@ -830,23 +833,42 @@ const lastNumeric = [...clipped]
     windowMs,
   ]);
 
-  const { plotRef, sel, hover, timeTicks, pointsForView, handlers } =
-    usePingZoom({
-      points,
-      yMin: Number(yMin),
-      yMax: Number(yMax),
-      fmtTimeWithDate,
-      hoverAnywhere: exploreOpen,
-    });
+  const exploreFilteredPoints = useMemo(() => {
+  if (!exploreOpen) return points;
 
-  const { svg } = useTrendSvg({
-    points,
-    pointsForView,
-    yMin,
-    yMax,
-    dbg,
-    dbgWarn,
+  const startMs = exploreStart ? new Date(exploreStart).getTime() : null;
+  const endMs = exploreEnd ? new Date(exploreEnd).getTime() : null;
+
+  return (points || []).filter((p) => {
+    const t = Number(p?.t);
+
+    if (!Number.isFinite(t)) return false;
+    if (startMs !== null && Number.isFinite(startMs) && t < startMs) return false;
+    if (endMs !== null && Number.isFinite(endMs) && t > endMs) return false;
+
+    return true;
   });
+}, [points, exploreOpen, exploreStart, exploreEnd]);
+
+const activePoints = exploreOpen ? exploreFilteredPoints : points;
+
+const { plotRef, sel, hover, timeTicks, pointsForView, handlers } =
+  usePingZoom({
+    points: activePoints,
+    yMin: Number(yMin),
+    yMax: Number(yMax),
+    fmtTimeWithDate,
+    hoverAnywhere: exploreOpen,
+  });
+
+const { svg } = useTrendSvg({
+  points: activePoints,
+  pointsForView,
+  yMin,
+  yMax,
+  dbg,
+  dbgWarn,
+});
 
   const totalizerValue = useMemo(() => {
     if (singleUnitsEnabled) return null;
@@ -854,7 +876,7 @@ const lastNumeric = [...clipped]
     if (!totalizerRateUnit) return null;
     if (!totalizerTotalUnit) return null;
 
-    const srcBase = (pointsForView?.length ? pointsForView : points) || [];
+    const srcBase = (pointsForView?.length ? pointsForView : activePoints) || [];
     const src = totalizerResetAt
       ? srcBase.filter((p) => Number(p?.t) >= Number(totalizerResetAt || 0))
       : srcBase;
@@ -867,7 +889,7 @@ const lastNumeric = [...clipped]
     totalizerRateUnit,
     totalizerTotalUnit,
     pointsForView,
-    points,
+    activePoints,
     totalizerResetAt,
   ]);
 
@@ -986,19 +1008,29 @@ const lastNumeric = [...clipped]
         onTotalizerDisable={onTotalizerDisable}
         onTotalizerReset={onTotalizerReset}
         singleUnitsEnabled={singleUnitsEnabled}
+        exploreStart={exploreStart}
+        exploreEnd={exploreEnd}
+        onExploreStartChange={setExploreStart}
+        onExploreEndChange={setExploreEnd}
         singleUnit={singleUnitsUnit}
         isPlaying={isPlaying}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
-        onToggleExplore={() => {
-          if (isExploreMode) setExploreOpen(false);
-          else setExploreOpen(true);
-        }}
+
+      onToggleExplore={() => {
+  if (isExploreMode) {
+    setExploreOpen(false);
+    setExploreStart("");
+    setExploreEnd("");
+  } else {
+    setExploreOpen(true);
+  }
+}}
 
  onExport={() =>
   exportPointsCsv({
     title,
-    points: pointsForView?.length ? pointsForView : points,
+    points: pointsForView?.length ? pointsForView : activePoints,
     fmt: fmtTimeWithDate,
     totalizerEnabled: totEnabled,
     totalizerRateUnit,
@@ -1028,12 +1060,16 @@ const lastNumeric = [...clipped]
 
   return (
     <>
-      <GraphicDisplayExplorePortal
-        open={exploreOpen}
-        onClose={() => setExploreOpen(false)}
-        title={title}
-        modalContent={buildPanel(true)}
-      >
+     <GraphicDisplayExplorePortal
+  open={exploreOpen}
+  onClose={() => {
+    setExploreOpen(false);
+    setExploreStart("");
+    setExploreEnd("");
+  }}
+  title={title}
+  modalContent={buildPanel(true)}
+>
         {buildPanel(false)}
       </GraphicDisplayExplorePortal>
     </>

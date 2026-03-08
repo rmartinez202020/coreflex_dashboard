@@ -38,6 +38,46 @@ function detectLaunchMode() {
   return false;
 }
 
+function formatDateTimeLocalValue(value) {
+  if (!value) return "";
+  const d = value instanceof Date ? value : new Date(value);
+  if (!Number.isFinite(d.getTime())) return "";
+
+  const yyyy = d.getFullYear();
+  const mm = String(d.getMonth() + 1).padStart(2, "0");
+  const dd = String(d.getDate()).padStart(2, "0");
+  const hh = String(d.getHours()).padStart(2, "0");
+  const mi = String(d.getMinutes()).padStart(2, "0");
+
+  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
+}
+
+const exploreInputWrapStyle = {
+  display: "grid",
+  gap: 4,
+  minWidth: 210,
+};
+
+const exploreLabelStyle = {
+  fontSize: 11,
+  fontWeight: 800,
+  color: "#334155",
+  letterSpacing: 0.1,
+};
+
+const exploreInputStyle = {
+  height: 34,
+  borderRadius: 10,
+  border: "1px solid #d1d5db",
+  background: "#fff",
+  padding: "0 10px",
+  fontSize: 12,
+  fontWeight: 700,
+  color: "#0f172a",
+  outline: "none",
+  minWidth: 0,
+};
+
 export default function GraphicDisplayPanel({
   // mode
   isExploreMode = false,
@@ -78,6 +118,12 @@ export default function GraphicDisplayPanel({
 
   // ✅ NEW: Settings button handler (parent should open GraphicDisplaySettingsModal)
   onOpenSettings = () => {},
+
+  // ✅ NEW: Explore-IN range controls
+  exploreStart = "",
+  exploreEnd = "",
+  onExploreStartChange = () => {},
+  onExploreEndChange = () => {},
 
   // control state + handlers
   isPlaying = true,
@@ -226,6 +272,15 @@ export default function GraphicDisplayPanel({
     });
   }, [yTicks]);
 
+  const exploreStartValue = useMemo(
+    () => formatDateTimeLocalValue(exploreStart),
+    [exploreStart]
+  );
+  const exploreEndValue = useMemo(
+    () => formatDateTimeLocalValue(exploreEnd),
+    [exploreEnd]
+  );
+
   return (
     <div
       style={{
@@ -276,6 +331,57 @@ export default function GraphicDisplayPanel({
         yMin={yMin}
         yMax={yMax}
       />
+
+      {/* ✅ Explore-IN only date filter row */}
+      {isExploreMode ? (
+        <div
+          style={{
+            padding: "8px 12px 0 12px",
+            background: "#fff",
+            borderBottom: "1px solid #eceff3",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              alignItems: "end",
+              justifyContent: "flex-end",
+              gap: 10,
+              flexWrap: "wrap",
+            }}
+          >
+            <div style={exploreInputWrapStyle}>
+              <label style={exploreLabelStyle}>Start Date</label>
+              <input
+                type="datetime-local"
+                value={exploreStartValue}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  onExploreStartChange?.(e.target.value || "");
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+                style={exploreInputStyle}
+              />
+            </div>
+
+            <div style={exploreInputWrapStyle}>
+              <label style={exploreLabelStyle}>End Date</label>
+              <input
+                type="datetime-local"
+                value={exploreEndValue}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  onExploreEndChange?.(e.target.value || "");
+                }}
+                onMouseDown={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+                style={exploreInputStyle}
+              />
+            </div>
+          </div>
+        </div>
+      ) : null}
 
       {/* BODY */}
       <div
@@ -331,14 +437,14 @@ export default function GraphicDisplayPanel({
                     top: `${it.topPct}%`,
                     transform: "translateY(-50%)",
                     fontFamily: "monospace",
-                    fontSize: yFont, // ✅ smaller now
+                    fontSize: yFont,
                     color: "#111",
                     fontWeight: 400,
                     background: "rgba(255,255,255,0.70)",
-                    padding: "0 1px", // ✅ tighter
+                    padding: "0 1px",
                     borderRadius: 0,
                     border: "none",
-                    lineHeight: 1.05, // ✅ tighter
+                    lineHeight: 1.05,
                   }}
                 >
                   {Number(it.v).toFixed(2)}
