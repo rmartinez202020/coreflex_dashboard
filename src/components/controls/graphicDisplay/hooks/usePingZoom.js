@@ -117,25 +117,33 @@ export default function usePingZoom({
   }, [basePoints, zoom, isExploreMode]);
 
   const timeRange = useMemo(() => {
-    if (!pointsForView.length) return { tMin: null, tMax: null };
+  const arr = Array.isArray(pointsForView) ? pointsForView : [];
 
-    const first = Number(pointsForView[0]?.t);
-    const last = Number(pointsForView[pointsForView.length - 1]?.t);
+  const drawable = arr
+    .map((p) => ({
+      t: Number(p?.t),
+      y: Number(p?.y),
+      gap: !!p?.gap,
+    }))
+    .filter((p) => !p.gap && Number.isFinite(p.t) && Number.isFinite(p.y));
 
-    if (!Number.isFinite(first) || !Number.isFinite(last)) {
-      return { tMin: null, tMax: null };
-    }
+  if (!drawable.length) return { tMin: null, tMax: null };
 
-    // ✅ Explore mode should use the explicit selected timeframe when available,
-    // even if there are gaps or sparse points inside that range.
-    if (isExploreMode) {
-      const tMin = Number.isFinite(exploreStartMs) ? exploreStartMs : first;
-      const tMax = Number.isFinite(exploreEndMs) ? exploreEndMs : last;
-      return tMax > tMin ? { tMin, tMax } : { tMin: first, tMax: last };
-    }
+  const first = drawable[0].t;
+  const last = drawable[drawable.length - 1].t;
 
-    return { tMin: first, tMax: last };
-  }, [pointsForView, isExploreMode, exploreStartMs, exploreEndMs]);
+  // ✅ In Explore mode, still obey the selected Start/End if they exist,
+  // but default to the first/last drawable points, not raw gap points.
+  if (isExploreMode) {
+    const tMin = Number.isFinite(exploreStartMs) ? exploreStartMs : first;
+    const tMax = Number.isFinite(exploreEndMs) ? exploreEndMs : last;
+    return tMax > tMin ? { tMin, tMax } : { tMin: first, tMax: last };
+  }
+
+  return { tMin: first, tMax: last };
+}, [pointsForView, isExploreMode, exploreStartMs, exploreEndMs]);
+
+
 
   const timeTicks = useMemo(() => {
     const { tMin, tMax } = timeRange;
