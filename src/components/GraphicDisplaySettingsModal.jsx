@@ -644,28 +644,28 @@ export default function GraphicDisplaySettingsModal({
           </div>
 
           <div style={{ minWidth: 0 }}>
-            <GraphicDisplaySettingsPanel
-              title={title}
-              setTitle={setTitle}
-              timeUnit={timeUnit}
-              setTimeUnit={setTimeUnit}
-              windowSize={windowSize}
-              setWindowSize={setWindowSize}
-              sampleMs={sampleMs}
-              setSampleMs={setSampleMs}
-              yMin={safeYMin}
-              setYMin={setYMin}
-              yMax={safeYMax}
-              setYMax={setYMax}
-              yUnits={yUnits}
-              setYUnits={(u) => {
-                const unit = String(u ?? "");
-                setYUnits(unit);
-                setTotalizerUnit(unit);
-              }}
-              lineColor={safeLineColor}
-              setLineColor={setLineColor}
-            />
+
+           <GraphicDisplaySettingsPanel
+  title={title}
+  setTitle={setTitle}
+  timeUnit={timeUnit}
+  setTimeUnit={setTimeUnit}
+  windowSize={windowSize}
+  setWindowSize={setWindowSize}
+  yMin={safeYMin}
+  setYMin={setYMin}
+  yMax={safeYMax}
+  setYMax={setYMax}
+  yUnits={yUnits}
+  setYUnits={(u) => {
+    const unit = String(u ?? "");
+    setYUnits(unit);
+    setTotalizerUnit(unit);
+  }}
+  lineColor={safeLineColor}
+  setLineColor={setLineColor}
+/>
+
           </div>
 
           <div
