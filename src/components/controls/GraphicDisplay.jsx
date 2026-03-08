@@ -100,7 +100,7 @@ function exportPointsCsv({
   const stamp = new Date().toISOString().replace(/[:.]/g, "-");
   const filename = `${filePrefix}-${safeTitle}-${stamp}.csv`;
 
-  const header = "timestamp_iso,epoch_ms,totalizer,Value\n";
+  const header = "timestamp_iso,epoch_ms,,totalizer,Value\n";
 
   const base = rateUnitToTimeBase(totalizerRateUnit);
 
@@ -152,7 +152,7 @@ function exportPointsCsv({
       prev = null;
     }
 
-    return `${iso},${epoch},${totalizerText},${yy}`;
+    return `${iso},${epoch},,${totalizerText},${yy}`;
   });
 
   const csv = header + rows.join("\n") + (rows.length ? "\n" : "");
