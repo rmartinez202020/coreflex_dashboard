@@ -1,5 +1,5 @@
 // src/components/controls/graphicDisplay/hooks/usePingZoom.js
-import { useMemo, useRef, useState } from "react";
+import { useMemo, useRef, useState, useEffect } from "react";
 
 function interpolateYAtTime(pointsArr, t) {
   const arr = Array.isArray(pointsArr) ? pointsArr : [];
@@ -53,6 +53,9 @@ export default function usePingZoom({
   yMax,
   fmtTimeWithDate,
   hoverAnywhere = false,
+  isExploreMode = false,
+  exploreStartMs = null,
+  exploreEndMs = null,
 }) {
   const plotRef = useRef(null);
 
@@ -72,20 +75,67 @@ export default function usePingZoom({
     anchorFrac: 0.5,
   });
 
+  // ✅ IMPORTANT:
+  // In Explore mode, the user-selected Start/End range must control the time domain.
+  // So whenever Explore mode is active, clear any previous drag-zoom window.
+  useEffect(() => {
+    if (isExploreMode) {
+      setZoom(null);
+      setSel(null);
+      selRef.current.dragging = false;
+      pinchRef.current.active = false;
+    }
+  }, [isExploreMode, exploreStartMs, exploreEndMs]);
+
+  const basePoints = useMemo(() => {
+    const arr = Array.isArray(points) ? points : [];
+
+    if (!isExploreMode) return arr;
+
+    return arr.filter((p) => {
+      const t = Number(p?.t);
+      if (!Number.isFinite(t)) return false;
+      if (Number.isFinite(exploreStartMs) && t < exploreStartMs) return false;
+      if (Number.isFinite(exploreEndMs) && t > exploreEndMs) return false;
+      return true;
+    });
+  }, [points, isExploreMode, exploreStartMs, exploreEndMs]);
+
   const pointsForView = useMemo(() => {
-    if (!zoom) return points;
+    // ✅ In Explore mode, obey ONLY the user-selected Start/End timeframe.
+    if (isExploreMode) return basePoints;
+
+    if (!zoom) return basePoints;
+
     const a = Math.min(zoom.t0, zoom.t1);
     const b = Math.max(zoom.t0, zoom.t1);
-    return (points || []).filter((p) => p.t >= a && p.t <= b);
-  }, [points, zoom]);
+
+    return basePoints.filter((p) => {
+      const t = Number(p?.t);
+      return Number.isFinite(t) && t >= a && t <= b;
+    });
+  }, [basePoints, zoom, isExploreMode]);
 
   const timeRange = useMemo(() => {
     if (!pointsForView.length) return { tMin: null, tMax: null };
-    return {
-      tMin: pointsForView[0].t,
-      tMax: pointsForView[pointsForView.length - 1].t,
-    };
-  }, [pointsForView]);
+
+    const first = Number(pointsForView[0]?.t);
+    const last = Number(pointsForView[pointsForView.length - 1]?.t);
+
+    if (!Number.isFinite(first) || !Number.isFinite(last)) {
+      return { tMin: null, tMax: null };
+    }
+
+    // ✅ Explore mode should use the explicit selected timeframe when available,
+    // even if there are gaps or sparse points inside that range.
+    if (isExploreMode) {
+      const tMin = Number.isFinite(exploreStartMs) ? exploreStartMs : first;
+      const tMax = Number.isFinite(exploreEndMs) ? exploreEndMs : last;
+      return tMax > tMin ? { tMin, tMax } : { tMin: first, tMax: last };
+    }
+
+    return { tMin: first, tMax: last };
+  }, [pointsForView, isExploreMode, exploreStartMs, exploreEndMs]);
 
   const timeTicks = useMemo(() => {
     const { tMin, tMax } = timeRange;
@@ -175,6 +225,9 @@ export default function usePingZoom({
   }
 
   function beginSelectionAtX(xClamped) {
+    // ✅ In Explore mode, disable drag-to-zoom so Start/End fully control the range.
+    if (isExploreMode) return;
+
     selRef.current.dragging = true;
     selRef.current.x0 = xClamped;
     selRef.current.x1 = xClamped;
@@ -183,6 +236,11 @@ export default function usePingZoom({
 
   function finishSelection() {
     if (!selRef.current.dragging) return;
+    if (isExploreMode) {
+      selRef.current.dragging = false;
+      setSel(null);
+      return;
+    }
 
     selRef.current.dragging = false;
 
@@ -215,7 +273,7 @@ export default function usePingZoom({
     const pointers = [...activePointersRef.current.values()];
 
     // ✅ pinch zoom for touch/tablet
-    if (pointers.length === 2) {
+    if (!isExploreMode && pointers.length === 2) {
       const p0 = pointers[0];
       const p1 = pointers[1];
       const dist = distance(p0, p1);
@@ -255,7 +313,7 @@ export default function usePingZoom({
       let newTMin = anchorTime - anchorFrac * newSpan;
       let newTMax = newTMin + newSpan;
 
-      const fullArr = Array.isArray(points) ? points : [];
+      const fullArr = Array.isArray(basePoints) ? basePoints : [];
       const fullMin = fullArr.length ? Number(fullArr[0]?.t) : null;
       const fullMax = fullArr.length ? Number(fullArr[fullArr.length - 1]?.t) : null;
 
@@ -312,7 +370,7 @@ export default function usePingZoom({
     const pointers = [...activePointersRef.current.values()];
 
     // ✅ two-finger gesture = pinch mode, not selection mode
-    if (pointers.length === 2) {
+    if (!isExploreMode && pointers.length === 2) {
       selRef.current.dragging = false;
       setSel(null);
       pinchRef.current.active = false;
@@ -359,6 +417,12 @@ export default function usePingZoom({
   }
 
   function handleDoubleClick() {
+    // ✅ In Explore mode, double-click should not override the Start/End range.
+    if (isExploreMode) {
+      setSel(null);
+      return;
+    }
+
     setZoom(null);
     setSel(null);
   }
