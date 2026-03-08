@@ -67,8 +67,20 @@ export default function useTrendSvg({
       return { svg: { segs: [], W, H } };
     }
 
-    const tMin = arr[0].t;
-    const tMax = arr[arr.length - 1].t;
+    // ✅ IMPORTANT:
+    // Use only drawable (non-gap, numeric) points to define the X domain.
+    // Otherwise an early gap/null sample creates a blank space before the line.
+    const drawable = arr.filter(
+      (p) => !p.gap && Number.isFinite(Number(p.y))
+    );
+
+    if (!drawable.length) {
+      log("SVG: no drawable points after sanitize");
+      return { svg: { segs: [], W, H } };
+    }
+
+    const tMin = drawable[0].t;
+    const tMax = drawable[drawable.length - 1].t;
     const tSpan = Math.max(1, tMax - tMin);
 
     const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
@@ -83,10 +95,15 @@ export default function useTrendSvg({
         continue;
       }
 
-      // ✅ Make the first point touch the Y-axis exactly
-      const x = ((p.t - tMin) / tSpan) * W;
+      const yyNum = Number(p.y);
+      if (!Number.isFinite(yyNum)) {
+        if (current.length >= 2) segs.push(current);
+        current = [];
+        continue;
+      }
 
-      const yy = clamp(Number(p.y), minY, maxY);
+      const x = ((p.t - tMin) / tSpan) * W;
+      const yy = clamp(yyNum, minY, maxY);
       const y = H - ((yy - minY) / ySpan) * H;
 
       current.push(`${x.toFixed(2)},${y.toFixed(2)}`);
@@ -97,17 +114,12 @@ export default function useTrendSvg({
     log("SVG: segs computed", {
       segsCount: segs.length,
       arrCount: arr.length,
+      drawableCount: drawable.length,
       tMin,
       tMax,
       tSpan,
-      firstX:
-        segs.length && segs[0]?.length
-          ? String(segs[0][0] || "").split(",")[0]
-          : null,
-      lastX:
-        segs.length && segs[segs.length - 1]?.length
-          ? String(segs[segs.length - 1][segs[segs.length - 1].length - 1] || "").split(",")[0]
-          : null,
+      firstDrawableT: drawable[0]?.t ?? null,
+      lastDrawableT: drawable[drawable.length - 1]?.t ?? null,
     });
 
     return { svg: { segs, W, H } };
