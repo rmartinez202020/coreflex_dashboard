@@ -953,12 +953,13 @@ useEffect(() => {
           if (isExploreMode) setExploreOpen(false);
           else setExploreOpen(true);
         }}
-     onExport={() =>
+        
+ onExport={() =>
   exportPointsCsv({
     title,
     points: pointsForView?.length ? pointsForView : points,
     fmt: fmtTimeWithDate,
-    totalizerEnabled: totalizerEnabledEffective,
+    totalizerEnabled: totEnabled,
     totalizerRateUnit,
   })
 }
