@@ -852,6 +852,12 @@ const lastNumeric = [...clipped]
 
 const activePoints = exploreOpen ? exploreFilteredPoints : points;
 
+const exploreStartMs =
+  exploreOpen && exploreStart ? new Date(exploreStart).getTime() : null;
+
+const exploreEndMs =
+  exploreOpen && exploreEnd ? new Date(exploreEnd).getTime() : null;
+
 const { plotRef, sel, hover, timeTicks, pointsForView, handlers } =
   usePingZoom({
     points: activePoints,
@@ -859,8 +865,11 @@ const { plotRef, sel, hover, timeTicks, pointsForView, handlers } =
     yMax: Number(yMax),
     fmtTimeWithDate,
     hoverAnywhere: exploreOpen,
+    isExploreMode: exploreOpen,
+    exploreStartMs,
+    exploreEndMs,
   });
-
+  
 const { svg } = useTrendSvg({
   points: activePoints,
   pointsForView,
