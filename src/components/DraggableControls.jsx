@@ -1,5 +1,5 @@
-// DraggableControls.jsx
 import React from "react";
+import DraggablePushButtonNO from "./DraggablePushButtonNO";
 
 const CONTROLS = [
   {
@@ -8,19 +8,13 @@ const CONTROLS = [
     icon: "🔘",
   },
 
-  // ✅ Keep NO / NC badge INSIDE the design (no "Normally ..." text)
-  {
-    type: "pushButtonNO",
-    label: "Push Button (DO)",
-    badge: { text: "NO", bg: "#22c55e" }, // green
-  },
+  // ✅ Keep only NC here because NO is now extracted
   {
     type: "pushButtonNC",
     label: "Push Button (DO)",
-    badge: { text: "NC", bg: "#ef4444" }, // red
+    badge: { text: "NC", bg: "#ef4444" },
   },
 
-  // ✅ Display Output (AO) — small display icon (instead of OUT pill)
   {
     type: "displayOutput",
     label: "Display Output (AO)",
@@ -29,13 +23,12 @@ const CONTROLS = [
 ];
 
 function DisplayOutputIcon() {
-  // ✅ Smaller “mini display” icon for tighter sidebar layout
   return (
     <div
       style={{
-        width: 30, // was 38
-        height: 18, // was 22
-        borderRadius: 5, // was 6
+        width: 30,
+        height: 18,
+        borderRadius: 5,
         background: "linear-gradient(#f1f5f9, #dbeafe)",
         border: "1px solid rgba(255,255,255,0.25)",
         boxShadow:
@@ -47,7 +40,6 @@ function DisplayOutputIcon() {
         position: "relative",
       }}
     >
-      {/* inner lcd */}
       <div
         style={{
           width: "86%",
@@ -66,8 +58,8 @@ function DisplayOutputIcon() {
             fontFamily:
               "ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace",
             fontWeight: 900,
-            fontSize: 8, // was 10
-            letterSpacing: 1.0, // was 1.2
+            fontSize: 8,
+            letterSpacing: 1.0,
             color: "#93c5fd",
             textShadow: "0 0 6px rgba(147,197,253,0.22)",
             lineHeight: 1,
@@ -77,14 +69,13 @@ function DisplayOutputIcon() {
         </span>
       </div>
 
-      {/* tiny indicator dot */}
       <div
         style={{
           position: "absolute",
-          right: 2, // was 3
-          bottom: 2, // was 3
-          width: 4, // was 5
-          height: 4, // was 5
+          right: 2,
+          bottom: 2,
+          width: 4,
+          height: 4,
           borderRadius: 999,
           background: "#22c55e",
           boxShadow: "0 0 7px rgba(34,197,94,0.42)",
@@ -97,8 +88,10 @@ function DisplayOutputIcon() {
 
 export default function DraggableControls() {
   return (
-    // ✅ tighter indent + tighter spacing
     <div className="ml-2 space-y-1.5 mb-3">
+      {/* ✅ extracted NO */}
+      <DraggablePushButtonNO />
+
       {CONTROLS.map((ctrl) => (
         <div
           key={ctrl.type}
@@ -109,23 +102,21 @@ export default function DraggableControls() {
                      flex items-center gap-1.5 leading-tight"
           style={{ userSelect: "none" }}
         >
-          {/* ✅ Toggle keeps emoji but smaller */}
           {ctrl.icon && (
             <span style={{ fontSize: 12, lineHeight: 1 }}>{ctrl.icon}</span>
           )}
 
-          {/* ✅ Push Buttons use smaller NO/NC badge */}
           {ctrl.badge && (
             <span
               style={{
                 background: ctrl.badge.bg,
                 color: "white",
                 fontWeight: 800,
-                fontSize: 9, // was 11
-                padding: "1px 5px", // was 2px 6px
+                fontSize: 9,
+                padding: "1px 5px",
                 borderRadius: 999,
-                lineHeight: "12px", // was 14px
-                minWidth: 22, // was 26
+                lineHeight: "12px",
+                minWidth: 22,
                 textAlign: "center",
                 flexShrink: 0,
               }}
@@ -134,10 +125,8 @@ export default function DraggableControls() {
             </span>
           )}
 
-          {/* ✅ Display Output uses smaller mini display icon */}
           {ctrl.render === "displayOutput" && <DisplayOutputIcon />}
 
-          {/* ✅ tighter text */}
           <span style={{ lineHeight: 1.1 }}>{ctrl.label}</span>
         </div>
       ))}
