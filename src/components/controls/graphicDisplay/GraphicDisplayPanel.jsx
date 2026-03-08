@@ -463,7 +463,7 @@ export default function GraphicDisplayPanel({
             onDoubleClick={onDoubleClick}
             style={{
               position: "absolute",
-              left: 92,
+              left: 78,
               right: 10,
               top: 10,
               bottom: 36,
@@ -606,7 +606,7 @@ export default function GraphicDisplayPanel({
           <div
             style={{
               position: "absolute",
-              left: 92,
+              left: 78,
               right: 10,
               bottom: 10,
               height: 22,
