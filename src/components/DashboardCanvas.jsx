@@ -124,7 +124,6 @@ export default function DashboardCanvas({
   setActiveVerticalTankId,
   setShowVerticalTankProps,
   onSaveProject,
-
   handleSelect,
   handleRightClick,
   handleDrop,
@@ -148,6 +147,8 @@ export default function DashboardCanvas({
   onOpenCounterInputSettings,
   activeDashboardId,
   dashboardId,
+  onOpenPushButtonNOSettings,
+
 }) {
   const isPlay = dashboardMode === "play" || dashboardMode === "launch";
 
@@ -646,22 +647,26 @@ export default function DashboardCanvas({
             }
 
             if (tank.shape === "pushButtonNO") {
-              const w = tank.w ?? tank.width ?? 110;
-              const h = tank.h ?? tank.height ?? 110;
-              const pressed = !!tank.pressed;
+  const w = tank.w ?? tank.width ?? 110;
+  const h = tank.h ?? tank.height ?? 110;
+  const pressed = !!tank.pressed;
 
-              return (
-                <DraggableDroppedTank {...commonProps}>
-                  <PushButtonControl
-                    variant="NO"
-                    width={w}
-                    height={h}
-                    pressed={pressed}
-                  />
-                </DraggableDroppedTank>
-              );
-            }
-
+  return (
+    <DraggableDroppedTank
+      {...commonProps}
+      onDoubleClick={() => {
+        if (!isPlay) onOpenPushButtonNOSettings?.(tank);
+      }}
+    >
+      <PushButtonControl
+        variant="NO"
+        width={w}
+        height={h}
+        pressed={pressed}
+      />
+    </DraggableDroppedTank>
+  );
+}
             if (tank.shape === "pushButtonNC") {
               const w = tank.w ?? tank.width ?? 110;
               const h = tank.h ?? tank.height ?? 110;

@@ -13,14 +13,11 @@ import CounterInputSettingsModal from "./indicators/CounterInputSettingsModal";
 import HorizontalTankPropertiesModal from "./HorizontalTankPropertiesModal";
 import VerticalTankSettingsModal from "./VerticalTankSettingsModal";
 import StandardTankPropertiesModal from "./StandardTankPropertiesModal";
+import PushBottomControlNOPropertiesModal from "./controls/PushBottomControlNOPropertiesModal";
 
 export default function AppModals({
-  // ✅ required for Counter API (upsert/reset/poll by dashboard)
   dashboardId = null,
-
-  // ✅ THIS must be handleSaveProject from useDashboardPersistence
   onSaveProject,
-
   droppedTanks,
   setDroppedTanks,
   showRestoreWarning,
@@ -59,6 +56,8 @@ export default function AppModals({
   closeStateImageSettings,
   counterInputSettingsId,
   closeCounterInputSettings,
+  pushButtonNOSettingsId,
+  closePushButtonNOSettings,
   sensorsData,
   windowDrag,
   debug = false,
@@ -178,6 +177,14 @@ export default function AppModals({
     );
   }, [droppedTanks, counterInputSettingsId]);
 
+  // ✅ NEW: pushButtonNO modal target
+  const pushButtonNOTarget = useMemo(() => {
+    if (pushButtonNOSettingsId == null) return null;
+    return droppedTanks.find(
+      (t) => isSameId(t.id, pushButtonNOSettingsId) && t.shape === "pushButtonNO"
+    );
+  }, [droppedTanks, pushButtonNOSettingsId]);
+
   const alarmLogWindowProps = windowDrag?.getWindowProps
     ? windowDrag.getWindowProps("alarmLog")
     : null;
@@ -216,14 +223,16 @@ export default function AppModals({
 
   const closeVerticalTankModal = () => {
     setShowVerticalTankProps?.(false);
-    if (typeof setActiveVerticalTankId === "function")
+    if (typeof setActiveVerticalTankId === "function") {
       setActiveVerticalTankId(null);
+    }
   };
 
   const closeStandardTankModal = () => {
     setShowStandardTankProps?.(false);
-    if (typeof setActiveStandardTankId === "function")
+    if (typeof setActiveStandardTankId === "function") {
       setActiveStandardTankId(null);
+    }
   };
 
   return (
@@ -290,6 +299,21 @@ export default function AppModals({
           onSave={(updated) => {
             patchTankProperties(counterInputTarget.id, updated);
             closeCounterInputSettings?.();
+          }}
+        />
+      )}
+
+      {/* ✅ NEW: Push Button NO settings */}
+      {pushButtonNOTarget && (
+        <PushBottomControlNOPropertiesModal
+          open={true}
+          pushButton={pushButtonNOTarget}
+          dashboardId={safeDashboardId}
+          onSaveProject={onSaveProject}
+          onClose={() => closePushButtonNOSettings?.()}
+          onSave={(updated) => {
+            patchTankProperties(pushButtonNOTarget.id, updated);
+            closePushButtonNOSettings?.();
           }}
         />
       )}
