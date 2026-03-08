@@ -367,6 +367,15 @@ export default function GraphicDisplay({
   const timeUnit = T?.timeUnit ?? "seconds";
   const windowSize = Number(T?.window ?? 60);
 
+  // ✅ Convert modal window + unit into milliseconds
+const windowMs = useMemo(() => {
+  const unitMs = msPerUnit(timeUnit);
+
+  if (!Number.isFinite(unitMs)) return 0;
+
+  return unitMs * windowSize;
+}, [timeUnit, windowSize]);
+
   // ✅ FIX: default to 3000ms to match modal/common poller
   const sampleMs = Number(T?.sampleMs ?? 3000);
 
@@ -604,25 +613,40 @@ useEffect(() => {
         throw new Error(`History request failed (${res.status}): ${text}`);
       }
 
-      const data = await res.json();
-      const normalized = normalizeHistorianPoints(data?.points || []);
+ const data = await res.json();
+const normalized = normalizeHistorianPoints(data?.points || []);
 
-      if (cancelled) return;
+if (cancelled) return;
 
-      console.log("[GraphicDisplay] HISTORY LOADED OK", {
-        widgetId,
-        resolvedDashboardId,
-        files: Array.isArray(data?.files) ? data.files.length : 0,
-        backendCount: data?.count,
-        normalizedCount: normalized.length,
-        data,
-      });
+// ✅ show only the visible timeframe configured in the modal
+const now = Date.now();
+let clipped = normalized;
 
-      setPoints(normalized);
+if (windowMs > 0) {
+  const minT = now - windowMs;
+  clipped = normalized.filter((p) => {
+    const t = Number(p?.t);
+    return Number.isFinite(t) && t >= minT;
+  });
+}
 
-      const lastNumeric = [...normalized]
-        .reverse()
-        .find((p) => Number.isFinite(Number(p?.y)));
+console.log("[GraphicDisplay] HISTORY LOADED OK", {
+  widgetId,
+  resolvedDashboardId,
+  files: Array.isArray(data?.files) ? data.files.length : 0,
+  backendCount: data?.count,
+  normalizedCount: normalized.length,
+  clippedCount: clipped.length,
+  windowMs,
+  data,
+});
+
+setPoints(clipped);
+
+const lastNumeric = [...clipped]
+  .reverse()
+  .find((p) => Number.isFinite(Number(p?.y)));
+
       if (lastNumeric) setMathOutput(Number(lastNumeric.y));
       else setMathOutput(null);
 
@@ -657,7 +681,7 @@ useEffect(() => {
       resolvedDashboardId,
     });
   };
-}, [widgetId, resolvedDashboardId]);
+}, [widgetId, resolvedDashboardId, windowMs]);
 
   // ✅ if user pauses, insert a gap marker
   useEffect(() => {
@@ -742,23 +766,39 @@ useEffect(() => {
       if (now - last < smp) return;
       lastSampleAtRef.current = now;
 
-      if (Number.isFinite(out)) {
-        setPoints((prev) => {
-          const lastPoint = prev.length ? prev[prev.length - 1] : null;
+     if (Number.isFinite(out)) {
+  setPoints((prev) => {
+    const lastPoint = prev.length ? prev[prev.length - 1] : null;
 
-          // avoid appending the exact same millisecond/value pair twice
-          if (
-            lastPoint &&
-            !lastPoint.gap &&
-            Number(lastPoint.t) === now &&
-            Number(lastPoint.y) === Number(out)
-          ) {
-            return prev;
-          }
+    // avoid appending the exact same millisecond/value pair twice
+    if (
+      lastPoint &&
+      !lastPoint.gap &&
+      Number(lastPoint.t) === now &&
+      Number(lastPoint.y) === Number(out)
+    ) {
+      return prev;
+    }
 
-          return [...prev, { t: now, y: out }];
-        });
-      } else {
+    const next = [...prev, { t: now, y: out }];
+
+    // ✅ keep only the visible timeframe configured in the modal
+    if (windowMs > 0) {
+      const minT = now - windowMs;
+
+      return next.filter((p) => {
+        const t = Number(p?.t);
+
+        // keep gap markers, and keep numeric points only inside the window
+        if (p?.gap) return true;
+        return Number.isFinite(t) && t >= minT;
+      });
+    }
+
+    return next;
+  });
+} else {
+
         dbgWarn("LIVE: no numeric output to append", {
           raw,
           safeLive,
@@ -787,6 +827,7 @@ useEffect(() => {
     sampleMs,
     mathFormula,
     err,
+    windowMs,
   ]);
 
   const { plotRef, sel, hover, timeTicks, pointsForView, handlers } =
