@@ -423,6 +423,9 @@ const windowMs = useMemo(() => {
 
   const [totEnabled, setTotEnabled] = useState(tankTotEnabled);
   const [totalizerResetAt, setTotalizerResetAt] = useState(0);
+  const totalizerAccumRef = useRef(0);
+  const totalizerLastPointRef = useRef(null);
+
 
   useEffect(() => {
     const nextSingleEnabled = T?.singleUnitsEnabled === true;
@@ -437,6 +440,9 @@ const windowMs = useMemo(() => {
     setTotEnabled(nextTotEnabled);
 
     setTotalizerResetAt(0);
+    setRunningTotalizer(0);
+    totalizerAccumRef.current = 0;
+    totalizerLastPointRef.current = null;
   }, [
     tankTotEnabled,
     T?.singleUnitsEnabled,
@@ -646,6 +652,31 @@ console.log("[GraphicDisplay] HISTORY LOADED OK", {
 
 setPoints(clipped);
 
+if (
+  !singleUnitsEnabled &&
+  tankTotEnabled &&
+  totalizerRateUnit &&
+  totalizerTotalUnit
+) {
+  const seededTotal = integrateRateToTotal(clipped, totalizerRateUnit);
+  const safeSeed = Number.isFinite(seededTotal) ? seededTotal : 0;
+
+  setRunningTotalizer(safeSeed);
+  totalizerAccumRef.current = safeSeed;
+
+  const lastHistPoint = [...clipped]
+    .reverse()
+    .find((p) => !p?.gap && Number.isFinite(Number(p?.t)) && Number.isFinite(Number(p?.y)));
+
+  totalizerLastPointRef.current = lastHistPoint
+    ? { t: Number(lastHistPoint.t), y: Number(lastHistPoint.y) }
+    : null;
+} else {
+  setRunningTotalizer(0);
+  totalizerAccumRef.current = 0;
+  totalizerLastPointRef.current = null;
+}
+
 const lastNumeric = [...clipped]
   .reverse()
   .find((p) => Number.isFinite(Number(p?.y)));
@@ -770,6 +801,43 @@ const lastNumeric = [...clipped]
       lastSampleAtRef.current = now;
 
      if (Number.isFinite(out)) {
+      if (
+  !singleUnitsEnabled &&
+  totEnabled &&
+  totalizerRateUnit &&
+  totalizerTotalUnit
+) {
+  const prevPoint = totalizerLastPointRef.current;
+  const currPoint = { t: now, y: Number(out) };
+
+  if (
+    prevPoint &&
+    Number.isFinite(prevPoint.t) &&
+    Number.isFinite(prevPoint.y) &&
+    Number.isFinite(currPoint.t) &&
+    Number.isFinite(currPoint.y) &&
+    currPoint.t > prevPoint.t
+  ) {
+    const base = rateUnitToTimeBase(totalizerRateUnit);
+    const dtMs = currPoint.t - prevPoint.t;
+
+    let dtBase = 0;
+    if (base === "minute") dtBase = dtMs / 60000;
+    else if (base === "hour") dtBase = dtMs / 3600000;
+    else if (base === "second") dtBase = dtMs / 1000;
+    else if (base === "day") dtBase = dtMs / 86400000;
+
+    const avgRate = (prevPoint.y + currPoint.y) / 2;
+
+    // ✅ pause totalizer when flow is zero or negative
+    if (Number.isFinite(dtBase) && dtBase > 0 && Number.isFinite(avgRate) && avgRate > 0) {
+      totalizerAccumRef.current += avgRate * dtBase;
+      setRunningTotalizer(totalizerAccumRef.current);
+    }
+  }
+
+  totalizerLastPointRef.current = currPoint;
+}
   setPoints((prev) => {
     const lastPoint = prev.length ? prev[prev.length - 1] : null;
 
@@ -879,28 +947,20 @@ const { svg } = useTrendSvg({
   dbgWarn,
 });
 
-  const totalizerValue = useMemo(() => {
-    if (singleUnitsEnabled) return null;
-    if (!totEnabled) return null;
-    if (!totalizerRateUnit) return null;
-    if (!totalizerTotalUnit) return null;
+ const totalizerValue = useMemo(() => {
+  if (singleUnitsEnabled) return null;
+  if (!totEnabled) return null;
+  if (!totalizerRateUnit) return null;
+  if (!totalizerTotalUnit) return null;
 
-    const srcBase = (pointsForView?.length ? pointsForView : activePoints) || [];
-    const src = totalizerResetAt
-      ? srcBase.filter((p) => Number(p?.t) >= Number(totalizerResetAt || 0))
-      : srcBase;
-
-    const total = integrateRateToTotal(src, totalizerRateUnit);
-    return Number.isFinite(total) ? total : null;
-  }, [
-    singleUnitsEnabled,
-    totEnabled,
-    totalizerRateUnit,
-    totalizerTotalUnit,
-    pointsForView,
-    activePoints,
-    totalizerResetAt,
-  ]);
+  return Number.isFinite(runningTotalizer) ? runningTotalizer : 0;
+}, [
+  singleUnitsEnabled,
+  totEnabled,
+  totalizerRateUnit,
+  totalizerTotalUnit,
+  runningTotalizer,
+]);
 
 const hoverTotalizerValue = useMemo(() => {
   if (singleUnitsEnabled) return null;
@@ -976,12 +1036,18 @@ const hoverTotalizerValue = useMemo(() => {
     dbg("TOTALIZER: disabled from header");
   };
 
-  const onTotalizerReset = () => {
-    if (singleUnitsEnabled) return;
-    const t = Date.now();
-    setTotalizerResetAt(t);
-    dbg("TOTALIZER: reset from header", { resetAt: t });
-  };
+ const onTotalizerReset = () => {
+  if (singleUnitsEnabled) return;
+
+  const t = Date.now();
+  setTotalizerResetAt(t);
+
+  setRunningTotalizer(0);
+  totalizerAccumRef.current = 0;
+  totalizerLastPointRef.current = null;
+
+  dbg("TOTALIZER: reset from header", { resetAt: t });
+};
 
   const displayUnits = useMemo(() => {
     const su = String(singleUnitsUnit || "").trim();
