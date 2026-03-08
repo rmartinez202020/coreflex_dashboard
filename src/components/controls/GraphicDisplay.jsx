@@ -869,7 +869,7 @@ const { plotRef, sel, hover, timeTicks, pointsForView, handlers } =
     exploreStartMs,
     exploreEndMs,
   });
-  
+
 const { svg } = useTrendSvg({
   points: activePoints,
   pointsForView,
@@ -901,6 +901,39 @@ const { svg } = useTrendSvg({
     activePoints,
     totalizerResetAt,
   ]);
+
+const hoverTotalizerValue = useMemo(() => {
+  if (singleUnitsEnabled) return null;
+  if (!totEnabled) return null;
+  if (!totalizerRateUnit) return null;
+  if (!totalizerTotalUnit) return null;
+  if (!hover || !Number.isFinite(Number(hover.t))) return null;
+
+  const cutoffT = Number(hover.t);
+
+  const srcBase = (pointsForView?.length ? pointsForView : activePoints) || [];
+
+  const srcFiltered = srcBase.filter((p) => {
+    const t = Number(p?.t);
+    return Number.isFinite(t) && t <= cutoffT;
+  });
+
+  const src = totalizerResetAt
+    ? srcFiltered.filter((p) => Number(p?.t) >= Number(totalizerResetAt || 0))
+    : srcFiltered;
+
+  const total = integrateRateToTotal(src, totalizerRateUnit);
+  return Number.isFinite(total) ? total : null;
+}, [
+  singleUnitsEnabled,
+  totEnabled,
+  totalizerRateUnit,
+  totalizerTotalUnit,
+  hover,
+  pointsForView,
+  activePoints,
+  totalizerResetAt,
+]);
 
   const statusLabel = useMemo(() => {
     if (!bindDeviceId)
@@ -1025,6 +1058,8 @@ const { svg } = useTrendSvg({
         isPlaying={isPlaying}
         onPlay={() => setIsPlaying(true)}
         onPause={() => setIsPlaying(false)}
+        hoverTotalizerValue={hoverTotalizerValue}
+        hoverTotalizerUnit={totalizerTotalUnit}
 
       onToggleExplore={() => {
   if (isExploreMode) {

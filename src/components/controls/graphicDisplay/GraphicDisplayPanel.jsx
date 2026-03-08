@@ -155,8 +155,10 @@ export default function GraphicDisplayPanel({
   // svg (from useTrendSvg)
   svg = { W: 1000, H: 420, segs: [] },
 
-  // outputs
+    // outputs
   mathOutput = null,
+  hoverTotalizerValue = null,
+  hoverTotalizerUnit = "",
   err = "",
 }) {
   const lineColor = useMemo(
@@ -549,15 +551,30 @@ export default function GraphicDisplayPanel({
                   }}
                 >
                   <div>{fmtTime(hover.t)}</div>
-                  <div>
-                    Y:{" "}
-                    <span style={{ color: "#0b3b18", fontWeight: 400 }}>
-                      {Number.isFinite(hover.y) ? Number(hover.y).toFixed(2) : "--"}
-                    </span>
-                    {outputUnitText ? (
-                      <span style={{ color: "#475569" }}> {outputUnitText}</span>
-                    ) : null}
-                  </div>
+
+<div>
+  Y:{" "}
+  <span style={{ color: "#0b3b18", fontWeight: 400 }}>
+    {Number.isFinite(hover.y) ? Number(hover.y).toFixed(2) : "--"}
+  </span>
+  {outputUnitText ? (
+    <span style={{ color: "#475569" }}> {outputUnitText}</span>
+  ) : null}
+</div>
+
+{Number.isFinite(hoverTotalizerValue) ? (
+  <div>
+    TOTALIZER:{" "}
+    <span style={{ color: "#0b3b18", fontWeight: 400 }}>
+      {Number(hoverTotalizerValue).toFixed(2)}
+    </span>
+    {hoverTotalizerUnit ? (
+      <span style={{ color: "#475569" }}> {hoverTotalizerUnit}</span>
+    ) : null}
+  </div>
+) : null}
+
+
                 </div>
               </>
             ) : null}
