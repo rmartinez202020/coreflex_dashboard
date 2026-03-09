@@ -539,10 +539,11 @@ export default function PushButtonControl({
         </div>
       </div>
 
-      {showBusyText && (
+            {showBusyText && (
         <div
           style={{
             marginTop: 6,
+            width: size,                  // ✅ same width for NO and NC
             textAlign: "center",
             color: "#d97706",
             fontWeight: 700,
@@ -562,6 +563,7 @@ export default function PushButtonControl({
         <div
           style={{
             marginTop: 6,
+            width: size,                  // ✅ same width for NO and NC
             textAlign: "center",
             color: "#dc2626",
             fontWeight: 600,
