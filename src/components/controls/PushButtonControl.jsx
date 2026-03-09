@@ -171,7 +171,12 @@ export default function PushButtonControl({
   }, [isGreen, label, safeTitle]);
 
   const canActuateInPlay =
-    play && !visualOnly && !disabled && hasBinding && !isBusy && !runningRef.current;
+    play &&
+    !visualOnly &&
+    !disabled &&
+    hasBinding &&
+    !isBusy &&
+    !runningRef.current;
 
   function clearBannerTimer() {
     if (bannerTimerRef.current) {
@@ -411,31 +416,34 @@ export default function PushButtonControl({
         tabIndex={disabled ? -1 : 0}
         aria-label={ariaLabel}
         aria-pressed={isPressed}
-        onPointerDown={handlePressStart}
-        onPointerUp={handlePressEnd}
-        onPointerCancel={handlePressEnd}
-        onPointerLeave={handlePressEnd}
-        onKeyDown={handleKeyDown}
-        onKeyUp={handleKeyUp}
+        onPointerDown={play ? handlePressStart : undefined}
+        onPointerUp={play ? handlePressEnd : undefined}
+        onPointerCancel={play ? handlePressEnd : undefined}
+        onPointerLeave={play ? handlePressEnd : undefined}
+        onKeyDown={play ? handleKeyDown : undefined}
+        onKeyUp={play ? handleKeyUp : undefined}
         style={{
           width: safeW,
           height: safeH,
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
-          touchAction: "none",
+          touchAction: play ? "none" : "auto",
           WebkitTouchCallout: "none",
-          cursor:
-            disabled || (play && (!hasBinding || isBusy))
+          cursor: play
+            ? disabled || !hasBinding || isBusy
               ? "not-allowed"
-              : "pointer",
+              : "pointer"
+            : "default",
           opacity: disabled ? 0.7 : 1,
         }}
         title={
-          !hasBinding
-            ? "Bind this push button to a DO"
-            : isBusy
-            ? "Control Action in Progress"
+          play
+            ? !hasBinding
+              ? "Bind this push button to a DO"
+              : isBusy
+              ? "Control Action in Progress"
+              : safeTitle || text
             : safeTitle || text
         }
       >
