@@ -463,6 +463,33 @@ export default function PushButtonNCPropertiesModal({
         field: f,
       });
 
+      const writeRes = await fetch(`${API_URL}/control-bindings/write`, {
+  method: "POST",
+  headers: {
+    "Content-Type": "application/json",
+    ...getAuthHeaders(),
+    "Cache-Control": "no-cache",
+    Pragma: "no-cache",
+  },
+  body: JSON.stringify({
+    dashboardId: dash,
+    widgetId: wid,
+    value01: 1, // ✅ NC initial state = CLOSED
+  }),
+});
+
+if (!writeRes.ok) {
+  const errJson = await writeRes.json().catch(() => null);
+  const errText = await writeRes.text().catch(() => "");
+
+  throw new Error(
+    errJson?.detail?.error ||
+      errJson?.detail ||
+      errText ||
+      "Failed to initialize Push Button NC output to closed state"
+  );
+}
+
       await loadUsed();
 
       onClose?.();

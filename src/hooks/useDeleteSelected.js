@@ -66,6 +66,39 @@ async function softDeleteGraphicBindingOnBackend({ widgetId, dashboardId }) {
   return j;
 }
 
+// ✅ NEW: before deleting PushButtonNC binding, force DO back OPEN (0)
+async function openNcOutputBeforeDelete({ widgetId, dashboardId }) {
+  const wid = String(widgetId || "").trim();
+  if (!wid) return;
+
+  const dash = String(dashboardId || "main").trim() || "main";
+
+  const token = String(getToken() || "").trim();
+  if (!token) throw new Error("Missing auth token");
+
+  const res = await fetch(`${API_URL}/control-bindings/write`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    },
+    body: JSON.stringify({
+      dashboardId: dash,
+      widgetId: wid,
+      value01: 0, // ✅ OPEN first
+    }),
+  });
+
+  const j = await res.json().catch(() => ({}));
+  if (!res.ok) {
+    throw new Error(j?.detail || j?.error || `Open NC output failed (${res.status})`);
+  }
+
+  return j;
+}
+
 /**
  * useDeleteSelected
  * - Handles Delete / Backspace to remove selected canvas objects
@@ -79,6 +112,7 @@ async function softDeleteGraphicBindingOnBackend({ widgetId, dashboardId }) {
  * - If the deleted widget is a Counter Input (DI), also delete its backend row
  * - If the deleted widget is a Control (Toggle/Push), also delete its control binding (release DO)
  * - ✅ If the deleted widget is a Graphic Display, also soft-delete its backend binding row
+ * - ✅ If the deleted widget is PushButtonNC, OPEN the DO first, then delete the binding
  *
  * IMPORTANT FIX:
  * - Avoid stale droppedTanks by mirroring it into a ref
@@ -146,6 +180,15 @@ export default function useDeleteSelected({
       .map((obj) => String(obj.id || "").trim())
       .filter(Boolean);
 
+    // -------------------------
+    // ✅ PushButtonNC only
+    // ✅ must OPEN first, then delete binding
+    // -------------------------
+    const pushNcWidgetIds = selectedObjs
+      .filter((obj) => String(obj?.shape || "").trim() === "pushButtonNC")
+      .map((obj) => String(obj.id || "").trim())
+      .filter(Boolean);
+
     // ✅ remove from UI immediately
     setDroppedTanks((prev) =>
       (Array.isArray(prev) ? prev : []).filter(
@@ -175,6 +218,18 @@ export default function useDeleteSelected({
         });
       } catch (err) {
         console.error("❌ Failed to soft-delete graphic binding:", wid, err);
+      }
+    }
+
+    // ✅ PushButtonNC: OPEN the DO first, then delete binding
+    for (const wid of pushNcWidgetIds) {
+      try {
+        await openNcOutputBeforeDelete({
+          widgetId: wid,
+          dashboardId: dashForBackend,
+        });
+      } catch (err) {
+        console.error("❌ Failed to OPEN NC output before delete:", wid, err);
       }
     }
 
