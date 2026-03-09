@@ -137,6 +137,11 @@ export default function PushButtonControl({
   const isGreen = String(variant).toUpperCase() === "NO";
   const text = (label ?? (isGreen ? "NO" : "NC")).toUpperCase();
 
+  // ✅ NO: press closes(1), release timer reopens(0)
+  // ✅ NC: press opens(0), release timer recloses(1)
+  const pulseStartValue01 = isGreen ? 1 : 0;
+  const pulseEndValue01 = isGreen ? 0 : 1;
+
   const isPressed = !!pressed || localPressed;
   const safeTitle = String(title || "").trim();
 
@@ -219,14 +224,14 @@ export default function PushButtonControl({
         resp = await onWrite({
           deviceId: bindDeviceId,
           field: bindField,
-          value01: 1, // ✅ Close = 1
+          value01: pulseStartValue01,
           widget,
         });
       } else {
         resp = await defaultWriteToBackend({
           dashboardId: dash,
           widgetId: wid,
-          value01: 1, // ✅ Close = 1
+          value01: pulseStartValue01,
         });
       }
 
@@ -255,14 +260,14 @@ export default function PushButtonControl({
             endResp = await onWrite({
               deviceId: bindDeviceId,
               field: bindField,
-              value01: 0, // ✅ Open = 0
+              value01: pulseEndValue01,
               widget,
             });
           } else {
             endResp = await defaultWriteToBackend({
               dashboardId: dash,
               widgetId: wid,
-              value01: 0, // ✅ Open = 0
+              value01: pulseEndValue01,
             });
           }
 
