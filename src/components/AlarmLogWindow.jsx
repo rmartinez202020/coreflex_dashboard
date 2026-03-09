@@ -75,36 +75,35 @@ export default function AlarmLogWindow({
           <span style={countPill}>{visibleAlarms.length}</span>
         </div>
 
-     <div style={btnRow}>
-  {/* Minimize only in window mode */}
-  {!isPage && (
-    <button
-      style={iconBtn}
-      title="Minimize"
-      onClick={(e) => {
-        e.stopPropagation();
-        onMinimize?.();
-      }}
-    >
-      —
-    </button>
-  )}
+        <div style={btnRow}>
+          {/* Minimize only in window mode */}
+          {!isPage && (
+            <button
+              style={iconBtn}
+              title="Minimize"
+              onClick={(e) => {
+                e.stopPropagation();
+                onMinimize?.();
+              }}
+            >
+              —
+            </button>
+          )}
 
-  {/* ❌ Close ONLY in window mode */}
-  {!isPage && (
-    <button
-      style={closeBtnRed}
-      title="Close"
-      onClick={(e) => {
-        e.stopPropagation();
-        setShowCloseConfirm(true);
-      }}
-    >
-      ✕
-    </button>
-  )}
-</div>
-
+          {/* ❌ Close ONLY in window mode */}
+          {!isPage && (
+            <button
+              style={closeBtnRed}
+              title="Close"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowCloseConfirm(true);
+              }}
+            >
+              ✕
+            </button>
+          )}
+        </div>
       </div>
 
       {/* TABS BAR */}
@@ -133,7 +132,9 @@ export default function AlarmLogWindow({
               }}
             >
               <span style={launchPill}>↗</span>
-              <span style={{ fontSize: 12, fontWeight: 900 }}>Launch</span>
+              <span style={{ fontSize: 12, fontWeight: 900, color: "#111827" }}>
+                Launch
+              </span>
             </button>
           )}
 
@@ -148,7 +149,9 @@ export default function AlarmLogWindow({
             }}
           >
             <span style={gearPill}>⚙</span>
-            <span style={{ fontSize: 12, fontWeight: 900 }}>Settings</span>
+            <span style={{ fontSize: 12, fontWeight: 900, color: "#111827" }}>
+              Settings
+            </span>
           </button>
         </div>
       </div>
@@ -351,7 +354,14 @@ function TabButton({ label, active, onClick }) {
   );
 }
 
-const COL = { sel: 34, time: 170, ack: 48, sev: 48, group: 120, controller: 120 };
+const COL = {
+  sel: 34,
+  time: 170,
+  ack: 48,
+  sev: 48,
+  group: 120,
+  controller: 120,
+};
 
 const wrap = {
   width: "100%",
@@ -366,23 +376,26 @@ const wrap = {
 
 const topBar = {
   height: 42,
-  background: "#111827",
-  color: "#fff",
+  background: "#ffffff",
+  color: "#111827",
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
   padding: "0 10px",
-  borderBottom: "2px solid #000",
+  borderBottom: "1px solid #cbd5e1",
   userSelect: "none",
 };
 
 const titleWrap = { display: "flex", gap: 8, alignItems: "center" };
+
 const countPill = {
-  background: "#000",
+  background: "#f8fafc",
+  color: "#111827",
   padding: "2px 8px",
   borderRadius: 999,
   fontWeight: 900,
   fontSize: 12,
+  border: "1px solid #cbd5e1",
 };
 
 const btnRow = { display: "flex", gap: 6, alignItems: "center" };
@@ -390,10 +403,10 @@ const btnRow = { display: "flex", gap: 6, alignItems: "center" };
 const iconBtn = {
   width: 28,
   height: 26,
-  background: "#000",
-  color: "#fff",
+  background: "#ffffff",
+  color: "#111827",
   borderRadius: 6,
-  border: "1px solid #111",
+  border: "1px solid #cbd5e1",
   cursor: "pointer",
   fontWeight: 900,
 };
@@ -414,9 +427,9 @@ const tabsBar = {
   display: "flex",
   gap: 6,
   padding: "0 10px",
-  background: "#e5e7eb",
+  background: "#ffffff",
   alignItems: "center",
-  borderBottom: "1px solid #9ca3af",
+  borderBottom: "1px solid #cbd5e1",
 };
 
 const tabsLeft = { display: "flex", gap: 6, alignItems: "center" };
@@ -434,12 +447,14 @@ const tabBtn = {
   borderRadius: 6,
   border: "1px solid #9ca3af",
   background: "#ffffff",
+  color: "#111827",
   cursor: "pointer",
   fontSize: 12,
 };
 
 const tabBtnActive = {
   background: "#ffffff",
+  color: "#111827",
   border: "1px solid #000",
   boxShadow: "0 1px 0 rgba(0,0,0,0.25)",
 };
@@ -450,6 +465,7 @@ const settingsTabBtn = {
   borderRadius: 6,
   border: "1px solid #9ca3af",
   background: "#ffffff",
+  color: "#111827",
   cursor: "pointer",
   display: "inline-flex",
   alignItems: "center",
@@ -474,6 +490,7 @@ const launchTabBtn = {
   borderRadius: 6,
   border: "1px solid #9ca3af",
   background: "#ffffff",
+  color: "#111827",
   cursor: "pointer",
   display: "inline-flex",
   alignItems: "center",
