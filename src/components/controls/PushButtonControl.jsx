@@ -546,42 +546,46 @@ export default function PushButtonControl({
       </div>
 
       {showBusyText && (
-        <div
-          style={{
-            marginTop: 6,
-            textAlign: "center",
-            color: "#d97706",
-            fontWeight: 700,
-            fontSize: 14,
-            letterSpacing: 0.25,
-            lineHeight: 1,
-            userSelect: "none",
-            pointerEvents: "none",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {banner.text}
-        </div>
-      )}
+  <div
+    style={{
+      width: containerW,
+      marginTop: 6,
+      textAlign: "center",
+      color: "#d97706",
+      fontWeight: 700,
+      fontSize: 14,
+      letterSpacing: 0.25,
+      lineHeight: 1,
+      userSelect: "none",
+      pointerEvents: "none",
+      whiteSpace: "nowrap",
+    }}
+  >
+    {banner.text}
+  </div>
+)}
 
       {showErrorText && (
-        <div
-          style={{
-            marginTop: 6,
-            textAlign: "center",
-            color: "#dc2626",
-            fontWeight: 600,
-            fontSize: 14,
-            letterSpacing: 0.3,
-            lineHeight: 1,
-            userSelect: "none",
-            pointerEvents: "none",
-            whiteSpace: "nowrap",
-          }}
-        >
-          {banner.text}
-        </div>
-      )}
+  <div
+    style={{
+      width: containerW,
+      marginTop: 6,
+      textAlign: "center",
+      color: "#dc2626",
+      fontWeight: 600,
+      fontSize: 14,
+      letterSpacing: 0.3,
+      lineHeight: 1,
+      userSelect: "none",
+      pointerEvents: "none",
+      whiteSpace: "nowrap",
+    }}
+  >
+    {banner.text}
+  </div>
+)}
+
+
     </div>
   );
 }
