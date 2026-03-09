@@ -660,12 +660,16 @@ export default function DashboardCanvas({
       }}
     >
       <PushButtonControl
-        variant="NO"
-        width={w}
-        height={h}
-        pressed={pressed}
-        title={tank?.properties?.title || ""}
-      />
+  variant="NO"
+  width={w}
+  height={h}
+  pressed={pressed}
+  title={tank?.properties?.title || ""}
+  isLaunched={isPlay}
+  visualOnly={false}
+  widget={tank}
+  dashboardId={resolvedDash}
+/>
     </DraggableDroppedTank>
   );
 }

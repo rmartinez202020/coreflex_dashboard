@@ -1,38 +1,135 @@
 import React, { useMemo, useRef, useState } from "react";
+import { API_URL } from "../../config/api";
+import { getToken } from "../../utils/authToken";
 
-/**
- * Professional industrial push button
- * - Variant: "NO" (green) or "NC" (red)
- * - Press animation (pressed=true)
- * - Scales with width/height
- * - ✅ Thinner bezel/ring (less black area)
- * - ✅ iPad / touch support via pointer events
- * - ✅ Local press state so it visibly presses even without parent state updates
- * - ✅ Optional title above the push button
- */
+function getAuthHeaders() {
+  const token = String(getToken() || "").trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+async function defaultWriteToBackend({ dashboardId, widgetId, value01 }) {
+  const dash = String(dashboardId || "").trim();
+  const wid = String(widgetId || "").trim();
+
+  if (!dash || !wid) {
+    throw new Error("Missing dashboardId/widgetId for write");
+  }
+
+  const res = await fetch(`${API_URL}/control-bindings/write`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+      "Cache-Control": "no-cache",
+      Pragma: "no-cache",
+    },
+    body: JSON.stringify({
+      dashboardId: dash,
+      widgetId: wid,
+      value01: Number(value01) ? 1 : 0,
+    }),
+  });
+
+  if (res.status === 409) {
+    let detail = null;
+    try {
+      detail = await res.json();
+    } catch {
+      detail = null;
+    }
+
+    return {
+      ok: false,
+      busy: true,
+      status: 409,
+      message: "Control Action in Progress",
+      detail,
+    };
+  }
+
+  if (!res.ok) {
+    const txt = await res.text().catch(() => "");
+    throw new Error(txt || `Write failed (${res.status})`);
+  }
+
+  try {
+    return await res.json();
+  } catch {
+    return { ok: true };
+  }
+}
+
+function isLaunchRoute() {
+  try {
+    const p = String(window?.location?.pathname || "").toLowerCase();
+    return p.includes("launch");
+  } catch {
+    return false;
+  }
+}
+
+function resolveWidgetId(widget) {
+  return String(
+    widget?.id ??
+      widget?.widgetId ??
+      widget?._id ??
+      widget?.uuid ??
+      widget?.properties?.widgetId ??
+      ""
+  ).trim();
+}
+
+function resolveDashboardId({ dashboardId, widget }) {
+  return String(
+    dashboardId ??
+      widget?.dashboardId ??
+      widget?.dashboard_id ??
+      widget?.properties?.dashboardId ??
+      widget?.properties?.dashboard_id ??
+      ""
+  ).trim();
+}
+
 export default function PushButtonControl({
   variant = "NO", // "NO" = green, "NC" = red
   width = 110,
   height = 110,
   pressed = false,
-  label, // optional override
-  title = "", // ✅ optional title shown above button
-
-  // ✅ optional callbacks for real control logic / backend writes
+  label,
+  title = "",
   onPressStart,
   onPressEnd,
-
-  // ✅ optional disable
   disabled = false,
+
+  // ✅ runtime control props
+  isLaunched = false,
+  visualOnly = false,
+  widget = null,
+  dashboardId = null,
+  pulseMs = 4000,
+  onWrite = null,
 }) {
   const [localPressed, setLocalPressed] = useState(false);
+  const [isBusy, setIsBusy] = useState(false);
+  const [banner, setBanner] = useState({ kind: "none", text: "" });
   const pointerActiveRef = useRef(false);
+  const runningRef = useRef(false);
+  const pulseTimerRef = useRef(null);
+  const bannerTimerRef = useRef(null);
+
+  const play = !!isLaunched || isLaunchRoute();
+
+  const p = widget?.properties || {};
+  const bindDeviceId = String(p.bindDeviceId || p?.tag?.deviceId || "").trim();
+  const bindField = String(p.bindField || p?.tag?.field || "")
+    .trim()
+    .toLowerCase();
+  const hasBinding = !!bindDeviceId && /^do[1-4]$/.test(bindField);
 
   const safeW = Math.max(70, Number(width) || 110);
   const safeH = Math.max(70, Number(height) || 110);
   const size = Math.min(safeW, safeH);
 
-  // ✅ Thinner black areas
   const bezel = Math.max(5, Math.round(size * 0.075));
   const ring = Math.max(4, Math.round(size * 0.06));
   const btn = size - bezel * 2 - ring * 2;
@@ -73,6 +170,120 @@ export default function PushButtonControl({
     return `${name}${titlePart}${labelPart}`.trim();
   }, [isGreen, label, safeTitle]);
 
+  const canActuateInPlay =
+    play && !visualOnly && !disabled && hasBinding && !isBusy && !runningRef.current;
+
+  function clearBannerTimer() {
+    if (bannerTimerRef.current) {
+      clearTimeout(bannerTimerRef.current);
+      bannerTimerRef.current = null;
+    }
+  }
+
+  function showBanner(kind, text, ms = null) {
+    setBanner({ kind, text: String(text || "") });
+    clearBannerTimer();
+
+    if (ms && ms > 0) {
+      bannerTimerRef.current = setTimeout(() => {
+        setBanner({ kind: "none", text: "" });
+      }, ms);
+    }
+  }
+
+  async function performPulse() {
+    if (!canActuateInPlay) return;
+
+    const wid = resolveWidgetId(widget);
+    const dash = resolveDashboardId({ dashboardId, widget });
+
+    if (!dash || !wid) {
+      showBanner("error", "Write blocked", 4000);
+      return;
+    }
+
+    runningRef.current = true;
+    setIsBusy(true);
+    setLocalPressed(true);
+    showBanner("occupied", "Control Action in Progress", null);
+
+    try {
+      let resp = null;
+
+      if (typeof onWrite === "function") {
+        resp = await onWrite({
+          deviceId: bindDeviceId,
+          field: bindField,
+          value01: 1, // ✅ Close = 1
+          widget,
+        });
+      } else {
+        resp = await defaultWriteToBackend({
+          dashboardId: dash,
+          widgetId: wid,
+          value01: 1, // ✅ Close = 1
+        });
+      }
+
+      if (resp?.busy === true || resp?.status === 409) {
+        setLocalPressed(false);
+        setIsBusy(false);
+        runningRef.current = false;
+        showBanner("occupied", "Control Action in Progress", 4000);
+        return;
+      }
+
+      const ok = resp?.ok !== false;
+      if (!ok) {
+        setLocalPressed(false);
+        setIsBusy(false);
+        runningRef.current = false;
+        showBanner("error", "Failed", 4000);
+        return;
+      }
+
+      pulseTimerRef.current = setTimeout(async () => {
+        try {
+          let endResp = null;
+
+          if (typeof onWrite === "function") {
+            endResp = await onWrite({
+              deviceId: bindDeviceId,
+              field: bindField,
+              value01: 0, // ✅ Open = 0
+              widget,
+            });
+          } else {
+            endResp = await defaultWriteToBackend({
+              dashboardId: dash,
+              widgetId: wid,
+              value01: 0, // ✅ Open = 0
+            });
+          }
+
+          const endOk = endResp?.ok !== false;
+          if (!endOk && !(endResp?.busy === true || endResp?.status === 409)) {
+            showBanner("error", "Failed", 4000);
+          } else {
+            showBanner("none", "");
+          }
+        } catch {
+          showBanner("error", "Failed", 4000);
+        } finally {
+          setLocalPressed(false);
+          setIsBusy(false);
+          runningRef.current = false;
+          pulseTimerRef.current = null;
+        }
+      }, Math.max(500, Number(pulseMs) || 4000));
+    } catch {
+      setLocalPressed(false);
+      setIsBusy(false);
+      runningRef.current = false;
+      showBanner("error", "Failed", 4000);
+    }
+  }
+
   function handlePressStart(e) {
     if (disabled) return;
 
@@ -80,13 +291,29 @@ export default function PushButtonControl({
     e.stopPropagation();
 
     pointerActiveRef.current = true;
-    setLocalPressed(true);
 
+    if (play) {
+      if (!canActuateInPlay) return;
+      onPressStart?.(e);
+      void performPulse();
+      return;
+    }
+
+    setLocalPressed(true);
     onPressStart?.(e);
   }
 
   function handlePressEnd(e) {
     if (disabled) return;
+
+    if (play) {
+      e.preventDefault();
+      e.stopPropagation();
+      pointerActiveRef.current = false;
+      onPressEnd?.(e);
+      return;
+    }
+
     if (!pointerActiveRef.current && !localPressed) return;
 
     e.preventDefault();
@@ -105,6 +332,14 @@ export default function PushButtonControl({
 
     e.preventDefault();
     pointerActiveRef.current = true;
+
+    if (play) {
+      if (!canActuateInPlay) return;
+      onPressStart?.(e);
+      void performPulse();
+      return;
+    }
+
     setLocalPressed(true);
     onPressStart?.(e);
   }
@@ -115,9 +350,28 @@ export default function PushButtonControl({
 
     e.preventDefault();
     pointerActiveRef.current = false;
+
+    if (play) {
+      onPressEnd?.(e);
+      return;
+    }
+
     setLocalPressed(false);
     onPressEnd?.(e);
   }
+
+  React.useEffect(() => {
+    return () => {
+      if (pulseTimerRef.current) {
+        clearTimeout(pulseTimerRef.current);
+        pulseTimerRef.current = null;
+      }
+      clearBannerTimer();
+    };
+  }, []);
+
+  const showBusyText = banner.kind === "occupied" && !!banner.text;
+  const showErrorText = banner.kind === "error" && !!banner.text;
 
   return (
     <div
@@ -132,25 +386,25 @@ export default function PushButtonControl({
         WebkitUserSelect: "none",
       }}
     >
- {safeTitle && (
-  <div
-    style={{
-      minWidth: safeW,
-      width: "max-content", // allow full title width
-      maxWidth: safeW * 3,  // safety limit
-      textAlign: "center",
-      fontWeight: 900,
-      fontSize: Math.max(16, Math.round(size * 0.16)),
-      color: "#0f172a",
-      letterSpacing: 0.3,
-      lineHeight: 1.15,
-      whiteSpace: "nowrap", // keep horizontal
-      pointerEvents: "none",
-    }}
-  >
-    {safeTitle}
-  </div>
-)}
+      {safeTitle && (
+        <div
+          style={{
+            minWidth: safeW,
+            width: "max-content",
+            maxWidth: safeW * 3,
+            textAlign: "center",
+            fontWeight: 900,
+            fontSize: Math.max(16, Math.round(size * 0.16)),
+            color: "#0f172a",
+            letterSpacing: 0.3,
+            lineHeight: 1.15,
+            whiteSpace: "nowrap",
+            pointerEvents: "none",
+          }}
+        >
+          {safeTitle}
+        </div>
+      )}
 
       <div
         role="button"
@@ -171,9 +425,19 @@ export default function PushButtonControl({
           justifyContent: "center",
           touchAction: "none",
           WebkitTouchCallout: "none",
-          cursor: disabled ? "not-allowed" : "pointer",
+          cursor:
+            disabled || (play && (!hasBinding || isBusy))
+              ? "not-allowed"
+              : "pointer",
           opacity: disabled ? 0.7 : 1,
         }}
+        title={
+          !hasBinding
+            ? "Bind this push button to a DO"
+            : isBusy
+            ? "Control Action in Progress"
+            : safeTitle || text
+        }
       >
         <div
           style={{
@@ -261,6 +525,44 @@ export default function PushButtonControl({
           </div>
         </div>
       </div>
+
+      {showBusyText && (
+        <div
+          style={{
+            marginTop: 6,
+            textAlign: "center",
+            color: "#d97706",
+            fontWeight: 700,
+            fontSize: 14,
+            letterSpacing: 0.25,
+            lineHeight: 1,
+            userSelect: "none",
+            pointerEvents: "none",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {banner.text}
+        </div>
+      )}
+
+      {showErrorText && (
+        <div
+          style={{
+            marginTop: 6,
+            textAlign: "center",
+            color: "#dc2626",
+            fontWeight: 600,
+            fontSize: 14,
+            letterSpacing: 0.3,
+            lineHeight: 1,
+            userSelect: "none",
+            pointerEvents: "none",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {banner.text}
+        </div>
+      )}
     </div>
   );
 }
