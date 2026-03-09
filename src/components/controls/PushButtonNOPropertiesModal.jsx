@@ -344,12 +344,14 @@ export default function PushButtonNOPropertiesModal({
   }, [telemetryRow, effectiveField]);
 
   const hasSelection = !!deviceId && !!effectiveField;
-  const hasData = rawValue !== undefined && rawValue !== null;
-  const isOnlineWithData = deviceIsOnline && hasData && hasSelection;
-  const as01 = React.useMemo(() => (isOnlineWithData ? to01(rawValue) : null), [
-    isOnlineWithData,
-    rawValue,
-  ]);
+const hasData = rawValue !== undefined && rawValue !== null;
+const isOnlineWithData = deviceIsOnline && hasData && hasSelection;
+const as01 = React.useMemo(() => (isOnlineWithData ? to01(rawValue) : null), [
+  isOnlineWithData,
+  rawValue,
+]);
+
+const isDoStateOne = isOnlineWithData && Number(as01) === 1;
 
 const statusText = !deviceId
   ? "Select a device and DO"
@@ -365,8 +367,7 @@ const statusText = !deviceId
   ? "No data for DO"
   : "Offline";
 
-  const valueText = isOnlineWithData ? String(as01 ?? 0) : "—";
-  const isDoStateOne = isOnlineWithData && Number(as01) === 1;
+const valueText = isOnlineWithData ? String(as01 ?? 0) : "—";
 
   // =========================
   // APPLY SAVE + BACKEND BIND
