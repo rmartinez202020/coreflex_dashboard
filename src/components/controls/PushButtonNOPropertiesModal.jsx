@@ -1,3 +1,4 @@
+//PushButtonNOPropertiesModal
 import React from "react";
 import { createPortal } from "react-dom";
 import { API_URL } from "../../config/api";
@@ -26,7 +27,7 @@ const DO_OPTIONS = [
   { key: "do4", label: "DO-4" },
 ];
 
-export default function PushBottomControlNOPropertiesModal({
+export default function PushButtonNOPropertiesModal({
   open = false,
   pushButton,
   onSave,

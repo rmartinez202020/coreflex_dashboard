@@ -13,7 +13,7 @@ import CounterInputSettingsModal from "./indicators/CounterInputSettingsModal";
 import HorizontalTankPropertiesModal from "./HorizontalTankPropertiesModal";
 import VerticalTankSettingsModal from "./VerticalTankSettingsModal";
 import StandardTankPropertiesModal from "./StandardTankPropertiesModal";
-import PushBottomControlNOPropertiesModal from "./controls/PushBottomControlNOPropertiesModal";
+import PushButtonNOPropertiesModal from "./controls/PushButtonNOPropertiesModal";
 
 export default function AppModals({
   dashboardId = null,
@@ -305,17 +305,19 @@ export default function AppModals({
 
       {/* ✅ NEW: Push Button NO settings */}
       {pushButtonNOTarget && (
-        <PushBottomControlNOPropertiesModal
-          open={true}
-          pushButton={pushButtonNOTarget}
-          dashboardId={safeDashboardId}
-          onSaveProject={onSaveProject}
-          onClose={() => closePushButtonNOSettings?.()}
-          onSave={(updated) => {
-            patchTankProperties(pushButtonNOTarget.id, updated);
-            closePushButtonNOSettings?.();
-          }}
-        />
+
+        <PushButtonNOPropertiesModal
+  open={true}
+  pushButton={pushButtonNOTarget}
+  dashboardId={safeDashboardId}
+  onSaveProject={onSaveProject}
+  onClose={() => closePushButtonNOSettings?.()}
+  onSave={(updated) => {
+    patchTankProperties(pushButtonNOTarget.id, updated);
+    closePushButtonNOSettings?.();
+  }}
+/>
+
       )}
 
       {displayTarget && (
