@@ -133,25 +133,25 @@ export default function PushButtonControl({
       }}
     >
       {safeTitle && (
-        <div
-          style={{
-            width: "100%",
-            textAlign: "center",
-            fontWeight: 900,
-            fontSize: 14,
-            color: "#0f172a",
-            letterSpacing: 0.2,
-            lineHeight: 1.15,
-            overflow: "hidden",
-            textOverflow: "ellipsis",
-            whiteSpace: "nowrap",
-            pointerEvents: "none",
-          }}
-          title={safeTitle}
-        >
-          {safeTitle}
-        </div>
-      )}
+  <div
+    style={{
+      width: "100%",
+      textAlign: "center",
+      fontWeight: 900,
+      fontSize: Math.max(16, Math.round(size * 0.16)), // ✅ scales with button
+      color: "#0f172a",
+      letterSpacing: 0.3,
+      lineHeight: 1.15,
+      overflow: "hidden",
+      textOverflow: "ellipsis",
+      whiteSpace: "nowrap",
+      pointerEvents: "none",
+    }}
+    title={safeTitle}
+  >
+    {safeTitle}
+  </div>
+)}
 
       <div
         role="button"
