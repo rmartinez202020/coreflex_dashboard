@@ -183,6 +183,19 @@ export default function PushButtonControl({
     !isBusy &&
     !runningRef.current;
 
+  const bannerStyle = {
+    width: containerW,
+    marginTop: 6,
+    textAlign: "center",
+    fontWeight: 700,
+    fontSize: 14,
+    letterSpacing: 0.25,
+    lineHeight: 1,
+    userSelect: "none",
+    pointerEvents: "none",
+    whiteSpace: "nowrap",
+  };
+
   function clearBannerTimer() {
     if (bannerTimerRef.current) {
       clearTimeout(bannerTimerRef.current);
@@ -385,26 +398,23 @@ export default function PushButtonControl({
 
   return (
     <div
-  style={{
-    width: containerW,
-    display: "inline-flex",
-    flexDirection: "column",
-    alignItems: "center",
-    justifyContent: "flex-start",
-    gap: safeTitle ? 6 : 0,
-    userSelect: "none",
-    WebkitUserSelect: "none",
-  }}
->
-
+      style={{
+        width: containerW,
+        display: "inline-flex",
+        flexDirection: "column",
+        alignItems: "center",
+        justifyContent: "flex-start",
+        gap: safeTitle ? 6 : 0,
+        userSelect: "none",
+        WebkitUserSelect: "none",
+      }}
+    >
       {safeTitle && (
         <div
           style={{
             minWidth: containerW,
             width: containerW,
             maxWidth: containerW,
-
-
             textAlign: "center",
             fontWeight: 900,
             fontSize: Math.max(16, Math.round(size * 0.16)),
@@ -430,12 +440,9 @@ export default function PushButtonControl({
         onPointerLeave={play ? handlePressEnd : undefined}
         onKeyDown={play ? handleKeyDown : undefined}
         onKeyUp={play ? handleKeyUp : undefined}
-
         style={{
-        width: containerW,
-        height: safeH,
-
-
+          width: containerW,
+          height: safeH,
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
@@ -545,47 +552,19 @@ export default function PushButtonControl({
         </div>
       </div>
 
-      {showBusyText && (
-  <div
-    style={{
-      width: containerW,
-      marginTop: 6,
-      textAlign: "center",
-      color: "#d97706",
-      fontWeight: 700,
-      fontSize: 14,
-      letterSpacing: 0.25,
-      lineHeight: 1,
-      userSelect: "none",
-      pointerEvents: "none",
-      whiteSpace: "nowrap",
-    }}
-  >
-    {banner.text}
-  </div>
-)}
+      {showBusyText && <div style={{ ...bannerStyle, color: "#d97706" }}>{banner.text}</div>}
 
       {showErrorText && (
-  <div
-    style={{
-      width: containerW,
-      marginTop: 6,
-      textAlign: "center",
-      color: "#dc2626",
-      fontWeight: 600,
-      fontSize: 14,
-      letterSpacing: 0.3,
-      lineHeight: 1,
-      userSelect: "none",
-      pointerEvents: "none",
-      whiteSpace: "nowrap",
-    }}
-  >
-    {banner.text}
-  </div>
-)}
-
-
+        <div
+          style={{
+            ...bannerStyle,
+            color: "#dc2626",
+            fontWeight: 600,
+          }}
+        >
+          {banner.text}
+        </div>
+      )}
     </div>
   );
 }
