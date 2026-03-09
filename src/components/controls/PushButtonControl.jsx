@@ -417,7 +417,7 @@ export default function PushButtonControl({
             maxWidth: containerW,
             textAlign: "center",
             fontWeight: 900,
-            fontSize: Math.max(16, Math.round(size * 0.16)),
+            fontSize:18,
             color: "#0f172a",
             letterSpacing: 0.3,
             lineHeight: 1.15,
