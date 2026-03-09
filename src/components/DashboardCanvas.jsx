@@ -149,6 +149,7 @@ export default function DashboardCanvas({
   dashboardId,
   onOpenPushButtonNOSettings,
 
+
 }) {
   const isPlay = dashboardMode === "play" || dashboardMode === "launch";
 
@@ -632,7 +633,7 @@ export default function DashboardCanvas({
               return (
                 <DraggableDroppedTank {...commonProps}>
                   <ToggleSwitchControl
-                    isOn={isOn}
+                    isOn={isOn}                        
                     width={w}
                     height={h}
                     isLaunched={isPlay}
@@ -652,7 +653,7 @@ export default function DashboardCanvas({
   const pressed = !!tank.pressed;
 
   return (
-    <DraggableDroppedTank
+    <DraggableDroppedTank                                                            
       {...commonProps}
       onDoubleClick={() => {
         if (!isPlay) onOpenPushButtonNOSettings?.(tank);
@@ -663,6 +664,7 @@ export default function DashboardCanvas({
         width={w}
         height={h}
         pressed={pressed}
+        title={tank?.properties?.title || ""}
       />
     </DraggableDroppedTank>
   );
