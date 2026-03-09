@@ -14,6 +14,7 @@ import HorizontalTankPropertiesModal from "./HorizontalTankPropertiesModal";
 import VerticalTankSettingsModal from "./VerticalTankSettingsModal";
 import StandardTankPropertiesModal from "./StandardTankPropertiesModal";
 import PushButtonNOPropertiesModal from "./controls/PushButtonNOPropertiesModal";
+import PushButtonNCPropertiesModal from "./controls/PushButtonNCPropertiesModal";
 
 export default function AppModals({
   dashboardId = null,
@@ -58,6 +59,8 @@ export default function AppModals({
   closeCounterInputSettings,
   pushButtonNOSettingsId,
   closePushButtonNOSettings,
+  pushButtonNCSettingsId,
+  closePushButtonNCSettings,
   sensorsData,
   windowDrag,
   debug = false,
@@ -184,6 +187,14 @@ export default function AppModals({
       (t) => isSameId(t.id, pushButtonNOSettingsId) && t.shape === "pushButtonNO"
     );
   }, [droppedTanks, pushButtonNOSettingsId]);
+
+  // ✅ NEW: pushButtonNC modal target
+const pushButtonNCTarget = useMemo(() => {
+  if (pushButtonNCSettingsId == null) return null;
+  return droppedTanks.find(
+    (t) => isSameId(t.id, pushButtonNCSettingsId) && t.shape === "pushButtonNC"
+  );
+}, [droppedTanks, pushButtonNCSettingsId]);
 
   const alarmLogWindowProps = windowDrag?.getWindowProps
     ? windowDrag.getWindowProps("alarmLog")
@@ -319,6 +330,20 @@ export default function AppModals({
 />
 
       )}
+
+      {pushButtonNCTarget && (
+  <PushButtonNCPropertiesModal
+    open={true}
+    pushButton={pushButtonNCTarget}
+    dashboardId={safeDashboardId}
+    onSaveProject={onSaveProject}
+    onClose={() => closePushButtonNCSettings?.()}
+    onSave={(updated) => {
+      patchTankProperties(pushButtonNCTarget.id, updated);
+      closePushButtonNCSettings?.();
+    }}
+  />
+)}
 
       {displayTarget && (
         <DisplaySettingsModal

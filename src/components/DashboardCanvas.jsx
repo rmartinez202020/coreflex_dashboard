@@ -679,22 +679,39 @@ if (tank.shape === "pushButtonNO") {
     </DraggableDroppedTank>
   );
 }
-            if (tank.shape === "pushButtonNC") {
-              const w = tank.w ?? tank.width ?? 110;
-              const h = tank.h ?? tank.height ?? 110;
-              const pressed = !!tank.pressed;
+           if (tank.shape === "pushButtonNC") {
+  const w = tank.w ?? tank.width ?? 110;
+  const h = tank.h ?? tank.height ?? 110;
+  const pressed = !!tank.pressed;
 
-              return (
-                <DraggableDroppedTank {...commonProps}>
-                  <PushButtonControl
-                    variant="NC"
-                    width={w}
-                    height={h}
-                    pressed={pressed}
-                  />
-                </DraggableDroppedTank>
-              );
-            }
+  const resolvedDash = resolveDashboardId({
+    activeDashboardId,
+    dashboardId,
+    selectedTank,
+    droppedTanks,
+  });
+
+  return (
+    <DraggableDroppedTank
+      {...commonProps}
+      onDoubleClick={() => {
+        if (!isPlay) onOpenPushButtonNCSettings?.(tank);
+      }}
+    >
+      <PushButtonControl
+        variant="NC"
+        width={w}
+        height={h}
+        pressed={pressed}
+        title={tank?.properties?.title || ""}
+        isLaunched={isPlay}
+        visualOnly={false}
+        widget={tank}
+        dashboardId={resolvedDash}
+      />
+    </DraggableDroppedTank>
+  );
+}
 
             if (tank.shape === "standardTank") {
               return (

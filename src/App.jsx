@@ -294,6 +294,16 @@ const telemetryMap = devicesData.telemetryMap; // ✅ the common poller map
     setPushButtonNOSettingsId(null);
   };
 
+  // ✅ Push Button NC Settings
+const [pushButtonNCSettingsId, setPushButtonNCSettingsId] = useState(null);
+
+const openPushButtonNCSettings = (tank) => {
+  setPushButtonNCSettingsId(tank?.id ?? null);
+};
+
+const closePushButtonNCSettings = () => {
+  setPushButtonNCSettingsId(null);
+};
 
   // 🚨 ALARMS LOG MODAL (AI)
   const [alarmLogOpen, setAlarmLogOpen] = useState(false);
@@ -619,6 +629,7 @@ const telemetryMap = devicesData.telemetryMap; // ✅ the common poller map
             onOpenStateImageSettings={openStateImageSettings}
             onOpenCounterInputSettings={openCounterInputSettings}
             onOpenPushButtonNOSettings={openPushButtonNOSettings}
+            onOpenPushButtonNCSettings={openPushButtonNCSettings}
             activeDashboardId={activeDashboard?.dashboardId || null}
             activeHorizontalTankId={activeHorizontalTankId}
             setActiveHorizontalTankId={setActiveHorizontalTankId}
@@ -677,8 +688,12 @@ const telemetryMap = devicesData.telemetryMap; // ✅ the common poller map
           closeStateImageSettings={closeStateImageSettings}
           counterInputSettingsId={counterInputSettingsId}
           closeCounterInputSettings={closeCounterInputSettings}
+
           pushButtonNOSettingsId={pushButtonNOSettingsId}
           closePushButtonNOSettings={closePushButtonNOSettings}
+          pushButtonNCSettingsId={pushButtonNCSettingsId}
+          closePushButtonNCSettings={closePushButtonNCSettings}
+
           showHorizontalTankProps={showHorizontalTankProps}
           setShowHorizontalTankProps={setShowHorizontalTankProps}
           activeHorizontalTankId={activeHorizontalTankId}
