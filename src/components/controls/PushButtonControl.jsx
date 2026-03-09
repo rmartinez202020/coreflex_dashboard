@@ -132,22 +132,21 @@ export default function PushButtonControl({
         WebkitUserSelect: "none",
       }}
     >
-      {safeTitle && (
+ {safeTitle && (
   <div
     style={{
-      width: "100%",
+      minWidth: safeW,
+      width: "max-content", // allow full title width
+      maxWidth: safeW * 3,  // safety limit
       textAlign: "center",
       fontWeight: 900,
-      fontSize: Math.max(16, Math.round(size * 0.16)), // ✅ scales with button
+      fontSize: Math.max(16, Math.round(size * 0.16)),
       color: "#0f172a",
       letterSpacing: 0.3,
       lineHeight: 1.15,
-      overflow: "hidden",
-      textOverflow: "ellipsis",
-      whiteSpace: "nowrap",
+      whiteSpace: "nowrap", // keep horizontal
       pointerEvents: "none",
     }}
-    title={safeTitle}
   >
     {safeTitle}
   </div>
