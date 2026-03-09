@@ -39,7 +39,8 @@ export default function AlarmSetupModal({
   const toggleAll = () => {
     setCheckedIds((prev) => {
       const next = new Set(prev);
-      const allSelected = alarms.length > 0 && alarms.every((a) => next.has(a.id));
+      const allSelected =
+        alarms.length > 0 && alarms.every((a) => next.has(a.id));
       if (allSelected) alarms.forEach((a) => next.delete(a.id));
       else alarms.forEach((a) => next.add(a.id));
       return next;
@@ -157,7 +158,8 @@ export default function AlarmSetupModal({
     setMessage("");
   };
 
-  const allChecked = alarms.length > 0 && alarms.every((a) => checkedIds.has(a.id));
+  const allChecked =
+    alarms.length > 0 && alarms.every((a) => checkedIds.has(a.id));
 
   return (
     <div
@@ -173,7 +175,8 @@ export default function AlarmSetupModal({
             <div>
               <div style={title}>Alarm Setup</div>
               <div style={subtitle}>
-                Add Boolean (DI) or Dynamic (AO) alarms, then manage them in the table below
+                Add Boolean (DI) or Dynamic (AO) alarms, then manage them in the
+                table below
               </div>
             </div>
           </div>
@@ -263,8 +266,8 @@ export default function AlarmSetupModal({
                           </button>
                         </div>
                         <div style={help}>
-                          NO = alarm when input becomes <b>1</b> • NC = alarm when input becomes{" "}
-                          <b>0</b>
+                          NO = alarm when input becomes <b>1</b> • NC = alarm
+                          when input becomes <b>0</b>
                         </div>
                       </div>
 
@@ -405,7 +408,9 @@ export default function AlarmSetupModal({
                               >
                                 <div style={tagMain}>
                                   <div style={tagField}>{t.field}</div>
-                                  <div style={tagMeta}>{t.label ? t.label : ""}</div>
+                                  <div style={tagMeta}>
+                                    {t.label ? t.label : ""}
+                                  </div>
                                 </div>
                                 <div style={tagTypePill}>{t.type || "—"}</div>
                               </button>
@@ -435,7 +440,9 @@ export default function AlarmSetupModal({
                         <div style={preview}>
                           <div style={previewLabel}>Status</div>
                           <div style={previewValueText}>
-                            {previewValue === null ? "—" : String(previewValue)}
+                            {previewValue === null
+                              ? "—"
+                              : String(previewValue)}
                           </div>
                         </div>
                       </div>
@@ -450,8 +457,12 @@ export default function AlarmSetupModal({
           <div style={bottomArea}>
             <div style={tableHeader}>
               <div style={tableHeaderLeft}>
-                {/* (kept as your UI, but header Add Alarm is the real one) */}
-                <button type="button" style={tableBtn} onClick={handleAdd} disabled={!canAdd}>
+                <button
+                  type="button"
+                  style={tableBtn}
+                  onClick={handleAdd}
+                  disabled={!canAdd}
+                >
                   Add Alarm
                 </button>
 
@@ -460,7 +471,8 @@ export default function AlarmSetupModal({
                   style={{
                     ...tableBtn,
                     opacity: checkedIds.size === 0 ? 0.5 : 1,
-                    cursor: checkedIds.size === 0 ? "not-allowed" : "pointer",
+                    cursor:
+                      checkedIds.size === 0 ? "not-allowed" : "pointer",
                   }}
                   disabled={checkedIds.size === 0}
                   onClick={deleteSelected}
@@ -469,7 +481,6 @@ export default function AlarmSetupModal({
                 </button>
               </div>
 
-              {/* ✅ Advanced removed */}
               <div />
             </div>
 
@@ -488,10 +499,33 @@ export default function AlarmSetupModal({
                 <div style={{ ...tHeadCell, width: 220 }}>Trigger</div>
                 <div style={{ ...tHeadCell, width: 130 }}>Alarm Type</div>
                 <div style={{ ...tHeadCell, width: 170 }}>Edge Detection</div>
-                <div style={{ ...tHeadCell, width: 110, textAlign: "center" }}>Value</div>
+                <div
+                  style={{
+                    ...tHeadCell,
+                    width: 110,
+                    textAlign: "center",
+                  }}
+                >
+                  Value
+                </div>
                 <div style={{ ...tHeadCell, width: 160 }}>Deadband Mode</div>
-                <div style={{ ...tHeadCell, width: 170, textAlign: "center" }}>Deadband Level</div>
-                <div style={{ ...tHeadCell, flex: 1, minWidth: 420, borderRight: "none" }}>
+                <div
+                  style={{
+                    ...tHeadCell,
+                    width: 170,
+                    textAlign: "center",
+                  }}
+                >
+                  Deadband Level
+                </div>
+                <div
+                  style={{
+                    ...tHeadCell,
+                    flex: 1,
+                    minWidth: 420,
+                    borderRight: "none",
+                  }}
+                >
                   Message
                 </div>
               </div>
@@ -506,7 +540,13 @@ export default function AlarmSetupModal({
                     const checked = checkedIds.has(a.id);
                     return (
                       <div key={a.id} style={tRow}>
-                        <div style={{ ...tCell, width: 44, textAlign: "center" }}>
+                        <div
+                          style={{
+                            ...tCell,
+                            width: 44,
+                            textAlign: "center",
+                          }}
+                        >
                           <input
                             type="checkbox"
                             checked={checked}
@@ -528,13 +568,27 @@ export default function AlarmSetupModal({
                           {a.type === "boolean" ? "Equal" : a.edgeDetection}
                         </div>
 
-                        <div style={{ ...tCell, width: 110, textAlign: "center" }}>
+                        <div
+                          style={{
+                            ...tCell,
+                            width: 110,
+                            textAlign: "center",
+                          }}
+                        >
                           {String(a.value)}
                         </div>
 
-                        <div style={{ ...tCell, width: 160 }}>{a.deadbandMode}</div>
+                        <div style={{ ...tCell, width: 160 }}>
+                          {a.deadbandMode}
+                        </div>
 
-                        <div style={{ ...tCell, width: 170, textAlign: "center" }}>
+                        <div
+                          style={{
+                            ...tCell,
+                            width: 170,
+                            textAlign: "center",
+                          }}
+                        >
                           {String(a.deadbandLevel)}
                         </div>
 
@@ -546,7 +600,9 @@ export default function AlarmSetupModal({
                             borderRight: "none",
                           }}
                         >
-                          {a.message || <span style={{ color: "#888" }}>—</span>}
+                          {a.message || (
+                            <span style={{ color: "#888" }}>—</span>
+                          )}
                         </div>
                       </div>
                     );
@@ -555,8 +611,6 @@ export default function AlarmSetupModal({
               </div>
             </div>
 
-            {/* keep clearAll available for future use but not exposed */}
-            {/* eslint-disable-next-line no-unused-vars */}
             {false && <button onClick={clearAll}>Clear</button>}
           </div>
         </div>
@@ -665,9 +719,9 @@ const content = {
 
 /* ✅ TOP: no scroll */
 const topArea = {
-  flex: "0 0 40%",
+  flex: "0 0 46%",
   overflow: "hidden",
-  padding: 16,
+  padding: "16px 16px 22px 16px",
   borderBottom: "1px solid #e5e7eb",
   background: "#ffffff",
 };
@@ -781,7 +835,11 @@ const tagRowBtn = {
   color: "#0f172a",
 };
 
-const tagMain = { display: "flex", flexDirection: "column", alignItems: "flex-start" };
+const tagMain = {
+  display: "flex",
+  flexDirection: "column",
+  alignItems: "flex-start",
+};
 const tagField = { fontWeight: 900, fontSize: 14 };
 const tagMeta = { fontSize: 13, color: "#475569", marginTop: 3 };
 
@@ -798,7 +856,11 @@ const tagTypePill = {
 const empty = { padding: 12, color: "#64748b", fontSize: 13 };
 
 const picked = { padding: 12 };
-const pickedTop = { display: "flex", alignItems: "center", justifyContent: "space-between" };
+const pickedTop = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+};
 const pickedLabel = { color: "#475569", fontSize: 13 };
 const pickedValue = { color: "#0f172a", fontSize: 14, marginTop: 6 };
 
@@ -827,7 +889,12 @@ const preview = {
 const previewLabel = { color: "#475569", fontSize: 13 };
 const previewValueText = { color: "#0f172a", fontWeight: 900, fontSize: 13 };
 
-const inlineRow = { display: "flex", gap: 12, alignItems: "center", marginTop: 4 };
+const inlineRow = {
+  display: "flex",
+  gap: 12,
+  alignItems: "center",
+  marginTop: 4,
+};
 
 const chip = {
   padding: "10px 14px",
@@ -848,7 +915,7 @@ const help = { marginTop: 8, fontSize: 13, color: "#64748b" };
 const bottomArea = {
   flex: "1 1 auto",
   overflow: "hidden",
-  padding: 16,
+  padding: "22px 16px 16px 16px",
   background: "#ffffff",
 };
 
