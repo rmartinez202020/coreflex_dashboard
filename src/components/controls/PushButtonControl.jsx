@@ -106,7 +106,7 @@ export default function PushButtonControl({
   visualOnly = false,
   widget = null,
   dashboardId = null,
-  pulseMs = 4000,
+  pulseMs = 12000,
   onWrite = null,
 }) {
   const [localPressed, setLocalPressed] = useState(false);
@@ -275,7 +275,7 @@ export default function PushButtonControl({
           runningRef.current = false;
           pulseTimerRef.current = null;
         }
-      }, Math.max(500, Number(pulseMs) || 4000));
+      }, Math.max(500, Number(pulseMs) || 12000));
     } catch {
       setLocalPressed(false);
       setIsBusy(false);
