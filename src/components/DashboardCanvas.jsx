@@ -148,6 +148,7 @@ export default function DashboardCanvas({
   activeDashboardId,
   dashboardId,
   onOpenPushButtonNOSettings,
+  onOpenPushButtonNCSettings,
 
 
 }) {
