@@ -88,9 +88,11 @@ function DisplayOutputIcon() {
 
 export default function DraggableControls() {
   return (
-    <div className="ml-2 space-y-1.5 mb-3">
+    <div className="ml-2 mt-2 space-y-3 mb-3">
       {/* ✅ extracted NO */}
-      <DraggablePushButtonNO />
+      <div className="pt-0.5">
+        <DraggablePushButtonNO />
+      </div>
 
       {CONTROLS.map((ctrl) => (
         <div
@@ -99,11 +101,13 @@ export default function DraggableControls() {
           onDragStart={(e) => e.dataTransfer.setData("control", ctrl.type)}
           className="cursor-grab active:cursor-grabbing
                      text-[12px] text-gray-300 hover:text-white
-                     flex items-center gap-1.5 leading-tight"
+                     flex items-center gap-2 leading-tight py-1"
           style={{ userSelect: "none" }}
         >
           {ctrl.icon && (
-            <span style={{ fontSize: 12, lineHeight: 1 }}>{ctrl.icon}</span>
+            <span style={{ fontSize: 12, lineHeight: 1, flexShrink: 0 }}>
+              {ctrl.icon}
+            </span>
           )}
 
           {ctrl.badge && (
@@ -127,7 +131,7 @@ export default function DraggableControls() {
 
           {ctrl.render === "displayOutput" && <DisplayOutputIcon />}
 
-          <span style={{ lineHeight: 1.1 }}>{ctrl.label}</span>
+          <span style={{ lineHeight: 1.15 }}>{ctrl.label}</span>
         </div>
       ))}
     </div>
