@@ -351,19 +351,22 @@ export default function PushButtonNOPropertiesModal({
     rawValue,
   ]);
 
-  const statusText = !deviceId
-    ? "Select a device and DO"
-    : !effectiveField
-    ? "Select a DO tag"
-    : usedByOther
-    ? "DO already used"
-    : isOnlineWithData
-    ? "Online"
-    : deviceId && deviceIsOnline
-    ? "No data for DO"
-    : "Offline";
+const statusText = !deviceId
+  ? "Select a device and DO"
+  : !effectiveField
+  ? "Select a DO tag"
+  : usedByOther
+  ? "DO already used"
+  : isDoStateOne
+  ? "DO must be 0"
+  : isOnlineWithData
+  ? "Online"
+  : deviceId && deviceIsOnline
+  ? "No data for DO"
+  : "Offline";
 
   const valueText = isOnlineWithData ? String(as01 ?? 0) : "—";
+  const isDoStateOne = isOnlineWithData && Number(as01) === 1;
 
   // =========================
   // APPLY SAVE + BACKEND BIND
@@ -381,12 +384,13 @@ export default function PushButtonNOPropertiesModal({
     }
   }, [open]);
 
-  const canApply =
-    canApplyLocal &&
-    !!String(dashboardId || "").trim() &&
-    !!String(widgetId || "").trim() &&
-    !usedByOther &&
-    !saving;
+const canApply =
+  canApplyLocal &&
+  !!String(dashboardId || "").trim() &&
+  !!String(widgetId || "").trim() &&
+  !usedByOther &&
+  !isDoStateOne &&
+  !saving;
 
   const apply = async () => {
     if (!pushButton) return;
@@ -409,6 +413,13 @@ export default function PushButtonNOPropertiesModal({
       return;
     }
     if (!dev || !/^do[1-4]$/.test(f)) return;
+
+    if (isDoStateOne) {
+  setSaveErr(
+    `Desired DO must be at state 0 before applying. ${f.toUpperCase()} is currently state 1.`
+  );
+  return;
+}
 
     setSaving(true);
 
@@ -756,6 +767,20 @@ export default function PushButtonNOPropertiesModal({
                     Choose another DO.
                   </div>
                 )}
+
+                {!usedByOther && isDoStateOne && (
+  <div
+    style={{
+      marginTop: 8,
+      fontSize: 12,
+      color: "#dc2626",
+      fontWeight: 900,
+    }}
+  >
+    Desired DO must be at state 0. {effectiveField.toUpperCase()} is currently
+    state 1. Turn the output OFF before applying this Push Button NO.
+  </div>
+)}
               </div>
             </div>
 
@@ -872,13 +897,16 @@ export default function PushButtonNOPropertiesModal({
               opacity: saving ? 0.8 : 1,
             }}
             type="button"
-            title={
-              !dashboardId
-                ? "Missing dashboardId"
-                : usedByOther
-                ? "This DO is already used"
-                : "Apply"
-            }
+
+          title={
+  !dashboardId
+    ? "Missing dashboardId"
+    : usedByOther
+    ? "This DO is already used"
+    : isDoStateOne
+    ? "Desired DO must be at state 0"
+    : "Apply"
+}
           >
             {saving ? "Saving..." : "Apply"}
           </button>
