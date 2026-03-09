@@ -646,30 +646,36 @@ export default function DashboardCanvas({
                 </DraggableDroppedTank>
               );
             }
-
-            if (tank.shape === "pushButtonNO") {
+if (tank.shape === "pushButtonNO") {
   const w = tank.w ?? tank.width ?? 110;
   const h = tank.h ?? tank.height ?? 110;
   const pressed = !!tank.pressed;
 
+  const resolvedDash = resolveDashboardId({
+    activeDashboardId,
+    dashboardId,
+    selectedTank,
+    droppedTanks,
+  });
+
   return (
-    <DraggableDroppedTank                                                            
+    <DraggableDroppedTank
       {...commonProps}
       onDoubleClick={() => {
         if (!isPlay) onOpenPushButtonNOSettings?.(tank);
       }}
     >
       <PushButtonControl
-  variant="NO"
-  width={w}
-  height={h}
-  pressed={pressed}
-  title={tank?.properties?.title || ""}
-  isLaunched={isPlay}
-  visualOnly={false}
-  widget={tank}
-  dashboardId={resolvedDash}
-/>
+        variant="NO"
+        width={w}
+        height={h}
+        pressed={pressed}
+        title={tank?.properties?.title || ""}
+        isLaunched={isPlay}
+        visualOnly={false}
+        widget={tank}
+        dashboardId={resolvedDash}
+      />
     </DraggableDroppedTank>
   );
 }
