@@ -521,15 +521,16 @@ const table = {
 
 const headerRow = {
   display: "flex",
-  background: "#111827",
-  color: "#fff",
-  borderBottom: "1px solid #000",
+  background: "#ffffff",
+  color: "#111827",
+  borderBottom: "1px solid #cbd5e1",
 };
 
 const cellHead = {
   padding: 8,
   fontWeight: 900,
   fontSize: 12,
+  color: "#111827",
   whiteSpace: "nowrap",
   overflow: "hidden",
   textOverflow: "ellipsis",
