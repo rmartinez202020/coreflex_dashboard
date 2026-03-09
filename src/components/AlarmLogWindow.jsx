@@ -200,7 +200,7 @@ export default function AlarmLogWindow({
               key={a.id}
               style={{
                 ...row,
-                background: isSelected ? "#eff6ff" : "#ffffff",
+                background: isSelected ? "#eef4ff" : "#ffffff",
                 color: "#111827",
               }}
               onMouseDown={(e) => {
@@ -367,22 +367,24 @@ const wrap = {
   width: "100%",
   height: "100%",
   background: "#f8fafc",
-  border: "3px solid #000",
-  boxShadow: "0 0 0 1px #374151 inset, 0 8px 24px rgba(0,0,0,.45)",
+  border: "1.5px solid #1f2937",
+  borderRadius: 12,
+  boxShadow: "0 0 0 1px rgba(148,163,184,0.28) inset, 0 10px 26px rgba(0,0,0,.28)",
   display: "flex",
   flexDirection: "column",
   position: "relative",
+  overflow: "hidden",
 };
 
 const topBar = {
   height: 42,
-  background: "#ffffff",
+  background: "#eceff3",
   color: "#111827",
   display: "flex",
   justifyContent: "space-between",
   alignItems: "center",
   padding: "0 10px",
-  borderBottom: "1px solid #cbd5e1",
+  borderBottom: "1px solid #d1d5db",
   userSelect: "none",
 };
 
@@ -403,7 +405,7 @@ const btnRow = { display: "flex", gap: 6, alignItems: "center" };
 const iconBtn = {
   width: 28,
   height: 26,
-  background: "#ffffff",
+  background: "#f8fafc",
   color: "#111827",
   borderRadius: 6,
   border: "1px solid #cbd5e1",
@@ -427,9 +429,9 @@ const tabsBar = {
   display: "flex",
   gap: 6,
   padding: "0 10px",
-  background: "#ffffff",
+  background: "#eceff3",
   alignItems: "center",
-  borderBottom: "1px solid #cbd5e1",
+  borderBottom: "1px solid #d1d5db",
 };
 
 const tabsLeft = { display: "flex", gap: 6, alignItems: "center" };
@@ -455,8 +457,8 @@ const tabBtn = {
 const tabBtnActive = {
   background: "#ffffff",
   color: "#111827",
-  border: "1px solid #000",
-  boxShadow: "0 1px 0 rgba(0,0,0,0.25)",
+  border: "1px solid #6b7280",
+  boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
 };
 
 const settingsTabBtn = {
@@ -515,15 +517,15 @@ const table = {
   overflow: "auto",
   background: "#ffffff",
   backgroundImage:
-    "linear-gradient(#f1f5f9 1px, transparent 1px), linear-gradient(90deg, #f1f5f9 1px, transparent 1px)",
+    "linear-gradient(#eef2f7 1px, transparent 1px), linear-gradient(90deg, #eef2f7 1px, transparent 1px)",
   backgroundSize: "100% 30px, 160px 100%",
 };
 
 const headerRow = {
   display: "flex",
-  background: "#ffffff",
+  background: "#eef1f5",
   color: "#111827",
-  borderBottom: "1px solid #cbd5e1",
+  borderBottom: "1px solid #d1d5db",
 };
 
 const cellHead = {
@@ -567,10 +569,11 @@ const emptyState = {
   fontSize: 13,
   color: "#111827",
   background: "#ffffff",
-  border: "1px solid #e5e7eb",
+  border: "1px solid #dbe2ea",
   borderRadius: 10,
   width: "fit-content",
   maxWidth: 720,
+  boxShadow: "0 1px 2px rgba(15,23,42,0.04)",
 };
 
 const bottomBar = {
@@ -579,15 +582,16 @@ const bottomBar = {
   alignItems: "center",
   gap: 10,
   padding: "0 10px",
-  background: "#d1d5db",
-  borderTop: "1px solid #000",
+  background: "#d9dde3",
+  borderTop: "1px solid #cbd5e1",
 };
 
 const ackBtn = {
   padding: "8px 12px",
   borderRadius: 8,
-  border: "1px solid #000",
-  background: "#e5e7eb",
+  border: "1px solid #9ca3af",
+  background: "#f3f4f6",
+  color: "#111827",
   fontWeight: 900,
 };
 
