@@ -129,7 +129,7 @@ export default function PushButtonControl({
   const safeW = Math.max(70, Number(width) || 110);
   const safeH = Math.max(70, Number(height) || 110);
   const size = Math.min(safeW, safeH);
-
+  const containerW = Math.max(150, safeW);
   const bezel = Math.max(5, Math.round(size * 0.075));
   const ring = Math.max(4, Math.round(size * 0.06));
   const btn = size - bezel * 2 - ring * 2;
@@ -385,23 +385,26 @@ export default function PushButtonControl({
 
   return (
     <div
-      style={{
-        width: safeW,
-        display: "inline-flex",
-        flexDirection: "column",
-        alignItems: "center",
-        justifyContent: "flex-start",
-        gap: safeTitle ? 6 : 0,
-        userSelect: "none",
-        WebkitUserSelect: "none",
-      }}
-    >
+  style={{
+    width: containerW,
+    display: "inline-flex",
+    flexDirection: "column",
+    alignItems: "center",
+    justifyContent: "flex-start",
+    gap: safeTitle ? 6 : 0,
+    userSelect: "none",
+    WebkitUserSelect: "none",
+  }}
+>
+
       {safeTitle && (
         <div
           style={{
-            minWidth: safeW,
-            width: "max-content",
-            maxWidth: safeW * 3,
+            minWidth: containerW,
+            width: containerW,
+            maxWidth: containerW,
+
+
             textAlign: "center",
             fontWeight: 900,
             fontSize: Math.max(16, Math.round(size * 0.16)),
@@ -427,9 +430,12 @@ export default function PushButtonControl({
         onPointerLeave={play ? handlePressEnd : undefined}
         onKeyDown={play ? handleKeyDown : undefined}
         onKeyUp={play ? handleKeyUp : undefined}
+
         style={{
-          width: safeW,
-          height: safeH,
+        width: containerW,
+        height: safeH,
+
+
           display: "inline-flex",
           alignItems: "center",
           justifyContent: "center",
