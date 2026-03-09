@@ -72,7 +72,6 @@ export default function AlarmLogWindow({
       >
         <div style={titleWrap}>
           <span style={{ fontWeight: 900 }}>{title}</span>
-          <span style={countPill}>{visibleAlarms.length}</span>
         </div>
 
         <div style={btnRow}>
@@ -389,17 +388,6 @@ const topBar = {
 };
 
 const titleWrap = { display: "flex", gap: 8, alignItems: "center" };
-
-const countPill = {
-  background: "#f8fafc",
-  color: "#111827",
-  padding: "2px 8px",
-  borderRadius: 999,
-  fontWeight: 900,
-  fontSize: 12,
-  border: "1px solid #cbd5e1",
-};
-
 const btnRow = { display: "flex", gap: 6, alignItems: "center" };
 
 const iconBtn = {
