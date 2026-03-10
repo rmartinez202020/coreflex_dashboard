@@ -184,17 +184,19 @@ export default function AppModals({
   const pushButtonNOTarget = useMemo(() => {
     if (pushButtonNOSettingsId == null) return null;
     return droppedTanks.find(
-      (t) => isSameId(t.id, pushButtonNOSettingsId) && t.shape === "pushButtonNO"
+      (t) =>
+        isSameId(t.id, pushButtonNOSettingsId) && t.shape === "pushButtonNO"
     );
   }, [droppedTanks, pushButtonNOSettingsId]);
 
   // ✅ NEW: pushButtonNC modal target
-const pushButtonNCTarget = useMemo(() => {
-  if (pushButtonNCSettingsId == null) return null;
-  return droppedTanks.find(
-    (t) => isSameId(t.id, pushButtonNCSettingsId) && t.shape === "pushButtonNC"
-  );
-}, [droppedTanks, pushButtonNCSettingsId]);
+  const pushButtonNCTarget = useMemo(() => {
+    if (pushButtonNCSettingsId == null) return null;
+    return droppedTanks.find(
+      (t) =>
+        isSameId(t.id, pushButtonNCSettingsId) && t.shape === "pushButtonNC"
+    );
+  }, [droppedTanks, pushButtonNCSettingsId]);
 
   const alarmLogWindowProps = windowDrag?.getWindowProps
     ? windowDrag.getWindowProps("alarmLog")
@@ -316,34 +318,32 @@ const pushButtonNCTarget = useMemo(() => {
 
       {/* ✅ NEW: Push Button NO settings */}
       {pushButtonNOTarget && (
-
         <PushButtonNOPropertiesModal
-  open={true}
-  pushButton={pushButtonNOTarget}
-  dashboardId={safeDashboardId}
-  onSaveProject={onSaveProject}
-  onClose={() => closePushButtonNOSettings?.()}
-  onSave={(updated) => {
-    patchTankProperties(pushButtonNOTarget.id, updated);
-    closePushButtonNOSettings?.();
-  }}
-/>
-
+          open={true}
+          pushButton={pushButtonNOTarget}
+          dashboardId={safeDashboardId}
+          onSaveProject={onSaveProject}
+          onClose={() => closePushButtonNOSettings?.()}
+          onSave={(updated) => {
+            patchTankProperties(pushButtonNOTarget.id, updated);
+            closePushButtonNOSettings?.();
+          }}
+        />
       )}
 
       {pushButtonNCTarget && (
-  <PushButtonNCPropertiesModal
-    open={true}
-    pushButton={pushButtonNCTarget}
-    dashboardId={safeDashboardId}
-    onSaveProject={onSaveProject}
-    onClose={() => closePushButtonNCSettings?.()}
-    onSave={(updated) => {
-      patchTankProperties(pushButtonNCTarget.id, updated);
-      closePushButtonNCSettings?.();
-    }}
-  />
-)}
+        <PushButtonNCPropertiesModal
+          open={true}
+          pushButton={pushButtonNCTarget}
+          dashboardId={safeDashboardId}
+          onSaveProject={onSaveProject}
+          onClose={() => closePushButtonNCSettings?.()}
+          onSave={(updated) => {
+            patchTankProperties(pushButtonNCTarget.id, updated);
+            closePushButtonNCSettings?.();
+          }}
+        />
+      )}
 
       {displayTarget && (
         <DisplaySettingsModal
@@ -371,18 +371,14 @@ const pushButtonNCTarget = useMemo(() => {
           tank={graphicTarget}
           onClose={closeGraphicDisplaySettings}
           onSave={async (updatedTank) => {
-            // ✅ Use the LATEST tanks, not a stale closure
             const base = droppedTanksRef.current || [];
 
-            // ✅ Build next snapshot NOW
             const next = base.map((t) =>
               isSameId(t.id, updatedTank.id) ? updatedTank : t
             );
 
-            // ✅ Apply UI state
             setDroppedTanks(next);
 
-            // ✅ Save project using snapshot override
             if (typeof onSaveProject === "function") {
               try {
                 console.warn("💾 [AppModals] calling onSaveProject(next)...");
@@ -390,14 +386,13 @@ const pushButtonNCTarget = useMemo(() => {
                 console.warn("✅ [AppModals] onSaveProject(next) FINISHED");
               } catch (e) {
                 alert(e?.message || "Save failed");
-                return; // ✅ do NOT close modal if save failed
+                return;
               }
             } else {
               alert("onSaveProject is missing (not a function).");
               return;
             }
 
-            // ✅ Close only AFTER save succeeds
             closeGraphicDisplaySettings?.();
           }}
         />
@@ -458,7 +453,7 @@ const pushButtonNCTarget = useMemo(() => {
         />
       )}
 
-            {alarmLogOpen && (
+      {alarmLogOpen && (
         <div
           style={{
             position: "fixed",
@@ -474,6 +469,57 @@ const pushButtonNCTarget = useMemo(() => {
             onLaunch={onLaunchAlarmLog}
             onMinimize={onMinimizeAlarmLog}
             onStartDragWindow={alarmLogWindowProps?.onStartDragWindow}
+          />
+
+          {/* ✅ Right edge resize */}
+          <div
+            onPointerDown={(e) =>
+              alarmLogWindowProps?.onStartResizeWindow?.(e, "e")
+            }
+            style={{
+              position: "absolute",
+              top: 0,
+              right: 0,
+              width: 14,
+              height: "100%",
+              cursor: "ew-resize",
+              zIndex: 100000,
+              background: "transparent",
+            }}
+          />
+
+          {/* ✅ Bottom edge resize */}
+          <div
+            onPointerDown={(e) =>
+              alarmLogWindowProps?.onStartResizeWindow?.(e, "s")
+            }
+            style={{
+              position: "absolute",
+              left: 0,
+              bottom: 0,
+              width: "100%",
+              height: 14,
+              cursor: "ns-resize",
+              zIndex: 100000,
+              background: "transparent",
+            }}
+          />
+
+          {/* ✅ Bottom-right corner resize */}
+          <div
+            onPointerDown={(e) =>
+              alarmLogWindowProps?.onStartResizeWindow?.(e, "se")
+            }
+            style={{
+              position: "absolute",
+              right: 0,
+              bottom: 0,
+              width: 18,
+              height: 18,
+              cursor: "nwse-resize",
+              zIndex: 100001,
+              background: "transparent",
+            }}
           />
         </div>
       )}
