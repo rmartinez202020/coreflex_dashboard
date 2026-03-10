@@ -462,8 +462,8 @@ const pushButtonNCTarget = useMemo(() => {
         <div
           style={{
             position: "fixed",
-            left: (alarmLogWindowProps?.position?.x ?? alarmLogPos.x),
-            top: (alarmLogWindowProps?.position?.y ?? alarmLogPos.y),
+            left: alarmLogWindowProps?.position?.x ?? alarmLogPos.x,
+            top: alarmLogWindowProps?.position?.y ?? alarmLogPos.y,
             width: alarmLogWindowProps?.size?.width ?? 900,
             height: alarmLogWindowProps?.size?.height ?? 420,
             zIndex: 99999,
@@ -473,7 +473,7 @@ const pushButtonNCTarget = useMemo(() => {
             onClose={closeAlarmLog}
             onLaunch={onLaunchAlarmLog}
             onMinimize={onMinimizeAlarmLog}
-            onStartDragWindow={alarmLogWindowProps?.onDragStart}
+            onStartDragWindow={alarmLogWindowProps?.onStartDragWindow}
           />
         </div>
       )}
