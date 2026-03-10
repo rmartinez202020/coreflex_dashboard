@@ -8,13 +8,13 @@ import RestoreWarningModal from "./RestoreWarningModal";
 import DisplaySettingsModal from "./DisplaySettingsModal";
 import GraphicDisplaySettingsModal from "./GraphicDisplaySettingsModal";
 import SiloPropertiesModal from "./SiloPropertiesModal";
-import AlarmLogModal from "./AlarmLogModal";
 import CounterInputSettingsModal from "./indicators/CounterInputSettingsModal";
 import HorizontalTankPropertiesModal from "./HorizontalTankPropertiesModal";
 import VerticalTankSettingsModal from "./VerticalTankSettingsModal";
 import StandardTankPropertiesModal from "./StandardTankPropertiesModal";
 import PushButtonNOPropertiesModal from "./controls/PushButtonNOPropertiesModal";
 import PushButtonNCPropertiesModal from "./controls/PushButtonNCPropertiesModal";
+import AlarmLogWindow from "./AlarmLogWindow";
 
 export default function AppModals({
   dashboardId = null,
@@ -458,18 +458,25 @@ const pushButtonNCTarget = useMemo(() => {
         />
       )}
 
-      <AlarmLogModal
-        open={!!alarmLogOpen}
-        onClose={closeAlarmLog}
-        onLaunch={onLaunchAlarmLog}
-        onMinimize={onMinimizeAlarmLog}
-        windowProps={
-          alarmLogWindowProps || {
-            position: alarmLogPos,
-            size: { width: 900, height: 420 },
-          }
-        }
-      />
+            {alarmLogOpen && (
+        <div
+          style={{
+            position: "fixed",
+            left: (alarmLogWindowProps?.position?.x ?? alarmLogPos.x),
+            top: (alarmLogWindowProps?.position?.y ?? alarmLogPos.y),
+            width: alarmLogWindowProps?.size?.width ?? 900,
+            height: alarmLogWindowProps?.size?.height ?? 420,
+            zIndex: 99999,
+          }}
+        >
+          <AlarmLogWindow
+            onClose={closeAlarmLog}
+            onLaunch={onLaunchAlarmLog}
+            onMinimize={onMinimizeAlarmLog}
+            onStartDragWindow={alarmLogWindowProps?.onDragStart}
+          />
+        </div>
+      )}
 
       <RestoreWarningModal
         open={showRestoreWarning}

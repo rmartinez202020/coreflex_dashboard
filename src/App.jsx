@@ -659,7 +659,7 @@ const closePushButtonNCSettings = () => {
         ) : null}
 
         <AppModals
-          dashboardId={effectiveDashboardId} // ✅ pass into modals (upsert/reset must match)
+          dashboardId={effectiveDashboardId} 
           droppedTanks={droppedTanks}
           setDroppedTanks={setDroppedTanks}
           showRestoreWarning={showRestoreWarning}
@@ -688,12 +688,10 @@ const closePushButtonNCSettings = () => {
           closeStateImageSettings={closeStateImageSettings}
           counterInputSettingsId={counterInputSettingsId}
           closeCounterInputSettings={closeCounterInputSettings}
-
           pushButtonNOSettingsId={pushButtonNOSettingsId}
           closePushButtonNOSettings={closePushButtonNOSettings}
           pushButtonNCSettingsId={pushButtonNCSettingsId}
           closePushButtonNCSettings={closePushButtonNCSettings}
-
           showHorizontalTankProps={showHorizontalTankProps}
           setShowHorizontalTankProps={setShowHorizontalTankProps}
           activeHorizontalTankId={activeHorizontalTankId}
@@ -709,7 +707,6 @@ const closePushButtonNCSettings = () => {
           onSaveProject={handleSaveProject}
           telemetryMap={telemetryMap}
           sensorsData={sensorsData}
-        
         />
       </main>
 
