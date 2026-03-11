@@ -1,6 +1,13 @@
 // src/components/AlarmLogWindow.jsx
 import React from "react";
 import AlarmSetupModal from "./AlarmSetupModal";
+import { API_URL } from "../config/api";
+import { getToken } from "../utils/authToken";
+
+function getAuthHeaders() {
+  const token = String(getToken() || "").trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 export default function AlarmLogWindow({
   onLaunch,
@@ -16,6 +23,10 @@ export default function AlarmLogWindow({
 
   title = "Alarms Log (DI-AI)",
 
+  // ✅ NEW: lets frontend know which dashboard/window row to delete
+  dashboardId = "main",
+  windowKey = "alarmLog",
+
   // ✅ NEW: when true, renders like a full page (no drag/minimize/launch)
   isPage = false,
 }) {
@@ -26,6 +37,10 @@ export default function AlarmLogWindow({
   const [checkedIds, setCheckedIds] = React.useState(() => new Set());
   const [showCloseConfirm, setShowCloseConfirm] = React.useState(false);
   const [showAlarmSetup, setShowAlarmSetup] = React.useState(false);
+
+  // ✅ NEW: UX state for Close Anyway delete flow
+  const [isDeletingClose, setIsDeletingClose] = React.useState(false);
+  const [closeError, setCloseError] = React.useState("");
 
   const visibleAlarms = React.useMemo(() => {
     if (alarmView === "disabled") return [];
@@ -58,6 +73,53 @@ export default function AlarmLogWindow({
     if (checkedIds.size === 0) return;
     console.log("✅ Acknowledge IDs:", Array.from(checkedIds));
     setCheckedIds(new Set());
+  };
+
+  // ✅ NEW: delete saved alarm-log row when user confirms Close Anyway
+  const handleCloseAnyway = async () => {
+    if (isDeletingClose) return;
+
+    setCloseError("");
+    setIsDeletingClose(true);
+
+    try {
+      const res = await fetch(`${API_URL}/alarm-log-windows/delete`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({
+          dashboard_id: String(dashboardId || "main").trim() || "main",
+          window_key: String(windowKey || "alarmLog").trim() || "alarmLog",
+        }),
+      });
+
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok) {
+        throw new Error(
+          data?.detail || data?.error || "Failed to delete alarm log window row"
+        );
+      }
+
+      console.log("🗑️ Alarm log window row delete result:", data);
+
+      setShowCloseConfirm(false);
+      setCheckedIds(new Set());
+      setSelectedId(null);
+      onClose?.();
+    } catch (err) {
+      console.error("❌ Alarm log Close Anyway failed:", err);
+      setCloseError(err?.message || "Failed to close alarm log window.");
+    } finally {
+      setIsDeletingClose(false);
+    }
   };
 
   return (
@@ -96,6 +158,7 @@ export default function AlarmLogWindow({
               title="Close"
               onClick={(e) => {
                 e.stopPropagation();
+                setCloseError("");
                 setShowCloseConfirm(true);
               }}
             >
@@ -311,24 +374,43 @@ export default function AlarmLogWindow({
                 Tip: Save your project and Minimize the window if you want to
                 keep this setup.
               </div>
+
+              {!!closeError && <div style={confirmErrorBox}>{closeError}</div>}
             </div>
 
             <div style={confirmActions}>
               <button
-                style={cancelBtn}
-                onClick={() => setShowCloseConfirm(false)}
+                style={{
+                  ...cancelBtn,
+                  opacity: isDeletingClose ? 0.7 : 1,
+                  cursor: isDeletingClose ? "not-allowed" : "pointer",
+                }}
+                disabled={isDeletingClose}
+                onClick={() => {
+                  if (isDeletingClose) return;
+                  setCloseError("");
+                  setShowCloseConfirm(false);
+                }}
               >
                 Keep Open
               </button>
 
               <button
-                style={dangerBtn}
-                onClick={() => {
-                  setShowCloseConfirm(false);
-                  onClose?.();
+                style={{
+                  ...dangerBtn,
+                  opacity: isDeletingClose ? 0.75 : 1,
+                  cursor: isDeletingClose ? "not-allowed" : "pointer",
                 }}
+                disabled={isDeletingClose}
+                onClick={handleCloseAnyway}
               >
-                {isPage ? "Leave Page" : "Close Anyway"}
+                {isDeletingClose
+                  ? isPage
+                    ? "Leaving..."
+                    : "Closing..."
+                  : isPage
+                  ? "Leave Page"
+                  : "Close Anyway"}
               </button>
             </div>
           </div>
@@ -368,7 +450,8 @@ const wrap = {
   background: "#f8fafc",
   border: "1.5px solid #1f2937",
   borderRadius: 12,
-  boxShadow: "0 0 0 1px rgba(148,163,184,0.28) inset, 0 10px 26px rgba(0,0,0,.28)",
+  boxShadow:
+    "0 0 0 1px rgba(148,163,184,0.28) inset, 0 10px 26px rgba(0,0,0,.28)",
   display: "flex",
   flexDirection: "column",
   position: "relative",
@@ -585,7 +668,7 @@ const ackBtn = {
 
 const bottomInfo = { fontSize: 12, color: "#111827" };
 
-/* confirm modal (unchanged) */
+/* confirm modal */
 const confirmOverlay = {
   position: "absolute",
   inset: 0,
@@ -656,6 +739,17 @@ const confirmHint = {
   border: "1px solid rgba(239,68,68,0.22)",
   color: "rgba(254,226,226,0.92)",
   fontSize: 12,
+};
+
+const confirmErrorBox = {
+  marginTop: 10,
+  padding: "10px 12px",
+  borderRadius: 10,
+  background: "rgba(127,29,29,0.22)",
+  border: "1px solid rgba(248,113,113,0.28)",
+  color: "#fecaca",
+  fontSize: 12,
+  lineHeight: 1.35,
 };
 
 const confirmActions = {
