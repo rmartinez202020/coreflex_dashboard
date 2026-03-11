@@ -3,6 +3,127 @@ import React from "react";
 import AlarmTelemetrySection from "./AlarmTelemetrySection";
 import AlarmOptionsSection from "./AlarmOptionsSection";
 
+function readValueFromRow(row, field) {
+  if (!row || !field) return null;
+
+  const key = String(field || "").trim();
+  if (!key) return null;
+
+  if (row[key] !== undefined && row[key] !== null) return row[key];
+  if (row?.values?.[key] !== undefined && row?.values?.[key] !== null) return row.values[key];
+  if (row?.tags?.[key] !== undefined && row?.tags?.[key] !== null) return row.tags[key];
+  if (row?.telemetry?.[key] !== undefined && row?.telemetry?.[key] !== null) return row.telemetry[key];
+
+  return null;
+}
+
+function normalizeDeviceId(row) {
+  return String(
+    row?.deviceId ??
+      row?.device_id ??
+      row?.id ??
+      row?.name ??
+      ""
+  ).trim();
+}
+
+function normalizeDeviceStatus(row) {
+  return String(row?.status ?? "").trim().toLowerCase();
+}
+
+function makeTitleFromField(field) {
+  const s = String(field || "").trim().toUpperCase();
+  if (!s) return "";
+  if (s.startsWith("DI")) return s.replace("DI", "DI-");
+  if (s.startsWith("AI")) return s.replace("AI", "AI-");
+  return s;
+}
+
+function buildDeviceMap(devices, sensorsData) {
+  const map = new Map();
+
+  (Array.isArray(devices) ? devices : []).forEach((row) => {
+    const id = normalizeDeviceId(row);
+    if (!id) return;
+
+    map.set(id, {
+      ...(map.get(id) || {}),
+      ...row,
+      deviceId: id,
+      name: String(row?.name || id).trim() || id,
+      status: normalizeDeviceStatus(row) || normalizeDeviceStatus(map.get(id)),
+    });
+  });
+
+  if (sensorsData && typeof sensorsData === "object") {
+    Object.entries(sensorsData).forEach(([rawId, row]) => {
+      const id = String(rawId || normalizeDeviceId(row)).trim();
+      if (!id) return;
+
+      const prev = map.get(id) || {};
+      map.set(id, {
+        ...prev,
+        ...(row || {}),
+        deviceId: id,
+        name: String(prev?.name || row?.name || id).trim() || id,
+        status: normalizeDeviceStatus(row) || normalizeDeviceStatus(prev),
+      });
+    });
+  }
+
+  return map;
+}
+
+function collectKnownFields(tagMode) {
+  if (tagMode === "di") {
+    return ["di1", "di2", "di3", "di4", "di5", "di6"];
+  }
+  return ["ai1", "ai2", "ai3", "ai4", "ai5", "ai6", "ai7", "ai8"];
+}
+
+function collectDynamicFields(row, tagMode) {
+  const prefixes = tagMode === "di" ? ["di", "in"] : ["ai"];
+  const out = [];
+
+  Object.keys(row || {}).forEach((k) => {
+    const key = String(k || "").trim().toLowerCase();
+    if (!key) return;
+    if (prefixes.some((p) => key.startsWith(p))) out.push(key);
+  });
+
+  const fromValues = Object.keys(row?.values || {}).map((k) => String(k || "").trim().toLowerCase());
+  const fromTags = Object.keys(row?.tags || {}).map((k) => String(k || "").trim().toLowerCase());
+  const fromTelemetry = Object.keys(row?.telemetry || {}).map((k) => String(k || "").trim().toLowerCase());
+
+  [...fromValues, ...fromTags, ...fromTelemetry].forEach((key) => {
+    if (prefixes.some((p) => key.startsWith(p))) out.push(key);
+  });
+
+  return out;
+}
+
+function buildTagsForDevice(deviceRow, deviceId, tagMode) {
+  if (!deviceId) return [];
+
+  const unique = new Set();
+  const fields = [...collectKnownFields(tagMode), ...collectDynamicFields(deviceRow, tagMode)];
+
+  fields.forEach((f) => {
+    const key = String(f || "").trim().toLowerCase();
+    if (key) unique.add(key);
+  });
+
+  return Array.from(unique)
+    .sort((a, b) => a.localeCompare(b, undefined, { numeric: true }))
+    .map((field) => ({
+      deviceId,
+      field,
+      label: makeTitleFromField(field),
+      type: tagMode.toUpperCase(),
+      previewValue: readValueFromRow(deviceRow, field),
+    }));
+}
+
 export default function AlarmSetupModal({
   open,
   onClose,
@@ -84,31 +205,81 @@ export default function AlarmSetupModal({
     setSearch("");
   }, [alarmType]);
 
+  const tagMode = React.useMemo(
+    () => (alarmType === "boolean" ? "di" : "ai"),
+    [alarmType]
+  );
+
+  // ✅ Common-poller-ready device map from devices + sensorsData
+  const deviceMap = React.useMemo(
+    () => buildDeviceMap(devices, sensorsData),
+    [devices, sensorsData]
+  );
+
+  const normalizedDevices = React.useMemo(() => {
+    return Array.from(deviceMap.values())
+      .map((row) => ({
+        ...row,
+        deviceId: normalizeDeviceId(row),
+        name: String(row?.name || normalizeDeviceId(row)).trim() || normalizeDeviceId(row),
+      }))
+      .filter((d) => d.deviceId)
+      .sort((a, b) => String(a.deviceId).localeCompare(String(b.deviceId), undefined, { numeric: true }));
+  }, [deviceMap]);
+
+  // ✅ Build tag catalog from availableTags when present, otherwise from telemetry rows directly
+  const derivedTags = React.useMemo(() => {
+    const selectedRow = deviceId ? deviceMap.get(String(deviceId).trim()) : null;
+
+    // Prefer telemetry/common poller-derived tags so preview can be live immediately
+    const telemetryTags = deviceId
+      ? buildTagsForDevice(selectedRow, String(deviceId).trim(), tagMode)
+      : [];
+
+    if (telemetryTags.length > 0) return telemetryTags;
+
+    // fallback to passed availableTags
+    const wanted = tagMode.toUpperCase();
+    return (Array.isArray(availableTags) ? availableTags : [])
+      .filter((t) => (deviceId ? String(t?.deviceId || "").trim() === String(deviceId).trim() : true))
+      .filter((t) => {
+        const type = String(t?.type || "").trim().toUpperCase();
+        return type ? type === wanted : true;
+      })
+      .map((t) => ({
+        deviceId: String(t?.deviceId || "").trim(),
+        field: String(t?.field || "").trim().toLowerCase(),
+        label: String(t?.label || makeTitleFromField(t?.field)).trim(),
+        type: wanted,
+        previewValue:
+          t?.previewValue ??
+          readValueFromRow(deviceMap.get(String(t?.deviceId || "").trim()), String(t?.field || "").trim().toLowerCase()),
+      }))
+      .filter((t) => t.deviceId && t.field);
+  }, [availableTags, deviceId, deviceMap, tagMode]);
+
   const filteredTags = React.useMemo(() => {
     const q = search.trim().toLowerCase();
-    const wanted = alarmType === "boolean" ? "DI" : "AO";
 
-    return (availableTags || [])
-      .filter((t) => (deviceId ? t.deviceId === deviceId : true))
-      .filter((t) => (t.type ? t.type === wanted : true))
+    return derivedTags
+      .filter((t) => (deviceId ? String(t.deviceId) === String(deviceId) : true))
       .filter((t) => {
         if (!q) return true;
-        const hay = `${t.field} ${t.label || ""}`.toLowerCase();
+        const hay = `${t.field} ${t.label || ""} ${t.deviceId || ""}`.toLowerCase();
         return hay.includes(q);
       })
       .slice(0, 80);
-  }, [availableTags, deviceId, search, alarmType]);
+  }, [derivedTags, deviceId, search]);
 
   const previewValue = React.useMemo(() => {
-    if (!selectedTag || !sensorsData) return null;
-    const dev = sensorsData?.[selectedTag.deviceId];
-    if (!dev) return null;
-    const v =
-      dev?.[selectedTag.field] ??
-      dev?.values?.[selectedTag.field] ??
-      dev?.tags?.[selectedTag.field];
-    return v ?? null;
-  }, [selectedTag, sensorsData]);
+    if (!selectedTag) return null;
+
+    const dev = deviceMap.get(String(selectedTag.deviceId || "").trim());
+    if (!dev) return selectedTag?.previewValue ?? null;
+
+    const v = readValueFromRow(dev, selectedTag.field);
+    return v ?? selectedTag?.previewValue ?? null;
+  }, [selectedTag, deviceMap]);
 
   const canAdd =
     !!selectedTag &&
@@ -128,7 +299,7 @@ export default function AlarmSetupModal({
       deviceId: selectedTag.deviceId,
       field: selectedTag.field,
       tagLabel: selectedTag.label || selectedTag.field,
-      ioType: alarmType === "boolean" ? "DI" : "AO",
+      ioType: alarmType === "boolean" ? "DI" : "AI",
       message: message?.trim() || "",
       edgeDetection:
         alarmType === "boolean" ? "Equal" : `When value ${operator} ${threshold}`,
@@ -176,7 +347,7 @@ export default function AlarmSetupModal({
             <div>
               <div style={title}>Alarm Setup</div>
               <div style={subtitle}>
-                Add Boolean (DI) or Dynamic (AO) alarms, then manage them in the
+                Add Boolean (DI) or Dynamic (AI) alarms, then manage them in the
                 table below
               </div>
             </div>
@@ -235,7 +406,7 @@ export default function AlarmSetupModal({
                   setSearch={setSearch}
                   selectedTag={selectedTag}
                   setSelectedTag={setSelectedTag}
-                  devices={devices}
+                  devices={normalizedDevices}
                   filteredTags={filteredTags}
                   previewValue={previewValue}
                 />
