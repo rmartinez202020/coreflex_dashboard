@@ -249,6 +249,13 @@ export default function PushButtonNOPropertiesModal({
   const dashboardId = String(
     dashboardIdProp || pushButton?.dashboardId || p.dashboardId || ""
   ).trim();
+  const dashboardName = String(
+    pushButton?.dashboardName ||
+      p.dashboardName ||
+      p.dashboardTitle ||
+      pushButton?.dashboardTitle ||
+      ""
+  ).trim();
 
   const [usedMap, setUsedMap] = React.useState({});
   const [usedErr, setUsedErr] = React.useState("");
@@ -285,6 +292,7 @@ export default function PushButtonNOPropertiesModal({
           title: String(r.title || "").trim(),
           widgetType: String(r.widgetType || "").trim(),
           dashboardId: String(r.dashboardId || "").trim(),
+          dashboardName: String(r.dashboardName || "").trim(),
         };
       });
 
@@ -398,6 +406,7 @@ export default function PushButtonNOPropertiesModal({
     setSaveErr("");
 
     const dash = String(dashboardId || "").trim();
+    const dashName = String(dashboardName || "").trim();
     const wid = String(widgetId || "").trim();
     const dev = String(deviceId || "").trim();
     const f = String(effectiveField || "").trim().toLowerCase();
@@ -425,6 +434,7 @@ export default function PushButtonNOPropertiesModal({
       const nextProps = {
         ...(pushButton?.properties || {}),
         dashboardId: dash,
+        dashboardName: dashName,
 
         // ✅ widget title
         title: safeTitle,
@@ -450,6 +460,7 @@ export default function PushButtonNOPropertiesModal({
 
       await bindControlDO({
         dashboardId: dash,
+        dashboardName: dashName,
         widgetId: wid,
         widgetType: "pushButtonNO",
         title: String(safeTitle || "Push Button NO").trim().slice(0, 120),
@@ -740,8 +751,10 @@ export default function PushButtonNOPropertiesModal({
                     const usedLabel =
                       info?.widgetId && info.widgetId !== widgetId
                         ? ` (Used${info.title ? `: ${info.title}` : ""}${
-                            info.dashboardId
-                              ? ` / Dashboard: ${info.dashboardId}`
+                            info.dashboardName || info.dashboardId
+                              ? ` / Dashboard: ${
+                                  info.dashboardName || info.dashboardId
+                                }`
                               : ""
                           })`
                         : "";
@@ -766,8 +779,10 @@ export default function PushButtonNOPropertiesModal({
                   >
                     {effectiveField.toUpperCase()} is already used
                     {usedByOther.title ? ` by "${usedByOther.title}"` : ""}
-                    {usedByOther.dashboardId
-                      ? ` on dashboard "${usedByOther.dashboardId}"`
+                    {usedByOther.dashboardName || usedByOther.dashboardId
+                      ? ` on dashboard "${
+                          usedByOther.dashboardName || usedByOther.dashboardId
+                        }"`
                       : ""}
                     . Choose another DO.
                   </div>

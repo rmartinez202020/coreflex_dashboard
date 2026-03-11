@@ -42,14 +42,25 @@ export async function fetchUsedDOs({ deviceId, signal } = {}) {
 
   return res.json();
   // returns:
-  // [{ field: "do1", widgetId: "...", title: "...", widgetType: "toggle" }]
+  // [
+  //   {
+  //     field: "do1",
+  //     widgetId: "...",
+  //     title: "...",
+  //     widgetType: "toggle",
+  //     dashboardId: "main",
+  //     dashboardName: "Main Dashboard"
+  //   }
+  // ]
 }
 
 // ===============================
 // 🔒 Bind DO to Control
+// ✅ now also sends dashboardName
 // ===============================
 export async function bindControlDO({
   dashboardId,
+  dashboardName,
   widgetId,
   widgetType,
   title,
@@ -67,6 +78,7 @@ export async function bindControlDO({
     },
     body: JSON.stringify({
       dashboardId,
+      dashboardName,
       widgetId,
       widgetType,
       title,
@@ -76,7 +88,13 @@ export async function bindControlDO({
     signal,
   });
 
-  if (res.ok) return { ok: true };
+  if (res.ok) {
+    try {
+      return await res.json();
+    } catch {
+      return { ok: true };
+    }
+  }
 
   let payload = null;
   try {
@@ -91,7 +109,13 @@ export async function bindControlDO({
     throw err;
   }
 
-  const err = new Error(payload?.detail || `Bind failed (${res.status})`);
+  const msg =
+    payload?.detail?.error ||
+    payload?.detail ||
+    payload?.error ||
+    `Bind failed (${res.status})`;
+
+  const err = new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
   err.code = res.status;
   err.detail = payload;
   throw err;

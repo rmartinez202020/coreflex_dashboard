@@ -259,6 +259,14 @@ export default function ToggleSwitchPropertiesModal({
     dashboardIdProp || toggleSwitch?.dashboardId || p.dashboardId || ""
   ).trim();
 
+  const dashboardName = String(
+  toggleSwitch?.dashboardName ||
+    p.dashboardName ||
+    p.dashboardTitle ||
+    toggleSwitch?.dashboardTitle ||
+    ""
+).trim();
+
   const [usedMap, setUsedMap] = React.useState({});
   const [usedErr, setUsedErr] = React.useState("");
   const usedAbortRef = React.useRef(null);
@@ -291,13 +299,15 @@ export default function ToggleSwitchPropertiesModal({
       (Array.isArray(rows) ? rows : []).forEach((r) => {
         const f = String(r.field || "").trim().toLowerCase();
         if (!/^do[1-4]$/.test(f)) return;
+
         m[f] = {
-          field: f,
-          widgetId: String(r.widgetId || "").trim(),
-          title: String(r.title || "").trim(),
-          widgetType: String(r.widgetType || "").trim(),
-          dashboardId: String(r.dashboardId || "").trim(),
-        };
+  field: f,
+  widgetId: String(r.widgetId || "").trim(),
+  title: String(r.title || "").trim(),
+  widgetType: String(r.widgetType || "").trim(),
+  dashboardId: String(r.dashboardId || "").trim(),
+  dashboardName: String(r.dashboardName || "").trim(),
+};
       });
 
       setUsedMap(m);
@@ -426,8 +436,9 @@ export default function ToggleSwitchPropertiesModal({
     try {
       // 1) Build updated widget FIRST
       const nextProps = {
-        ...(toggleSwitch?.properties || {}),
-        dashboardId: dash,
+  ...(toggleSwitch?.properties || {}),
+  dashboardId: dash,
+  dashboardName: dashboardName,
 
         // ✅ NEW: optional title
         title: safeTitle,
@@ -455,13 +466,14 @@ export default function ToggleSwitchPropertiesModal({
 
       // 4) Bind DO in backend (locks the DO)
       await bindControlDO({
-        dashboardId: dash,
-        widgetId: wid,
-        widgetType: "toggle",
-        title: String(safeTitle || "Toggle").trim().slice(0, 120),
-        deviceId: dev,
-        field: f,
-      });
+  dashboardId: dash,
+  dashboardName: dashboardName,
+  widgetId: wid,
+  widgetType: "toggle",
+  title: String(safeTitle || "Toggle").trim().slice(0, 120),
+  deviceId: dev,
+  field: f,
+});
 
       // 5) Refresh used list
       await loadUsed();
@@ -749,9 +761,10 @@ export default function ToggleSwitchPropertiesModal({
                     const usedLabel =
                       info?.widgetId && info.widgetId !== widgetId
                         ? ` (Used${info.title ? `: ${info.title}` : ""}${
-                            info.dashboardId
-                              ? ` / Dashboard: ${info.dashboardId}`
-                              : ""
+
+                            (info.dashboardName || info.dashboardId)
+  ? ` / Dashboard: ${info.dashboardName || info.dashboardId}`
+  : ""
                           })`
                         : "";
 
@@ -775,9 +788,11 @@ export default function ToggleSwitchPropertiesModal({
                   >
                     {effectiveField.toUpperCase()} is already used
                     {usedByOther.title ? ` by "${usedByOther.title}"` : ""}
-                    {usedByOther.dashboardId
-                      ? ` on dashboard "${usedByOther.dashboardId}"`
-                      : ""}
+
+                    {usedByOther.dashboardName || usedByOther.dashboardId
+  ? ` on dashboard "${usedByOther.dashboardName || usedByOther.dashboardId}"`
+  : ""}
+                    
                     . Choose another DO.
                   </div>
                 )}
