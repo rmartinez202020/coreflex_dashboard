@@ -422,10 +422,11 @@ export default function ToggleSwitchControl({
         );
 
         showBanner(
-          "occupied",
-          resp?.message || "Control Action in Progress",
-          null
-        );
+  "occupied",
+  resp?.message || "Control Action in Progress",
+  12000
+);
+
         return;
       }
 
@@ -457,7 +458,7 @@ export default function ToggleSwitchControl({
         setCooldownUntil(
           Date.now() + Math.max(0, Number(actuationHoldMs) || 10000)
         );
-        showBanner("occupied", "Control Action in Progress", null);
+        showBanner("occupied", "Control Action in Progress", 12000);
         return;
       }
 
