@@ -20,9 +20,10 @@ function qs(params = {}) {
 
 // ===============================
 // 📡 Get Used DOs
+// ✅ GLOBAL per device across ALL dashboards
 // ===============================
-export async function fetchUsedDOs({ dashboardId, deviceId, signal } = {}) {
-  const q = qs({ dashboardId, deviceId });
+export async function fetchUsedDOs({ deviceId, signal } = {}) {
+  const q = qs({ deviceId });
 
   const res = await fetch(`${API_URL}/control-bindings/used?${q}`, {
     method: "GET",
@@ -125,7 +126,6 @@ export async function deleteControlBinding({
     }
   }
 
-  // ✅ return useful backend detail if present
   let payload = null;
   try {
     payload = await res.json();
