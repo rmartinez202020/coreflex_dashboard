@@ -551,24 +551,8 @@ useEffect(() => {
   let cancelled = false;
 
   async function loadHistory() {
-    console.log("[GraphicDisplay] loadHistory ENTER", {
-      widgetId,
-      resolvedDashboardId,
-      tankId: T?.id,
-      widgetIdAlt1: T?.widgetId,
-      widgetIdAlt2: T?.widget_id,
-      bindDeviceId,
-      bindField,
-      isRunMode,
-      hasTelemetryMap: !!telemetryMap,
-    });
-
+    
     if (!widgetId) {
-      console.warn("[GraphicDisplay] loadHistory SKIP: no widgetId", {
-        widgetId,
-        resolvedDashboardId,
-        tank: T,
-      });
       setPoints([]);
       setHistoryLoaded(true);
       return;
@@ -576,10 +560,6 @@ useEffect(() => {
 
     const token = String(getToken() || "").trim();
     if (!token) {
-      console.warn("[GraphicDisplay] loadHistory SKIP: no auth token", {
-        widgetId,
-        resolvedDashboardId,
-      });
       setHistoryLoaded(true);
       return;
     }
@@ -592,12 +572,6 @@ useEffect(() => {
       url.searchParams.set("dashboard_id", resolvedDashboardId);
       url.searchParams.set("widget_id", widgetId);
 
-      console.log("[GraphicDisplay] HISTORY REQUEST START", {
-        widgetId,
-        resolvedDashboardId,
-        url: url.toString(),
-      });
-
       const res = await fetch(url.toString(), {
         method: "GET",
         headers: {
@@ -605,21 +579,9 @@ useEffect(() => {
         },
       });
 
-      console.log("[GraphicDisplay] HISTORY RESPONSE RAW", {
-        widgetId,
-        resolvedDashboardId,
-        status: res.status,
-        ok: res.ok,
-      });
-
       if (!res.ok) {
         const text = await res.text().catch(() => "");
-        console.error("[GraphicDisplay] HISTORY RESPONSE ERROR TEXT", {
-          widgetId,
-          resolvedDashboardId,
-          status: res.status,
-          text,
-        });
+
         throw new Error(`History request failed (${res.status}): ${text}`);
       }
 
@@ -639,17 +601,6 @@ if (windowMs > 0) {
     return Number.isFinite(t) && t >= minT;
   });
 }
-
-console.log("[GraphicDisplay] HISTORY LOADED OK", {
-  widgetId,
-  resolvedDashboardId,
-  files: Array.isArray(data?.files) ? data.files.length : 0,
-  backendCount: data?.count,
-  normalizedCount: normalized.length,
-  clippedCount: clipped.length,
-  windowMs,
-  data,
-});
 
 setPoints(clipped);
 
@@ -688,21 +639,13 @@ const lastNumeric = [...clipped]
       setErr("");
     } catch (e) {
       if (cancelled) return;
-      console.error("[GraphicDisplay] HISTORY LOAD ERROR", {
-        widgetId,
-        resolvedDashboardId,
-        error: e,
-      });
+
       setErr("Failed to load saved history.");
       setPoints([]);
     } finally {
       if (!cancelled) {
         setHistoryLoading(false);
         setHistoryLoaded(true);
-        console.log("[GraphicDisplay] HISTORY REQUEST END", {
-          widgetId,
-          resolvedDashboardId,
-        });
       }
     }
   }
@@ -711,10 +654,6 @@ const lastNumeric = [...clipped]
 
   return () => {
     cancelled = true;
-    console.log("[GraphicDisplay] loadHistory CANCELLED", {
-      widgetId,
-      resolvedDashboardId,
-    });
   };
 }, [widgetId, resolvedDashboardId, windowMs]);
 
@@ -1072,9 +1011,7 @@ const hoverTotalizerValue = useMemo(() => {
       onOpenSettingsProp();
       return;
     }
-    console.warn(
-      "[GraphicDisplay] onOpenSettings was clicked, but no onOpenSettings prop was provided. Pass it from DraggableGraphicDisplay so AppModals opens the settings modal."
-    );
+
   };
 
   const handleSettingsSave = (nextTank) => {
@@ -1093,9 +1030,6 @@ const hoverTotalizerValue = useMemo(() => {
       return;
     }
 
-    console.warn(
-      "[GraphicDisplay] Settings saved locally, but no parent onSaveSettings / tank.onSave handler was found."
-    );
   };
 
   function buildPanel(isExploreMode) {
