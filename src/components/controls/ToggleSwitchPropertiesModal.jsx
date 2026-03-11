@@ -36,7 +36,6 @@ export default function ToggleSwitchPropertiesModal({
   isLaunched = false,
 
   // ✅ NEW (recommended): pass this from parent/dashboard
-  // It is required for backend uniqueness per dashboard.
   dashboardId: dashboardIdProp,
 
   // ✅ NEW: Save Project callback
@@ -253,7 +252,7 @@ export default function ToggleSwitchPropertiesModal({
   }, [devices, deviceSearch]);
 
   // =========================
-  // ✅ USED DOs (backend uniqueness per dashboard)
+  // ✅ USED DOs (backend uniqueness GLOBAL across ALL dashboards for this device)
   // =========================
   const widgetId = String(toggleSwitch?.id || "").trim();
   const dashboardId = String(
@@ -265,11 +264,10 @@ export default function ToggleSwitchPropertiesModal({
   const usedAbortRef = React.useRef(null);
 
   const loadUsed = React.useCallback(async () => {
-    const dash = String(dashboardId || "").trim();
     const dev = String(deviceId || "").trim();
 
     if (!open || isLaunched) return;
-    if (!dash || !dev) {
+    if (!dev) {
       setUsedMap({});
       setUsedErr("");
       return;
@@ -281,8 +279,10 @@ export default function ToggleSwitchPropertiesModal({
       const ac = new AbortController();
       usedAbortRef.current = ac;
 
+      // ✅ IMPORTANT:
+      // Used DOs are now fetched by device only (ALL dashboards),
+      // not by current dashboard.
       const rows = await fetchUsedDOs({
-        dashboardId: dash,
         deviceId: dev,
         signal: ac.signal,
       });
@@ -296,6 +296,7 @@ export default function ToggleSwitchPropertiesModal({
           widgetId: String(r.widgetId || "").trim(),
           title: String(r.title || "").trim(),
           widgetType: String(r.widgetType || "").trim(),
+          dashboardId: String(r.dashboardId || "").trim(),
         };
       });
 
@@ -305,7 +306,7 @@ export default function ToggleSwitchPropertiesModal({
       setUsedMap({});
       setUsedErr(e?.message || "Failed to load used DOs");
     }
-  }, [open, isLaunched, dashboardId, deviceId]);
+  }, [open, isLaunched, deviceId]);
 
   React.useEffect(() => {
     if (!open || isLaunched) return;
@@ -632,8 +633,8 @@ export default function ToggleSwitchPropertiesModal({
                 fontWeight: 900,
               }}
             >
-              Missing <code>dashboardId</code>. Pass it to this modal so DO
-              uniqueness works.
+              Missing <code>dashboardId</code>. Pass it to this modal so the
+              widget can be saved correctly.
             </div>
           )}
 
@@ -747,7 +748,11 @@ export default function ToggleSwitchPropertiesModal({
 
                     const usedLabel =
                       info?.widgetId && info.widgetId !== widgetId
-                        ? ` (Used${info.title ? `: ${info.title}` : ""})`
+                        ? ` (Used${info.title ? `: ${info.title}` : ""}${
+                            info.dashboardId
+                              ? ` / Dashboard: ${info.dashboardId}`
+                              : ""
+                          })`
                         : "";
 
                     return (
@@ -769,8 +774,11 @@ export default function ToggleSwitchPropertiesModal({
                     }}
                   >
                     {effectiveField.toUpperCase()} is already used
-                    {usedByOther.title ? ` by "${usedByOther.title}"` : ""}.
-                    Choose another DO.
+                    {usedByOther.title ? ` by "${usedByOther.title}"` : ""}
+                    {usedByOther.dashboardId
+                      ? ` on dashboard "${usedByOther.dashboardId}"`
+                      : ""}
+                    . Choose another DO.
                   </div>
                 )}
               </div>

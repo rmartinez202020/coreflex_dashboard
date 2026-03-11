@@ -248,7 +248,7 @@ export default function PushButtonNCPropertiesModal({
   }, [devices, deviceSearch]);
 
   // =========================
-  // ✅ USED DOs
+  // ✅ USED DOs (GLOBAL across ALL dashboards for this device)
   // =========================
   const widgetId = String(pushButton?.id || "").trim();
   const dashboardId = String(
@@ -260,11 +260,10 @@ export default function PushButtonNCPropertiesModal({
   const usedAbortRef = React.useRef(null);
 
   const loadUsed = React.useCallback(async () => {
-    const dash = String(dashboardId || "").trim();
     const dev = String(deviceId || "").trim();
 
     if (!open || isLaunched) return;
-    if (!dash || !dev) {
+    if (!dev) {
       setUsedMap({});
       setUsedErr("");
       return;
@@ -277,7 +276,6 @@ export default function PushButtonNCPropertiesModal({
       usedAbortRef.current = ac;
 
       const rows = await fetchUsedDOs({
-        dashboardId: dash,
         deviceId: dev,
         signal: ac.signal,
       });
@@ -291,6 +289,7 @@ export default function PushButtonNCPropertiesModal({
           widgetId: String(r.widgetId || "").trim(),
           title: String(r.title || "").trim(),
           widgetType: String(r.widgetType || "").trim(),
+          dashboardId: String(r.dashboardId || "").trim(),
         };
       });
 
@@ -300,7 +299,7 @@ export default function PushButtonNCPropertiesModal({
       setUsedMap({});
       setUsedErr(e?.message || "Failed to load used DOs");
     }
-  }, [open, isLaunched, dashboardId, deviceId]);
+  }, [open, isLaunched, deviceId]);
 
   React.useEffect(() => {
     if (!open || isLaunched) return;
@@ -464,31 +463,31 @@ export default function PushButtonNCPropertiesModal({
       });
 
       const writeRes = await fetch(`${API_URL}/control-bindings/write`, {
-  method: "POST",
-  headers: {
-    "Content-Type": "application/json",
-    ...getAuthHeaders(),
-    "Cache-Control": "no-cache",
-    Pragma: "no-cache",
-  },
-  body: JSON.stringify({
-    dashboardId: dash,
-    widgetId: wid,
-    value01: 1, // ✅ NC initial state = CLOSED
-  }),
-});
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+        body: JSON.stringify({
+          dashboardId: dash,
+          widgetId: wid,
+          value01: 1, // ✅ NC initial state = CLOSED
+        }),
+      });
 
-if (!writeRes.ok) {
-  const errJson = await writeRes.json().catch(() => null);
-  const errText = await writeRes.text().catch(() => "");
+      if (!writeRes.ok) {
+        const errJson = await writeRes.json().catch(() => null);
+        const errText = await writeRes.text().catch(() => "");
 
-  throw new Error(
-    errJson?.detail?.error ||
-      errJson?.detail ||
-      errText ||
-      "Failed to initialize Push Button NC output to closed state"
-  );
-}
+        throw new Error(
+          errJson?.detail?.error ||
+            errJson?.detail ||
+            errText ||
+            "Failed to initialize Push Button NC output to closed state"
+        );
+      }
 
       await loadUsed();
 
@@ -657,8 +656,8 @@ if (!writeRes.ok) {
                 fontWeight: 900,
               }}
             >
-              Missing <code>dashboardId</code>. Pass it to this modal so DO
-              uniqueness works.
+              Missing <code>dashboardId</code>. Pass it to this modal so the
+              widget can be saved correctly.
             </div>
           )}
 
@@ -772,7 +771,11 @@ if (!writeRes.ok) {
 
                     const usedLabel =
                       info?.widgetId && info.widgetId !== widgetId
-                        ? ` (Used${info.title ? `: ${info.title}` : ""})`
+                        ? ` (Used${info.title ? `: ${info.title}` : ""}${
+                            info.dashboardId
+                              ? ` / Dashboard: ${info.dashboardId}`
+                              : ""
+                          })`
                         : "";
 
                     return (
@@ -794,8 +797,11 @@ if (!writeRes.ok) {
                     }}
                   >
                     {effectiveField.toUpperCase()} is already used
-                    {usedByOther.title ? ` by "${usedByOther.title}"` : ""}.
-                    Choose another DO.
+                    {usedByOther.title ? ` by "${usedByOther.title}"` : ""}
+                    {usedByOther.dashboardId
+                      ? ` on dashboard "${usedByOther.dashboardId}"`
+                      : ""}
+                    . Choose another DO.
                   </div>
                 )}
 
@@ -808,8 +814,9 @@ if (!writeRes.ok) {
                       fontWeight: 900,
                     }}
                   >
-                    Desired DO must be at state 0. {effectiveField.toUpperCase()} is currently
-                    state 1. Turn the output OFF before applying this Push Button NC.
+                    Desired DO must be at state 0. {effectiveField.toUpperCase()} is
+                    currently state 1. Turn the output OFF before applying this Push
+                    Button NC.
                   </div>
                 )}
               </div>
@@ -837,7 +844,8 @@ if (!writeRes.ok) {
                       <span
                         style={{
                           fontWeight: 900,
-                          color: usedByOther ? "#dc2626" : "#0f172a",
+                          color:
+                            usedByOther || isDoStateOne ? "#dc2626" : "#0f172a",
                         }}
                       >
                         {statusText}

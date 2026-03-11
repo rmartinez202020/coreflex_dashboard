@@ -1,4 +1,4 @@
-//PushButtonNOPropertiesModal
+// PushButtonNOPropertiesModal
 import React from "react";
 import { createPortal } from "react-dom";
 import { API_URL } from "../../config/api";
@@ -243,7 +243,7 @@ export default function PushButtonNOPropertiesModal({
   }, [devices, deviceSearch]);
 
   // =========================
-  // ✅ USED DOs
+  // ✅ USED DOs (GLOBAL across ALL dashboards for this device)
   // =========================
   const widgetId = String(pushButton?.id || "").trim();
   const dashboardId = String(
@@ -255,11 +255,10 @@ export default function PushButtonNOPropertiesModal({
   const usedAbortRef = React.useRef(null);
 
   const loadUsed = React.useCallback(async () => {
-    const dash = String(dashboardId || "").trim();
     const dev = String(deviceId || "").trim();
 
     if (!open || isLaunched) return;
-    if (!dash || !dev) {
+    if (!dev) {
       setUsedMap({});
       setUsedErr("");
       return;
@@ -272,7 +271,6 @@ export default function PushButtonNOPropertiesModal({
       usedAbortRef.current = ac;
 
       const rows = await fetchUsedDOs({
-        dashboardId: dash,
         deviceId: dev,
         signal: ac.signal,
       });
@@ -286,6 +284,7 @@ export default function PushButtonNOPropertiesModal({
           widgetId: String(r.widgetId || "").trim(),
           title: String(r.title || "").trim(),
           widgetType: String(r.widgetType || "").trim(),
+          dashboardId: String(r.dashboardId || "").trim(),
         };
       });
 
@@ -295,7 +294,7 @@ export default function PushButtonNOPropertiesModal({
       setUsedMap({});
       setUsedErr(e?.message || "Failed to load used DOs");
     }
-  }, [open, isLaunched, dashboardId, deviceId]);
+  }, [open, isLaunched, deviceId]);
 
   React.useEffect(() => {
     if (!open || isLaunched) return;
@@ -344,30 +343,30 @@ export default function PushButtonNOPropertiesModal({
   }, [telemetryRow, effectiveField]);
 
   const hasSelection = !!deviceId && !!effectiveField;
-const hasData = rawValue !== undefined && rawValue !== null;
-const isOnlineWithData = deviceIsOnline && hasData && hasSelection;
-const as01 = React.useMemo(() => (isOnlineWithData ? to01(rawValue) : null), [
-  isOnlineWithData,
-  rawValue,
-]);
+  const hasData = rawValue !== undefined && rawValue !== null;
+  const isOnlineWithData = deviceIsOnline && hasData && hasSelection;
+  const as01 = React.useMemo(() => (isOnlineWithData ? to01(rawValue) : null), [
+    isOnlineWithData,
+    rawValue,
+  ]);
 
-const isDoStateOne = isOnlineWithData && Number(as01) === 1;
+  const isDoStateOne = isOnlineWithData && Number(as01) === 1;
 
-const statusText = !deviceId
-  ? "Select a device and DO"
-  : !effectiveField
-  ? "Select a DO tag"
-  : usedByOther
-  ? "DO already used"
-  : isDoStateOne
-  ? "DO must be 0"
-  : isOnlineWithData
-  ? "Online"
-  : deviceId && deviceIsOnline
-  ? "No data for DO"
-  : "Offline";
+  const statusText = !deviceId
+    ? "Select a device and DO"
+    : !effectiveField
+    ? "Select a DO tag"
+    : usedByOther
+    ? "DO already used"
+    : isDoStateOne
+    ? "DO must be 0"
+    : isOnlineWithData
+    ? "Online"
+    : deviceId && deviceIsOnline
+    ? "No data for DO"
+    : "Offline";
 
-const valueText = isOnlineWithData ? String(as01 ?? 0) : "—";
+  const valueText = isOnlineWithData ? String(as01 ?? 0) : "—";
 
   // =========================
   // APPLY SAVE + BACKEND BIND
@@ -385,13 +384,13 @@ const valueText = isOnlineWithData ? String(as01 ?? 0) : "—";
     }
   }, [open]);
 
-const canApply =
-  canApplyLocal &&
-  !!String(dashboardId || "").trim() &&
-  !!String(widgetId || "").trim() &&
-  !usedByOther &&
-  !isDoStateOne &&
-  !saving;
+  const canApply =
+    canApplyLocal &&
+    !!String(dashboardId || "").trim() &&
+    !!String(widgetId || "").trim() &&
+    !usedByOther &&
+    !isDoStateOne &&
+    !saving;
 
   const apply = async () => {
     if (!pushButton) return;
@@ -403,9 +402,7 @@ const canApply =
     const dev = String(deviceId || "").trim();
     const f = String(effectiveField || "").trim().toLowerCase();
 
-    const safeTitle = String(title || "")
-      .trim()
-      .slice(0, 40);
+    const safeTitle = String(title || "").trim().slice(0, 40);
 
     if (!dash || !wid) {
       setSaveErr(
@@ -416,11 +413,11 @@ const canApply =
     if (!dev || !/^do[1-4]$/.test(f)) return;
 
     if (isDoStateOne) {
-  setSaveErr(
-    `Desired DO must be at state 0 before applying. ${f.toUpperCase()} is currently state 1.`
-  );
-  return;
-}
+      setSaveErr(
+        `Desired DO must be at state 0 before applying. ${f.toUpperCase()} is currently state 1.`
+      );
+      return;
+    }
 
     setSaving(true);
 
@@ -627,8 +624,8 @@ const canApply =
                 fontWeight: 900,
               }}
             >
-              Missing <code>dashboardId</code>. Pass it to this modal so DO
-              uniqueness works.
+              Missing <code>dashboardId</code>. Pass it to this modal so the
+              widget can be saved correctly.
             </div>
           )}
 
@@ -742,7 +739,11 @@ const canApply =
 
                     const usedLabel =
                       info?.widgetId && info.widgetId !== widgetId
-                        ? ` (Used${info.title ? `: ${info.title}` : ""})`
+                        ? ` (Used${info.title ? `: ${info.title}` : ""}${
+                            info.dashboardId
+                              ? ` / Dashboard: ${info.dashboardId}`
+                              : ""
+                          })`
                         : "";
 
                     return (
@@ -764,24 +765,28 @@ const canApply =
                     }}
                   >
                     {effectiveField.toUpperCase()} is already used
-                    {usedByOther.title ? ` by "${usedByOther.title}"` : ""}.
-                    Choose another DO.
+                    {usedByOther.title ? ` by "${usedByOther.title}"` : ""}
+                    {usedByOther.dashboardId
+                      ? ` on dashboard "${usedByOther.dashboardId}"`
+                      : ""}
+                    . Choose another DO.
                   </div>
                 )}
 
                 {!usedByOther && isDoStateOne && (
-  <div
-    style={{
-      marginTop: 8,
-      fontSize: 12,
-      color: "#dc2626",
-      fontWeight: 900,
-    }}
-  >
-    Desired DO must be at state 0. {effectiveField.toUpperCase()} is currently
-    state 1. Turn the output OFF before applying this Push Button NO.
-  </div>
-)}
+                  <div
+                    style={{
+                      marginTop: 8,
+                      fontSize: 12,
+                      color: "#dc2626",
+                      fontWeight: 900,
+                    }}
+                  >
+                    Desired DO must be at state 0. {effectiveField.toUpperCase()} is
+                    currently state 1. Turn the output OFF before applying this Push
+                    Button NO.
+                  </div>
+                )}
               </div>
             </div>
 
@@ -807,7 +812,8 @@ const canApply =
                       <span
                         style={{
                           fontWeight: 900,
-                          color: usedByOther ? "#dc2626" : "#0f172a",
+                          color:
+                            usedByOther || isDoStateOne ? "#dc2626" : "#0f172a",
                         }}
                       >
                         {statusText}
@@ -898,16 +904,15 @@ const canApply =
               opacity: saving ? 0.8 : 1,
             }}
             type="button"
-
-          title={
-  !dashboardId
-    ? "Missing dashboardId"
-    : usedByOther
-    ? "This DO is already used"
-    : isDoStateOne
-    ? "Desired DO must be at state 0"
-    : "Apply"
-}
+            title={
+              !dashboardId
+                ? "Missing dashboardId"
+                : usedByOther
+                ? "This DO is already used"
+                : isDoStateOne
+                ? "Desired DO must be at state 0"
+                : "Apply"
+            }
           >
             {saving ? "Saving..." : "Apply"}
           </button>
