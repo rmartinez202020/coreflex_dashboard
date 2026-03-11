@@ -1,4 +1,12 @@
 // RightSidebar.jsx
+import { API_URL } from "../config/api";
+import { getToken } from "../utils/authToken";
+
+function getAuthHeaders() {
+  const token = String(getToken() || "").trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export default function RightSidebar({
   isRightCollapsed,
   setIsRightCollapsed,
@@ -10,6 +18,9 @@ export default function RightSidebar({
 
   // ✅ open Alarm Log window (system FloatingWindow)
   onOpenAlarmLog,
+
+  // ✅ optional current dashboard id from parent
+  dashboardId = "main",
 }) {
   const openLibrary = (key) => {
     if (key === "image") return setShowImageLibrary?.();
@@ -17,17 +28,51 @@ export default function RightSidebar({
     return openSymbolLibrary?.(key);
   };
 
-  const openAlarmLog = (e) => {
+  const openAlarmLog = async (e) => {
     e?.stopPropagation?.();
 
-    // ✅ OPTIONAL: match the sidebar width so it opens nicely near the right area
-    window.dispatchEvent(
-      new CustomEvent("coreflex-alarm-log-open-at", {
-        detail: { x: 175, y: 120 }, // ✅ smaller sidebar -> move left a bit
-      })
-    );
+    try {
+      // ✅ OPTIONAL: match the sidebar width so it opens nicely near the right area
+      window.dispatchEvent(
+        new CustomEvent("coreflex-alarm-log-open-at", {
+          detail: { x: 175, y: 120 },
+        })
+      );
 
-    onOpenAlarmLog?.();
+      const res = await fetch(`${API_URL}/alarm-log-windows/upsert`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({
+          dashboard_id: String(dashboardId || "main").trim() || "main",
+          window_key: "alarmLog",
+          title: "Alarms Log (DI-AI)",
+          pos_x: 140,
+          pos_y: 90,
+          width: 900,
+          height: 420,
+          is_open: true,
+          is_minimized: false,
+          is_launched: false,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.ok) {
+        throw new Error(
+          data?.detail || data?.error || "Failed to create/open alarm log window"
+        );
+      }
+
+      // ✅ send the saved row back to parent so parent can render/open it
+      onOpenAlarmLog?.(data);
+    } catch (err) {
+      console.error("Alarm log open failed:", err);
+      alert("Could not open Alarms Log window.");
+    }
   };
 
   // ✅ Make it smaller like SidebarLeft (feel like “90% zoom” at 100%)
@@ -37,12 +82,11 @@ export default function RightSidebar({
   return (
     <aside
       className={
-        // ✅ Keep classes static and use inline style for width/padding.
         "shrink-0 border-l border-gray-300 flex flex-col transition-all duration-300 ease-in-out overflow-visible bg-white"
       }
       style={{
         width: isRightCollapsed ? COLLAPSED_W : EXPANDED_W,
-        padding: isRightCollapsed ? 6 : 10, // ✅ tighter
+        padding: isRightCollapsed ? 6 : 10,
       }}
     >
       {/* COLLAPSE BUTTON */}
@@ -93,12 +137,12 @@ export default function RightSidebar({
             >
               <div
                 style={{
-                  width: 80, // was 88
-                  height: 32, // was 34
+                  width: 80,
+                  height: 32,
                   background: "#e6e6e6",
                   fontFamily: "monospace",
                   fontWeight: 900,
-                  fontSize: 16, // was 18
+                  fontSize: 16,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -126,8 +170,8 @@ export default function RightSidebar({
             >
               <div
                 style={{
-                  width: 92, // was 104
-                  height: 44, // was 48
+                  width: 92,
+                  height: 44,
                   background:
                     "linear-gradient(180deg, #ffffff 0%, #f3f3f3 100%)",
                   borderRadius: 8,
@@ -141,19 +185,13 @@ export default function RightSidebar({
                   overflow: "hidden",
                 }}
               >
-                {/* ✅ Restored icon (grid + line) - smaller */}
                 <svg width="76" height="30" viewBox="0 0 94 40">
-                  {/* grid */}
                   <path d="M10 32H84" stroke="#e5e7eb" strokeWidth="1" />
                   <path d="M10 24H84" stroke="#e5e7eb" strokeWidth="1" />
                   <path d="M10 16H84" stroke="#e5e7eb" strokeWidth="1" />
                   <path d="M10 8H84" stroke="#e5e7eb" strokeWidth="1" />
-
-                  {/* axes */}
                   <path d="M10 8V32" stroke="#cbd5e1" strokeWidth="1.3" />
                   <path d="M10 32H84" stroke="#cbd5e1" strokeWidth="1.3" />
-
-                  {/* line */}
                   <path
                     d="M12 29 L24 20 L36 23 L48 14 L60 18 L72 10 L82 12"
                     fill="none"
@@ -162,8 +200,6 @@ export default function RightSidebar({
                     strokeLinecap="round"
                     strokeLinejoin="round"
                   />
-
-                  {/* dots */}
                   <circle cx="12" cy="29" r="2.2" fill="#2563eb" />
                   <circle cx="24" cy="20" r="2.2" fill="#2563eb" />
                   <circle cx="36" cy="23" r="2.2" fill="#2563eb" />
@@ -220,7 +256,7 @@ export default function RightSidebar({
           >
             <span
               style={{
-                fontSize: 18, // was 20
+                fontSize: 18,
                 width: 20,
                 height: 20,
                 display: "inline-flex",

@@ -2,6 +2,7 @@ import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { API_URL } from "./config/api";
+import { getToken } from "./utils/authToken";
 import LaunchedMainDashboard from "./pages/LaunchedMainDashboard";
 import AlarmLogPage from "./pages/AlarmLogPage";
 import Header from "./components/Header";
@@ -46,8 +47,8 @@ export default function App() {
 
   // DEVICE DATA
   const devicesData = useDevicesData(API_URL, { pollMs: 2000 }); // pick 1000/2000/3000
-const sensorsData = devicesData.rows;          // keep old props alive
-const telemetryMap = devicesData.telemetryMap; // ✅ the common poller map
+  const sensorsData = devicesData.rows; // keep old props alive
+  const telemetryMap = devicesData.telemetryMap; // ✅ the common poller map
 
   // OBJECTS ON CANVAS
   const [droppedTanks, setDroppedTanks] = useState([]);
@@ -295,15 +296,15 @@ const telemetryMap = devicesData.telemetryMap; // ✅ the common poller map
   };
 
   // ✅ Push Button NC Settings
-const [pushButtonNCSettingsId, setPushButtonNCSettingsId] = useState(null);
+  const [pushButtonNCSettingsId, setPushButtonNCSettingsId] = useState(null);
 
-const openPushButtonNCSettings = (tank) => {
-  setPushButtonNCSettingsId(tank?.id ?? null);
-};
+  const openPushButtonNCSettings = (tank) => {
+    setPushButtonNCSettingsId(tank?.id ?? null);
+  };
 
-const closePushButtonNCSettings = () => {
-  setPushButtonNCSettingsId(null);
-};
+  const closePushButtonNCSettings = () => {
+    setPushButtonNCSettingsId(null);
+  };
 
   // 🚨 ALARMS LOG MODAL (AI)
   const [alarmLogOpen, setAlarmLogOpen] = useState(false);
@@ -311,10 +312,51 @@ const closePushButtonNCSettings = () => {
   // ✅ minimized state for alarm log (shows in AppTopBar header tray)
   const [alarmLogMinimized, setAlarmLogMinimized] = useState(false);
 
-  const openAlarmLog = () => {
-    if (alarmLogOpen) return; // ✅ prevents double-open
-    setAlarmLogMinimized(false);
-    setAlarmLogOpen(true);
+  // ✅ keep last backend row for debugging/future sync
+  const [alarmLogWindowRow, setAlarmLogWindowRow] = useState(null);
+
+  function getAuthHeaders() {
+    const token = String(getToken() || "").trim();
+    return token ? { Authorization: `Bearer ${token}` } : {};
+  }
+
+  const openAlarmLog = async () => {
+    try {
+      const res = await fetch(`${API_URL}/alarm-log-windows/upsert`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({
+          dashboard_id: String(effectiveDashboardId || "main").trim() || "main",
+          window_key: "alarmLog",
+          title: "Alarms Log (DI-AI)",
+          pos_x: 140,
+          pos_y: 90,
+          width: 900,
+          height: 420,
+          is_open: true,
+          is_minimized: false,
+          is_launched: false,
+        }),
+      });
+
+      const data = await res.json();
+
+      if (!res.ok || !data?.ok) {
+        throw new Error(
+          data?.detail || data?.error || "Failed to create/open alarm log window"
+        );
+      }
+
+      setAlarmLogWindowRow(data);
+      setAlarmLogMinimized(false);
+      setAlarmLogOpen(true);
+    } catch (err) {
+      console.error("Alarm log open failed:", err);
+      alert("Could not open Alarms Log window.");
+    }
   };
 
   const closeAlarmLog = () => {
@@ -643,8 +685,6 @@ const closePushButtonNCSettings = () => {
             onSaveProject={handleSaveProject}
             telemetryMap={telemetryMap}
             sensorsData={sensorsData}
-            
-
           />
         ) : activePage === "deviceControls" ? (
           <div className="w-full h-full border rounded-lg bg-white p-6">
@@ -659,7 +699,7 @@ const closePushButtonNCSettings = () => {
         ) : null}
 
         <AppModals
-          dashboardId={effectiveDashboardId} 
+          dashboardId={effectiveDashboardId}
           droppedTanks={droppedTanks}
           setDroppedTanks={setDroppedTanks}
           showRestoreWarning={showRestoreWarning}
