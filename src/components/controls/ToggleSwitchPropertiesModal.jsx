@@ -27,6 +27,12 @@ const DO_OPTIONS = [
   { key: "do4", label: "DO-4" },
 ];
 
+function nextTick() {
+  return new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
+}
+
 export default function ToggleSwitchPropertiesModal({
   open = false,
   toggleSwitch,
@@ -42,7 +48,6 @@ export default function ToggleSwitchPropertiesModal({
   // ✅ NEW: Save Project callback
   onSaveProject = null,
 }) {
-
   // ✅ DO NOT early return before hooks
   const p = toggleSwitch?.properties || {};
 
@@ -257,18 +262,21 @@ export default function ToggleSwitchPropertiesModal({
   // ✅ USED DOs (backend uniqueness GLOBAL across ALL dashboards for this device)
   // =========================
   const widgetId = String(toggleSwitch?.id || "").trim();
+
+  // ✅ Prefer the current dashboard coming from parent.
+  // Fallback to widget properties only if parent was not provided.
   const dashboardId = String(
-    dashboardIdProp || toggleSwitch?.dashboardId || p.dashboardId || ""
+    dashboardIdProp ?? p.dashboardId ?? toggleSwitch?.dashboardId ?? ""
   ).trim();
 
   const dashboardName = String(
-  dashboardNameProp ||
-    toggleSwitch?.dashboardName ||
-    p.dashboardName ||
-    p.dashboardTitle ||
-    toggleSwitch?.dashboardTitle ||
-    ""
-).trim();
+    dashboardNameProp ??
+      p.dashboardName ??
+      p.dashboardTitle ??
+      toggleSwitch?.dashboardName ??
+      toggleSwitch?.dashboardTitle ??
+      ""
+  ).trim();
 
   const [usedMap, setUsedMap] = React.useState({});
   const [usedErr, setUsedErr] = React.useState("");
@@ -304,13 +312,13 @@ export default function ToggleSwitchPropertiesModal({
         if (!/^do[1-4]$/.test(f)) return;
 
         m[f] = {
-  field: f,
-  widgetId: String(r.widgetId || "").trim(),
-  title: String(r.title || "").trim(),
-  widgetType: String(r.widgetType || "").trim(),
-  dashboardId: String(r.dashboardId || "").trim(),
-  dashboardName: String(r.dashboardName || "").trim(),
-};
+          field: f,
+          widgetId: String(r.widgetId || "").trim(),
+          title: String(r.title || "").trim(),
+          widgetType: String(r.widgetType || "").trim(),
+          dashboardId: String(r.dashboardId || "").trim(),
+          dashboardName: String(r.dashboardName || "").trim(),
+        };
       });
 
       setUsedMap(m);
@@ -440,9 +448,11 @@ export default function ToggleSwitchPropertiesModal({
     try {
       // 1) Build updated widget FIRST
       const nextProps = {
-  ...(toggleSwitch?.properties || {}),
-  dashboardId: dash,
-  dashboardName: dashName,
+        ...(toggleSwitch?.properties || {}),
+
+        // ✅ persist dashboard context INSIDE widget too
+        dashboardId: dash,
+        dashboardName: dashName,
 
         // ✅ NEW: optional title
         title: safeTitle,
@@ -460,8 +470,22 @@ export default function ToggleSwitchPropertiesModal({
 
       const next = { ...toggleSwitch, properties: nextProps };
 
+      console.log("[ToggleSwitchPropertiesModal] APPLY", {
+        widgetId: wid,
+        dashboardIdProp,
+        dashboardNameProp,
+        resolvedDashboardId: dash,
+        resolvedDashboardName: dashName,
+        bindDeviceId: dev,
+        bindField: f,
+      });
+
       // 2) Update canvas immediately (so it will be persisted)
       onSave?.(next);
+
+      // ✅ IMPORTANT:
+      // Give parent React state one tick to commit before save project runs.
+      await nextTick();
 
       // 3) Save Project (persist dashboard JSON)
       if (typeof onSaveProject === "function") {
@@ -470,16 +494,16 @@ export default function ToggleSwitchPropertiesModal({
 
       // 4) Bind DO in backend (locks the DO)
       await bindControlDO({
-  dashboardId: dash,
-  dashboardName: dashName,
-  widgetId: wid,
-
-
-  widgetType: "toggle",
-  title: String(safeTitle || "Toggle").trim().slice(0, 120),
-  deviceId: dev,
-  field: f,
-});
+        dashboardId: dash,
+        dashboardName: dashName,
+        widgetId: wid,
+        widgetType: "toggle",
+        title: String(safeTitle || "Toggle")
+          .trim()
+          .slice(0, 120),
+        deviceId: dev,
+        field: f,
+      });
 
       // 5) Refresh used list
       await loadUsed();
@@ -487,6 +511,8 @@ export default function ToggleSwitchPropertiesModal({
       // 6) Close modal
       onClose?.();
     } catch (e) {
+      console.error("[ToggleSwitchPropertiesModal] APPLY FAILED", e);
+
       if (e?.code === 409) {
         const d = e?.detail || {};
         setSaveErr(d?.error || "This DO is already used.");
@@ -767,10 +793,11 @@ export default function ToggleSwitchPropertiesModal({
                     const usedLabel =
                       info?.widgetId && info.widgetId !== widgetId
                         ? ` (Used${info.title ? `: ${info.title}` : ""}${
-
-                            (info.dashboardName || info.dashboardId)
-  ? ` / Dashboard: ${info.dashboardName || info.dashboardId}`
-  : ""
+                            info.dashboardName || info.dashboardId
+                              ? ` / Dashboard: ${
+                                  info.dashboardName || info.dashboardId
+                                }`
+                              : ""
                           })`
                         : "";
 
@@ -794,11 +821,11 @@ export default function ToggleSwitchPropertiesModal({
                   >
                     {effectiveField.toUpperCase()} is already used
                     {usedByOther.title ? ` by "${usedByOther.title}"` : ""}
-
                     {usedByOther.dashboardName || usedByOther.dashboardId
-  ? ` on dashboard "${usedByOther.dashboardName || usedByOther.dashboardId}"`
-  : ""}
-                    
+                      ? ` on dashboard "${
+                          usedByOther.dashboardName || usedByOther.dashboardId
+                        }"`
+                      : ""}
                     . Choose another DO.
                   </div>
                 )}

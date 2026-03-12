@@ -126,8 +126,20 @@ function resolveDashboardId({ dashboardId, widget }) {
   return String(
     dashboardId ??
       widget?.dashboardId ??
+      widget?.dashboard_id ??
       widget?.properties?.dashboardId ??
       widget?.properties?.dashboard_id ??
+      ""
+  ).trim();
+}
+
+function resolveDashboardName({ dashboardName, widget }) {
+  return String(
+    dashboardName ??
+      widget?.dashboardName ??
+      widget?.dashboardTitle ??
+      widget?.properties?.dashboardName ??
+      widget?.properties?.dashboardTitle ??
       ""
   ).trim();
 }
@@ -167,6 +179,38 @@ export default function ToggleSwitchControl({
 
   const knobSize = safeH - trackPad * 2 + Math.round(safeH * 0.04);
   const knobTop = trackPad - Math.round(safeH * 0.015);
+
+  // =========================
+  // ✅ Stable dashboard context for modal + writes
+  // =========================
+  const resolvedDashboardIdForWidget = React.useMemo(
+    () => resolveDashboardId({ dashboardId, widget }),
+    [dashboardId, widget]
+  );
+
+  const resolvedDashboardNameForWidget = React.useMemo(
+    () => resolveDashboardName({ dashboardName, widget }),
+    [dashboardName, widget]
+  );
+
+  // ✅ Build a normalized widget so modal always receives dashboard context
+  const widgetForModal = React.useMemo(() => {
+    const base = widget || {};
+    const props = base?.properties || {};
+    return {
+      ...base,
+      dashboardId: resolvedDashboardIdForWidget || base?.dashboardId || "",
+      dashboardName:
+        resolvedDashboardNameForWidget || base?.dashboardName || "",
+      properties: {
+        ...props,
+        dashboardId:
+          resolvedDashboardIdForWidget || props?.dashboardId || "",
+        dashboardName:
+          resolvedDashboardNameForWidget || props?.dashboardName || "",
+      },
+    };
+  }, [widget, resolvedDashboardIdForWidget, resolvedDashboardNameForWidget]);
 
   // =========================
   // ✅ Binding (from widget props)
@@ -735,21 +779,47 @@ export default function ToggleSwitchControl({
 
       <ToggleSwitchPropertiesModal
         open={openProps}
-        toggleSwitch={widget}
+        toggleSwitch={widgetForModal}
         onClose={() => setOpenProps(false)}
         onSave={(nextWidget) => {
-          if (typeof onSaveWidget === "function") onSaveWidget(nextWidget);
+          if (typeof onSaveWidget === "function") {
+            const normalizedNext = {
+              ...nextWidget,
+              dashboardId:
+                resolvedDashboardIdForWidget ||
+                nextWidget?.dashboardId ||
+                nextWidget?.properties?.dashboardId ||
+                "",
+              dashboardName:
+                resolvedDashboardNameForWidget ||
+                nextWidget?.dashboardName ||
+                nextWidget?.properties?.dashboardName ||
+                "",
+              properties: {
+                ...(nextWidget?.properties || {}),
+                dashboardId:
+                  resolvedDashboardIdForWidget ||
+                  nextWidget?.properties?.dashboardId ||
+                  "",
+                dashboardName:
+                  resolvedDashboardNameForWidget ||
+                  nextWidget?.properties?.dashboardName ||
+                  "",
+              },
+            };
+
+            console.log("[ToggleSwitchControl] SAVE WIDGET", {
+              widgetId: resolveWidgetId(normalizedNext),
+              dashboardId: normalizedNext?.dashboardId,
+              dashboardName: normalizedNext?.dashboardName,
+            });
+
+            onSaveWidget(normalizedNext);
+          }
         }}
         isLaunched={play}
-        dashboardId={dashboardId}
-        dashboardName={String(
-          dashboardName ||
-            widget?.dashboardName ||
-            widget?.properties?.dashboardName ||
-            widget?.dashboardTitle ||
-            widget?.properties?.dashboardTitle ||
-            ""
-        ).trim()}
+        dashboardId={resolvedDashboardIdForWidget}
+        dashboardName={resolvedDashboardNameForWidget}
         onSaveProject={onSaveProject}
       />
     </>
