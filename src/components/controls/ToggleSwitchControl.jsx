@@ -121,6 +121,7 @@ function resolveWidgetId(widget) {
       ""
   ).trim();
 }
+
 function resolveDashboardId({ dashboardId, widget }) {
   return String(
     dashboardId ??
@@ -140,6 +141,7 @@ export default function ToggleSwitchControl({
   widget = null,
   onSaveWidget = null,
   dashboardId = null,
+  dashboardName = "",
   onSaveProject = null,
   onWrite = null,
   lockMs = 12000, // used as manual cooldown too
@@ -422,10 +424,10 @@ export default function ToggleSwitchControl({
         );
 
         showBanner(
-  "occupied",
-  resp?.message || "Control Action in Progress",
-  12000
-);
+          "occupied",
+          resp?.message || "Control Action in Progress",
+          12000
+        );
 
         return;
       }
@@ -732,24 +734,24 @@ export default function ToggleSwitchControl({
       </div>
 
       <ToggleSwitchPropertiesModal
-  open={openProps}
-  toggleSwitch={widget}
-  onClose={() => setOpenProps(false)}
-  onSave={(nextWidget) => {
-    if (typeof onSaveWidget === "function") onSaveWidget(nextWidget);
-  }}
-  isLaunched={play}
-  dashboardId={dashboardId}
-  dashboardName={String(
-    widget?.dashboardName ||
-      widget?.properties?.dashboardName ||
-      widget?.dashboardTitle ||
-      widget?.properties?.dashboardTitle ||
-      ""
-  ).trim()}
-  onSaveProject={onSaveProject}
-/>
-
+        open={openProps}
+        toggleSwitch={widget}
+        onClose={() => setOpenProps(false)}
+        onSave={(nextWidget) => {
+          if (typeof onSaveWidget === "function") onSaveWidget(nextWidget);
+        }}
+        isLaunched={play}
+        dashboardId={dashboardId}
+        dashboardName={String(
+          dashboardName ||
+            widget?.dashboardName ||
+            widget?.properties?.dashboardName ||
+            widget?.dashboardTitle ||
+            widget?.properties?.dashboardTitle ||
+            ""
+        ).trim()}
+        onSaveProject={onSaveProject}
+      />
     </>
   );
 }
