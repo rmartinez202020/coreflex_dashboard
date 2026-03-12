@@ -53,7 +53,9 @@ export default function LoginPage() {
     e.preventDefault();
 
     if (blockedPhone) {
-      setError("Platform not supported on mobile phones. Please use a desktop or supported iPad.");
+      setError(
+        "Platform not supported on mobile phones. Please use a desktop or supported iPad."
+      );
       return;
     }
 
@@ -159,7 +161,7 @@ export default function LoginPage() {
       }}
     >
       {/* ✅ darker overlay so background does not fight with text */}
-      <div className="absolute inset-0 bg-black opacity-50"></div>
+      <div className="absolute inset-0 bg-black opacity-55"></div>
 
       {/* ✅ animated digital falling data behind the login section */}
       <div className="absolute inset-0 z-[1] pointer-events-none overflow-hidden">
@@ -177,31 +179,32 @@ export default function LoginPage() {
       <div
         className="absolute z-[2] pointer-events-none"
         style={{
-          width: "700px",
-          height: "700px",
+          width: "620px",
+          height: "620px",
           borderRadius: "9999px",
           background:
-            "radial-gradient(circle, rgba(0,170,255,0.16) 0%, rgba(0,170,255,0.08) 36%, rgba(0,170,255,0.02) 58%, transparent 74%)",
+            "radial-gradient(circle, rgba(0,170,255,0.14) 0%, rgba(0,170,255,0.07) 36%, rgba(0,170,255,0.02) 58%, transparent 74%)",
           filter: "blur(34px)",
         }}
       />
 
       <div className="relative z-10 flex flex-col items-center px-4">
-        {/* ✅ CoreFlex logo centered above the card */}
+        {/* ✅ Bigger logo */}
         <img
           src={logoWhite}
           alt="CoreFlex Logo"
-          className="mb-6 select-none pointer-events-none"
+          className="mb-5 select-none pointer-events-none"
           style={{
-            width: "96px",
+            width: "138px",
             height: "auto",
             objectFit: "contain",
-            filter: "drop-shadow(0 0 10px rgba(255,255,255,0.22))",
+            filter: "drop-shadow(0 0 12px rgba(255,255,255,0.28))",
           }}
         />
 
-        <div className="relative w-full max-w-[620px] rounded-[22px] border border-white/25 bg-white/22 backdrop-blur-lg shadow-2xl px-10 py-12 md:px-12">
-          <h1 className="text-4xl font-extrabold text-center text-slate-900 mb-4 tracking-tight">
+        {/* ✅ Smaller login card + stronger visibility */}
+        <div className="relative w-full max-w-[460px] rounded-[22px] border border-white/30 bg-white/30 backdrop-blur-xl shadow-2xl px-8 py-9">
+          <h1 className="text-[2.15rem] font-extrabold text-center text-slate-950 mb-3 tracking-tight">
             CoreFlex IIoTs Platform
           </h1>
 
@@ -217,7 +220,7 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <div className="text-slate-800 text-sm font-medium">
+              <div className="text-slate-900 text-sm font-medium">
                 Need help? Email{" "}
                 <a
                   href="mailto:info@coreflexalliance.net"
@@ -229,7 +232,7 @@ export default function LoginPage() {
             </div>
           ) : (
             <>
-              <p className="text-center text-slate-700 text-lg font-medium mb-8">
+              <p className="text-center text-slate-800 text-base font-semibold mb-6">
                 Login to access your account
               </p>
 
@@ -239,9 +242,9 @@ export default function LoginPage() {
                 </div>
               )}
 
-              <form ref={formRef} onSubmit={handleLogin} className="space-y-5">
+              <form ref={formRef} onSubmit={handleLogin} className="space-y-4">
                 <div>
-                  <label className="block text-[15px] font-semibold mb-2 text-slate-800">
+                  <label className="block text-[15px] font-bold mb-2 text-slate-900">
                     Email
                   </label>
                   <input
@@ -257,7 +260,7 @@ export default function LoginPage() {
                 </div>
 
                 <div>
-                  <label className="block text-[15px] font-semibold mb-2 text-slate-800">
+                  <label className="block text-[15px] font-bold mb-2 text-slate-900">
                     Password
                   </label>
                   <input
@@ -274,7 +277,7 @@ export default function LoginPage() {
                   />
 
                   {capsLockOn && (
-                    <div className="mt-2 text-sm font-medium text-yellow-700">
+                    <div className="mt-2 text-sm font-semibold text-yellow-700">
                       ⚠️ Caps Lock is ON
                     </div>
                   )}
@@ -283,7 +286,7 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`w-full py-3 rounded-lg mt-2 text-white font-semibold text-lg transition ${
+                  className={`w-full py-3 rounded-lg mt-1 text-white font-semibold text-lg transition ${
                     loading
                       ? "bg-blue-400 cursor-not-allowed"
                       : "bg-blue-600 hover:bg-blue-700"
@@ -293,9 +296,9 @@ export default function LoginPage() {
                 </button>
               </form>
 
-              <div className="text-center text-slate-700 text-sm mt-6">
+              <div className="text-center text-slate-800 text-sm mt-5">
                 <div className="flex items-center justify-center gap-2">
-                  <span className="font-medium">Forgot your password?</span>
+                  <span className="font-semibold">Forgot your password?</span>
                   <button
                     type="button"
                     onClick={() => setShowResetInfo((prev) => !prev)}
@@ -307,7 +310,7 @@ export default function LoginPage() {
                 </div>
 
                 {showResetInfo && (
-                  <div className="mt-3 text-slate-800 font-medium">
+                  <div className="mt-3 text-slate-900 font-semibold">
                     Request a Reset Password at{" "}
                     <a
                       href="mailto:info@coreflexalliance.net"
@@ -319,7 +322,7 @@ export default function LoginPage() {
                 )}
               </div>
 
-              <p className="text-center text-slate-700 text-sm mt-5 font-medium">
+              <p className="text-center text-slate-800 text-sm mt-4 font-semibold">
                 Don’t have an account?{" "}
                 <Link
                   to="/register"
@@ -338,19 +341,19 @@ export default function LoginPage() {
           position: absolute;
           top: -30%;
           width: 2px;
-          height: 260px;
+          height: 240px;
           background: linear-gradient(
             to bottom,
             rgba(80, 200, 255, 0) 0%,
-            rgba(120, 225, 255, 0.18) 20%,
-            rgba(160, 240, 255, 0.85) 50%,
-            rgba(120, 225, 255, 0.18) 80%,
+            rgba(120, 225, 255, 0.12) 20%,
+            rgba(160, 240, 255, 0.55) 50%,
+            rgba(120, 225, 255, 0.12) 80%,
             rgba(80, 200, 255, 0) 100%
           );
           box-shadow:
-            0 0 8px rgba(140, 235, 255, 0.35),
-            0 0 18px rgba(100, 210, 255, 0.18);
-          opacity: 0.65;
+            0 0 6px rgba(140, 235, 255, 0.22),
+            0 0 14px rgba(100, 210, 255, 0.12);
+          opacity: 0.42;
           filter: blur(0.3px);
           animation-name: fallData;
           animation-timing-function: linear;
@@ -372,13 +375,13 @@ export default function LoginPage() {
             opacity: 0;
           }
           12% {
-            opacity: 0.55;
+            opacity: 0.35;
           }
           50% {
-            opacity: 0.8;
+            opacity: 0.5;
           }
           88% {
-            opacity: 0.45;
+            opacity: 0.28;
           }
           100% {
             transform: translateY(130vh);
