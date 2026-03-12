@@ -17,13 +17,9 @@ function isPhoneDevice() {
   const isAndroid = ua.includes("android");
   const isIPad = ua.includes("ipad");
 
-  // Many Android phones include "mobile". Some tablets don't.
   const isMobileKeyword = ua.includes("mobile");
 
-  // iPhone always blocked
   if (isIphone) return true;
-
-  // Android phone blocked (android + mobile), but NOT iPad
   if (isAndroid && isMobileKeyword && !isIPad) return true;
 
   return false;
@@ -39,7 +35,6 @@ export default function LoginPage() {
   const [showResetInfo, setShowResetInfo] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
 
-  // ✅ One-time phone detection
   const blockedPhone = useMemo(() => {
     try {
       return isPhoneDevice();
@@ -57,7 +52,6 @@ export default function LoginPage() {
   const handleLogin = async (e) => {
     e.preventDefault();
 
-    // ✅ Hard block login on phones
     if (blockedPhone) {
       setError("Platform not supported on mobile phones. Please use a desktop or supported iPad.");
       return;
@@ -70,7 +64,6 @@ export default function LoginPage() {
     const startTime = Date.now();
 
     try {
-      // ✅ Clear old auth first (removes legacy localStorage keys too)
       clearAuth();
 
       const emailClean = String(email || "").trim();
@@ -101,27 +94,21 @@ export default function LoginPage() {
 
       await waitRemaining(startTime);
 
-      // ✅ Store token using your auth helper (sessionStorage only)
       setToken(token);
 
-      // ✅ OPTIONAL (per-tab only)
       try {
         sessionStorage.setItem("coreflex_logged_in", "yes");
       } catch {
         // ignore
       }
 
-      // ✅ Clear ONLY dashboard caches (not auth)
       localStorage.removeItem("mainDashboard");
       localStorage.removeItem("coreflex_main_dashboard");
       localStorage.removeItem("coreflex_last_dashboard");
       localStorage.removeItem("dashboard_layout");
       localStorage.removeItem("dashboardState");
 
-      // ✅ Notify app (same-tab listeners)
       window.dispatchEvent(new Event("coreflex-auth-changed"));
-
-      // ✅ Redirect to app
       window.location.assign("/app");
     } catch (err) {
       await waitRemaining(startTime);
@@ -171,7 +158,33 @@ export default function LoginPage() {
         backgroundRepeat: "no-repeat",
       }}
     >
-      <div className="absolute inset-0 bg-black opacity-40"></div>
+      {/* ✅ dark overlay */}
+      <div className="absolute inset-0 bg-black opacity-45"></div>
+
+      {/* ✅ animated digital falling data behind the login section */}
+      <div className="absolute inset-0 z-[1] pointer-events-none overflow-hidden">
+        <div className="data-stream stream-1"></div>
+        <div className="data-stream stream-2"></div>
+        <div className="data-stream stream-3"></div>
+        <div className="data-stream stream-4"></div>
+        <div className="data-stream stream-5"></div>
+        <div className="data-stream stream-6"></div>
+        <div className="data-stream stream-7"></div>
+        <div className="data-stream stream-8"></div>
+      </div>
+
+      {/* ✅ soft glow behind card area */}
+      <div
+        className="absolute z-[2] pointer-events-none"
+        style={{
+          width: "560px",
+          height: "560px",
+          borderRadius: "9999px",
+          background:
+            "radial-gradient(circle, rgba(0,170,255,0.18) 0%, rgba(0,170,255,0.08) 35%, rgba(0,170,255,0.02) 55%, transparent 72%)",
+          filter: "blur(28px)",
+        }}
+      />
 
       <div className="relative z-10 flex flex-col items-center px-4">
         {/* ✅ CoreFlex logo centered above the card */}
@@ -187,12 +200,11 @@ export default function LoginPage() {
           }}
         />
 
-        <div className="relative bg-white bg-opacity-90 backdrop-blur-md shadow-2xl rounded-xl p-10 w-full max-w-lg">
+        <div className="relative bg-white/88 backdrop-blur-md shadow-2xl rounded-2xl p-10 w-full max-w-lg border border-white/20">
           <h1 className="text-3xl font-bold text-center text-[#1e293b] mb-4">
             CoreFlex IIoTs Platform
           </h1>
 
-          {/* ✅ If phone: show block message and DO NOT render login form */}
           {blockedPhone ? (
             <div className="text-center">
               <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-4">
@@ -316,6 +328,60 @@ export default function LoginPage() {
           )}
         </div>
       </div>
+
+      <style>{`
+        .data-stream {
+          position: absolute;
+          top: -30%;
+          width: 2px;
+          height: 260px;
+          background: linear-gradient(
+            to bottom,
+            rgba(80, 200, 255, 0) 0%,
+            rgba(120, 225, 255, 0.18) 20%,
+            rgba(160, 240, 255, 0.85) 50%,
+            rgba(120, 225, 255, 0.18) 80%,
+            rgba(80, 200, 255, 0) 100%
+          );
+          box-shadow:
+            0 0 8px rgba(140, 235, 255, 0.35),
+            0 0 18px rgba(100, 210, 255, 0.18);
+          opacity: 0.65;
+          filter: blur(0.3px);
+          animation-name: fallData;
+          animation-timing-function: linear;
+          animation-iteration-count: infinite;
+        }
+
+        .stream-1 { left: 18%; animation-duration: 7s; animation-delay: -1s; }
+        .stream-2 { left: 27%; animation-duration: 9s; animation-delay: -5s; }
+        .stream-3 { left: 39%; animation-duration: 8s; animation-delay: -2s; }
+        .stream-4 { left: 46%; animation-duration: 6.5s; animation-delay: -4s; }
+        .stream-5 { left: 54%; animation-duration: 8.8s; animation-delay: -3s; }
+        .stream-6 { left: 63%; animation-duration: 7.3s; animation-delay: -6s; }
+        .stream-7 { left: 74%; animation-duration: 10s; animation-delay: -2.5s; }
+        .stream-8 { left: 84%; animation-duration: 7.8s; animation-delay: -7s; }
+
+        @keyframes fallData {
+          0% {
+            transform: translateY(-25vh);
+            opacity: 0;
+          }
+          12% {
+            opacity: 0.55;
+          }
+          50% {
+            opacity: 0.8;
+          }
+          88% {
+            opacity: 0.45;
+          }
+          100% {
+            transform: translateY(130vh);
+            opacity: 0;
+          }
+        }
+      `}</style>
     </div>
   );
 }
