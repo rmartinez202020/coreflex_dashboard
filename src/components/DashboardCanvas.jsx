@@ -147,12 +147,14 @@ export default function DashboardCanvas({
   onOpenCounterInputSettings,
   activeDashboardId,
   dashboardId,
+  dashboardName,
   onOpenPushButtonNOSettings,
   onOpenPushButtonNCSettings,
 
 
 }) {
   const isPlay = dashboardMode === "play" || dashboardMode === "launch";
+  const resolvedDashboardName = String(dashboardName || "").trim();
 
   // =====================================================
   // ✅ Ctrl/Cmd + click multi-select handler (EDIT only)
@@ -642,6 +644,7 @@ export default function DashboardCanvas({
                     widget={tank}
                     onSaveWidget={commonProps.onUpdate}
                     dashboardId={resolvedDash}
+                    dashboardName={resolvedDashboardName}
                     onSaveProject={onSaveProject}
                   />
                 </DraggableDroppedTank>
