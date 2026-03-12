@@ -123,7 +123,7 @@ function resolveWidgetId(widget) {
 }
 
 function resolveDashboardId({ dashboardId, widget }) {
-  return String(
+  const v = String(
     dashboardId ??
       widget?.dashboardId ??
       widget?.dashboard_id ??
@@ -131,6 +131,8 @@ function resolveDashboardId({ dashboardId, widget }) {
       widget?.properties?.dashboard_id ??
       ""
   ).trim();
+
+  return v || "main";
 }
 
 function resolveDashboardName({ dashboardName, widget }) {
