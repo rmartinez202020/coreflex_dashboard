@@ -400,7 +400,7 @@ export default function LoginPage() {
             opacity: 0.30;
           }
           100% {
-            transform: translateY(76vh);
+            transform: translateY(90vh);
             opacity: 0;
           }
         }
