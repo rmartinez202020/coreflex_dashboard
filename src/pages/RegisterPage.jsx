@@ -25,16 +25,41 @@ export default function RegisterPage() {
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
 
+    // ✅ Prevent checking acknowledgment before user clicks View
+    if (name === "acceptedControlTerms" && !form.showControlTerms) {
+      return;
+    }
+
     setForm((prev) => ({
       ...prev,
       [name]: type === "checkbox" ? checked : value,
     }));
   };
 
+  const handleToggleTerms = () => {
+    setForm((prev) => {
+      const nextShow = !prev.showControlTerms;
+
+      return {
+        ...prev,
+        showControlTerms: nextShow,
+        // ✅ If user hides terms again, force acknowledgment back off
+        acceptedControlTerms: nextShow ? prev.acceptedControlTerms : false,
+      };
+    });
+  };
+
   const handleRegister = async (e) => {
     e.preventDefault();
     setError("");
     setSuccess("");
+
+    if (!form.showControlTerms) {
+      setError(
+        "Please click View and review the Control & Automation Acknowledgment before creating an account."
+      );
+      return;
+    }
 
     if (!form.acceptedControlTerms) {
       setError(
@@ -82,6 +107,8 @@ export default function RegisterPage() {
 
   const inputClass =
     "w-full border border-slate-300 rounded-lg px-4 py-3 text-slate-900 bg-white/95 shadow-sm";
+
+  const acknowledgmentEnabled = form.showControlTerms;
 
   return (
     <div
@@ -252,12 +279,7 @@ export default function RegisterPage() {
 
                     <button
                       type="button"
-                      onClick={() =>
-                        setForm((prev) => ({
-                          ...prev,
-                          showControlTerms: !prev.showControlTerms,
-                        }))
-                      }
+                      onClick={handleToggleTerms}
                       className="text-blue-700 text-sm font-semibold hover:underline whitespace-nowrap"
                     >
                       {form.showControlTerms ? "Hide" : "View"}
@@ -308,21 +330,35 @@ export default function RegisterPage() {
                       ✅ Acknowledgment
                     </p>
 
-                    <label className="flex items-start gap-2 text-sm text-slate-900 font-medium">
+                    <label
+                      className={`flex items-start gap-3 text-sm leading-6 font-medium rounded-lg p-2 transition ${
+                        acknowledgmentEnabled
+                          ? "text-slate-900"
+                          : "text-slate-400 cursor-not-allowed opacity-70"
+                      }`}
+                    >
                       <input
                         type="checkbox"
                         name="acceptedControlTerms"
                         checked={form.acceptedControlTerms}
                         onChange={handleChange}
+                        disabled={!acknowledgmentEnabled}
                         className="mt-1"
                       />
                       <span>
                         I acknowledge that the CoreFlex IIoTs Platform is a
-                        supervisory monitoring and management system only, and must
-                        not be relied upon for real-time control or safety-critical
-                        functions.
+                        supervisory monitoring and management system only, and
+                        must not be relied upon for real-time control or
+                        safety-critical functions.
                       </span>
                     </label>
+
+                    {!acknowledgmentEnabled && (
+                      <p className="text-xs text-amber-700 mt-2 font-semibold">
+                        Please click <span className="underline">View</span> to
+                        review the acknowledgment before accepting it.
+                      </p>
+                    )}
 
                     <p className="text-xs text-slate-700 mt-2 font-medium">
                       (You must accept this acknowledgment to create an account.)
