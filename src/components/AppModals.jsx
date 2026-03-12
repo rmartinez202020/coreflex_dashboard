@@ -12,7 +12,6 @@ import CounterInputSettingsModal from "./indicators/CounterInputSettingsModal";
 import HorizontalTankPropertiesModal from "./HorizontalTankPropertiesModal";
 import VerticalTankSettingsModal from "./VerticalTankSettingsModal";
 import StandardTankPropertiesModal from "./StandardTankPropertiesModal";
-import ToggleSwitchPropertiesModal from "./controls/ToggleSwitchPropertiesModal";
 import PushButtonNOPropertiesModal from "./controls/PushButtonNOPropertiesModal";
 import PushButtonNCPropertiesModal from "./controls/PushButtonNCPropertiesModal";
 import AlarmLogWindow from "./AlarmLogWindow";
@@ -59,8 +58,6 @@ export default function AppModals({
   closeStateImageSettings,
   counterInputSettingsId,
   closeCounterInputSettings,
-  toggleSwitchSettingsId,
-  closeToggleSwitchSettings,
   pushButtonNOSettingsId,
   closePushButtonNOSettings,
   pushButtonNCSettingsId,
@@ -78,8 +75,8 @@ export default function AppModals({
   }, [dashboardId]);
 
   const safeDashboardName = useMemo(() => {
-    return String(dashboardName || "").trim();
-  }, [dashboardName]);
+  return String(dashboardName || "").trim();
+}, [dashboardName]);
 
   // ✅ always keep latest droppedTanks (avoids stale closure issues)
   const droppedTanksRef = useRef([]);
@@ -187,16 +184,6 @@ export default function AppModals({
         isSameId(t.id, counterInputSettingsId) && t.shape === "counterInput"
     );
   }, [droppedTanks, counterInputSettingsId]);
-
-  // ✅ NEW: toggleSwitch modal target
-  const toggleSwitchTarget = useMemo(() => {
-    if (toggleSwitchSettingsId == null) return null;
-    return droppedTanks.find(
-      (t) =>
-        isSameId(t.id, toggleSwitchSettingsId) &&
-        (t.shape === "toggleSwitch" || t.shape === "toggleControl")
-    );
-  }, [droppedTanks, toggleSwitchSettingsId]);
 
   // ✅ NEW: pushButtonNO modal target
   const pushButtonNOTarget = useMemo(() => {
@@ -334,23 +321,7 @@ export default function AppModals({
         />
       )}
 
-      {/* ✅ NEW: Toggle Switch settings */}
-      {toggleSwitchTarget && (
-        <ToggleSwitchPropertiesModal
-          open={true}
-          toggleSwitch={toggleSwitchTarget}
-          dashboardId={safeDashboardId}
-          dashboardName={safeDashboardName}
-          onSaveProject={onSaveProject}
-          onClose={() => closeToggleSwitchSettings?.()}
-          onSave={(updated) => {
-            patchTankProperties(toggleSwitchTarget.id, updated);
-            closeToggleSwitchSettings?.();
-          }}
-        />
-      )}
-
-      {/* ✅ Push Button NO settings */}
+      {/* ✅ NEW: Push Button NO settings */}
       {pushButtonNOTarget && (
         <PushButtonNOPropertiesModal
           open={true}
