@@ -701,6 +701,7 @@ export default function App() {
 
         <AppModals
           dashboardId={effectiveDashboardId}
+          dashboardName={String(activeDashboard?.dashboardName || "").trim()}
           droppedTanks={droppedTanks}
           setDroppedTanks={setDroppedTanks}
           showRestoreWarning={showRestoreWarning}
