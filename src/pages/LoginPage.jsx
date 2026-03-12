@@ -231,10 +231,10 @@ export default function LoginPage() {
               <div className="text-slate-900 text-sm font-medium">
                 Need help? Email{" "}
                 <a
-                  href="mailto:info@coreflexalliance.net"
+                  href="mailto:info@coreflexiiotsplatform.com"
                   className="text-blue-700 font-semibold hover:underline"
                 >
-                  info@coreflexalliance.net
+                  info@coreflexiiotsplatform.com
                 </a>
               </div>
             </div>
@@ -321,10 +321,10 @@ export default function LoginPage() {
                   <div className="mt-3 text-slate-900 font-semibold">
                     Request a Reset Password at{" "}
                     <a
-                      href="mailto:info@coreflexalliance.net"
+                      href="mailto:info@coreflexiiotsplatform.com"
                       className="text-blue-700 font-semibold hover:underline"
                     >
-                      info@coreflexalliance.net
+                      info@coreflexiiotsplatform.com
                     </a>
                   </div>
                 )}
