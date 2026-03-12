@@ -317,9 +317,10 @@ export default function RegisterPage() {
                         className="mt-1"
                       />
                       <span>
-                        I understand and agree that CoreFlex IIoTs Platform is a
-                        supervisory system and does not perform real-time or
-                        safety-critical control.
+                        I acknowledge that the CoreFlex IIoTs Platform is a
+                        supervisory monitoring and management system only, and must
+                        not be relied upon for real-time control or safety-critical
+                        functions.
                       </span>
                     </label>
 
