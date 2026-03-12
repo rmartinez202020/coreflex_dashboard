@@ -79,7 +79,9 @@ async function postJson(path, body) {
 
   const j = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(j?.detail || j?.error || `POST ${path} failed (${res.status})`);
+    throw new Error(
+      j?.detail || j?.error || `POST ${path} failed (${res.status})`
+    );
   }
   return j;
 }
@@ -145,13 +147,12 @@ export default function DashboardCanvas({
   onOpenBlinkingAlarmSettings,
   onOpenStateImageSettings,
   onOpenCounterInputSettings,
+  onOpenToggleSwitchSettings,
   activeDashboardId,
   dashboardId,
   dashboardName,
   onOpenPushButtonNOSettings,
   onOpenPushButtonNCSettings,
-
-
 }) {
   const isPlay = dashboardMode === "play" || dashboardMode === "launch";
   const resolvedDashboardName = String(dashboardName || "").trim();
@@ -558,24 +559,24 @@ export default function DashboardCanvas({
 
             if (tank.shape === "graphicDisplay") {
               return (
-            <DraggableGraphicDisplay
-  key={tank.id}
-  tank={tank}
-  telemetryMap={telemetryMap}
-  selected={isSelected && !isPlay}
-  selectedIds={selectedIds}
-  dragDelta={dragDelta}
-  dashboardMode={dashboardMode}
-  onSelect={handleObjectSelect}
-  onUpdate={commonProps.onUpdate}
-  onRightClick={(e) => handleRightClick?.(e, tank)}
-  onOpenSettings={() => {
-    if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
-  }}
-  onDoubleClick={() => {
-    if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
-  }}
-/>
+                <DraggableGraphicDisplay
+                  key={tank.id}
+                  tank={tank}
+                  telemetryMap={telemetryMap}
+                  selected={isSelected && !isPlay}
+                  selectedIds={selectedIds}
+                  dragDelta={dragDelta}
+                  dashboardMode={dashboardMode}
+                  onSelect={handleObjectSelect}
+                  onUpdate={commonProps.onUpdate}
+                  onRightClick={(e) => handleRightClick?.(e, tank)}
+                  onOpenSettings={() => {
+                    if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
+                  }}
+                  onDoubleClick={() => {
+                    if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
+                  }}
+                />
               );
             }
 
@@ -634,9 +635,14 @@ export default function DashboardCanvas({
               });
 
               return (
-                <DraggableDroppedTank {...commonProps}>
+                <DraggableDroppedTank
+                  {...commonProps}
+                  onDoubleClick={() => {
+                    if (!isPlay) onOpenToggleSwitchSettings?.(tank);
+                  }}
+                >
                   <ToggleSwitchControl
-                    isOn={isOn}                        
+                    isOn={isOn}
                     width={w}
                     height={h}
                     isLaunched={isPlay}
@@ -650,74 +656,76 @@ export default function DashboardCanvas({
                 </DraggableDroppedTank>
               );
             }
-if (tank.shape === "pushButtonNO") {
-  const w = tank.w ?? tank.width ?? 110;
-  const h = tank.h ?? tank.height ?? 110;
-  const pressed = !!tank.pressed;
 
-  const resolvedDash = resolveDashboardId({
-    activeDashboardId,
-    dashboardId,
-    selectedTank,
-    droppedTanks,
-  });
+            if (tank.shape === "pushButtonNO") {
+              const w = tank.w ?? tank.width ?? 110;
+              const h = tank.h ?? tank.height ?? 110;
+              const pressed = !!tank.pressed;
 
-  return (
-    <DraggableDroppedTank
-      {...commonProps}
-      onDoubleClick={() => {
-        if (!isPlay) onOpenPushButtonNOSettings?.(tank);
-      }}
-    >
-      <PushButtonControl
-        variant="NO"
-        width={w}
-        height={h}
-        pressed={pressed}
-        title={tank?.properties?.title || ""}
-        isLaunched={isPlay}
-        visualOnly={false}
-        widget={tank}
-        dashboardId={resolvedDash}
-        dashboardName={resolvedDashboardName}
-      />
-    </DraggableDroppedTank>
-  );
-}
-           if (tank.shape === "pushButtonNC") {
-  const w = tank.w ?? tank.width ?? 110;
-  const h = tank.h ?? tank.height ?? 110;
-  const pressed = !!tank.pressed;
+              const resolvedDash = resolveDashboardId({
+                activeDashboardId,
+                dashboardId,
+                selectedTank,
+                droppedTanks,
+              });
 
-  const resolvedDash = resolveDashboardId({
-    activeDashboardId,
-    dashboardId,
-    selectedTank,
-    droppedTanks,
-  });
+              return (
+                <DraggableDroppedTank
+                  {...commonProps}
+                  onDoubleClick={() => {
+                    if (!isPlay) onOpenPushButtonNOSettings?.(tank);
+                  }}
+                >
+                  <PushButtonControl
+                    variant="NO"
+                    width={w}
+                    height={h}
+                    pressed={pressed}
+                    title={tank?.properties?.title || ""}
+                    isLaunched={isPlay}
+                    visualOnly={false}
+                    widget={tank}
+                    dashboardId={resolvedDash}
+                    dashboardName={resolvedDashboardName}
+                  />
+                </DraggableDroppedTank>
+              );
+            }
 
-  return (
-    <DraggableDroppedTank
-      {...commonProps}
-      onDoubleClick={() => {
-        if (!isPlay) onOpenPushButtonNCSettings?.(tank);
-      }}
-    >
-      <PushButtonControl
-        variant="NC"
-        width={w}
-        height={h}
-        pressed={pressed}
-        title={tank?.properties?.title || ""}
-        isLaunched={isPlay}
-        visualOnly={false}
-        widget={tank}
-        dashboardId={resolvedDash}
-        dashboardName={resolvedDashboardName}
-      />
-    </DraggableDroppedTank>
-  );
-}
+            if (tank.shape === "pushButtonNC") {
+              const w = tank.w ?? tank.width ?? 110;
+              const h = tank.h ?? tank.height ?? 110;
+              const pressed = !!tank.pressed;
+
+              const resolvedDash = resolveDashboardId({
+                activeDashboardId,
+                dashboardId,
+                selectedTank,
+                droppedTanks,
+              });
+
+              return (
+                <DraggableDroppedTank
+                  {...commonProps}
+                  onDoubleClick={() => {
+                    if (!isPlay) onOpenPushButtonNCSettings?.(tank);
+                  }}
+                >
+                  <PushButtonControl
+                    variant="NC"
+                    width={w}
+                    height={h}
+                    pressed={pressed}
+                    title={tank?.properties?.title || ""}
+                    isLaunched={isPlay}
+                    visualOnly={false}
+                    widget={tank}
+                    dashboardId={resolvedDash}
+                    dashboardName={resolvedDashboardName}
+                  />
+                </DraggableDroppedTank>
+              );
+            }
 
             if (tank.shape === "standardTank") {
               return (
