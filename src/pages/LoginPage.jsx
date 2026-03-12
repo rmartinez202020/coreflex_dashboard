@@ -173,145 +173,148 @@ export default function LoginPage() {
     >
       <div className="absolute inset-0 bg-black opacity-40"></div>
 
-      {/* ✅ CoreFlex logo top-left */}
-      <img
-        src={logoWhite}
-        alt="CoreFlex Logo"
-        className="absolute top-6 left-6 z-20 select-none pointer-events-none"
-        style={{
-          width: "170px",
-          height: "auto",
-          objectFit: "contain",
-        }}
-      />
+      <div className="relative z-10 flex flex-col items-center px-4">
+        {/* ✅ CoreFlex logo centered above the card */}
+        <img
+          src={logoWhite}
+          alt="CoreFlex Logo"
+          className="mb-5 select-none pointer-events-none"
+          style={{
+            width: "92px",
+            height: "auto",
+            objectFit: "contain",
+            filter: "drop-shadow(0 0 10px rgba(255,255,255,0.20))",
+          }}
+        />
 
-      <div className="relative bg-white bg-opacity-90 backdrop-blur-md shadow-2xl rounded-xl p-10 w-full max-w-lg z-10">
-        <h1 className="text-3xl font-bold text-center text-[#1e293b] mb-4">
-          CoreFlex IIoTs Platform
-        </h1>
+        <div className="relative bg-white bg-opacity-90 backdrop-blur-md shadow-2xl rounded-xl p-10 w-full max-w-lg">
+          <h1 className="text-3xl font-bold text-center text-[#1e293b] mb-4">
+            CoreFlex IIoTs Platform
+          </h1>
 
-        {/* ✅ If phone: show block message and DO NOT render login form */}
-        {blockedPhone ? (
-          <div className="text-center">
-            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-4">
-              <b>Platform Not Supported</b>
-              <div className="mt-1">
-                CoreFlex IIoTs Platform is not supported on mobile phones.
+          {/* ✅ If phone: show block message and DO NOT render login form */}
+          {blockedPhone ? (
+            <div className="text-center">
+              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-4">
+                <b>Platform Not Supported</b>
+                <div className="mt-1">
+                  CoreFlex IIoTs Platform is not supported on mobile phones.
+                </div>
+                <div className="mt-1">
+                  Please use a desktop computer or a supported iPad.
+                </div>
               </div>
-              <div className="mt-1">
-                Please use a desktop computer or a supported iPad.
+
+              <div className="text-gray-700 text-sm">
+                Need help? Email{" "}
+                <a
+                  href="mailto:info@coreflexalliance.net"
+                  className="text-blue-600 font-semibold hover:underline"
+                >
+                  info@coreflexalliance.net
+                </a>
               </div>
             </div>
+          ) : (
+            <>
+              <p className="text-center text-gray-600 mb-6">
+                Login to access your account
+              </p>
 
-            <div className="text-gray-700 text-sm">
-              Need help? Email{" "}
-              <a
-                href="mailto:info@coreflexalliance.net"
-                className="text-blue-600 font-semibold hover:underline"
-              >
-                info@coreflexalliance.net
-              </a>
-            </div>
-          </div>
-        ) : (
-          <>
-            <p className="text-center text-gray-600 mb-6">
-              Login to access your account
-            </p>
+              {error && (
+                <div className="bg-red-100 text-red-700 px-3 py-2 rounded text-sm mb-4">
+                  {error}
+                </div>
+              )}
 
-            {error && (
-              <div className="bg-red-100 text-red-700 px-3 py-2 rounded text-sm mb-4">
-                {error}
-              </div>
-            )}
+              <form ref={formRef} onSubmit={handleLogin} className="space-y-4">
+                <div>
+                  <label className="block text-sm mb-1 text-gray-700">Email</label>
+                  <input
+                    type="email"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    required
+                    disabled={loading}
+                    className="w-full border rounded px-3 py-2 text-gray-800 disabled:bg-gray-100"
+                    placeholder="you@example.com"
+                    autoComplete="email"
+                  />
+                </div>
 
-            <form ref={formRef} onSubmit={handleLogin} className="space-y-4">
-              <div>
-                <label className="block text-sm mb-1 text-gray-700">Email</label>
-                <input
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
-                  required
+                <div>
+                  <label className="block text-sm mb-1 text-gray-700">Password</label>
+                  <input
+                    type="password"
+                    value={password}
+                    onChange={(e) => setPassword(e.target.value)}
+                    onKeyUp={handlePasswordKeyEvent}
+                    onKeyDown={handlePasswordKeyEvent}
+                    required
+                    disabled={loading}
+                    className="w-full border rounded px-3 py-2 text-gray-800 disabled:bg-gray-100"
+                    placeholder="••••••••"
+                    autoComplete="current-password"
+                  />
+
+                  {capsLockOn && (
+                    <div className="mt-1 text-sm text-yellow-600">
+                      ⚠️ Caps Lock is ON
+                    </div>
+                  )}
+                </div>
+
+                <button
+                  type="submit"
                   disabled={loading}
-                  className="w-full border rounded px-3 py-2 text-gray-800 disabled:bg-gray-100"
-                  placeholder="you@example.com"
-                  autoComplete="email"
-                />
-              </div>
+                  className={`w-full py-2 rounded mt-4 text-white transition ${
+                    loading
+                      ? "bg-blue-400 cursor-not-allowed"
+                      : "bg-blue-600 hover:bg-blue-700"
+                  }`}
+                >
+                  {loading ? "Logging in…" : "Login"}
+                </button>
+              </form>
 
-              <div>
-                <label className="block text-sm mb-1 text-gray-700">Password</label>
-                <input
-                  type="password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  onKeyUp={handlePasswordKeyEvent}
-                  onKeyDown={handlePasswordKeyEvent}
-                  required
-                  disabled={loading}
-                  className="w-full border rounded px-3 py-2 text-gray-800 disabled:bg-gray-100"
-                  placeholder="••••••••"
-                  autoComplete="current-password"
-                />
+              <div className="text-center text-gray-600 text-sm mt-4">
+                <div className="flex items-center justify-center gap-2">
+                  <span>Forgot your password?</span>
+                  <button
+                    type="button"
+                    onClick={() => setShowResetInfo((prev) => !prev)}
+                    className="text-blue-600 hover:text-blue-800 font-semibold"
+                    title="How to reset password"
+                  >
+                    ℹ️
+                  </button>
+                </div>
 
-                {capsLockOn && (
-                  <div className="mt-1 text-sm text-yellow-600">
-                    ⚠️ Caps Lock is ON
+                {showResetInfo && (
+                  <div className="mt-2 text-gray-700">
+                    Request a Reset Password at{" "}
+                    <a
+                      href="mailto:info@coreflexalliance.net"
+                      className="text-blue-600 font-semibold hover:underline"
+                    >
+                      info@coreflexalliance.net
+                    </a>
                   </div>
                 )}
               </div>
 
-              <button
-                type="submit"
-                disabled={loading}
-                className={`w-full py-2 rounded mt-4 text-white transition ${
-                  loading
-                    ? "bg-blue-400 cursor-not-allowed"
-                    : "bg-blue-600 hover:bg-blue-700"
-                }`}
-              >
-                {loading ? "Logging in…" : "Login"}
-              </button>
-            </form>
-
-            <div className="text-center text-gray-600 text-sm mt-4">
-              <div className="flex items-center justify-center gap-2">
-                <span>Forgot your password?</span>
-                <button
-                  type="button"
-                  onClick={() => setShowResetInfo((prev) => !prev)}
-                  className="text-blue-600 hover:text-blue-800 font-semibold"
-                  title="How to reset password"
+              <p className="text-center text-gray-600 text-sm mt-4">
+                Don’t have an account?{" "}
+                <Link
+                  to="/register"
+                  className="text-blue-600 font-semibold hover:underline"
                 >
-                  ℹ️
-                </button>
-              </div>
-
-              {showResetInfo && (
-                <div className="mt-2 text-gray-700">
-                  Request a Reset Password at{" "}
-                  <a
-                    href="mailto:info@coreflexalliance.net"
-                    className="text-blue-600 font-semibold hover:underline"
-                  >
-                    info@coreflexalliance.net
-                  </a>
-                </div>
-              )}
-            </div>
-
-            <p className="text-center text-gray-600 text-sm mt-4">
-              Don’t have an account?{" "}
-              <Link
-                to="/register"
-                className="text-blue-600 font-semibold hover:underline"
-              >
-                Create one
-              </Link>
-            </p>
-          </>
-        )}
+                  Create one
+                </Link>
+              </p>
+            </>
+          )}
+        </div>
       </div>
     </div>
   );
