@@ -284,17 +284,6 @@ export default function App() {
     setCounterInputSettingsId(null);
   };
 
-  // ✅ Toggle Switch Settings
-  const [toggleSwitchSettingsId, setToggleSwitchSettingsId] = useState(null);
-
-  const openToggleSwitchSettings = (tank) => {
-    setToggleSwitchSettingsId(tank?.id ?? null);
-  };
-
-  const closeToggleSwitchSettings = () => {
-    setToggleSwitchSettingsId(null);
-  };
-
   // ✅ Push Button NO Settings
   const [pushButtonNOSettingsId, setPushButtonNOSettingsId] = useState(null);
 
@@ -682,7 +671,6 @@ export default function App() {
             onOpenBlinkingAlarmSettings={openBlinkingAlarmSettings}
             onOpenStateImageSettings={openStateImageSettings}
             onOpenCounterInputSettings={openCounterInputSettings}
-            onOpenToggleSwitchSettings={openToggleSwitchSettings}
             onOpenPushButtonNOSettings={openPushButtonNOSettings}
             onOpenPushButtonNCSettings={openPushButtonNCSettings}
             activeDashboardId={activeDashboard?.dashboardId || null}
@@ -742,8 +730,6 @@ export default function App() {
           closeStateImageSettings={closeStateImageSettings}
           counterInputSettingsId={counterInputSettingsId}
           closeCounterInputSettings={closeCounterInputSettings}
-          toggleSwitchSettingsId={toggleSwitchSettingsId}
-          closeToggleSwitchSettings={closeToggleSwitchSettings}
           pushButtonNOSettingsId={pushButtonNOSettingsId}
           closePushButtonNOSettings={closePushButtonNOSettings}
           pushButtonNCSettingsId={pushButtonNCSettingsId}
