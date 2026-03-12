@@ -43,7 +43,6 @@ export default function RegisterPage() {
       return {
         ...prev,
         showControlTerms: nextShow,
-        // ✅ If user hides terms again, force acknowledgment back off
         acceptedControlTerms: nextShow ? prev.acceptedControlTerms : false,
       };
     });
@@ -106,13 +105,13 @@ export default function RegisterPage() {
   };
 
   const inputClass =
-    "w-full border border-slate-300 rounded-lg px-4 py-3 text-slate-900 bg-white/95 shadow-sm";
+    "w-full border border-slate-300 rounded-lg px-4 py-2.5 text-slate-900 bg-white/95 shadow-sm";
 
   const acknowledgmentEnabled = form.showControlTerms;
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center relative overflow-hidden px-4 py-10"
+      className="min-h-screen flex items-start justify-center relative overflow-hidden px-4 py-4 md:py-5"
       style={{
         backgroundImage: `url(${bgImage})`,
         backgroundSize: "cover",
@@ -156,45 +155,46 @@ export default function RegisterPage() {
         }}
       />
 
-      <div className="relative z-10 flex flex-col items-center w-full max-w-5xl">
+      <div className="relative z-10 flex flex-col items-center w-full max-w-[980px]">
         {/* ✅ same logo treatment as login */}
         <img
           src={logoWhite}
           alt="CoreFlex Logo"
-          className="mb-5 select-none pointer-events-none"
+          className="mb-3 md:mb-4 select-none pointer-events-none"
           style={{
-            width: "138px",
+            width: "110px",
             height: "auto",
             objectFit: "contain",
             filter: "drop-shadow(0 0 12px rgba(255,255,255,0.28))",
           }}
         />
 
-        <div className="relative w-full rounded-[22px] border border-white/30 bg-white/30 backdrop-blur-xl shadow-2xl px-6 py-7 md:px-8 md:py-8">
-          <h1 className="text-3xl md:text-4xl font-extrabold text-center text-slate-950 mb-2 tracking-tight">
+        {/* ✅ fit better inside one page */}
+        <div className="relative w-full rounded-[22px] border border-white/30 bg-white/30 backdrop-blur-xl shadow-2xl px-5 py-5 md:px-7 md:py-6">
+          <h1 className="text-2xl md:text-3xl font-extrabold text-center text-slate-950 mb-1 tracking-tight">
             Create Your CoreFlex Account
           </h1>
 
-          <p className="text-center text-slate-800 text-base font-semibold mb-5">
+          <p className="text-center text-slate-800 text-sm md:text-base font-semibold mb-4">
             Fill in the information below to get started
           </p>
 
           {error && (
-            <div className="bg-red-100/95 text-red-800 px-3 py-2 rounded text-sm mb-4 border border-red-200">
+            <div className="bg-red-100/95 text-red-800 px-3 py-2 rounded text-sm mb-3 border border-red-200">
               {error}
             </div>
           )}
 
           {success && (
-            <div className="bg-green-100/95 text-green-800 px-3 py-2 rounded text-sm mb-4 border border-green-200">
+            <div className="bg-green-100/95 text-green-800 px-3 py-2 rounded text-sm mb-3 border border-green-200">
               {success}
             </div>
           )}
 
-          <form onSubmit={handleRegister} className="space-y-4">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <form onSubmit={handleRegister} className="space-y-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="block text-[15px] font-bold mb-2 text-slate-900">
+                <label className="block text-[14px] font-bold mb-1.5 text-slate-900">
                   Full Name
                 </label>
                 <input
@@ -208,7 +208,7 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="block text-[15px] font-bold mb-2 text-slate-900">
+                <label className="block text-[14px] font-bold mb-1.5 text-slate-900">
                   Company
                 </label>
                 <input
@@ -221,7 +221,7 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="block text-[15px] font-bold mb-2 text-slate-900">
+                <label className="block text-[14px] font-bold mb-1.5 text-slate-900">
                   Email
                 </label>
                 <input
@@ -236,7 +236,7 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="block text-[15px] font-bold mb-2 text-slate-900">
+                <label className="block text-[14px] font-bold mb-1.5 text-slate-900">
                   Password
                 </label>
                 <input
@@ -250,8 +250,8 @@ export default function RegisterPage() {
                 />
               </div>
 
-              <div>
-                <label className="block text-[15px] font-bold mb-2 text-slate-900">
+              <div className="md:col-span-2 md:max-w-[calc(50%-0.375rem)]">
+                <label className="block text-[14px] font-bold mb-1.5 text-slate-900">
                   Confirm Password
                 </label>
                 <input
@@ -265,7 +265,7 @@ export default function RegisterPage() {
                 />
               </div>
 
-              <div className="lg:col-span-2">
+              <div className="md:col-span-2">
                 <div className="border border-white/30 rounded-xl p-4 bg-white/70 backdrop-blur-sm">
                   <div className="flex items-start justify-between gap-3">
                     <div>
@@ -288,7 +288,7 @@ export default function RegisterPage() {
 
                   {form.showControlTerms && (
                     <div className="mt-3 border border-slate-200 rounded-md bg-white p-3">
-                      <div className="max-h-32 overflow-y-auto pr-2 text-sm text-slate-800 space-y-3">
+                      <div className="max-h-24 overflow-y-auto pr-2 text-sm text-slate-800 space-y-3">
                         <p>
                           The <strong>CoreFlex IIoTs Platform</strong> provides
                           supervisory monitoring, configuration, visualization,
@@ -325,7 +325,7 @@ export default function RegisterPage() {
                     </div>
                   )}
 
-                  <div className="mt-4">
+                  <div className="mt-3">
                     <p className="font-bold text-sm text-slate-900 mb-2">
                       ✅ Acknowledgment
                     </p>
@@ -354,13 +354,13 @@ export default function RegisterPage() {
                     </label>
 
                     {!acknowledgmentEnabled && (
-                      <p className="text-xs text-amber-700 mt-2 font-semibold">
+                      <p className="text-xs text-amber-700 mt-1.5 font-semibold">
                         Please click <span className="underline">View</span> to
                         review the acknowledgment before accepting it.
                       </p>
                     )}
 
-                    <p className="text-xs text-slate-700 mt-2 font-medium">
+                    <p className="text-xs text-slate-700 mt-1.5 font-medium">
                       (You must accept this acknowledgment to create an account.)
                     </p>
                   </div>
@@ -371,20 +371,20 @@ export default function RegisterPage() {
             <button
               type="submit"
               disabled={!form.acceptedControlTerms}
-              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-lg font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed"
+              className="w-full bg-blue-600 hover:bg-blue-700 text-white py-2.5 rounded-lg font-semibold text-lg disabled:opacity-50 disabled:cursor-not-allowed"
             >
               Create Account
             </button>
           </form>
 
-          <p className="text-center text-slate-800 text-sm mt-4 font-semibold">
+          <p className="text-center text-slate-800 text-sm mt-3 font-semibold">
             Already have an account?{" "}
             <Link to="/" className="text-blue-700 font-semibold hover:underline">
               Login
             </Link>
           </p>
 
-          <p className="text-center text-slate-700 text-xs mt-3 font-medium">
+          <p className="text-center text-slate-700 text-xs mt-2 font-medium">
             Control Terms Version: {CONTROL_TERMS_VERSION}
           </p>
         </div>
