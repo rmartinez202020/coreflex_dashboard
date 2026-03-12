@@ -111,7 +111,7 @@ export default function RegisterPage() {
 
   return (
     <div
-      className="min-h-screen flex items-start justify-center relative overflow-hidden px-4 py-4 md:py-5"
+      className="min-h-screen flex items-start justify-center relative overflow-hidden px-4 py-3 md:py-4"
       style={{
         backgroundImage: `url(${bgImage})`,
         backgroundSize: "cover",
@@ -156,26 +156,26 @@ export default function RegisterPage() {
       />
 
       <div className="relative z-10 flex flex-col items-center w-full max-w-[980px]">
-        {/* ✅ same logo treatment as login */}
+        {/* ✅ slightly smaller logo so expanded page still fits */}
         <img
           src={logoWhite}
           alt="CoreFlex Logo"
-          className="mb-3 md:mb-4 select-none pointer-events-none"
+          className="mb-2 md:mb-3 select-none pointer-events-none"
           style={{
-            width: "110px",
+            width: "92px",
             height: "auto",
             objectFit: "contain",
             filter: "drop-shadow(0 0 12px rgba(255,255,255,0.28))",
           }}
         />
 
-        {/* ✅ fit better inside one page */}
-        <div className="relative w-full rounded-[22px] border border-white/30 bg-white/30 backdrop-blur-xl shadow-2xl px-5 py-5 md:px-7 md:py-6">
-          <h1 className="text-2xl md:text-3xl font-extrabold text-center text-slate-950 mb-1 tracking-tight">
+        {/* ✅ tighter card so page fits even when terms are expanded */}
+        <div className="relative w-full rounded-[22px] border border-white/30 bg-white/30 backdrop-blur-xl shadow-2xl px-5 py-4 md:px-6 md:py-5">
+          <h1 className="text-[1.95rem] md:text-[2.35rem] font-extrabold text-center text-slate-950 mb-1 tracking-tight">
             Create Your CoreFlex Account
           </h1>
 
-          <p className="text-center text-slate-800 text-sm md:text-base font-semibold mb-4">
+          <p className="text-center text-slate-800 text-sm md:text-[15px] font-semibold mb-3">
             Fill in the information below to get started
           </p>
 
@@ -192,9 +192,9 @@ export default function RegisterPage() {
           )}
 
           <form onSubmit={handleRegister} className="space-y-3">
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-x-3 gap-y-2.5">
               <div>
-                <label className="block text-[14px] font-bold mb-1.5 text-slate-900">
+                <label className="block text-[13px] font-bold mb-1 text-slate-900">
                   Full Name
                 </label>
                 <input
@@ -208,7 +208,7 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="block text-[14px] font-bold mb-1.5 text-slate-900">
+                <label className="block text-[13px] font-bold mb-1 text-slate-900">
                   Company
                 </label>
                 <input
@@ -221,7 +221,7 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="block text-[14px] font-bold mb-1.5 text-slate-900">
+                <label className="block text-[13px] font-bold mb-1 text-slate-900">
                   Email
                 </label>
                 <input
@@ -236,7 +236,7 @@ export default function RegisterPage() {
               </div>
 
               <div>
-                <label className="block text-[14px] font-bold mb-1.5 text-slate-900">
+                <label className="block text-[13px] font-bold mb-1 text-slate-900">
                   Password
                 </label>
                 <input
@@ -251,7 +251,7 @@ export default function RegisterPage() {
               </div>
 
               <div className="md:col-span-2 md:max-w-[calc(50%-0.375rem)]">
-                <label className="block text-[14px] font-bold mb-1.5 text-slate-900">
+                <label className="block text-[13px] font-bold mb-1 text-slate-900">
                   Confirm Password
                 </label>
                 <input
@@ -266,13 +266,13 @@ export default function RegisterPage() {
               </div>
 
               <div className="md:col-span-2">
-                <div className="border border-white/30 rounded-xl p-4 bg-white/70 backdrop-blur-sm">
+                <div className="border border-white/30 rounded-xl p-3 bg-white/70 backdrop-blur-sm">
                   <div className="flex items-start justify-between gap-3">
                     <div>
-                      <h3 className="font-bold text-base text-slate-900 flex items-center gap-2">
+                      <h3 className="font-bold text-[15px] text-slate-900 flex items-center gap-2">
                         🔐 Control &amp; Automation Acknowledgment
                       </h3>
-                      <p className="text-xs text-slate-700 mt-1 font-medium">
+                      <p className="text-[11px] text-slate-700 mt-0.5 font-medium">
                         CoreFlex IIoTs Platform
                       </p>
                     </div>
@@ -287,8 +287,9 @@ export default function RegisterPage() {
                   </div>
 
                   {form.showControlTerms && (
-                    <div className="mt-3 border border-slate-200 rounded-md bg-white p-3">
-                      <div className="max-h-24 overflow-y-auto pr-2 text-sm text-slate-800 space-y-3">
+                    <div className="mt-2 border border-slate-200 rounded-md bg-white p-2.5">
+                      {/* ✅ shorter visible area so full page still fits */}
+                      <div className="max-h-20 overflow-y-auto pr-2 text-[13px] leading-5 text-slate-800 space-y-2">
                         <p>
                           The <strong>CoreFlex IIoTs Platform</strong> provides
                           supervisory monitoring, configuration, visualization,
@@ -325,13 +326,13 @@ export default function RegisterPage() {
                     </div>
                   )}
 
-                  <div className="mt-3">
-                    <p className="font-bold text-sm text-slate-900 mb-2">
+                  <div className="mt-2.5">
+                    <p className="font-bold text-[13px] text-slate-900 mb-1.5">
                       ✅ Acknowledgment
                     </p>
 
                     <label
-                      className={`flex items-start gap-3 text-sm leading-6 font-medium rounded-lg p-2 transition ${
+                      className={`flex items-start gap-3 text-[13px] leading-5 font-medium rounded-lg p-2 transition ${
                         acknowledgmentEnabled
                           ? "text-slate-900"
                           : "text-slate-400 cursor-not-allowed opacity-70"
@@ -343,7 +344,7 @@ export default function RegisterPage() {
                         checked={form.acceptedControlTerms}
                         onChange={handleChange}
                         disabled={!acknowledgmentEnabled}
-                        className="mt-1"
+                        className="mt-0.5"
                       />
                       <span>
                         I acknowledge that the CoreFlex IIoTs Platform is a
@@ -354,13 +355,13 @@ export default function RegisterPage() {
                     </label>
 
                     {!acknowledgmentEnabled && (
-                      <p className="text-xs text-amber-700 mt-1.5 font-semibold">
+                      <p className="text-[12px] text-amber-700 mt-1 font-semibold">
                         Please click <span className="underline">View</span> to
                         review the acknowledgment before accepting it.
                       </p>
                     )}
 
-                    <p className="text-xs text-slate-700 mt-1.5 font-medium">
+                    <p className="text-[12px] text-slate-700 mt-1 font-medium">
                       (You must accept this acknowledgment to create an account.)
                     </p>
                   </div>
@@ -384,7 +385,7 @@ export default function RegisterPage() {
             </Link>
           </p>
 
-          <p className="text-center text-slate-700 text-xs mt-2 font-medium">
+          <p className="text-center text-slate-700 text-xs mt-1.5 font-medium">
             Control Terms Version: {CONTROL_TERMS_VERSION}
           </p>
         </div>
