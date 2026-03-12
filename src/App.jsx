@@ -634,6 +634,7 @@ export default function App() {
         ) : activePage === "dashboard" ? (
           <DashboardCanvas
             dashboardId={effectiveDashboardId} // ✅ THE KEY FIX
+            dashboardName={String(activeDashboard?.dashboardName || "").trim()}
             dashboardMode={dashboardMode}
             sensors={sensors}
             droppedTanks={droppedTanks}

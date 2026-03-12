@@ -37,10 +37,12 @@ export default function ToggleSwitchPropertiesModal({
 
   // ✅ NEW (recommended): pass this from parent/dashboard
   dashboardId: dashboardIdProp,
+  dashboardName: dashboardNameProp,
 
   // ✅ NEW: Save Project callback
   onSaveProject = null,
 }) {
+
   // ✅ DO NOT early return before hooks
   const p = toggleSwitch?.properties || {};
 
@@ -260,7 +262,8 @@ export default function ToggleSwitchPropertiesModal({
   ).trim();
 
   const dashboardName = String(
-  toggleSwitch?.dashboardName ||
+  dashboardNameProp ||
+    toggleSwitch?.dashboardName ||
     p.dashboardName ||
     p.dashboardTitle ||
     toggleSwitch?.dashboardTitle ||
@@ -415,6 +418,7 @@ export default function ToggleSwitchPropertiesModal({
     setSaveErr("");
 
     const dash = String(dashboardId || "").trim();
+    const dashName = String(dashboardName || "").trim();
     const wid = String(widgetId || "").trim();
     const dev = String(deviceId || "").trim();
     const f = String(effectiveField || "").trim().toLowerCase();
@@ -438,7 +442,7 @@ export default function ToggleSwitchPropertiesModal({
       const nextProps = {
   ...(toggleSwitch?.properties || {}),
   dashboardId: dash,
-  dashboardName: dashboardName,
+  dashboardName: dashName,
 
         // ✅ NEW: optional title
         title: safeTitle,
@@ -467,8 +471,10 @@ export default function ToggleSwitchPropertiesModal({
       // 4) Bind DO in backend (locks the DO)
       await bindControlDO({
   dashboardId: dash,
-  dashboardName: dashboardName,
+  dashboardName: dashName,
   widgetId: wid,
+
+
   widgetType: "toggle",
   title: String(safeTitle || "Toggle").trim().slice(0, 120),
   deviceId: dev,

@@ -732,16 +732,24 @@ export default function ToggleSwitchControl({
       </div>
 
       <ToggleSwitchPropertiesModal
-        open={openProps}
-        toggleSwitch={widget}
-        onClose={() => setOpenProps(false)}
-        onSave={(nextWidget) => {
-          if (typeof onSaveWidget === "function") onSaveWidget(nextWidget);
-        }}
-        isLaunched={play}
-        dashboardId={dashboardId}
-        onSaveProject={onSaveProject}
-      />
+  open={openProps}
+  toggleSwitch={widget}
+  onClose={() => setOpenProps(false)}
+  onSave={(nextWidget) => {
+    if (typeof onSaveWidget === "function") onSaveWidget(nextWidget);
+  }}
+  isLaunched={play}
+  dashboardId={dashboardId}
+  dashboardName={String(
+    widget?.dashboardName ||
+      widget?.properties?.dashboardName ||
+      widget?.dashboardTitle ||
+      widget?.properties?.dashboardTitle ||
+      ""
+  ).trim()}
+  onSaveProject={onSaveProject}
+/>
+
     </>
   );
 }

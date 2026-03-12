@@ -18,6 +18,7 @@ import AlarmLogWindow from "./AlarmLogWindow";
 
 export default function AppModals({
   dashboardId = null,
+  dashboardName = "",
   onSaveProject,
   droppedTanks,
   setDroppedTanks,
@@ -72,6 +73,10 @@ export default function AppModals({
     const s = String(dashboardId || "").trim();
     return s ? s : null;
   }, [dashboardId]);
+
+  const safeDashboardName = useMemo(() => {
+  return String(dashboardName || "").trim();
+}, [dashboardName]);
 
   // ✅ always keep latest droppedTanks (avoids stale closure issues)
   const droppedTanksRef = useRef([]);
@@ -322,6 +327,7 @@ export default function AppModals({
           open={true}
           pushButton={pushButtonNOTarget}
           dashboardId={safeDashboardId}
+          dashboardName={safeDashboardName}
           onSaveProject={onSaveProject}
           onClose={() => closePushButtonNOSettings?.()}
           onSave={(updated) => {
@@ -336,6 +342,7 @@ export default function AppModals({
           open={true}
           pushButton={pushButtonNCTarget}
           dashboardId={safeDashboardId}
+          dashboardName={safeDashboardName}
           onSaveProject={onSaveProject}
           onClose={() => closePushButtonNCSettings?.()}
           onSave={(updated) => {
