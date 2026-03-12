@@ -163,7 +163,7 @@ export default function LoginPage() {
       {/* ✅ darker overlay so background does not fight with text */}
       <div className="absolute inset-0 bg-black opacity-55"></div>
 
-      {/* ✅ animated digital falling data behind the login section */}
+      {/* ✅ more animated digital falling data */}
       <div className="absolute inset-0 z-[1] pointer-events-none overflow-hidden">
         <div className="data-stream stream-1"></div>
         <div className="data-stream stream-2"></div>
@@ -173,6 +173,14 @@ export default function LoginPage() {
         <div className="data-stream stream-6"></div>
         <div className="data-stream stream-7"></div>
         <div className="data-stream stream-8"></div>
+        <div className="data-stream stream-9"></div>
+        <div className="data-stream stream-10"></div>
+        <div className="data-stream stream-11"></div>
+        <div className="data-stream stream-12"></div>
+        <div className="data-stream stream-13"></div>
+        <div className="data-stream stream-14"></div>
+        <div className="data-stream stream-15"></div>
+        <div className="data-stream stream-16"></div>
       </div>
 
       {/* ✅ soft glow behind card area */}
@@ -339,15 +347,15 @@ export default function LoginPage() {
       <style>{`
         .data-stream {
           position: absolute;
-          top: -30%;
+          top: -24%;
           width: 2px;
-          height: 240px;
+          height: 260px;
           background: linear-gradient(
             to bottom,
             rgba(80, 200, 255, 0) 0%,
-            rgba(120, 225, 255, 0.12) 20%,
-            rgba(160, 240, 255, 0.55) 50%,
-            rgba(120, 225, 255, 0.12) 80%,
+            rgba(120, 225, 255, 0.12) 18%,
+            rgba(160, 240, 255, 0.58) 50%,
+            rgba(120, 225, 255, 0.12) 82%,
             rgba(80, 200, 255, 0) 100%
           );
           box-shadow:
@@ -355,36 +363,44 @@ export default function LoginPage() {
             0 0 14px rgba(100, 210, 255, 0.12);
           opacity: 0.42;
           filter: blur(0.3px);
-          animation-name: fallData;
+          animation-name: fallDataToGround;
           animation-timing-function: linear;
           animation-iteration-count: infinite;
         }
 
-        .stream-1 { left: 18%; animation-duration: 7s; animation-delay: -1s; }
-        .stream-2 { left: 27%; animation-duration: 9s; animation-delay: -5s; }
-        .stream-3 { left: 39%; animation-duration: 8s; animation-delay: -2s; }
-        .stream-4 { left: 46%; animation-duration: 6.5s; animation-delay: -4s; }
-        .stream-5 { left: 54%; animation-duration: 8.8s; animation-delay: -3s; }
-        .stream-6 { left: 63%; animation-duration: 7.3s; animation-delay: -6s; }
-        .stream-7 { left: 74%; animation-duration: 10s; animation-delay: -2.5s; }
-        .stream-8 { left: 84%; animation-duration: 7.8s; animation-delay: -7s; }
+        .stream-1  { left: 6%;  animation-duration: 7.2s; animation-delay: -1.0s; }
+        .stream-2  { left: 12%; animation-duration: 8.6s; animation-delay: -5.0s; }
+        .stream-3  { left: 18%; animation-duration: 7.8s; animation-delay: -2.0s; }
+        .stream-4  { left: 24%; animation-duration: 9.2s; animation-delay: -4.0s; }
+        .stream-5  { left: 30%; animation-duration: 8.1s; animation-delay: -3.0s; }
+        .stream-6  { left: 36%; animation-duration: 7.0s; animation-delay: -6.0s; }
+        .stream-7  { left: 42%; animation-duration: 8.9s; animation-delay: -2.5s; }
+        .stream-8  { left: 48%; animation-duration: 7.5s; animation-delay: -7.0s; }
+        .stream-9  { left: 54%; animation-duration: 8.4s; animation-delay: -1.5s; }
+        .stream-10 { left: 60%; animation-duration: 7.6s; animation-delay: -5.5s; }
+        .stream-11 { left: 66%; animation-duration: 9.4s; animation-delay: -3.5s; }
+        .stream-12 { left: 72%; animation-duration: 7.9s; animation-delay: -6.5s; }
+        .stream-13 { left: 78%; animation-duration: 8.8s; animation-delay: -2.2s; }
+        .stream-14 { left: 84%; animation-duration: 7.3s; animation-delay: -4.8s; }
+        .stream-15 { left: 90%; animation-duration: 8.0s; animation-delay: -1.8s; }
+        .stream-16 { left: 95%; animation-duration: 9.0s; animation-delay: -6.8s; }
 
-        @keyframes fallData {
+        @keyframes fallDataToGround {
           0% {
-            transform: translateY(-25vh);
+            transform: translateY(-18vh);
             opacity: 0;
           }
-          12% {
-            opacity: 0.35;
-          }
-          50% {
-            opacity: 0.5;
-          }
-          88% {
+          10% {
             opacity: 0.28;
           }
+          45% {
+            opacity: 0.50;
+          }
+          80% {
+            opacity: 0.30;
+          }
           100% {
-            transform: translateY(130vh);
+            transform: translateY(76vh);
             opacity: 0;
           }
         }
