@@ -181,9 +181,13 @@ export default function DashboardAdminPage({
   };
 
   // -----------------------------
-  // ✅ Delete Dashboard (API call)
-  // - Assumes your backend supports:
-  //     DELETE /customers-dashboards/{id}
+  // ✅ Delete Dashboard
+  // ✅ NEW RULE:
+  // - load dashboard layout first
+  // - scan all canvas objects inside that dashboard
+  // - find all control widgets
+  // - delete each control binding
+  // - then delete dashboard row
   // -----------------------------
   const confirmDelete = async () => {
     if (!deleteTarget?.id) return;
@@ -198,8 +202,75 @@ export default function DashboardAdminPage({
         return;
       }
 
+      const dashId = String(deleteTarget.id || "").trim();
+      if (!dashId) {
+        throw new Error("Missing dashboard id");
+      }
+
+      // 1) Load full dashboard so we can inspect saved layout
+      const resDash = await fetch(
+        `${API_URL}/customers-dashboards/${encodeURIComponent(dashId)}`,
+        {
+          headers: { Authorization: `Bearer ${t}` },
+        }
+      );
+
+      if (!resDash.ok) {
+        const text = await resDash.text().catch(() => "");
+        throw new Error(text || "Failed to load dashboard before delete");
+      }
+
+      const dashData = await resDash.json().catch(() => ({}));
+
+      // layout.canvas.objects is the saved widget list
+      const objects = Array.isArray(dashData?.layout?.canvas?.objects)
+        ? dashData.layout.canvas.objects
+        : [];
+
+      const CONTROL_SHAPES = new Set([
+        "toggleSwitch",
+        "toggleControl",
+        "pushButtonNO",
+        "pushButtonNC",
+      ]);
+
+      const controlWidgetIds = objects
+        .filter((obj) => CONTROL_SHAPES.has(String(obj?.shape || "").trim()))
+        .map((obj) => String(obj?.id || "").trim())
+        .filter(Boolean);
+
+      // 2) Delete each control binding tied to this dashboard
+      for (const wid of controlWidgetIds) {
+        try {
+          const resBinding = await fetch(
+            `${API_URL}/control-bindings/?widgetId=${encodeURIComponent(
+              wid
+            )}&dashboardId=${encodeURIComponent(dashId)}`,
+            {
+              method: "DELETE",
+              headers: { Authorization: `Bearer ${t}` },
+            }
+          );
+
+          if (!resBinding.ok) {
+            const text = await resBinding.text().catch(() => "");
+            console.error(
+              "❌ Failed to delete control binding during dashboard delete:",
+              { dashboardId: dashId, widgetId: wid, detail: text }
+            );
+          }
+        } catch (err) {
+          console.error(
+            "❌ Failed to delete control binding during dashboard delete:",
+            wid,
+            err
+          );
+        }
+      }
+
+      // 3) Now delete the dashboard row itself
       const res = await fetch(
-        `${API_URL}/customers-dashboards/${deleteTarget.id}`,
+        `${API_URL}/customers-dashboards/${encodeURIComponent(dashId)}`,
         {
           method: "DELETE",
           headers: { Authorization: `Bearer ${t}` },
@@ -207,7 +278,7 @@ export default function DashboardAdminPage({
       );
 
       if (!res.ok) {
-        const text = await res.text();
+        const text = await res.text().catch(() => "");
         throw new Error(text || "Delete failed");
       }
 
