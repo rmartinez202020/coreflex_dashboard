@@ -2,6 +2,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { Link } from "react-router-dom";
 import bgImage from "../assets/login_photo/satellite.jpg";
+import logoWhite from "../assets/coreflex-logo-white.png";
 import { API_URL } from "../config/api";
 
 import { setToken, clearAuth } from "../utils/authToken";
@@ -162,7 +163,7 @@ export default function LoginPage() {
 
   return (
     <div
-      className="min-h-screen flex items-center justify-center relative"
+      className="min-h-screen flex items-center justify-center relative overflow-hidden"
       style={{
         backgroundImage: `url(${bgImage})`,
         backgroundSize: "cover",
@@ -171,6 +172,18 @@ export default function LoginPage() {
       }}
     >
       <div className="absolute inset-0 bg-black opacity-40"></div>
+
+      {/* ✅ CoreFlex logo top-left */}
+      <img
+        src={logoWhite}
+        alt="CoreFlex Logo"
+        className="absolute top-6 left-6 z-20 select-none pointer-events-none"
+        style={{
+          width: "170px",
+          height: "auto",
+          objectFit: "contain",
+        }}
+      />
 
       <div className="relative bg-white bg-opacity-90 backdrop-blur-md shadow-2xl rounded-xl p-10 w-full max-w-lg z-10">
         <h1 className="text-3xl font-bold text-center text-[#1e293b] mb-4">
