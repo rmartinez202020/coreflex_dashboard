@@ -679,6 +679,7 @@ if (tank.shape === "pushButtonNO") {
         visualOnly={false}
         widget={tank}
         dashboardId={resolvedDash}
+        dashboardName={resolvedDashboardName}
       />
     </DraggableDroppedTank>
   );
@@ -712,6 +713,7 @@ if (tank.shape === "pushButtonNO") {
         visualOnly={false}
         widget={tank}
         dashboardId={resolvedDash}
+        dashboardName={resolvedDashboardName}
       />
     </DraggableDroppedTank>
   );
