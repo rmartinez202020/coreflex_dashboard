@@ -158,8 +158,8 @@ export default function LoginPage() {
         backgroundRepeat: "no-repeat",
       }}
     >
-      {/* ✅ dark overlay */}
-      <div className="absolute inset-0 bg-black opacity-45"></div>
+      {/* ✅ darker overlay so background does not fight with text */}
+      <div className="absolute inset-0 bg-black opacity-50"></div>
 
       {/* ✅ animated digital falling data behind the login section */}
       <div className="absolute inset-0 z-[1] pointer-events-none overflow-hidden">
@@ -177,12 +177,12 @@ export default function LoginPage() {
       <div
         className="absolute z-[2] pointer-events-none"
         style={{
-          width: "560px",
-          height: "560px",
+          width: "700px",
+          height: "700px",
           borderRadius: "9999px",
           background:
-            "radial-gradient(circle, rgba(0,170,255,0.18) 0%, rgba(0,170,255,0.08) 35%, rgba(0,170,255,0.02) 55%, transparent 72%)",
-          filter: "blur(28px)",
+            "radial-gradient(circle, rgba(0,170,255,0.16) 0%, rgba(0,170,255,0.08) 36%, rgba(0,170,255,0.02) 58%, transparent 74%)",
+          filter: "blur(34px)",
         }}
       />
 
@@ -191,23 +191,23 @@ export default function LoginPage() {
         <img
           src={logoWhite}
           alt="CoreFlex Logo"
-          className="mb-5 select-none pointer-events-none"
+          className="mb-6 select-none pointer-events-none"
           style={{
-            width: "92px",
+            width: "96px",
             height: "auto",
             objectFit: "contain",
-            filter: "drop-shadow(0 0 10px rgba(255,255,255,0.20))",
+            filter: "drop-shadow(0 0 10px rgba(255,255,255,0.22))",
           }}
         />
 
-        <div className="relative bg-white/88 backdrop-blur-md shadow-2xl rounded-2xl p-10 w-full max-w-lg border border-white/20">
-          <h1 className="text-3xl font-bold text-center text-[#1e293b] mb-4">
+        <div className="relative w-full max-w-[620px] rounded-[22px] border border-white/25 bg-white/22 backdrop-blur-lg shadow-2xl px-10 py-12 md:px-12">
+          <h1 className="text-4xl font-extrabold text-center text-slate-900 mb-4 tracking-tight">
             CoreFlex IIoTs Platform
           </h1>
 
           {blockedPhone ? (
             <div className="text-center">
-              <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-lg text-sm mb-4">
+              <div className="bg-red-50/95 border border-red-200 text-red-800 px-4 py-3 rounded-lg text-sm mb-4">
                 <b>Platform Not Supported</b>
                 <div className="mt-1">
                   CoreFlex IIoTs Platform is not supported on mobile phones.
@@ -217,11 +217,11 @@ export default function LoginPage() {
                 </div>
               </div>
 
-              <div className="text-gray-700 text-sm">
+              <div className="text-slate-800 text-sm font-medium">
                 Need help? Email{" "}
                 <a
                   href="mailto:info@coreflexalliance.net"
-                  className="text-blue-600 font-semibold hover:underline"
+                  className="text-blue-700 font-semibold hover:underline"
                 >
                   info@coreflexalliance.net
                 </a>
@@ -229,33 +229,37 @@ export default function LoginPage() {
             </div>
           ) : (
             <>
-              <p className="text-center text-gray-600 mb-6">
+              <p className="text-center text-slate-700 text-lg font-medium mb-8">
                 Login to access your account
               </p>
 
               {error && (
-                <div className="bg-red-100 text-red-700 px-3 py-2 rounded text-sm mb-4">
+                <div className="bg-red-100/95 text-red-800 px-3 py-2 rounded text-sm mb-4 border border-red-200">
                   {error}
                 </div>
               )}
 
-              <form ref={formRef} onSubmit={handleLogin} className="space-y-4">
+              <form ref={formRef} onSubmit={handleLogin} className="space-y-5">
                 <div>
-                  <label className="block text-sm mb-1 text-gray-700">Email</label>
+                  <label className="block text-[15px] font-semibold mb-2 text-slate-800">
+                    Email
+                  </label>
                   <input
                     type="email"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     required
                     disabled={loading}
-                    className="w-full border rounded px-3 py-2 text-gray-800 disabled:bg-gray-100"
+                    className="w-full border border-slate-300 rounded-lg px-4 py-3 text-slate-900 bg-white/95 disabled:bg-gray-100 shadow-sm"
                     placeholder="you@example.com"
                     autoComplete="email"
                   />
                 </div>
 
                 <div>
-                  <label className="block text-sm mb-1 text-gray-700">Password</label>
+                  <label className="block text-[15px] font-semibold mb-2 text-slate-800">
+                    Password
+                  </label>
                   <input
                     type="password"
                     value={password}
@@ -264,13 +268,13 @@ export default function LoginPage() {
                     onKeyDown={handlePasswordKeyEvent}
                     required
                     disabled={loading}
-                    className="w-full border rounded px-3 py-2 text-gray-800 disabled:bg-gray-100"
+                    className="w-full border border-slate-300 rounded-lg px-4 py-3 text-slate-900 bg-white/95 disabled:bg-gray-100 shadow-sm"
                     placeholder="••••••••"
                     autoComplete="current-password"
                   />
 
                   {capsLockOn && (
-                    <div className="mt-1 text-sm text-yellow-600">
+                    <div className="mt-2 text-sm font-medium text-yellow-700">
                       ⚠️ Caps Lock is ON
                     </div>
                   )}
@@ -279,7 +283,7 @@ export default function LoginPage() {
                 <button
                   type="submit"
                   disabled={loading}
-                  className={`w-full py-2 rounded mt-4 text-white transition ${
+                  className={`w-full py-3 rounded-lg mt-2 text-white font-semibold text-lg transition ${
                     loading
                       ? "bg-blue-400 cursor-not-allowed"
                       : "bg-blue-600 hover:bg-blue-700"
@@ -289,13 +293,13 @@ export default function LoginPage() {
                 </button>
               </form>
 
-              <div className="text-center text-gray-600 text-sm mt-4">
+              <div className="text-center text-slate-700 text-sm mt-6">
                 <div className="flex items-center justify-center gap-2">
-                  <span>Forgot your password?</span>
+                  <span className="font-medium">Forgot your password?</span>
                   <button
                     type="button"
                     onClick={() => setShowResetInfo((prev) => !prev)}
-                    className="text-blue-600 hover:text-blue-800 font-semibold"
+                    className="text-blue-700 hover:text-blue-800 font-semibold"
                     title="How to reset password"
                   >
                     ℹ️
@@ -303,11 +307,11 @@ export default function LoginPage() {
                 </div>
 
                 {showResetInfo && (
-                  <div className="mt-2 text-gray-700">
+                  <div className="mt-3 text-slate-800 font-medium">
                     Request a Reset Password at{" "}
                     <a
                       href="mailto:info@coreflexalliance.net"
-                      className="text-blue-600 font-semibold hover:underline"
+                      className="text-blue-700 font-semibold hover:underline"
                     >
                       info@coreflexalliance.net
                     </a>
@@ -315,11 +319,11 @@ export default function LoginPage() {
                 )}
               </div>
 
-              <p className="text-center text-gray-600 text-sm mt-4">
+              <p className="text-center text-slate-700 text-sm mt-5 font-medium">
                 Don’t have an account?{" "}
                 <Link
                   to="/register"
-                  className="text-blue-600 font-semibold hover:underline"
+                  className="text-blue-700 font-semibold hover:underline"
                 >
                   Create one
                 </Link>
