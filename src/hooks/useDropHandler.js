@@ -242,8 +242,80 @@ export default function useDropHandler({
     const shape = e.dataTransfer.getData("shape");
     if (!shape) return;
 
+        // ✅ GAUGE DISPLAY (AI)
+    if (shape === "gaugeDisplay") {
+      setDroppedTanks((prev) => {
+        const z = nextTopZ(prev);
+
+        return [
+          ...prev,
+          {
+            id: makeId(),
+            shape: "gaugeDisplay",
+            x,
+            y,
+
+            // default size
+            w: 220,
+            h: 220,
+            width: 220,
+            height: 220,
+
+            z,
+
+            // gauge settings
+            title: "Gauge",
+            gaugeStyle: "classic",
+            units: "",
+            minValue: 0,
+            maxValue: 100,
+            decimals: 0,
+            formula: "",
+
+            // AI binding
+            bindModel: "zhc1921",
+            bindDeviceId: "",
+            bindField: "ai1",
+
+            // options
+            showValue: true,
+            showTicks: true,
+            showLabels: true,
+            showZones: true,
+
+            // thresholds
+            lowWarn: null,
+            highWarn: null,
+
+            // keep a properties copy too, for compatibility with your renderer/settings
+            properties: {
+              title: "Gauge",
+              gaugeStyle: "classic",
+              units: "",
+              minValue: 0,
+              maxValue: 100,
+              decimals: 0,
+              formula: "",
+              bindModel: "zhc1921",
+              bindDeviceId: "",
+              bindField: "ai1",
+              showValue: true,
+              showTicks: true,
+              showLabels: true,
+              showZones: true,
+              lowWarn: null,
+              highWarn: null,
+            },
+          },
+        ];
+      });
+      return;
+    }
+
+
+
     // ✅ GRAPHIC DISPLAY (canvas object)
-    // ✅ FIX: make it drop in the "AFTER" size by default
+
     if (shape === "graphicDisplay") {
       setDroppedTanks((prev) => {
         const z = nextTopZ(prev);

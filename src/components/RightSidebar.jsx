@@ -1,6 +1,7 @@
 // RightSidebar.jsx
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
+import GaugeDisplayDraggable from "./gauge/GaugeDisplayDraggable";
 
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
@@ -157,6 +158,11 @@ export default function RightSidebar({
               <span className="text-[12px] text-center">
                 Display Input (AI)
               </span>
+            </div>
+
+            {/* ✅ NEW: GAUGE DISPLAY */}
+            <div className="flex flex-col items-center gap-1">
+              <GaugeDisplayDraggable title="Gauge Display (AI)" />
             </div>
 
             {/* GRAPHIC DISPLAY */}

@@ -28,6 +28,7 @@ import {
 } from "./indicators";
 import useDashboardTelemetryPoller from "../hooks/useDashboardTelemetryPoller";
 import useMultiSelectClick from "../hooks/useMultiSelectClick";
+import GaugeDisplay from "./gauge/GaugeDisplay";
 
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
@@ -137,6 +138,7 @@ export default function DashboardCanvas({
   hideContextMenu,
   guides,
   onOpenDisplaySettings,
+    onOpenGaugeDisplaySettings,
   onOpenGraphicDisplaySettings,
   onOpenAlarmLog,
   onLaunchAlarmLog,
@@ -150,6 +152,7 @@ export default function DashboardCanvas({
   dashboardName,
   onOpenPushButtonNOSettings,
   onOpenPushButtonNCSettings,
+  
 
 
 }) {
@@ -555,6 +558,65 @@ export default function DashboardCanvas({
                 </DraggableDroppedTank>
               );
             }
+
+            if (tank.shape === "gaugeDisplay") {
+  const w = tank.w ?? tank.width ?? 220;
+  const h = tank.h ?? tank.height ?? 220;
+
+  const model = String(
+    tank?.bindModel ||
+    tank?.properties?.bindModel ||
+    "zhc1921"
+  ).trim().toLowerCase();
+
+  const deviceId = String(
+    tank?.bindDeviceId ||
+    tank?.properties?.bindDeviceId ||
+    ""
+  ).trim();
+
+  const field = String(
+    tank?.bindField ||
+    tank?.properties?.bindField ||
+    "ai1"
+  ).trim();
+
+  const row =
+    telemetryMap?.[model]?.[deviceId] ||
+    telemetryMap?.[deviceId] ||
+    null;
+
+  const rawValue =
+    row?.[field] ??
+    row?.[field.toUpperCase?.() || field] ??
+    null;
+
+  const numericValue =
+    rawValue === null || rawValue === undefined || rawValue === ""
+      ? null
+      : typeof rawValue === "number"
+      ? rawValue
+      : Number(rawValue);
+
+  return (
+    <DraggableDroppedTank
+      {...commonProps}
+      onDoubleClick={() => {
+        if (!isPlay) onOpenGaugeDisplaySettings?.(tank);
+      }}
+    >
+      <GaugeDisplay
+        value={Number.isFinite(numericValue) ? numericValue : 0}
+        width={w}
+        height={h}
+        settings={{
+          ...tank,
+          ...(tank.properties || {}),
+        }}
+      />
+    </DraggableDroppedTank>
+  );
+}
 
             if (tank.shape === "graphicDisplay") {
               return (
