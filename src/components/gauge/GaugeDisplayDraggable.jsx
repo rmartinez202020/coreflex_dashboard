@@ -45,10 +45,7 @@ export default function GaugeDisplayDraggable({
     try {
       e.dataTransfer.setData("application/json", JSON.stringify(payload));
       e.dataTransfer.setData("text/plain", payload.type);
-
-      // ✅ IMPORTANT: your drop handler reads "shape"
       e.dataTransfer.setData("shape", payload.shape);
-
       e.dataTransfer.effectAllowed = "copy";
     } catch {
       // ignore browser drag payload issues
@@ -64,7 +61,7 @@ export default function GaugeDisplayDraggable({
       title={title}
       style={{
         width: "100%",
-        minHeight: 56,
+        minHeight: 58,
         border: "1px solid #d1d5db",
         borderRadius: 10,
         background: "#ffffff",
@@ -76,93 +73,84 @@ export default function GaugeDisplayDraggable({
         alignItems: "center",
         justifyContent: "center",
         padding: "6px 4px",
-        gap: 4,
+        gap: 5,
       }}
     >
       <svg
-        width="46"
-        height="26"
+        width="58"
+        height="30"
         viewBox="0 0 120 70"
         aria-hidden="true"
         style={{ display: "block" }}
       >
-        {/* GREEN */}
+        {/* segmented top arc */}
         <path
-          d="M10 60 A50 50 0 0 1 35 27"
+          d="M18 58 A42 42 0 0 1 36 27"
           fill="none"
           stroke="#22c55e"
-          strokeWidth="10"
+          strokeWidth="9"
           strokeLinecap="round"
         />
-
-        {/* YELLOW-GREEN */}
         <path
-          d="M35 27 A50 50 0 0 1 58 12"
+          d="M39 24 A42 42 0 0 1 54 18"
           fill="none"
           stroke="#84cc16"
-          strokeWidth="10"
+          strokeWidth="9"
           strokeLinecap="round"
         />
-
-        {/* YELLOW */}
         <path
-          d="M58 12 A50 50 0 0 1 80 17"
+          d="M58 17 A42 42 0 0 1 73 19"
           fill="none"
           stroke="#facc15"
-          strokeWidth="10"
+          strokeWidth="9"
           strokeLinecap="round"
         />
-
-        {/* ORANGE */}
         <path
-          d="M80 17 A50 50 0 0 1 98 33"
+          d="M77 21 A42 42 0 0 1 90 30"
           fill="none"
           stroke="#fb923c"
-          strokeWidth="10"
+          strokeWidth="9"
           strokeLinecap="round"
         />
-
-        {/* RED */}
         <path
-          d="M98 33 A50 50 0 0 1 110 60"
+          d="M93 34 A42 42 0 0 1 102 58"
           fill="none"
           stroke="#ef4444"
-          strokeWidth="10"
+          strokeWidth="9"
           strokeLinecap="round"
         />
 
-        {/* small ticks */}
-        <line x1="22" y1="48" x2="18" y2="44" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" />
-        <line x1="40" y1="27" x2="37" y2="21" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" />
-        <line x1="61" y1="18" x2="61" y2="11" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" />
-        <line x1="83" y1="22" x2="86" y2="15" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" />
-        <line x1="101" y1="40" x2="106" y2="36" stroke="#ffffff" strokeWidth="2.2" strokeLinecap="round" />
+        {/* small separators */}
+        <line x1="34" y1="33" x2="30" y2="28" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" />
+        <line x1="53" y1="21" x2="52" y2="14" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" />
+        <line x1="72" y1="21" x2="75" y2="15" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" />
+        <line x1="89" y1="31" x2="94" y2="27" stroke="#ffffff" strokeWidth="1.8" strokeLinecap="round" />
 
         {/* needle shadow */}
         <line
           x1="60"
-          y1="60"
-          x2="84"
-          y2="31"
+          y1="58"
+          x2="79"
+          y2="34"
           stroke="rgba(0,0,0,0.18)"
-          strokeWidth="6"
+          strokeWidth="5"
           strokeLinecap="round"
         />
 
         {/* needle */}
         <line
           x1="60"
-          y1="60"
-          x2="82"
-          y2="33"
+          y1="58"
+          x2="77"
+          y2="35"
           stroke="#111827"
-          strokeWidth="5"
+          strokeWidth="4.5"
           strokeLinecap="round"
         />
 
-        {/* hub */}
-        <circle cx="60" cy="60" r="7" fill="#4b5563" />
-        <circle cx="60" cy="60" r="3.2" fill="#9ca3af" />
+        {/* center hub */}
+        <circle cx="60" cy="58" r="6.5" fill="#4b5563" />
+        <circle cx="60" cy="58" r="2.8" fill="#9ca3af" />
       </svg>
 
       <div
