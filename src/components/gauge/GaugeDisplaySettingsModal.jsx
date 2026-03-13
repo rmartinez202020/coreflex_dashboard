@@ -1,5 +1,5 @@
 // src/components/gauge/GaugeDisplaySettingsModal.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { buildGaugeDefaults, GAUGE_STYLE_OPTIONS } from "./utils";
 import GaugeBindingTelemetrySection from "./settings/GaugeBindingTelemetrySection";
 import GaugeRangeMathSection from "./settings/GaugeRangeMathSection";
@@ -156,6 +156,16 @@ export default function GaugeDisplaySettingsModal({
   const [telemetryPollMs, setTelemetryPollMs] = useState(2000);
   const [telemetrySelectedDevice, setTelemetrySelectedDevice] = useState(null);
 
+  // ✅ draggable modal state
+  const [modalPos, setModalPos] = useState(null);
+  const dragRef = useRef({
+    dragging: false,
+    startX: 0,
+    startY: 0,
+    originLeft: 0,
+    originTop: 0,
+  });
+
   useEffect(() => {
     const d = buildGaugeDefaults(widget);
 
@@ -181,7 +191,38 @@ export default function GaugeDisplaySettingsModal({
     setHighWarn(
       d.highWarn === null || d.highWarn === undefined ? "" : d.highWarn
     );
+
+    // ✅ reset modal position when opening a new modal
+    if (open) {
+      setModalPos(null);
+    }
   }, [widget, open]);
+
+  useEffect(() => {
+    const handleMove = (e) => {
+      if (!dragRef.current.dragging) return;
+
+      const nextLeft = dragRef.current.originLeft + (e.clientX - dragRef.current.startX);
+      const nextTop = dragRef.current.originTop + (e.clientY - dragRef.current.startY);
+
+      setModalPos({
+        left: Math.max(8, nextLeft),
+        top: Math.max(8, nextTop),
+      });
+    };
+
+    const handleUp = () => {
+      dragRef.current.dragging = false;
+    };
+
+    window.addEventListener("mousemove", handleMove);
+    window.addEventListener("mouseup", handleUp);
+
+    return () => {
+      window.removeEventListener("mousemove", handleMove);
+      window.removeEventListener("mouseup", handleUp);
+    };
+  }, []);
 
   if (!open) return null;
 
@@ -210,6 +251,29 @@ export default function GaugeDisplaySettingsModal({
     highWarn: String(highWarn).trim() === "" ? null : Number(highWarn),
   };
 
+  const startDrag = (e) => {
+    // only left click
+    if (e.button !== 0) return;
+
+    dragRef.current.dragging = true;
+    dragRef.current.startX = e.clientX;
+    dragRef.current.startY = e.clientY;
+
+    if (modalPos) {
+      dragRef.current.originLeft = modalPos.left;
+      dragRef.current.originTop = modalPos.top;
+    } else {
+      const modalEl = e.currentTarget.parentElement;
+      const rect = modalEl?.getBoundingClientRect();
+      dragRef.current.originLeft = rect?.left ?? 80;
+      dragRef.current.originTop = rect?.top ?? 80;
+      setModalPos({
+        left: rect?.left ?? 80,
+        top: rect?.top ?? 80,
+      });
+    }
+  };
+
   return (
     <div
       onMouseDown={onClose}
@@ -218,9 +282,6 @@ export default function GaugeDisplaySettingsModal({
         inset: 0,
         background: "rgba(15,23,42,0.45)",
         zIndex: 3000,
-        display: "flex",
-        alignItems: "center",
-        justifyContent: "center",
         padding: 18,
       }}
     >
@@ -236,9 +297,14 @@ export default function GaugeDisplaySettingsModal({
           border: "1px solid #e5e7eb",
           display: "flex",
           flexDirection: "column",
+          position: "fixed",
+          left: modalPos ? modalPos.left : "50%",
+          top: modalPos ? modalPos.top : "50%",
+          transform: modalPos ? "none" : "translate(-50%, -50%)",
         }}
       >
         <div
+          onMouseDown={startDrag}
           style={{
             padding: "16px 18px",
             borderBottom: "1px solid #e5e7eb",
@@ -246,6 +312,8 @@ export default function GaugeDisplaySettingsModal({
             alignItems: "center",
             justifyContent: "space-between",
             flexShrink: 0,
+            cursor: "move",
+            userSelect: "none",
           }}
         >
           <div>
@@ -261,6 +329,7 @@ export default function GaugeDisplaySettingsModal({
           <button
             type="button"
             onClick={onClose}
+            onMouseDown={(e) => e.stopPropagation()}
             style={{
               border: "1px solid #d1d5db",
               background: "#fff",
