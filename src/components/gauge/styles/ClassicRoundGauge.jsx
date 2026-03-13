@@ -301,7 +301,6 @@ export default function ClassicRoundGauge({
   const svgW = outerW;
   const svgH = outerH;
 
-  // ✅ Adjusted so the gauge uses more of the available box
   const cx = svgW / 2;
   const cy = Math.max(82, svgH * 0.5);
   const radius = Math.max(56, Math.min(svgW, svgH) * 0.42);
@@ -326,6 +325,14 @@ export default function ClassicRoundGauge({
   const currentZoneColor = getZoneColor(computed.displayValue, cfg);
   const displayText = formatCompactValue(computed.displayValue, cfg.decimals);
   const rawText = formatCompactValue(computed.rawValue, cfg.decimals);
+
+  // ✅ NEW: force the gauge inner display to exactly 4 digits
+  const displayInt = Number.isFinite(Number(computed.displayValue))
+    ? Math.round(Number(computed.displayValue))
+    : 0;
+  const display4 = String(
+    Math.max(0, Math.min(9999, Math.abs(displayInt)))
+  ).padStart(4, "0");
 
   return (
     <div
@@ -360,11 +367,6 @@ export default function ClassicRoundGauge({
             <stop offset="75%" stopColor={palette.face} />
             <stop offset="100%" stopColor={palette.background} />
           </radialGradient>
-
-          <linearGradient id="classicValueBox" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#f2f2f2" />
-            <stop offset="100%" stopColor="#d9d9d9" />
-          </linearGradient>
         </defs>
 
         <circle
@@ -479,33 +481,47 @@ export default function ClassicRoundGauge({
 
         {showValue && (
           <>
+            {/* ✅ NEW display style like Display Input */}
             <rect
-              x={cx - 42}
-              y={cy + radius * 0.5}
-              rx="8"
-              ry="8"
-              width="84"
-              height="34"
-              fill="url(#classicValueBox)"
-              stroke="#6f6a67"
+              x={cx - 47}
+              y={cy + radius * 0.48}
+              rx="9"
+              ry="9"
+              width="94"
+              height="36"
+              fill="#e6e6e6"
+              stroke="#b5b5b5"
               strokeWidth="2"
             />
+
+            <rect
+              x={cx - 44}
+              y={cy + radius * 0.48 + 3}
+              rx="7"
+              ry="7"
+              width="88"
+              height="30"
+              fill="#f8fafc"
+              stroke="#d7dce2"
+              strokeWidth="1"
+            />
+
             <text
               x={cx}
-              y={cy + radius * 0.5 + 17}
-              fill={palette.valueText}
-              fontSize="20"
-              fontWeight="800"
+              y={cy + radius * 0.48 + 18}
+              fill="#111827"
+              fontSize="21"
+              fontWeight="900"
               textAnchor="middle"
               dominantBaseline="middle"
               style={{
                 fontFamily:
                   'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-                letterSpacing: "1px",
+                letterSpacing: "2px",
                 userSelect: "none",
               }}
             >
-              {displayText}
+              {display4}
             </text>
           </>
         )}
