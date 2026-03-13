@@ -120,11 +120,18 @@ export default function RightSidebar({
                 e.dataTransfer.setData("shape", "textBox");
                 e.dataTransfer.setData("text/plain", "textBox");
               }}
+              style={{ cursor: "pointer" }}
+              title="Text Box"
             >
-              <div className="w-[66px] h-[36px] border border-gray-400 bg-white flex items-center justify-center text-black text-[10.5px]">
+              <div
+                className="w-[66px] h-[36px] border border-gray-400 bg-white flex items-center justify-center text-black text-[10.5px]"
+                style={{ cursor: "pointer" }}
+              >
                 Text
               </div>
-              <span className="text-[12px] text-center">Text Box</span>
+              <span className="text-[12px] text-center" style={{ cursor: "pointer" }}>
+                Text Box
+              </span>
             </div>
 
             {/* DISPLAY BOX */}
@@ -135,6 +142,8 @@ export default function RightSidebar({
                 e.dataTransfer.setData("shape", "displayBox");
                 e.dataTransfer.setData("text/plain", "displayBox");
               }}
+              style={{ cursor: "pointer" }}
+              title="Display Input (AI)"
             >
               <div
                 style={{
@@ -151,11 +160,12 @@ export default function RightSidebar({
                   border: "2px solid #b5b5b5",
                   boxShadow: "inset 0 0 6px rgba(0,0,0,0.25)",
                   letterSpacing: "2px",
+                  cursor: "pointer",
                 }}
               >
                 00000
               </div>
-              <span className="text-[12px] text-center">
+              <span className="text-[12px] text-center" style={{ cursor: "pointer" }}>
                 Display Input (AI)
               </span>
             </div>
@@ -173,6 +183,8 @@ export default function RightSidebar({
                 e.dataTransfer.setData("shape", "graphicDisplay");
                 e.dataTransfer.setData("text/plain", "graphicDisplay");
               }}
+              style={{ cursor: "pointer" }}
+              title="Graphic Display (AI)"
             >
               <div
                 style={{
@@ -189,9 +201,15 @@ export default function RightSidebar({
                   alignItems: "center",
                   justifyContent: "center",
                   overflow: "hidden",
+                  cursor: "pointer",
                 }}
               >
-                <svg width="76" height="30" viewBox="0 0 94 40">
+                <svg
+                  width="76"
+                  height="30"
+                  viewBox="0 0 94 40"
+                  style={{ cursor: "pointer" }}
+                >
                   <path d="M10 32H84" stroke="#e5e7eb" strokeWidth="1" />
                   <path d="M10 24H84" stroke="#e5e7eb" strokeWidth="1" />
                   <path d="M10 16H84" stroke="#e5e7eb" strokeWidth="1" />
@@ -216,7 +234,7 @@ export default function RightSidebar({
                 </svg>
               </div>
 
-              <span className="text-[12px] text-center">
+              <span className="text-[12px] text-center" style={{ cursor: "pointer" }}>
                 Graphic Display (AI)
               </span>
             </div>
