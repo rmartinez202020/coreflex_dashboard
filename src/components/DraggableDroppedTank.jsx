@@ -32,6 +32,11 @@ export default function DraggableDroppedTank({
 
   const elRef = useRef(null);
 
+  // ✅ smooth resize refs
+  const resizeScaleRef = useRef(Number(tank?.scale || 1));
+  const pendingScaleRef = useRef(Number(tank?.scale || 1));
+  const resizeRafRef = useRef(0);
+
   const setRefs = useCallback(
     (node) => {
       elRef.current = node;
@@ -45,6 +50,15 @@ export default function DraggableDroppedTank({
 
   const isToggle =
     tank?.shape === "toggleSwitch" || tank?.shape === "toggleControl";
+
+  // keep ref synced when not resizing
+  useEffect(() => {
+    if (!resizing) {
+      const s = Number(tank?.scale || 1);
+      resizeScaleRef.current = s;
+      pendingScaleRef.current = s;
+    }
+  }, [tank?.scale, resizing]);
 
   // ---------- Scale event listener ----------
   useEffect(() => {
@@ -67,12 +81,10 @@ export default function DraggableDroppedTank({
 
         // ✅ KEY FIX:
         // For toggles, treat coreflex-scale as a MULTIPLIER and bake into w/h immediately.
-        // This makes every apply (0.75, then 0.75 again, etc.) work repeatedly.
         if (isToggle) {
           const baseW =
             Number(tank?.w ?? tank?.width ?? tank?.measuredW ?? 180) || 180;
 
-          // keep perfect ratio
           const ratio = 180 / 70;
 
           const nextW = Math.max(90, Math.round(baseW * mult));
@@ -86,12 +98,11 @@ export default function DraggableDroppedTank({
             height: nextH,
             measuredW: nextW,
             measuredH: nextH,
-            scale: 1, // ✅ baked, new base is now 1:1
+            scale: 1,
           });
           return;
         }
 
-        // default behavior for other widgets: store as scale
         const clamped = mult;
         if (Number(tank?.scale || 1) !== clamped) {
           onUpdate?.({ ...tank, scale: clamped });
@@ -108,20 +119,31 @@ export default function DraggableDroppedTank({
   const startResize = (e) => {
     e.stopPropagation();
     e.preventDefault();
+
+    const startScale = Number(tank?.scale || 1);
+    resizeScaleRef.current = startScale;
+    pendingScaleRef.current = startScale;
+
+    if (resizeRafRef.current) {
+      cancelAnimationFrame(resizeRafRef.current);
+      resizeRafRef.current = 0;
+    }
+
     setResizing(true);
   };
 
-  // ✅ IMPORTANT:
-  // On resize end, "bake" the scale into the widget so it becomes the new 1:1 size.
-  // - Images: bake into baseW (existing behavior)
-  // - Toggles: bake into w/h + measuredW/H (so future scales use new base)
   const stopResize = useCallback(() => {
+    if (resizeRafRef.current) {
+      cancelAnimationFrame(resizeRafRef.current);
+      resizeRafRef.current = 0;
+    }
+
     setResizing(false);
 
-    const currentScale = Number(tank?.scale || 1);
+    const currentScale = Number(pendingScaleRef.current || tank?.scale || 1);
     if (!Number.isFinite(currentScale) || currentScale === 1) return;
 
-    // ✅ bake toggle scale into w/h so it becomes the new 1:1 (and update measured base)
+    // ✅ bake toggle scale into w/h so it becomes the new 1:1
     if (isToggle) {
       const baseW = Number(tank?.w ?? tank?.width ?? 180) || 180;
 
@@ -159,15 +181,22 @@ export default function DraggableDroppedTank({
     (e) => {
       if (!resizing) return;
 
-      const current = Number(tank.scale || 1);
-      const rawNext = current + e.movementX * 0.01;
+      const rawNext = resizeScaleRef.current + e.movementX * 0.01;
 
       const nextScale = Math.min(
         maxForThisWidget,
         Math.max(SCALE_MIN, rawNext)
       );
 
-      onUpdate?.({ ...tank, scale: nextScale });
+      resizeScaleRef.current = nextScale;
+      pendingScaleRef.current = nextScale;
+
+      if (resizeRafRef.current) return;
+
+      resizeRafRef.current = requestAnimationFrame(() => {
+        resizeRafRef.current = 0;
+        onUpdate?.({ ...tank, scale: pendingScaleRef.current });
+      });
     },
     [resizing, tank, onUpdate, maxForThisWidget]
   );
@@ -180,6 +209,11 @@ export default function DraggableDroppedTank({
     return () => {
       window.removeEventListener("mousemove", handleResize);
       window.removeEventListener("mouseup", stopResize);
+
+      if (resizeRafRef.current) {
+        cancelAnimationFrame(resizeRafRef.current);
+        resizeRafRef.current = 0;
+      }
     };
   }, [resizing, handleResize, stopResize]);
 
@@ -202,6 +236,7 @@ export default function DraggableDroppedTank({
     transformOrigin: "top left",
     cursor: !isPlay ? (selected ? "grab" : "move") : "default",
     zIndex: effectiveZ,
+    willChange: resizing ? "transform" : "auto",
   };
 
   const visualWrapperStyle = {
@@ -255,11 +290,11 @@ export default function DraggableDroppedTank({
     }
   };
 
-  const dragListeners = isPlay && isDisplayOutput ? undefined : listeners;
+  const dragListeners =
+    isPlay && isDisplayOutput ? undefined : resizing ? undefined : listeners;
 
   // ✅ Auto measure size
-  // ✅ FIX: do NOT measure while corner-resizing, otherwise ResizeObserver
-  // fights the scale update loop and causes flicker/shaking.
+  // ✅ FIX: do NOT measure while corner-resizing
   useEffect(() => {
     if (resizing) return;
 
