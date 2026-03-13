@@ -3,6 +3,18 @@
 import React, { useMemo } from "react";
 import { computeGaugeValue, evaluateMathFormula } from "../utils";
 
+// ✅ Normalize user formula so common aliases work:
+// - value / Value / VALUE
+// - ai / AI / Ai
+function normalizeFormulaInput(input) {
+  const raw = String(input || "").trim();
+  if (!raw) return "";
+
+  return raw
+    .replace(/\bvalue\b/gi, "VALUE")
+    .replace(/\bai\b/gi, "VALUE");
+}
+
 export default function GaugeRangeMathSection({
   minValue,
   setMinValue,
@@ -17,15 +29,21 @@ export default function GaugeRangeMathSection({
   telemetryPollMs,
   telemetrySelectedDevice,
 }) {
+  // ✅ use normalized formula everywhere
+  const normalizedFormula = useMemo(
+    () => normalizeFormulaInput(formula),
+    [formula]
+  );
+
   const formulaPreview = useMemo(() => {
-    return evaluateMathFormula(formula, 50);
-  }, [formula]);
+    return evaluateMathFormula(normalizedFormula, 50);
+  }, [normalizedFormula]);
 
   const liveComputed = useMemo(() => {
     return computeGaugeValue(telemetryLiveValue, {
       minValue,
       maxValue,
-      formula,
+      formula: normalizedFormula,
       lowWarn: String(lowWarn).trim() === "" ? null : Number(lowWarn),
       highWarn: String(highWarn).trim() === "" ? null : Number(highWarn),
     });
@@ -33,7 +51,7 @@ export default function GaugeRangeMathSection({
     telemetryLiveValue,
     minValue,
     maxValue,
-    formula,
+    normalizedFormula,
     lowWarn,
     highWarn,
   ]);
@@ -109,7 +127,7 @@ export default function GaugeRangeMathSection({
           <input
             value={formula}
             onChange={(e) => setFormula(e.target.value)}
-            placeholder="Example: (VALUE / 4095) * 100"
+            placeholder="Example: VALUE / 100"
             style={{
               height: 38,
               border: "1px solid #d1d5db",
@@ -124,20 +142,20 @@ export default function GaugeRangeMathSection({
         style={{
           borderRadius: 12,
           padding: "10px 12px",
-          background: formula
+          background: normalizedFormula
             ? formulaPreview.ok
               ? "#ecfdf5"
               : "#fef2f2"
             : "#f8fafc",
           border: `1px solid ${
-            formula
+            normalizedFormula
               ? formulaPreview.ok
                 ? "#bbf7d0"
                 : "#fecaca"
               : "#e5e7eb"
           }`,
           fontSize: 12,
-          color: formula
+          color: normalizedFormula
             ? formulaPreview.ok
               ? "#166534"
               : "#991b1b"
@@ -145,21 +163,21 @@ export default function GaugeRangeMathSection({
           marginBottom: 10,
         }}
       >
-        {!formula && (
+        {!normalizedFormula && (
           <span>
             Formula preview: using raw sample <strong>VALUE = 50</strong>,
             output will stay <strong>50</strong>.
           </span>
         )}
 
-        {formula && formulaPreview.ok && (
+        {normalizedFormula && formulaPreview.ok && (
           <span>
             Formula preview: with <strong>VALUE = 50</strong> result ={" "}
             <strong>{String(formulaPreview.value)}</strong>
           </span>
         )}
 
-        {formula && !formulaPreview.ok && (
+        {normalizedFormula && !formulaPreview.ok && (
           <span>
             Formula error:{" "}
             <strong>{formulaPreview.error || "Invalid formula"}</strong>
