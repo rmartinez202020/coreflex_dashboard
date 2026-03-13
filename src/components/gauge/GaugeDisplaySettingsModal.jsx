@@ -1,5 +1,4 @@
 // src/components/gauge/GaugeDisplaySettingsModal.jsx
-
 import React, { useEffect, useMemo, useState } from "react";
 import { buildGaugeDefaults, GAUGE_STYLE_OPTIONS } from "./utils";
 import GaugeBindingTelemetrySection from "./settings/GaugeBindingTelemetrySection";
@@ -222,19 +221,21 @@ export default function GaugeDisplaySettingsModal({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: 20,
+        padding: 18,
       }}
     >
       <div
         onMouseDown={(e) => e.stopPropagation()}
         style={{
-          width: "min(980px, 96vw)",
-          maxHeight: "92vh",
-          overflowY: "auto",
+          width: "min(1380px, 98vw)",
+          maxHeight: "94vh",
+          overflow: "hidden",
           background: "#ffffff",
           borderRadius: 16,
           boxShadow: "0 20px 60px rgba(0,0,0,0.25)",
           border: "1px solid #e5e7eb",
+          display: "flex",
+          flexDirection: "column",
         }}
       >
         <div
@@ -244,6 +245,7 @@ export default function GaugeDisplaySettingsModal({
             display: "flex",
             alignItems: "center",
             justifyContent: "space-between",
+            flexShrink: 0,
           }}
         >
           <div>
@@ -272,310 +274,324 @@ export default function GaugeDisplaySettingsModal({
           </button>
         </div>
 
-        <div style={{ padding: 18, display: "grid", gap: 18 }}>
-          <section
-            style={{
-              border: "1px solid #e5e7eb",
-              borderRadius: 14,
-              padding: 16,
-              background: "#fcfcfd",
-            }}
-          >
-            <div
+        <div
+          style={{
+            padding: 18,
+            display: "grid",
+            gridTemplateColumns: "1.15fr 1fr",
+            gap: 18,
+            overflowY: "auto",
+            minHeight: 0,
+          }}
+        >
+          {/* LEFT COLUMN */}
+          <div style={{ display: "grid", gap: 18 }}>
+            <section
               style={{
-                fontSize: 15,
-                fontWeight: 800,
-                marginBottom: 12,
-                color: "#111827",
+                border: "1px solid #e5e7eb",
+                borderRadius: 14,
+                padding: 16,
+                background: "#fcfcfd",
               }}
             >
-              Gauge Style
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
-                gap: 12,
-              }}
-            >
-              {GAUGE_STYLE_OPTIONS.map((item) => (
-                <StyleCard
-                  key={item.value}
-                  item={item}
-                  selected={gaugeStyle === item.value}
-                  onClick={setGaugeStyle}
-                />
-              ))}
-            </div>
-          </section>
-
-          <section
-            style={{
-              border: "1px solid #e5e7eb",
-              borderRadius: 14,
-              padding: 16,
-              background: "#fcfcfd",
-            }}
-          >
-            <div
-              style={{
-                fontSize: 15,
-                fontWeight: 800,
-                marginBottom: 12,
-                color: "#111827",
-              }}
-            >
-              Basic
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "1.2fr 0.8fr 0.8fr",
-                gap: 12,
-              }}
-            >
-              <label style={{ display: "grid", gap: 6 }}>
-                <span
-                  style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}
-                >
-                  Title
-                </span>
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Gauge"
-                  style={{
-                    height: 38,
-                    border: "1px solid #d1d5db",
-                    borderRadius: 10,
-                    padding: "0 12px",
-                  }}
-                />
-              </label>
-
-              <label style={{ display: "grid", gap: 6 }}>
-                <span
-                  style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}
-                >
-                  Units
-                </span>
-                <input
-                  value={units}
-                  onChange={(e) => setUnits(e.target.value)}
-                  placeholder="PSI"
-                  style={{
-                    height: 38,
-                    border: "1px solid #d1d5db",
-                    borderRadius: 10,
-                    padding: "0 12px",
-                  }}
-                />
-              </label>
-
-              <label style={{ display: "grid", gap: 6 }}>
-                <span
-                  style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}
-                >
-                  Decimals
-                </span>
-                <input
-                  type="number"
-                  min="0"
-                  max="6"
-                  value={decimals}
-                  onChange={(e) => setDecimals(e.target.value)}
-                  style={{
-                    height: 38,
-                    border: "1px solid #d1d5db",
-                    borderRadius: 10,
-                    padding: "0 12px",
-                  }}
-                />
-              </label>
-            </div>
-          </section>
-
-          <GaugeBindingTelemetrySection
-            open={open}
-            bindModel={bindModel}
-            setBindModel={setBindModel}
-            bindDeviceId={bindDeviceId}
-            setBindDeviceId={setBindDeviceId}
-            bindField={bindField}
-            setBindField={setBindField}
-            onLiveValueChange={setTelemetryLiveValue}
-            onPollErrorChange={setTelemetryPollError}
-            onPollMsChange={setTelemetryPollMs}
-            onSelectedDeviceChange={setTelemetrySelectedDevice}
-          />
-
-          <GaugeRangeMathSection
-            minValue={minValue}
-            setMinValue={setMinValue}
-            maxValue={maxValue}
-            setMaxValue={setMaxValue}
-            formula={formula}
-            setFormula={setFormula}
-            lowWarn={lowWarn}
-            highWarn={highWarn}
-            telemetryLiveValue={telemetryLiveValue}
-            telemetryPollError={telemetryPollError}
-            telemetryPollMs={telemetryPollMs}
-            telemetrySelectedDevice={telemetrySelectedDevice}
-          />
-
-          <section
-            style={{
-              border: "1px solid #e5e7eb",
-              borderRadius: 14,
-              padding: 16,
-              background: "#fcfcfd",
-            }}
-          >
-            <div
-              style={{
-                fontSize: 15,
-                fontWeight: 800,
-                marginBottom: 12,
-                color: "#111827",
-              }}
-            >
-              Thresholds and Options
-            </div>
-
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "0.8fr 0.8fr 1fr 1fr",
-                gap: 12,
-                marginBottom: 14,
-              }}
-            >
-              <label style={{ display: "grid", gap: 6 }}>
-                <span
-                  style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}
-                >
-                  Low Warning
-                </span>
-                <input
-                  type="number"
-                  value={lowWarn}
-                  onChange={(e) => setLowWarn(e.target.value)}
-                  placeholder="Optional"
-                  style={{
-                    height: 38,
-                    border: "1px solid #d1d5db",
-                    borderRadius: 10,
-                    padding: "0 12px",
-                  }}
-                />
-              </label>
-
-              <label style={{ display: "grid", gap: 6 }}>
-                <span
-                  style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}
-                >
-                  High Warning
-                </span>
-                <input
-                  type="number"
-                  value={highWarn}
-                  onChange={(e) => setHighWarn(e.target.value)}
-                  placeholder="Optional"
-                  style={{
-                    height: 38,
-                    border: "1px solid #d1d5db",
-                    borderRadius: 10,
-                    padding: "0 12px",
-                  }}
-                />
-              </label>
-
-              <label
+              <div
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  marginTop: 24,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "#374151",
+                  fontSize: 15,
+                  fontWeight: 800,
+                  marginBottom: 12,
+                  color: "#111827",
                 }}
               >
-                <input
-                  type="checkbox"
-                  checked={showValue}
-                  onChange={(e) => setShowValue(e.target.checked)}
-                />
-                Show value
-              </label>
+                Gauge Style
+              </div>
 
-              <label
+              <div
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  marginTop: 24,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "#374151",
+                  display: "grid",
+                  gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+                  gap: 12,
                 }}
               >
-                <input
-                  type="checkbox"
-                  checked={showZones}
-                  onChange={(e) => setShowZones(e.target.checked)}
-                />
-                Show zones
-              </label>
-            </div>
+                {GAUGE_STYLE_OPTIONS.map((item) => (
+                  <StyleCard
+                    key={item.value}
+                    item={item}
+                    selected={gaugeStyle === item.value}
+                    onClick={setGaugeStyle}
+                  />
+                ))}
+              </div>
+            </section>
 
-            <div
+            <section
               style={{
-                display: "grid",
-                gridTemplateColumns: "1fr 1fr",
-                gap: 12,
+                border: "1px solid #e5e7eb",
+                borderRadius: 14,
+                padding: 16,
+                background: "#fcfcfd",
               }}
             >
-              <label
+              <div
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "#374151",
+                  fontSize: 15,
+                  fontWeight: 800,
+                  marginBottom: 12,
+                  color: "#111827",
                 }}
               >
-                <input
-                  type="checkbox"
-                  checked={showTicks}
-                  onChange={(e) => setShowTicks(e.target.checked)}
-                />
-                Show ticks
-              </label>
+                Basic
+              </div>
 
-              <label
+              <div
                 style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: 8,
-                  fontSize: 13,
-                  fontWeight: 600,
-                  color: "#374151",
+                  display: "grid",
+                  gridTemplateColumns: "1.2fr 0.8fr 0.8fr",
+                  gap: 12,
                 }}
               >
-                <input
-                  type="checkbox"
-                  checked={showLabels}
-                  onChange={(e) => setShowLabels(e.target.checked)}
-                />
-                Show labels
-              </label>
-            </div>
-          </section>
+                <label style={{ display: "grid", gap: 6 }}>
+                  <span
+                    style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}
+                  >
+                    Title
+                  </span>
+                  <input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Gauge"
+                    style={{
+                      height: 38,
+                      border: "1px solid #d1d5db",
+                      borderRadius: 10,
+                      padding: "0 12px",
+                    }}
+                  />
+                </label>
+
+                <label style={{ display: "grid", gap: 6 }}>
+                  <span
+                    style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}
+                  >
+                    Units
+                  </span>
+                  <input
+                    value={units}
+                    onChange={(e) => setUnits(e.target.value)}
+                    placeholder="PSI"
+                    style={{
+                      height: 38,
+                      border: "1px solid #d1d5db",
+                      borderRadius: 10,
+                      padding: "0 12px",
+                    }}
+                  />
+                </label>
+
+                <label style={{ display: "grid", gap: 6 }}>
+                  <span
+                    style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}
+                  >
+                    Decimals
+                  </span>
+                  <input
+                    type="number"
+                    min="0"
+                    max="6"
+                    value={decimals}
+                    onChange={(e) => setDecimals(e.target.value)}
+                    style={{
+                      height: 38,
+                      border: "1px solid #d1d5db",
+                      borderRadius: 10,
+                      padding: "0 12px",
+                    }}
+                  />
+                </label>
+              </div>
+            </section>
+
+            <GaugeBindingTelemetrySection
+              open={open}
+              bindModel={bindModel}
+              setBindModel={setBindModel}
+              bindDeviceId={bindDeviceId}
+              setBindDeviceId={setBindDeviceId}
+              bindField={bindField}
+              setBindField={setBindField}
+              onLiveValueChange={setTelemetryLiveValue}
+              onPollErrorChange={setTelemetryPollError}
+              onPollMsChange={setTelemetryPollMs}
+              onSelectedDeviceChange={setTelemetrySelectedDevice}
+            />
+          </div>
+
+          {/* RIGHT COLUMN */}
+          <div style={{ display: "grid", gap: 18, alignContent: "start" }}>
+            <GaugeRangeMathSection
+              minValue={minValue}
+              setMinValue={setMinValue}
+              maxValue={maxValue}
+              setMaxValue={setMaxValue}
+              formula={formula}
+              setFormula={setFormula}
+              lowWarn={lowWarn}
+              highWarn={highWarn}
+              telemetryLiveValue={telemetryLiveValue}
+              telemetryPollError={telemetryPollError}
+              telemetryPollMs={telemetryPollMs}
+              telemetrySelectedDevice={telemetrySelectedDevice}
+            />
+
+            <section
+              style={{
+                border: "1px solid #e5e7eb",
+                borderRadius: 14,
+                padding: 16,
+                background: "#fcfcfd",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 15,
+                  fontWeight: 800,
+                  marginBottom: 12,
+                  color: "#111827",
+                }}
+              >
+                Thresholds and Options
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 12,
+                  marginBottom: 14,
+                }}
+              >
+                <label style={{ display: "grid", gap: 6 }}>
+                  <span
+                    style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}
+                  >
+                    Low Warning
+                  </span>
+                  <input
+                    type="number"
+                    value={lowWarn}
+                    onChange={(e) => setLowWarn(e.target.value)}
+                    placeholder="Optional"
+                    style={{
+                      height: 38,
+                      border: "1px solid #d1d5db",
+                      borderRadius: 10,
+                      padding: "0 12px",
+                    }}
+                  />
+                </label>
+
+                <label style={{ display: "grid", gap: 6 }}>
+                  <span
+                    style={{ fontSize: 12, fontWeight: 700, color: "#374151" }}
+                  >
+                    High Warning
+                  </span>
+                  <input
+                    type="number"
+                    value={highWarn}
+                    onChange={(e) => setHighWarn(e.target.value)}
+                    placeholder="Optional"
+                    style={{
+                      height: 38,
+                      border: "1px solid #d1d5db",
+                      borderRadius: 10,
+                      padding: "0 12px",
+                    }}
+                  />
+                </label>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 12,
+                  marginBottom: 12,
+                }}
+              >
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#374151",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={showValue}
+                    onChange={(e) => setShowValue(e.target.checked)}
+                  />
+                  Show value
+                </label>
+
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#374151",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={showZones}
+                    onChange={(e) => setShowZones(e.target.checked)}
+                  />
+                  Show zones
+                </label>
+
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#374151",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={showTicks}
+                    onChange={(e) => setShowTicks(e.target.checked)}
+                  />
+                  Show ticks
+                </label>
+
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 8,
+                    fontSize: 13,
+                    fontWeight: 600,
+                    color: "#374151",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={showLabels}
+                    onChange={(e) => setShowLabels(e.target.checked)}
+                  />
+                  Show labels
+                </label>
+              </div>
+            </section>
+          </div>
         </div>
 
         <div
@@ -585,6 +601,7 @@ export default function GaugeDisplaySettingsModal({
             display: "flex",
             justifyContent: "flex-end",
             gap: 10,
+            flexShrink: 0,
           }}
         >
           <button
