@@ -114,22 +114,26 @@ export default function RightSidebar({
           <div className="space-y-4 mb-4">
             {/* TEXT BOX */}
             <div
-              className="cursor-pointer flex flex-col items-center gap-1"
+              className="flex flex-col items-center gap-1"
               draggable
               onDragStart={(e) => {
                 e.dataTransfer.setData("shape", "textBox");
                 e.dataTransfer.setData("text/plain", "textBox");
+                e.currentTarget.style.cursor = "grabbing";
               }}
-              style={{ cursor: "pointer" }}
+              onDragEnd={(e) => {
+                e.currentTarget.style.cursor = "grab";
+              }}
+              style={{ cursor: "grab" }}
               title="Text Box"
             >
               <div
                 className="w-[66px] h-[36px] border border-gray-400 bg-white flex items-center justify-center text-black text-[10.5px]"
-                style={{ cursor: "pointer" }}
+                style={{ cursor: "grab" }}
               >
                 Text
               </div>
-              <span className="text-[12px] text-center" style={{ cursor: "pointer" }}>
+              <span className="text-[12px] text-center" style={{ cursor: "grab" }}>
                 Text Box
               </span>
             </div>
