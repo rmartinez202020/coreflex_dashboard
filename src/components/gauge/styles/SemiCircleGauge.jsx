@@ -29,12 +29,22 @@ export default function SemiCircleGauge({
     [cfg.minValue, cfg.maxValue]
   );
 
+  // ✅ Keep the widget box a little bigger so the blue resize handle
+  // sits outside the visual gauge instead of on top of it.
   const outerW = Math.max(180, Number(width) || 220);
   const outerH = Math.max(120, Number(height) || 160);
 
-  const cx = outerW / 2;
-  const cy = outerH * 0.85;
-  const radius = Math.min(outerW, outerH) * 0.85;
+  // ✅ Inner padding creates breathing room inside the selected box
+  const padX = 22;
+  const padTop = 14;
+  const padBottom = 22;
+
+  const innerW = Math.max(120, outerW - padX * 2);
+  const innerH = Math.max(90, outerH - padTop - padBottom);
+
+  const cx = padX + innerW / 2;
+  const cy = padTop + innerH * 0.88;
+  const radius = Math.min(innerW / 2, innerH) * 0.92;
 
   const startAngle = -90;
   const endAngle = 90;
@@ -57,8 +67,8 @@ export default function SemiCircleGauge({
   });
 
   const ticks = getTickValues(minValue, maxValue, 6);
-
   const displayValue = formatCompactValue(computed.displayValue, cfg.decimals);
+  const unitsText = String(cfg.units || "").trim();
 
   return (
     <div
@@ -68,13 +78,14 @@ export default function SemiCircleGauge({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
+        background: "transparent",
       }}
     >
       <svg
         width={outerW}
         height={outerH}
         viewBox={`0 0 ${outerW} ${outerH}`}
-        style={{ overflow: "visible" }}
+        style={{ overflow: "visible", display: "block" }}
       >
         {/* Gauge arc */}
         <path
@@ -149,8 +160,9 @@ export default function SemiCircleGauge({
             fontWeight="700"
             textAnchor="middle"
             dominantBaseline="middle"
+            style={{ userSelect: "none" }}
           >
-            {displayValue} {cfg.units}
+            {unitsText ? `${displayValue} ${unitsText}` : displayValue}
           </text>
         )}
 
@@ -158,11 +170,12 @@ export default function SemiCircleGauge({
         {cfg.title && (
           <text
             x={cx}
-            y={outerH - 10}
+            y={outerH - 14}
             fill={palette.label}
             fontSize="13"
             fontWeight="600"
             textAnchor="middle"
+            style={{ userSelect: "none" }}
           >
             {cfg.title}
           </text>
