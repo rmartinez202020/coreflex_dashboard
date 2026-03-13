@@ -1,6 +1,6 @@
 // src/components/gauge/settings/GaugeBindingTelemetrySection.jsx
 
-import React, { useMemo } from "react";
+import React, { useEffect, useMemo } from "react";
 import {
   useGaugeSettingDevices,
   useGaugeSettingLiveValue,
@@ -22,8 +22,7 @@ const MODEL_OPTIONS = [
 =========================================== */
 
 function DeviceRow({ device }) {
-  const online =
-    String(device?.status || "").toLowerCase() === "online";
+  const online = String(device?.status || "").toLowerCase() === "online";
 
   return (
     <>
@@ -187,6 +186,10 @@ export default function GaugeBindingTelemetrySection({
   setBindDeviceId,
   bindField,
   setBindField,
+  onLiveValueChange,
+  onPollErrorChange,
+  onPollMsChange,
+  onSelectedDeviceChange,
 }) {
   const { devices, selectedDevice } = useGaugeSettingDevices({
     open,
@@ -195,24 +198,38 @@ export default function GaugeBindingTelemetrySection({
     setBindDeviceId,
   });
 
-  const { liveValue, pollError, pollMs } =
-    useGaugeSettingLiveValue({
-      open,
-      bindModel,
-      bindDeviceId,
-      bindField,
-    });
+  const { liveValue, pollError, pollMs } = useGaugeSettingLiveValue({
+    open,
+    bindModel,
+    bindDeviceId,
+    bindField,
+  });
+
+  // ✅ Push live telemetry back to parent modal
+  useEffect(() => {
+    onLiveValueChange?.(liveValue);
+  }, [liveValue, onLiveValueChange]);
+
+  useEffect(() => {
+    onPollErrorChange?.(pollError || "");
+  }, [pollError, onPollErrorChange]);
+
+  useEffect(() => {
+    onPollMsChange?.(pollMs);
+  }, [pollMs, onPollMsChange]);
+
+  useEffect(() => {
+    onSelectedDeviceChange?.(selectedDevice || null);
+  }, [selectedDevice, onSelectedDeviceChange]);
 
   const deviceOptions = useMemo(() => {
-    return (Array.isArray(devices) ? devices : []).map(
-      (d, idx) => {
-        const id = d?.deviceId || "";
-        return {
-          id,
-          label: <DeviceRow device={d} key={idx} />,
-        };
-      }
-    );
+    return (Array.isArray(devices) ? devices : []).map((d, idx) => {
+      const id = d?.deviceId || "";
+      return {
+        id,
+        label: <DeviceRow device={d} key={idx} />,
+      };
+    });
   }, [devices]);
 
   return (
@@ -244,7 +261,6 @@ export default function GaugeBindingTelemetrySection({
         }}
       >
         {/* MODEL */}
-
         <label style={{ display: "grid", gap: 6 }}>
           <span
             style={{
@@ -258,9 +274,7 @@ export default function GaugeBindingTelemetrySection({
 
           <select
             value={bindModel}
-            onChange={(e) =>
-              setBindModel(e.target.value)
-            }
+            onChange={(e) => setBindModel(e.target.value)}
             style={{
               height: 38,
               border: "1px solid #d1d5db",
@@ -270,10 +284,7 @@ export default function GaugeBindingTelemetrySection({
             }}
           >
             {MODEL_OPTIONS.map((m) => (
-              <option
-                key={m.value}
-                value={m.value}
-              >
+              <option key={m.value} value={m.value}>
                 {m.label}
               </option>
             ))}
@@ -281,7 +292,6 @@ export default function GaugeBindingTelemetrySection({
         </label>
 
         {/* DEVICE */}
-
         <label style={{ display: "grid", gap: 6 }}>
           <span
             style={{
@@ -295,9 +305,7 @@ export default function GaugeBindingTelemetrySection({
 
           <select
             value={bindDeviceId}
-            onChange={(e) =>
-              setBindDeviceId(e.target.value)
-            }
+            onChange={(e) => setBindDeviceId(e.target.value)}
             style={{
               height: 38,
               border: "1px solid #d1d5db",
@@ -306,15 +314,10 @@ export default function GaugeBindingTelemetrySection({
               background: "#fff",
             }}
           >
-            <option value="">
-              Select device
-            </option>
+            <option value="">Select device</option>
 
             {deviceOptions.map((d) => (
-              <option
-                key={d.id}
-                value={d.id}
-              >
+              <option key={d.id} value={d.id}>
                 {d.id}
               </option>
             ))}
@@ -322,7 +325,6 @@ export default function GaugeBindingTelemetrySection({
         </label>
 
         {/* FIELD */}
-
         <label style={{ display: "grid", gap: 6 }}>
           <span
             style={{
@@ -336,9 +338,7 @@ export default function GaugeBindingTelemetrySection({
 
           <select
             value={bindField}
-            onChange={(e) =>
-              setBindField(e.target.value)
-            }
+            onChange={(e) => setBindField(e.target.value)}
             style={{
               height: 38,
               border: "1px solid #d1d5db",
@@ -348,10 +348,7 @@ export default function GaugeBindingTelemetrySection({
             }}
           >
             {FIELD_OPTIONS.map((f) => (
-              <option
-                key={f}
-                value={f}
-              >
+              <option key={f} value={f}>
                 {f.toUpperCase()}
               </option>
             ))}
