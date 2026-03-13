@@ -17,7 +17,6 @@ function formatOutput(v) {
   const n = Number(v);
   if (!Number.isFinite(n)) return "--";
 
-  // keep readable output
   if (Number.isInteger(n)) return String(n);
   return String(Number(n.toFixed(6)));
 }
@@ -41,11 +40,19 @@ export default function GaugeRangeMathSection({
     [formula]
   );
 
-  const formulaPreview = useMemo(() => {
-    return evaluateMathFormula(normalizedFormula, 50);
-  }, [normalizedFormula]);
+  // ✅ Raw live value exactly as received from telemetry
+  const rawLiveDisplay = useMemo(() => {
+    if (
+      telemetryLiveValue === null ||
+      telemetryLiveValue === undefined ||
+      telemetryLiveValue === ""
+    ) {
+      return "--";
+    }
+    return String(telemetryLiveValue);
+  }, [telemetryLiveValue]);
 
-  // ✅ Raw live numeric value
+  // ✅ Numeric raw value for math operations
   const liveRawNumber = useMemo(() => {
     const n = Number(telemetryLiveValue);
     return Number.isFinite(n) ? n : null;
@@ -181,53 +188,6 @@ export default function GaugeRangeMathSection({
       <div
         style={{
           borderRadius: 12,
-          padding: "10px 12px",
-          background: normalizedFormula
-            ? formulaPreview.ok
-              ? "#ecfdf5"
-              : "#fef2f2"
-            : "#f8fafc",
-          border: `1px solid ${
-            normalizedFormula
-              ? formulaPreview.ok
-                ? "#bbf7d0"
-                : "#fecaca"
-              : "#e5e7eb"
-          }`,
-          fontSize: 12,
-          color: normalizedFormula
-            ? formulaPreview.ok
-              ? "#166534"
-              : "#991b1b"
-            : "#475569",
-          marginBottom: 10,
-        }}
-      >
-        {!normalizedFormula && (
-          <span>
-            Formula preview: using raw sample <strong>VALUE = 50</strong>,
-            output will stay <strong>50</strong>.
-          </span>
-        )}
-
-        {normalizedFormula && formulaPreview.ok && (
-          <span>
-            Formula preview: with <strong>VALUE = 50</strong> result ={" "}
-            <strong>{String(formulaPreview.value)}</strong>
-          </span>
-        )}
-
-        {normalizedFormula && !formulaPreview.ok && (
-          <span>
-            Formula error:{" "}
-            <strong>{formulaPreview.error || "Invalid formula"}</strong>
-          </span>
-        )}
-      </div>
-
-      <div
-        style={{
-          borderRadius: 12,
           padding: "12px 14px",
           background: "#ffffff",
           border: "1px solid #e5e7eb",
@@ -248,7 +208,7 @@ export default function GaugeRangeMathSection({
               marginTop: 4,
             }}
           >
-            {hasLive ? formatOutput(liveRawNumber) : "--"}
+            {rawLiveDisplay}
           </div>
         </div>
 
@@ -308,7 +268,9 @@ export default function GaugeRangeMathSection({
         </div>
       </div>
 
-      {(telemetryPollError || telemetrySelectedDevice || (hasLive && normalizedFormula && !liveOutput.ok)) && (
+      {(telemetryPollError ||
+        telemetrySelectedDevice ||
+        (hasLive && normalizedFormula && !liveOutput.ok)) && (
         <div
           style={{
             marginTop: 10,
