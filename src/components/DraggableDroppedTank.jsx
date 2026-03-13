@@ -257,8 +257,12 @@ export default function DraggableDroppedTank({
 
   const dragListeners = isPlay && isDisplayOutput ? undefined : listeners;
 
-  // Auto measure size
+  // ✅ Auto measure size
+  // ✅ FIX: do NOT measure while corner-resizing, otherwise ResizeObserver
+  // fights the scale update loop and causes flicker/shaking.
   useEffect(() => {
+    if (resizing) return;
+
     const el = elRef.current;
     if (!el) return;
 
@@ -305,7 +309,7 @@ export default function DraggableDroppedTank({
       cancelAnimationFrame(raf);
       ro.disconnect();
     };
-  }, [tank.id, tank.scale, onUpdate]);
+  }, [tank.id, tank.scale, onUpdate, resizing]);
 
   return (
     <div
