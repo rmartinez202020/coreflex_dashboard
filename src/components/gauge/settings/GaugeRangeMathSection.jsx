@@ -3,9 +3,7 @@
 import React, { useMemo } from "react";
 import { computeGaugeValue, evaluateMathFormula } from "../utils";
 
-// ✅ Normalize user formula so common aliases work:
-// - value / Value / VALUE
-// - ai / AI / Ai
+// ✅ Normalize common user aliases to VALUE
 function normalizeFormulaInput(input) {
   const raw = String(input || "").trim();
   if (!raw) return "";
@@ -13,6 +11,15 @@ function normalizeFormulaInput(input) {
   return raw
     .replace(/\bvalue\b/gi, "VALUE")
     .replace(/\bai\b/gi, "VALUE");
+}
+
+function formatOutput(v) {
+  const n = Number(v);
+  if (!Number.isFinite(n)) return "--";
+
+  // keep readable output
+  if (Number.isInteger(n)) return String(n);
+  return String(Number(n.toFixed(6)));
 }
 
 export default function GaugeRangeMathSection({
@@ -29,7 +36,6 @@ export default function GaugeRangeMathSection({
   telemetryPollMs,
   telemetrySelectedDevice,
 }) {
-  // ✅ use normalized formula everywhere
   const normalizedFormula = useMemo(
     () => normalizeFormulaInput(formula),
     [formula]
@@ -39,8 +45,44 @@ export default function GaugeRangeMathSection({
     return evaluateMathFormula(normalizedFormula, 50);
   }, [normalizedFormula]);
 
+  // ✅ Raw live numeric value
+  const liveRawNumber = useMemo(() => {
+    const n = Number(telemetryLiveValue);
+    return Number.isFinite(n) ? n : null;
+  }, [telemetryLiveValue]);
+
+  const hasLive = liveRawNumber !== null;
+
+  // ✅ This is the actual OUTPUT from raw live value after formula
+  const liveOutput = useMemo(() => {
+    if (!hasLive) {
+      return {
+        ok: false,
+        value: null,
+        error: "",
+      };
+    }
+
+    if (!normalizedFormula) {
+      return {
+        ok: true,
+        value: liveRawNumber,
+        error: "",
+      };
+    }
+
+    const result = evaluateMathFormula(normalizedFormula, liveRawNumber);
+
+    return {
+      ok: !!result?.ok,
+      value: result?.ok ? Number(result.value) : null,
+      error: result?.error || "Invalid formula",
+    };
+  }, [hasLive, normalizedFormula, liveRawNumber]);
+
+  // ✅ Keep gauge clamped/draw value logic using shared helper
   const liveComputed = useMemo(() => {
-    return computeGaugeValue(telemetryLiveValue, {
+    return computeGaugeValue(liveRawNumber, {
       minValue,
       maxValue,
       formula: normalizedFormula,
@@ -48,15 +90,13 @@ export default function GaugeRangeMathSection({
       highWarn: String(highWarn).trim() === "" ? null : Number(highWarn),
     });
   }, [
-    telemetryLiveValue,
+    liveRawNumber,
     minValue,
     maxValue,
     normalizedFormula,
     lowWarn,
     highWarn,
   ]);
-
-  const hasLive = Number.isFinite(Number(telemetryLiveValue));
 
   return (
     <section
@@ -208,23 +248,30 @@ export default function GaugeRangeMathSection({
               marginTop: 4,
             }}
           >
-            {hasLive ? String(liveComputed.rawValue) : "--"}
+            {hasLive ? formatOutput(liveRawNumber) : "--"}
           </div>
         </div>
 
         <div>
           <div style={{ fontSize: 11, fontWeight: 700, color: "#6b7280" }}>
-            Live computed
+            Live computed (Output)
           </div>
           <div
             style={{
               fontSize: 13,
               fontWeight: 800,
-              color: "#111827",
+              color:
+                hasLive && normalizedFormula && !liveOutput.ok
+                  ? "#b91c1c"
+                  : "#111827",
               marginTop: 4,
             }}
           >
-            {hasLive ? String(liveComputed.displayValue) : "--"}
+            {hasLive
+              ? liveOutput.ok
+                ? formatOutput(liveOutput.value)
+                : "ERR"
+              : "--"}
           </div>
         </div>
 
@@ -240,7 +287,7 @@ export default function GaugeRangeMathSection({
               marginTop: 4,
             }}
           >
-            {hasLive ? String(liveComputed.clampedValue) : "--"}
+            {hasLive ? formatOutput(liveComputed.clampedValue) : "--"}
           </div>
         </div>
 
@@ -261,17 +308,22 @@ export default function GaugeRangeMathSection({
         </div>
       </div>
 
-      {(telemetryPollError || telemetrySelectedDevice) && (
+      {(telemetryPollError || telemetrySelectedDevice || (hasLive && normalizedFormula && !liveOutput.ok)) && (
         <div
           style={{
             marginTop: 10,
             fontSize: 11,
-            color: telemetryPollError ? "#991b1b" : "#6b7280",
+            color:
+              telemetryPollError || (hasLive && normalizedFormula && !liveOutput.ok)
+                ? "#991b1b"
+                : "#6b7280",
             fontWeight: 700,
           }}
         >
           {telemetryPollError
             ? `Telemetry: ${telemetryPollError}`
+            : hasLive && normalizedFormula && !liveOutput.ok
+            ? `Formula: ${liveOutput.error || "Invalid formula"}`
             : `Telemetry source: ${
                 telemetrySelectedDevice?.deviceId || "--"
               } @ ${telemetryPollMs} ms`}
