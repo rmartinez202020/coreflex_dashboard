@@ -381,26 +381,42 @@ export default function AppModals({
         />
       )}
 
-      {gaugeTarget && (
+            {gaugeTarget && (
         <GaugeDisplaySettingsModal
           open={true}
           widget={gaugeTarget}
           onClose={closeGaugeDisplaySettings}
           onSave={(updatedGauge) => {
             setDroppedTanks((prev) =>
-              prev.map((t) =>
-                isSameId(t.id, gaugeTarget.id)
-                  ? {
-                      ...t,
-                      ...updatedGauge,
-                      properties: {
-                        ...(t.properties || {}),
-                        ...(updatedGauge?.properties || {}),
-                      },
-                    }
-                  : t
-              )
+              prev.map((t) => {
+                if (!isSameId(t.id, gaugeTarget.id)) return t;
+
+                return {
+                  ...t,
+                  ...updatedGauge,
+                  properties: {
+                    ...(t.properties || {}),
+                    title: updatedGauge?.title,
+                    units: updatedGauge?.units,
+                    gaugeStyle: updatedGauge?.gaugeStyle,
+                    bindModel: updatedGauge?.bindModel,
+                    bindDeviceId: updatedGauge?.bindDeviceId,
+                    bindField: updatedGauge?.bindField,
+                    minValue: updatedGauge?.minValue,
+                    maxValue: updatedGauge?.maxValue,
+                    decimals: updatedGauge?.decimals,
+                    formula: updatedGauge?.formula,
+                    showValue: updatedGauge?.showValue,
+                    showTicks: updatedGauge?.showTicks,
+                    showLabels: updatedGauge?.showLabels,
+                    showZones: updatedGauge?.showZones,
+                    lowWarn: updatedGauge?.lowWarn,
+                    highWarn: updatedGauge?.highWarn,
+                  },
+                };
+              })
             );
+
             closeGaugeDisplaySettings?.();
           }}
         />
