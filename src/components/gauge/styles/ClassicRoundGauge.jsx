@@ -301,9 +301,10 @@ export default function ClassicRoundGauge({
   const svgW = outerW;
   const svgH = outerH;
 
+  // ✅ Adjusted so the gauge uses more of the available box
   const cx = svgW / 2;
-  const cy = Math.max(80, svgH * 0.48);
-  const radius = Math.max(52, Math.min(svgW, svgH) * 0.34);
+  const cy = Math.max(82, svgH * 0.5);
+  const radius = Math.max(56, Math.min(svgW, svgH) * 0.42);
 
   const needleAngle = valueToAngle(
     computed.clampedValue,
@@ -344,7 +345,13 @@ export default function ClassicRoundGauge({
         style={{ overflow: "visible", display: "block" }}
       >
         <defs>
-          <filter id="classicGaugeShadow" x="-20%" y="-20%" width="140%" height="140%">
+          <filter
+            id="classicGaugeShadow"
+            x="-20%"
+            y="-20%"
+            width="140%"
+            height="140%"
+          >
             <feDropShadow dx="0" dy="2" stdDeviation="2" floodOpacity="0.18" />
           </filter>
 
@@ -416,7 +423,7 @@ export default function ClassicRoundGauge({
         {title ? (
           <text
             x={cx}
-            y={cy - radius * 0.38}
+            y={cy - radius * 0.4}
             fill={palette.label}
             fontSize="16"
             fontWeight="700"
@@ -431,7 +438,7 @@ export default function ClassicRoundGauge({
         {units ? (
           <text
             x={cx}
-            y={cy + radius * 0.18}
+            y={cy + radius * 0.16}
             fill={palette.label}
             fontSize="13"
             fontWeight="700"
@@ -461,13 +468,20 @@ export default function ClassicRoundGauge({
           stroke="#d1d5db"
           strokeWidth="1.5"
         />
-        <circle cx={cx} cy={cy} r="4.5" fill="#f8fafc" stroke="#e5e7eb" strokeWidth="1" />
+        <circle
+          cx={cx}
+          cy={cy}
+          r="4.5"
+          fill="#f8fafc"
+          stroke="#e5e7eb"
+          strokeWidth="1"
+        />
 
         {showValue && (
           <>
             <rect
               x={cx - 42}
-              y={cy + radius * 0.46}
+              y={cy + radius * 0.5}
               rx="8"
               ry="8"
               width="84"
@@ -478,7 +492,7 @@ export default function ClassicRoundGauge({
             />
             <text
               x={cx}
-              y={cy + radius * 0.46 + 17}
+              y={cy + radius * 0.5 + 17}
               fill={palette.valueText}
               fontSize="20"
               fontWeight="800"
