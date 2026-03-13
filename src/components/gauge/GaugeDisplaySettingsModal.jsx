@@ -158,6 +158,7 @@ export default function GaugeDisplaySettingsModal({
 
   // ✅ draggable modal state
   const [modalPos, setModalPos] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef({
     dragging: false,
     startX: 0,
@@ -195,6 +196,8 @@ export default function GaugeDisplaySettingsModal({
     // ✅ reset modal position when opening a new modal
     if (open) {
       setModalPos(null);
+      setIsDragging(false);
+      dragRef.current.dragging = false;
     }
   }, [widget, open]);
 
@@ -202,8 +205,10 @@ export default function GaugeDisplaySettingsModal({
     const handleMove = (e) => {
       if (!dragRef.current.dragging) return;
 
-      const nextLeft = dragRef.current.originLeft + (e.clientX - dragRef.current.startX);
-      const nextTop = dragRef.current.originTop + (e.clientY - dragRef.current.startY);
+      const nextLeft =
+        dragRef.current.originLeft + (e.clientX - dragRef.current.startX);
+      const nextTop =
+        dragRef.current.originTop + (e.clientY - dragRef.current.startY);
 
       setModalPos({
         left: Math.max(8, nextLeft),
@@ -213,6 +218,7 @@ export default function GaugeDisplaySettingsModal({
 
     const handleUp = () => {
       dragRef.current.dragging = false;
+      setIsDragging(false);
     };
 
     window.addEventListener("mousemove", handleMove);
@@ -252,12 +258,12 @@ export default function GaugeDisplaySettingsModal({
   };
 
   const startDrag = (e) => {
-    // only left click
     if (e.button !== 0) return;
 
     dragRef.current.dragging = true;
     dragRef.current.startX = e.clientX;
     dragRef.current.startY = e.clientY;
+    setIsDragging(true);
 
     if (modalPos) {
       dragRef.current.originLeft = modalPos.left;
@@ -312,7 +318,7 @@ export default function GaugeDisplaySettingsModal({
             alignItems: "center",
             justifyContent: "space-between",
             flexShrink: 0,
-            cursor: "move",
+            cursor: isDragging ? "grabbing" : "grab",
             userSelect: "none",
           }}
         >
