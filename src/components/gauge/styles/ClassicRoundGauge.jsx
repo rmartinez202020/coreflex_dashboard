@@ -326,7 +326,7 @@ export default function ClassicRoundGauge({
   const displayText = formatCompactValue(computed.displayValue, cfg.decimals);
   const rawText = formatCompactValue(computed.rawValue, cfg.decimals);
 
-  // ✅ only change: force exactly 4 digits
+  // ✅ 4 digits only, no box
   const displayInt = Number.isFinite(Number(computed.displayValue))
     ? Math.round(Number(computed.displayValue))
     : 0;
@@ -368,11 +368,6 @@ export default function ClassicRoundGauge({
             <stop offset="75%" stopColor={palette.face} />
             <stop offset="100%" stopColor={palette.background} />
           </radialGradient>
-
-          <linearGradient id="classicValueBox" x1="0%" y1="0%" x2="0%" y2="100%">
-            <stop offset="0%" stopColor="#f2f2f2" />
-            <stop offset="100%" stopColor="#d9d9d9" />
-          </linearGradient>
         </defs>
 
         <circle
@@ -486,36 +481,23 @@ export default function ClassicRoundGauge({
         />
 
         {showValue && (
-          <>
-            <rect
-              x={cx - 42}
-              y={cy + radius * 0.5}
-              rx="8"
-              ry="8"
-              width="84"
-              height="34"
-              fill="url(#classicValueBox)"
-              stroke="#6f6a67"
-              strokeWidth="2"
-            />
-            <text
-              x={cx}
-              y={cy + radius * 0.5 + 17}
-              fill={palette.valueText}
-              fontSize="20"
-              fontWeight="800"
-              textAnchor="middle"
-              dominantBaseline="middle"
-              style={{
-                fontFamily:
-                  'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
-                letterSpacing: "1px",
-                userSelect: "none",
-              }}
-            >
-              {display4}
-            </text>
-          </>
+          <text
+            x={cx}
+            y={cy + radius * 0.56}
+            fill={palette.valueText}
+            fontSize="28"
+            fontWeight="900"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            style={{
+              fontFamily:
+                'ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace',
+              letterSpacing: "2px",
+              userSelect: "none",
+            }}
+          >
+            {display4}
+          </text>
         )}
 
         {cfg.formula ? (
