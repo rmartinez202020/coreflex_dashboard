@@ -273,6 +273,17 @@ export default function App() {
     closeGraphicDisplaySettings,
   } = useDashboardModalsController({ droppedTanks });
 
+  // ✅ Gauge Display Settings
+  const [gaugeSettingsId, setGaugeSettingsId] = useState(null);
+
+  const openGaugeDisplaySettings = (tank) => {
+    setGaugeSettingsId(tank?.id ?? null);
+  };
+
+  const closeGaugeDisplaySettings = () => {
+    setGaugeSettingsId(null);
+  };
+
   // ✅ Counter Input Settings
   const [counterInputSettingsId, setCounterInputSettingsId] = useState(null);
 
@@ -663,6 +674,7 @@ export default function App() {
             hideContextMenu={hideContextMenu}
             guides={guides}
             onOpenDisplaySettings={openDisplaySettings}
+            onOpenGaugeDisplaySettings={openGaugeDisplaySettings}
             onOpenGraphicDisplaySettings={openGraphicDisplaySettings}
             onOpenAlarmLog={openAlarmLog}
             onLaunchAlarmLog={launchAlarmLog}
@@ -712,6 +724,8 @@ export default function App() {
           closeDisplaySettings={closeDisplaySettings}
           graphicSettingsId={graphicSettingsId}
           closeGraphicDisplaySettings={closeGraphicDisplaySettings}
+          gaugeSettingsId={gaugeSettingsId}
+          closeGaugeDisplaySettings={closeGaugeDisplaySettings}
           showSiloProps={showSiloProps}
           setShowSiloProps={setShowSiloProps}
           activeSiloId={activeSiloId}
