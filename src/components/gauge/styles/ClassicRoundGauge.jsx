@@ -435,7 +435,7 @@ export default function ClassicRoundGauge({
         {units ? (
           <text
             x={cx}
-            y={cy + radius * 0.16}
+            y={cy + radius * 0.28}
             fill={palette.label}
             fontSize="13"
             fontWeight="700"
@@ -477,7 +477,7 @@ export default function ClassicRoundGauge({
         {showValue && (
           <text
             x={cx}
-            y={cy + radius * 0.56}
+            y={cy + radius * 0.74}
             fill={palette.valueText}
             fontSize="28"
             fontWeight="900"
