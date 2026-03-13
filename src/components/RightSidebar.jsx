@@ -139,40 +139,46 @@ export default function RightSidebar({
             </div>
 
             {/* DISPLAY BOX */}
-            <div
-              className="cursor-pointer flex flex-col items-center gap-1"
-              draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData("shape", "displayBox");
-                e.dataTransfer.setData("text/plain", "displayBox");
-              }}
-              style={{ cursor: "pointer" }}
-              title="Display Input (AI)"
-            >
-              <div
-                style={{
-                  width: 80,
-                  height: 32,
-                  background: "#e6e6e6",
-                  fontFamily: "monospace",
-                  fontWeight: 900,
-                  fontSize: 16,
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  borderRadius: 6,
-                  border: "2px solid #b5b5b5",
-                  boxShadow: "inset 0 0 6px rgba(0,0,0,0.25)",
-                  letterSpacing: "2px",
-                  cursor: "pointer",
-                }}
-              >
-                00000
-              </div>
-              <span className="text-[12px] text-center" style={{ cursor: "pointer" }}>
-                Display Input (AI)
-              </span>
-            </div>
+<div
+  className="flex flex-col items-center gap-1"
+  draggable
+  onDragStart={(e) => {
+    e.dataTransfer.setData("shape", "displayBox");
+    e.dataTransfer.setData("text/plain", "displayBox");
+    e.currentTarget.style.cursor = "grabbing";
+  }}
+  onDragEnd={(e) => {
+    e.currentTarget.style.cursor = "grab";
+  }}
+  style={{ cursor: "grab" }}
+  title="Display Input (AI)"
+>
+  <div
+    style={{
+      width: 80,
+      height: 32,
+      background: "#e6e6e6",
+      fontFamily: "monospace",
+      fontWeight: 900,
+      fontSize: 16,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      borderRadius: 6,
+      border: "2px solid #b5b5b5",
+      boxShadow: "inset 0 0 6px rgba(0,0,0,0.25)",
+      letterSpacing: "2px",
+      cursor: "grab",
+    }}
+  >
+    00000
+  </div>
+
+  <span className="text-[12px] text-center" style={{ cursor: "grab" }}>
+    Display Input (AI)
+  </span>
+</div>
+
 
             {/* ✅ NEW: GAUGE DISPLAY */}
             <div className="flex flex-col items-center gap-1">
@@ -180,68 +186,71 @@ export default function RightSidebar({
             </div>
 
             {/* GRAPHIC DISPLAY */}
-            <div
-              className="cursor-pointer flex flex-col items-center gap-1"
-              draggable
-              onDragStart={(e) => {
-                e.dataTransfer.setData("shape", "graphicDisplay");
-                e.dataTransfer.setData("text/plain", "graphicDisplay");
-              }}
-              style={{ cursor: "pointer" }}
-              title="Graphic Display (AI)"
-            >
-              <div
-                style={{
-                  width: 92,
-                  height: 44,
-                  background:
-                    "linear-gradient(180deg, #ffffff 0%, #f3f3f3 100%)",
-                  borderRadius: 8,
-                  border: "2px solid #cfcfcf",
-                  boxShadow:
-                    "0 4px 10px rgba(0,0,0,0.08), inset 0 0 6px rgba(0,0,0,0.10)",
-                  position: "relative",
-                  display: "flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  overflow: "hidden",
-                  cursor: "pointer",
-                }}
-              >
-                <svg
-                  width="76"
-                  height="30"
-                  viewBox="0 0 94 40"
-                  style={{ cursor: "pointer" }}
-                >
-                  <path d="M10 32H84" stroke="#e5e7eb" strokeWidth="1" />
-                  <path d="M10 24H84" stroke="#e5e7eb" strokeWidth="1" />
-                  <path d="M10 16H84" stroke="#e5e7eb" strokeWidth="1" />
-                  <path d="M10 8H84" stroke="#e5e7eb" strokeWidth="1" />
-                  <path d="M10 8V32" stroke="#cbd5e1" strokeWidth="1.3" />
-                  <path d="M10 32H84" stroke="#cbd5e1" strokeWidth="1.3" />
-                  <path
-                    d="M12 29 L24 20 L36 23 L48 14 L60 18 L72 10 L82 12"
-                    fill="none"
-                    stroke="#2563eb"
-                    strokeWidth="2.6"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  />
-                  <circle cx="12" cy="29" r="2.2" fill="#2563eb" />
-                  <circle cx="24" cy="20" r="2.2" fill="#2563eb" />
-                  <circle cx="36" cy="23" r="2.2" fill="#2563eb" />
-                  <circle cx="48" cy="14" r="2.2" fill="#2563eb" />
-                  <circle cx="60" cy="18" r="2.2" fill="#2563eb" />
-                  <circle cx="72" cy="10" r="2.2" fill="#2563eb" />
-                  <circle cx="82" cy="12" r="2.2" fill="#2563eb" />
-                </svg>
-              </div>
+<div
+  className="flex flex-col items-center gap-1"
+  draggable
+  onDragStart={(e) => {
+    e.dataTransfer.setData("shape", "graphicDisplay");
+    e.dataTransfer.setData("text/plain", "graphicDisplay");
+    e.currentTarget.style.cursor = "grabbing";
+  }}
+  onDragEnd={(e) => {
+    e.currentTarget.style.cursor = "grab";
+  }}
+  style={{ cursor: "grab" }}
+  title="Graphic Display (AI)"
+>
+  <div
+    style={{
+      width: 92,
+      height: 44,
+      background: "linear-gradient(180deg, #ffffff 0%, #f3f3f3 100%)",
+      borderRadius: 8,
+      border: "2px solid #cfcfcf",
+      boxShadow:
+        "0 4px 10px rgba(0,0,0,0.08), inset 0 0 6px rgba(0,0,0,0.10)",
+      position: "relative",
+      display: "flex",
+      alignItems: "center",
+      justifyContent: "center",
+      overflow: "hidden",
+      cursor: "grab",
+    }}
+  >
+    <svg
+      width="76"
+      height="30"
+      viewBox="0 0 94 40"
+      style={{ cursor: "grab" }}
+    >
+      <path d="M10 32H84" stroke="#e5e7eb" strokeWidth="1" />
+      <path d="M10 24H84" stroke="#e5e7eb" strokeWidth="1" />
+      <path d="M10 16H84" stroke="#e5e7eb" strokeWidth="1" />
+      <path d="M10 8H84" stroke="#e5e7eb" strokeWidth="1" />
+      <path d="M10 8V32" stroke="#cbd5e1" strokeWidth="1.3" />
+      <path d="M10 32H84" stroke="#cbd5e1" strokeWidth="1.3" />
+      <path
+        d="M12 29 L24 20 L36 23 L48 14 L60 18 L72 10 L82 12"
+        fill="none"
+        stroke="#2563eb"
+        strokeWidth="2.6"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+      <circle cx="12" cy="29" r="2.2" fill="#2563eb" />
+      <circle cx="24" cy="20" r="2.2" fill="#2563eb" />
+      <circle cx="36" cy="23" r="2.2" fill="#2563eb" />
+      <circle cx="48" cy="14" r="2.2" fill="#2563eb" />
+      <circle cx="60" cy="18" r="2.2" fill="#2563eb" />
+      <circle cx="72" cy="10" r="2.2" fill="#2563eb" />
+      <circle cx="82" cy="12" r="2.2" fill="#2563eb" />
+    </svg>
+  </div>
 
-              <span className="text-[12px] text-center" style={{ cursor: "pointer" }}>
-                Graphic Display (AI)
-              </span>
-            </div>
+  <span className="text-[12px] text-center" style={{ cursor: "grab" }}>
+    Graphic Display (AI)
+  </span>
+</div>
           </div>
 
           {/* LIBRARIES */}
