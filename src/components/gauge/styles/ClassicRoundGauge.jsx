@@ -4,12 +4,10 @@ import React, { useMemo } from "react";
 import {
   buildGaugeDefaults,
   computeGaugeValue,
-  formatCompactValue,
   formatGaugeValue,
   getGaugePalette,
   getNeedleLine,
   getTickValues,
-  getZoneColor,
   normalizeRange,
   polarToCartesian,
   valueToAngle,
@@ -322,18 +320,14 @@ export default function ClassicRoundGauge({
     tipOffset: 8,
   });
 
-  const currentZoneColor = getZoneColor(computed.displayValue, cfg);
-  const displayText = formatCompactValue(computed.displayValue, cfg.decimals);
-  const rawText = formatCompactValue(computed.rawValue, cfg.decimals);
-
-  // ✅ 4 digits only, no box
+  // ✅ no left-padded zeros
   const displayInt = Number.isFinite(Number(computed.displayValue))
     ? Math.round(Number(computed.displayValue))
     : 0;
 
-  const display4 = String(
+  const displayPlain = String(
     Math.max(0, Math.min(9999, Math.abs(displayInt)))
-  ).padStart(4, "0");
+  );
 
   return (
     <div
@@ -496,26 +490,11 @@ export default function ClassicRoundGauge({
               userSelect: "none",
             }}
           >
-            {display4}
+            {displayPlain}
           </text>
         )}
 
-        {cfg.formula ? (
-          <text
-            x={cx}
-            y={svgH - 12}
-            fill={computed.formulaOk ? currentZoneColor : "#ef4444"}
-            fontSize="10.5"
-            fontWeight="700"
-            textAnchor="middle"
-            dominantBaseline="middle"
-            style={{ userSelect: "none" }}
-          >
-            {computed.formulaOk
-              ? `RAW ${rawText} → OUT ${displayText}`
-              : "FORMULA ERROR"}
-          </text>
-        ) : null}
+        {/* ✅ removed RAW → OUT text */}
       </svg>
     </div>
   );
