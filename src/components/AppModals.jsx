@@ -15,6 +15,7 @@ import StandardTankPropertiesModal from "./StandardTankPropertiesModal";
 import PushButtonNOPropertiesModal from "./controls/PushButtonNOPropertiesModal";
 import PushButtonNCPropertiesModal from "./controls/PushButtonNCPropertiesModal";
 import AlarmLogWindow from "./AlarmLogWindow";
+import GaugeDisplaySettingsModal from "./gauge/GaugeDisplaySettingsModal";
 
 export default function AppModals({
   dashboardId = null,
@@ -62,6 +63,8 @@ export default function AppModals({
   closePushButtonNOSettings,
   pushButtonNCSettingsId,
   closePushButtonNCSettings,
+  gaugeSettingsId,
+  closeGaugeDisplaySettings,
   sensorsData,
   windowDrag,
   debug = false,
@@ -75,8 +78,8 @@ export default function AppModals({
   }, [dashboardId]);
 
   const safeDashboardName = useMemo(() => {
-  return String(dashboardName || "").trim();
-}, [dashboardName]);
+    return String(dashboardName || "").trim();
+  }, [dashboardName]);
 
   // ✅ always keep latest droppedTanks (avoids stale closure issues)
   const droppedTanksRef = useRef([]);
@@ -110,6 +113,13 @@ export default function AppModals({
         (t.shape === "displayBox" || t.shape === "displayOutput")
     );
   }, [droppedTanks, displaySettingsId]);
+
+  const gaugeTarget = useMemo(() => {
+    if (gaugeSettingsId == null) return null;
+    return droppedTanks.find(
+      (t) => isSameId(t.id, gaugeSettingsId) && t.shape === "gaugeDisplay"
+    );
+  }, [droppedTanks, gaugeSettingsId]);
 
   const graphicTarget = useMemo(() => {
     if (graphicSettingsId == null) return null;
@@ -367,6 +377,31 @@ export default function AppModals({
                   : t
               )
             );
+          }}
+        />
+      )}
+
+      {gaugeTarget && (
+        <GaugeDisplaySettingsModal
+          open={true}
+          widget={gaugeTarget}
+          onClose={closeGaugeDisplaySettings}
+          onSave={(updatedGauge) => {
+            setDroppedTanks((prev) =>
+              prev.map((t) =>
+                isSameId(t.id, gaugeTarget.id)
+                  ? {
+                      ...t,
+                      ...updatedGauge,
+                      properties: {
+                        ...(t.properties || {}),
+                        ...(updatedGauge?.properties || {}),
+                      },
+                    }
+                  : t
+              )
+            );
+            closeGaugeDisplaySettings?.();
           }}
         />
       )}
