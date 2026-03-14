@@ -183,7 +183,7 @@ export default function SemiCircleGauge({
         {cfg.showValue !== false && (
           <text
             x={cx}
-            y={cy + 36}
+            y={cy + 30}
             fill={palette.valueText}
             fontSize="18"
             fontWeight="700"
