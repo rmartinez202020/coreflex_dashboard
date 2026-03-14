@@ -39,10 +39,7 @@ export default function SemiCircleGauge({
   const cx = gaugeW / 2;
   const cy = gaugeH * 0.85;
 
-  const radius = Math.min(
-    gaugeW / 2 - 8,
-    cy - 8
-  );
+  const radius = Math.min(gaugeW / 2 - 8, cy - 8);
 
   const startAngle = -90;
   const endAngle = 90;
@@ -84,12 +81,11 @@ export default function SemiCircleGauge({
         viewBox={`0 0 ${gaugeW} ${gaugeH}`}
         style={{ display: "block" }}
       >
-
-        {/* TITLE (TOP) */}
+        {/* TITLE */}
         {cfg.title && (
           <text
             x={cx}
-            y={16}
+            y={42}
             fill={palette.label}
             fontSize="13"
             fontWeight="600"
@@ -168,7 +164,7 @@ export default function SemiCircleGauge({
         {/* Needle center */}
         <circle cx={cx} cy={cy} r="7" fill={palette.centerCap} />
 
-        {/* UNITS (CENTER OF GAUGE) */}
+        {/* UNITS */}
         {cfg.units && (
           <text
             x={cx}
@@ -183,7 +179,7 @@ export default function SemiCircleGauge({
           </text>
         )}
 
-        {/* VALUE (BOTTOM BELOW NEEDLE CENTER) */}
+        {/* VALUE */}
         {cfg.showValue !== false && (
           <text
             x={cx}
@@ -196,7 +192,6 @@ export default function SemiCircleGauge({
             {displayValue}
           </text>
         )}
-
       </svg>
     </div>
   );
