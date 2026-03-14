@@ -29,15 +29,15 @@ export default function SemiCircleGauge({
     [cfg.minValue, cfg.maxValue]
   );
 
-  // keep gauge drawing size
+  // original gauge size
   const gaugeW = Math.max(180, Number(width) || 220);
   const gaugeH = Math.max(120, Number(height) || 160);
 
-  // ✅ make container wider so blue selection box sits outside
-  const SIDE_MARGIN = 28;
+  // ✅ make ONLY the blue selection box wider
+  const BLUE_BOX_EXTRA = 40;
 
-  const outerW = gaugeW + SIDE_MARGIN * 2;
-  const outerH = gaugeH + 14;
+  const outerW = gaugeW + BLUE_BOX_EXTRA;
+  const outerH = gaugeH;
 
   const cx = gaugeW / 2;
   const cy = gaugeH * 0.85;
