@@ -85,7 +85,7 @@ export default function SemiCircleGauge({
         {cfg.title && (
           <text
             x={cx}
-            y={60}
+            y={65}
             fill={palette.label}
             fontSize="13"
             fontWeight="600"
@@ -183,7 +183,7 @@ export default function SemiCircleGauge({
         {cfg.showValue !== false && (
           <text
             x={cx}
-            y={cy + 22}
+            y={cy + 36}
             fill={palette.valueText}
             fontSize="18"
             fontWeight="700"
