@@ -29,18 +29,24 @@ export default function SemiCircleGauge({
     [cfg.minValue, cfg.maxValue]
   );
 
-  // ✅ keep gauge exactly the same visually
-  const gaugeW = Math.max(180, Number(width) || 220);
-  const gaugeH = Math.max(120, Number(height) || 160);
+  // ✅ keep the same overall widget size
+  const outerW = Math.max(180, Number(width) || 220);
+  const outerH = Math.max(120, Number(height) || 160);
 
-  // ✅ only add a little invisible room so the blue resize square sits outside
-  const HANDLE_ROOM = 14;
-  const outerW = gaugeW + HANDLE_ROOM;
-  const outerH = gaugeH + HANDLE_ROOM;
+  // ✅ make the actual SVG area slightly smaller INSIDE the widget
+  // so the semicircle stays inside the blue selection box
+  const svgPadX = 16;
+  const svgPadTop = 12;
+  const svgPadBottom = 14;
+
+  const gaugeW = Math.max(120, outerW - svgPadX * 2);
+  const gaugeH = Math.max(90, outerH - svgPadTop - svgPadBottom);
 
   const cx = gaugeW / 2;
   const cy = gaugeH * 0.85;
-  const radius = Math.min(gaugeW, gaugeH) * 0.85;
+
+  // ✅ reduce radius just enough so the arc stays inside
+  const radius = Math.min(gaugeW, gaugeH) * 0.72;
 
   const startAngle = -90;
   const endAngle = 90;
@@ -63,7 +69,6 @@ export default function SemiCircleGauge({
   });
 
   const ticks = getTickValues(minValue, maxValue, 6);
-
   const displayValue = formatCompactValue(computed.displayValue, cfg.decimals);
 
   return (
@@ -74,13 +79,19 @@ export default function SemiCircleGauge({
         display: "flex",
         alignItems: "flex-start",
         justifyContent: "flex-start",
+        background: "transparent",
       }}
     >
       <svg
         width={gaugeW}
         height={gaugeH}
         viewBox={`0 0 ${gaugeW} ${gaugeH}`}
-        style={{ overflow: "visible", display: "block" }}
+        style={{
+          overflow: "visible",
+          display: "block",
+          marginLeft: svgPadX,
+          marginTop: svgPadTop,
+        }}
       >
         {/* Gauge arc */}
         <path
@@ -99,7 +110,13 @@ export default function SemiCircleGauge({
 
         {/* Ticks */}
         {ticks.map((t, i) => {
-          const angle = valueToAngle(t, minValue, maxValue, startAngle, endAngle);
+          const angle = valueToAngle(
+            t,
+            minValue,
+            maxValue,
+            startAngle,
+            endAngle
+          );
 
           const p1 = polarToCartesian(cx, cy, radius - 14, angle);
           const p2 = polarToCartesian(cx, cy, radius - 2, angle);
