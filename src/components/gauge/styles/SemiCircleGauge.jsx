@@ -29,19 +29,26 @@ export default function SemiCircleGauge({
     [cfg.minValue, cfg.maxValue]
   );
 
-  // original gauge size
+  // Base widget size
   const gaugeW = Math.max(180, Number(width) || 220);
   const gaugeH = Math.max(120, Number(height) || 160);
 
-  // ✅ make ONLY the blue selection box wider
+  // ✅ only make the blue selection box wider
   const BLUE_BOX_EXTRA = 40;
-
   const outerW = gaugeW + BLUE_BOX_EXTRA;
   const outerH = gaugeH;
 
+  // ✅ keep gauge centered inside its own SVG
   const cx = gaugeW / 2;
   const cy = gaugeH * 0.85;
-  const radius = Math.min(gaugeW, gaugeH) * 0.85;
+
+  // ✅ IMPORTANT:
+  // radius must fit inside BOTH left/right width and top space
+  // otherwise the arc spills outside and looks bigger than the blue box
+  const radius = Math.min(
+    gaugeW / 2 - 8, // leave margin on left/right
+    cy - 8          // leave margin on top
+  );
 
   const startAngle = -90;
   const endAngle = 90;
@@ -81,7 +88,7 @@ export default function SemiCircleGauge({
         width={gaugeW}
         height={gaugeH}
         viewBox={`0 0 ${gaugeW} ${gaugeH}`}
-        style={{ overflow: "visible", display: "block" }}
+        style={{ display: "block" }}
       >
         {/* Gauge arc */}
         <path
