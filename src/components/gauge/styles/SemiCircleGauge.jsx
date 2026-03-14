@@ -29,25 +29,19 @@ export default function SemiCircleGauge({
     [cfg.minValue, cfg.maxValue]
   );
 
-  // Base widget size
   const gaugeW = Math.max(180, Number(width) || 220);
   const gaugeH = Math.max(120, Number(height) || 160);
 
-  // ✅ only make the blue selection box wider
   const BLUE_BOX_EXTRA = 40;
   const outerW = gaugeW + BLUE_BOX_EXTRA;
   const outerH = gaugeH;
 
-  // ✅ keep gauge centered inside its own SVG
   const cx = gaugeW / 2;
   const cy = gaugeH * 0.85;
 
-  // ✅ IMPORTANT:
-  // radius must fit inside BOTH left/right width and top space
-  // otherwise the arc spills outside and looks bigger than the blue box
   const radius = Math.min(
-    gaugeW / 2 - 8, // leave margin on left/right
-    cy - 8          // leave margin on top
+    gaugeW / 2 - 8,
+    cy - 8
   );
 
   const startAngle = -90;
@@ -90,6 +84,21 @@ export default function SemiCircleGauge({
         viewBox={`0 0 ${gaugeW} ${gaugeH}`}
         style={{ display: "block" }}
       >
+
+        {/* TITLE (TOP) */}
+        {cfg.title && (
+          <text
+            x={cx}
+            y={16}
+            fill={palette.label}
+            fontSize="13"
+            fontWeight="600"
+            textAnchor="middle"
+          >
+            {cfg.title}
+          </text>
+        )}
+
         {/* Gauge arc */}
         <path
           d={`
@@ -159,34 +168,35 @@ export default function SemiCircleGauge({
         {/* Needle center */}
         <circle cx={cx} cy={cy} r="7" fill={palette.centerCap} />
 
-        {/* Value */}
-        {cfg.showValue !== false && (
+        {/* UNITS (CENTER OF GAUGE) */}
+        {cfg.units && (
           <text
             x={cx}
             y={cy - radius * 0.45}
             fill={palette.valueText}
-            fontSize="18"
-            fontWeight="700"
+            fontSize="16"
+            fontWeight="600"
             textAnchor="middle"
             dominantBaseline="middle"
           >
-            {displayValue} {cfg.units}
+            {cfg.units}
           </text>
         )}
 
-        {/* Title */}
-        {cfg.title && (
+        {/* VALUE (BOTTOM BELOW NEEDLE CENTER) */}
+        {cfg.showValue !== false && (
           <text
             x={cx}
-            y={gaugeH - 10}
-            fill={palette.label}
-            fontSize="13"
-            fontWeight="600"
+            y={cy + 22}
+            fill={palette.valueText}
+            fontSize="18"
+            fontWeight="700"
             textAnchor="middle"
           >
-            {cfg.title}
+            {displayValue}
           </text>
         )}
+
       </svg>
     </div>
   );
