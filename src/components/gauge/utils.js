@@ -252,7 +252,9 @@ export function computeGaugeValue(rawValue, settings = {}) {
 
   const computed = evalResult.ok
     ? evalResult.value
-    : (Number.isFinite(raw) ? raw : 0);
+    : Number.isFinite(raw)
+    ? raw
+    : 0;
 
   const { min, max } = normalizeRange(
     settings.minValue ?? settings.min ?? 0,
@@ -279,7 +281,11 @@ export function computeGaugeValue(rawValue, settings = {}) {
 
 export function buildGaugeDefaults(widget = {}) {
   return {
-    title: widget.title || "Gauge",
+    // ✅ allow blank title ("") to remain blank; only default to "Gauge" for null/undefined
+    title:
+      widget.title === null || widget.title === undefined
+        ? "Gauge"
+        : String(widget.title),
     units: widget.units || "",
     gaugeStyle: widget.gaugeStyle || "classic",
 
