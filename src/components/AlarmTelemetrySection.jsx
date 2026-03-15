@@ -21,8 +21,15 @@ function normalizeTagType(alarmType) {
   // ✅ boolean alarms -> DI
   if (s === "boolean" || s === "digital" || s === "di") return "di";
 
-  // ✅ analog alarms -> AI
-  if (s === "analog" || s === "ai" || s === "analog_input") return "ai";
+  // ✅ dynamic / analog alarms -> AI
+  if (
+    s === "dynamic" ||
+    s === "analog" ||
+    s === "ai" ||
+    s === "analog_input"
+  ) {
+    return "ai";
+  }
 
   return "di";
 }
@@ -79,6 +86,24 @@ function readTagFromRow(row, field) {
     if (row[altUp] !== undefined) return row[altUp];
   }
 
+  // ✅ optional aliases for AI naming variations
+  if (/^ai[1-8]$/.test(field)) {
+    const n = field.replace("ai", "");
+    const extra = [`AI${n}`, `ai_${n}`, `AI_${n}`, `ai-${n}`, `AI-${n}`];
+    for (const k of extra) {
+      if (row[k] !== undefined) return row[k];
+    }
+  }
+
+  // ✅ TP-4000 common variants
+  if (/^te10[1-8]$/.test(field)) {
+    const upTe = String(field).toUpperCase();
+    const extra = [upTe, upTe.replace("TE", "T"), field.toLowerCase()];
+    for (const k of extra) {
+      if (row[k] !== undefined) return row[k];
+    }
+  }
+
   return undefined;
 }
 
@@ -92,7 +117,11 @@ function previewStatusMeta(previewValue, selectedTag, tagMode) {
     };
   }
 
-  if (previewValue === null || previewValue === undefined || previewValue === "") {
+  if (
+    previewValue === null ||
+    previewValue === undefined ||
+    previewValue === ""
+  ) {
     return {
       text: "No data",
       color: "#64748b",
@@ -103,10 +132,14 @@ function previewStatusMeta(previewValue, selectedTag, tagMode) {
 
   if (tagMode === "di") {
     const n = Number(previewValue);
-    const isOn = Number.isFinite(n) ? n > 0 : String(previewValue).trim() === "1";
+    const isOn = Number.isFinite(n)
+      ? n > 0
+      : String(previewValue).trim() === "1";
 
     return {
-      text: isOn ? `ON (${String(previewValue)})` : `OFF (${String(previewValue)})`,
+      text: isOn
+        ? `ON (${String(previewValue)})`
+        : `OFF (${String(previewValue)})`,
       color: isOn ? "#166534" : "#334155",
       badgeBg: isOn ? "rgba(187,247,208,0.55)" : "#f8fafc",
       badgeBorder: isOn ? "rgba(22,163,74,0.25)" : "#cbd5e1",
@@ -133,8 +166,18 @@ function getTagFieldsForMode(model, tagMode) {
   if (tagMode === "ai") {
     if (m === "zhc1921") return ["ai1", "ai2", "ai3", "ai4"];
     if (m === "zhc1661") return ["ai1", "ai2", "ai3", "ai4"];
-    if (m === "tp4000")
-      return ["te101", "te102", "te103", "te104", "te105", "te106", "te107", "te108"];
+    if (m === "tp4000") {
+      return [
+        "te101",
+        "te102",
+        "te103",
+        "te104",
+        "te105",
+        "te106",
+        "te107",
+        "te108",
+      ];
+    }
   }
 
   return [];
@@ -163,8 +206,14 @@ export default function AlarmTelemetrySection({
 
   const telemetryRef = React.useRef({ loading: false });
 
-  const tagMode = React.useMemo(() => normalizeTagType(alarmType), [alarmType]);
-  const base = React.useMemo(() => MODEL_META?.[model]?.base || "zhc1921", [model]);
+  const tagMode = React.useMemo(
+    () => normalizeTagType(alarmType),
+    [alarmType]
+  );
+  const base = React.useMemo(
+    () => MODEL_META?.[model]?.base || "zhc1921",
+    [model]
+  );
 
   const selectedDevice = React.useMemo(() => {
     return devices.find((d) => String(d.id) === String(deviceId)) || null;
@@ -184,7 +233,11 @@ export default function AlarmTelemetrySection({
 
       try {
         const token = String(getToken() || "").trim();
-        if (!token) throw new Error("Missing auth token. Please logout and login again.");
+        if (!token) {
+          throw new Error(
+            "Missing auth token. Please logout and login again."
+          );
+        }
 
         const res = await fetch(`${API_URL}/${base}/my-devices`, {
           headers: getAuthHeaders(),
@@ -192,7 +245,9 @@ export default function AlarmTelemetrySection({
 
         if (!res.ok) {
           const j = await res.json().catch(() => ({}));
-          throw new Error(j?.detail || `Failed to load devices (${res.status})`);
+          throw new Error(
+            j?.detail || `Failed to load devices (${res.status})`
+          );
         }
 
         const data = await res.json();
@@ -239,7 +294,11 @@ export default function AlarmTelemetrySection({
 
     try {
       const token = String(getToken() || "").trim();
-      if (!token) throw new Error("Missing auth token. Please logout and login again.");
+      if (!token) {
+        throw new Error(
+          "Missing auth token. Please logout and login again."
+        );
+      }
 
       const res = await fetch(`${API_URL}/${base}/my-devices`, {
         headers: getAuthHeaders(),
@@ -253,7 +312,9 @@ export default function AlarmTelemetrySection({
       const data = await res.json();
       const list = Array.isArray(data) ? data : [];
       const row =
-        list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
+        list.find(
+          (r) => String(r.deviceId ?? r.device_id ?? "").trim() === id
+        ) || null;
 
       setTelemetryRow(row);
     } catch {
@@ -292,7 +353,9 @@ export default function AlarmTelemetrySection({
 
     return availableFields
       .map((field) => {
-        const value = telemetryRow ? readTagFromRow(telemetryRow, field) : undefined;
+        const value = telemetryRow
+          ? readTagFromRow(telemetryRow, field)
+          : undefined;
 
         return {
           deviceId: String(deviceId || "").trim(),
@@ -380,8 +443,7 @@ export default function AlarmTelemetrySection({
 
           {deviceId && selectedDevice ? (
             <div style={subInfo}>
-              Selected: <b>{selectedDevice.id}</b>{" "}
-              •{" "}
+              Selected: <b>{selectedDevice.id}</b> •{" "}
               <span
                 style={{
                   color: deviceIsOnline ? "#16a34a" : "#dc2626",
@@ -402,7 +464,7 @@ export default function AlarmTelemetrySection({
             onChange={(e) => setSearch?.(e.target.value)}
             placeholder={
               tagMode === "ai"
-                ? "ex: AI1, pressure, temp..."
+                ? "ex: AI1, pressure, temp, TE101..."
                 : "ex: DI1, level, run..."
             }
           />
@@ -462,10 +524,12 @@ export default function AlarmTelemetrySection({
               <div>
                 <div style={pickedLabel}>Selected Tag</div>
                 <div style={pickedValue}>
-                  {selectedTag.deviceId} / <b>{formatTagLabel(selectedTag.field)}</b>
+                  {selectedTag.deviceId} /{" "}
+                  <b>{formatTagLabel(selectedTag.field)}</b>
                 </div>
                 <div style={pickedSubMeta}>
-                  Type: <b>{String(selectedTag.type || tagMode).toUpperCase()}</b>
+                  Type:{" "}
+                  <b>{String(selectedTag.type || tagMode).toUpperCase()}</b>
                   {selectedTag.label ? (
                     <>
                       {" "}
