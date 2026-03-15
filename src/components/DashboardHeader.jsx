@@ -112,7 +112,8 @@ export default function DashboardHeader({
                   ▣ {w.title || w.key}
                 </button>
 
-                {onCloseWindow && (
+                {/* ✅ remove top-bar X for Alarm Log */}
+                {onCloseWindow && w.key !== "alarmLog" && (
                   <button
                     type="button"
                     onClick={() => onCloseWindow(w.key)}
