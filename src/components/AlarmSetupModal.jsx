@@ -15,11 +15,17 @@ function computeMathOutput(rawValue, mathFormula) {
   if (!formula) return numeric;
 
   try {
-    const expr = formula.replace(/\bVALUE\b/g, `(${numeric})`);
+    // ✅ support VALUE / value / Value
+    const expr = formula.replace(/\bvalue\b/gi, `(${numeric})`);
+
     // eslint-disable-next-line no-new-func
     const fn = new Function(`return (${expr});`);
     const out = fn();
-    return Number.isFinite(Number(out)) ? Number(out) : out;
+
+    if (out === null || out === undefined || out === "") return numeric;
+
+    const outNum = Number(out);
+    return Number.isFinite(outNum) ? outNum : out;
   } catch {
     return numeric;
   }
@@ -105,7 +111,7 @@ export default function AlarmSetupModal({
 
   const [message, setMessage] = React.useState("");
 
-  // ✅ math state
+  // ✅ kept for compatibility
   const [mathEnabled, setMathEnabled] = React.useState(false);
   const [mathFormula, setMathFormula] = React.useState("");
 
@@ -114,16 +120,19 @@ export default function AlarmSetupModal({
     setSearch("");
   }, [alarmType]);
 
-  // ✅ NEW: selected live raw value from telemetry section
+  // ✅ selected live raw value from telemetry section
   const rawValue = React.useMemo(() => {
     if (!selectedTag) return null;
-    if (selectedTag.previewValue === undefined || selectedTag.previewValue === null) {
+    if (
+      selectedTag.previewValue === undefined ||
+      selectedTag.previewValue === null
+    ) {
       return null;
     }
     return selectedTag.previewValue;
   }, [selectedTag]);
 
-  // ✅ NEW: computed math output preview
+  // ✅ computed math output preview
   const outputValue = React.useMemo(() => {
     return computeMathOutput(rawValue, mathFormula);
   }, [rawValue, mathFormula]);
@@ -557,7 +566,6 @@ const topGrid = {
 
 const col = { display: "flex", flexDirection: "column", minHeight: 0 };
 
-/* ✅ BOTTOM: taller + scroll in table body only */
 const bottomArea = {
   flex: "1 1 auto",
   overflow: "hidden",
