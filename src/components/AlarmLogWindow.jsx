@@ -126,7 +126,7 @@ export default function AlarmLogWindow({
     <div style={wrap}>
       {/* TOP BAR */}
       <div
-        style={{ ...topBar, cursor: isPage ? "default" : "move" }}
+        style={{ ...topBar, cursor: isPage ? "default" : "pointer" }}
         onMouseDown={(e) => {
           e.stopPropagation();
           if (!isPage) onStartDragWindow?.(e);
