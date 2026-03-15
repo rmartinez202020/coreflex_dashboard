@@ -71,7 +71,6 @@ export default function AlarmLogWindow({
 
   const onAcknowledgeSelected = () => {
     if (checkedIds.size === 0) return;
-    console.log("✅ Acknowledge IDs:", Array.from(checkedIds));
     setCheckedIds(new Set());
   };
 
@@ -107,7 +106,7 @@ export default function AlarmLogWindow({
           data?.detail || data?.error || "Failed to delete alarm log window row"
         );
       }
-      
+
       setShowCloseConfirm(false);
       setCheckedIds(new Set());
       setSelectedId(null);
@@ -340,7 +339,6 @@ export default function AlarmLogWindow({
         open={showAlarmSetup}
         onClose={() => setShowAlarmSetup(false)}
         onAddAlarm={(alarmObj) => {
-          console.log("✅ Added Alarm:", alarmObj);
           onAddAlarm?.(alarmObj);
         }}
         devices={devices}

@@ -716,11 +716,20 @@ export default function App() {
       </main>
 
       <RightPanel
-        isRightCollapsed={isRightCollapsed}
-        setIsRightCollapsed={setIsRightCollapsed}
-        dashboardMode={dashboardMode}
-        onOpenAlarmLog={openAlarmLog}
-      />
+  isRightCollapsed={isRightCollapsed}
+  setIsRightCollapsed={setIsRightCollapsed}
+  dashboardMode={dashboardMode}
+  onOpenAlarmLog={openAlarmLog}
+
+  // ✅ real active dashboard context
+  dashboardId={String(effectiveDashboardId || "").trim()}
+  dashboardName={String(activeDashboard?.dashboardName || "").trim()}
+
+  // ✅ Alarm Log can open only when dashboard canvas is actually active
+  isDashboardOpenOnCanvas={
+    activePage === "dashboard" && !!String(effectiveDashboardId || "").trim()
+  }
+/>
     </div>
   );
 }

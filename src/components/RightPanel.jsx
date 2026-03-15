@@ -26,11 +26,20 @@ import TanksAndPipesSymbols3DLibrary from "./TanksAndPipesSymbols3DLibrary";
  * - Listens for "coreflex-open-iots-library" to open CoreFlex library as a PICKER
  * - Remembers which image user is picking: OFF or ON
  * - Remembers which tankId is being edited
+ *
+ * ✅ NEW:
+ * - Passes active dashboard context to RightSidebar
+ * - Alarm Log can only open when a real dashboard is open on canvas
  */
 export default function RightPanel({
   isRightCollapsed,
   setIsRightCollapsed,
   dashboardMode,
+
+  // ✅ active dashboard context from App.jsx
+  dashboardId = "",
+  dashboardName = "",
+  isDashboardOpenOnCanvas = false,
 
   // ✅ Alarm Log opener (system window lives in AppModals / App layer)
   onOpenAlarmLog,
@@ -146,6 +155,9 @@ export default function RightPanel({
         openSymbolLibrary={(key) => wm.openWindow(key, { cascade: true })}
         dashboardMode={dashboardMode}
         onOpenAlarmLog={onOpenAlarmLog}
+        dashboardId={dashboardId}
+        dashboardName={dashboardName}
+        isDashboardOpenOnCanvas={isDashboardOpenOnCanvas}
       />
 
       {/* ✅ FLOATING WINDOWS */}
