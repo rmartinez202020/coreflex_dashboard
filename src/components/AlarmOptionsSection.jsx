@@ -52,16 +52,16 @@ export default function AlarmOptionsSection({
           </button>
         </div>
 
-        {/* ✅ NEW: Math section appears only for Dynamic */}
+        {/* ✅ Compact Math section appears only for Dynamic */}
         {alarmType === "dynamic" && (
           <div style={mathWrap}>
-            <div style={mathHeaderRow}>
+            <div style={mathTopRow}>
               <div style={sectionSubLabel}>Math</div>
 
               <button
                 type="button"
                 style={{
-                  ...chip,
+                  ...chipCompact,
                   ...(mathEnabled ? chipActive : {}),
                 }}
                 onClick={() => setMathEnabled?.(!mathEnabled)}
@@ -70,12 +70,11 @@ export default function AlarmOptionsSection({
               </button>
             </div>
 
-            <div style={fieldRowNoTop}>
-              <div style={fieldLabel}>Formula</div>
+            <div style={mathInputRow}>
               <input
                 style={{
-                  ...input,
-                  opacity: mathEnabled ? 1 : 0.6,
+                  ...inputCompact,
+                  opacity: mathEnabled ? 1 : 0.65,
                 }}
                 value={mathFormula}
                 onChange={(e) => setMathFormula?.(e.target.value)}
@@ -84,11 +83,9 @@ export default function AlarmOptionsSection({
               />
             </div>
 
-            <div style={help}>
-              Use <b>VALUE</b> as the live AI reading.
-              <span style={{ marginLeft: 6 }}>
-                Examples: <b>VALUE * 1.8 + 32</b>, <b>VALUE / 10</b>, <b>VALUE - 4</b>
-              </span>
+            <div style={helpCompact}>
+              Use <b>VALUE</b> as the live AI reading. Examples:{" "}
+              <b>VALUE * 1.8 + 32</b>, <b>VALUE / 10</b>, <b>VALUE - 4</b>
             </div>
           </div>
         )}
@@ -99,13 +96,13 @@ export default function AlarmOptionsSection({
 
         {alarmType === "boolean" ? (
           <>
-            <div style={fieldRow}>
+            <div style={fieldRowCompact}>
               <div style={fieldLabel}>Contact Type</div>
               <div style={inlineRow}>
                 <button
                   type="button"
                   style={{
-                    ...chip,
+                    ...chipCompact,
                     ...(contactType === "NO" ? chipActive : {}),
                   }}
                   onClick={() => setContactType?.("NO")}
@@ -115,7 +112,7 @@ export default function AlarmOptionsSection({
                 <button
                   type="button"
                   style={{
-                    ...chip,
+                    ...chipCompact,
                     ...(contactType === "NC" ? chipActive : {}),
                   }}
                   onClick={() => setContactType?.("NC")}
@@ -123,16 +120,16 @@ export default function AlarmOptionsSection({
                   NC
                 </button>
               </div>
-              <div style={help}>
+              <div style={helpCompact}>
                 NO = alarm when input becomes <b>1</b> • NC = alarm when input
                 becomes <b>0</b>
               </div>
             </div>
 
-            <div style={fieldRow}>
+            <div style={fieldRowCompact}>
               <div style={fieldLabel}>Message</div>
               <input
-                style={input}
+                style={inputCompact}
                 value={message}
                 onChange={(e) => setMessage?.(e.target.value)}
                 placeholder="ex: E-Stop Pressed"
@@ -141,11 +138,11 @@ export default function AlarmOptionsSection({
           </>
         ) : (
           <>
-            <div style={row4}>
+            <div style={row4Compact}>
               <div>
                 <div style={fieldLabel}>Operator</div>
                 <select
-                  style={select}
+                  style={selectCompact}
                   value={operator}
                   onChange={(e) => setOperator?.(e.target.value)}
                 >
@@ -160,7 +157,7 @@ export default function AlarmOptionsSection({
               <div>
                 <div style={fieldLabel}>Threshold</div>
                 <input
-                  style={input}
+                  style={inputCompact}
                   value={threshold}
                   onChange={(e) => setThreshold?.(e.target.value)}
                   placeholder="ex: 75"
@@ -170,7 +167,7 @@ export default function AlarmOptionsSection({
               <div>
                 <div style={fieldLabel}>Deadband</div>
                 <input
-                  style={input}
+                  style={inputCompact}
                   value={deadband}
                   onChange={(e) => setDeadband?.(e.target.value)}
                   placeholder="ex: 2"
@@ -180,7 +177,7 @@ export default function AlarmOptionsSection({
               <div>
                 <div style={fieldLabel}>Severity</div>
                 <select
-                  style={select}
+                  style={selectCompact}
                   value={severity}
                   onChange={(e) => setSeverity?.(e.target.value)}
                 >
@@ -191,10 +188,10 @@ export default function AlarmOptionsSection({
               </div>
             </div>
 
-            <div style={fieldRow}>
+            <div style={fieldRowCompact}>
               <div style={fieldLabel}>Message</div>
               <input
-                style={input}
+                style={inputCompact}
                 value={message}
                 onChange={(e) => setMessage?.(e.target.value)}
                 placeholder="ex: LSH1 High Level Alarm"
@@ -216,39 +213,39 @@ const col = {
 const sectionCompact = {
   border: "1px solid #e5e7eb",
   borderRadius: 16,
-  padding: 14,
+  padding: 10,
   background: "#ffffff",
-  marginBottom: 12,
+  marginBottom: 10,
 };
 
 const sectionLabel = {
   fontWeight: 900,
   color: "#0f172a",
-  fontSize: 13,
-  marginBottom: 10,
+  fontSize: 12,
+  marginBottom: 8,
 };
 
 const sectionSubLabel = {
   fontWeight: 900,
   color: "#0f172a",
-  fontSize: 13,
+  fontSize: 12,
 };
 
 const typeRow = {
   display: "flex",
-  gap: 12,
+  gap: 10,
   flexWrap: "wrap",
 };
 
 const typeBtn = {
-  padding: "10px 14px",
+  padding: "8px 12px",
   borderRadius: 14,
   border: "1px solid #cbd5e1",
   background: "#f8fafc",
   color: "#0f172a",
   cursor: "pointer",
   fontWeight: 900,
-  fontSize: 14,
+  fontSize: 12,
 };
 
 const typeBtnActive = {
@@ -257,79 +254,80 @@ const typeBtnActive = {
 };
 
 const mathWrap = {
-  marginTop: 14,
-  paddingTop: 14,
+  marginTop: 10,
+  paddingTop: 10,
   borderTop: "1px solid #e5e7eb",
 };
 
-const mathHeaderRow = {
+const mathTopRow = {
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
-  gap: 12,
-};
-
-const row4 = {
-  display: "grid",
-  gridTemplateColumns: "160px 1fr 1fr 200px",
-  gap: 12,
-  alignItems: "end",
-};
-
-const fieldRow = {
-  marginTop: 10,
-};
-
-const fieldRowNoTop = {
-  marginTop: 10,
-};
-
-const fieldLabel = {
-  fontSize: 13,
-  color: "#475569",
+  gap: 10,
   marginBottom: 8,
 };
 
-const input = {
-  width: "100%",
-  height: 42,
-  borderRadius: 12,
-  border: "1px solid #cbd5e1",
-  background: "#ffffff",
-  color: "#0f172a",
-  padding: "0 12px",
-  outline: "none",
-  fontSize: 14,
+const mathInputRow = {
+  marginTop: 0,
 };
 
-const select = {
+const row4Compact = {
+  display: "grid",
+  gridTemplateColumns: "120px 1fr 1fr 150px",
+  gap: 10,
+  alignItems: "end",
+};
+
+const fieldRowCompact = {
+  marginTop: 8,
+};
+
+const fieldLabel = {
+  fontSize: 12,
+  color: "#475569",
+  marginBottom: 6,
+};
+
+const inputCompact = {
   width: "100%",
-  height: 42,
-  borderRadius: 12,
+  height: 36,
+  borderRadius: 10,
   border: "1px solid #cbd5e1",
   background: "#ffffff",
   color: "#0f172a",
-  padding: "0 12px",
+  padding: "0 10px",
   outline: "none",
-  fontSize: 14,
+  fontSize: 12,
+};
+
+const selectCompact = {
+  width: "100%",
+  height: 36,
+  borderRadius: 10,
+  border: "1px solid #cbd5e1",
+  background: "#ffffff",
+  color: "#0f172a",
+  padding: "0 10px",
+  outline: "none",
+  fontSize: 12,
 };
 
 const inlineRow = {
   display: "flex",
-  gap: 12,
+  gap: 10,
   alignItems: "center",
-  marginTop: 4,
+  marginTop: 2,
 };
 
-const chip = {
-  padding: "10px 14px",
+const chipCompact = {
+  padding: "8px 12px",
   borderRadius: 999,
   border: "1px solid #cbd5e1",
   background: "#f8fafc",
   color: "#0f172a",
   cursor: "pointer",
   fontWeight: 900,
-  fontSize: 14,
+  fontSize: 12,
 };
 
 const chipActive = {
@@ -337,8 +335,9 @@ const chipActive = {
   background: "#eff6ff",
 };
 
-const help = {
-  marginTop: 8,
-  fontSize: 13,
+const helpCompact = {
+  marginTop: 6,
+  fontSize: 12,
   color: "#64748b",
+  lineHeight: 1.3,
 };
