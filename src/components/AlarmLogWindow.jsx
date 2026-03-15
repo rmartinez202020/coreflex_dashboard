@@ -125,13 +125,15 @@ export default function AlarmLogWindow({
   return (
     <div style={wrap}>
       {/* TOP BAR */}
+
       <div
-        style={{ ...topBar, cursor: isPage ? "default" : "pointer" }}
-        onMouseDown={(e) => {
-          e.stopPropagation();
-          if (!isPage) onStartDragWindow?.(e);
-        }}
-      >
+  style={{ ...topBar, cursor: isPage ? "default" : "grab" }}
+  onMouseDown={(e) => {
+    e.stopPropagation();
+    if (!isPage) onStartDragWindow?.(e);
+  }}
+>
+
         <div style={titleWrap}>
           <span style={{ fontWeight: 900 }}>{title}</span>
         </div>
