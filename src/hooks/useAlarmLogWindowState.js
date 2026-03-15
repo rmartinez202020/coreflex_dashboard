@@ -5,6 +5,7 @@ import { getToken } from "../utils/authToken";
 export default function useAlarmLogWindowState({
   apiUrl,
   dashboardId,
+  dashboardName = "", // ✅ NEW
   activePage,
   currentUserKey,
   defaultTitle = "Alarms Log (DI-AI)",
@@ -26,6 +27,10 @@ export default function useAlarmLogWindowState({
   const normalizedDashboardId =
     String(dashboardId || "main").trim() || "main";
 
+  const normalizedDashboardName =
+    String(dashboardName || "").trim() ||
+    (normalizedDashboardId === "main" ? "Main Dashboard" : "Customer Dashboard");
+
   const openAlarmLog = useCallback(async () => {
     try {
       const res = await fetch(`${apiUrl}/alarm-log-windows/upsert`, {
@@ -36,6 +41,7 @@ export default function useAlarmLogWindowState({
         },
         body: JSON.stringify({
           dashboard_id: normalizedDashboardId,
+          dashboard_name: normalizedDashboardName, // ✅ NEW
           window_key: "alarmLog",
           title: defaultTitle,
           pos_x: Number(defaultPosition?.x ?? 140),
@@ -73,6 +79,7 @@ export default function useAlarmLogWindowState({
     apiUrl,
     getAuthHeaders,
     normalizedDashboardId,
+    normalizedDashboardName,
     defaultTitle,
     defaultPosition,
     defaultSize,

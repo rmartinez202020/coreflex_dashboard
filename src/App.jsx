@@ -319,22 +319,23 @@ export default function App() {
   };
 
     const {
-    alarmLogOpen,
-    alarmLogMinimized,
-    alarmLogWindowRow,
-    openAlarmLog,
-    closeAlarmLog,
-    minimizeAlarmLog,
-    restoreAlarmLog,
-  } = useAlarmLogWindowState({
-    apiUrl: API_URL,
-    dashboardId: effectiveDashboardId,
-    activePage,
-    currentUserKey,
-    defaultTitle: "Alarms Log (DI-AI)",
-    defaultPosition: { x: 140, y: 90 },
-    defaultSize: { width: 900, height: 420 },
-  });
+  alarmLogOpen,
+  alarmLogMinimized,
+  alarmLogWindowRow,
+  openAlarmLog,
+  closeAlarmLog,
+  minimizeAlarmLog,
+  restoreAlarmLog,
+} = useAlarmLogWindowState({
+  apiUrl: API_URL,
+  dashboardId: effectiveDashboardId,
+  dashboardName: String(activeDashboard?.dashboardName || "").trim(), // ✅ NEW
+  activePage,
+  currentUserKey,
+  defaultTitle: "Alarms Log (DI-AI)",
+  defaultPosition: { x: 140, y: 90 },
+  defaultSize: { width: 900, height: 420 },
+});
 
   // Launch = separate window (always tracking alarms)
   const launchAlarmLog = () => window.open("/launchAlarmLog", "_blank");
