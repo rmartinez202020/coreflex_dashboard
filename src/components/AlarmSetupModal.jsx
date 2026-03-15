@@ -44,7 +44,7 @@ export default function AlarmSetupModal({
 
   initialAlarms = [],
 
-  // ✅ NEW: dashboard info
+  // ✅ dashboard info
   dashboardName = "",
   dashboardId = "",
 }) {
@@ -164,7 +164,7 @@ export default function AlarmSetupModal({
       tagLabel: selectedTag.label || selectedTag.field,
       ioType: alarmType === "boolean" ? "DI" : "AI",
 
-      // ✅ NEW: store dashboard info too
+      // ✅ store dashboard info too
       dashboardName: String(dashboardName || "").trim(),
       dashboardId: String(dashboardId || "").trim(),
 
@@ -221,19 +221,21 @@ export default function AlarmSetupModal({
           <div style={headerLeft}>
             <div style={headerIcon}>⚙️</div>
             <div>
-              <div style={title}>Alarm Setup</div>
-
-              <div style={subtitleWrap}>
-                <div style={subtitle}>
-                  Add Boolean (DI) or Dynamic (AI) alarms, then manage them in
-                  the table below
-                </div>
-
+              <div style={titleRow}>
+                <div style={title}>Alarm Setup</div>
                 {dashboardLabel ? (
-                  <div style={dashboardInfo}>
-                    Dashboard: <b>{dashboardLabel}</b>
-                  </div>
+                  <>
+                    <span style={titleDash}>—</span>
+                    <div style={dashboardTitle} title={dashboardLabel}>
+                      {dashboardLabel}
+                    </div>
+                  </>
                 ) : null}
+              </div>
+
+              <div style={subtitle}>
+                Add Boolean (DI) or Dynamic (AI) alarms, then manage them in the
+                table below
               </div>
             </div>
           </div>
@@ -521,24 +523,41 @@ const headerRight = {
   gap: 8,
 };
 
-const title = { fontWeight: 900, color: "#0f172a", fontSize: 14 };
-
-const subtitleWrap = {
+const titleRow = {
   display: "flex",
-  flexDirection: "column",
-  gap: 2,
+  alignItems: "center",
+  gap: 8,
+  minWidth: 0,
+  flexWrap: "wrap",
+};
+
+const title = {
+  fontWeight: 900,
+  color: "#0f172a",
+  fontSize: 14,
+};
+
+const titleDash = {
+  color: "#0f172a",
+  fontWeight: 900,
+  fontSize: 14,
+  flexShrink: 0,
+};
+
+const dashboardTitle = {
+  color: "#0f172a",
+  fontWeight: 900,
+  fontSize: 14,
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  maxWidth: 420,
 };
 
 const subtitle = {
   color: "#475569",
   fontSize: 11,
   marginTop: 1,
-};
-
-const dashboardInfo = {
-  color: "#2563eb",
-  fontSize: 11,
-  fontWeight: 800,
 };
 
 const xBtn = {
