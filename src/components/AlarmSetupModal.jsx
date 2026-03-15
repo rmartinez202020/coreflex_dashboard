@@ -43,6 +43,10 @@ export default function AlarmSetupModal({
   sensorsData,
 
   initialAlarms = [],
+
+  // ✅ NEW: dashboard info
+  dashboardName = "",
+  dashboardId = "",
 }) {
   if (!open) return null;
 
@@ -160,6 +164,10 @@ export default function AlarmSetupModal({
       tagLabel: selectedTag.label || selectedTag.field,
       ioType: alarmType === "boolean" ? "DI" : "AI",
 
+      // ✅ NEW: store dashboard info too
+      dashboardName: String(dashboardName || "").trim(),
+      dashboardId: String(dashboardId || "").trim(),
+
       message: message?.trim() || "",
       edgeDetection:
         alarmType === "boolean"
@@ -199,6 +207,8 @@ export default function AlarmSetupModal({
   const allChecked =
     alarms.length > 0 && alarms.every((a) => checkedIds.has(a.id));
 
+  const dashboardLabel = String(dashboardName || dashboardId || "").trim();
+
   return (
     <div
       style={overlay}
@@ -212,9 +222,18 @@ export default function AlarmSetupModal({
             <div style={headerIcon}>⚙️</div>
             <div>
               <div style={title}>Alarm Setup</div>
-              <div style={subtitle}>
-                Add Boolean (DI) or Dynamic (AI) alarms, then manage them in the
-                table below
+
+              <div style={subtitleWrap}>
+                <div style={subtitle}>
+                  Add Boolean (DI) or Dynamic (AI) alarms, then manage them in
+                  the table below
+                </div>
+
+                {dashboardLabel ? (
+                  <div style={dashboardInfo}>
+                    Dashboard: <b>{dashboardLabel}</b>
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
@@ -504,7 +523,23 @@ const headerRight = {
 
 const title = { fontWeight: 900, color: "#0f172a", fontSize: 14 };
 
-const subtitle = { color: "#475569", fontSize: 11, marginTop: 1 };
+const subtitleWrap = {
+  display: "flex",
+  flexDirection: "column",
+  gap: 2,
+};
+
+const subtitle = {
+  color: "#475569",
+  fontSize: 11,
+  marginTop: 1,
+};
+
+const dashboardInfo = {
+  color: "#2563eb",
+  fontSize: 11,
+  fontWeight: 800,
+};
 
 const xBtn = {
   width: 34,
