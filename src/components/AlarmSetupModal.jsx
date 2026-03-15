@@ -501,7 +501,7 @@ const content = {
 };
 
 const topArea = {
-  flex: "0 0 36%",
+  flex: "0 0 50%",
   overflow: "hidden",
   padding: "10px 12px 12px 12px",
   borderBottom: "1px solid #e5e7eb",
