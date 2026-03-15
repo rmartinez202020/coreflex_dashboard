@@ -2,13 +2,7 @@
 import React from "react";
 import { API_URL } from "../../config/api";
 import { getToken } from "../../utils/authToken";
-import {
-  TAG_OPTIONS,
-  formatDateMMDDYYYY_hmma,
-  to01,
-  readTagFromRow,
-  normalizeDiField,
-} from "./counterModal/counterHelpers";
+import { TAG_OPTIONS, formatDateMMDDYYYY_hmma, to01, readTagFromRow, normalizeDiField, resolveDashboardIdFromProps } from "./counterModal/counterHelpers";
 import useCounterBackend from "./counterModal/useCounterBackend";
 import useDraggableModal from "./counterModal/useDraggableModal";
 
@@ -17,17 +11,16 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-function clamp(v, min, max) {
-  return Math.min(Math.max(v, min), max);
-}
-
 export default function CounterInputSettingsModal({
   open,
   tank,
   onClose,
   onSave,
+  // ✅ optional, if your canvas passes it
   dashboardId,
+  
 }) {
+
   // =========================
   // ✅ STATE (title/digits + tag)
   // =========================
@@ -43,31 +36,29 @@ export default function CounterInputSettingsModal({
   const [telemetryRow, setTelemetryRow] = React.useState(null);
   const telemetryRef = React.useRef({ loading: false });
 
-  // ✅ local saving state for Apply button
-  const [isApplying, setIsApplying] = React.useState(false);
-
+  /* 🔥 ADD THIS RIGHT HERE */
   const {
-    serverCounter,
-    serverErr,
-    saving,
-    loadingCounter,
-    setServerCounter,
-    setServerErr,
-    fetchCounter,
-    upsertCounterOnBackend,
-  } = useCounterBackend({ tank, dashboardId });
-
-  const {
-    modalRef,
-    pos,
-    isDragging,
-    centerModal,
-    onHeaderPointerDown,
-    onHeaderPointerMove,
-    onHeaderPointerUp,
-    resetPosition,
-    setPos,
-  } = useDraggableModal();
+  serverCounter,
+  serverErr,
+  saving,
+  loadingCounter,
+  setServerCounter,
+  setServerErr,
+  fetchCounter,
+  upsertCounterOnBackend,
+} = useCounterBackend({ tank, dashboardId });
+  
+const {
+  modalRef,
+  pos,
+  isDragging,
+  centerModal,
+  onHeaderPointerDown,
+  onHeaderPointerMove,
+  onHeaderPointerUp,
+  resetPosition,
+  setPos,
+} = useDraggableModal();
 
   // =========================
   // ✅ REHYDRATE ON OPEN
@@ -78,18 +69,15 @@ export default function CounterInputSettingsModal({
     setTitle(String(tank?.properties?.title ?? "Counter"));
 
     const safeDigits = Number(tank?.properties?.digits ?? 4);
-    setDigits(
-      Number.isFinite(safeDigits) ? Math.max(1, Math.min(10, safeDigits)) : 4
-    );
-
+    setDigits(Number.isFinite(safeDigits) ? Math.max(1, Math.min(10, safeDigits)) : 4);
     setDeviceId(String(tank?.properties?.tag?.deviceId || ""));
     setField(String(tank?.properties?.tag?.field || ""));
     setTelemetryRow(null);
     setServerCounter(null);
     setServerErr("");
-    setIsApplying(false);
     resetPosition();
-  }, [open, tank?.id, setServerCounter, setServerErr, resetPosition]);
+
+  }, [open, tank?.id]);
 
   // load server-side counter config on open
   React.useEffect(() => {
@@ -115,17 +103,14 @@ export default function CounterInputSettingsModal({
           const cur = p ?? { x: rect.left, y: rect.top };
           const maxX = Math.max(margin, vw - rect.width - margin);
           const maxY = Math.max(margin, vh - rect.height - margin);
-          return {
-            x: clamp(cur.x, margin, maxX),
-            y: clamp(cur.y, margin, maxY),
-          };
+          return { x: clamp(cur.x, margin, maxX), y: clamp(cur.y, margin, maxY) };
         });
       });
     };
 
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
-  }, [open, centerModal, modalRef, setPos]);
+  }, [open, centerModal]);
 
   // =========================
   // ✅ LOAD DEVICES (claimed devices for this user)
@@ -139,9 +124,7 @@ export default function CounterInputSettingsModal({
       setDevicesErr("");
       try {
         const token = String(getToken() || "").trim();
-        if (!token) {
-          throw new Error("Missing auth token. Please logout and login again.");
-        }
+        if (!token) throw new Error("Missing auth token. Please logout and login again.");
 
         const res = await fetch(`${API_URL}/zhc1921/my-devices`, {
           headers: getAuthHeaders(),
@@ -149,9 +132,7 @@ export default function CounterInputSettingsModal({
 
         if (!res.ok) {
           const j = await res.json().catch(() => ({}));
-          throw new Error(
-            j?.detail || `Failed to load devices (${res.status})`
-          );
+          throw new Error(j?.detail || `Failed to load devices (${res.status})`);
         }
 
         const data = await res.json();
@@ -197,9 +178,7 @@ export default function CounterInputSettingsModal({
     telemetryRef.current.loading = true;
     try {
       const token = String(getToken() || "").trim();
-      if (!token) {
-        throw new Error("Missing auth token. Please logout and login again.");
-      }
+      if (!token) throw new Error("Missing auth token. Please logout and login again.");
 
       const res = await fetch(`${API_URL}/zhc1921/my-devices`, {
         headers: getAuthHeaders(),
@@ -212,10 +191,7 @@ export default function CounterInputSettingsModal({
 
       const data = await res.json();
       const list = Array.isArray(data) ? data : [];
-      const row =
-        list.find(
-          (r) => String(r.deviceId ?? r.device_id ?? "").trim() === id
-        ) || null;
+      const row = list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
 
       setTelemetryRow(row);
     } catch {
@@ -252,10 +228,7 @@ export default function CounterInputSettingsModal({
 
   const tag01 = React.useMemo(() => to01(backendTagValue), [backendTagValue]);
 
-  const tagIsOnline =
-    deviceIsOnline &&
-    backendTagValue !== undefined &&
-    backendTagValue !== null;
+  const tagIsOnline = deviceIsOnline && backendTagValue !== undefined && backendTagValue !== null;
 
   const lastSeenText = React.useMemo(() => {
     const ts = telemetryRow?.lastSeen || telemetryRow?.last_seen || "";
@@ -270,14 +243,8 @@ export default function CounterInputSettingsModal({
     return "unknown";
   }, [deviceId, field, deviceIsOnline, tag01]);
 
-  const deviceDot = deviceId
-    ? deviceIsOnline
-      ? "#16a34a"
-      : "#dc2626"
-    : "#94a3b8";
-
-  const tagDot =
-    deviceId && field ? (tagIsOnline ? "#16a34a" : "#dc2626") : "#94a3b8";
+  const deviceDot = deviceId ? (deviceIsOnline ? "#16a34a" : "#dc2626") : "#94a3b8";
+  const tagDot = deviceId && field ? (tagIsOnline ? "#16a34a" : "#dc2626") : "#94a3b8";
 
   const apply = async () => {
     const nextDeviceId = String(deviceId || "").trim();
@@ -286,16 +253,6 @@ export default function CounterInputSettingsModal({
     const nextDigits = Number.isFinite(Number(digits))
       ? Math.max(1, Math.min(10, Number(digits)))
       : 4;
-
-    if (!tank?.id) {
-      setServerErr("Missing widget id");
-      return;
-    }
-
-    if (!nextDeviceId || !nextField) {
-      setServerErr("Please select a device and DI tag");
-      return;
-    }
 
     setServerErr("");
 
@@ -312,20 +269,19 @@ export default function CounterInputSettingsModal({
 
     // 2) Upsert on backend so PLAY mode counts
     try {
-      setIsApplying(true);
-
+      setSaving(true);
       const up = await upsertCounterOnBackend({
         widgetId: tank.id,
         deviceId: nextDeviceId,
         field: nextField,
       });
-
       setServerCounter(up || null);
       onClose?.();
     } catch (e) {
+      // keep modal open so user sees error
       setServerErr(e?.message || "Failed to save counter on backend");
     } finally {
-      setIsApplying(false);
+      setSaving(false);
     }
   };
 
@@ -335,7 +291,7 @@ export default function CounterInputSettingsModal({
     ? Math.max(1, Math.min(10, Number(digits)))
     : 4;
 
-  // ✅ preview in modal should reflect server count when available
+  // ✅ preview in modal should reflect server count when available (backend is source of truth)
   const serverCount = Number(serverCounter?.count ?? NaN);
   const localCount = Number(tank?.properties?.count ?? NaN);
   const previewCount = Number.isFinite(serverCount)
@@ -344,14 +300,9 @@ export default function CounterInputSettingsModal({
     ? localCount
     : 0;
 
-  const previewDisplay = String(Math.max(0, previewCount)).padStart(
-    previewDigits,
-    "0"
-  );
+  const previewDisplay = String(Math.max(0, previewCount)).padStart(previewDigits, "0");
 
-  const busy = !!saving || isApplying;
-  const canApply =
-    !!String(deviceId || "").trim() && !!normalizeDiField(field) && !busy;
+  const canApply = !!String(deviceId || "").trim() && !!normalizeDiField(field) && !saving;
 
   return (
     <div
@@ -441,8 +392,9 @@ export default function CounterInputSettingsModal({
           )}
 
           <div style={{ display: "flex", gap: 16, alignItems: "flex-start" }}>
-            {/* LEFT SIDE */}
+            {/* LEFT SIDE (preview + title/digits) */}
             <div style={{ flex: 1, minWidth: 420 }}>
+              {/* Preview */}
               <div
                 style={{
                   border: "1px solid #e5e7eb",
@@ -511,16 +463,12 @@ export default function CounterInputSettingsModal({
                     Reset (Play mode)
                   </div>
 
-                  <div
-                    style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}
-                  >
+                  <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
                     {loadingCounter ? (
                       <span>Loading backend counter…</span>
                     ) : serverCounter ? (
                       <span>
-                        Backend: <b>count={serverCounter.count}</b>,{" "}
-                        <b>prev01={serverCounter.prev01}</b>,{" "}
-                        <b>enabled={String(serverCounter.enabled)}</b>
+                        Backend: <b>count={serverCounter.count}</b>, <b>prev01={serverCounter.prev01}</b>
                       </span>
                     ) : (
                       <span>Backend: not created yet (will create on Apply)</span>
@@ -532,21 +480,17 @@ export default function CounterInputSettingsModal({
                   {deviceId && field ? (
                     previewState === "offline" ? (
                       <span>
-                        Device is{" "}
-                        <b style={{ color: "#dc2626" }}>OFFLINE</b>. Preview is
-                        not live.
+                        Device is <b style={{ color: "#dc2626" }}>OFFLINE</b>. Preview is not live.
                       </span>
                     ) : previewState === "unknown" ? (
                       <span>Waiting for DI value…</span>
                     ) : previewState === "on" ? (
                       <span>
-                        DI is <b style={{ color: "#16a34a" }}>ON (1)</b> — next
-                        rising edge will count.
+                        DI is <b style={{ color: "#16a34a" }}>ON (1)</b> — next rising edge will count.
                       </span>
                     ) : (
                       <span>
-                        DI is <b style={{ color: "#475569" }}>OFF (0)</b> —
-                        ready for next pulse.
+                        DI is <b style={{ color: "#475569" }}>OFF (0)</b> — ready for next pulse.
                       </span>
                     )
                   ) : (
@@ -555,12 +499,9 @@ export default function CounterInputSettingsModal({
                 </div>
               </div>
 
+              {/* Title */}
               <div style={{ marginBottom: 14 }}>
-                <div
-                  style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}
-                >
-                  Title
-                </div>
+                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>Title</div>
                 <input
                   value={title}
                   onChange={(e) => setTitle(e.target.value)}
@@ -575,12 +516,9 @@ export default function CounterInputSettingsModal({
                 />
               </div>
 
+              {/* Digits */}
               <div style={{ marginBottom: 14 }}>
-                <div
-                  style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}
-                >
-                  Digits
-                </div>
+                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>Digits</div>
                 <input
                   type="number"
                   value={digits}
@@ -596,13 +534,12 @@ export default function CounterInputSettingsModal({
                   }}
                 />
                 <div style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}>
-                  Display will be zero-padded (example:{" "}
-                  {String(0).padStart(previewDigits, "0")}).
+                  Display will be zero-padded (example: {String(0).padStart(previewDigits, "0")}).
                 </div>
               </div>
             </div>
 
-            {/* RIGHT SIDE */}
+            {/* RIGHT SIDE (device + DI dropdown + status) */}
             <div
               style={{
                 width: 420,
@@ -612,26 +549,16 @@ export default function CounterInputSettingsModal({
                 background: "#ffffff",
               }}
             >
-              <div
-                style={{ fontSize: 13, fontWeight: 900, marginBottom: 10 }}
-              >
+              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 10 }}>
                 DI tag to count (pulse counter)
               </div>
 
               {devicesErr && (
-                <div
-                  style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}
-                >
-                  {devicesErr}
-                </div>
+                <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>{devicesErr}</div>
               )}
 
               <div style={{ marginBottom: 10 }}>
-                <div
-                  style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}
-                >
-                  Device
-                </div>
+                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>Device</div>
                 <select
                   value={deviceId}
                   onChange={(e) => setDeviceId(e.target.value)}
@@ -653,17 +580,9 @@ export default function CounterInputSettingsModal({
                 </select>
 
                 {deviceId && selectedDevice && (
-                  <div
-                    style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}
-                  >
+                  <div style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}>
                     Selected: <b>{selectedDevice.id}</b> {"  "}•{"  "}
-                    <span
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                        gap: 6,
-                      }}
-                    >
+                    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                       <span
                         style={{
                           width: 8,
@@ -673,34 +592,23 @@ export default function CounterInputSettingsModal({
                           display: "inline-block",
                         }}
                       />
-                      <b
-                        style={{
-                          color: deviceIsOnline ? "#16a34a" : "#dc2626",
-                        }}
-                      >
-                        {backendDeviceStatus
-                          ? backendDeviceStatus.toUpperCase()
-                          : "—"}
+                      <b style={{ color: deviceIsOnline ? "#16a34a" : "#dc2626" }}>
+                        {backendDeviceStatus ? backendDeviceStatus.toUpperCase() : "—"}
                       </b>
                     </span>
                   </div>
                 )}
 
                 {deviceId && (
-                  <div
-                    style={{ marginTop: 4, fontSize: 12, color: "#64748b" }}
-                  >
+                  <div style={{ marginTop: 4, fontSize: 12, color: "#64748b" }}>
                     Last seen: <b>{lastSeenText}</b>
                   </div>
                 )}
               </div>
 
+              {/* ✅ DI dropdown */}
               <div style={{ marginBottom: 12 }}>
-                <div
-                  style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}
-                >
-                  Select DI
-                </div>
+                <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>Select DI</div>
                 <select
                   value={field}
                   onChange={(e) => setField(e.target.value)}
@@ -733,23 +641,9 @@ export default function CounterInputSettingsModal({
                   background: "#f8fafc",
                 }}
               >
-                <div
-                  style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    gap: 12,
-                  }}
-                >
+                <div style={{ display: "flex", justifyContent: "space-between", gap: 12 }}>
                   <div style={{ flex: 1 }}>
-                    <div
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 900,
-                        color: "#0f172a",
-                      }}
-                    >
-                      Device Status
-                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>Device Status</div>
                     <div style={{ fontSize: 13, marginTop: 6, color: "#334155" }}>
                       {deviceId ? (
                         backendDeviceStatus ? (
@@ -771,25 +665,11 @@ export default function CounterInputSettingsModal({
                   </div>
 
                   <div style={{ flex: 1 }}>
-                    <div
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 900,
-                        color: "#0f172a",
-                      }}
-                    >
-                      Selected DI
-                    </div>
+                    <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>Selected DI</div>
 
                     <div style={{ fontSize: 13, marginTop: 6, color: "#334155" }}>
                       {deviceId && field ? (
-                        <span
-                          style={{
-                            display: "inline-flex",
-                            alignItems: "center",
-                            gap: 6,
-                          }}
-                        >
+                        <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}>
                           <span
                             style={{
                               width: 8,
@@ -810,20 +690,10 @@ export default function CounterInputSettingsModal({
                       {deviceId && field ? (
                         tagIsOnline ? (
                           <span style={{ fontWeight: 900 }}>
-                            Value:{" "}
-                            <span style={{ color: "#0f172a" }}>
-                              {String(tag01 ?? "—")}
-                            </span>
+                            Value: <span style={{ color: "#0f172a" }}>{String(tag01 ?? "—")}</span>
                           </span>
                         ) : (
-                          <span
-                            style={{
-                              fontWeight: 900,
-                              color: "#dc2626",
-                            }}
-                          >
-                            Offline / No data
-                          </span>
+                          <span style={{ fontWeight: 900, color: "#dc2626" }}>Offline / No data</span>
                         )
                       ) : (
                         <span style={{ color: "#64748b" }}>—</span>
@@ -858,7 +728,7 @@ export default function CounterInputSettingsModal({
         >
           <button
             onClick={onClose}
-            disabled={busy}
+            disabled={saving}
             style={{
               padding: "9px 14px",
               borderRadius: 10,
@@ -867,7 +737,7 @@ export default function CounterInputSettingsModal({
               cursor: "pointer",
               fontWeight: 900,
               fontSize: 14,
-              opacity: busy ? 0.6 : 1,
+              opacity: saving ? 0.6 : 1,
             }}
           >
             Cancel
@@ -888,7 +758,7 @@ export default function CounterInputSettingsModal({
               opacity: canApply ? 1 : 0.5,
             }}
           >
-            {busy ? "Saving…" : "Apply (saves backend)"}
+            {saving ? "Saving…" : "Apply (saves backend)"}
           </button>
         </div>
       </div>
