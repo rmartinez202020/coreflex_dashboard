@@ -183,6 +183,35 @@ function getTagFieldsForMode(model, tagMode) {
   return [];
 }
 
+function getLiveValueStyle(tagMode, previewValue) {
+  if (tagMode === "di") {
+    const n = Number(previewValue);
+    const isOn = Number.isFinite(n)
+      ? n > 0
+      : String(previewValue).trim() === "1";
+
+    if (isOn) {
+      return {
+        border: "1px solid #b7dec2",
+        background: "#d9f1df",
+        color: "#111111",
+      };
+    }
+
+    return {
+      border: "1px solid #d9dde3",
+      background: "#f3f4f6",
+      color: "#111111",
+    };
+  }
+
+  return {
+    border: "1px solid #b7dec2",
+    background: "#d9f1df",
+    color: "#111111",
+  };
+}
+
 export default function AlarmTelemetrySection({
   sectionLabel = "Tag that triggers this alarm",
   alarmType = "boolean",
@@ -493,6 +522,11 @@ export default function AlarmTelemetrySection({
                     t.type || (tagMode === "ai" ? "AI" : "DI")
                   ).toUpperCase();
 
+                  const liveValueStyle = getLiveValueStyle(
+                    tagMode,
+                    t.previewValue
+                  );
+
                   return (
                     <button
                       key={rowKey}
@@ -508,7 +542,14 @@ export default function AlarmTelemetrySection({
                         {"previewValue" in t &&
                         t.previewValue !== undefined &&
                         t.previewValue !== null ? (
-                          <div style={tagLiveValue}>{String(t.previewValue)}</div>
+                          <div
+                            style={{
+                              ...tagLiveValue,
+                              ...liveValueStyle,
+                            }}
+                          >
+                            {String(t.previewValue)}
+                          </div>
                         ) : null}
                         <div style={tagTypePill}>{typeText}</div>
                       </div>
@@ -702,13 +743,16 @@ const tagRight = {
 };
 
 const tagLiveValue = {
+  minWidth: 64,
+  height: 30,
+  padding: "0 14px",
+  borderRadius: 999,
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
   fontSize: 12,
   fontWeight: 900,
-  padding: "3px 8px",
-  borderRadius: 999,
-  border: "1px solid #dbeafe",
-  background: "#eff6ff",
-  color: "#1d4ed8",
+  lineHeight: 1,
 };
 
 const tagTypePill = {
