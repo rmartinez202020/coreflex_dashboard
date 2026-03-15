@@ -33,13 +33,13 @@ export default function AlarmOptionsSection({
   message = "",
   setMessage,
 
-  // ✅ NEW: math section for Dynamic Alarm
+  // ✅ kept for compatibility with parent props
   mathEnabled = false,
   setMathEnabled,
   mathFormula = "",
   setMathFormula,
 
-  // ✅ NEW: live preview values for math row
+  // ✅ live preview values for math row
   rawValue = null,
   outputValue = null,
 }) {
@@ -72,7 +72,6 @@ export default function AlarmOptionsSection({
           </button>
         </div>
 
-        {/* ✅ Compact Math section appears only for Dynamic */}
         {alarmType === "dynamic" && (
           <div style={mathWrap}>
             <div style={mathTopRow}>
@@ -90,36 +89,19 @@ export default function AlarmOptionsSection({
                   <div style={mathReadoutBlock}>
                     <span style={mathReadoutLabel}>Output</span>
                     <span style={mathReadoutValue}>
-                      {formatPreviewNumber(
-                        mathEnabled ? outputValue ?? rawValue : rawValue
-                      )}
+                      {formatPreviewNumber(outputValue ?? rawValue)}
                     </span>
                   </div>
                 </div>
-
-                <button
-                  type="button"
-                  style={{
-                    ...chipCompact,
-                    ...(mathEnabled ? chipActive : {}),
-                  }}
-                  onClick={() => setMathEnabled?.(!mathEnabled)}
-                >
-                  {mathEnabled ? "Enabled" : "Enable"}
-                </button>
               </div>
             </div>
 
             <div style={mathInputRow}>
               <input
-                style={{
-                  ...inputCompact,
-                  opacity: mathEnabled ? 1 : 0.65,
-                }}
+                style={inputCompact}
                 value={mathFormula}
                 onChange={(e) => setMathFormula?.(e.target.value)}
                 placeholder="ex: VALUE * 1.8 + 32"
-                disabled={!mathEnabled}
               />
             </div>
 

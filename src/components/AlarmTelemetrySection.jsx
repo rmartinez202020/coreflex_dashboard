@@ -147,12 +147,12 @@ function previewStatusMeta(previewValue, selectedTag, tagMode) {
   }
 
   const numeric = Number(previewValue);
-  return {
-    text: Number.isFinite(numeric) ? String(numeric) : String(previewValue),
-    color: "#0f172a",
-    badgeBg: "rgba(219,234,254,0.65)",
-    badgeBorder: "rgba(59,130,246,0.24)",
-  };
+return {
+  text: Number.isFinite(numeric) ? String(numeric) : String(previewValue),
+  color: "#111111",
+  badgeBg: "#d9f1df",
+  badgeBorder: "#b7dec2",
+};
 }
 
 function getTagFieldsForMode(model, tagMode) {
