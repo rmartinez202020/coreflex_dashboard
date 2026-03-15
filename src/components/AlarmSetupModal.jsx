@@ -67,7 +67,7 @@ export default function AlarmSetupModal({
   // ======== FORM STATE ========
   const [alarmType, setAlarmType] = React.useState("boolean"); // boolean | dynamic
 
-  // ✅ NEW: smart telemetry section model
+  // ✅ smart telemetry section model
   const [model, setModel] = React.useState("zhc1921");
 
   const [deviceId, setDeviceId] = React.useState("");
@@ -82,6 +82,10 @@ export default function AlarmSetupModal({
   const [severity, setSeverity] = React.useState("warning");
 
   const [message, setMessage] = React.useState("");
+
+  // ✅ NEW: math state
+  const [mathEnabled, setMathEnabled] = React.useState(false);
+  const [mathFormula, setMathFormula] = React.useState("");
 
   React.useEffect(() => {
     setSelectedTag(null);
@@ -113,7 +117,9 @@ export default function AlarmSetupModal({
 
       message: message?.trim() || "",
       edgeDetection:
-        alarmType === "boolean" ? "Equal" : `When value ${operator} ${threshold}`,
+        alarmType === "boolean"
+          ? "Equal"
+          : `When value ${operator} ${threshold}`,
       value:
         alarmType === "boolean"
           ? contactType === "NO"
@@ -131,6 +137,8 @@ export default function AlarmSetupModal({
               threshold: Number(threshold),
               deadband: Number(deadband || 0),
               severity,
+              mathEnabled,
+              mathFormula: String(mathFormula || "").trim(),
             },
     };
 
@@ -204,6 +212,10 @@ export default function AlarmSetupModal({
                 setSeverity={setSeverity}
                 message={message}
                 setMessage={setMessage}
+                mathEnabled={mathEnabled}
+                setMathEnabled={setMathEnabled}
+                mathFormula={mathFormula}
+                setMathFormula={setMathFormula}
               />
 
               {/* RIGHT — smart telemetry section */}
@@ -241,8 +253,7 @@ export default function AlarmSetupModal({
                   style={{
                     ...tableBtn,
                     opacity: checkedIds.size === 0 ? 0.5 : 1,
-                    cursor:
-                      checkedIds.size === 0 ? "not-allowed" : "pointer",
+                    cursor: checkedIds.size === 0 ? "not-allowed" : "pointer",
                   }}
                   disabled={checkedIds.size === 0}
                   onClick={deleteSelected}
@@ -256,7 +267,7 @@ export default function AlarmSetupModal({
 
             <div style={tableWrap}>
               <div style={tHeadRow}>
-                <div style={{ ...tHeadCell, width: 44, textAlign: "center" }}>
+                <div style={{ ...tHeadCell, width: 40, textAlign: "center" }}>
                   <input
                     type="checkbox"
                     checked={allChecked}
@@ -266,23 +277,23 @@ export default function AlarmSetupModal({
                   />
                 </div>
 
-                <div style={{ ...tHeadCell, width: 220 }}>Trigger</div>
-                <div style={{ ...tHeadCell, width: 130 }}>Alarm Type</div>
-                <div style={{ ...tHeadCell, width: 170 }}>Edge Detection</div>
+                <div style={{ ...tHeadCell, width: 190 }}>Trigger</div>
+                <div style={{ ...tHeadCell, width: 120 }}>Alarm Type</div>
+                <div style={{ ...tHeadCell, width: 150 }}>Edge Detection</div>
                 <div
                   style={{
                     ...tHeadCell,
-                    width: 110,
+                    width: 90,
                     textAlign: "center",
                   }}
                 >
                   Value
                 </div>
-                <div style={{ ...tHeadCell, width: 160 }}>Deadband Mode</div>
+                <div style={{ ...tHeadCell, width: 130 }}>Deadband Mode</div>
                 <div
                   style={{
                     ...tHeadCell,
-                    width: 170,
+                    width: 140,
                     textAlign: "center",
                   }}
                 >
@@ -292,7 +303,7 @@ export default function AlarmSetupModal({
                   style={{
                     ...tHeadCell,
                     flex: 1,
-                    minWidth: 420,
+                    minWidth: 320,
                     borderRight: "none",
                   }}
                 >
@@ -313,7 +324,7 @@ export default function AlarmSetupModal({
                         <div
                           style={{
                             ...tCell,
-                            width: 44,
+                            width: 40,
                             textAlign: "center",
                           }}
                         >
@@ -325,37 +336,37 @@ export default function AlarmSetupModal({
                           />
                         </div>
 
-                        <div style={{ ...tCell, width: 220 }}>
-                          <b style={{ fontSize: 15 }}>{a.field}</b>
+                        <div style={{ ...tCell, width: 190 }}>
+                          <b style={{ fontSize: 13 }}>{a.field}</b>
                           <div style={tSub}>{a.deviceId}</div>
                         </div>
 
-                        <div style={{ ...tCell, width: 130 }}>
+                        <div style={{ ...tCell, width: 120 }}>
                           {a.type === "boolean" ? "Bit" : "Analog"}
                         </div>
 
-                        <div style={{ ...tCell, width: 170 }}>
+                        <div style={{ ...tCell, width: 150 }}>
                           {a.type === "boolean" ? "Equal" : a.edgeDetection}
                         </div>
 
                         <div
                           style={{
                             ...tCell,
-                            width: 110,
+                            width: 90,
                             textAlign: "center",
                           }}
                         >
                           {String(a.value)}
                         </div>
 
-                        <div style={{ ...tCell, width: 160 }}>
+                        <div style={{ ...tCell, width: 130 }}>
                           {a.deadbandMode}
                         </div>
 
                         <div
                           style={{
                             ...tCell,
-                            width: 170,
+                            width: 140,
                             textAlign: "center",
                           }}
                         >
@@ -366,7 +377,7 @@ export default function AlarmSetupModal({
                           style={{
                             ...tCell,
                             flex: 1,
-                            minWidth: 420,
+                            minWidth: 320,
                             borderRight: "none",
                           }}
                         >
@@ -410,11 +421,11 @@ const card = {
   overflow: "hidden",
   display: "flex",
   flexDirection: "column",
-  fontSize: 15,
+  fontSize: 13,
 };
 
 const header = {
-  padding: "16px 18px",
+  padding: "10px 14px",
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
@@ -422,62 +433,64 @@ const header = {
   background: "linear-gradient(180deg, #f8fafc, #ffffff)",
 };
 
-const headerLeft = { display: "flex", alignItems: "center", gap: 12 };
+const headerLeft = { display: "flex", alignItems: "center", gap: 10 };
+
 const headerIcon = {
-  width: 44,
-  height: 44,
-  borderRadius: 14,
+  width: 36,
+  height: 36,
+  borderRadius: 12,
   background: "#eff6ff",
   border: "1px solid #bfdbfe",
   display: "flex",
   alignItems: "center",
   justifyContent: "center",
-  fontSize: 18,
+  fontSize: 15,
 };
 
 const headerRight = {
   display: "flex",
   alignItems: "center",
-  gap: 10,
+  gap: 8,
 };
 
-const title = { fontWeight: 900, color: "#0f172a", fontSize: 17 };
-const subtitle = { color: "#475569", fontSize: 13, marginTop: 2 };
+const title = { fontWeight: 900, color: "#0f172a", fontSize: 14 };
+
+const subtitle = { color: "#475569", fontSize: 11, marginTop: 1 };
 
 const xBtn = {
-  width: 42,
-  height: 40,
-  borderRadius: 12,
+  width: 34,
+  height: 34,
+  borderRadius: 10,
   border: "1px solid #cbd5e1",
   background: "#f8fafc",
   color: "#0f172a",
   cursor: "pointer",
   fontWeight: 900,
-  fontSize: 16,
+  fontSize: 15,
 };
 
 const btnHeaderGhost = {
-  height: 40,
-  padding: "0 14px",
-  borderRadius: 12,
+  height: 34,
+  padding: "0 12px",
+  borderRadius: 10,
   border: "1px solid #cbd5e1",
   background: "#ffffff",
   color: "#0f172a",
   cursor: "pointer",
   fontWeight: 900,
-  fontSize: 14,
+  fontSize: 12,
 };
 
 const btnHeaderPrimary = {
-  height: 40,
-  padding: "0 14px",
-  borderRadius: 12,
+  height: 34,
+  padding: "0 12px",
+  borderRadius: 10,
   border: "1px solid #1d4ed8",
   background: "#2563eb",
   color: "#fff",
   cursor: "pointer",
   fontWeight: 900,
-  fontSize: 14,
+  fontSize: 12,
 };
 
 const content = {
@@ -488,9 +501,9 @@ const content = {
 };
 
 const topArea = {
-  flex: "0 0 50%",
+  flex: "0 0 36%",
   overflow: "hidden",
-  padding: "16px 16px 22px 16px",
+  padding: "10px 12px 12px 12px",
   borderBottom: "1px solid #e5e7eb",
   background: "#ffffff",
 };
@@ -499,7 +512,7 @@ const topGrid = {
   height: "100%",
   display: "grid",
   gridTemplateColumns: "1fr 1.15fr",
-  gap: 14,
+  gap: 10,
 };
 
 const col = { display: "flex", flexDirection: "column", minHeight: 0 };
@@ -508,7 +521,7 @@ const col = { display: "flex", flexDirection: "column", minHeight: 0 };
 const bottomArea = {
   flex: "1 1 auto",
   overflow: "hidden",
-  padding: "22px 16px 16px 16px",
+  padding: "10px 12px 12px 12px",
   background: "#ffffff",
 };
 
@@ -516,20 +529,20 @@ const tableHeader = {
   display: "flex",
   alignItems: "center",
   justifyContent: "space-between",
-  marginBottom: 10,
+  marginBottom: 8,
 };
 
-const tableHeaderLeft = { display: "flex", gap: 10, alignItems: "center" };
+const tableHeaderLeft = { display: "flex", gap: 8, alignItems: "center" };
 
 const tableBtn = {
-  height: 36,
-  padding: "0 14px",
+  height: 32,
+  padding: "0 12px",
   borderRadius: 2,
   border: "1px solid #c9c9c9",
   background: "#efefef",
   color: "#111",
   cursor: "pointer",
-  fontSize: 14,
+  fontSize: 12,
   fontWeight: 800,
 };
 
@@ -537,7 +550,7 @@ const tableWrap = {
   border: "1px solid #c9c9c9",
   borderRadius: 2,
   overflow: "hidden",
-  height: "calc(100% - 44px)",
+  height: "calc(100% - 40px)",
   display: "flex",
   flexDirection: "column",
   background: "#fff",
@@ -551,9 +564,9 @@ const tHeadRow = {
 };
 
 const tHeadCell = {
-  padding: "9px 10px",
+  padding: "8px 8px",
   fontWeight: 900,
-  fontSize: 14,
+  fontSize: 12,
   whiteSpace: "nowrap",
   overflow: "hidden",
   textOverflow: "ellipsis",
@@ -574,8 +587,8 @@ const tRow = {
 };
 
 const tCell = {
-  padding: "9px 10px",
-  fontSize: 14,
+  padding: "8px 8px",
+  fontSize: 12,
   whiteSpace: "nowrap",
   overflow: "hidden",
   textOverflow: "ellipsis",
@@ -583,6 +596,6 @@ const tCell = {
   borderRight: "1px solid #eeeeee",
 };
 
-const tSub = { fontSize: 12, color: "#666", marginTop: 3 };
-const tEmpty = { padding: 12, color: "#666", fontSize: 14 };
-const checkbox = { width: 16, height: 16, cursor: "pointer" };
+const tSub = { fontSize: 11, color: "#666", marginTop: 2 };
+const tEmpty = { padding: 12, color: "#666", fontSize: 12 };
+const checkbox = { width: 14, height: 14, cursor: "pointer" };
