@@ -1,6 +1,22 @@
 // src/components/AlarmOptionsSection.jsx
 import React from "react";
 
+function formatPreviewNumber(v) {
+  if (v === null || v === undefined || v === "") return "—";
+
+  if (typeof v === "number") {
+    if (!Number.isFinite(v)) return "—";
+    return Number.isInteger(v) ? String(v) : String(Number(v.toFixed(3)));
+  }
+
+  const n = Number(v);
+  if (!Number.isNaN(n) && Number.isFinite(n)) {
+    return Number.isInteger(n) ? String(n) : String(Number(n.toFixed(3)));
+  }
+
+  return String(v);
+}
+
 export default function AlarmOptionsSection({
   alarmType = "boolean",
   setAlarmType,
@@ -22,6 +38,10 @@ export default function AlarmOptionsSection({
   setMathEnabled,
   mathFormula = "",
   setMathFormula,
+
+  // ✅ NEW: live preview values for math row
+  rawValue = null,
+  outputValue = null,
 }) {
   return (
     <div style={col}>
@@ -58,16 +78,36 @@ export default function AlarmOptionsSection({
             <div style={mathTopRow}>
               <div style={sectionSubLabel}>Math</div>
 
-              <button
-                type="button"
-                style={{
-                  ...chipCompact,
-                  ...(mathEnabled ? chipActive : {}),
-                }}
-                onClick={() => setMathEnabled?.(!mathEnabled)}
-              >
-                {mathEnabled ? "Math Enabled" : "Use Math"}
-              </button>
+              <div style={mathRightRow}>
+                <div style={mathReadoutGroup}>
+                  <div style={mathReadoutBlock}>
+                    <span style={mathReadoutLabel}>Raw</span>
+                    <span style={mathReadoutValue}>
+                      {formatPreviewNumber(rawValue)}
+                    </span>
+                  </div>
+
+                  <div style={mathReadoutBlock}>
+                    <span style={mathReadoutLabel}>Output</span>
+                    <span style={mathReadoutValue}>
+                      {formatPreviewNumber(
+                        mathEnabled ? outputValue ?? rawValue : rawValue
+                      )}
+                    </span>
+                  </div>
+                </div>
+
+                <button
+                  type="button"
+                  style={{
+                    ...chipCompact,
+                    ...(mathEnabled ? chipActive : {}),
+                  }}
+                  onClick={() => setMathEnabled?.(!mathEnabled)}
+                >
+                  {mathEnabled ? "Enabled" : "Enable"}
+                </button>
+              </div>
             </div>
 
             <div style={mathInputRow}>
@@ -265,6 +305,49 @@ const mathTopRow = {
   justifyContent: "space-between",
   gap: 10,
   marginBottom: 8,
+};
+
+const mathRightRow = {
+  display: "flex",
+  alignItems: "center",
+  gap: 10,
+  flexWrap: "wrap",
+  justifyContent: "flex-end",
+};
+
+const mathReadoutGroup = {
+  display: "flex",
+  alignItems: "center",
+  gap: 8,
+  flexWrap: "wrap",
+};
+
+const mathReadoutBlock = {
+  display: "flex",
+  alignItems: "center",
+  gap: 6,
+};
+
+const mathReadoutLabel = {
+  fontSize: 11,
+  fontWeight: 800,
+  color: "#475569",
+};
+
+const mathReadoutValue = {
+  minWidth: 68,
+  height: 28,
+  padding: "0 12px",
+  borderRadius: 999,
+  border: "1px solid #b7dec2",
+  background: "#d9f1df",
+  color: "#111111",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 12,
+  fontWeight: 900,
+  lineHeight: 1,
 };
 
 const mathInputRow = {
