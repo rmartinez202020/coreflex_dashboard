@@ -358,6 +358,8 @@ export default function AlarmLogWindow({
         devices={devices}
         availableTags={availableTags}
         sensorsData={sensorsData}
+        dashboardName={normalizedDashboardName}
+        dashboardId={dashboardId}
       />
 
       {/* Close confirm */}
