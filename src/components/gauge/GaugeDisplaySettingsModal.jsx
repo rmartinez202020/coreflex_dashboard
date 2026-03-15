@@ -122,7 +122,12 @@ export default function GaugeDisplaySettingsModal({
 }) {
   const defaults = useMemo(() => buildGaugeDefaults(widget), [widget]);
 
-  const [title, setTitle] = useState(defaults.title || "Gauge");
+  // ✅ allow blank title; only use "Gauge" when title is truly null/undefined
+  const [title, setTitle] = useState(
+    defaults.title === null || defaults.title === undefined
+      ? "Gauge"
+      : String(defaults.title)
+  );
   const [units, setUnits] = useState(defaults.units || "");
   const [gaugeStyle, setGaugeStyle] = useState(defaults.gaugeStyle || "classic");
 
@@ -170,7 +175,10 @@ export default function GaugeDisplaySettingsModal({
   useEffect(() => {
     const d = buildGaugeDefaults(widget);
 
-    setTitle(d.title || "Gauge");
+    // ✅ keep blank blank
+    setTitle(
+      d.title === null || d.title === undefined ? "Gauge" : String(d.title)
+    );
     setUnits(d.units || "");
     setGaugeStyle(d.gaugeStyle || "classic");
 
@@ -235,7 +243,8 @@ export default function GaugeDisplaySettingsModal({
   const savePayload = {
     ...widget,
     type: "gaugeDisplay",
-    title: String(title || "").trim() || "Gauge",
+    // ✅ allow blank title to remain blank
+    title: String(title ?? ""),
     units: String(units || "").trim(),
     gaugeStyle: gaugeStyle || "classic",
 
