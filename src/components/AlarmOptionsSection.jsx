@@ -16,11 +16,18 @@ export default function AlarmOptionsSection({
   setSeverity,
   message = "",
   setMessage,
+
+  // ✅ NEW: math section for Dynamic Alarm
+  mathEnabled = false,
+  setMathEnabled,
+  mathFormula = "",
+  setMathFormula,
 }) {
   return (
     <div style={col}>
       <div style={sectionCompact}>
         <div style={sectionLabel}>Alarm Type</div>
+
         <div style={typeRow}>
           <button
             type="button"
@@ -41,9 +48,50 @@ export default function AlarmOptionsSection({
             }}
             onClick={() => setAlarmType?.("dynamic")}
           >
-            Dynamic Alarm (AO)
+            Dynamic Alarm (AI)
           </button>
         </div>
+
+        {/* ✅ NEW: Math section appears only for Dynamic */}
+        {alarmType === "dynamic" && (
+          <div style={mathWrap}>
+            <div style={mathHeaderRow}>
+              <div style={sectionSubLabel}>Math</div>
+
+              <button
+                type="button"
+                style={{
+                  ...chip,
+                  ...(mathEnabled ? chipActive : {}),
+                }}
+                onClick={() => setMathEnabled?.(!mathEnabled)}
+              >
+                {mathEnabled ? "Math Enabled" : "Use Math"}
+              </button>
+            </div>
+
+            <div style={fieldRowNoTop}>
+              <div style={fieldLabel}>Formula</div>
+              <input
+                style={{
+                  ...input,
+                  opacity: mathEnabled ? 1 : 0.6,
+                }}
+                value={mathFormula}
+                onChange={(e) => setMathFormula?.(e.target.value)}
+                placeholder="ex: VALUE * 1.8 + 32"
+                disabled={!mathEnabled}
+              />
+            </div>
+
+            <div style={help}>
+              Use <b>VALUE</b> as the live AI reading.
+              <span style={{ marginLeft: 6 }}>
+                Examples: <b>VALUE * 1.8 + 32</b>, <b>VALUE / 10</b>, <b>VALUE - 4</b>
+              </span>
+            </div>
+          </div>
+        )}
       </div>
 
       <div style={sectionCompact}>
@@ -180,6 +228,12 @@ const sectionLabel = {
   marginBottom: 10,
 };
 
+const sectionSubLabel = {
+  fontWeight: 900,
+  color: "#0f172a",
+  fontSize: 13,
+};
+
 const typeRow = {
   display: "flex",
   gap: 12,
@@ -202,6 +256,19 @@ const typeBtnActive = {
   background: "#eff6ff",
 };
 
+const mathWrap = {
+  marginTop: 14,
+  paddingTop: 14,
+  borderTop: "1px solid #e5e7eb",
+};
+
+const mathHeaderRow = {
+  display: "flex",
+  alignItems: "center",
+  justifyContent: "space-between",
+  gap: 12,
+};
+
 const row4 = {
   display: "grid",
   gridTemplateColumns: "160px 1fr 1fr 200px",
@@ -210,6 +277,10 @@ const row4 = {
 };
 
 const fieldRow = {
+  marginTop: 10,
+};
+
+const fieldRowNoTop = {
   marginTop: 10,
 };
 
