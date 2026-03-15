@@ -523,11 +523,13 @@ export default function AppModals({
           }}
         >
           <AlarmLogWindow
-            onClose={closeAlarmLog}
-            onLaunch={onLaunchAlarmLog}
-            onMinimize={onMinimizeAlarmLog}
-            onStartDragWindow={alarmLogWindowProps?.onStartDragWindow}
-          />
+  onClose={closeAlarmLog}
+  onLaunch={onLaunchAlarmLog}
+  onMinimize={onMinimizeAlarmLog}
+  onStartDragWindow={alarmLogWindowProps?.onStartDragWindow}
+  dashboardId={safeDashboardId || "main"}
+  dashboardName={safeDashboardName}
+/>
 
           {/* ✅ Right edge resize */}
           <div

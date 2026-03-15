@@ -23,6 +23,9 @@ export default function AlarmLogWindow({
 
   title = "Alarms Log (DI-AI)",
 
+  // ✅ NEW: show owner dashboard on top bar
+  dashboardName = "",
+
   // ✅ NEW: lets frontend know which dashboard/window row to delete
   dashboardId = "main",
   windowKey = "alarmLog",
@@ -41,6 +44,13 @@ export default function AlarmLogWindow({
   // ✅ NEW: UX state for Close Anyway delete flow
   const [isDeletingClose, setIsDeletingClose] = React.useState(false);
   const [closeError, setCloseError] = React.useState("");
+
+  // ✅ dashboard label shown in the top bar
+  const normalizedDashboardName =
+    String(dashboardName || "").trim() ||
+    (String(dashboardId || "").trim() === "main"
+      ? "Main Dashboard"
+      : "Dashboard");
 
   const visibleAlarms = React.useMemo(() => {
     if (alarmView === "disabled") return [];
@@ -122,17 +132,21 @@ export default function AlarmLogWindow({
   return (
     <div style={wrap}>
       {/* TOP BAR */}
-
       <div
-  style={{ ...topBar, cursor: isPage ? "default" : "grab" }}
-  onMouseDown={(e) => {
-    e.stopPropagation();
-    if (!isPage) onStartDragWindow?.(e);
-  }}
->
-
+        style={{ ...topBar, cursor: isPage ? "default" : "grab" }}
+        onMouseDown={(e) => {
+          e.stopPropagation();
+          if (!isPage) onStartDragWindow?.(e);
+        }}
+      >
         <div style={titleWrap}>
           <span style={{ fontWeight: 900 }}>{title}</span>
+
+          <span style={titleDash}>—</span>
+
+          <span style={dashboardNameText} title={normalizedDashboardName}>
+            {normalizedDashboardName}
+          </span>
         </div>
 
         <div style={btnRow}>
@@ -468,7 +482,30 @@ const topBar = {
   userSelect: "none",
 };
 
-const titleWrap = { display: "flex", gap: 8, alignItems: "center" };
+const titleWrap = {
+  display: "flex",
+  gap: 8,
+  alignItems: "center",
+  minWidth: 0,
+  flex: 1,
+};
+
+const titleDash = {
+  color: "#9ca3af",
+  fontWeight: 800,
+  flexShrink: 0,
+};
+
+const dashboardNameText = {
+  color: "#374151",
+  fontWeight: 800,
+  fontSize: 13,
+  whiteSpace: "nowrap",
+  overflow: "hidden",
+  textOverflow: "ellipsis",
+  minWidth: 0,
+};
+
 const btnRow = { display: "flex", gap: 6, alignItems: "center" };
 
 const iconBtn = {
