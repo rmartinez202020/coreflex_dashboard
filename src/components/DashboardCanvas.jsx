@@ -183,7 +183,7 @@ export default function DashboardCanvas({
     dashboardId,
     selectedTank,
     resolveDashboardId,
-    pollMs: 2000, 
+    pollMs: 1000, 
     modelMeta: {
       zhc1921: { base: "zhc1921" },
       zhc1661: { base: "zhc1661" },
