@@ -4,6 +4,7 @@ import React, { useMemo } from "react";
 import {
   buildGaugeDefaults,
   computeGaugeValue,
+  describeArc,
   formatCompactValue,
   getGaugePalette,
   normalizeRange,
@@ -12,6 +13,10 @@ import {
   getNeedleLine,
   getTickValues,
 } from "../utils";
+
+function isFiniteNumber(v) {
+  return Number.isFinite(Number(v));
+}
 
 export default function SemiCircleGauge({
   value = 0,
@@ -64,6 +69,104 @@ export default function SemiCircleGauge({
   const ticks = getTickValues(minValue, maxValue, 6);
   const displayValue = formatCompactValue(computed.displayValue, cfg.decimals);
 
+  const lowWarn = isFiniteNumber(cfg.lowWarn) ? Number(cfg.lowWarn) : null;
+  const highWarn = isFiniteNumber(cfg.highWarn) ? Number(cfg.highWarn) : null;
+
+  const zoneBounds = useMemo(() => {
+    let low = lowWarn;
+    let high = highWarn;
+
+    if (low !== null) low = Math.max(minValue, Math.min(maxValue, low));
+    if (high !== null) high = Math.max(minValue, Math.min(maxValue, high));
+
+    if (low !== null && high !== null && high < low) {
+      const tmp = low;
+      low = high;
+      high = tmp;
+    }
+
+    return { low, high };
+  }, [lowWarn, highWarn, minValue, maxValue]);
+
+  const zoneSegments = useMemo(() => {
+    if (cfg.showZones === false) return [];
+
+    const segments = [];
+    const { low, high } = zoneBounds;
+
+    if (low !== null && high !== null) {
+      if (low > minValue) {
+        segments.push({
+          from: minValue,
+          to: low,
+          color: palette.warning,
+        });
+      }
+
+      if (high > low) {
+        segments.push({
+          from: low,
+          to: high,
+          color: palette.normal,
+        });
+      }
+
+      if (high < maxValue) {
+        segments.push({
+          from: high,
+          to: maxValue,
+          color: palette.alarm,
+        });
+      }
+
+      return segments;
+    }
+
+    if (low !== null) {
+      if (low > minValue) {
+        segments.push({
+          from: minValue,
+          to: low,
+          color: palette.warning,
+        });
+      }
+      if (low < maxValue) {
+        segments.push({
+          from: low,
+          to: maxValue,
+          color: palette.normal,
+        });
+      }
+      return segments;
+    }
+
+    if (high !== null) {
+      if (high > minValue) {
+        segments.push({
+          from: minValue,
+          to: high,
+          color: palette.normal,
+        });
+      }
+      if (high < maxValue) {
+        segments.push({
+          from: high,
+          to: maxValue,
+          color: palette.alarm,
+        });
+      }
+      return segments;
+    }
+
+    segments.push({
+      from: minValue,
+      to: maxValue,
+      color: palette.normal,
+    });
+
+    return segments;
+  }, [cfg.showZones, zoneBounds, minValue, maxValue, palette]);
+
   return (
     <div
       style={{
@@ -95,60 +198,89 @@ export default function SemiCircleGauge({
           </text>
         )}
 
-        {/* Gauge arc */}
+        {/* Base arc */}
         <path
-          d={`
-            M ${polarToCartesian(cx, cy, radius, endAngle).x}
-              ${polarToCartesian(cx, cy, radius, endAngle).y}
-            A ${radius} ${radius} 0 0 0
-              ${polarToCartesian(cx, cy, radius, startAngle).x}
-              ${polarToCartesian(cx, cy, radius, startAngle).y}
-          `}
+          d={describeArc(cx, cy, radius, startAngle, endAngle)}
           fill="none"
           stroke={palette.border}
           strokeWidth="10"
           strokeLinecap="round"
         />
 
-        {/* Ticks */}
-        {ticks.map((t, i) => {
-          const angle = valueToAngle(
-            t,
-            minValue,
-            maxValue,
-            startAngle,
-            endAngle
-          );
+        {/* Zone overlay */}
+        {cfg.showZones !== false &&
+          zoneSegments.map((seg, i) => {
+            if (!(seg.to > seg.from)) return null;
 
-          const p1 = polarToCartesian(cx, cy, radius - 14, angle);
-          const p2 = polarToCartesian(cx, cy, radius - 2, angle);
-          const label = polarToCartesian(cx, cy, radius - 30, angle);
+            const segStart = valueToAngle(
+              seg.from,
+              minValue,
+              maxValue,
+              startAngle,
+              endAngle
+            );
+            const segEnd = valueToAngle(
+              seg.to,
+              minValue,
+              maxValue,
+              startAngle,
+              endAngle
+            );
 
-          return (
-            <g key={i}>
-              <line
-                x1={p1.x}
-                y1={p1.y}
-                x2={p2.x}
-                y2={p2.y}
-                stroke={palette.tick}
-                strokeWidth="2"
+            return (
+              <path
+                key={`zone-${i}`}
+                d={describeArc(cx, cy, radius, segStart, segEnd)}
+                fill="none"
+                stroke={seg.color}
+                strokeWidth="10"
+                strokeLinecap="round"
               />
+            );
+          })}
 
-              <text
-                x={label.x}
-                y={label.y}
-                fill={palette.label}
-                fontSize="11"
-                textAnchor="middle"
-                dominantBaseline="middle"
-                style={{ userSelect: "none" }}
-              >
-                {Math.round(t)}
-              </text>
-            </g>
-          );
-        })}
+        {/* Ticks + labels */}
+        {cfg.showTicks !== false &&
+          ticks.map((t, i) => {
+            const angle = valueToAngle(
+              t,
+              minValue,
+              maxValue,
+              startAngle,
+              endAngle
+            );
+
+            const p1 = polarToCartesian(cx, cy, radius - 14, angle);
+            const p2 = polarToCartesian(cx, cy, radius - 2, angle);
+            const label = polarToCartesian(cx, cy, radius - 30, angle);
+
+            return (
+              <g key={i}>
+                <line
+                  x1={p1.x}
+                  y1={p1.y}
+                  x2={p2.x}
+                  y2={p2.y}
+                  stroke={palette.tick}
+                  strokeWidth="2"
+                />
+
+                {cfg.showLabels !== false && (
+                  <text
+                    x={label.x}
+                    y={label.y}
+                    fill={palette.label}
+                    fontSize="11"
+                    textAnchor="middle"
+                    dominantBaseline="middle"
+                    style={{ userSelect: "none" }}
+                  >
+                    {Math.round(t)}
+                  </text>
+                )}
+              </g>
+            );
+          })}
 
         {/* Needle */}
         <line
