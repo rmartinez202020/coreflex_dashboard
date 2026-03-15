@@ -29,6 +29,7 @@ import useObjectDragging from "./hooks/useObjectDragging";
 import useDropHandler from "./hooks/useDropHandler";
 import useWindowDragResize from "./hooks/useWindowDragResize";
 import useDashboardModalsController from "./hooks/useDashboardModalsController";
+import useAlarmLogWindowState from "./hooks/useAlarmLogWindowState";
 
 export default function App() {
   const navigate = useNavigate();
@@ -317,75 +318,23 @@ export default function App() {
     setPushButtonNCSettingsId(null);
   };
 
-  // 🚨 ALARMS LOG MODAL (AI)
-  const [alarmLogOpen, setAlarmLogOpen] = useState(false);
-
-  // ✅ minimized state for alarm log (shows in AppTopBar header tray)
-  const [alarmLogMinimized, setAlarmLogMinimized] = useState(false);
-
-  // ✅ keep last backend row for debugging/future sync
-  const [alarmLogWindowRow, setAlarmLogWindowRow] = useState(null);
-
-  function getAuthHeaders() {
-    const token = String(getToken() || "").trim();
-    return token ? { Authorization: `Bearer ${token}` } : {};
-  }
-
-  const openAlarmLog = async () => {
-    try {
-      const res = await fetch(`${API_URL}/alarm-log-windows/upsert`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeaders(),
-        },
-        body: JSON.stringify({
-          dashboard_id: String(effectiveDashboardId || "main").trim() || "main",
-          window_key: "alarmLog",
-          title: "Alarms Log (DI-AI)",
-          pos_x: 140,
-          pos_y: 90,
-          width: 900,
-          height: 420,
-          is_open: true,
-          is_minimized: false,
-          is_launched: false,
-        }),
-      });
-
-      const data = await res.json();
-
-      if (!res.ok || !data?.ok) {
-        throw new Error(
-          data?.detail || data?.error || "Failed to create/open alarm log window"
-        );
-      }
-
-      setAlarmLogWindowRow(data);
-      setAlarmLogMinimized(false);
-      setAlarmLogOpen(true);
-    } catch (err) {
-      console.error("Alarm log open failed:", err);
-      alert("Could not open Alarms Log window.");
-    }
-  };
-
-  const closeAlarmLog = () => {
-    setAlarmLogMinimized(false);
-    setAlarmLogOpen(false);
-  };
-
-  // ✅ MINIMIZE: hide modal + show minimized tab in AppTopBar
-  const minimizeAlarmLog = () => {
-    setAlarmLogOpen(false);
-    setAlarmLogMinimized(true);
-  };
-
-  // ✅ RESTORE: show modal again + remove minimized tab
-  const restoreAlarmLog = () => {
-    setAlarmLogMinimized(false);
-    setAlarmLogOpen(true);
-  };
+    const {
+    alarmLogOpen,
+    alarmLogMinimized,
+    alarmLogWindowRow,
+    openAlarmLog,
+    closeAlarmLog,
+    minimizeAlarmLog,
+    restoreAlarmLog,
+  } = useAlarmLogWindowState({
+    apiUrl: API_URL,
+    dashboardId: effectiveDashboardId,
+    activePage,
+    currentUserKey,
+    defaultTitle: "Alarms Log (DI-AI)",
+    defaultPosition: { x: 140, y: 90 },
+    defaultSize: { width: 900, height: 420 },
+  });
 
   // Launch = separate window (always tracking alarms)
   const launchAlarmLog = () => window.open("/launchAlarmLog", "_blank");
