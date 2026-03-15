@@ -107,9 +107,7 @@ export default function AlarmLogWindow({
           data?.detail || data?.error || "Failed to delete alarm log window row"
         );
       }
-
-      console.log("🗑️ Alarm log window row delete result:", data);
-
+      
       setShowCloseConfirm(false);
       setCheckedIds(new Set());
       setSelectedId(null);
