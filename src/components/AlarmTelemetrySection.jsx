@@ -10,8 +10,8 @@ function getAuthHeaders() {
 
 // ✅ match your working modal model map
 const MODEL_META = {
-  zhc1921: { label: "CF-2000 (ZHC1921)", base: "zhc1921" },
-  zhc1661: { label: "CF-1600 (ZHC1661)", base: "zhc1661" },
+  zhc1921: { label: "CF-2000", base: "zhc1921" },
+  zhc1661: { label: "CF-1600", base: "zhc1661" },
   tp4000: { label: "TP-4000", base: "tp4000" },
 };
 
@@ -133,7 +133,8 @@ function getTagFieldsForMode(model, tagMode) {
   if (tagMode === "ai") {
     if (m === "zhc1921") return ["ai1", "ai2", "ai3", "ai4"];
     if (m === "zhc1661") return ["ai1", "ai2", "ai3", "ai4"];
-    if (m === "tp4000") return ["te101", "te102", "te103", "te104", "te105", "te106", "te107", "te108"];
+    if (m === "tp4000")
+      return ["te101", "te102", "te103", "te104", "te105", "te106", "te107", "te108"];
   }
 
   return [];
@@ -308,7 +309,6 @@ export default function AlarmTelemetrySection({
         const hay = [
           String(t.field || "").toLowerCase(),
           String(t.label || "").toLowerCase(),
-          String(t.deviceId || "").toLowerCase(),
         ].join(" ");
 
         return hay.includes(q);
@@ -326,7 +326,7 @@ export default function AlarmTelemetrySection({
     [previewValue, selectedTag, tagMode]
   );
 
-  const hintText = tagMode === "ai" ? "Showing AI tags" : "Showing DI tags";
+  const hintText = "Live Values";
 
   return (
     <div style={sectionCompact}>
@@ -439,12 +439,7 @@ export default function AlarmTelemetrySection({
                       onClick={() => setSelectedTag?.(t)}
                     >
                       <div style={tagMain}>
-                        <div style={tagField}>{t.field}</div>
-                        <div style={tagMeta}>
-                          {t.label ? t.label : ""}
-                          {t.label && t.deviceId ? " • " : ""}
-                          {t.deviceId ? t.deviceId : ""}
-                        </div>
+                        <div style={tagField}>{formatTagLabel(t.field)}</div>
                       </div>
 
                       <div style={tagRight}>
@@ -467,7 +462,7 @@ export default function AlarmTelemetrySection({
               <div>
                 <div style={pickedLabel}>Selected Tag</div>
                 <div style={pickedValue}>
-                  {selectedTag.deviceId} / <b>{selectedTag.field}</b>
+                  {selectedTag.deviceId} / <b>{formatTagLabel(selectedTag.field)}</b>
                 </div>
                 <div style={pickedSubMeta}>
                   Type: <b>{String(selectedTag.type || tagMode).toUpperCase()}</b>
@@ -633,13 +628,6 @@ const tagMain = {
 const tagField = {
   fontWeight: 900,
   fontSize: 14,
-};
-
-const tagMeta = {
-  fontSize: 13,
-  color: "#475569",
-  marginTop: 3,
-  textAlign: "left",
 };
 
 const tagRight = {
