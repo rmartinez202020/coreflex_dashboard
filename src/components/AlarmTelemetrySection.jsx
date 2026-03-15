@@ -18,10 +18,8 @@ const MODEL_META = {
 function normalizeTagType(alarmType) {
   const s = String(alarmType || "").trim().toLowerCase();
 
-  // ✅ boolean alarms -> DI
   if (s === "boolean" || s === "digital" || s === "di") return "di";
 
-  // ✅ dynamic / analog alarms -> AI
   if (
     s === "dynamic" ||
     s === "analog" ||
@@ -86,7 +84,6 @@ function readTagFromRow(row, field) {
     if (row[altUp] !== undefined) return row[altUp];
   }
 
-  // ✅ optional aliases for AI naming variations
   if (/^ai[1-8]$/.test(field)) {
     const n = field.replace("ai", "");
     const extra = [`AI${n}`, `ai_${n}`, `AI_${n}`, `ai-${n}`, `AI-${n}`];
@@ -95,7 +92,6 @@ function readTagFromRow(row, field) {
     }
   }
 
-  // ✅ TP-4000 common variants
   if (/^te10[1-8]$/.test(field)) {
     const upTe = String(field).toUpperCase();
     const extra = [upTe, upTe.replace("TE", "T"), field.toLowerCase()];
@@ -147,12 +143,12 @@ function previewStatusMeta(previewValue, selectedTag, tagMode) {
   }
 
   const numeric = Number(previewValue);
-return {
-  text: Number.isFinite(numeric) ? String(numeric) : String(previewValue),
-  color: "#111111",
-  badgeBg: "#d9f1df",
-  badgeBorder: "#b7dec2",
-};
+  return {
+    text: Number.isFinite(numeric) ? String(numeric) : String(previewValue),
+    color: "#111111",
+    badgeBg: "#d9f1df",
+    badgeBorder: "#b7dec2",
+  };
 }
 
 function getTagFieldsForMode(model, tagMode) {
@@ -216,7 +212,6 @@ export default function AlarmTelemetrySection({
   sectionLabel = "Tag that triggers this alarm",
   alarmType = "boolean",
 
-  // ✅ now smart section keeps model too
   model = "zhc1921",
   setModel,
 
@@ -324,9 +319,7 @@ export default function AlarmTelemetrySection({
     try {
       const token = String(getToken() || "").trim();
       if (!token) {
-        throw new Error(
-          "Missing auth token. Please logout and login again."
-        );
+        throw new Error("Missing auth token. Please logout and login again.");
       }
 
       const res = await fetch(`${API_URL}/${base}/my-devices`, {
@@ -391,7 +384,7 @@ export default function AlarmTelemetrySection({
           field,
           label: formatTagLabel(field),
           type: tagMode.toUpperCase(),
-          previewValue: value,
+          previewValue: tagMode === "di" ? to01(value) : value,
         };
       })
       .filter((t) => {
@@ -412,6 +405,31 @@ export default function AlarmTelemetrySection({
     const raw = readTagFromRow(telemetryRow, selectedTag.field);
     return tagMode === "di" ? to01(raw) : raw;
   }, [selectedTag, telemetryRow, tagMode]);
+
+  // ✅ IMPORTANT: keep selectedTag.previewValue live-updated
+  React.useEffect(() => {
+    if (!selectedTag || !telemetryRow) return;
+
+    const raw = readTagFromRow(telemetryRow, selectedTag.field);
+    const nextPreviewValue = tagMode === "di" ? to01(raw) : raw;
+
+    const prevVal = selectedTag.previewValue;
+    const sameValue =
+      String(prevVal ?? "") === String(nextPreviewValue ?? "");
+
+    const sameDevice =
+      String(selectedTag.deviceId || "") === String(deviceId || "");
+    const sameField =
+      String(selectedTag.field || "") === String(selectedTag.field || "");
+
+    if (sameValue && sameDevice && sameField) return;
+
+    setSelectedTag?.({
+      ...selectedTag,
+      deviceId: String(deviceId || "").trim(),
+      previewValue: nextPreviewValue,
+    });
+  }, [selectedTag, telemetryRow, tagMode, setSelectedTag, deviceId]);
 
   const selectedPreview = React.useMemo(
     () => previewStatusMeta(previewValue, selectedTag, tagMode),

@@ -3,6 +3,28 @@ import React from "react";
 import AlarmTelemetrySection from "./AlarmTelemetrySection";
 import AlarmOptionsSection from "./AlarmOptionsSection";
 
+function computeMathOutput(rawValue, mathFormula) {
+  if (rawValue === null || rawValue === undefined || rawValue === "") {
+    return null;
+  }
+
+  const numeric = Number(rawValue);
+  if (!Number.isFinite(numeric)) return rawValue;
+
+  const formula = String(mathFormula || "").trim();
+  if (!formula) return numeric;
+
+  try {
+    const expr = formula.replace(/\bVALUE\b/g, `(${numeric})`);
+    // eslint-disable-next-line no-new-func
+    const fn = new Function(`return (${expr});`);
+    const out = fn();
+    return Number.isFinite(Number(out)) ? Number(out) : out;
+  } catch {
+    return numeric;
+  }
+}
+
 export default function AlarmSetupModal({
   open,
   onClose,
@@ -83,7 +105,7 @@ export default function AlarmSetupModal({
 
   const [message, setMessage] = React.useState("");
 
-  // ✅ NEW: math state
+  // ✅ math state
   const [mathEnabled, setMathEnabled] = React.useState(false);
   const [mathFormula, setMathFormula] = React.useState("");
 
@@ -91,6 +113,20 @@ export default function AlarmSetupModal({
     setSelectedTag(null);
     setSearch("");
   }, [alarmType]);
+
+  // ✅ NEW: selected live raw value from telemetry section
+  const rawValue = React.useMemo(() => {
+    if (!selectedTag) return null;
+    if (selectedTag.previewValue === undefined || selectedTag.previewValue === null) {
+      return null;
+    }
+    return selectedTag.previewValue;
+  }, [selectedTag]);
+
+  // ✅ NEW: computed math output preview
+  const outputValue = React.useMemo(() => {
+    return computeMathOutput(rawValue, mathFormula);
+  }, [rawValue, mathFormula]);
 
   const canAdd =
     !!selectedTag &&
@@ -139,6 +175,8 @@ export default function AlarmSetupModal({
               severity,
               mathEnabled,
               mathFormula: String(mathFormula || "").trim(),
+              rawValue,
+              outputValue,
             },
     };
 
@@ -216,6 +254,8 @@ export default function AlarmSetupModal({
                 setMathEnabled={setMathEnabled}
                 mathFormula={mathFormula}
                 setMathFormula={setMathFormula}
+                rawValue={rawValue}
+                outputValue={outputValue}
               />
 
               {/* RIGHT — smart telemetry section */}
