@@ -220,6 +220,7 @@ export default function AlarmSetupModal({
 
     const next = [...alarms, newAlarm];
     setAlarms(next);
+    setCheckedIds(new Set());
     emitChange(next);
     onAddAlarm?.(newAlarm);
     setMessage("");
@@ -264,15 +265,6 @@ export default function AlarmSetupModal({
           <div style={headerRight}>
             <button style={btnHeaderGhost} onClick={onClose}>
               Close
-            </button>
-
-            <button
-              style={{ ...btnHeaderPrimary, opacity: canAdd ? 1 : 0.5 }}
-              onClick={handleAdd}
-              disabled={!canAdd}
-              title={!canAdd ? "Complete all required alarm settings" : "Add Alarm"}
-            >
-              Add Alarm
             </button>
 
             <button style={xBtn} onClick={onClose} title="Close">
@@ -454,18 +446,6 @@ const btnHeaderGhost = {
   border: "1px solid #cbd5e1",
   background: "#ffffff",
   color: "#0f172a",
-  cursor: "pointer",
-  fontWeight: 900,
-  fontSize: 12,
-};
-
-const btnHeaderPrimary = {
-  height: 34,
-  padding: "0 12px",
-  borderRadius: 10,
-  border: "1px solid #1d4ed8",
-  background: "#2563eb",
-  color: "#fff",
   cursor: "pointer",
   fontWeight: 900,
   fontSize: 12,
