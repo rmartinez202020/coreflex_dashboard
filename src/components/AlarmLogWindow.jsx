@@ -1,6 +1,7 @@
 // src/components/AlarmLogWindow.jsx
 import React from "react";
 import AlarmSetupModal from "./AlarmSetupModal";
+import AlarmLogWindowListTable from "./AlarmLogWindowListTable";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 
@@ -150,7 +151,6 @@ export default function AlarmLogWindow({
         </div>
 
         <div style={btnRow}>
-          {/* Minimize only in window mode */}
           {!isPage && (
             <button
               style={iconBtn}
@@ -164,7 +164,6 @@ export default function AlarmLogWindow({
             </button>
           )}
 
-          {/* ❌ Close ONLY in window mode */}
           {!isPage && (
             <button
               style={closeBtnRed}
@@ -195,7 +194,6 @@ export default function AlarmLogWindow({
         </div>
 
         <div style={tabsRight}>
-          {/* ✅ In page mode, hide Launch (already launched) */}
           {!isPage && (
             <button
               type="button"
@@ -232,98 +230,14 @@ export default function AlarmLogWindow({
       </div>
 
       {/* TABLE */}
-      <div style={table}>
-        <div style={headerRow}>
-          <div style={{ ...cellHead, width: COL.sel, textAlign: "center" }}>
-            <input
-              type="checkbox"
-              checked={
-                visibleAlarms.length > 0 &&
-                visibleAlarms.every((a) => checkedIds.has(a.id))
-              }
-              onChange={(e) => {
-                e.stopPropagation();
-                toggleAllVisible();
-              }}
-              style={checkbox}
-              title="Select all"
-              disabled={visibleAlarms.length === 0}
-            />
-          </div>
-
-          <div style={{ ...cellHead, width: COL.time, textAlign: "left" }}>
-            Time
-          </div>
-          <div style={{ ...cellHead, width: COL.ack, textAlign: "center" }}>
-            Ack
-          </div>
-          <div style={{ ...cellHead, width: COL.sev, textAlign: "center" }}>
-            Sev
-          </div>
-          <div style={{ ...cellHead, flex: 1, minWidth: 260 }}>Alarm Text</div>
-          <div style={{ ...cellHead, width: COL.group }}>Group</div>
-          <div style={{ ...cellHead, width: COL.controller }}>Controller</div>
-        </div>
-
-        {/* Rows */}
-        {visibleAlarms.map((a) => {
-          const isChecked = checkedIds.has(a.id);
-          const isSelected = selectedId === a.id;
-
-          return (
-            <div
-              key={a.id}
-              style={{
-                ...row,
-                background: isSelected ? "#eef4ff" : "#ffffff",
-                color: "#111827",
-              }}
-              onMouseDown={(e) => {
-                e.stopPropagation();
-                setSelectedId(a.id);
-              }}
-            >
-              <div style={{ ...cell, width: COL.sel, textAlign: "center" }}>
-                <input
-                  type="checkbox"
-                  checked={isChecked}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    toggleChecked(a.id);
-                  }}
-                  style={checkbox}
-                />
-              </div>
-
-              <div style={{ ...cell, width: COL.time }}>{a.time}</div>
-              <div style={{ ...cell, width: COL.ack, textAlign: "center" }}>
-                {a.acknowledged ? "✔" : ""}
-              </div>
-              <div style={{ ...cell, width: COL.sev, textAlign: "center" }}>
-                {a.severity}
-              </div>
-              <div style={{ ...cell, flex: 1, minWidth: 260 }}>{a.text}</div>
-              <div style={{ ...cell, width: COL.group }}>{a.groupName}</div>
-              <div style={{ ...cell, width: COL.controller }}>
-                {a.controller}
-              </div>
-            </div>
-          );
-        })}
-
-        {/* Empty state */}
-        {visibleAlarms.length === 0 && (
-          <div style={emptyWrap}>
-            <div style={emptyState}>
-              <b>No alarms yet.</b>
-              <div style={{ marginTop: 6, color: "#374151" }}>
-                The alarm engine is not configured — this log window is ready and
-                will show events once we wire the alarm rules.
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
+      <AlarmLogWindowListTable
+        visibleAlarms={visibleAlarms}
+        checkedIds={checkedIds}
+        selectedId={selectedId}
+        setSelectedId={setSelectedId}
+        toggleChecked={toggleChecked}
+        toggleAllVisible={toggleAllVisible}
+      />
 
       {/* Bottom bar */}
       <div style={bottomBar}>
@@ -448,15 +362,6 @@ function TabButton({ label, active, onClick }) {
     </button>
   );
 }
-
-const COL = {
-  sel: 34,
-  time: 170,
-  ack: 48,
-  sev: 48,
-  group: 120,
-  controller: 120,
-};
 
 const wrap = {
   width: "100%",
@@ -618,70 +523,6 @@ const launchPill = {
   justifyContent: "center",
   fontSize: 12,
   fontWeight: 900,
-};
-
-const table = {
-  flex: 1,
-  overflow: "auto",
-  background: "#ffffff",
-  backgroundImage:
-    "linear-gradient(#eef2f7 1px, transparent 1px), linear-gradient(90deg, #eef2f7 1px, transparent 1px)",
-  backgroundSize: "100% 30px, 160px 100%",
-};
-
-const headerRow = {
-  display: "flex",
-  background: "#eef1f5",
-  color: "#111827",
-  borderBottom: "1px solid #d1d5db",
-};
-
-const cellHead = {
-  padding: 8,
-  fontWeight: 900,
-  fontSize: 12,
-  color: "#111827",
-  whiteSpace: "nowrap",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-};
-
-const row = {
-  display: "flex",
-  borderBottom: "1px solid #e5e7eb",
-  cursor: "default",
-};
-
-const cell = {
-  padding: 8,
-  fontSize: 12,
-  whiteSpace: "nowrap",
-  overflow: "hidden",
-  textOverflow: "ellipsis",
-};
-
-const checkbox = {
-  width: 14,
-  height: 14,
-  cursor: "pointer",
-  accentColor: "#111827",
-};
-
-const emptyWrap = {
-  padding: 16,
-  background: "transparent",
-};
-
-const emptyState = {
-  padding: 14,
-  fontSize: 13,
-  color: "#111827",
-  background: "#ffffff",
-  border: "1px solid #dbe2ea",
-  borderRadius: 10,
-  width: "fit-content",
-  maxWidth: 720,
-  boxShadow: "0 1px 2px rgba(15,23,42,0.04)",
 };
 
 const bottomBar = {
