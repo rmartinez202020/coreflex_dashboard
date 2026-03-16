@@ -43,7 +43,7 @@ export default function AlarmSetupModal({
   availableTags = [],
   sensorsData,
 
-  initialAlarms = [],
+  initialAlarms,
 
   // ✅ dashboard info
   dashboardName = "",
@@ -52,13 +52,16 @@ export default function AlarmSetupModal({
   if (!open) return null;
 
   // ======== ALARMS LIST (TABLE) ========
-  const [alarms, setAlarms] = React.useState(() => initialAlarms || []);
+  const [alarms, setAlarms] = React.useState(() =>
+    Array.isArray(initialAlarms) ? initialAlarms : []
+  );
   const [checkedIds, setCheckedIds] = React.useState(() => new Set());
 
   React.useEffect(() => {
-    setAlarms(initialAlarms || []);
+    if (!open) return;
+    setAlarms(Array.isArray(initialAlarms) ? initialAlarms : []);
     setCheckedIds(new Set());
-  }, [open, initialAlarms]);
+  }, [open]);
 
   const emitChange = (next) => onChangeAlarms?.(next);
 
