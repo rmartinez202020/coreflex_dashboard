@@ -3,14 +3,17 @@ import React from "react";
 
 const COL = {
   sel: 34,
-  time: 170,
-  state: 96,
-  ack: 52,
-  device: 130,
-  tag: 90,
-  value: 100,
+  time: 160,
+  state: 110,
+  ack: 70,
+  alarmText: "minmax(220px, 1fr)",
+  device: 140,
+  tag: 100,
+  value: 110,
   group: 120,
 };
+
+const GRID_TEMPLATE = `${COL.sel}px ${COL.time}px ${COL.state}px ${COL.ack}px ${COL.alarmText} ${COL.device}px ${COL.tag}px ${COL.value}px ${COL.group}px`;
 
 function renderAck(a) {
   if (a?.acknowledged === true) return "Yes";
@@ -98,111 +101,96 @@ export default function AlarmLogWindowListTable({
     visibleAlarms.every((a) => checkedIds?.has?.(a.id));
 
   return (
-    <div style={table}>
-      <div style={headerRow}>
-        <div style={{ ...cellHead, width: COL.sel, textAlign: "center" }}>
-          <input
-            type="checkbox"
-            checked={allVisibleSelected}
-            onChange={(e) => {
-              e.stopPropagation();
-              toggleAllVisible?.();
-            }}
-            style={checkbox}
-            title="Select all"
-            disabled={visibleAlarms.length === 0}
-          />
-        </div>
-
-        <div style={{ ...cellHead, width: COL.time, textAlign: "left" }}>
-          Time
-        </div>
-
-        <div style={{ ...cellHead, width: COL.state, textAlign: "center" }}>
-          State
-        </div>
-
-        <div style={{ ...cellHead, width: COL.ack, textAlign: "center" }}>
-          Ack
-        </div>
-
-        <div style={{ ...cellHead, flex: 1, minWidth: 260 }}>Alarm Text</div>
-
-        <div style={{ ...cellHead, width: COL.device }}>Device</div>
-
-        <div style={{ ...cellHead, width: COL.tag }}>Tag</div>
-
-        <div style={{ ...cellHead, width: COL.value, textAlign: "right" }}>
-          Value
-        </div>
-
-        <div style={{ ...cellHead, width: COL.group }}>Group</div>
-      </div>
-
-      {visibleAlarms.map((a) => {
-        const isChecked = checkedIds?.has?.(a.id);
-        const isSelected = selectedId === a.id;
-        const stateText = renderState(a);
-
-        return (
-          <div
-            key={a.id}
-            style={{
-              ...row,
-              background: isSelected ? "#eef4ff" : "#ffffff",
-              color: "#111827",
-            }}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-              setSelectedId?.(a.id);
-            }}
-          >
-            <div style={{ ...cell, width: COL.sel, textAlign: "center" }}>
-              <input
-                type="checkbox"
-                checked={!!isChecked}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  toggleChecked?.(a.id);
-                }}
-                style={checkbox}
-              />
-            </div>
-
-            <div style={{ ...cell, width: COL.time }}>{a.time || "—"}</div>
-
-            <div style={{ ...cell, width: COL.state, textAlign: "center" }}>
-              <span style={{ ...stateBadge, ...getStateStyle(stateText) }}>
-                {stateText}
-              </span>
-            </div>
-
-            <div style={{ ...cell, width: COL.ack, textAlign: "center" }}>
-              {renderAck(a)}
-            </div>
-
-            <div style={{ ...cell, flex: 1, minWidth: 260 }}>
-              {renderAlarmText(a)}
-            </div>
-
-            <div style={{ ...cell, width: COL.device }}>{renderDevice(a)}</div>
-
-            <div style={{ ...cell, width: COL.tag }}>{renderTag(a)}</div>
-
-            <div style={{ ...cell, width: COL.value, textAlign: "right" }}>
-              {renderValue(a)}
-            </div>
-
-            <div style={{ ...cell, width: COL.group }}>{renderGroup(a)}</div>
+    <div style={tableOuter}>
+      <div style={tableInner}>
+        <div style={{ ...headerRow, gridTemplateColumns: GRID_TEMPLATE }}>
+          <div style={{ ...cellHead, textAlign: "center", justifyContent: "center" }}>
+            <input
+              type="checkbox"
+              checked={allVisibleSelected}
+              onChange={(e) => {
+                e.stopPropagation();
+                toggleAllVisible?.();
+              }}
+              style={checkbox}
+              title="Select all"
+              disabled={visibleAlarms.length === 0}
+            />
           </div>
-        );
-      })}
 
+          <div style={cellHead}>Time</div>
+          <div style={{ ...cellHead, justifyContent: "center" }}>State</div>
+          <div style={{ ...cellHead, justifyContent: "center" }}>Ack</div>
+          <div style={cellHead}>Alarm Text</div>
+          <div style={cellHead}>Device</div>
+          <div style={cellHead}>Tag</div>
+          <div style={{ ...cellHead, justifyContent: "flex-end" }}>Value</div>
+          <div style={cellHead}>Group</div>
+        </div>
+
+        {visibleAlarms.map((a) => {
+          const isChecked = checkedIds?.has?.(a.id);
+          const isSelected = selectedId === a.id;
+          const stateText = renderState(a);
+
+          return (
+            <div
+              key={a.id}
+              style={{
+                ...dataRow,
+                gridTemplateColumns: GRID_TEMPLATE,
+                background: isSelected ? "#eef4ff" : "#ffffff",
+                color: "#111827",
+              }}
+              onMouseDown={(e) => {
+                e.stopPropagation();
+                setSelectedId?.(a.id);
+              }}
+            >
+              <div style={{ ...cell, textAlign: "center", justifyContent: "center" }}>
+                <input
+                  type="checkbox"
+                  checked={!!isChecked}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    toggleChecked?.(a.id);
+                  }}
+                  style={checkbox}
+                />
+              </div>
+
+              <div style={cell}>{a.time || "—"}</div>
+
+              <div style={{ ...cell, justifyContent: "center" }}>
+                <span style={{ ...stateBadge, ...getStateStyle(stateText) }}>
+                  {stateText}
+                </span>
+              </div>
+
+              <div style={{ ...cell, justifyContent: "center" }}>
+                {renderAck(a)}
+              </div>
+
+              <div style={cell}>{renderAlarmText(a)}</div>
+
+              <div style={cell}>{renderDevice(a)}</div>
+
+              <div style={cell}>{renderTag(a)}</div>
+
+              <div style={{ ...cell, justifyContent: "flex-end" }}>
+                {renderValue(a)}
+              </div>
+
+              <div style={cell}>{renderGroup(a)}</div>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }
 
-const table = {
+const tableOuter = {
   flex: 1,
   overflow: "auto",
   background: "#ffffff",
@@ -211,35 +199,52 @@ const table = {
   backgroundSize: "100% 30px, 160px 100%",
 };
 
+const tableInner = {
+  minWidth: 1064,
+};
+
 const headerRow = {
-  display: "flex",
+  display: "grid",
+  alignItems: "stretch",
   background: "#eef1f5",
   color: "#111827",
   borderBottom: "1px solid #d1d5db",
+  position: "sticky",
+  top: 0,
+  zIndex: 2,
+};
+
+const dataRow = {
+  display: "grid",
+  alignItems: "stretch",
+  borderBottom: "1px solid #e5e7eb",
+  cursor: "default",
 };
 
 const cellHead = {
-  padding: 8,
+  minWidth: 0,
+  padding: "8px 10px",
   fontWeight: 900,
   fontSize: 12,
   color: "#111827",
   whiteSpace: "nowrap",
   overflow: "hidden",
   textOverflow: "ellipsis",
-};
-
-const row = {
   display: "flex",
-  borderBottom: "1px solid #e5e7eb",
-  cursor: "default",
+  alignItems: "center",
+  borderRight: "1px solid #e5e7eb",
 };
 
 const cell = {
-  padding: 8,
+  minWidth: 0,
+  padding: "8px 10px",
   fontSize: 12,
   whiteSpace: "nowrap",
   overflow: "hidden",
   textOverflow: "ellipsis",
+  display: "flex",
+  alignItems: "center",
+  borderRight: "1px solid #eef2f7",
 };
 
 const checkbox = {
@@ -289,21 +294,4 @@ const stateDefault = {
   background: "#f3f4f6",
   color: "#111827",
   borderColor: "#e5e7eb",
-};
-
-const emptyWrap = {
-  padding: 16,
-  background: "transparent",
-};
-
-const emptyState = {
-  padding: 14,
-  fontSize: 13,
-  color: "#111827",
-  background: "#ffffff",
-  border: "1px solid #dbe2ea",
-  borderRadius: 10,
-  width: "fit-content",
-  maxWidth: 720,
-  boxShadow: "0 1px 2px rgba(15,23,42,0.04)",
 };
