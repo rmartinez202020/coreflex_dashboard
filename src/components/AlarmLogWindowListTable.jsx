@@ -198,17 +198,6 @@ export default function AlarmLogWindowListTable({
         );
       })}
 
-      {visibleAlarms.length === 0 && (
-        <div style={emptyWrap}>
-          <div style={emptyState}>
-            <b>No alarms yet.</b>
-            <div style={{ marginTop: 6, color: "#374151" }}>
-              The alarm engine is not configured — this log window is ready and
-              will show events once we wire the alarm rules.
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
