@@ -1,4 +1,3 @@
-// src/components/controls/graphicDisplay/GraphicDisplayTimeseriesBarModal.jsx
 import React, { useMemo, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
 
@@ -16,6 +15,8 @@ const MONTH_LABELS = [
   "Nov",
   "Dec",
 ];
+
+const DEFAULT_BAR_COLOR = "#facc15";
 
 function rateUnitToTimeBase(rateUnit) {
   const u = String(rateUnit || "").trim();
@@ -188,12 +189,21 @@ function fmtNum(v) {
   return Number.isFinite(v) ? Number(v).toFixed(2) : "0.00";
 }
 
-function normalizeHexColor(v, fallback = "#facc15") {
+function normalizeHexColor(v, fallback = DEFAULT_BAR_COLOR) {
   const s = String(v || "").trim();
   if (!s) return fallback;
   if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(s)) return s;
   if (/^[0-9a-f]{6}$/i.test(s)) return `#${s}`;
   return fallback;
+}
+
+// ✅ NEW: stable storage key per widget/modal title + units
+function buildBarColorStorageKey(title, totalizerRateUnit, totalizerTotalUnit) {
+  const safeTitle = String(title || "Graphic Display").trim().toLowerCase();
+  const safeRate = String(totalizerRateUnit || "").trim().toLowerCase();
+  const safeTotal = String(totalizerTotalUnit || "").trim().toLowerCase();
+
+  return `coreflex:graphic-display:timeseries-bar-color:${safeTitle}:${safeRate}:${safeTotal}`;
 }
 
 export default function GraphicDisplayTimeseriesBarModal({
@@ -218,12 +228,44 @@ export default function GraphicDisplayTimeseriesBarModal({
     return new Date().getFullYear();
   }, [availableYears]);
 
+  const storageKey = useMemo(() => {
+    return buildBarColorStorageKey(title, totalizerRateUnit, totalizerTotalUnit);
+  }, [title, totalizerRateUnit, totalizerTotalUnit]);
+
   const [selectedYear, setSelectedYear] = useState(defaultYear);
-  const [barColor, setBarColor] = useState("#facc15");
+  const [barColor, setBarColor] = useState(DEFAULT_BAR_COLOR);
 
   useEffect(() => {
     setSelectedYear(defaultYear);
   }, [defaultYear, open]);
+
+  // ✅ NEW: restore saved bar color
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const saved = window.localStorage.getItem(storageKey);
+      if (saved) {
+        setBarColor(normalizeHexColor(saved, DEFAULT_BAR_COLOR));
+      } else {
+        setBarColor(DEFAULT_BAR_COLOR);
+      }
+    } catch {
+      setBarColor(DEFAULT_BAR_COLOR);
+    }
+  }, [storageKey, open]);
+
+  // ✅ NEW: save bar color whenever it changes
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+
+    try {
+      const safe = normalizeHexColor(barColor, DEFAULT_BAR_COLOR);
+      window.localStorage.setItem(storageKey, safe);
+    } catch {
+      // ignore localStorage errors
+    }
+  }, [barColor, storageKey]);
 
   useEffect(() => {
     if (!open) return;
@@ -234,7 +276,10 @@ export default function GraphicDisplayTimeseriesBarModal({
     };
   }, [open]);
 
-  const safeBarColor = useMemo(() => normalizeHexColor(barColor), [barColor]);
+  const safeBarColor = useMemo(
+    () => normalizeHexColor(barColor, DEFAULT_BAR_COLOR),
+    [barColor]
+  );
 
   const monthlyTotals = useMemo(() => {
     return buildMonthlyTotals(cleanPoints, selectedYear, totalizerRateUnit);
@@ -412,7 +457,7 @@ export default function GraphicDisplayTimeseriesBarModal({
               flexWrap: "wrap",
             }}
           >
-            {/* ✅ NEW: Bar Color control */}
+            {/* ✅ Bar Color control with persistence */}
             <div
               style={{
                 display: "flex",
