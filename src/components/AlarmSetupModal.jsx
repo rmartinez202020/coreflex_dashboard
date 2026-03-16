@@ -3,6 +3,13 @@ import React from "react";
 import AlarmTelemetrySection from "./AlarmTelemetrySection";
 import AlarmOptionsSection from "./AlarmOptionsSection";
 import AlarmListTable from "./AlarmListTable";
+import { API_URL } from "../config/api";
+import { getToken } from "../utils/authToken";
+
+function getAuthHeaders() {
+  const token = String(getToken() || "").trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 function computeMathOutput(rawValue, mathFormula) {
   if (rawValue === null || rawValue === undefined || rawValue === "") {
@@ -30,6 +37,64 @@ function computeMathOutput(rawValue, mathFormula) {
   }
 }
 
+function mapBackendAlarmToUi(alarm) {
+  const alarmType = String(alarm?.alarm_type || "").trim().toUpperCase();
+  const isBoolean = alarmType === "DI";
+  const thresholdValue = alarm?.threshold;
+
+  let contactType = "NO";
+  if (isBoolean) {
+    if (thresholdValue === 0) contactType = "NC";
+    else contactType = "NO";
+  }
+
+  return {
+    id: alarm?.id,
+    createdAt: alarm?.created_at ? Date.parse(alarm.created_at) : Date.now(),
+    type: isBoolean ? "boolean" : "dynamic",
+    model: String(alarm?.model || "").trim() || "zhc1921",
+    deviceId: String(alarm?.device_id || "").trim(),
+    field: String(alarm?.tag || "").trim(),
+    tagLabel: String(alarm?.tag || "").trim(),
+    ioType: alarmType || "DI",
+    dashboardName: "",
+    dashboardId: "",
+    message: String(alarm?.message || "").trim(),
+    edgeDetection: isBoolean
+      ? contactType === "NC"
+        ? "NC → 0"
+        : "NO → 1"
+      : `When value ${String(alarm?.operator || "").trim()} ${String(
+          alarm?.threshold ?? ""
+        ).trim()}`,
+    value: isBoolean ? (contactType === "NO" ? 1 : 0) : thresholdValue,
+    deadbandMode: isBoolean ? "—" : "Absolute",
+    deadbandLevel: isBoolean ? "—" : 0,
+    severity: isBoolean
+      ? "—"
+      : String(alarm?.severity || "Warning").trim(),
+    enabled: alarm?.enabled !== false,
+    operator: alarm?.operator ?? "",
+    threshold: alarm?.threshold ?? "",
+    groupName: String(alarm?.group_name || "General").trim(),
+    group: String(alarm?.group_name || "General").trim(),
+    config: isBoolean
+      ? {
+          contactType,
+        }
+      : {
+          operator: alarm?.operator ?? "",
+          threshold: alarm?.threshold ?? "",
+          deadband: 0,
+          severity: String(alarm?.severity || "Warning").trim(),
+          mathEnabled: String(alarm?.math_formula || "").trim() !== "",
+          mathFormula: String(alarm?.math_formula || "").trim(),
+          rawValue: null,
+          outputValue: null,
+        },
+  };
+}
+
 export default function AlarmSetupModal({
   open,
   onClose,
@@ -53,13 +118,57 @@ export default function AlarmSetupModal({
   );
   const [checkedIds, setCheckedIds] = React.useState(() => new Set());
 
-  React.useEffect(() => {
-    if (!open) return;
-    setAlarms(Array.isArray(initialAlarms) ? initialAlarms : []);
-    setCheckedIds(new Set());
-  }, [open]);
+  const [isLoadingAlarms, setIsLoadingAlarms] = React.useState(false);
 
   const emitChange = (next) => onChangeAlarms?.(next);
+
+  const loadAlarmDefinitions = React.useCallback(async () => {
+    setIsLoadingAlarms(true);
+    try {
+      const res = await fetch(`${API_URL}/alarm-definitions/`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+      });
+
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = [];
+      }
+
+      if (!res.ok) {
+        throw new Error(
+          data?.detail || data?.error || "Failed to load alarm definitions"
+        );
+      }
+
+      const mapped = Array.isArray(data)
+        ? data.map(mapBackendAlarmToUi)
+        : [];
+
+      setAlarms(mapped);
+      setCheckedIds(new Set());
+      emitChange(mapped);
+    } catch (err) {
+      console.error("❌ Failed to load alarm definitions:", err);
+
+      const fallback = Array.isArray(initialAlarms) ? initialAlarms : [];
+      setAlarms(fallback);
+      setCheckedIds(new Set());
+      emitChange(fallback);
+    } finally {
+      setIsLoadingAlarms(false);
+    }
+  }, [initialAlarms]);
+
+  React.useEffect(() => {
+    if (!open) return;
+    loadAlarmDefinitions();
+  }, [open, loadAlarmDefinitions]);
 
   const toggleRowCheck = (id) => {
     setCheckedIds((prev) => {
@@ -167,58 +276,59 @@ export default function AlarmSetupModal({
       ? hasSelectedTag && hasMessage && hasBooleanSettings
       : hasSelectedTag && hasMessage && hasDynamicSettings;
 
-  const handleAdd = () => {
+  const handleAdd = async () => {
     if (!canAdd) return;
 
-    const id = globalThis.crypto?.randomUUID?.() || `alarm_${Date.now()}`;
-
-    const newAlarm = {
-      id,
-      createdAt: Date.now(),
-      type: alarmType,
+    const payload = {
+      device_id: String(selectedTag.deviceId || "").trim(),
       model: String(model || "").trim() || "zhc1921",
-      deviceId: String(selectedTag.deviceId || "").trim(),
-      field: String(selectedTag.field || "").trim(),
-      tagLabel: selectedTag.label || selectedTag.field,
-      ioType: alarmType === "boolean" ? "DI" : "AI",
-      dashboardName: String(dashboardName || "").trim(),
-      dashboardId: String(dashboardId || "").trim(),
-      message: message?.trim() || "",
-      edgeDetection:
+      tag: String(selectedTag.field || "").trim(),
+      alarm_type: alarmType === "boolean" ? "DI" : "AI",
+      operator:
         alarmType === "boolean"
-          ? "Equal"
-          : `When value ${operator} ${threshold}`,
-      value:
+          ? null
+          : String(operator || "").trim() || null,
+      threshold:
         alarmType === "boolean"
           ? contactType === "NO"
             ? 1
             : 0
           : Number(threshold),
-      deadbandMode: alarmType === "dynamic" ? "Absolute" : "—",
-      deadbandLevel: alarmType === "dynamic" ? Number(deadband || 0) : "—",
-      severity: alarmType === "dynamic" ? severity : "—",
+      math_formula:
+        alarmType === "dynamic" && mathEnabled
+          ? String(mathFormula || "").trim()
+          : "",
+      group_name: "General",
+      severity: alarmType === "dynamic" ? String(severity || "").trim() : null,
+      message: message?.trim() || "",
       enabled: true,
-      config:
-        alarmType === "boolean"
-          ? { contactType }
-          : {
-              operator,
-              threshold: Number(threshold),
-              deadband: Number(deadband || 0),
-              severity,
-              mathEnabled,
-              mathFormula: String(mathFormula || "").trim(),
-              rawValue,
-              outputValue,
-            },
     };
 
-    const next = [...alarms, newAlarm];
-    setAlarms(next);
-    setCheckedIds(new Set());
-    emitChange(next);
-    onAddAlarm?.(newAlarm);
+    const res = await fetch(`${API_URL}/alarm-definitions/`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify(payload),
+    });
+
+    let data = null;
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
+
+    if (!res.ok) {
+      throw new Error(
+        data?.detail || data?.error || "Failed to save alarm definition"
+      );
+    }
+
+    onAddAlarm?.(data);
     setMessage("");
+    await loadAlarmDefinitions();
   };
 
   const allChecked =
@@ -319,7 +429,7 @@ export default function AlarmSetupModal({
             onToggleEnabled={toggleAlarmEnabled}
             onAdd={handleAdd}
             onDeleteSelected={deleteSelected}
-            canAdd={canAdd}
+            canAdd={canAdd && !isLoadingAlarms}
           />
 
           {false && <button onClick={clearAll}>Clear</button>}
