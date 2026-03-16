@@ -1,6 +1,83 @@
 // src/components/AlarmListTable.jsx
 import React from "react";
 
+function formatTagLabel(field) {
+  const s = String(field || "").trim().toLowerCase();
+  if (!s) return "—";
+
+  if (/^di[1-9]\d*$/.test(s)) return s.toUpperCase().replace("DI", "DI-");
+  if (/^do[1-9]\d*$/.test(s)) return s.toUpperCase().replace("DO", "DO-");
+  if (/^ai[1-9]\d*$/.test(s)) return s.toUpperCase().replace("AI", "AI-");
+  if (/^ao[1-9]\d*$/.test(s)) return s.toUpperCase().replace("AO", "AO-");
+  if (/^te10[1-9]\d*$/.test(s)) return s.toUpperCase();
+
+  return s.toUpperCase();
+}
+
+function getTypeText(alarm) {
+  const io = String(alarm?.ioType || "").trim().toUpperCase();
+  if (io === "DI" || io === "AI") return io;
+
+  return String(alarm?.type || "").trim().toLowerCase() === "boolean"
+    ? "DI"
+    : "AI";
+}
+
+function getConditionText(alarm) {
+  const type = String(alarm?.type || "").trim().toLowerCase();
+
+  if (type === "boolean") {
+    const contactType = String(alarm?.config?.contactType || "").trim().toUpperCase();
+    if (contactType === "NC") return "NC → 0";
+    return "NO → 1";
+  }
+
+  const op = String(alarm?.config?.operator || alarm?.operator || "").trim() || "—";
+  const threshold =
+    alarm?.config?.threshold ?? alarm?.value ?? alarm?.threshold ?? "—";
+
+  return `${op} ${String(threshold)}`;
+}
+
+function getMathText(alarm) {
+  const type = String(alarm?.type || "").trim().toLowerCase();
+  if (type !== "dynamic") return "—";
+
+  const formula = String(alarm?.config?.mathFormula || "").trim();
+  return formula || "—";
+}
+
+function getGroupText(alarm) {
+  return String(
+    alarm?.group ||
+      alarm?.config?.group ||
+      alarm?.groupName ||
+      "General"
+  ).trim();
+}
+
+function getSeverityText(alarm) {
+  const type = String(alarm?.type || "").trim().toLowerCase();
+  if (type === "boolean") return "—";
+
+  return String(alarm?.severity || alarm?.config?.severity || "Warning").trim();
+}
+
+function getEnabledText(alarm) {
+  const enabled = alarm?.enabled;
+  if (enabled === false) return "No";
+  return "Yes";
+}
+
+function getDashboardText(alarm) {
+  const name = String(alarm?.dashboardName || "").trim();
+  const id = String(alarm?.dashboardId || "").trim();
+
+  if (name) return name;
+  if (id === "main") return "Main Dashboard";
+  return id || "—";
+}
+
 export default function AlarmListTable({
   alarms = [],
   checkedIds = new Set(),
@@ -53,37 +130,32 @@ export default function AlarmListTable({
             />
           </div>
 
-          <div style={{ ...tHeadCell, width: 190 }}>Trigger</div>
-          <div style={{ ...tHeadCell, width: 120 }}>Alarm Type</div>
-          <div style={{ ...tHeadCell, width: 150 }}>Edge Detection</div>
+          <div style={{ ...tHeadCell, width: 180 }}>Dashboard</div>
+          <div style={{ ...tHeadCell, width: 100 }}>Tag</div>
+          <div style={{ ...tHeadCell, width: 170 }}>Device</div>
+          <div style={{ ...tHeadCell, width: 70, textAlign: "center" }}>Type</div>
+          <div style={{ ...tHeadCell, width: 140 }}>Condition</div>
+          <div style={{ ...tHeadCell, width: 160 }}>Math</div>
+          <div style={{ ...tHeadCell, width: 120 }}>Group</div>
+          <div style={{ ...tHeadCell, width: 100 }}>Severity</div>
+          <div
+            style={{
+              ...tHeadCell,
+              flex: 1,
+              minWidth: 260,
+            }}
+          >
+            Message
+          </div>
           <div
             style={{
               ...tHeadCell,
               width: 90,
               textAlign: "center",
-            }}
-          >
-            Value
-          </div>
-          <div style={{ ...tHeadCell, width: 130 }}>Deadband Mode</div>
-          <div
-            style={{
-              ...tHeadCell,
-              width: 140,
-              textAlign: "center",
-            }}
-          >
-            Deadband Level
-          </div>
-          <div
-            style={{
-              ...tHeadCell,
-              flex: 1,
-              minWidth: 320,
               borderRight: "none",
             }}
           >
-            Message
+            Enabled
           </div>
         </div>
 
@@ -95,6 +167,7 @@ export default function AlarmListTable({
           ) : (
             alarms.map((a) => {
               const checked = checkedIds.has(a.id);
+
               return (
                 <div key={a.id} style={tRow}>
                   <div
@@ -112,17 +185,53 @@ export default function AlarmListTable({
                     />
                   </div>
 
-                  <div style={{ ...tCell, width: 190 }}>
-                    <b style={{ fontSize: 13 }}>{a.field}</b>
-                    <div style={tSub}>{a.deviceId}</div>
+                  <div style={{ ...tCell, width: 180 }}>
+                    {getDashboardText(a)}
+                  </div>
+
+                  <div style={{ ...tCell, width: 100, fontWeight: 800 }}>
+                    {formatTagLabel(a.field)}
+                  </div>
+
+                  <div style={{ ...tCell, width: 170 }}>
+                    {String(a.deviceId || "—")}
+                  </div>
+
+                  <div
+                    style={{
+                      ...tCell,
+                      width: 70,
+                      textAlign: "center",
+                      fontWeight: 800,
+                    }}
+                  >
+                    {getTypeText(a)}
+                  </div>
+
+                  <div style={{ ...tCell, width: 140 }}>
+                    {getConditionText(a)}
+                  </div>
+
+                  <div style={{ ...tCell, width: 160 }}>
+                    {getMathText(a)}
                   </div>
 
                   <div style={{ ...tCell, width: 120 }}>
-                    {a.type === "boolean" ? "Bit" : "Analog"}
+                    {getGroupText(a)}
                   </div>
 
-                  <div style={{ ...tCell, width: 150 }}>
-                    {a.type === "boolean" ? "Equal" : a.edgeDetection}
+                  <div style={{ ...tCell, width: 100 }}>
+                    {getSeverityText(a)}
+                  </div>
+
+                  <div
+                    style={{
+                      ...tCell,
+                      flex: 1,
+                      minWidth: 260,
+                    }}
+                  >
+                    {a.message || <span style={{ color: "#888" }}>—</span>}
                   </div>
 
                   <div
@@ -130,32 +239,11 @@ export default function AlarmListTable({
                       ...tCell,
                       width: 90,
                       textAlign: "center",
-                    }}
-                  >
-                    {String(a.value)}
-                  </div>
-
-                  <div style={{ ...tCell, width: 130 }}>{a.deadbandMode}</div>
-
-                  <div
-                    style={{
-                      ...tCell,
-                      width: 140,
-                      textAlign: "center",
-                    }}
-                  >
-                    {String(a.deadbandLevel)}
-                  </div>
-
-                  <div
-                    style={{
-                      ...tCell,
-                      flex: 1,
-                      minWidth: 320,
                       borderRight: "none",
+                      fontWeight: 800,
                     }}
                   >
-                    {a.message || <span style={{ color: "#888" }}>—</span>}
+                    {getEnabledText(a)}
                   </div>
                 </div>
               );
@@ -229,7 +317,7 @@ const tHeadCell = {
 const tBody = {
   flex: 1,
   overflowY: "auto",
-  overflowX: "hidden",
+  overflowX: "auto",
   background: "#ffffff",
 };
 
@@ -237,6 +325,7 @@ const tRow = {
   display: "flex",
   borderBottom: "1px solid #e2e2e2",
   background: "#fff",
+  minWidth: "1390px",
 };
 
 const tCell = {
@@ -247,12 +336,6 @@ const tCell = {
   textOverflow: "ellipsis",
   color: "#111",
   borderRight: "1px solid #eeeeee",
-};
-
-const tSub = {
-  fontSize: 11,
-  color: "#666",
-  marginTop: 2,
 };
 
 const tEmpty = {
