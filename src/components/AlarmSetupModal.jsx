@@ -144,11 +144,28 @@ export default function AlarmSetupModal({
     return computeMathOutput(rawValue, mathFormula);
   }, [rawValue, mathFormula]);
 
-  const canAdd =
+  // ✅ Add Alarm only enables when setup is completed
+  const hasSelectedTag =
     !!selectedTag &&
-    (alarmType === "boolean"
-      ? true
-      : threshold !== "" && !Number.isNaN(Number(threshold)));
+    String(selectedTag.deviceId || "").trim() !== "" &&
+    String(selectedTag.field || "").trim() !== "";
+
+  const hasMessage = String(message || "").trim() !== "";
+
+  const hasBooleanSettings = ["NO", "NC"].includes(
+    String(contactType || "").trim().toUpperCase()
+  );
+
+  const hasDynamicSettings =
+    String(operator || "").trim() !== "" &&
+    String(threshold || "").trim() !== "" &&
+    !Number.isNaN(Number(threshold)) &&
+    String(severity || "").trim() !== "";
+
+  const canAdd =
+    alarmType === "boolean"
+      ? hasSelectedTag && hasMessage && hasBooleanSettings
+      : hasSelectedTag && hasMessage && hasDynamicSettings;
 
   const handleAdd = () => {
     if (!canAdd) return;
@@ -185,6 +202,7 @@ export default function AlarmSetupModal({
       deadbandMode: alarmType === "dynamic" ? "Absolute" : "—",
       deadbandLevel: alarmType === "dynamic" ? Number(deadband || 0) : "—",
       severity: alarmType === "dynamic" ? severity : "—",
+      enabled: true,
       config:
         alarmType === "boolean"
           ? { contactType }
@@ -252,7 +270,7 @@ export default function AlarmSetupModal({
               style={{ ...btnHeaderPrimary, opacity: canAdd ? 1 : 0.5 }}
               onClick={handleAdd}
               disabled={!canAdd}
-              title={!canAdd ? "Select a tag first" : "Add Alarm"}
+              title={!canAdd ? "Complete all required alarm settings" : "Add Alarm"}
             >
               Add Alarm
             </button>
