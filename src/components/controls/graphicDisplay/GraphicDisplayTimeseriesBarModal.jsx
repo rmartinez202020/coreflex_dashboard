@@ -188,6 +188,14 @@ function fmtNum(v) {
   return Number.isFinite(v) ? Number(v).toFixed(2) : "0.00";
 }
 
+function normalizeHexColor(v, fallback = "#facc15") {
+  const s = String(v || "").trim();
+  if (!s) return fallback;
+  if (/^#([0-9a-f]{3}|[0-9a-f]{6})$/i.test(s)) return s;
+  if (/^[0-9a-f]{6}$/i.test(s)) return `#${s}`;
+  return fallback;
+}
+
 export default function GraphicDisplayTimeseriesBarModal({
   open = false,
   onClose = () => {},
@@ -211,6 +219,7 @@ export default function GraphicDisplayTimeseriesBarModal({
   }, [availableYears]);
 
   const [selectedYear, setSelectedYear] = useState(defaultYear);
+  const [barColor, setBarColor] = useState("#facc15");
 
   useEffect(() => {
     setSelectedYear(defaultYear);
@@ -224,6 +233,8 @@ export default function GraphicDisplayTimeseriesBarModal({
       document.body.style.overflow = prev;
     };
   }, [open]);
+
+  const safeBarColor = useMemo(() => normalizeHexColor(barColor), [barColor]);
 
   const monthlyTotals = useMemo(() => {
     return buildMonthlyTotals(cleanPoints, selectedYear, totalizerRateUnit);
@@ -393,36 +404,109 @@ export default function GraphicDisplayTimeseriesBarModal({
             </div>
           </div>
 
-          <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-            <span
+          <div
+            style={{
+              display: "flex",
+              alignItems: "center",
+              gap: 18,
+              flexWrap: "wrap",
+            }}
+          >
+            {/* ✅ NEW: Bar Color control */}
+            <div
               style={{
-                fontSize: 12,
-                fontWeight: 800,
-                color: "#334155",
+                display: "flex",
+                alignItems: "center",
+                gap: 8,
               }}
             >
-              Year
-            </span>
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 800,
+                  color: "#334155",
+                }}
+              >
+                Bar Color
+              </span>
 
-            <select
-              value={selectedYear}
-              onChange={(e) => setSelectedYear(Number(e.target.value))}
-              style={{
-                height: 36,
-                borderRadius: 10,
-                border: "1px solid #d1d5db",
-                background: "#fff",
-                padding: "0 10px",
-                fontSize: 14,
-                fontWeight: 800,
-              }}
-            >
-              {(availableYears.length ? availableYears : [defaultYear]).map((yr) => (
-                <option key={yr} value={yr}>
-                  {yr}
-                </option>
-              ))}
-            </select>
+              <div
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: 8,
+                  border: "1px solid #d1d5db",
+                  background: "#fff",
+                  borderRadius: 10,
+                  padding: "4px 8px",
+                }}
+              >
+                <input
+                  type="color"
+                  value={safeBarColor}
+                  onChange={(e) => setBarColor(e.target.value)}
+                  title="Pick bar color"
+                  style={{
+                    width: 34,
+                    height: 28,
+                    border: "none",
+                    background: "transparent",
+                    padding: 0,
+                    cursor: "pointer",
+                  }}
+                />
+
+                <input
+                  value={safeBarColor}
+                  onChange={(e) => setBarColor(e.target.value)}
+                  title="Bar color HEX"
+                  style={{
+                    width: 88,
+                    height: 28,
+                    border: "1px solid #e5e7eb",
+                    borderRadius: 8,
+                    padding: "0 8px",
+                    fontSize: 12,
+                    fontWeight: 800,
+                    fontFamily: "monospace",
+                    color: "#0f172a",
+                    background: "#fff",
+                  }}
+                />
+              </div>
+            </div>
+
+            <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+              <span
+                style={{
+                  fontSize: 12,
+                  fontWeight: 800,
+                  color: "#334155",
+                }}
+              >
+                Year
+              </span>
+
+              <select
+                value={selectedYear}
+                onChange={(e) => setSelectedYear(Number(e.target.value))}
+                style={{
+                  height: 36,
+                  borderRadius: 10,
+                  border: "1px solid #d1d5db",
+                  background: "#fff",
+                  padding: "0 10px",
+                  fontSize: 14,
+                  fontWeight: 800,
+                }}
+              >
+                {(availableYears.length ? availableYears : [defaultYear]).map((yr) => (
+                  <option key={yr} value={yr}>
+                    {yr}
+                  </option>
+                ))}
+              </select>
+            </div>
           </div>
         </div>
 
@@ -510,9 +594,9 @@ export default function GraphicDisplayTimeseriesBarModal({
                         height: `${h}%`,
                         minHeight: maxValue > 0 ? 12 : 2,
                         borderRadius: "12px 12px 0 0",
-                        border: "1px solid rgba(234,179,8,0.45)",
-                        background: "linear-gradient(180deg,#facc15,#f59e0b)",
-                        boxShadow: "0 6px 16px rgba(245,158,11,0.18)",
+                        border: `1px solid ${safeBarColor}`,
+                        background: `linear-gradient(180deg, ${safeBarColor}, ${safeBarColor})`,
+                        boxShadow: "0 6px 16px rgba(0,0,0,0.12)",
                       }}
                     />
 
