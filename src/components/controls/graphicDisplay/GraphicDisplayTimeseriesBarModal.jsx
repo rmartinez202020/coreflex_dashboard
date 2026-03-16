@@ -252,13 +252,13 @@ export default function GraphicDisplayTimeseriesBarModal({
         display: "flex",
         alignItems: "center",
         justifyContent: "center",
-        padding: 18,
+        padding: 14,
       }}
     >
       <div
         style={{
-          width: "min(1180px, 96vw)",
-          maxHeight: "92vh",
+          width: "min(1560px, 99vw)",
+          height: "min(900px, 96vh)",
           overflow: "hidden",
           borderRadius: 14,
           background: "#fff",
@@ -279,6 +279,7 @@ export default function GraphicDisplayTimeseriesBarModal({
             alignItems: "center",
             justifyContent: "space-between",
             gap: 12,
+            flex: "0 0 auto",
           }}
         >
           <div style={{ minWidth: 0 }}>
@@ -336,6 +337,7 @@ export default function GraphicDisplayTimeseriesBarModal({
             justifyContent: "space-between",
             gap: 12,
             flexWrap: "wrap",
+            flex: "0 0 auto",
           }}
         >
           <div style={{ display: "flex", gap: 10, flexWrap: "wrap" }}>
@@ -424,12 +426,13 @@ export default function GraphicDisplayTimeseriesBarModal({
           </div>
         </div>
 
-        {/* CHART */}
+        {/* CONTENT */}
         <div
           style={{
-            padding: 16,
+            padding: 14,
             overflow: "auto",
             background: "#fff",
+            flex: "1 1 auto",
           }}
         >
           <div
@@ -443,12 +446,12 @@ export default function GraphicDisplayTimeseriesBarModal({
           >
             <div
               style={{
-                height: 360,
+                height: 430,
                 display: "grid",
-                gridTemplateColumns: "repeat(12, minmax(58px, 1fr))",
+                gridTemplateColumns: "repeat(12, minmax(74px, 1fr))",
                 alignItems: "end",
-                gap: 12,
-                padding: "10px 4px 0 4px",
+                gap: 18,
+                padding: "14px 8px 0 8px",
                 borderBottom: "1px solid #d1d5db",
                 position: "relative",
               }}
@@ -469,7 +472,7 @@ export default function GraphicDisplayTimeseriesBarModal({
 
               {monthlyTotals.map((m) => {
                 const h =
-                  maxValue > 0 ? Math.max(4, (Number(m.total) / maxValue) * 100) : 0;
+                  maxValue > 0 ? Math.max(6, (Number(m.total) / maxValue) * 100) : 0;
 
                 return (
                   <div
@@ -480,7 +483,7 @@ export default function GraphicDisplayTimeseriesBarModal({
                       alignItems: "center",
                       justifyContent: "end",
                       minWidth: 0,
-                      gap: 8,
+                      gap: 10,
                       height: "100%",
                     }}
                     title={`${m.label} ${selectedYear}: ${fmtNum(m.total)} ${
@@ -489,12 +492,12 @@ export default function GraphicDisplayTimeseriesBarModal({
                   >
                     <div
                       style={{
-                        fontSize: 11,
+                        fontSize: 12,
                         fontWeight: 900,
                         color: "#0f172a",
                         textAlign: "center",
                         lineHeight: 1.15,
-                        minHeight: 28,
+                        minHeight: 32,
                       }}
                     >
                       {fmtNum(m.total)}
@@ -503,10 +506,10 @@ export default function GraphicDisplayTimeseriesBarModal({
                     <div
                       style={{
                         width: "100%",
-                        maxWidth: 54,
+                        maxWidth: 74,
                         height: `${h}%`,
-                        minHeight: maxValue > 0 ? 10 : 2,
-                        borderRadius: "10px 10px 0 0",
+                        minHeight: maxValue > 0 ? 12 : 2,
+                        borderRadius: "12px 12px 0 0",
                         border: "1px solid rgba(234,179,8,0.45)",
                         background: "linear-gradient(180deg,#facc15,#f59e0b)",
                         boxShadow: "0 6px 16px rgba(245,158,11,0.18)",
@@ -515,7 +518,7 @@ export default function GraphicDisplayTimeseriesBarModal({
 
                     <div
                       style={{
-                        fontSize: 12,
+                        fontSize: 13,
                         fontWeight: 900,
                         color: "#334155",
                         textAlign: "center",
@@ -545,7 +548,7 @@ export default function GraphicDisplayTimeseriesBarModal({
           {/* TABLE */}
           <div
             style={{
-              marginTop: 16,
+              marginTop: 14,
               border: "1px solid #e5e7eb",
               borderRadius: 14,
               overflow: "hidden",
