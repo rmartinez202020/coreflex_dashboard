@@ -16,9 +16,7 @@ function computeMathOutput(rawValue, mathFormula) {
   if (!formula) return numeric;
 
   try {
-    // ✅ support VALUE / value / Value
     const expr = formula.replace(/\bvalue\b/gi, `(${numeric})`);
-
     // eslint-disable-next-line no-new-func
     const fn = new Function(`return (${expr});`);
     const out = fn();
@@ -45,13 +43,11 @@ export default function AlarmSetupModal({
 
   initialAlarms,
 
-  // ✅ dashboard info
   dashboardName = "",
   dashboardId = "",
 }) {
   if (!open) return null;
 
-  // ======== ALARMS LIST (TABLE) ========
   const [alarms, setAlarms] = React.useState(() =>
     Array.isArray(initialAlarms) ? initialAlarms : []
   );
@@ -87,6 +83,14 @@ export default function AlarmSetupModal({
     });
   };
 
+  const toggleAlarmEnabled = (id) => {
+    const next = alarms.map((a) =>
+      a.id === id ? { ...a, enabled: a.enabled === false ? true : false } : a
+    );
+    setAlarms(next);
+    emitChange(next);
+  };
+
   const deleteSelected = () => {
     if (checkedIds.size === 0) return;
     const next = alarms.filter((a) => !checkedIds.has(a.id));
@@ -102,17 +106,14 @@ export default function AlarmSetupModal({
     emitChange(next);
   };
 
-  // ======== FORM STATE ========
-  const [alarmType, setAlarmType] = React.useState("boolean"); // boolean | dynamic
-
-  // ✅ smart telemetry section model
+  const [alarmType, setAlarmType] = React.useState("boolean");
   const [model, setModel] = React.useState("zhc1921");
 
   const [deviceId, setDeviceId] = React.useState("");
   const [search, setSearch] = React.useState("");
   const [selectedTag, setSelectedTag] = React.useState(null);
 
-  const [contactType, setContactType] = React.useState("NO"); // NO | NC
+  const [contactType, setContactType] = React.useState("NO");
 
   const [operator, setOperator] = React.useState(">=");
   const [threshold, setThreshold] = React.useState("0");
@@ -121,7 +122,6 @@ export default function AlarmSetupModal({
 
   const [message, setMessage] = React.useState("");
 
-  // ✅ kept for compatibility
   const [mathEnabled, setMathEnabled] = React.useState(false);
   const [mathFormula, setMathFormula] = React.useState("");
 
@@ -130,7 +130,6 @@ export default function AlarmSetupModal({
     setSearch("");
   }, [alarmType]);
 
-  // ✅ selected live raw value from telemetry section
   const rawValue = React.useMemo(() => {
     if (!selectedTag) return null;
     if (
@@ -142,12 +141,10 @@ export default function AlarmSetupModal({
     return selectedTag.previewValue;
   }, [selectedTag]);
 
-  // ✅ computed math output preview
   const outputValue = React.useMemo(() => {
     return computeMathOutput(rawValue, mathFormula);
   }, [rawValue, mathFormula]);
 
-  // ✅ Add Alarm only enables when setup is completed
   const hasSelectedTag =
     !!selectedTag &&
     String(selectedTag.deviceId || "").trim() !== "" &&
@@ -179,18 +176,13 @@ export default function AlarmSetupModal({
       id,
       createdAt: Date.now(),
       type: alarmType,
-
-      // ✅ smart telemetry section now owns model/device/tag selection
       model: String(model || "").trim() || "zhc1921",
       deviceId: String(selectedTag.deviceId || "").trim(),
       field: String(selectedTag.field || "").trim(),
       tagLabel: selectedTag.label || selectedTag.field,
       ioType: alarmType === "boolean" ? "DI" : "AI",
-
-      // ✅ store dashboard info too
       dashboardName: String(dashboardName || "").trim(),
       dashboardId: String(dashboardId || "").trim(),
-
       message: message?.trim() || "",
       edgeDetection:
         alarmType === "boolean"
@@ -241,7 +233,6 @@ export default function AlarmSetupModal({
       onClick={(e) => e.stopPropagation()}
     >
       <div style={card} onMouseDown={(e) => e.stopPropagation()}>
-        {/* HEADER */}
         <div style={header}>
           <div style={headerLeft}>
             <div style={headerIcon}>⚙️</div>
@@ -276,11 +267,9 @@ export default function AlarmSetupModal({
           </div>
         </div>
 
-        {/* CONTENT */}
         <div style={content}>
           <div style={topArea}>
             <div style={topGrid}>
-              {/* LEFT — extracted alarm options section */}
               <AlarmOptionsSection
                 alarmType={alarmType}
                 setAlarmType={setAlarmType}
@@ -304,7 +293,6 @@ export default function AlarmSetupModal({
                 outputValue={outputValue}
               />
 
-              {/* RIGHT — smart telemetry section */}
               <div style={col}>
                 <AlarmTelemetrySection
                   sectionLabel="Tag that triggers this alarm"
@@ -328,6 +316,7 @@ export default function AlarmSetupModal({
             allChecked={allChecked}
             onToggleAll={toggleAll}
             onToggleRowCheck={toggleRowCheck}
+            onToggleEnabled={toggleAlarmEnabled}
             onAdd={handleAdd}
             onDeleteSelected={deleteSelected}
             canAdd={canAdd}
@@ -340,7 +329,6 @@ export default function AlarmSetupModal({
   );
 }
 
-/* ---------- LAYOUT / SIZING ---------- */
 const overlay = {
   position: "fixed",
   inset: 0,

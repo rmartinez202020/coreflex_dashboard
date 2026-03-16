@@ -63,12 +63,6 @@ function getSeverityText(alarm) {
   return String(alarm?.severity || alarm?.config?.severity || "Warning").trim();
 }
 
-function getEnabledText(alarm) {
-  const enabled = alarm?.enabled;
-  if (enabled === false) return "No";
-  return "Yes";
-}
-
 function getDashboardText(alarm) {
   const name = String(alarm?.dashboardName || "").trim();
   const id = String(alarm?.dashboardId || "").trim();
@@ -84,6 +78,7 @@ export default function AlarmListTable({
   allChecked = false,
   onToggleAll,
   onToggleRowCheck,
+  onToggleEnabled,
   onAdd,
   onDeleteSelected,
   canAdd = false,
@@ -136,9 +131,7 @@ export default function AlarmListTable({
           <div style={{ ...tHeadCell, width: 180 }}>Dashboard</div>
           <div style={{ ...tHeadCell, width: 100 }}>Tag</div>
           <div style={{ ...tHeadCell, width: 170 }}>Device</div>
-          <div style={{ ...tHeadCell, width: 70, textAlign: "center" }}>
-            Type
-          </div>
+          <div style={{ ...tHeadCell, width: 70, textAlign: "center" }}>Type</div>
           <div style={{ ...tHeadCell, width: 140 }}>Condition</div>
           <div style={{ ...tHeadCell, width: 160 }}>Math</div>
           <div style={{ ...tHeadCell, width: 120 }}>Group</div>
@@ -155,12 +148,12 @@ export default function AlarmListTable({
           <div
             style={{
               ...tHeadCell,
-              width: 90,
+              width: 120,
               textAlign: "center",
               borderRight: "none",
             }}
           >
-            Enabled
+            Enable/Disable
           </div>
         </div>
 
@@ -172,6 +165,7 @@ export default function AlarmListTable({
           ) : (
             alarms.map((a) => {
               const checked = checkedIds.has(a.id);
+              const enabled = a?.enabled !== false;
 
               return (
                 <div key={a.id} style={tRow}>
@@ -217,7 +211,9 @@ export default function AlarmListTable({
                     {getConditionText(a)}
                   </div>
 
-                  <div style={{ ...tCell, width: 160 }}>{getMathText(a)}</div>
+                  <div style={{ ...tCell, width: 160 }}>
+                    {getMathText(a)}
+                  </div>
 
                   <div style={{ ...tCell, width: 120 }}>
                     {getGroupText(a)}
@@ -240,13 +236,18 @@ export default function AlarmListTable({
                   <div
                     style={{
                       ...tCell,
-                      width: 90,
+                      width: 120,
                       textAlign: "center",
                       borderRight: "none",
-                      fontWeight: 800,
                     }}
                   >
-                    {getEnabledText(a)}
+                    <input
+                      type="checkbox"
+                      checked={enabled}
+                      onChange={() => onToggleEnabled?.(a.id)}
+                      style={checkbox}
+                      title={enabled ? "Disable alarm" : "Enable alarm"}
+                    />
                   </div>
                 </div>
               );
@@ -337,7 +338,7 @@ const tRow = {
   display: "flex",
   borderBottom: "1px solid #e2e2e2",
   background: "#fff",
-  minWidth: "1390px",
+  minWidth: "1420px",
 };
 
 const tCell = {
