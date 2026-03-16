@@ -4,17 +4,29 @@ import useWindowDragResize from "../hooks/useWindowDragResize";
 
 import RightSidebar from "./RightSidebar";
 
-// Floating windows
-import ImageLibrary from "./ImageLibrary";
-import CoreFlexLibrary from "./CoreFlexLibrary";
+// ✅ Lazy-load floating windows so they do NOT get imported at startup
+const ImageLibrary = React.lazy(() => import("./ImageLibrary"));
+const CoreFlexLibrary = React.lazy(() => import("./CoreFlexLibrary"));
 
-import HmiSymbolsLibrary from "./HmiSymbolsLibrary";
-import HvacSymbols2DLibrary from "./HvacSymbols2DLibrary";
-import HvacSymbols3DLibrary from "./HvacSymbols3DLibrary";
-import ManufacturingSymbols2DLibrary from "./ManufacturingSymbols2DLibrary";
-import ManufacturingSymbols3DLibrary from "./ManufacturingSymbols3DLibrary";
-import TanksAndPipesSymbols2DLibrary from "./TanksAndPipesSymbols2DLibrary";
-import TanksAndPipesSymbols3DLibrary from "./TanksAndPipesSymbols3DLibrary";
+const HmiSymbolsLibrary = React.lazy(() => import("./HmiSymbolsLibrary"));
+const HvacSymbols2DLibrary = React.lazy(() =>
+  import("./HvacSymbols2DLibrary")
+);
+const HvacSymbols3DLibrary = React.lazy(() =>
+  import("./HvacSymbols3DLibrary")
+);
+const ManufacturingSymbols2DLibrary = React.lazy(() =>
+  import("./ManufacturingSymbols2DLibrary")
+);
+const ManufacturingSymbols3DLibrary = React.lazy(() =>
+  import("./ManufacturingSymbols3DLibrary")
+);
+const TanksAndPipesSymbols2DLibrary = React.lazy(() =>
+  import("./TanksAndPipesSymbols2DLibrary")
+);
+const TanksAndPipesSymbols3DLibrary = React.lazy(() =>
+  import("./TanksAndPipesSymbols3DLibrary")
+);
 
 /**
  * RightPanel
@@ -160,31 +172,33 @@ export default function RightPanel({
         isDashboardOpenOnCanvas={isDashboardOpenOnCanvas}
       />
 
-      {/* ✅ FLOATING WINDOWS */}
-      <ImageLibrary
-        {...wm.getWindowProps("image", {
-          onDragStartImage: (e, img) =>
-            e.dataTransfer.setData("imageUrl", img.src),
-        })}
-      />
+      {/* ✅ FLOATING WINDOWS (lazy loaded) */}
+      <React.Suspense fallback={null}>
+        <ImageLibrary
+          {...wm.getWindowProps("image", {
+            onDragStartImage: (e, img) =>
+              e.dataTransfer.setData("imageUrl", img.src),
+          })}
+        />
 
-      {/* ✅ CoreFlex IOTs Library */}
-      <CoreFlexLibrary
-        {...wm.getWindowProps("coreflex")}
-        // ✅ pass picker info + click callback
-        pickerMode={coreflexPicker.active}
-        pickerWhich={coreflexPicker.which}
-        onPickImage={handleCoreflexSelect}
-      />
+        {/* ✅ CoreFlex IOTs Library */}
+        <CoreFlexLibrary
+          {...wm.getWindowProps("coreflex")}
+          // ✅ pass picker info + click callback
+          pickerMode={coreflexPicker.active}
+          pickerWhich={coreflexPicker.which}
+          onPickImage={handleCoreflexSelect}
+        />
 
-      {/* ✅ SYMBOL LIBRARIES */}
-      <HmiSymbolsLibrary {...wm.getWindowProps("hmi")} />
-      <HvacSymbols2DLibrary {...wm.getWindowProps("hvac2d")} />
-      <HvacSymbols3DLibrary {...wm.getWindowProps("hvac3d")} />
-      <ManufacturingSymbols2DLibrary {...wm.getWindowProps("mfg2d")} />
-      <ManufacturingSymbols3DLibrary {...wm.getWindowProps("mfg3d")} />
-      <TanksAndPipesSymbols2DLibrary {...wm.getWindowProps("tp2d")} />
-      <TanksAndPipesSymbols3DLibrary {...wm.getWindowProps("tp3d")} />
+        {/* ✅ SYMBOL LIBRARIES */}
+        <HmiSymbolsLibrary {...wm.getWindowProps("hmi")} />
+        <HvacSymbols2DLibrary {...wm.getWindowProps("hvac2d")} />
+        <HvacSymbols3DLibrary {...wm.getWindowProps("hvac3d")} />
+        <ManufacturingSymbols2DLibrary {...wm.getWindowProps("mfg2d")} />
+        <ManufacturingSymbols3DLibrary {...wm.getWindowProps("mfg3d")} />
+        <TanksAndPipesSymbols2DLibrary {...wm.getWindowProps("tp2d")} />
+        <TanksAndPipesSymbols3DLibrary {...wm.getWindowProps("tp3d")} />
+      </React.Suspense>
     </>
   );
 }
