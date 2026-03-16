@@ -119,6 +119,10 @@ export default function GraphicDisplayPanel({
   // ✅ NEW: Settings button handler (parent should open GraphicDisplaySettingsModal)
   onOpenSettings = () => {},
 
+  // ✅ NEW: Timeseries Bar button support
+  showTimeseriesBarBtn = false,
+  onOpenTimeseriesBar = () => {},
+
   // ✅ NEW: Explore-IN range controls
   exploreStart = "",
   exploreEnd = "",
@@ -155,7 +159,7 @@ export default function GraphicDisplayPanel({
   // svg (from useTrendSvg)
   svg = { W: 1000, H: 420, segs: [] },
 
-    // outputs
+  // outputs
   mathOutput = null,
   hoverTotalizerValue = null,
   hoverTotalizerUnit = "",
@@ -322,6 +326,8 @@ export default function GraphicDisplayPanel({
         onTotEnableClick={onTotEnableClick}
         onTotDisableClick={onTotDisableClick}
         onTotResetClick={onTotResetClick}
+        showTimeseriesBarBtn={showTimeseriesBarBtn}
+        onOpenTimeseriesBar={onOpenTimeseriesBar}
         mathOutput={mathOutput}
         outputUnitText={outputUnitText}
         unitBadgeText={unitBadgeText}
@@ -528,11 +534,13 @@ export default function GraphicDisplayPanel({
                     position: "absolute",
                     left: Math.min(
                       Math.max(hover.xPx + 10, 8),
-                      (plotRef?.current?.getBoundingClientRect?.().width || 0) - 260
+                      (plotRef?.current?.getBoundingClientRect?.().width || 0) -
+                        260
                     ),
                     top: Math.min(
                       Math.max(hover.yPx - 26, 8),
-                      (plotRef?.current?.getBoundingClientRect?.().height || 0) - 60
+                      (plotRef?.current?.getBoundingClientRect?.().height || 0) -
+                        60
                     ),
                     fontFamily: "monospace",
                     fontSize: 11,
@@ -552,29 +560,32 @@ export default function GraphicDisplayPanel({
                 >
                   <div>{fmtTime(hover.t)}</div>
 
-<div>
-  Y:{" "}
-  <span style={{ color: "#0b3b18", fontWeight: 400 }}>
-    {Number.isFinite(hover.y) ? Number(hover.y).toFixed(2) : "--"}
-  </span>
-  {outputUnitText ? (
-    <span style={{ color: "#475569" }}> {outputUnitText}</span>
-  ) : null}
-</div>
+                  <div>
+                    Y:{" "}
+                    <span style={{ color: "#0b3b18", fontWeight: 400 }}>
+                      {Number.isFinite(hover.y)
+                        ? Number(hover.y).toFixed(2)
+                        : "--"}
+                    </span>
+                    {outputUnitText ? (
+                      <span style={{ color: "#475569" }}> {outputUnitText}</span>
+                    ) : null}
+                  </div>
 
-{Number.isFinite(hoverTotalizerValue) ? (
-  <div>
-    TOTALIZER:{" "}
-    <span style={{ color: "#0b3b18", fontWeight: 400 }}>
-      {Number(hoverTotalizerValue).toFixed(2)}
-    </span>
-    {hoverTotalizerUnit ? (
-      <span style={{ color: "#475569" }}> {hoverTotalizerUnit}</span>
-    ) : null}
-  </div>
-) : null}
-
-
+                  {Number.isFinite(hoverTotalizerValue) ? (
+                    <div>
+                      TOTALIZER:{" "}
+                      <span style={{ color: "#0b3b18", fontWeight: 400 }}>
+                        {Number(hoverTotalizerValue).toFixed(2)}
+                      </span>
+                      {hoverTotalizerUnit ? (
+                        <span style={{ color: "#475569" }}>
+                          {" "}
+                          {hoverTotalizerUnit}
+                        </span>
+                      ) : null}
+                    </div>
+                  ) : null}
                 </div>
               </>
             ) : null}
