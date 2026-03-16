@@ -1,42 +1,8 @@
 // src/components/AlarmLogWindowListTable.jsx
 import React from "react";
 
-const COL = {
-  sel: 34,
-  time: 160,
-  state: 96,
-  ack: 56,
-  alarmText: 220,
-  device: 160,
-  tag: 96,
-  value: 110,
-  group: 120,
-};
-
-const COL_ORDER = [
-  ["sel", COL.sel],
-  ["time", COL.time],
-  ["state", COL.state],
-  ["ack", COL.ack],
-  ["alarmText", COL.alarmText],
-  ["device", COL.device],
-  ["tag", COL.tag],
-  ["value", COL.value],
-  ["group", COL.group],
-];
-
-const GRID_TEMPLATE = COL_ORDER.map(([, w]) => `${w}px`).join(" ");
-const TOTAL_WIDTH = COL_ORDER.reduce((sum, [, w]) => sum + w, 0);
-
-const VERTICAL_LINES = (() => {
-  let x = 0;
-  const out = [];
-  for (let i = 0; i < COL_ORDER.length - 1; i += 1) {
-    x += COL_ORDER[i][1];
-    out.push(x);
-  }
-  return out;
-})();
+const GRID_TEMPLATE =
+  "34px minmax(130px,1.1fr) minmax(96px,0.8fr) minmax(220px,2.2fr) minmax(64px,0.7fr) minmax(140px,1.1fr) minmax(90px,0.8fr) minmax(90px,0.8fr) minmax(100px,0.9fr)";
 
 function renderAck(a) {
   if (a?.acknowledged === true) return "Yes";
@@ -125,7 +91,7 @@ export default function AlarmLogWindowListTable({
 
   return (
     <div style={tableOuter}>
-      <div style={{ ...tableInner, width: TOTAL_WIDTH, minWidth: TOTAL_WIDTH }}>
+      <div style={tableInner}>
         {/* HEADER */}
         <div style={{ ...headerRow, gridTemplateColumns: GRID_TEMPLATE }}>
           <div style={{ ...cellHead, justifyContent: "center" }}>
@@ -144,8 +110,8 @@ export default function AlarmLogWindowListTable({
 
           <div style={cellHead}>Time</div>
           <div style={{ ...cellHead, justifyContent: "center" }}>State</div>
-          <div style={{ ...cellHead, justifyContent: "center" }}>Ack</div>
           <div style={cellHead}>Alarm Text</div>
+          <div style={{ ...cellHead, justifyContent: "center" }}>Ack</div>
           <div style={cellHead}>Device</div>
           <div style={cellHead}>Tag</div>
           <div style={{ ...cellHead, justifyContent: "flex-end" }}>Value</div>
@@ -154,20 +120,8 @@ export default function AlarmLogWindowListTable({
 
         {/* BODY */}
         <div style={bodyWrap}>
-          {/* aligned background grid */}
-          <div style={gridOverlay}>
-            {VERTICAL_LINES.map((left, idx) => (
-              <div
-                key={`v-${idx}`}
-                style={{
-                  ...verticalLine,
-                  left,
-                }}
-              />
-            ))}
-          </div>
+          <div style={gridOverlay} />
 
-          {/* ROWS */}
           <div style={rowsLayer}>
             {visibleAlarms.map((a) => {
               const isChecked = checkedIds?.has?.(a.id);
@@ -208,11 +162,11 @@ export default function AlarmLogWindowListTable({
                     </span>
                   </div>
 
+                  <div style={cell}>{renderAlarmText(a)}</div>
+
                   <div style={{ ...cell, justifyContent: "center" }}>
                     {renderAck(a)}
                   </div>
-
-                  <div style={cell}>{renderAlarmText(a)}</div>
 
                   <div style={cell}>{renderDevice(a)}</div>
 
@@ -237,12 +191,16 @@ const tableOuter = {
   flex: 1,
   overflow: "auto",
   background: "#ffffff",
+  width: "100%",
+  minWidth: 0,
 };
 
 const tableInner = {
   position: "relative",
   minHeight: "100%",
   background: "#ffffff",
+  width: "100%",
+  minWidth: 0,
 };
 
 const headerRow = {
@@ -254,33 +212,32 @@ const headerRow = {
   position: "sticky",
   top: 0,
   zIndex: 5,
+  width: "100%",
+  minWidth: 0,
 };
 
 const bodyWrap = {
   position: "relative",
   minHeight: "calc(100% - 36px)",
+  width: "100%",
+  minWidth: 0,
 };
 
 const gridOverlay = {
   position: "absolute",
   inset: 0,
   pointerEvents: "none",
-  backgroundImage: "linear-gradient(#eef2f7 1px, transparent 1px)",
-  backgroundSize: "100% 30px",
   zIndex: 0,
-};
-
-const verticalLine = {
-  position: "absolute",
-  top: 0,
-  bottom: 0,
-  width: 1,
-  background: "#eef2f7",
+  backgroundImage:
+    "linear-gradient(#eef2f7 1px, transparent 1px), linear-gradient(90deg, #eef2f7 1px, transparent 1px)",
+  backgroundSize: "100% 30px, 100% 100%",
 };
 
 const rowsLayer = {
   position: "relative",
   zIndex: 1,
+  width: "100%",
+  minWidth: 0,
 };
 
 const dataRow = {
@@ -289,6 +246,8 @@ const dataRow = {
   minHeight: 30,
   borderBottom: "1px solid #e5e7eb",
   cursor: "default",
+  width: "100%",
+  minWidth: 0,
 };
 
 const cellHead = {
