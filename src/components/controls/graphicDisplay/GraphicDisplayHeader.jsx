@@ -40,6 +40,10 @@ export default function GraphicDisplayHeader({
   onTotDisableClick = () => {},
   onTotResetClick = () => {},
 
+  // ✅ NEW: Timeseries Bar button (goes left of Output / Totalizer)
+  showTimeseriesBarBtn = false,
+  onOpenTimeseriesBar = () => {},
+
   // outputs / units
   mathOutput = null,
   outputUnitText = "",
@@ -151,6 +155,24 @@ export default function GraphicDisplayHeader({
       opacity: 0.55,
     }),
     [totBtnBase]
+  );
+
+  const timeseriesBtnStyle = useMemo(
+    () => ({
+      ...bigStatBoxStyle,
+      height: 26,
+      padding: "0 10px",
+      border: "1px solid rgba(245,158,11,0.35)",
+      background: "linear-gradient(180deg,#fff7d6,#fde68a)",
+      color: "#7c2d12",
+      fontFamily: "system-ui, -apple-system, Segoe UI, Roboto, Arial",
+      fontSize: 11,
+      fontWeight: 700,
+      cursor: "pointer",
+      userSelect: "none",
+      gap: 6,
+    }),
+    [bigStatBoxStyle]
   );
 
   // ✅ ALWAYS visible now (edit + play + launch)
@@ -411,6 +433,18 @@ export default function GraphicDisplayHeader({
             flexWrap: "wrap",
           }}
         >
+          {/* ✅ NEW: Timeseries Bar button goes LEFT of Output / Totalizer */}
+          {showTimeseriesBarBtn && isRunMode ? (
+            <button
+              type="button"
+              onClick={onOpenTimeseriesBar}
+              style={timeseriesBtnStyle}
+              title="Open Timeseries Bar"
+            >
+              📊 <span>Timeseries Bar</span>
+            </button>
+          ) : null}
+
           <div style={bigStatBoxStyle} title="Math Output">
             <span
               style={{
