@@ -14,8 +14,8 @@ export function computeMathOutput(liveValue, formula) {
   const f = String(formula || "").trim();
   if (!f) return v; // no formula => output = live value
 
-  // allow VALUE / value
-  const expr = f.replace(/\bVALUE\b/g, "value");
+  // ✅ allow VALUE / value / Value / any case
+  const expr = f.replace(/\bVALUE\b/gi, "value");
 
   try {
     // eslint-disable-next-line no-new-func
@@ -29,10 +29,15 @@ export function computeMathOutput(liveValue, formula) {
 }
 
 export function msPerUnit(timeUnit) {
-  const u = String(timeUnit || "").toLowerCase();
-  if (u === "minutes" || u === "minute" || u === "min") return 60000;
+  const u = String(timeUnit || "").trim().toLowerCase();
+
+  // ✅ NEW: support days correctly
+  if (u === "days" || u === "day") return 86400000;
   if (u === "hours" || u === "hour" || u === "hr") return 3600000;
-  return 1000; // seconds default
+  if (u === "minutes" || u === "minute" || u === "min") return 60000;
+
+  // ✅ default = seconds
+  return 1000;
 }
 
 export function fmtTimeWithDate(ts) {
