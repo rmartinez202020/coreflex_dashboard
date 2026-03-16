@@ -4,6 +4,7 @@ import React, { useMemo } from "react";
 /**
  * TOTALIZER — RATE ONLY (NO CUSTOM)
  * + SINGLE UNITS (mutually exclusive with totalizer)
+ * ✅ NEW: optional "Timeseries Bar" button for Play / Launch mode
  */
 
 const RATE_UNIT_PRESETS = [
@@ -110,6 +111,10 @@ export default function GraphicDisplayTotalizerSection({
   onToggleSingleEnabled = () => {},
   singleUnit = "",
   onChangeSingleUnit = () => {},
+
+  // ✅ NEW: Play / Launch mode button support
+  isRunMode = false,
+  onOpenTimeseriesBar = () => {},
 }) {
   const selectedRateUnit = useMemo(() => {
     const t = String(totalizerUnit || "").trim();
@@ -126,6 +131,8 @@ export default function GraphicDisplayTotalizerSection({
     const hit = SINGLE_UNIT_PRESETS.some((u) => u.value && u.value === t);
     return hit ? t : "";
   }, [singleUnit]);
+
+  const showTimeseriesBarButton = !!isRunMode;
 
   const btnBase = {
     height: 34,
@@ -155,6 +162,15 @@ export default function GraphicDisplayTotalizerSection({
     border: "1px solid #fecaca",
     background: "linear-gradient(180deg,#fee2e2,#fecaca)",
     color: "#7f1d1d",
+  };
+
+  const timeseriesBtn = {
+    ...btnBase,
+    border: "1px solid #f7c948",
+    background: "linear-gradient(180deg,#fde68a,#facc15)",
+    color: "#5b4100",
+    fontWeight: 900,
+    boxShadow: "0 2px 8px rgba(250,204,21,0.18)",
   };
 
   // ✅ Mutual exclusion helpers
@@ -195,24 +211,61 @@ export default function GraphicDisplayTotalizerSection({
       <div style={{ display: "flex", alignItems: "center", gap: 10 }}>
         <div style={{ fontWeight: 900, color: "#111827" }}>Totalizer</div>
 
-        <div style={{ marginLeft: "auto", display: "inline-flex", gap: 8 }}>
-          <button type="button" onClick={enableTotalizer} style={enabled ? btnOn : btnBase}>
+        <div
+          style={{
+            marginLeft: "auto",
+            display: "inline-flex",
+            gap: 8,
+            flexWrap: "wrap",
+            justifyContent: "flex-end",
+          }}
+        >
+          {showTimeseriesBarButton ? (
+            <button
+              type="button"
+              onClick={onOpenTimeseriesBar}
+              style={timeseriesBtn}
+              title="Open Timeseries Bar"
+            >
+              📊 Timeseries Bar
+            </button>
+          ) : null}
+
+          <button
+            type="button"
+            onClick={enableTotalizer}
+            style={enabled ? btnOn : btnBase}
+          >
             ✅ Enable
           </button>
 
-          <button type="button" onClick={disableTotalizer} style={!enabled ? btnOff : btnBase}>
+          <button
+            type="button"
+            onClick={disableTotalizer}
+            style={!enabled ? btnOff : btnBase}
+          >
             ⛔ Disable
           </button>
         </div>
       </div>
 
-      <div style={{ marginTop: 8, fontSize: 12, fontWeight: 800, color: "#6b7280" }}>
-        Use Totalizer when the trend is a <b>RATE</b> (ex: <b>GPM</b>) and you want an accumulated <b>TOTAL</b>.
+      <div
+        style={{
+          marginTop: 8,
+          fontSize: 12,
+          fontWeight: 800,
+          color: "#6b7280",
+        }}
+      >
+        Use Totalizer when the trend is a <b>RATE</b> (ex: <b>GPM</b>) and you
+        want an accumulated <b>TOTAL</b>.
       </div>
 
       <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
         <label style={{ display: "grid", gap: 6 }}>
-          <span style={{ fontSize: 12, fontWeight: 900, color: "#374151" }}>Rate Units (input)</span>
+          <span style={{ fontSize: 12, fontWeight: 900, color: "#374151" }}>
+            Rate Units (input)
+          </span>
 
           <select
             value={selectedRateUnit}
@@ -249,7 +302,9 @@ export default function GraphicDisplayTotalizerSection({
           }}
         >
           <span>Total accumulates in:</span>
-          <span style={{ fontFamily: "monospace" }}>{derivedTotalUnit || "--"}</span>
+          <span style={{ fontFamily: "monospace" }}>
+            {derivedTotalUnit || "--"}
+          </span>
         </div>
       </div>
 
@@ -260,23 +315,41 @@ export default function GraphicDisplayTotalizerSection({
         <div style={{ fontWeight: 900, color: "#111827" }}>Single Units</div>
 
         <div style={{ marginLeft: "auto", display: "inline-flex", gap: 8 }}>
-          <button type="button" onClick={enableSingle} style={singleEnabled ? btnOn : btnBase}>
+          <button
+            type="button"
+            onClick={enableSingle}
+            style={singleEnabled ? btnOn : btnBase}
+          >
             ✅ Enable
           </button>
 
-          <button type="button" onClick={disableSingle} style={!singleEnabled ? btnOff : btnBase}>
+          <button
+            type="button"
+            onClick={disableSingle}
+            style={!singleEnabled ? btnOff : btnBase}
+          >
             ⛔ Disable
           </button>
         </div>
       </div>
 
-      <div style={{ marginTop: 8, fontSize: 12, fontWeight: 800, color: "#6b7280" }}>
-        Use Single Units for <b>instant measurements</b> (Pressure, Temperature, Level). Enabling this will disable the Totalizer.
+      <div
+        style={{
+          marginTop: 8,
+          fontSize: 12,
+          fontWeight: 800,
+          color: "#6b7280",
+        }}
+      >
+        Use Single Units for <b>instant measurements</b> (Pressure,
+        Temperature, Level). Enabling this will disable the Totalizer.
       </div>
 
       <div style={{ display: "grid", gap: 10, marginTop: 12 }}>
         <label style={{ display: "grid", gap: 6 }}>
-          <span style={{ fontSize: 12, fontWeight: 900, color: "#374151" }}>Unit</span>
+          <span style={{ fontSize: 12, fontWeight: 900, color: "#374151" }}>
+            Unit
+          </span>
 
           <select
             value={selectedSingleUnit}
