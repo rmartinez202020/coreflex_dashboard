@@ -11,6 +11,7 @@ import useTrendSvg from "./graphicDisplay/hooks/useTrendSvg";
 import useTrendLayout from "./graphicDisplay/hooks/useTrendLayout";
 import GraphicDisplayExplorePortal from "./graphicDisplay/GraphicDisplayExplorePortal";
 import GraphicDisplayPanel from "./graphicDisplay/GraphicDisplayPanel";
+import GraphicDisplayTimeseriesBarModal from "./graphicDisplay/GraphicDisplayTimeseriesBarModal";
 import { API_URL } from "../../config/api";
 import { getToken } from "../../utils/authToken";
 
@@ -446,7 +447,7 @@ export default function GraphicDisplay({
   const totalizerAccumRef = useRef(0);
   const totalizerLastPointRef = useRef(null);
 
-  // ✅ NEW: runtime button handler state placeholder
+  // ✅ NEW: runtime Timeseries Bar modal state
   const [timeseriesBarOpen, setTimeseriesBarOpen] = useState(false);
 
   useEffect(() => {
@@ -1147,10 +1148,14 @@ export default function GraphicDisplay({
 
   return (
     <>
-      {/* ✅ placeholder until the Timeseries Bar modal/page is added */}
-      {timeseriesBarOpen ? (
-        <div style={{ display: "none" }} aria-hidden="true" />
-      ) : null}
+      <GraphicDisplayTimeseriesBarModal
+        open={timeseriesBarOpen}
+        onClose={() => setTimeseriesBarOpen(false)}
+        title={title}
+        points={activePoints}
+        totalizerRateUnit={totalizerRateUnit}
+        totalizerTotalUnit={totalizerTotalUnit}
+      />
 
       <GraphicDisplayExplorePortal
         open={exploreOpen}
