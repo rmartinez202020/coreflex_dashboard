@@ -27,12 +27,15 @@ function getConditionText(alarm) {
   const type = String(alarm?.type || "").trim().toLowerCase();
 
   if (type === "boolean") {
-    const contactType = String(alarm?.config?.contactType || "").trim().toUpperCase();
+    const contactType = String(
+      alarm?.config?.contactType || ""
+    ).trim().toUpperCase();
     if (contactType === "NC") return "NC → 0";
     return "NO → 1";
   }
 
-  const op = String(alarm?.config?.operator || alarm?.operator || "").trim() || "—";
+  const op =
+    String(alarm?.config?.operator || alarm?.operator || "").trim() || "—";
   const threshold =
     alarm?.config?.threshold ?? alarm?.value ?? alarm?.threshold ?? "—";
 
@@ -49,10 +52,7 @@ function getMathText(alarm) {
 
 function getGroupText(alarm) {
   return String(
-    alarm?.group ||
-      alarm?.config?.group ||
-      alarm?.groupName ||
-      "General"
+    alarm?.group || alarm?.config?.group || alarm?.groupName || "General"
   ).trim();
 }
 
@@ -94,9 +94,13 @@ export default function AlarmListTable({
         <div style={tableHeaderLeft}>
           <button
             type="button"
-            style={tableBtn}
+            style={{
+              ...tableBtn,
+              ...(canAdd ? {} : tableBtnDisabled),
+            }}
             onClick={onAdd}
             disabled={!canAdd}
+            title={!canAdd ? "Complete all required alarm settings" : "Add Alarm"}
           >
             Add Alarm
           </button>
@@ -105,8 +109,7 @@ export default function AlarmListTable({
             type="button"
             style={{
               ...tableBtn,
-              opacity: checkedIds.size === 0 ? 0.5 : 1,
-              cursor: checkedIds.size === 0 ? "not-allowed" : "pointer",
+              ...(checkedIds.size === 0 ? tableBtnDisabled : {}),
             }}
             disabled={checkedIds.size === 0}
             onClick={onDeleteSelected}
@@ -133,7 +136,9 @@ export default function AlarmListTable({
           <div style={{ ...tHeadCell, width: 180 }}>Dashboard</div>
           <div style={{ ...tHeadCell, width: 100 }}>Tag</div>
           <div style={{ ...tHeadCell, width: 170 }}>Device</div>
-          <div style={{ ...tHeadCell, width: 70, textAlign: "center" }}>Type</div>
+          <div style={{ ...tHeadCell, width: 70, textAlign: "center" }}>
+            Type
+          </div>
           <div style={{ ...tHeadCell, width: 140 }}>Condition</div>
           <div style={{ ...tHeadCell, width: 160 }}>Math</div>
           <div style={{ ...tHeadCell, width: 120 }}>Group</div>
@@ -212,9 +217,7 @@ export default function AlarmListTable({
                     {getConditionText(a)}
                   </div>
 
-                  <div style={{ ...tCell, width: 160 }}>
-                    {getMathText(a)}
-                  </div>
+                  <div style={{ ...tCell, width: 160 }}>{getMathText(a)}</div>
 
                   <div style={{ ...tCell, width: 120 }}>
                     {getGroupText(a)}
@@ -285,6 +288,15 @@ const tableBtn = {
   cursor: "pointer",
   fontSize: 12,
   fontWeight: 800,
+};
+
+const tableBtnDisabled = {
+  opacity: 0.45,
+  cursor: "not-allowed",
+  background: "#f3f4f6",
+  color: "#8a8f98",
+  border: "1px solid #d7dbe0",
+  boxShadow: "none",
 };
 
 const tableWrap = {
