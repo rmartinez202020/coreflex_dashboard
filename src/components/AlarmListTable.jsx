@@ -83,6 +83,25 @@ export default function AlarmListTable({
   onDeleteSelected,
   canAdd = false,
 }) {
+  const [isAdding, setIsAdding] = React.useState(false);
+  const [addError, setAddError] = React.useState("");
+
+  const handleAddClick = async () => {
+    if (!canAdd || isAdding) return;
+
+    setAddError("");
+    setIsAdding(true);
+
+    try {
+      await onAdd?.();
+    } catch (err) {
+      console.error("❌ Add Alarm failed:", err);
+      setAddError(err?.message || "Failed to save alarm.");
+    } finally {
+      setIsAdding(false);
+    }
+  };
+
   return (
     <div style={bottomArea}>
       <div style={tableHeader}>
@@ -91,13 +110,19 @@ export default function AlarmListTable({
             type="button"
             style={{
               ...tableBtn,
-              ...(canAdd ? {} : tableBtnDisabled),
+              ...(!canAdd || isAdding ? tableBtnDisabled : {}),
             }}
-            onClick={onAdd}
-            disabled={!canAdd}
-            title={!canAdd ? "Complete all required alarm settings" : "Add Alarm"}
+            onClick={handleAddClick}
+            disabled={!canAdd || isAdding}
+            title={
+              !canAdd
+                ? "Complete all required alarm settings"
+                : isAdding
+                ? "Saving alarm..."
+                : "Add Alarm"
+            }
           >
-            Add Alarm
+            {isAdding ? "Saving..." : "Add Alarm"}
           </button>
 
           <button
@@ -116,6 +141,8 @@ export default function AlarmListTable({
         <div />
       </div>
 
+      {!!addError && <div style={errorBox}>{addError}</div>}
+
       <div style={tableWrap}>
         <div style={tHeadRow}>
           <div style={{ ...tHeadCell, width: 40, textAlign: "center" }}>
@@ -131,7 +158,9 @@ export default function AlarmListTable({
           <div style={{ ...tHeadCell, width: 180 }}>Dashboard</div>
           <div style={{ ...tHeadCell, width: 100 }}>Tag</div>
           <div style={{ ...tHeadCell, width: 170 }}>Device</div>
-          <div style={{ ...tHeadCell, width: 70, textAlign: "center" }}>Type</div>
+          <div style={{ ...tHeadCell, width: 70, textAlign: "center" }}>
+            Type
+          </div>
           <div style={{ ...tHeadCell, width: 140 }}>Condition</div>
           <div style={{ ...tHeadCell, width: 160 }}>Math</div>
           <div style={{ ...tHeadCell, width: 120 }}>Group</div>
@@ -298,6 +327,16 @@ const tableBtnDisabled = {
   color: "#8a8f98",
   border: "1px solid #d7dbe0",
   boxShadow: "none",
+};
+
+const errorBox = {
+  marginBottom: 8,
+  padding: "8px 10px",
+  border: "1px solid #f5c2c7",
+  background: "#fff1f2",
+  color: "#991b1b",
+  fontSize: 12,
+  borderRadius: 2,
 };
 
 const tableWrap = {
