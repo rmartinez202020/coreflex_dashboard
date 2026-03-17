@@ -10,6 +10,35 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function normalizeHistoryRow(row, idx = 0) {
+  const ts = row?.ts || row?.timestamp || row?.time || null;
+  const stateRaw = String(row?.state || "").trim().toUpperCase();
+
+  return {
+    id:
+      row?.id ||
+      `${row?.alarm_definition_id || "alarm"}-${ts || "ts"}-${idx}-${stateRaw}`,
+    ts,
+    time: ts,
+    state:
+      stateRaw === "RETURNED"
+        ? "Returned"
+        : stateRaw === "ACTIVE"
+        ? "Active"
+        : stateRaw || "—",
+    alarmText: String(row?.message || row?.alarm_text || "").trim(),
+    ack: row?.acknowledged ? "Yes" : "",
+    device: String(row?.device_id || "").trim(),
+    tag: String(row?.tag || "").trim(),
+    value:
+      row?.computed_value ?? row?.raw_value ?? row?.value ?? row?.threshold ?? "",
+    group: String(row?.group_name || row?.group || "General").trim(),
+    severity: String(row?.severity || "").trim(),
+    enabled: row?.enabled !== false,
+    raw: row,
+  };
+}
+
 export default function AlarmLogWindow({
   onLaunch,
   onMinimize,
@@ -34,7 +63,12 @@ export default function AlarmLogWindow({
   // ✅ NEW: when true, renders like a full page (no drag/minimize/launch)
   isPage = false,
 }) {
-  const alarms = [];
+  const resolvedDashboardId = String(dashboardId || "").trim() || "main";
+  const resolvedAlarmLogKey = `${resolvedDashboardId}__alarmLog`;
+
+  const [alarms, setAlarms] = React.useState([]);
+  const [isLoadingHistory, setIsLoadingHistory] = React.useState(false);
+  const [historyError, setHistoryError] = React.useState("");
 
   const [alarmView, setAlarmView] = React.useState("alarms");
   const [selectedId, setSelectedId] = React.useState(null);
@@ -49,13 +83,83 @@ export default function AlarmLogWindow({
   // ✅ dashboard label shown in the top bar
   const normalizedDashboardName =
     String(dashboardName || "").trim() ||
-    (String(dashboardId || "").trim() === "main"
-      ? "Main Dashboard"
-      : "Dashboard");
+    (resolvedDashboardId === "main" ? "Main Dashboard" : "Dashboard");
+
+  const loadAlarmHistory = React.useCallback(
+    async (silent = false) => {
+      if (!silent) setIsLoadingHistory(true);
+      setHistoryError("");
+
+      try {
+        const res = await fetch(`${API_URL}/alarm-history/read`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+          },
+          body: JSON.stringify({
+            alarm_log_key: resolvedAlarmLogKey,
+          }),
+        });
+
+        let data = null;
+        try {
+          data = await res.json();
+        } catch {
+          data = [];
+        }
+
+        if (!res.ok) {
+          throw new Error(
+            data?.detail || data?.error || "Failed to load alarm history"
+          );
+        }
+
+        const rows = Array.isArray(data)
+          ? data.map((row, idx) => normalizeHistoryRow(row, idx))
+          : [];
+
+        setAlarms(rows);
+      } catch (err) {
+        console.error("❌ Failed to load alarm history:", err);
+        setHistoryError(err?.message || "Failed to load alarm history");
+        setAlarms([]);
+      } finally {
+        if (!silent) setIsLoadingHistory(false);
+      }
+    },
+    [resolvedAlarmLogKey]
+  );
+
+  React.useEffect(() => {
+    loadAlarmHistory(false);
+
+    const timer = window.setInterval(() => {
+      loadAlarmHistory(true);
+    }, 3000);
+
+    return () => window.clearInterval(timer);
+  }, [loadAlarmHistory]);
 
   const visibleAlarms = React.useMemo(() => {
-    if (alarmView === "disabled") return [];
-    return alarms;
+    const source = Array.isArray(alarms) ? alarms : [];
+
+    if (alarmView === "disabled") {
+      return source.filter((a) => a.enabled === false);
+    }
+
+    if (alarmView === "active") {
+      return source.filter(
+        (a) => String(a.state || "").trim().toLowerCase() === "active"
+      );
+    }
+
+    if (alarmView === "history") {
+      return source;
+    }
+
+    // alarms tab
+    return source.filter((a) => a.enabled !== false);
   }, [alarmView, alarms]);
 
   const toggleChecked = (id) => {
@@ -100,7 +204,7 @@ export default function AlarmLogWindow({
           ...getAuthHeaders(),
         },
         body: JSON.stringify({
-          dashboard_id: String(dashboardId || "main").trim() || "main",
+          dashboard_id: resolvedDashboardId,
           window_key: String(windowKey || "alarmLog").trim() || "alarmLog",
         }),
       });
@@ -229,6 +333,12 @@ export default function AlarmLogWindow({
         </div>
       </div>
 
+      {!!historyError && (
+        <div style={errorBar}>
+          {historyError}
+        </div>
+      )}
+
       {/* TABLE */}
       <AlarmLogWindowListTable
         visibleAlarms={visibleAlarms}
@@ -237,6 +347,7 @@ export default function AlarmLogWindow({
         setSelectedId={setSelectedId}
         toggleChecked={toggleChecked}
         toggleAllVisible={toggleAllVisible}
+        isLoading={isLoadingHistory}
       />
 
       {/* Bottom bar */}
@@ -260,6 +371,10 @@ export default function AlarmLogWindow({
         <div style={bottomInfo}>
           Selected: <b>{checkedIds.size}</b>
         </div>
+
+        <div style={{ marginLeft: "auto", fontSize: 12, color: "#111827" }}>
+          File: <b>{resolvedAlarmLogKey}</b>
+        </div>
       </div>
 
       {/* Alarm Setup Modal */}
@@ -268,12 +383,13 @@ export default function AlarmLogWindow({
         onClose={() => setShowAlarmSetup(false)}
         onAddAlarm={(alarmObj) => {
           onAddAlarm?.(alarmObj);
+          loadAlarmHistory(false);
         }}
         devices={devices}
         availableTags={availableTags}
         sensorsData={sensorsData}
         dashboardName={normalizedDashboardName}
-        dashboardId={dashboardId}
+        dashboardId={resolvedDashboardId}
       />
 
       {/* Close confirm */}
@@ -523,6 +639,17 @@ const launchPill = {
   justifyContent: "center",
   fontSize: 12,
   fontWeight: 900,
+};
+
+const errorBar = {
+  minHeight: 28,
+  padding: "6px 10px",
+  borderBottom: "1px solid #fecaca",
+  background: "#fef2f2",
+  color: "#991b1b",
+  fontSize: 12,
+  display: "flex",
+  alignItems: "center",
 };
 
 const bottomBar = {
