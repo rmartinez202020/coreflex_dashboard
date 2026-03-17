@@ -10,6 +10,20 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function formatAlarmTime(value) {
+  if (!value) return "—";
+
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return "—";
+
+  return d.toLocaleTimeString("en-US", {
+    hour: "2-digit",
+    minute: "2-digit",
+    second: "2-digit",
+    hour12: true,
+  });
+}
+
 function normalizeHistoryRow(row, idx = 0) {
   const ts = row?.ts || row?.timestamp || row?.time || null;
   const stateRaw = String(row?.state || "").trim().toUpperCase();
@@ -19,15 +33,15 @@ function normalizeHistoryRow(row, idx = 0) {
       row?.id ||
       `${row?.alarm_definition_id || "alarm"}-${ts || "ts"}-${idx}-${stateRaw}`,
     ts,
-    time: ts,
+    time: formatAlarmTime(ts),
     state:
       stateRaw === "RETURNED"
-        ? "Returned"
+        ? "RETURNED"
         : stateRaw === "ACTIVE"
-        ? "Active"
+        ? "ACTIVE"
         : stateRaw || "—",
     alarmText: String(row?.message || row?.alarm_text || "").trim(),
-    ack: row?.acknowledged ? "Yes" : "",
+    ack: row?.acknowledged ? "Yes" : "No",
     device: String(row?.device_id || "").trim(),
     tag: String(row?.tag || "").trim(),
     value:
@@ -333,11 +347,7 @@ export default function AlarmLogWindow({
         </div>
       </div>
 
-      {!!historyError && (
-        <div style={errorBar}>
-          {historyError}
-        </div>
-      )}
+      {!!historyError && <div style={errorBar}>{historyError}</div>}
 
       {/* TABLE */}
       <AlarmLogWindowListTable
@@ -411,9 +421,8 @@ export default function AlarmLogWindow({
             </div>
 
             <div style={confirmBody}>
-              If you close this window,{" "}
-              <b>your current Alarm Log setup will be lost</b> (view mode,
-              filters, selections, and any unsaved configuration).
+              If you close this window, <b>your current Alarm Log setup will be lost</b>{" "}
+              (view mode, filters, selections, and any unsaved configuration).
               <div style={confirmHint}>
                 Tip: Save your project and Minimize the window if you want to
                 keep this setup.
