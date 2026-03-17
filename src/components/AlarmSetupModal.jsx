@@ -60,6 +60,7 @@ function mapBackendAlarmToUi(alarm) {
     ioType: alarmType || "DI",
     dashboardName: "",
     dashboardId: "",
+    alarmLogKey: String(alarm?.alarm_log_key || "").trim(),
     message: String(alarm?.message || "").trim(),
     edgeDetection: isBoolean
       ? contactType === "NC"
@@ -247,9 +248,7 @@ export default function AlarmSetupModal({
       String(alarm?.config?.severity || alarm?.severity || "warning")
     );
     setMessage(String(alarm?.message || ""));
-    setMathEnabled(
-      String(alarm?.config?.mathFormula || "").trim() !== ""
-    );
+    setMathEnabled(String(alarm?.config?.mathFormula || "").trim() !== "");
     setMathFormula(String(alarm?.config?.mathFormula || ""));
   }, []);
 
@@ -403,9 +402,11 @@ export default function AlarmSetupModal({
   const buildPayload = () => {
     const isBoolean = alarmType === "boolean";
     const trimmedMathFormula = String(mathFormula || "").trim();
+    const resolvedDashboardId = String(dashboardId || "").trim() || "main";
 
     return {
       device_id: String(selectedTag?.deviceId || "").trim(),
+      alarm_log_key: `${resolvedDashboardId}__alarmLog`,
       model: String(model || "").trim() || "zhc1921",
       tag: String(selectedTag?.field || "").trim(),
       alarm_type: isBoolean ? "DI" : "AI",
@@ -418,10 +419,7 @@ export default function AlarmSetupModal({
           ? 1
           : 0
         : Number(threshold),
-      math_formula:
-        !isBoolean && trimmedMathFormula
-          ? trimmedMathFormula
-          : null,
+      math_formula: !isBoolean && trimmedMathFormula ? trimmedMathFormula : null,
       group_name: "General",
       severity: !isBoolean ? String(severity || "").trim() || null : null,
       message: message?.trim() || "",
@@ -604,7 +602,9 @@ export default function AlarmSetupModal({
             onAdd={handleAdd}
             onSave={handleSave}
             onDeleteSelected={deleteSelected}
-            canAdd={canAdd && !isLoadingAlarms && !isDeletingAlarms && !isSavingEdit}
+            canAdd={
+              canAdd && !isLoadingAlarms && !isDeletingAlarms && !isSavingEdit
+            }
             canSave={
               canSave && !isLoadingAlarms && !isDeletingAlarms && !isSavingEdit
             }
