@@ -208,6 +208,15 @@ function getLiveValueStyle(tagMode, previewValue) {
   };
 }
 
+function sameTag(a, b) {
+  if (!a || !b) return false;
+  return (
+    String(a.deviceId || "").trim() === String(b.deviceId || "").trim() &&
+    String(a.field || "").trim().toLowerCase() ===
+      String(b.field || "").trim().toLowerCase()
+  );
+}
+
 export default function AlarmTelemetrySection({
   sectionLabel = "Tag that triggers this alarm",
   alarmType = "boolean",
@@ -400,35 +409,95 @@ export default function AlarmTelemetrySection({
       });
   }, [availableFields, telemetryRow, deviceId, search, tagMode]);
 
+  // ✅ Resolve any externally injected selectedTag (edit mode) into the
+  // real live tag object from the current filtered/available telemetry list.
+  React.useEffect(() => {
+    if (!selectedTag || !deviceId) return;
+
+    const selectedField = String(selectedTag.field || "")
+      .trim()
+      .toLowerCase();
+    const selectedDeviceId = String(selectedTag.deviceId || "").trim();
+
+    if (!selectedField || !selectedDeviceId) return;
+    if (selectedDeviceId !== String(deviceId || "").trim()) return;
+
+    const liveMatch = filteredTags.find(
+      (t) =>
+        String(t.deviceId || "").trim() === selectedDeviceId &&
+        String(t.field || "").trim().toLowerCase() === selectedField
+    );
+
+    if (!liveMatch) return;
+
+    if (sameTag(selectedTag, liveMatch)) {
+      const sameLabel =
+        String(selectedTag.label || "") === String(liveMatch.label || "");
+      const sameType =
+        String(selectedTag.type || "") === String(liveMatch.type || "");
+      const samePreview =
+        String(selectedTag.previewValue ?? "") ===
+        String(liveMatch.previewValue ?? "");
+
+      if (sameLabel && sameType && samePreview) return;
+    }
+
+    setSelectedTag?.({
+      ...selectedTag,
+      ...liveMatch,
+    });
+  }, [selectedTag, filteredTags, setSelectedTag, deviceId]);
+
   const previewValue = React.useMemo(() => {
-    if (!selectedTag || !telemetryRow) return null;
+    if (!selectedTag) return null;
+
+    // Prefer the synchronized live preview on the selectedTag object.
+    if (
+      selectedTag.previewValue !== undefined &&
+      selectedTag.previewValue !== null
+    ) {
+      return selectedTag.previewValue;
+    }
+
+    if (!telemetryRow) return null;
     const raw = readTagFromRow(telemetryRow, selectedTag.field);
     return tagMode === "di" ? to01(raw) : raw;
   }, [selectedTag, telemetryRow, tagMode]);
 
-  // ✅ IMPORTANT: keep selectedTag.previewValue live-updated
+  // ✅ IMPORTANT: keep selectedTag live-updated from telemetry
   React.useEffect(() => {
     if (!selectedTag || !telemetryRow) return;
 
     const raw = readTagFromRow(telemetryRow, selectedTag.field);
     const nextPreviewValue = tagMode === "di" ? to01(raw) : raw;
 
-    const prevVal = selectedTag.previewValue;
-    const sameValue =
-      String(prevVal ?? "") === String(nextPreviewValue ?? "");
-
-    const sameDevice =
-      String(selectedTag.deviceId || "") === String(deviceId || "");
-    const sameField =
-      String(selectedTag.field || "") === String(selectedTag.field || "");
-
-    if (sameValue && sameDevice && sameField) return;
-
-    setSelectedTag?.({
+    const nextSelected = {
       ...selectedTag,
       deviceId: String(deviceId || "").trim(),
+      field: String(selectedTag.field || "").trim(),
+      label:
+        String(selectedTag.label || "").trim() ||
+        formatTagLabel(selectedTag.field),
+      type: String(selectedTag.type || tagMode).toUpperCase(),
       previewValue: nextPreviewValue,
-    });
+    };
+
+    const sameDevice =
+      String(selectedTag.deviceId || "") === String(nextSelected.deviceId || "");
+    const sameField =
+      String(selectedTag.field || "").trim().toLowerCase() ===
+      String(nextSelected.field || "").trim().toLowerCase();
+    const sameLabel =
+      String(selectedTag.label || "") === String(nextSelected.label || "");
+    const sameType =
+      String(selectedTag.type || "") === String(nextSelected.type || "");
+    const sameValue =
+      String(selectedTag.previewValue ?? "") ===
+      String(nextSelected.previewValue ?? "");
+
+    if (sameDevice && sameField && sameLabel && sameType && sameValue) return;
+
+    setSelectedTag?.(nextSelected);
   }, [selectedTag, telemetryRow, tagMode, setSelectedTag, deviceId]);
 
   const selectedPreview = React.useMemo(
