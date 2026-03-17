@@ -247,7 +247,9 @@ export default function AlarmSetupModal({
       String(alarm?.config?.severity || alarm?.severity || "warning")
     );
     setMessage(String(alarm?.message || ""));
-    setMathEnabled(Boolean(alarm?.config?.mathEnabled));
+    setMathEnabled(
+      String(alarm?.config?.mathFormula || "").trim() !== ""
+    );
     setMathFormula(String(alarm?.config?.mathFormula || ""));
   }, []);
 
@@ -358,8 +360,6 @@ export default function AlarmSetupModal({
     }
   };
 
-  const [/* unused */] = React.useState(null);
-
   const rawValue = React.useMemo(() => {
     if (!selectedTag) return null;
     if (
@@ -419,7 +419,7 @@ export default function AlarmSetupModal({
           : 0
         : Number(threshold),
       math_formula:
-        !isBoolean && mathEnabled && trimmedMathFormula
+        !isBoolean && trimmedMathFormula
           ? trimmedMathFormula
           : null,
       group_name: "General",
