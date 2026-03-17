@@ -125,8 +125,32 @@ export default function AlarmSetupModal({
 
   const [isLoadingAlarms, setIsLoadingAlarms] = React.useState(false);
   const [isDeletingAlarms, setIsDeletingAlarms] = React.useState(false);
+  const [isSavingEdit, setIsSavingEdit] = React.useState(false);
+
+  const [editingAlarmId, setEditingAlarmId] = React.useState(null);
 
   const emitChange = (next) => onChangeAlarms?.(next);
+
+  const [alarmType, setAlarmType] = React.useState("boolean");
+  const [model, setModel] = React.useState("zhc1921");
+
+  const [deviceId, setDeviceId] = React.useState("");
+  const [search, setSearch] = React.useState("");
+  const [selectedTag, setSelectedTag] = React.useState(null);
+
+  const [contactType, setContactType] = React.useState("NO");
+
+  const [operator, setOperator] = React.useState(">=");
+  const [threshold, setThreshold] = React.useState("0");
+  const [deadband, setDeadband] = React.useState("0");
+  const [severity, setSeverity] = React.useState("warning");
+
+  const [message, setMessage] = React.useState("");
+
+  const [mathEnabled, setMathEnabled] = React.useState(false);
+  const [mathFormula, setMathFormula] = React.useState("");
+
+  const skipAlarmTypeResetRef = React.useRef(false);
 
   const loadAlarmDefinitions = React.useCallback(async () => {
     setIsLoadingAlarms(true);
@@ -169,10 +193,78 @@ export default function AlarmSetupModal({
     }
   }, [initialAlarms]);
 
+  const clearEditor = React.useCallback(() => {
+    setEditingAlarmId(null);
+    setAlarmType("boolean");
+    setModel("zhc1921");
+    setDeviceId("");
+    setSearch("");
+    setSelectedTag(null);
+    setContactType("NO");
+    setOperator(">=");
+    setThreshold("0");
+    setDeadband("0");
+    setSeverity("warning");
+    setMessage("");
+    setMathEnabled(false);
+    setMathFormula("");
+  }, []);
+
+  const loadAlarmIntoEditor = React.useCallback((alarm) => {
+    if (!alarm) return;
+
+    const isBoolean =
+      String(alarm?.type || "").trim().toLowerCase() === "boolean";
+
+    skipAlarmTypeResetRef.current = true;
+    setAlarmType(isBoolean ? "boolean" : "dynamic");
+
+    setEditingAlarmId(alarm.id ?? null);
+    setModel(String(alarm?.model || "").trim() || "zhc1921");
+    setDeviceId(String(alarm?.deviceId || "").trim());
+    setSearch("");
+    setSelectedTag({
+      deviceId: String(alarm?.deviceId || "").trim(),
+      field: String(alarm?.field || "").trim(),
+      label: String(alarm?.tagLabel || alarm?.field || "").trim(),
+      previewValue: null,
+    });
+
+    setContactType(
+      String(alarm?.config?.contactType || "NO").trim().toUpperCase() === "NC"
+        ? "NC"
+        : "NO"
+    );
+
+    setOperator(String(alarm?.config?.operator || alarm?.operator || ">="));
+    setThreshold(
+      String(
+        alarm?.config?.threshold ?? alarm?.threshold ?? alarm?.value ?? "0"
+      )
+    );
+    setDeadband(String(alarm?.config?.deadband ?? alarm?.deadbandLevel ?? "0"));
+    setSeverity(
+      String(alarm?.config?.severity || alarm?.severity || "warning")
+    );
+    setMessage(String(alarm?.message || ""));
+    setMathEnabled(Boolean(alarm?.config?.mathEnabled));
+    setMathFormula(String(alarm?.config?.mathFormula || ""));
+  }, []);
+
   React.useEffect(() => {
     if (!open) return;
     loadAlarmDefinitions();
   }, [open, loadAlarmDefinitions]);
+
+  React.useEffect(() => {
+    if (skipAlarmTypeResetRef.current) {
+      skipAlarmTypeResetRef.current = false;
+      return;
+    }
+
+    setSelectedTag(null);
+    setSearch("");
+  }, [alarmType]);
 
   const toggleRowCheck = (id) => {
     setCheckedIds((prev) => {
@@ -194,6 +286,20 @@ export default function AlarmSetupModal({
 
       return next;
     });
+  };
+
+  const toggleRowEdit = (id) => {
+    if (!id) return;
+
+    if (editingAlarmId === id) {
+      clearEditor();
+      return;
+    }
+
+    const alarm = alarms.find((a) => a.id === id);
+    if (!alarm) return;
+
+    loadAlarmIntoEditor(alarm);
   };
 
   const toggleAlarmEnabled = (id) => {
@@ -238,6 +344,10 @@ export default function AlarmSetupModal({
         );
       }
 
+      if (editingAlarmId && ids.includes(editingAlarmId)) {
+        clearEditor();
+      }
+
       setCheckedIds(new Set());
       await loadAlarmDefinitions();
     } catch (err) {
@@ -248,36 +358,7 @@ export default function AlarmSetupModal({
     }
   };
 
-  const clearAll = () => {
-    const next = [];
-    setAlarms(next);
-    setCheckedIds(new Set());
-    emitChange(next);
-  };
-
-  const [alarmType, setAlarmType] = React.useState("boolean");
-  const [model, setModel] = React.useState("zhc1921");
-
-  const [deviceId, setDeviceId] = React.useState("");
-  const [search, setSearch] = React.useState("");
-  const [selectedTag, setSelectedTag] = React.useState(null);
-
-  const [contactType, setContactType] = React.useState("NO");
-
-  const [operator, setOperator] = React.useState(">=");
-  const [threshold, setThreshold] = React.useState("0");
-  const [deadband, setDeadband] = React.useState("0");
-  const [severity, setSeverity] = React.useState("warning");
-
-  const [message, setMessage] = React.useState("");
-
-  const [mathEnabled, setMathEnabled] = React.useState(false);
-  const [mathFormula, setMathFormula] = React.useState("");
-
-  React.useEffect(() => {
-    setSelectedTag(null);
-    setSearch("");
-  }, [alarmType]);
+  const [/* unused */] = React.useState(null);
 
   const rawValue = React.useMemo(() => {
     if (!selectedTag) return null;
@@ -311,47 +392,47 @@ export default function AlarmSetupModal({
     !Number.isNaN(Number(threshold)) &&
     String(severity || "").trim() !== "";
 
-  const canAdd =
+  const formIsValid =
     alarmType === "boolean"
       ? hasSelectedTag && hasMessage && hasBooleanSettings
       : hasSelectedTag && hasMessage && hasDynamicSettings;
 
-  const handleAdd = async () => {
-    if (!canAdd) return;
+  const canAdd = formIsValid && !editingAlarmId;
+  const canSave = formIsValid && !!editingAlarmId;
 
+  const buildPayload = () => {
     const isBoolean = alarmType === "boolean";
     const trimmedMathFormula = String(mathFormula || "").trim();
 
-    const payload = {
-      device_id: String(selectedTag.deviceId || "").trim(),
+    return {
+      device_id: String(selectedTag?.deviceId || "").trim(),
       model: String(model || "").trim() || "zhc1921",
-      tag: String(selectedTag.field || "").trim(),
+      tag: String(selectedTag?.field || "").trim(),
       alarm_type: isBoolean ? "DI" : "AI",
-
-      // ✅ Boolean alarms now pass NO / NC explicitly
       contact_type: isBoolean
         ? String(contactType || "NO").trim().toUpperCase()
         : null,
-
       operator: isBoolean ? null : String(operator || "").trim() || null,
-
       threshold: isBoolean
         ? contactType === "NO"
           ? 1
           : 0
         : Number(threshold),
-
-      // ✅ Pass math formula only for dynamic alarms when enabled and non-empty
       math_formula:
         !isBoolean && mathEnabled && trimmedMathFormula
           ? trimmedMathFormula
           : null,
-
       group_name: "General",
       severity: !isBoolean ? String(severity || "").trim() || null : null,
       message: message?.trim() || "",
       enabled: true,
     };
+  };
+
+  const handleAdd = async () => {
+    if (!canAdd) return;
+
+    const payload = buildPayload();
 
     const res = await fetch(`${API_URL}/alarm-definitions/`, {
       method: "POST",
@@ -378,6 +459,48 @@ export default function AlarmSetupModal({
     onAddAlarm?.(data);
     setMessage("");
     await loadAlarmDefinitions();
+  };
+
+  const handleSave = async () => {
+    if (!canSave || !editingAlarmId || isSavingEdit) return;
+
+    setIsSavingEdit(true);
+    try {
+      const payload = buildPayload();
+
+      const res = await fetch(
+        `${API_URL}/alarm-definitions/${editingAlarmId}`,
+        {
+          method: "PATCH",
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok) {
+        throw new Error(
+          data?.detail || data?.error || "Failed to update alarm definition"
+        );
+      }
+
+      await loadAlarmDefinitions();
+      clearEditor();
+    } catch (err) {
+      console.error("❌ Failed to update alarm definition:", err);
+      throw err;
+    } finally {
+      setIsSavingEdit(false);
+    }
   };
 
   const allChecked =
@@ -473,15 +596,21 @@ export default function AlarmSetupModal({
             alarms={alarms}
             checkedIds={checkedIds}
             allChecked={allChecked}
+            editingAlarmId={editingAlarmId}
             onToggleAll={toggleAll}
             onToggleRowCheck={toggleRowCheck}
+            onToggleEdit={toggleRowEdit}
             onToggleEnabled={toggleAlarmEnabled}
             onAdd={handleAdd}
+            onSave={handleSave}
             onDeleteSelected={deleteSelected}
-            canAdd={canAdd && !isLoadingAlarms && !isDeletingAlarms}
+            canAdd={canAdd && !isLoadingAlarms && !isDeletingAlarms && !isSavingEdit}
+            canSave={
+              canSave && !isLoadingAlarms && !isDeletingAlarms && !isSavingEdit
+            }
           />
 
-          {false && <button onClick={clearAll}>Clear</button>}
+          {false && <button onClick={clearEditor}>Clear</button>}
         </div>
       </div>
     </div>

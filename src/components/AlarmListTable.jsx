@@ -79,15 +79,20 @@ export default function AlarmListTable({
   onToggleAll,
   onToggleRowCheck,
   onToggleEnabled,
+  onToggleEdit,
+  editingAlarmId = null,
   onAdd,
+  onSave,
   onDeleteSelected,
   canAdd = false,
+  canSave = false,
 }) {
   const [isAdding, setIsAdding] = React.useState(false);
+  const [isSaving, setIsSaving] = React.useState(false);
   const [addError, setAddError] = React.useState("");
 
   const handleAddClick = async () => {
-    if (!canAdd || isAdding) return;
+    if (!canAdd || isAdding || isSaving) return;
 
     setAddError("");
     setIsAdding(true);
@@ -102,6 +107,22 @@ export default function AlarmListTable({
     }
   };
 
+  const handleSaveClick = async () => {
+    if (!canSave || isSaving || isAdding) return;
+
+    setAddError("");
+    setIsSaving(true);
+
+    try {
+      await onSave?.();
+    } catch (err) {
+      console.error("❌ Save Alarm failed:", err);
+      setAddError(err?.message || "Failed to update alarm.");
+    } finally {
+      setIsSaving(false);
+    }
+  };
+
   return (
     <div style={bottomArea}>
       <div style={tableHeader}>
@@ -110,10 +131,10 @@ export default function AlarmListTable({
             type="button"
             style={{
               ...tableBtn,
-              ...(!canAdd || isAdding ? tableBtnDisabled : {}),
+              ...(!canAdd || isAdding || isSaving ? tableBtnDisabled : {}),
             }}
             onClick={handleAddClick}
-            disabled={!canAdd || isAdding}
+            disabled={!canAdd || isAdding || isSaving}
             title={
               !canAdd
                 ? "Complete all required alarm settings"
@@ -129,12 +150,33 @@ export default function AlarmListTable({
             type="button"
             style={{
               ...tableBtn,
-              ...(checkedIds.size === 0 ? tableBtnDisabled : {}),
+              ...(checkedIds.size === 0 || isAdding || isSaving
+                ? tableBtnDisabled
+                : {}),
             }}
-            disabled={checkedIds.size === 0}
+            disabled={checkedIds.size === 0 || isAdding || isSaving}
             onClick={onDeleteSelected}
           >
             Delete Alarms
+          </button>
+
+          <button
+            type="button"
+            style={{
+              ...tableBtn,
+              ...(!canSave || isSaving || isAdding ? tableBtnDisabled : {}),
+            }}
+            disabled={!canSave || isSaving || isAdding}
+            onClick={handleSaveClick}
+            title={
+              !canSave
+                ? "Select an alarm in Edit mode first"
+                : isSaving
+                ? "Saving changes..."
+                : "Save changes"
+            }
+          >
+            {isSaving ? "Saving..." : "Save"}
           </button>
         </div>
 
@@ -174,6 +216,17 @@ export default function AlarmListTable({
           >
             Message
           </div>
+
+          <div
+            style={{
+              ...tHeadCell,
+              width: 80,
+              textAlign: "center",
+            }}
+          >
+            Edit
+          </div>
+
           <div
             style={{
               ...tHeadCell,
@@ -195,9 +248,16 @@ export default function AlarmListTable({
             alarms.map((a) => {
               const checked = checkedIds.has(a.id);
               const enabled = a?.enabled !== false;
+              const isEditing = editingAlarmId === a.id;
 
               return (
-                <div key={a.id} style={tRow}>
+                <div
+                  key={a.id}
+                  style={{
+                    ...tRow,
+                    ...(isEditing ? tRowEditing : null),
+                  }}
+                >
                   <div
                     style={{
                       ...tCell,
@@ -260,6 +320,26 @@ export default function AlarmListTable({
                     }}
                   >
                     {a.message || <span style={{ color: "#888" }}>—</span>}
+                  </div>
+
+                  <div
+                    style={{
+                      ...tCell,
+                      width: 80,
+                      textAlign: "center",
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isEditing}
+                      onChange={() => onToggleEdit?.(a.id)}
+                      style={checkbox}
+                      title={
+                        isEditing
+                          ? "Editing this alarm"
+                          : "Edit this alarm"
+                      }
+                    />
                   </div>
 
                   <div
@@ -377,7 +457,11 @@ const tRow = {
   display: "flex",
   borderBottom: "1px solid #e2e2e2",
   background: "#fff",
-  minWidth: "1420px",
+  minWidth: "1500px",
+};
+
+const tRowEditing = {
+  background: "#eef6ff",
 };
 
 const tCell = {
