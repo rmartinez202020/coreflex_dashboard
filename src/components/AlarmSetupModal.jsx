@@ -40,13 +40,14 @@ function computeMathOutput(rawValue, mathFormula) {
 function mapBackendAlarmToUi(alarm) {
   const alarmType = String(alarm?.alarm_type || "").trim().toUpperCase();
   const isBoolean = alarmType === "DI";
-  const thresholdValue = alarm?.threshold;
 
-  let contactType = "NO";
-  if (isBoolean) {
-    if (thresholdValue === 0) contactType = "NC";
-    else contactType = "NO";
-  }
+  const savedContactType = String(alarm?.contact_type || "")
+    .trim()
+    .toUpperCase();
+  const contactType =
+    savedContactType === "NC" || savedContactType === "NO"
+      ? savedContactType
+      : "NO";
 
   return {
     id: alarm?.id,
@@ -67,7 +68,11 @@ function mapBackendAlarmToUi(alarm) {
       : `When value ${String(alarm?.operator || "").trim()} ${String(
           alarm?.threshold ?? ""
         ).trim()}`,
-    value: isBoolean ? (contactType === "NO" ? 1 : 0) : thresholdValue,
+    value: isBoolean
+      ? contactType === "NO"
+        ? 1
+        : 0
+      : alarm?.threshold,
     deadbandMode: isBoolean ? "—" : "Absolute",
     deadbandLevel: isBoolean ? "—" : 0,
     severity: isBoolean
@@ -146,9 +151,7 @@ export default function AlarmSetupModal({
         );
       }
 
-      const mapped = Array.isArray(data)
-        ? data.map(mapBackendAlarmToUi)
-        : [];
+      const mapped = Array.isArray(data) ? data.map(mapBackendAlarmToUi) : [];
 
       setAlarms(mapped);
       setCheckedIds(new Set());
@@ -279,27 +282,36 @@ export default function AlarmSetupModal({
   const handleAdd = async () => {
     if (!canAdd) return;
 
+    const isBoolean = alarmType === "boolean";
+    const trimmedMathFormula = String(mathFormula || "").trim();
+
     const payload = {
       device_id: String(selectedTag.deviceId || "").trim(),
       model: String(model || "").trim() || "zhc1921",
       tag: String(selectedTag.field || "").trim(),
-      alarm_type: alarmType === "boolean" ? "DI" : "AI",
-      operator:
-        alarmType === "boolean"
-          ? null
-          : String(operator || "").trim() || null,
-      threshold:
-        alarmType === "boolean"
-          ? contactType === "NO"
-            ? 1
-            : 0
-          : Number(threshold),
+      alarm_type: isBoolean ? "DI" : "AI",
+
+      // ✅ Boolean alarms now pass NO / NC explicitly
+      contact_type: isBoolean
+        ? String(contactType || "NO").trim().toUpperCase()
+        : null,
+
+      operator: isBoolean ? null : String(operator || "").trim() || null,
+
+      threshold: isBoolean
+        ? contactType === "NO"
+          ? 1
+          : 0
+        : Number(threshold),
+
+      // ✅ Pass math formula only for dynamic alarms when enabled and non-empty
       math_formula:
-        alarmType === "dynamic" && mathEnabled
-          ? String(mathFormula || "").trim()
-          : "",
+        !isBoolean && mathEnabled && trimmedMathFormula
+          ? trimmedMathFormula
+          : null,
+
       group_name: "General",
-      severity: alarmType === "dynamic" ? String(severity || "").trim() : null,
+      severity: !isBoolean ? String(severity || "").trim() || null : null,
       message: message?.trim() || "",
       enabled: true,
     };
