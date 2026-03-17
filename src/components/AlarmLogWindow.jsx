@@ -150,7 +150,7 @@ export default function AlarmLogWindow({
 
     const timer = window.setInterval(() => {
       loadAlarmHistory(true);
-    }, 3000);
+    }, 10000);
 
     return () => window.clearInterval(timer);
   }, [loadAlarmHistory]);
