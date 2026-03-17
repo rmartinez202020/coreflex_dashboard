@@ -124,6 +124,7 @@ export default function AlarmSetupModal({
   const [checkedIds, setCheckedIds] = React.useState(() => new Set());
 
   const [isLoadingAlarms, setIsLoadingAlarms] = React.useState(false);
+  const [isDeletingAlarms, setIsDeletingAlarms] = React.useState(false);
 
   const emitChange = (next) => onChangeAlarms?.(next);
 
@@ -203,12 +204,48 @@ export default function AlarmSetupModal({
     emitChange(next);
   };
 
-  const deleteSelected = () => {
-    if (checkedIds.size === 0) return;
-    const next = alarms.filter((a) => !checkedIds.has(a.id));
-    setAlarms(next);
-    setCheckedIds(new Set());
-    emitChange(next);
+  const deleteSelected = async () => {
+    if (checkedIds.size === 0 || isDeletingAlarms) return;
+
+    const ids = Array.from(checkedIds).filter(
+      (id) => id !== null && id !== undefined && id !== ""
+    );
+
+    if (ids.length === 0) return;
+
+    setIsDeletingAlarms(true);
+
+    try {
+      const res = await fetch(`${API_URL}/alarm-definitions/`, {
+        method: "DELETE",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({ ids }),
+      });
+
+      let data = null;
+      try {
+        data = await res.json();
+      } catch {
+        data = null;
+      }
+
+      if (!res.ok) {
+        throw new Error(
+          data?.detail || data?.error || "Failed to delete alarm definitions"
+        );
+      }
+
+      setCheckedIds(new Set());
+      await loadAlarmDefinitions();
+    } catch (err) {
+      console.error("❌ Failed to delete alarm definitions:", err);
+      throw err;
+    } finally {
+      setIsDeletingAlarms(false);
+    }
   };
 
   const clearAll = () => {
@@ -441,7 +478,7 @@ export default function AlarmSetupModal({
             onToggleEnabled={toggleAlarmEnabled}
             onAdd={handleAdd}
             onDeleteSelected={deleteSelected}
-            canAdd={canAdd && !isLoadingAlarms}
+            canAdd={canAdd && !isLoadingAlarms && !isDeletingAlarms}
           />
 
           {false && <button onClick={clearAll}>Clear</button>}
