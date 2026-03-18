@@ -231,6 +231,14 @@ function sortAlarmRowsNewestFirst(rows = []) {
   });
 }
 
+function csvEscape(value) {
+  const s = String(value ?? "");
+  if (s.includes('"') || s.includes(",") || s.includes("\n")) {
+    return `"${s.replace(/"/g, '""')}"`;
+  }
+  return s;
+}
+
 export default function AlarmLogWindow({
   onLaunch,
   onMinimize,
@@ -356,6 +364,67 @@ export default function AlarmLogWindow({
     if (checkedIds.size === 0) return;
     setCheckedIds(new Set());
   };
+
+  const handleExportHistoryCsv = React.useCallback(() => {
+    const source = sortAlarmRowsNewestFirst(rawHistoryRows || []);
+    if (!source.length) return;
+
+    const headers = [
+      "Time",
+      "State",
+      "Alarm Text",
+      "Severity",
+      "Ack",
+      "Device",
+      "Tag",
+      "Value",
+      "Group",
+      "Enabled",
+      "Alarm Definition Id",
+      "Unique Alarm Key",
+    ];
+
+    const lines = [
+      headers.join(","),
+      ...source.map((row) =>
+        [
+          row.time || "",
+          row.state || "",
+          row.alarmText || "",
+          row.severity || "",
+          row.ack || "",
+          row.device || "",
+          row.tag || "",
+          row.value ?? "",
+          row.group || "",
+          row.enabled === false ? "No" : "Yes",
+          row.alarmDefinitionId ?? "",
+          row.uniqueAlarmKey || "",
+        ]
+          .map(csvEscape)
+          .join(",")
+      ),
+    ];
+
+    const csv = "\uFEFF" + lines.join("\n");
+    const blob = new Blob([csv], { type: "text/csv;charset=utf-8;" });
+    const url = window.URL.createObjectURL(blob);
+
+    const a = document.createElement("a");
+    const stamp = new Date();
+    const fileName = `alarm-history-${resolvedDashboardId}-${stamp.getFullYear()}${pad2(
+      stamp.getMonth() + 1
+    )}${pad2(stamp.getDate())}-${pad2(stamp.getHours())}${pad2(
+      stamp.getMinutes()
+    )}${pad2(stamp.getSeconds())}.csv`;
+
+    a.href = url;
+    a.download = fileName;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+  }, [rawHistoryRows, resolvedDashboardId]);
 
   const handleAcknowledgeAlarm = React.useCallback(
     (alarm) => {
@@ -598,6 +667,23 @@ export default function AlarmLogWindow({
               onClick={() => setAlarmView(v)}
             />
           ))}
+
+          {alarmView === "history" && (
+            <button
+              type="button"
+              style={exportTabBtn}
+              title="Export history file"
+              onClick={(e) => {
+                e.stopPropagation();
+                handleExportHistoryCsv();
+              }}
+            >
+              <span style={exportPill}>⇩</span>
+              <span style={{ fontSize: 12, fontWeight: 900, color: "#111827" }}>
+                Export File
+              </span>
+            </button>
+          )}
         </div>
 
         <div style={tabsRight}>
@@ -639,19 +725,20 @@ export default function AlarmLogWindow({
       {!!historyError && <div style={errorBar}>{historyError}</div>}
 
       <AlarmLogWindowListTable
-  alarmView={alarmView}
-  visibleAlarms={visibleAlarms}
-  checkedIds={checkedIds}
-  selectedId={selectedId}
-  setSelectedId={setSelectedId}
-  toggleChecked={toggleChecked}
-  toggleAllVisible={toggleAllVisible}
-  onAcknowledgeAlarm={handleAcknowledgeAlarm}
-  onDisableAlarm={handleToggleAlarmEnabled}
-  expandedAlarmKeys={expandedAlarmKeys}
-  onToggleExpandAlarm={handleToggleExpandAlarm}
-  expandedHistoryMap={expandedHistoryMap}
-/>
+        alarmView={alarmView}
+        visibleAlarms={visibleAlarms}
+        checkedIds={checkedIds}
+        selectedId={selectedId}
+        setSelectedId={setSelectedId}
+        toggleChecked={toggleChecked}
+        toggleAllVisible={toggleAllVisible}
+        onAcknowledgeAlarm={handleAcknowledgeAlarm}
+        onDisableAlarm={handleToggleAlarmEnabled}
+        expandedAlarmKeys={expandedAlarmKeys}
+        onToggleExpandAlarm={handleToggleExpandAlarm}
+        expandedHistoryMap={expandedHistoryMap}
+      />
+
       <div style={bottomBar}>
         <button
           type="button"
@@ -776,3 +863,30 @@ function TabButton({ label, active, onClick }) {
     </button>
   );
 }
+
+const exportTabBtn = {
+  height: 28,
+  padding: "4px 10px",
+  borderRadius: 6,
+  border: "1px solid #9ca3af",
+  background: "#ffffff",
+  color: "#111827",
+  cursor: "pointer",
+  display: "inline-flex",
+  alignItems: "center",
+  gap: 8,
+  marginLeft: 6,
+};
+
+const exportPill = {
+  width: 18,
+  height: 18,
+  borderRadius: 6,
+  border: "1px solid #cbd5e1",
+  background: "#f1f5f9",
+  display: "inline-flex",
+  alignItems: "center",
+  justifyContent: "center",
+  fontSize: 12,
+  fontWeight: 900,
+};
