@@ -2,7 +2,7 @@
 import React from "react";
 
 const GRID_TEMPLATE =
-  "34px minmax(130px,1.1fr) minmax(96px,0.8fr) minmax(220px,2.2fr) minmax(110px,0.9fr) minmax(64px,0.7fr) minmax(140px,1.1fr) minmax(90px,0.8fr) minmax(90px,0.8fr) minmax(100px,0.9fr)";
+  "34px minmax(130px,1.1fr) minmax(96px,0.8fr) minmax(220px,2.2fr) minmax(100px,0.9fr) minmax(110px,0.9fr) minmax(64px,0.7fr) minmax(140px,1.1fr) minmax(90px,0.8fr) minmax(90px,0.8fr) minmax(100px,0.9fr)";
 
 function renderAck(a) {
   if (a?.acknowledged === true) return "Yes";
@@ -57,6 +57,10 @@ function renderValue(a) {
 
 function renderAlarmText(a) {
   return a?.text ?? a?.alarmText ?? a?.message ?? "—";
+}
+
+function renderSeverity(a) {
+  return String(a?.severity ?? a?.raw?.severity ?? "—").trim() || "—";
 }
 
 function renderGroup(a) {
@@ -132,21 +136,31 @@ export default function AlarmLogWindowListTable({
           </div>
 
           <div style={getHeadCellStyle()}>Time</div>
+
           <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
             State
           </div>
+
           <div style={getHeadCellStyle()}>Alarm Text</div>
+
+          <div style={getHeadCellStyle()}>Severity</div>
+
           <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
             Occurrences
           </div>
+
           <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
             Ack
           </div>
+
           <div style={getHeadCellStyle()}>Device</div>
+
           <div style={getHeadCellStyle()}>Tag</div>
+
           <div style={getHeadCellStyle(false, { justifyContent: "flex-end" })}>
             Value
           </div>
+
           <div style={getHeadCellStyle(true)}>Group</div>
         </div>
 
@@ -207,6 +221,10 @@ export default function AlarmLogWindowListTable({
 
                   <div style={getBodyCellStyle(false, { background: rowBg })}>
                     {renderAlarmText(a)}
+                  </div>
+
+                  <div style={getBodyCellStyle(false, { background: rowBg })}>
+                    {renderSeverity(a)}
                   </div>
 
                   <div
