@@ -287,40 +287,44 @@ const stateBadge = {
   display: "inline-flex",
   alignItems: "center",
   justifyContent: "center",
-  minWidth: 72,
-  padding: "2px 8px",
-  borderRadius: 999,
+  minWidth: 84,
+  height: 22,
+  padding: "0 10px",
+  borderRadius: 6,
   fontSize: 11,
   fontWeight: 900,
+  letterSpacing: 0.3,
   border: "1px solid transparent",
+  boxSizing: "border-box",
+  textTransform: "uppercase",
 };
 
 const stateActive = {
-  background: "#fee2e2",
-  color: "#991b1b",
-  borderColor: "#fecaca",
+  background: "#fff1f2",
+  color: "#b91c1c",
+  borderColor: "#fecdd3",
 };
 
 const stateReturned = {
-  background: "#dcfce7",
-  color: "#166534",
-  borderColor: "#bbf7d0",
+  background: "#ecfdf5",
+  color: "#047857",
+  borderColor: "#a7f3d0",
 };
 
 const stateAcked = {
-  background: "#dbeafe",
+  background: "#eff6ff",
   color: "#1d4ed8",
   borderColor: "#bfdbfe",
 };
 
 const stateDisabled = {
-  background: "#e5e7eb",
+  background: "#f3f4f6",
   color: "#374151",
   borderColor: "#d1d5db",
 };
 
 const stateDefault = {
-  background: "#f3f4f6",
+  background: "#f9fafb",
   color: "#111827",
   borderColor: "#e5e7eb",
 };
