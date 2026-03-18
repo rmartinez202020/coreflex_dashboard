@@ -221,7 +221,12 @@ export default function AlarmLogWindowListTable({
               const acked = isAcknowledged(a, localAck);
               const isActiveUnacked = stateText === "ACTIVE" && !acked;
               const canAck = stateText === "ACTIVE" && !acked;
-              const isDisabled = stateText === "DISABLED" || a?.enabled === false;
+              const isDisabled =
+                stateText === "DISABLED" || a?.enabled === false;
+              const disableLabel = isDisabled ? "Enable" : "Disable";
+              const disableTitle = isDisabled
+                ? "Enable this alarm"
+                : "Disable this alarm";
               const isExpanded = expandedAlarmKeys?.has?.(a.uniqueAlarmKey);
               const historyRows = expandedHistoryMap?.[a.uniqueAlarmKey] || [];
 
@@ -404,33 +409,23 @@ export default function AlarmLogWindowListTable({
                         type="button"
                         style={{
                           ...disableBtn,
-                          ...(isDisabled ? disableBtnDisabled : disableBtnReady),
+                          ...disableBtnReady,
                         }}
-                        disabled={isDisabled}
-                        title={
-                          isDisabled
-                            ? "Alarm already disabled"
-                            : "Disable this alarm"
-                        }
+                        title={disableTitle}
                         onMouseEnter={(e) => {
-                          if (!isDisabled) {
-                            e.currentTarget.style.background = "#e5e7eb";
-                            e.currentTarget.style.borderColor = "#bfc6cf";
-                          }
+                          e.currentTarget.style.background = "#e5e7eb";
+                          e.currentTarget.style.borderColor = "#bfc6cf";
                         }}
                         onMouseLeave={(e) => {
-                          if (!isDisabled) {
-                            e.currentTarget.style.background = "#f3f4f6";
-                            e.currentTarget.style.borderColor = "#c7cdd4";
-                          }
+                          e.currentTarget.style.background = "#f3f4f6";
+                          e.currentTarget.style.borderColor = "#c7cdd4";
                         }}
                         onClick={(e) => {
                           e.stopPropagation();
-                          if (isDisabled) return;
                           onDisableAlarm?.(a);
                         }}
                       >
-                        {isDisabled ? "Disabled" : "Disable"}
+                        {disableLabel}
                       </button>
                     </div>
                   </div>
@@ -534,7 +529,9 @@ export default function AlarmLogWindowListTable({
                               type="button"
                               style={{
                                 ...ackBtn,
-                                ...(historyCanAck ? ackBtnReady : ackBtnDisabled),
+                                ...(historyCanAck
+                                  ? ackBtnReady
+                                  : ackBtnDisabled),
                               }}
                               disabled={!historyCanAck}
                               onClick={(e) => {
