@@ -347,11 +347,7 @@ export default function App() {
     windowKey: String(payload?.windowKey || "alarmLog"),
   });
 
-  window.open(
-    `/launchAlarmLog?${qs.toString()}`,
-    "_blank",
-    "noopener,noreferrer"
-  );
+  window.open(`/launchAlarmLog?${qs.toString()}`, "_blank");
 };
 
   // SENSOR SETUP
