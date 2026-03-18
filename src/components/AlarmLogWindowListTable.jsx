@@ -84,6 +84,22 @@ function getStateStyle(state) {
   }
 }
 
+function getHeadCellStyle(isLast = false, extra = {}) {
+  return {
+    ...cellHead,
+    ...(isLast ? noRightBorder : null),
+    ...extra,
+  };
+}
+
+function getBodyCellStyle(isLast = false, extra = {}) {
+  return {
+    ...cell,
+    ...(isLast ? noRightBorder : null),
+    ...extra,
+  };
+}
+
 export default function AlarmLogWindowListTable({
   visibleAlarms = [],
   checkedIds,
@@ -101,7 +117,7 @@ export default function AlarmLogWindowListTable({
       <div style={tableInner}>
         {/* HEADER */}
         <div style={{ ...headerRow, gridTemplateColumns: GRID_TEMPLATE }}>
-          <div style={{ ...cellHead, justifyContent: "center" }}>
+          <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
             <input
               type="checkbox"
               checked={allVisibleSelected}
@@ -115,28 +131,33 @@ export default function AlarmLogWindowListTable({
             />
           </div>
 
-          <div style={cellHead}>Time</div>
-          <div style={{ ...cellHead, justifyContent: "center" }}>State</div>
-          <div style={cellHead}>Alarm Text</div>
-          <div style={{ ...cellHead, justifyContent: "center" }}>
+          <div style={getHeadCellStyle()}>Time</div>
+          <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
+            State
+          </div>
+          <div style={getHeadCellStyle()}>Alarm Text</div>
+          <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
             Occurrences
           </div>
-          <div style={{ ...cellHead, justifyContent: "center" }}>Ack</div>
-          <div style={cellHead}>Device</div>
-          <div style={cellHead}>Tag</div>
-          <div style={{ ...cellHead, justifyContent: "flex-end" }}>Value</div>
-          <div style={cellHead}>Group</div>
+          <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
+            Ack
+          </div>
+          <div style={getHeadCellStyle()}>Device</div>
+          <div style={getHeadCellStyle()}>Tag</div>
+          <div style={getHeadCellStyle(false, { justifyContent: "flex-end" })}>
+            Value
+          </div>
+          <div style={getHeadCellStyle(true)}>Group</div>
         </div>
 
         {/* BODY */}
         <div style={bodyWrap}>
-          <div style={gridOverlay} />
-
           <div style={rowsLayer}>
             {visibleAlarms.map((a) => {
               const isChecked = checkedIds?.has?.(a.id);
               const isSelected = selectedId === a.id;
               const stateText = renderState(a);
+              const rowBg = isSelected ? "#eef4ff" : "#ffffff";
 
               return (
                 <div
@@ -144,7 +165,7 @@ export default function AlarmLogWindowListTable({
                   style={{
                     ...dataRow,
                     gridTemplateColumns: GRID_TEMPLATE,
-                    background: isSelected ? "#eef4ff" : "transparent",
+                    background: rowBg,
                     color: "#111827",
                   }}
                   onMouseDown={(e) => {
@@ -152,7 +173,12 @@ export default function AlarmLogWindowListTable({
                     setSelectedId?.(a.id);
                   }}
                 >
-                  <div style={{ ...cell, justifyContent: "center" }}>
+                  <div
+                    style={getBodyCellStyle(false, {
+                      justifyContent: "center",
+                      background: rowBg,
+                    })}
+                  >
                     <input
                       type="checkbox"
                       checked={!!isChecked}
@@ -164,33 +190,63 @@ export default function AlarmLogWindowListTable({
                     />
                   </div>
 
-                  <div style={cell}>{a.time || "—"}</div>
+                  <div style={getBodyCellStyle(false, { background: rowBg })}>
+                    {a.time || "—"}
+                  </div>
 
-                  <div style={{ ...cell, justifyContent: "center" }}>
+                  <div
+                    style={getBodyCellStyle(false, {
+                      justifyContent: "center",
+                      background: rowBg,
+                    })}
+                  >
                     <span style={{ ...stateBadge, ...getStateStyle(stateText) }}>
                       {stateText}
                     </span>
                   </div>
 
-                  <div style={cell}>{renderAlarmText(a)}</div>
+                  <div style={getBodyCellStyle(false, { background: rowBg })}>
+                    {renderAlarmText(a)}
+                  </div>
 
-                  <div style={{ ...cell, justifyContent: "center" }}>
+                  <div
+                    style={getBodyCellStyle(false, {
+                      justifyContent: "center",
+                      background: rowBg,
+                    })}
+                  >
                     {renderOccurrences(a)}
                   </div>
 
-                  <div style={{ ...cell, justifyContent: "center" }}>
+                  <div
+                    style={getBodyCellStyle(false, {
+                      justifyContent: "center",
+                      background: rowBg,
+                    })}
+                  >
                     {renderAck(a)}
                   </div>
 
-                  <div style={cell}>{renderDevice(a)}</div>
+                  <div style={getBodyCellStyle(false, { background: rowBg })}>
+                    {renderDevice(a)}
+                  </div>
 
-                  <div style={cell}>{renderTag(a)}</div>
+                  <div style={getBodyCellStyle(false, { background: rowBg })}>
+                    {renderTag(a)}
+                  </div>
 
-                  <div style={{ ...cell, justifyContent: "flex-end" }}>
+                  <div
+                    style={getBodyCellStyle(false, {
+                      justifyContent: "flex-end",
+                      background: rowBg,
+                    })}
+                  >
                     {renderValue(a)}
                   </div>
 
-                  <div style={cell}>{renderGroup(a)}</div>
+                  <div style={getBodyCellStyle(true, { background: rowBg })}>
+                    {renderGroup(a)}
+                  </div>
                 </div>
               );
             })}
@@ -222,7 +278,6 @@ const headerRow = {
   alignItems: "stretch",
   background: "#eef1f5",
   color: "#111827",
-  borderBottom: "1px solid #d1d5db",
   position: "sticky",
   top: 0,
   zIndex: 5,
@@ -232,24 +287,14 @@ const headerRow = {
 
 const bodyWrap = {
   position: "relative",
-  minHeight: "calc(100% - 36px)",
+  flex: 1,
+  background: "#ffffff",
   width: "100%",
   minWidth: 0,
 };
 
-const gridOverlay = {
-  position: "absolute",
-  inset: 0,
-  pointerEvents: "none",
-  zIndex: 0,
-  backgroundImage:
-    "linear-gradient(#eef2f7 1px, transparent 1px), linear-gradient(90deg, #eef2f7 1px, transparent 1px)",
-  backgroundSize: "100% 30px, 100% 100%",
-};
-
 const rowsLayer = {
   position: "relative",
-  zIndex: 1,
   width: "100%",
   minWidth: 0,
 };
@@ -257,15 +302,14 @@ const rowsLayer = {
 const dataRow = {
   display: "grid",
   alignItems: "stretch",
-  minHeight: 30,
-  borderBottom: "1px solid #e5e7eb",
-  cursor: "default",
   width: "100%",
   minWidth: 0,
+  cursor: "default",
 };
 
 const cellHead = {
   minWidth: 0,
+  minHeight: 34,
   padding: "8px 10px",
   fontWeight: 900,
   fontSize: 12,
@@ -275,11 +319,14 @@ const cellHead = {
   textOverflow: "ellipsis",
   display: "flex",
   alignItems: "center",
-  borderRight: "1px solid #dbe3ec",
+  borderRight: "1px solid #d9e0e7",
+  borderBottom: "1px solid #cfd6dd",
+  boxSizing: "border-box",
 };
 
 const cell = {
   minWidth: 0,
+  minHeight: 38,
   padding: "8px 10px",
   fontSize: 12,
   whiteSpace: "nowrap",
@@ -287,7 +334,13 @@ const cell = {
   textOverflow: "ellipsis",
   display: "flex",
   alignItems: "center",
-  borderRight: "1px solid #eef2f7",
+  borderRight: "1px solid #e4e9ef",
+  borderBottom: "1px solid #d7dde5",
+  boxSizing: "border-box",
+};
+
+const noRightBorder = {
+  borderRight: "none",
 };
 
 const checkbox = {
