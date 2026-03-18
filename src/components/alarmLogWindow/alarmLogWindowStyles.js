@@ -117,13 +117,17 @@ export const tabBtn = {
   color: "#111827",
   cursor: "pointer",
   fontSize: 12,
+  boxShadow: "0 1px 1px rgba(0,0,0,0.04)",
+  transition:
+    "background 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease, transform 120ms ease",
 };
 
 export const tabBtnActive = {
-  background: "#ffffff",
-  color: "#111827",
-  border: "1px solid #6b7280",
-  boxShadow: "0 1px 2px rgba(0,0,0,0.08)",
+  background: "#111827",
+  color: "#ffffff",
+  border: "1px solid #111827",
+  boxShadow:
+    "inset 0 1px 2px rgba(255,255,255,0.08), 0 1px 2px rgba(0,0,0,0.16)",
 };
 
 // =========================
