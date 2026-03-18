@@ -152,7 +152,10 @@ export default function AlarmLogWindowListTable({
   const [localAck, setLocalAck] = React.useState({});
 
   const isCompactLatestOnlyView =
-    alarmView === "alarms" || alarmView === "disabled";
+    alarmView === "alarms" ||
+    alarmView === "disabled" ||
+    alarmView === "active";
+
   const gridTemplate = isCompactLatestOnlyView
     ? GRID_TEMPLATE_COMPACT
     : GRID_TEMPLATE_DEFAULT;
