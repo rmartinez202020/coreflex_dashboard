@@ -49,6 +49,10 @@ function mapBackendAlarmToUi(alarm) {
       ? savedContactType
       : "NO";
 
+  const normalizedSeverity = String(
+    alarm?.severity || "warning"
+  ).trim().toLowerCase();
+
   return {
     id: alarm?.id,
     createdAt: alarm?.created_at ? Date.parse(alarm.created_at) : Date.now(),
@@ -76,9 +80,10 @@ function mapBackendAlarmToUi(alarm) {
       : alarm?.threshold,
     deadbandMode: isBoolean ? "—" : "Absolute",
     deadbandLevel: isBoolean ? "—" : 0,
-    severity: isBoolean
-      ? "—"
-      : String(alarm?.severity || "Warning").trim(),
+
+    // ✅ FIX: boolean alarms also keep severity from backend
+    severity: normalizedSeverity,
+
     enabled: alarm?.enabled !== false,
     operator: alarm?.operator ?? "",
     threshold: alarm?.threshold ?? "",
@@ -87,12 +92,13 @@ function mapBackendAlarmToUi(alarm) {
     config: isBoolean
       ? {
           contactType,
+          severity: normalizedSeverity, // ✅ FIX
         }
       : {
           operator: alarm?.operator ?? "",
           threshold: alarm?.threshold ?? "",
           deadband: 0,
-          severity: String(alarm?.severity || "Warning").trim(),
+          severity: normalizedSeverity,
           mathEnabled: String(alarm?.math_formula || "").trim() !== "",
           mathFormula: String(alarm?.math_formula || "").trim(),
           rawValue: null,
@@ -246,6 +252,8 @@ export default function AlarmSetupModal({
     setDeadband(String(alarm?.config?.deadband ?? alarm?.deadbandLevel ?? "0"));
     setSeverity(
       String(alarm?.config?.severity || alarm?.severity || "warning")
+        .trim()
+        .toLowerCase()
     );
     setMessage(String(alarm?.message || ""));
     setMathEnabled(String(alarm?.config?.mathFormula || "").trim() !== "");
@@ -391,9 +399,13 @@ export default function AlarmSetupModal({
     !Number.isNaN(Number(threshold)) &&
     String(severity || "").trim() !== "";
 
+  // ✅ FIX: boolean alarm should also require severity
   const formIsValid =
     alarmType === "boolean"
-      ? hasSelectedTag && hasMessage && hasBooleanSettings
+      ? hasSelectedTag &&
+        hasMessage &&
+        hasBooleanSettings &&
+        String(severity || "").trim() !== ""
       : hasSelectedTag && hasMessage && hasDynamicSettings;
 
   const canAdd = formIsValid && !editingAlarmId;
@@ -421,7 +433,10 @@ export default function AlarmSetupModal({
         : Number(threshold),
       math_formula: !isBoolean && trimmedMathFormula ? trimmedMathFormula : null,
       group_name: "General",
-      severity: !isBoolean ? String(severity || "").trim() || null : null,
+
+      // ✅ FIX: save severity for BOTH boolean and dynamic
+      severity: String(severity || "").trim() || null,
+
       message: message?.trim() || "",
       enabled: true,
     };
