@@ -83,10 +83,26 @@ function renderOccurrences(a) {
   return String(n);
 }
 
-function getStateStyle(state) {
+function getActiveStateStyleBySeverity(severity) {
+  const s = String(severity || "").trim().toLowerCase();
+
+  if (s === "warning") {
+    return stateActiveWarning;
+  }
+
+  if (s === "info") {
+    return stateActiveInfo;
+  }
+
+  return stateActiveCritical;
+}
+
+function getStateStyle(state, alarm) {
   switch (String(state || "").toUpperCase()) {
     case "ACTIVE":
-      return stateActive;
+      return getActiveStateStyleBySeverity(
+        alarm?.severity ?? alarm?.raw?.severity ?? ""
+      );
     case "RETURNED":
       return stateReturned;
     case "ACKED":
@@ -122,8 +138,7 @@ export default function AlarmLogWindowListTable({
   toggleChecked,
   toggleAllVisible,
   onAcknowledgeAlarm,
-  onToggleAlarmEnabled,
-  alarmView = "alarms",
+  onDisableAlarm,
 }) {
   const [localAck, setLocalAck] = React.useState({});
 
@@ -144,6 +159,7 @@ export default function AlarmLogWindowListTable({
   return (
     <div style={tableOuter}>
       <div style={tableInner}>
+        {/* HEADER */}
         <div style={{ ...headerRow, gridTemplateColumns: GRID_TEMPLATE }}>
           <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
             <input
@@ -160,28 +176,39 @@ export default function AlarmLogWindowListTable({
           </div>
 
           <div style={getHeadCellStyle()}>Time</div>
+
           <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
             State
           </div>
+
           <div style={getHeadCellStyle()}>Alarm Text</div>
+
           <div style={getHeadCellStyle()}>Severity</div>
+
           <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
             Occurrences
           </div>
+
           <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
             Ack
           </div>
+
           <div style={getHeadCellStyle()}>Device</div>
+
           <div style={getHeadCellStyle()}>Tag</div>
+
           <div style={getHeadCellStyle(false, { justifyContent: "flex-end" })}>
             Value
           </div>
+
           <div style={getHeadCellStyle()}>Group</div>
+
           <div style={getHeadCellStyle(true, { justifyContent: "center" })}>
-            {alarmView === "disabled" ? "Enable" : "Disable"}
+            Disable
           </div>
         </div>
 
+        {/* BODY */}
         <div style={bodyWrap}>
           <div style={rowsLayer}>
             {visibleAlarms.map((a) => {
@@ -192,7 +219,6 @@ export default function AlarmLogWindowListTable({
               const isActiveUnacked = stateText === "ACTIVE" && !acked;
               const canAck = stateText === "ACTIVE" && !acked;
               const isDisabled = stateText === "DISABLED" || a?.enabled === false;
-              const actionLabel = isDisabled ? "Enable" : "Disable";
 
               let rowBg = "#ffffff";
               if (isActiveUnacked) rowBg = "#fee2e2";
@@ -239,7 +265,12 @@ export default function AlarmLogWindowListTable({
                       background: rowBg,
                     })}
                   >
-                    <span style={{ ...stateBadge, ...getStateStyle(stateText) }}>
+                    <span
+                      style={{
+                        ...stateBadge,
+                        ...getStateStyle(stateText, a),
+                      }}
+                    >
                       {stateText}
                     </span>
                   </div>
@@ -342,22 +373,35 @@ export default function AlarmLogWindowListTable({
                   >
                     <button
                       type="button"
-                      style={disableBtn}
-                      title={`${actionLabel} this alarm`}
+                      style={{
+                        ...disableBtn,
+                        ...(isDisabled ? disableBtnDisabled : disableBtnReady),
+                      }}
+                      disabled={isDisabled}
+                      title={
+                        isDisabled
+                          ? "Alarm already disabled"
+                          : "Disable this alarm"
+                      }
                       onMouseEnter={(e) => {
-                        e.currentTarget.style.background = "#e5e7eb";
-                        e.currentTarget.style.borderColor = "#bfc6cf";
+                        if (!isDisabled) {
+                          e.currentTarget.style.background = "#e5e7eb";
+                          e.currentTarget.style.borderColor = "#bfc6cf";
+                        }
                       }}
                       onMouseLeave={(e) => {
-                        e.currentTarget.style.background = "#f3f4f6";
-                        e.currentTarget.style.borderColor = "#c7cdd4";
+                        if (!isDisabled) {
+                          e.currentTarget.style.background = "#f3f4f6";
+                          e.currentTarget.style.borderColor = "#c7cdd4";
+                        }
                       }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        onToggleAlarmEnabled?.(a);
+                        if (isDisabled) return;
+                        onDisableAlarm?.(a);
                       }}
                     >
-                      {actionLabel}
+                      {isDisabled ? "Disabled" : "Disable"}
                     </button>
                   </div>
                 </div>
@@ -504,10 +548,25 @@ const disableBtn = {
   border: "1px solid #c7cdd4",
   background: "#f3f4f6",
   color: "#111827",
+  transition:
+    "background 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease, opacity 120ms ease",
+};
+
+const disableBtnReady = {
+  background: "#f3f4f6",
+  color: "#111827",
+  borderColor: "#c7cdd4",
   cursor: "pointer",
   boxShadow: "0 1px 2px rgba(15, 23, 42, 0.08)",
-  transition:
-    "background 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease",
+};
+
+const disableBtnDisabled = {
+  background: "#e5e7eb",
+  color: "#9ca3af",
+  borderColor: "#d1d5db",
+  cursor: "not-allowed",
+  boxShadow: "inset 0 1px 1px rgba(0,0,0,0.04)",
+  opacity: 0.9,
 };
 
 const stateBadge = {
@@ -522,10 +581,22 @@ const stateBadge = {
   border: "1px solid transparent",
 };
 
-const stateActive = {
+const stateActiveCritical = {
   background: "#fee2e2",
   color: "#000000",
   borderColor: "#fecaca",
+};
+
+const stateActiveWarning = {
+  background: "#fef3c7",
+  color: "#000000",
+  borderColor: "#fcd34d",
+};
+
+const stateActiveInfo = {
+  background: "#dbeafe",
+  color: "#000000",
+  borderColor: "#bfdbfe",
 };
 
 const stateReturned = {
