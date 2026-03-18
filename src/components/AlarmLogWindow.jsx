@@ -639,19 +639,19 @@ export default function AlarmLogWindow({
       {!!historyError && <div style={errorBar}>{historyError}</div>}
 
       <AlarmLogWindowListTable
-        visibleAlarms={visibleAlarms}
-        checkedIds={checkedIds}
-        selectedId={selectedId}
-        setSelectedId={setSelectedId}
-        toggleChecked={toggleChecked}
-        toggleAllVisible={toggleAllVisible}
-        onAcknowledgeAlarm={handleAcknowledgeAlarm}
-        onDisableAlarm={handleToggleAlarmEnabled}
-        expandedAlarmKeys={expandedAlarmKeys}
-        onToggleExpandAlarm={handleToggleExpandAlarm}
-        expandedHistoryMap={expandedHistoryMap}
-      />
-
+  alarmView={alarmView}
+  visibleAlarms={visibleAlarms}
+  checkedIds={checkedIds}
+  selectedId={selectedId}
+  setSelectedId={setSelectedId}
+  toggleChecked={toggleChecked}
+  toggleAllVisible={toggleAllVisible}
+  onAcknowledgeAlarm={handleAcknowledgeAlarm}
+  onDisableAlarm={handleToggleAlarmEnabled}
+  expandedAlarmKeys={expandedAlarmKeys}
+  onToggleExpandAlarm={handleToggleExpandAlarm}
+  expandedHistoryMap={expandedHistoryMap}
+/>
       <div style={bottomBar}>
         <button
           type="button"

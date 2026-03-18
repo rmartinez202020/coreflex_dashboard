@@ -133,6 +133,7 @@ function getBodyCellStyle(isLast = false, extra = {}) {
 }
 
 export default function AlarmLogWindowListTable({
+  alarmView = "alarms",
   visibleAlarms = [],
   checkedIds,
   selectedId,
@@ -146,6 +147,8 @@ export default function AlarmLogWindowListTable({
   expandedHistoryMap = {},
 }) {
   const [localAck, setLocalAck] = React.useState({});
+
+  const isAlarmsTab = alarmView === "alarms";
 
   const allVisibleSelected =
     visibleAlarms.length > 0 &&
@@ -186,7 +189,7 @@ export default function AlarmLogWindowListTable({
           </div>
 
           <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
-            ▼
+            {isAlarmsTab ? "" : "▼"}
           </div>
 
           <div style={getHeadCellStyle()}>Time</div>
@@ -196,7 +199,7 @@ export default function AlarmLogWindowListTable({
           <div style={getHeadCellStyle()}>Alarm Text</div>
           <div style={getHeadCellStyle()}>Severity</div>
           <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
-            Occurrences
+            {isAlarmsTab ? "" : "Occurrences"}
           </div>
           <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
             Ack
@@ -227,7 +230,8 @@ export default function AlarmLogWindowListTable({
               const disableTitle = isDisabled
                 ? "Enable this alarm"
                 : "Disable this alarm";
-              const isExpanded = expandedAlarmKeys?.has?.(a.uniqueAlarmKey);
+              const isExpanded =
+                !isAlarmsTab && expandedAlarmKeys?.has?.(a.uniqueAlarmKey);
               const historyRows = expandedHistoryMap?.[a.uniqueAlarmKey] || [];
 
               let rowBg = "#ffffff";
@@ -276,17 +280,21 @@ export default function AlarmLogWindowListTable({
                         background: rowBg,
                       })}
                     >
-                      <button
-                        type="button"
-                        style={expandBtn}
-                        title={isExpanded ? "Collapse history" : "Show history"}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onToggleExpandAlarm?.(a);
-                        }}
-                      >
-                        {isExpanded ? "▲" : "▼"}
-                      </button>
+                      {!isAlarmsTab ? (
+                        <button
+                          type="button"
+                          style={expandBtn}
+                          title={
+                            isExpanded ? "Collapse history" : "Show history"
+                          }
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            onToggleExpandAlarm?.(a);
+                          }}
+                        >
+                          {isExpanded ? "▲" : "▼"}
+                        </button>
+                      ) : null}
                     </div>
 
                     <div style={getBodyCellStyle(false, { background: rowBg })}>
@@ -323,7 +331,7 @@ export default function AlarmLogWindowListTable({
                         background: rowBg,
                       })}
                     >
-                      {renderOccurrences(a)}
+                      {isAlarmsTab ? "" : renderOccurrences(a)}
                     </div>
 
                     <div
@@ -430,7 +438,8 @@ export default function AlarmLogWindowListTable({
                     </div>
                   </div>
 
-                  {isExpanded &&
+                  {!isAlarmsTab &&
+                    isExpanded &&
                     historyRows.map((h) => {
                       const historyState = renderState(h);
                       const historyAcked = isAcknowledged(h, localAck);
