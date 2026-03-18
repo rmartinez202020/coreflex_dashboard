@@ -338,7 +338,21 @@ export default function App() {
 });
 
   // Launch = separate window (always tracking alarms)
-  const launchAlarmLog = () => window.open("/launchAlarmLog", "_blank");
+  const launchAlarmLog = (payload = {}) => {
+  const qs = new URLSearchParams({
+    dashboardId: String(payload?.dashboardId || effectiveDashboardId || "main"),
+    dashboardName: String(
+      payload?.dashboardName || activeDashboard?.dashboardName || ""
+    ),
+    windowKey: String(payload?.windowKey || "alarmLog"),
+  });
+
+  window.open(
+    `/launchAlarmLog?${qs.toString()}`,
+    "_blank",
+    "noopener,noreferrer"
+  );
+};
 
   // SENSOR SETUP
   const sensors = useSensors(
