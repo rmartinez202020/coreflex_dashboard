@@ -4,7 +4,7 @@ import React from "react";
 const GRID_TEMPLATE_DEFAULT =
   "34px 34px minmax(130px,1.1fr) minmax(96px,0.8fr) minmax(220px,2.2fr) minmax(100px,0.9fr) minmax(110px,0.9fr) minmax(84px,0.8fr) minmax(140px,1.1fr) minmax(90px,0.8fr) minmax(90px,0.8fr) minmax(100px,0.9fr) minmax(92px,0.8fr)";
 
-const GRID_TEMPLATE_ALARMS =
+const GRID_TEMPLATE_COMPACT =
   "34px minmax(130px,1.1fr) minmax(96px,0.8fr) minmax(220px,2.2fr) minmax(84px,0.8fr) minmax(140px,1.1fr) minmax(90px,0.8fr) minmax(90px,0.8fr) minmax(100px,0.9fr) minmax(100px,0.9fr) minmax(92px,0.8fr)";
 
 function isAcknowledged(alarm, localAck = {}) {
@@ -151,9 +151,10 @@ export default function AlarmLogWindowListTable({
 }) {
   const [localAck, setLocalAck] = React.useState({});
 
-  const isAlarmsTab = alarmView === "alarms";
-  const gridTemplate = isAlarmsTab
-    ? GRID_TEMPLATE_ALARMS
+  const isCompactLatestOnlyView =
+    alarmView === "alarms" || alarmView === "disabled";
+  const gridTemplate = isCompactLatestOnlyView
+    ? GRID_TEMPLATE_COMPACT
     : GRID_TEMPLATE_DEFAULT;
 
   const allVisibleSelected =
@@ -194,7 +195,7 @@ export default function AlarmLogWindowListTable({
             />
           </div>
 
-          {!isAlarmsTab && (
+          {!isCompactLatestOnlyView && (
             <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
               ▼
             </div>
@@ -208,11 +209,11 @@ export default function AlarmLogWindowListTable({
 
           <div style={getHeadCellStyle()}>Alarm Text</div>
 
-          {!isAlarmsTab && (
+          {!isCompactLatestOnlyView && (
             <div style={getHeadCellStyle()}>Severity</div>
           )}
 
-          {!isAlarmsTab && (
+          {!isCompactLatestOnlyView && (
             <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
               Occurrences
             </div>
@@ -232,7 +233,7 @@ export default function AlarmLogWindowListTable({
 
           <div style={getHeadCellStyle()}>Group</div>
 
-          {isAlarmsTab && (
+          {isCompactLatestOnlyView && (
             <div style={getHeadCellStyle()}>Severity</div>
           )}
 
@@ -257,7 +258,8 @@ export default function AlarmLogWindowListTable({
                 ? "Enable this alarm"
                 : "Disable this alarm";
               const isExpanded =
-                !isAlarmsTab && expandedAlarmKeys?.has?.(a.uniqueAlarmKey);
+                !isCompactLatestOnlyView &&
+                expandedAlarmKeys?.has?.(a.uniqueAlarmKey);
               const historyRows = expandedHistoryMap?.[a.uniqueAlarmKey] || [];
 
               let rowBg = "#ffffff";
@@ -300,7 +302,7 @@ export default function AlarmLogWindowListTable({
                       />
                     </div>
 
-                    {!isAlarmsTab && (
+                    {!isCompactLatestOnlyView && (
                       <div
                         style={getBodyCellStyle(false, {
                           justifyContent: "center",
@@ -347,7 +349,7 @@ export default function AlarmLogWindowListTable({
                       {renderAlarmText(a)}
                     </div>
 
-                    {!isAlarmsTab && (
+                    {!isCompactLatestOnlyView && (
                       <div
                         style={getBodyCellStyle(false, { background: rowBg })}
                       >
@@ -355,7 +357,7 @@ export default function AlarmLogWindowListTable({
                       </div>
                     )}
 
-                    {!isAlarmsTab && (
+                    {!isCompactLatestOnlyView && (
                       <div
                         style={getBodyCellStyle(false, {
                           justifyContent: "center",
@@ -439,7 +441,7 @@ export default function AlarmLogWindowListTable({
                       {renderGroup(a)}
                     </div>
 
-                    {isAlarmsTab && (
+                    {isCompactLatestOnlyView && (
                       <div
                         style={getBodyCellStyle(false, { background: rowBg })}
                       >
@@ -478,7 +480,7 @@ export default function AlarmLogWindowListTable({
                     </div>
                   </div>
 
-                  {!isAlarmsTab &&
+                  {!isCompactLatestOnlyView &&
                     isExpanded &&
                     historyRows.map((h) => {
                       const historyState = renderState(h);
