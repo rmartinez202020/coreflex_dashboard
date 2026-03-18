@@ -54,10 +54,13 @@ function buildAlarmUniqueKey(row) {
   if (alarmDefinitionId) return `alarm_definition_id:${alarmDefinitionId}`;
 
   const device = String(row?.device_id ?? row?.deviceId ?? "").trim() || "—";
-  const tag = String(row?.tag ?? row?.tagName ?? row?.tag_name ?? "").trim() || "—";
+  const tag =
+    String(row?.tag ?? row?.tagName ?? row?.tag_name ?? "").trim() || "—";
   const message =
-    String(row?.message ?? row?.alarm_text ?? row?.alarmText ?? "").trim() || "—";
-  const group = String(row?.group_name ?? row?.group ?? "General").trim() || "General";
+    String(row?.message ?? row?.alarm_text ?? row?.alarmText ?? "").trim() ||
+    "—";
+  const group =
+    String(row?.group_name ?? row?.group ?? "General").trim() || "General";
 
   return `fallback:${device}|${tag}|${message}|${group}`;
 }
@@ -74,7 +77,9 @@ function normalizeHistoryRow(row, idx = 0) {
     ts,
     time: formatAlarmTime(ts),
     state,
-    alarmText: String(row?.message || row?.alarm_text || row?.alarmText || "").trim(),
+    alarmText: String(
+      row?.message || row?.alarm_text || row?.alarmText || ""
+    ).trim(),
     ack: row?.acknowledged ? "Yes" : "No",
     acknowledged: row?.acknowledged === true,
     device: String(row?.device_id || row?.deviceId || "").trim(),
@@ -167,6 +172,10 @@ export default function AlarmLogWindow({
   const [isDeletingClose, setIsDeletingClose] = React.useState(false);
   const [closeError, setCloseError] = React.useState("");
 
+  // ✅ FRONTEND SOURCE OF TRUTH FOR DISABLED BUCKET
+  // key: uniqueAlarmKey, value: true => forced disabled, false => forced enabled
+  const [disabledMap, setDisabledMap] = React.useState({});
+
   const normalizedDashboardName =
     String(dashboardName || "").trim() ||
     (resolvedDashboardId === "main" ? "Main Dashboard" : "Dashboard");
@@ -205,7 +214,27 @@ export default function AlarmLogWindow({
           ? data.map((row, idx) => normalizeHistoryRow(row, idx))
           : [];
 
-        const summarizedRows = summarizeAlarmRows(rawRows);
+        const summarizedRows = summarizeAlarmRows(rawRows).map((row) => {
+          const forcedDisabled = disabledMap[row.uniqueAlarmKey];
+
+          if (forcedDisabled === true) {
+            return {
+              ...row,
+              enabled: false,
+              state: "DISABLED",
+            };
+          }
+
+          if (forcedDisabled === false) {
+            return {
+              ...row,
+              enabled: true,
+            };
+          }
+
+          return row;
+        });
+
         setAlarms(summarizedRows);
       } catch (err) {
         console.error("❌ Failed to load alarm history:", err);
@@ -215,7 +244,7 @@ export default function AlarmLogWindow({
         if (!silent) setIsLoadingHistory(false);
       }
     },
-    [resolvedAlarmLogKey]
+    [resolvedAlarmLogKey, disabledMap]
   );
 
   React.useEffect(() => {
@@ -297,38 +326,50 @@ export default function AlarmLogWindow({
     );
   }, []);
 
-  const handleToggleAlarmEnabled = React.useCallback((alarm) => {
-    if (!alarm?.id) return;
+  const handleToggleAlarmEnabled = React.useCallback(
+    (alarm) => {
+      if (!alarm?.id || !alarm?.uniqueAlarmKey) return;
 
-    setAlarms((prev) =>
-      prev.map((a) =>
-        a.id === alarm.id
-          ? {
+      const willDisable = alarm.enabled !== false;
+
+      // ✅ persist bucket choice in frontend map
+      setDisabledMap((prev) => ({
+        ...prev,
+        [alarm.uniqueAlarmKey]: willDisable,
+      }));
+
+      setAlarms((prev) =>
+        prev.map((a) => {
+          if (a.uniqueAlarmKey !== alarm.uniqueAlarmKey) return a;
+
+          if (willDisable) {
+            return {
               ...a,
-              enabled: a.enabled === false ? true : false,
-              state:
-                a.enabled === false
-                  ? a.raw?.state
-                    ? normalizeState(a.raw)
-                    : a.state === "DISABLED"
-                    ? "RETURNED"
-                    : a.state
-                  : "DISABLED",
-            }
-          : a
-      )
-    );
+              enabled: false,
+              state: "DISABLED",
+            };
+          }
 
-    setCheckedIds((prev) => {
-      const next = new Set(prev);
-      next.delete(alarm.id);
-      return next;
-    });
+          return {
+            ...a,
+            enabled: true,
+            state: a.raw?.state ? normalizeState(a.raw) : "RETURNED",
+          };
+        })
+      );
 
-    if (selectedId === alarm.id) {
-      setSelectedId(null);
-    }
-  }, [selectedId]);
+      setCheckedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(alarm.id);
+        return next;
+      });
+
+      if (selectedId === alarm.id) {
+        setSelectedId(null);
+      }
+    },
+    [selectedId]
+  );
 
   const handleCloseAnyway = async () => {
     if (isDeletingClose) return;
