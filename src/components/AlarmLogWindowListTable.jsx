@@ -1,8 +1,11 @@
 // src/components/AlarmLogWindowListTable.jsx
 import React from "react";
 
-const GRID_TEMPLATE =
+const GRID_TEMPLATE_DEFAULT =
   "34px 34px minmax(130px,1.1fr) minmax(96px,0.8fr) minmax(220px,2.2fr) minmax(100px,0.9fr) minmax(110px,0.9fr) minmax(84px,0.8fr) minmax(140px,1.1fr) minmax(90px,0.8fr) minmax(90px,0.8fr) minmax(100px,0.9fr) minmax(92px,0.8fr)";
+
+const GRID_TEMPLATE_ALARMS =
+  "34px minmax(130px,1.1fr) minmax(96px,0.8fr) minmax(220px,2.2fr) minmax(84px,0.8fr) minmax(140px,1.1fr) minmax(90px,0.8fr) minmax(90px,0.8fr) minmax(100px,0.9fr) minmax(100px,0.9fr) minmax(92px,0.8fr)";
 
 function isAcknowledged(alarm, localAck = {}) {
   if (localAck?.[alarm?.id]) return true;
@@ -149,6 +152,9 @@ export default function AlarmLogWindowListTable({
   const [localAck, setLocalAck] = React.useState({});
 
   const isAlarmsTab = alarmView === "alarms";
+  const gridTemplate = isAlarmsTab
+    ? GRID_TEMPLATE_ALARMS
+    : GRID_TEMPLATE_DEFAULT;
 
   const allVisibleSelected =
     visibleAlarms.length > 0 &&
@@ -173,7 +179,7 @@ export default function AlarmLogWindowListTable({
   return (
     <div style={tableOuter}>
       <div style={tableInner}>
-        <div style={{ ...headerRow, gridTemplateColumns: GRID_TEMPLATE }}>
+        <div style={{ ...headerRow, gridTemplateColumns: gridTemplate }}>
           <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
             <input
               type="checkbox"
@@ -188,28 +194,48 @@ export default function AlarmLogWindowListTable({
             />
           </div>
 
-          <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
-            {isAlarmsTab ? "" : "▼"}
-          </div>
+          {!isAlarmsTab && (
+            <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
+              ▼
+            </div>
+          )}
 
           <div style={getHeadCellStyle()}>Time</div>
+
           <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
             State
           </div>
+
           <div style={getHeadCellStyle()}>Alarm Text</div>
-          <div style={getHeadCellStyle()}>Severity</div>
-          <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
-            {isAlarmsTab ? "" : "Occurrences"}
-          </div>
+
+          {!isAlarmsTab && (
+            <div style={getHeadCellStyle()}>Severity</div>
+          )}
+
+          {!isAlarmsTab && (
+            <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
+              Occurrences
+            </div>
+          )}
+
           <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
             Ack
           </div>
+
           <div style={getHeadCellStyle()}>Device</div>
+
           <div style={getHeadCellStyle()}>Tag</div>
+
           <div style={getHeadCellStyle(false, { justifyContent: "flex-end" })}>
             Value
           </div>
+
           <div style={getHeadCellStyle()}>Group</div>
+
+          {isAlarmsTab && (
+            <div style={getHeadCellStyle()}>Severity</div>
+          )}
+
           <div style={getHeadCellStyle(true, { justifyContent: "center" })}>
             Disable
           </div>
@@ -248,7 +274,7 @@ export default function AlarmLogWindowListTable({
                   <div
                     style={{
                       ...dataRow,
-                      gridTemplateColumns: GRID_TEMPLATE,
+                      gridTemplateColumns: gridTemplate,
                       background: rowBg,
                       color: "#111827",
                     }}
@@ -274,13 +300,13 @@ export default function AlarmLogWindowListTable({
                       />
                     </div>
 
-                    <div
-                      style={getBodyCellStyle(false, {
-                        justifyContent: "center",
-                        background: rowBg,
-                      })}
-                    >
-                      {!isAlarmsTab ? (
+                    {!isAlarmsTab && (
+                      <div
+                        style={getBodyCellStyle(false, {
+                          justifyContent: "center",
+                          background: rowBg,
+                        })}
+                      >
                         <button
                           type="button"
                           style={expandBtn}
@@ -294,8 +320,8 @@ export default function AlarmLogWindowListTable({
                         >
                           {isExpanded ? "▲" : "▼"}
                         </button>
-                      ) : null}
-                    </div>
+                      </div>
+                    )}
 
                     <div style={getBodyCellStyle(false, { background: rowBg })}>
                       {a.time || "—"}
@@ -321,18 +347,24 @@ export default function AlarmLogWindowListTable({
                       {renderAlarmText(a)}
                     </div>
 
-                    <div style={getBodyCellStyle(false, { background: rowBg })}>
-                      {renderSeverity(a)}
-                    </div>
+                    {!isAlarmsTab && (
+                      <div
+                        style={getBodyCellStyle(false, { background: rowBg })}
+                      >
+                        {renderSeverity(a)}
+                      </div>
+                    )}
 
-                    <div
-                      style={getBodyCellStyle(false, {
-                        justifyContent: "center",
-                        background: rowBg,
-                      })}
-                    >
-                      {isAlarmsTab ? "" : renderOccurrences(a)}
-                    </div>
+                    {!isAlarmsTab && (
+                      <div
+                        style={getBodyCellStyle(false, {
+                          justifyContent: "center",
+                          background: rowBg,
+                        })}
+                      >
+                        {renderOccurrences(a)}
+                      </div>
+                    )}
 
                     <div
                       style={getBodyCellStyle(false, {
@@ -407,6 +439,14 @@ export default function AlarmLogWindowListTable({
                       {renderGroup(a)}
                     </div>
 
+                    {isAlarmsTab && (
+                      <div
+                        style={getBodyCellStyle(false, { background: rowBg })}
+                      >
+                        {renderSeverity(a)}
+                      </div>
+                    )}
+
                     <div
                       style={getBodyCellStyle(true, {
                         justifyContent: "center",
@@ -458,7 +498,7 @@ export default function AlarmLogWindowListTable({
                           key={h.id}
                           style={{
                             ...historyRow,
-                            gridTemplateColumns: GRID_TEMPLATE,
+                            gridTemplateColumns: gridTemplate,
                             background: historyBg,
                             color: "#111827",
                           }}
