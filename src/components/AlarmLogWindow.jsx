@@ -35,33 +35,120 @@ function formatAlarmTime(value) {
   return `${month}/${day}/${year}-${pad2(hours)}:${minutes}:${seconds} ${ampm}`;
 }
 
+function normalizeState(row) {
+  const stateRaw = String(
+    row?.state ?? row?.alarmState ?? row?.status ?? ""
+  )
+    .trim()
+    .toUpperCase();
+
+  if (stateRaw === "RETURNED") return "RETURNED";
+  if (stateRaw === "ACTIVE") return "ACTIVE";
+  if (stateRaw === "ACKED") return "ACKED";
+  if (stateRaw === "DISABLED") return "DISABLED";
+  return stateRaw || "—";
+}
+
+// ✅ NEW: stable unique alarm identity for grouping
+function buildAlarmUniqueKey(row) {
+  const alarmDefinitionId = String(row?.alarm_definition_id ?? "").trim();
+  if (alarmDefinitionId) return `alarm_definition_id:${alarmDefinitionId}`;
+
+  const device = String(row?.device_id ?? row?.deviceId ?? "").trim() || "—";
+  const tag = String(row?.tag ?? row?.tagName ?? row?.tag_name ?? "").trim() || "—";
+  const message = String(row?.message ?? row?.alarm_text ?? row?.alarmText ?? "").trim() || "—";
+  const group = String(row?.group_name ?? row?.group ?? "General").trim() || "General";
+
+  // ✅ fallback identity if backend row doesn't include alarm_definition_id
+  return `fallback:${device}|${tag}|${message}|${group}`;
+}
+
 function normalizeHistoryRow(row, idx = 0) {
   const ts = row?.ts || row?.timestamp || row?.time || null;
-  const stateRaw = String(row?.state || "").trim().toUpperCase();
+  const state = normalizeState(row);
+  const uniqueAlarmKey = buildAlarmUniqueKey(row);
 
   return {
+    // ✅ event row id (unique per event/history row)
     id:
       row?.id ||
-      `${row?.alarm_definition_id || "alarm"}-${ts || "ts"}-${idx}-${stateRaw}`,
+      `${uniqueAlarmKey}-${ts || "ts"}-${idx}-${state}`,
+
+    // ✅ stable alarm identity (same for repeated occurrences)
+    uniqueAlarmKey,
+    alarmDefinitionId: row?.alarm_definition_id ?? null,
+
     ts,
     time: formatAlarmTime(ts),
-    state:
-      stateRaw === "RETURNED"
-        ? "RETURNED"
-        : stateRaw === "ACTIVE"
-        ? "ACTIVE"
-        : stateRaw || "—",
-    alarmText: String(row?.message || row?.alarm_text || "").trim(),
+    state,
+
+    alarmText: String(row?.message || row?.alarm_text || row?.alarmText || "").trim(),
     ack: row?.acknowledged ? "Yes" : "No",
-    device: String(row?.device_id || "").trim(),
-    tag: String(row?.tag || "").trim(),
+    acknowledged: row?.acknowledged === true,
+
+    device: String(row?.device_id || row?.deviceId || "").trim(),
+    tag: String(row?.tag || row?.tagName || row?.tag_name || "").trim(),
+
     value:
-      row?.computed_value ?? row?.raw_value ?? row?.value ?? row?.threshold ?? "",
+      row?.computed_value ??
+      row?.raw_value ??
+      row?.value ??
+      row?.threshold ??
+      "",
+
     group: String(row?.group_name || row?.group || "General").trim(),
     severity: String(row?.severity || "").trim(),
     enabled: row?.enabled !== false,
+
+    // ✅ NEW
+    occurrences: 1,
+
     raw: row,
   };
+}
+
+// ✅ NEW: group all repeated events into one latest row + count occurrences
+function summarizeAlarmRows(rows) {
+  const source = Array.isArray(rows) ? rows : [];
+  const map = new Map();
+
+  for (const row of source) {
+    const key = String(row?.uniqueAlarmKey || row?.id || "").trim();
+    if (!key) continue;
+
+    const existing = map.get(key);
+
+    if (!existing) {
+      map.set(key, {
+        ...row,
+        occurrences: 1,
+      });
+      continue;
+    }
+
+    const prevTs = existing?.ts ? new Date(existing.ts).getTime() : -Infinity;
+    const nextTs = row?.ts ? new Date(row.ts).getTime() : -Infinity;
+    const nextOccurrences = Number(existing.occurrences || 1) + 1;
+
+    // keep latest event row data, but preserve count
+    if (nextTs >= prevTs) {
+      map.set(key, {
+        ...row,
+        occurrences: nextOccurrences,
+      });
+    } else {
+      map.set(key, {
+        ...existing,
+        occurrences: nextOccurrences,
+      });
+    }
+  }
+
+  return Array.from(map.values()).sort((a, b) => {
+    const ta = a?.ts ? new Date(a.ts).getTime() : 0;
+    const tb = b?.ts ? new Date(b.ts).getTime() : 0;
+    return tb - ta;
+  });
 }
 
 export default function AlarmLogWindow({
@@ -140,11 +227,14 @@ export default function AlarmLogWindow({
           );
         }
 
-        const rows = Array.isArray(data)
+        const rawRows = Array.isArray(data)
           ? data.map((row, idx) => normalizeHistoryRow(row, idx))
           : [];
 
-        setAlarms(rows);
+        // ✅ NEW: one frontend row per alarm + occurrences count
+        const summarizedRows = summarizeAlarmRows(rawRows);
+
+        setAlarms(summarizedRows);
       } catch (err) {
         console.error("❌ Failed to load alarm history:", err);
         setHistoryError(err?.message || "Failed to load alarm history");
@@ -180,6 +270,8 @@ export default function AlarmLogWindow({
     }
 
     if (alarmView === "history") {
+      // ✅ NOTE:
+      // still showing one summarized row per alarm, not every raw event row
       return source;
     }
 

@@ -2,10 +2,11 @@
 import React from "react";
 
 const GRID_TEMPLATE =
-  "34px minmax(130px,1.1fr) minmax(96px,0.8fr) minmax(220px,2.2fr) minmax(64px,0.7fr) minmax(140px,1.1fr) minmax(90px,0.8fr) minmax(90px,0.8fr) minmax(100px,0.9fr)";
+  "34px minmax(130px,1.1fr) minmax(96px,0.8fr) minmax(220px,2.2fr) minmax(110px,0.9fr) minmax(64px,0.7fr) minmax(140px,1.1fr) minmax(90px,0.8fr) minmax(90px,0.8fr) minmax(100px,0.9fr)";
 
 function renderAck(a) {
   if (a?.acknowledged === true) return "Yes";
+  if (a?.ack === "Yes") return "Yes";
   return "No";
 }
 
@@ -62,6 +63,12 @@ function renderGroup(a) {
   return a?.groupName ?? a?.group ?? "—";
 }
 
+function renderOccurrences(a) {
+  const n = Number(a?.occurrences);
+  if (!Number.isFinite(n) || n <= 0) return "1";
+  return String(n);
+}
+
 function getStateStyle(state) {
   switch (String(state || "").toUpperCase()) {
     case "ACTIVE":
@@ -111,6 +118,9 @@ export default function AlarmLogWindowListTable({
           <div style={cellHead}>Time</div>
           <div style={{ ...cellHead, justifyContent: "center" }}>State</div>
           <div style={cellHead}>Alarm Text</div>
+          <div style={{ ...cellHead, justifyContent: "center" }}>
+            Occurrences
+          </div>
           <div style={{ ...cellHead, justifyContent: "center" }}>Ack</div>
           <div style={cellHead}>Device</div>
           <div style={cellHead}>Tag</div>
@@ -163,6 +173,10 @@ export default function AlarmLogWindowListTable({
                   </div>
 
                   <div style={cell}>{renderAlarmText(a)}</div>
+
+                  <div style={{ ...cell, justifyContent: "center" }}>
+                    {renderOccurrences(a)}
+                  </div>
 
                   <div style={{ ...cell, justifyContent: "center" }}>
                     {renderAck(a)}
