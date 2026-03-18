@@ -56,11 +56,11 @@ function getGroupText(alarm) {
   ).trim();
 }
 
+// ✅ UPDATED: Boolean alarms can also show severity now
 function getSeverityText(alarm) {
-  const type = String(alarm?.type || "").trim().toLowerCase();
-  if (type === "boolean") return "—";
-
-  return String(alarm?.severity || alarm?.config?.severity || "Warning").trim();
+  return String(
+    alarm?.severity || alarm?.config?.severity || "Warning"
+  ).trim();
 }
 
 function getDashboardText(alarm) {
