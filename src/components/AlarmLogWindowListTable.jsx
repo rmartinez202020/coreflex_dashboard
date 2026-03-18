@@ -122,7 +122,8 @@ export default function AlarmLogWindowListTable({
   toggleChecked,
   toggleAllVisible,
   onAcknowledgeAlarm,
-  onDisableAlarm,
+  onToggleAlarmEnabled,
+  alarmView = "alarms",
 }) {
   const [localAck, setLocalAck] = React.useState({});
 
@@ -143,7 +144,6 @@ export default function AlarmLogWindowListTable({
   return (
     <div style={tableOuter}>
       <div style={tableInner}>
-        {/* HEADER */}
         <div style={{ ...headerRow, gridTemplateColumns: GRID_TEMPLATE }}>
           <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
             <input
@@ -160,39 +160,28 @@ export default function AlarmLogWindowListTable({
           </div>
 
           <div style={getHeadCellStyle()}>Time</div>
-
           <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
             State
           </div>
-
           <div style={getHeadCellStyle()}>Alarm Text</div>
-
           <div style={getHeadCellStyle()}>Severity</div>
-
           <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
             Occurrences
           </div>
-
           <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
             Ack
           </div>
-
           <div style={getHeadCellStyle()}>Device</div>
-
           <div style={getHeadCellStyle()}>Tag</div>
-
           <div style={getHeadCellStyle(false, { justifyContent: "flex-end" })}>
             Value
           </div>
-
           <div style={getHeadCellStyle()}>Group</div>
-
           <div style={getHeadCellStyle(true, { justifyContent: "center" })}>
-            Disable
+            {alarmView === "disabled" ? "Enable" : "Disable"}
           </div>
         </div>
 
-        {/* BODY */}
         <div style={bodyWrap}>
           <div style={rowsLayer}>
             {visibleAlarms.map((a) => {
@@ -203,6 +192,7 @@ export default function AlarmLogWindowListTable({
               const isActiveUnacked = stateText === "ACTIVE" && !acked;
               const canAck = stateText === "ACTIVE" && !acked;
               const isDisabled = stateText === "DISABLED" || a?.enabled === false;
+              const actionLabel = isDisabled ? "Enable" : "Disable";
 
               let rowBg = "#ffffff";
               if (isActiveUnacked) rowBg = "#fee2e2";
@@ -352,35 +342,22 @@ export default function AlarmLogWindowListTable({
                   >
                     <button
                       type="button"
-                      style={{
-                        ...disableBtn,
-                        ...(isDisabled ? disableBtnDisabled : disableBtnReady),
-                      }}
-                      disabled={isDisabled}
-                      title={
-                        isDisabled
-                          ? "Alarm already disabled"
-                          : "Disable this alarm"
-                      }
+                      style={disableBtn}
+                      title={`${actionLabel} this alarm`}
                       onMouseEnter={(e) => {
-                        if (!isDisabled) {
-                          e.currentTarget.style.background = "#e5e7eb";
-                          e.currentTarget.style.borderColor = "#bfc6cf";
-                        }
+                        e.currentTarget.style.background = "#e5e7eb";
+                        e.currentTarget.style.borderColor = "#bfc6cf";
                       }}
                       onMouseLeave={(e) => {
-                        if (!isDisabled) {
-                          e.currentTarget.style.background = "#f3f4f6";
-                          e.currentTarget.style.borderColor = "#c7cdd4";
-                        }
+                        e.currentTarget.style.background = "#f3f4f6";
+                        e.currentTarget.style.borderColor = "#c7cdd4";
                       }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (isDisabled) return;
-                        onDisableAlarm?.(a);
+                        onToggleAlarmEnabled?.(a);
                       }}
                     >
-                      {isDisabled ? "Disabled" : "Disable"}
+                      {actionLabel}
                     </button>
                   </div>
                 </div>
@@ -527,25 +504,10 @@ const disableBtn = {
   border: "1px solid #c7cdd4",
   background: "#f3f4f6",
   color: "#111827",
-  transition:
-    "background 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease, opacity 120ms ease",
-};
-
-const disableBtnReady = {
-  background: "#f3f4f6",
-  color: "#111827",
-  borderColor: "#c7cdd4",
   cursor: "pointer",
   boxShadow: "0 1px 2px rgba(15, 23, 42, 0.08)",
-};
-
-const disableBtnDisabled = {
-  background: "#e5e7eb",
-  color: "#9ca3af",
-  borderColor: "#d1d5db",
-  cursor: "not-allowed",
-  boxShadow: "inset 0 1px 1px rgba(0,0,0,0.04)",
-  opacity: 0.9,
+  transition:
+    "background 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease",
 };
 
 const stateBadge = {

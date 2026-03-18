@@ -49,17 +49,16 @@ function normalizeState(row) {
   return stateRaw || "—";
 }
 
-// ✅ NEW: stable unique alarm identity for grouping
 function buildAlarmUniqueKey(row) {
   const alarmDefinitionId = String(row?.alarm_definition_id ?? "").trim();
   if (alarmDefinitionId) return `alarm_definition_id:${alarmDefinitionId}`;
 
   const device = String(row?.device_id ?? row?.deviceId ?? "").trim() || "—";
   const tag = String(row?.tag ?? row?.tagName ?? row?.tag_name ?? "").trim() || "—";
-  const message = String(row?.message ?? row?.alarm_text ?? row?.alarmText ?? "").trim() || "—";
+  const message =
+    String(row?.message ?? row?.alarm_text ?? row?.alarmText ?? "").trim() || "—";
   const group = String(row?.group_name ?? row?.group ?? "General").trim() || "General";
 
-  // ✅ fallback identity if backend row doesn't include alarm_definition_id
   return `fallback:${device}|${tag}|${message}|${group}`;
 }
 
@@ -69,45 +68,31 @@ function normalizeHistoryRow(row, idx = 0) {
   const uniqueAlarmKey = buildAlarmUniqueKey(row);
 
   return {
-    // ✅ event row id (unique per event/history row)
-    id:
-      row?.id ||
-      `${uniqueAlarmKey}-${ts || "ts"}-${idx}-${state}`,
-
-    // ✅ stable alarm identity (same for repeated occurrences)
+    id: row?.id || `${uniqueAlarmKey}-${ts || "ts"}-${idx}-${state}`,
     uniqueAlarmKey,
     alarmDefinitionId: row?.alarm_definition_id ?? null,
-
     ts,
     time: formatAlarmTime(ts),
     state,
-
     alarmText: String(row?.message || row?.alarm_text || row?.alarmText || "").trim(),
     ack: row?.acknowledged ? "Yes" : "No",
     acknowledged: row?.acknowledged === true,
-
     device: String(row?.device_id || row?.deviceId || "").trim(),
     tag: String(row?.tag || row?.tagName || row?.tag_name || "").trim(),
-
     value:
       row?.computed_value ??
       row?.raw_value ??
       row?.value ??
       row?.threshold ??
       "",
-
     group: String(row?.group_name || row?.group || "General").trim(),
     severity: String(row?.severity || "").trim(),
     enabled: row?.enabled !== false,
-
-    // ✅ NEW
     occurrences: 1,
-
     raw: row,
   };
 }
 
-// ✅ NEW: group all repeated events into one latest row + count occurrences
 function summarizeAlarmRows(rows) {
   const source = Array.isArray(rows) ? rows : [];
   const map = new Map();
@@ -130,7 +115,6 @@ function summarizeAlarmRows(rows) {
     const nextTs = row?.ts ? new Date(row.ts).getTime() : -Infinity;
     const nextOccurrences = Number(existing.occurrences || 1) + 1;
 
-    // keep latest event row data, but preserve count
     if (nextTs >= prevTs) {
       map.set(key, {
         ...row,
@@ -157,22 +141,14 @@ export default function AlarmLogWindow({
   onClose,
   onOpenSettings,
   onStartDragWindow,
-
   devices = [],
   availableTags = [],
   sensorsData,
   onAddAlarm,
-
   title = "Alarms Log (DI-AI)",
-
-  // ✅ NEW: show owner dashboard on top bar
   dashboardName = "",
-
-  // ✅ NEW: lets frontend know which dashboard/window row to delete
   dashboardId = "main",
   windowKey = "alarmLog",
-
-  // ✅ NEW: when true, renders like a full page (no drag/minimize/launch)
   isPage = false,
 }) {
   const resolvedDashboardId = String(dashboardId || "").trim() || "main";
@@ -188,11 +164,9 @@ export default function AlarmLogWindow({
   const [showCloseConfirm, setShowCloseConfirm] = React.useState(false);
   const [showAlarmSetup, setShowAlarmSetup] = React.useState(false);
 
-  // ✅ NEW: UX state for Close Anyway delete flow
   const [isDeletingClose, setIsDeletingClose] = React.useState(false);
   const [closeError, setCloseError] = React.useState("");
 
-  // ✅ dashboard label shown in the top bar
   const normalizedDashboardName =
     String(dashboardName || "").trim() ||
     (resolvedDashboardId === "main" ? "Main Dashboard" : "Dashboard");
@@ -231,9 +205,7 @@ export default function AlarmLogWindow({
           ? data.map((row, idx) => normalizeHistoryRow(row, idx))
           : [];
 
-        // ✅ NEW: one frontend row per alarm + occurrences count
         const summarizedRows = summarizeAlarmRows(rawRows);
-
         setAlarms(summarizedRows);
       } catch (err) {
         console.error("❌ Failed to load alarm history:", err);
@@ -265,17 +237,16 @@ export default function AlarmLogWindow({
 
     if (alarmView === "active") {
       return source.filter(
-        (a) => String(a.state || "").trim().toLowerCase() === "active"
+        (a) =>
+          a.enabled !== false &&
+          String(a.state || "").trim().toLowerCase() === "active"
       );
     }
 
     if (alarmView === "history") {
-      // ✅ NOTE:
-      // still showing one summarized row per alarm, not every raw event row
-      return source;
+      return source.filter((a) => a.enabled !== false);
     }
 
-    // alarms tab
     return source.filter((a) => a.enabled !== false);
   }, [alarmView, alarms]);
 
@@ -306,7 +277,59 @@ export default function AlarmLogWindow({
     setCheckedIds(new Set());
   };
 
-  // ✅ NEW: delete saved alarm-log row when user confirms Close Anyway
+  const handleAcknowledgeAlarm = React.useCallback((alarm) => {
+    if (!alarm?.id) return;
+
+    setAlarms((prev) =>
+      prev.map((a) =>
+        a.id === alarm.id
+          ? {
+              ...a,
+              acknowledged: true,
+              ack: "Yes",
+              state:
+                String(a.state || "").trim().toUpperCase() === "ACTIVE"
+                  ? "ACKED"
+                  : a.state,
+            }
+          : a
+      )
+    );
+  }, []);
+
+  const handleToggleAlarmEnabled = React.useCallback((alarm) => {
+    if (!alarm?.id) return;
+
+    setAlarms((prev) =>
+      prev.map((a) =>
+        a.id === alarm.id
+          ? {
+              ...a,
+              enabled: a.enabled === false ? true : false,
+              state:
+                a.enabled === false
+                  ? a.raw?.state
+                    ? normalizeState(a.raw)
+                    : a.state === "DISABLED"
+                    ? "RETURNED"
+                    : a.state
+                  : "DISABLED",
+            }
+          : a
+      )
+    );
+
+    setCheckedIds((prev) => {
+      const next = new Set(prev);
+      next.delete(alarm.id);
+      return next;
+    });
+
+    if (selectedId === alarm.id) {
+      setSelectedId(null);
+    }
+  }, [selectedId]);
+
   const handleCloseAnyway = async () => {
     if (isDeletingClose) return;
 
@@ -353,7 +376,6 @@ export default function AlarmLogWindow({
 
   return (
     <div style={wrap}>
-      {/* TOP BAR */}
       <div
         style={{ ...topBar, cursor: isPage ? "default" : "grab" }}
         onMouseDown={(e) => {
@@ -363,9 +385,7 @@ export default function AlarmLogWindow({
       >
         <div style={titleWrap}>
           <span style={{ fontWeight: 900 }}>{title}</span>
-
           <span style={titleDash}>—</span>
-
           <span style={dashboardNameText} title={normalizedDashboardName}>
             {normalizedDashboardName}
           </span>
@@ -401,7 +421,6 @@ export default function AlarmLogWindow({
         </div>
       </div>
 
-      {/* TABS BAR */}
       <div style={tabsBar}>
         <div style={tabsLeft}>
           {["alarms", "history", "active", "disabled"].map((v) => (
@@ -452,7 +471,6 @@ export default function AlarmLogWindow({
 
       {!!historyError && <div style={errorBar}>{historyError}</div>}
 
-      {/* TABLE */}
       <AlarmLogWindowListTable
         visibleAlarms={visibleAlarms}
         checkedIds={checkedIds}
@@ -461,9 +479,11 @@ export default function AlarmLogWindow({
         toggleChecked={toggleChecked}
         toggleAllVisible={toggleAllVisible}
         isLoading={isLoadingHistory}
+        alarmView={alarmView}
+        onAcknowledgeAlarm={handleAcknowledgeAlarm}
+        onToggleAlarmEnabled={handleToggleAlarmEnabled}
       />
 
-      {/* Bottom bar */}
       <div style={bottomBar}>
         <button
           type="button"
@@ -490,7 +510,6 @@ export default function AlarmLogWindow({
         </div>
       </div>
 
-      {/* Alarm Setup Modal */}
       <AlarmSetupModal
         open={showAlarmSetup}
         onClose={() => setShowAlarmSetup(false)}
@@ -505,7 +524,6 @@ export default function AlarmLogWindow({
         dashboardId={resolvedDashboardId}
       />
 
-      {/* Close confirm */}
       {showCloseConfirm && (
         <div
           style={confirmOverlay}
@@ -785,7 +803,6 @@ const ackBtn = {
 
 const bottomInfo = { fontSize: 12, color: "#111827" };
 
-/* confirm modal */
 const confirmOverlay = {
   position: "absolute",
   inset: 0,
