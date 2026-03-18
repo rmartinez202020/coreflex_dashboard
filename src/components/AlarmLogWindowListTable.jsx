@@ -196,6 +196,7 @@ export default function AlarmLogWindowListTable({
               const stateText = renderState(a);
               const acked = isAcknowledged(a, localAck);
               const isActiveUnacked = stateText === "ACTIVE" && !acked;
+              const canAck = stateText === "ACTIVE" && !acked;
 
               let rowBg = "#ffffff";
               if (isActiveUnacked) rowBg = "#fee2e2";
@@ -274,27 +275,35 @@ export default function AlarmLogWindowListTable({
                       type="button"
                       style={{
                         ...ackBtn,
-                        ...(acked ? ackBtnDone : ackBtnReady),
+                        ...(canAck ? ackBtnReady : ackBtnDisabled),
                       }}
-                      disabled={acked}
+                      disabled={!canAck}
                       title={
-                        acked
+                        canAck
+                          ? "Acknowledge alarm"
+                          : acked
                           ? "Alarm already acknowledged"
-                          : "Acknowledge alarm"
+                          : stateText === "RETURNED"
+                          ? "Returned alarms cannot be acknowledged"
+                          : stateText === "DISABLED"
+                          ? "Disabled alarms cannot be acknowledged"
+                          : "Only active alarms can be acknowledged"
                       }
                       onMouseEnter={(e) => {
-                        if (!acked) {
+                        if (canAck) {
                           e.currentTarget.style.background = "#e5e7eb";
+                          e.currentTarget.style.borderColor = "#bfc6cf";
                         }
                       }}
                       onMouseLeave={(e) => {
-                        if (!acked) {
+                        if (canAck) {
                           e.currentTarget.style.background = "#f3f4f6";
+                          e.currentTarget.style.borderColor = "#c7cdd4";
                         }
                       }}
                       onClick={(e) => {
                         e.stopPropagation();
-                        if (acked) return;
+                        if (!canAck) return;
 
                         setLocalAck((prev) => ({
                           ...prev,
@@ -441,21 +450,25 @@ const ackBtn = {
   border: "1px solid #c7cdd4",
   background: "#f3f4f6",
   color: "#111827",
-  cursor: "pointer",
-  transition: "background 120ms ease, border-color 120ms ease, color 120ms ease",
+  transition:
+    "background 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease, opacity 120ms ease",
 };
 
 const ackBtnReady = {
   background: "#f3f4f6",
   color: "#111827",
   borderColor: "#c7cdd4",
+  cursor: "pointer",
+  boxShadow: "0 1px 2px rgba(15, 23, 42, 0.08)",
 };
 
-const ackBtnDone = {
+const ackBtnDisabled = {
   background: "#e5e7eb",
-  color: "#6b7280",
+  color: "#9ca3af",
   borderColor: "#d1d5db",
-  cursor: "default",
+  cursor: "not-allowed",
+  boxShadow: "inset 0 1px 1px rgba(0,0,0,0.04)",
+  opacity: 0.9,
 };
 
 const stateBadge = {
