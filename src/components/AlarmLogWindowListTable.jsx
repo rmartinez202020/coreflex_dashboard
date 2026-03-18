@@ -114,6 +114,14 @@ function getStateStyle(state, alarm) {
   }
 }
 
+function getActiveRowBgBySeverity(severity) {
+  const s = String(severity || "").trim().toLowerCase();
+
+  if (s === "warning") return "#fef9c3";
+  if (s === "info") return "#e0f2fe";
+  return "#fee2e2";
+}
+
 function getHeadCellStyle(isLast = false, extra = {}) {
   return {
     ...cellHead,
@@ -221,8 +229,13 @@ export default function AlarmLogWindowListTable({
               const isDisabled = stateText === "DISABLED" || a?.enabled === false;
 
               let rowBg = "#ffffff";
-              if (isActiveUnacked) rowBg = "#fee2e2";
-              else if (isSelected) rowBg = "#eef4ff";
+              if (isActiveUnacked) {
+                rowBg = getActiveRowBgBySeverity(
+                  a?.severity ?? a?.raw?.severity ?? ""
+                );
+              } else if (isSelected) {
+                rowBg = "#eef4ff";
+              }
 
               return (
                 <div
