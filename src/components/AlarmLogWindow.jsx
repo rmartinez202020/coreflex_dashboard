@@ -283,6 +283,7 @@ export default function AlarmLogWindow({
           return {
             ...row,
             enabled: true,
+            state: "RETURNED",
           };
         }
 
@@ -356,47 +357,50 @@ export default function AlarmLogWindow({
     setCheckedIds(new Set());
   };
 
-  const handleAcknowledgeAlarm = React.useCallback((alarm) => {
-    if (!alarm?.id) return;
+  const handleAcknowledgeAlarm = React.useCallback(
+    (alarm) => {
+      if (!alarm?.id) return;
 
-    setAlarms((prev) =>
-      prev.map((a) =>
-        a.id === alarm.id
-          ? {
-              ...a,
-              acknowledged: true,
-              ack: "Yes",
-              state:
-                String(a.state || "").trim().toUpperCase() === "ACTIVE"
-                  ? "ACKED"
-                  : a.state,
-            }
-          : a
-      )
-    );
-
-    setExpandedHistoryMap((prev) => {
-      const next = { ...prev };
-
-      for (const key of Object.keys(next)) {
-        next[key] = next[key].map((r) =>
-          r.id === alarm.id
+      setAlarms((prev) =>
+        prev.map((a) =>
+          a.id === alarm.id
             ? {
-                ...r,
+                ...a,
                 acknowledged: true,
                 ack: "Yes",
                 state:
-                  String(r.state || "").trim().toUpperCase() === "ACTIVE"
+                  String(a.state || "").trim().toUpperCase() === "ACTIVE"
                     ? "ACKED"
-                    : r.state,
+                    : a.state,
               }
-            : r
-        );
-      }
+            : a
+        )
+      );
 
-      return next;
-    });
-  }, [setAlarms, setExpandedHistoryMap]);
+      setExpandedHistoryMap((prev) => {
+        const next = { ...prev };
+
+        for (const key of Object.keys(next)) {
+          next[key] = next[key].map((r) =>
+            r.id === alarm.id
+              ? {
+                  ...r,
+                  acknowledged: true,
+                  ack: "Yes",
+                  state:
+                    String(r.state || "").trim().toUpperCase() === "ACTIVE"
+                      ? "ACKED"
+                      : r.state,
+                }
+              : r
+          );
+        }
+
+        return next;
+      });
+    },
+    [setAlarms, setExpandedHistoryMap]
+  );
 
   const handleToggleAlarmEnabled = React.useCallback(
     (alarm) => {
@@ -424,7 +428,7 @@ export default function AlarmLogWindow({
           return {
             ...a,
             enabled: true,
-            state: a.raw?.state ? normalizeState(a.raw) : "RETURNED",
+            state: "RETURNED",
           };
         })
       );
@@ -439,7 +443,7 @@ export default function AlarmLogWindow({
             : {
                 ...r,
                 enabled: true,
-                state: r.raw?.state ? normalizeState(r.raw) : "RETURNED",
+                state: "RETURNED",
               }
         );
 
