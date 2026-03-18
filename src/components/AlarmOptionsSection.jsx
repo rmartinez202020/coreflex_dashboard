@@ -149,6 +149,19 @@ export default function AlarmOptionsSection({
             </div>
 
             <div style={fieldRowCompact}>
+              <div style={fieldLabel}>Severity</div>
+              <select
+                style={selectCompact}
+                value={severity}
+                onChange={(e) => setSeverity?.(e.target.value)}
+              >
+                <option value="info">Info</option>
+                <option value="warning">Warning</option>
+                <option value="critical">Critical</option>
+              </select>
+            </div>
+
+            <div style={fieldRowCompact}>
               <div style={fieldLabel}>Message</div>
               <input
                 style={inputCompact}
