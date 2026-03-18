@@ -10,18 +10,29 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function pad2(v) {
+  return String(v).padStart(2, "0");
+}
+
 function formatAlarmTime(value) {
   if (!value) return "—";
 
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return "—";
 
-  return d.toLocaleTimeString("en-US", {
-    hour: "2-digit",
-    minute: "2-digit",
-    second: "2-digit",
-    hour12: true,
-  });
+  const month = pad2(d.getMonth() + 1);
+  const day = pad2(d.getDate());
+  const year = d.getFullYear();
+
+  let hours = d.getHours();
+  const minutes = pad2(d.getMinutes());
+  const seconds = pad2(d.getSeconds());
+
+  const ampm = hours >= 12 ? "PM" : "AM";
+  hours = hours % 12;
+  if (hours === 0) hours = 12;
+
+  return `${month}/${day}/${year}-${pad2(hours)}:${minutes}:${seconds} ${ampm}`;
 }
 
 function normalizeHistoryRow(row, idx = 0) {
