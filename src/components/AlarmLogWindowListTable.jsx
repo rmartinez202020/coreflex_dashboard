@@ -2,12 +2,21 @@
 import React from "react";
 
 const GRID_TEMPLATE =
-  "34px minmax(130px,1.1fr) minmax(96px,0.8fr) minmax(220px,2.2fr) minmax(100px,0.9fr) minmax(110px,0.9fr) minmax(64px,0.7fr) minmax(140px,1.1fr) minmax(90px,0.8fr) minmax(90px,0.8fr) minmax(100px,0.9fr)";
+  "34px minmax(130px,1.1fr) minmax(96px,0.8fr) minmax(220px,2.2fr) minmax(100px,0.9fr) minmax(110px,0.9fr) minmax(84px,0.8fr) minmax(140px,1.1fr) minmax(90px,0.8fr) minmax(90px,0.8fr) minmax(100px,0.9fr)";
 
-function renderAck(a) {
-  if (a?.acknowledged === true) return "Yes";
-  if (a?.ack === "Yes") return "Yes";
-  return "No";
+function isAcknowledged(alarm) {
+  if (alarm?.acknowledged === true) return true;
+  if (String(alarm?.ack || "").trim().toLowerCase() === "yes") return true;
+
+  const state = String(
+    alarm?.state ?? alarm?.alarmState ?? alarm?.status ?? ""
+  )
+    .trim()
+    .toUpperCase();
+
+  if (state === "ACKED") return true;
+
+  return false;
 }
 
 function renderState(a) {
@@ -111,6 +120,7 @@ export default function AlarmLogWindowListTable({
   setSelectedId,
   toggleChecked,
   toggleAllVisible,
+  onAcknowledgeAlarm, // ✅ NEW
 }) {
   const allVisibleSelected =
     visibleAlarms.length > 0 &&
@@ -171,7 +181,12 @@ export default function AlarmLogWindowListTable({
               const isChecked = checkedIds?.has?.(a.id);
               const isSelected = selectedId === a.id;
               const stateText = renderState(a);
-              const rowBg = isSelected ? "#eef4ff" : "#ffffff";
+              const acked = isAcknowledged(a);
+              const isActiveUnacked = stateText === "ACTIVE" && !acked;
+
+              let rowBg = "#ffffff";
+              if (isActiveUnacked) rowBg = "#fee2e2";
+              else if (isSelected) rowBg = "#eef4ff";
 
               return (
                 <div
@@ -242,7 +257,22 @@ export default function AlarmLogWindowListTable({
                       background: rowBg,
                     })}
                   >
-                    {renderAck(a)}
+                    <button
+                      type="button"
+                      style={{
+                        ...ackBtn,
+                        ...(acked ? ackBtnDone : ackBtnReady),
+                      }}
+                      disabled={acked}
+                      title={acked ? "Alarm already acknowledged" : "Acknowledge alarm"}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        if (acked) return;
+                        onAcknowledgeAlarm?.(a);
+                      }}
+                    >
+                      {acked ? "Acked" : "Ack"}
+                    </button>
                   </div>
 
                   <div style={getBodyCellStyle(false, { background: rowBg })}>
@@ -366,6 +396,30 @@ const checkbox = {
   height: 14,
   cursor: "pointer",
   accentColor: "#111827",
+};
+
+const ackBtn = {
+  minWidth: 58,
+  height: 26,
+  padding: "0 10px",
+  borderRadius: 999,
+  fontSize: 11,
+  fontWeight: 900,
+  border: "1px solid transparent",
+  cursor: "pointer",
+};
+
+const ackBtnReady = {
+  background: "#fee2e2",
+  color: "#991b1b",
+  borderColor: "#fecaca",
+};
+
+const ackBtnDone = {
+  background: "#e5e7eb",
+  color: "#475569",
+  borderColor: "#cbd5e1",
+  cursor: "default",
 };
 
 const stateBadge = {
