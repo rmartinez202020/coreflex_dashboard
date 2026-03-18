@@ -4,7 +4,8 @@ import React from "react";
 const GRID_TEMPLATE =
   "34px minmax(130px,1.1fr) minmax(96px,0.8fr) minmax(220px,2.2fr) minmax(100px,0.9fr) minmax(110px,0.9fr) minmax(84px,0.8fr) minmax(140px,1.1fr) minmax(90px,0.8fr) minmax(90px,0.8fr) minmax(100px,0.9fr)";
 
-function isAcknowledged(alarm) {
+function isAcknowledged(alarm, localAck = {}) {
+  if (localAck?.[alarm?.id]) return true;
   if (alarm?.acknowledged === true) return true;
   if (String(alarm?.ack || "").trim().toLowerCase() === "yes") return true;
 
@@ -120,11 +121,23 @@ export default function AlarmLogWindowListTable({
   setSelectedId,
   toggleChecked,
   toggleAllVisible,
-  onAcknowledgeAlarm, // ✅ NEW
+  onAcknowledgeAlarm,
 }) {
+  const [localAck, setLocalAck] = React.useState({});
+
   const allVisibleSelected =
     visibleAlarms.length > 0 &&
     visibleAlarms.every((a) => checkedIds?.has?.(a.id));
+
+  React.useEffect(() => {
+    const next = {};
+    for (const a of visibleAlarms) {
+      if (isAcknowledged(a)) {
+        next[a.id] = true;
+      }
+    }
+    setLocalAck((prev) => ({ ...prev, ...next }));
+  }, [visibleAlarms]);
 
   return (
     <div style={tableOuter}>
@@ -181,7 +194,7 @@ export default function AlarmLogWindowListTable({
               const isChecked = checkedIds?.has?.(a.id);
               const isSelected = selectedId === a.id;
               const stateText = renderState(a);
-              const acked = isAcknowledged(a);
+              const acked = isAcknowledged(a, localAck);
               const isActiveUnacked = stateText === "ACTIVE" && !acked;
 
               let rowBg = "#ffffff";
@@ -264,10 +277,30 @@ export default function AlarmLogWindowListTable({
                         ...(acked ? ackBtnDone : ackBtnReady),
                       }}
                       disabled={acked}
-                      title={acked ? "Alarm already acknowledged" : "Acknowledge alarm"}
+                      title={
+                        acked
+                          ? "Alarm already acknowledged"
+                          : "Acknowledge alarm"
+                      }
+                      onMouseEnter={(e) => {
+                        if (!acked) {
+                          e.currentTarget.style.background = "#e5e7eb";
+                        }
+                      }}
+                      onMouseLeave={(e) => {
+                        if (!acked) {
+                          e.currentTarget.style.background = "#f3f4f6";
+                        }
+                      }}
                       onClick={(e) => {
                         e.stopPropagation();
                         if (acked) return;
+
+                        setLocalAck((prev) => ({
+                          ...prev,
+                          [a.id]: true,
+                        }));
+
                         onAcknowledgeAlarm?.(a);
                       }}
                     >
@@ -399,26 +432,29 @@ const checkbox = {
 };
 
 const ackBtn = {
-  minWidth: 58,
+  minWidth: 64,
   height: 26,
-  padding: "0 10px",
-  borderRadius: 999,
+  padding: "0 12px",
+  borderRadius: 6,
   fontSize: 11,
-  fontWeight: 900,
-  border: "1px solid transparent",
+  fontWeight: 700,
+  border: "1px solid #c7cdd4",
+  background: "#f3f4f6",
+  color: "#111827",
   cursor: "pointer",
+  transition: "background 120ms ease, border-color 120ms ease, color 120ms ease",
 };
 
 const ackBtnReady = {
-  background: "#fee2e2",
-  color: "#991b1b",
-  borderColor: "#fecaca",
+  background: "#f3f4f6",
+  color: "#111827",
+  borderColor: "#c7cdd4",
 };
 
 const ackBtnDone = {
   background: "#e5e7eb",
-  color: "#475569",
-  borderColor: "#cbd5e1",
+  color: "#6b7280",
+  borderColor: "#d1d5db",
   cursor: "default",
 };
 
