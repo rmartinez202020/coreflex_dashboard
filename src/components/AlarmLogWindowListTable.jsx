@@ -2,7 +2,7 @@
 import React from "react";
 
 const GRID_TEMPLATE =
-  "34px minmax(130px,1.1fr) minmax(96px,0.8fr) minmax(220px,2.2fr) minmax(100px,0.9fr) minmax(110px,0.9fr) minmax(84px,0.8fr) minmax(140px,1.1fr) minmax(90px,0.8fr) minmax(90px,0.8fr) minmax(100px,0.9fr) minmax(92px,0.8fr)";
+  "34px 34px minmax(130px,1.1fr) minmax(96px,0.8fr) minmax(220px,2.2fr) minmax(100px,0.9fr) minmax(110px,0.9fr) minmax(84px,0.8fr) minmax(140px,1.1fr) minmax(90px,0.8fr) minmax(90px,0.8fr) minmax(100px,0.9fr) minmax(92px,0.8fr)";
 
 function isAcknowledged(alarm, localAck = {}) {
   if (localAck?.[alarm?.id]) return true;
@@ -86,14 +86,8 @@ function renderOccurrences(a) {
 function getActiveStateStyleBySeverity(severity) {
   const s = String(severity || "").trim().toLowerCase();
 
-  if (s === "warning") {
-    return stateActiveWarning;
-  }
-
-  if (s === "info") {
-    return stateActiveInfo;
-  }
-
+  if (s === "warning") return stateActiveWarning;
+  if (s === "info") return stateActiveInfo;
   return stateActiveCritical;
 }
 
@@ -147,6 +141,9 @@ export default function AlarmLogWindowListTable({
   toggleAllVisible,
   onAcknowledgeAlarm,
   onDisableAlarm,
+  expandedAlarmKeys = new Set(),
+  onToggleExpandAlarm,
+  expandedHistoryMap = {},
 }) {
   const [localAck, setLocalAck] = React.useState({});
 
@@ -160,14 +157,19 @@ export default function AlarmLogWindowListTable({
       if (isAcknowledged(a)) {
         next[a.id] = true;
       }
+      const historyRows = expandedHistoryMap?.[a.uniqueAlarmKey] || [];
+      for (const h of historyRows) {
+        if (isAcknowledged(h)) {
+          next[h.id] = true;
+        }
+      }
     }
     setLocalAck((prev) => ({ ...prev, ...next }));
-  }, [visibleAlarms]);
+  }, [visibleAlarms, expandedHistoryMap]);
 
   return (
     <div style={tableOuter}>
       <div style={tableInner}>
-        {/* HEADER */}
         <div style={{ ...headerRow, gridTemplateColumns: GRID_TEMPLATE }}>
           <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
             <input
@@ -183,40 +185,33 @@ export default function AlarmLogWindowListTable({
             />
           </div>
 
-          <div style={getHeadCellStyle()}>Time</div>
+          <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
+            ▼
+          </div>
 
+          <div style={getHeadCellStyle()}>Time</div>
           <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
             State
           </div>
-
           <div style={getHeadCellStyle()}>Alarm Text</div>
-
           <div style={getHeadCellStyle()}>Severity</div>
-
           <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
             Occurrences
           </div>
-
           <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
             Ack
           </div>
-
           <div style={getHeadCellStyle()}>Device</div>
-
           <div style={getHeadCellStyle()}>Tag</div>
-
           <div style={getHeadCellStyle(false, { justifyContent: "flex-end" })}>
             Value
           </div>
-
           <div style={getHeadCellStyle()}>Group</div>
-
           <div style={getHeadCellStyle(true, { justifyContent: "center" })}>
             Disable
           </div>
         </div>
 
-        {/* BODY */}
         <div style={bodyWrap}>
           <div style={rowsLayer}>
             {visibleAlarms.map((a) => {
@@ -227,6 +222,8 @@ export default function AlarmLogWindowListTable({
               const isActiveUnacked = stateText === "ACTIVE" && !acked;
               const canAck = stateText === "ACTIVE" && !acked;
               const isDisabled = stateText === "DISABLED" || a?.enabled === false;
+              const isExpanded = expandedAlarmKeys?.has?.(a.uniqueAlarmKey);
+              const historyRows = expandedHistoryMap?.[a.uniqueAlarmKey] || [];
 
               let rowBg = "#ffffff";
               if (isActiveUnacked) {
@@ -238,186 +235,367 @@ export default function AlarmLogWindowListTable({
               }
 
               return (
-                <div
-                  key={a.id}
-                  style={{
-                    ...dataRow,
-                    gridTemplateColumns: GRID_TEMPLATE,
-                    background: rowBg,
-                    color: "#111827",
-                  }}
-                  onMouseDown={(e) => {
-                    e.stopPropagation();
-                    setSelectedId?.(a.id);
-                  }}
-                >
+                <React.Fragment key={a.id}>
                   <div
-                    style={getBodyCellStyle(false, {
-                      justifyContent: "center",
+                    style={{
+                      ...dataRow,
+                      gridTemplateColumns: GRID_TEMPLATE,
                       background: rowBg,
-                    })}
+                      color: "#111827",
+                    }}
+                    onMouseDown={(e) => {
+                      e.stopPropagation();
+                      setSelectedId?.(a.id);
+                    }}
                   >
-                    <input
-                      type="checkbox"
-                      checked={!!isChecked}
-                      onChange={(e) => {
-                        e.stopPropagation();
-                        toggleChecked?.(a.id);
-                      }}
-                      style={checkbox}
-                    />
-                  </div>
-
-                  <div style={getBodyCellStyle(false, { background: rowBg })}>
-                    {a.time || "—"}
-                  </div>
-
-                  <div
-                    style={getBodyCellStyle(false, {
-                      justifyContent: "center",
-                      background: rowBg,
-                    })}
-                  >
-                    <span
-                      style={{
-                        ...stateBadge,
-                        ...getStateStyle(stateText, a),
-                      }}
+                    <div
+                      style={getBodyCellStyle(false, {
+                        justifyContent: "center",
+                        background: rowBg,
+                      })}
                     >
-                      {stateText}
-                    </span>
+                      <input
+                        type="checkbox"
+                        checked={!!isChecked}
+                        onChange={(e) => {
+                          e.stopPropagation();
+                          toggleChecked?.(a.id);
+                        }}
+                        style={checkbox}
+                      />
+                    </div>
+
+                    <div
+                      style={getBodyCellStyle(false, {
+                        justifyContent: "center",
+                        background: rowBg,
+                      })}
+                    >
+                      <button
+                        type="button"
+                        style={expandBtn}
+                        title={isExpanded ? "Collapse history" : "Show history"}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          onToggleExpandAlarm?.(a);
+                        }}
+                      >
+                        {isExpanded ? "▲" : "▼"}
+                      </button>
+                    </div>
+
+                    <div style={getBodyCellStyle(false, { background: rowBg })}>
+                      {a.time || "—"}
+                    </div>
+
+                    <div
+                      style={getBodyCellStyle(false, {
+                        justifyContent: "center",
+                        background: rowBg,
+                      })}
+                    >
+                      <span
+                        style={{
+                          ...stateBadge,
+                          ...getStateStyle(stateText, a),
+                        }}
+                      >
+                        {stateText}
+                      </span>
+                    </div>
+
+                    <div style={getBodyCellStyle(false, { background: rowBg })}>
+                      {renderAlarmText(a)}
+                    </div>
+
+                    <div style={getBodyCellStyle(false, { background: rowBg })}>
+                      {renderSeverity(a)}
+                    </div>
+
+                    <div
+                      style={getBodyCellStyle(false, {
+                        justifyContent: "center",
+                        background: rowBg,
+                      })}
+                    >
+                      {renderOccurrences(a)}
+                    </div>
+
+                    <div
+                      style={getBodyCellStyle(false, {
+                        justifyContent: "center",
+                        background: rowBg,
+                      })}
+                    >
+                      <button
+                        type="button"
+                        style={{
+                          ...ackBtn,
+                          ...(canAck ? ackBtnReady : ackBtnDisabled),
+                        }}
+                        disabled={!canAck}
+                        title={
+                          canAck
+                            ? "Acknowledge alarm"
+                            : acked
+                            ? "Alarm already acknowledged"
+                            : stateText === "RETURNED"
+                            ? "Returned alarms cannot be acknowledged"
+                            : stateText === "DISABLED"
+                            ? "Disabled alarms cannot be acknowledged"
+                            : "Only active alarms can be acknowledged"
+                        }
+                        onMouseEnter={(e) => {
+                          if (canAck) {
+                            e.currentTarget.style.background = "#e5e7eb";
+                            e.currentTarget.style.borderColor = "#bfc6cf";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (canAck) {
+                            e.currentTarget.style.background = "#f3f4f6";
+                            e.currentTarget.style.borderColor = "#c7cdd4";
+                          }
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (!canAck) return;
+
+                          setLocalAck((prev) => ({
+                            ...prev,
+                            [a.id]: true,
+                          }));
+
+                          onAcknowledgeAlarm?.(a);
+                        }}
+                      >
+                        {acked ? "Acked" : "Ack"}
+                      </button>
+                    </div>
+
+                    <div style={getBodyCellStyle(false, { background: rowBg })}>
+                      {renderDevice(a)}
+                    </div>
+
+                    <div style={getBodyCellStyle(false, { background: rowBg })}>
+                      {renderTag(a)}
+                    </div>
+
+                    <div
+                      style={getBodyCellStyle(false, {
+                        justifyContent: "flex-end",
+                        background: rowBg,
+                      })}
+                    >
+                      {renderValue(a)}
+                    </div>
+
+                    <div style={getBodyCellStyle(false, { background: rowBg })}>
+                      {renderGroup(a)}
+                    </div>
+
+                    <div
+                      style={getBodyCellStyle(true, {
+                        justifyContent: "center",
+                        background: rowBg,
+                      })}
+                    >
+                      <button
+                        type="button"
+                        style={{
+                          ...disableBtn,
+                          ...(isDisabled ? disableBtnDisabled : disableBtnReady),
+                        }}
+                        disabled={isDisabled}
+                        title={
+                          isDisabled
+                            ? "Alarm already disabled"
+                            : "Disable this alarm"
+                        }
+                        onMouseEnter={(e) => {
+                          if (!isDisabled) {
+                            e.currentTarget.style.background = "#e5e7eb";
+                            e.currentTarget.style.borderColor = "#bfc6cf";
+                          }
+                        }}
+                        onMouseLeave={(e) => {
+                          if (!isDisabled) {
+                            e.currentTarget.style.background = "#f3f4f6";
+                            e.currentTarget.style.borderColor = "#c7cdd4";
+                          }
+                        }}
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          if (isDisabled) return;
+                          onDisableAlarm?.(a);
+                        }}
+                      >
+                        {isDisabled ? "Disabled" : "Disable"}
+                      </button>
+                    </div>
                   </div>
 
-                  <div style={getBodyCellStyle(false, { background: rowBg })}>
-                    {renderAlarmText(a)}
-                  </div>
+                  {isExpanded &&
+                    historyRows.map((h) => {
+                      const historyState = renderState(h);
+                      const historyAcked = isAcknowledged(h, localAck);
+                      const historyCanAck =
+                        historyState === "ACTIVE" && !historyAcked;
 
-                  <div style={getBodyCellStyle(false, { background: rowBg })}>
-                    {renderSeverity(a)}
-                  </div>
-
-                  <div
-                    style={getBodyCellStyle(false, {
-                      justifyContent: "center",
-                      background: rowBg,
-                    })}
-                  >
-                    {renderOccurrences(a)}
-                  </div>
-
-                  <div
-                    style={getBodyCellStyle(false, {
-                      justifyContent: "center",
-                      background: rowBg,
-                    })}
-                  >
-                    <button
-                      type="button"
-                      style={{
-                        ...ackBtn,
-                        ...(canAck ? ackBtnReady : ackBtnDisabled),
-                      }}
-                      disabled={!canAck}
-                      title={
-                        canAck
-                          ? "Acknowledge alarm"
-                          : acked
-                          ? "Alarm already acknowledged"
-                          : stateText === "RETURNED"
-                          ? "Returned alarms cannot be acknowledged"
-                          : stateText === "DISABLED"
-                          ? "Disabled alarms cannot be acknowledged"
-                          : "Only active alarms can be acknowledged"
+                      let historyBg = "#f8fafc";
+                      if (historyState === "ACTIVE" && !historyAcked) {
+                        historyBg = getActiveRowBgBySeverity(
+                          h?.severity ?? h?.raw?.severity ?? ""
+                        );
                       }
-                      onMouseEnter={(e) => {
-                        if (canAck) {
-                          e.currentTarget.style.background = "#e5e7eb";
-                          e.currentTarget.style.borderColor = "#bfc6cf";
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (canAck) {
-                          e.currentTarget.style.background = "#f3f4f6";
-                          e.currentTarget.style.borderColor = "#c7cdd4";
-                        }
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (!canAck) return;
 
-                        setLocalAck((prev) => ({
-                          ...prev,
-                          [a.id]: true,
-                        }));
+                      return (
+                        <div
+                          key={h.id}
+                          style={{
+                            ...historyRow,
+                            gridTemplateColumns: GRID_TEMPLATE,
+                            background: historyBg,
+                            color: "#111827",
+                          }}
+                        >
+                          <div
+                            style={getBodyCellStyle(false, {
+                              justifyContent: "center",
+                              background: historyBg,
+                            })}
+                          />
 
-                        onAcknowledgeAlarm?.(a);
-                      }}
-                    >
-                      {acked ? "Acked" : "Ack"}
-                    </button>
-                  </div>
+                          <div
+                            style={getBodyCellStyle(false, {
+                              justifyContent: "center",
+                              background: historyBg,
+                            })}
+                          >
+                            <span style={historyIndent}>↳</span>
+                          </div>
 
-                  <div style={getBodyCellStyle(false, { background: rowBg })}>
-                    {renderDevice(a)}
-                  </div>
+                          <div
+                            style={getBodyCellStyle(false, {
+                              background: historyBg,
+                            })}
+                          >
+                            {h.time || "—"}
+                          </div>
 
-                  <div style={getBodyCellStyle(false, { background: rowBg })}>
-                    {renderTag(a)}
-                  </div>
+                          <div
+                            style={getBodyCellStyle(false, {
+                              justifyContent: "center",
+                              background: historyBg,
+                            })}
+                          >
+                            <span
+                              style={{
+                                ...stateBadge,
+                                ...getStateStyle(historyState, h),
+                              }}
+                            >
+                              {historyState}
+                            </span>
+                          </div>
 
-                  <div
-                    style={getBodyCellStyle(false, {
-                      justifyContent: "flex-end",
-                      background: rowBg,
+                          <div
+                            style={getBodyCellStyle(false, {
+                              background: historyBg,
+                            })}
+                          >
+                            {renderAlarmText(h)}
+                          </div>
+
+                          <div
+                            style={getBodyCellStyle(false, {
+                              background: historyBg,
+                            })}
+                          >
+                            {renderSeverity(h)}
+                          </div>
+
+                          <div
+                            style={getBodyCellStyle(false, {
+                              justifyContent: "center",
+                              background: historyBg,
+                            })}
+                          >
+                            1
+                          </div>
+
+                          <div
+                            style={getBodyCellStyle(false, {
+                              justifyContent: "center",
+                              background: historyBg,
+                            })}
+                          >
+                            <button
+                              type="button"
+                              style={{
+                                ...ackBtn,
+                                ...(historyCanAck ? ackBtnReady : ackBtnDisabled),
+                              }}
+                              disabled={!historyCanAck}
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                if (!historyCanAck) return;
+
+                                setLocalAck((prev) => ({
+                                  ...prev,
+                                  [h.id]: true,
+                                }));
+
+                                onAcknowledgeAlarm?.(h);
+                              }}
+                            >
+                              {historyAcked ? "Acked" : "Ack"}
+                            </button>
+                          </div>
+
+                          <div
+                            style={getBodyCellStyle(false, {
+                              background: historyBg,
+                            })}
+                          >
+                            {renderDevice(h)}
+                          </div>
+
+                          <div
+                            style={getBodyCellStyle(false, {
+                              background: historyBg,
+                            })}
+                          >
+                            {renderTag(h)}
+                          </div>
+
+                          <div
+                            style={getBodyCellStyle(false, {
+                              justifyContent: "flex-end",
+                              background: historyBg,
+                            })}
+                          >
+                            {renderValue(h)}
+                          </div>
+
+                          <div
+                            style={getBodyCellStyle(false, {
+                              background: historyBg,
+                            })}
+                          >
+                            {renderGroup(h)}
+                          </div>
+
+                          <div
+                            style={getBodyCellStyle(true, {
+                              justifyContent: "center",
+                              background: historyBg,
+                            })}
+                          />
+                        </div>
+                      );
                     })}
-                  >
-                    {renderValue(a)}
-                  </div>
-
-                  <div style={getBodyCellStyle(false, { background: rowBg })}>
-                    {renderGroup(a)}
-                  </div>
-
-                  <div
-                    style={getBodyCellStyle(true, {
-                      justifyContent: "center",
-                      background: rowBg,
-                    })}
-                  >
-                    <button
-                      type="button"
-                      style={{
-                        ...disableBtn,
-                        ...(isDisabled ? disableBtnDisabled : disableBtnReady),
-                      }}
-                      disabled={isDisabled}
-                      title={
-                        isDisabled
-                          ? "Alarm already disabled"
-                          : "Disable this alarm"
-                      }
-                      onMouseEnter={(e) => {
-                        if (!isDisabled) {
-                          e.currentTarget.style.background = "#e5e7eb";
-                          e.currentTarget.style.borderColor = "#bfc6cf";
-                        }
-                      }}
-                      onMouseLeave={(e) => {
-                        if (!isDisabled) {
-                          e.currentTarget.style.background = "#f3f4f6";
-                          e.currentTarget.style.borderColor = "#c7cdd4";
-                        }
-                      }}
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        if (isDisabled) return;
-                        onDisableAlarm?.(a);
-                      }}
-                    >
-                      {isDisabled ? "Disabled" : "Disable"}
-                    </button>
-                  </div>
-                </div>
+                </React.Fragment>
               );
             })}
           </div>
@@ -477,6 +655,14 @@ const dataRow = {
   cursor: "default",
 };
 
+const historyRow = {
+  display: "grid",
+  alignItems: "stretch",
+  width: "100%",
+  minWidth: 0,
+  cursor: "default",
+};
+
 const cellHead = {
   minWidth: 0,
   minHeight: 34,
@@ -518,6 +704,26 @@ const checkbox = {
   height: 14,
   cursor: "pointer",
   accentColor: "#111827",
+};
+
+const expandBtn = {
+  width: 24,
+  height: 24,
+  borderRadius: 6,
+  border: "1px solid #c7cdd4",
+  background: "#f8fafc",
+  color: "#111827",
+  cursor: "pointer",
+  fontSize: 11,
+  fontWeight: 700,
+  lineHeight: 1,
+  padding: 0,
+};
+
+const historyIndent = {
+  color: "#64748b",
+  fontSize: 13,
+  fontWeight: 700,
 };
 
 const ackBtn = {
