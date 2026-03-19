@@ -42,6 +42,9 @@ const TanksAndPipesSymbols3DLibrary = React.lazy(() =>
  * ✅ NEW:
  * - Passes active dashboard context to RightSidebar
  * - Alarm Log can only open when a real dashboard is open on canvas
+ *
+ * ✅ NEW:
+ * - Owns Dashboard IDs Details toggle state so RightSidebar can visibly switch ON/OFF
  */
 export default function RightPanel({
   isRightCollapsed,
@@ -114,6 +117,18 @@ export default function RightPanel({
     tankId: null,
   });
 
+  // ✅ NEW: local toggle state for IDs Details
+  const [isDashboardIdsDetailsOpen, setIsDashboardIdsDetailsOpen] =
+    React.useState(false);
+
+  // ✅ Reset IDs Details toggle when dashboard changes / closes
+  React.useEffect(() => {
+    if (!isDashboardOpenOnCanvas || !String(dashboardId || "").trim()) {
+      setIsDashboardIdsDetailsOpen(false);
+      return;
+    }
+  }, [dashboardId, isDashboardOpenOnCanvas]);
+
   // ✅ Listen: "open IOTs Library to pick OFF/ON image"
   React.useEffect(() => {
     const onOpenPicker = (ev) => {
@@ -152,6 +167,28 @@ export default function RightPanel({
     wm.closeWindow("coreflex");
   };
 
+  // ✅ NEW: visible toggle handler for RightSidebar
+  const handleDashboardIdsDetailsToggle = React.useCallback(
+    ({ enabled, dashboardId: activeDashboardId, dashboardName: activeDashboardName }) => {
+      const normalizedDashboardId = String(activeDashboardId || "").trim();
+      const normalizedDashboardName = String(activeDashboardName || "").trim();
+
+      setIsDashboardIdsDetailsOpen(Boolean(enabled));
+
+      // Notify the rest of the app/canvas layer
+      window.dispatchEvent(
+        new CustomEvent("coreflex-dashboard-ids-details-toggle", {
+          detail: {
+            enabled: Boolean(enabled),
+            dashboardId: normalizedDashboardId,
+            dashboardName: normalizedDashboardName,
+          },
+        })
+      );
+    },
+    []
+  );
+
   return (
     <>
       {/* ✅ RIGHT SIDEBAR */}
@@ -167,6 +204,8 @@ export default function RightPanel({
         openSymbolLibrary={(key) => wm.openWindow(key, { cascade: true })}
         dashboardMode={dashboardMode}
         onOpenAlarmLog={onOpenAlarmLog}
+        onOpenDashboardIdsDetails={handleDashboardIdsDetailsToggle}
+        isDashboardIdsDetailsOpen={isDashboardIdsDetailsOpen}
         dashboardId={dashboardId}
         dashboardName={dashboardName}
         isDashboardOpenOnCanvas={isDashboardOpenOnCanvas}
