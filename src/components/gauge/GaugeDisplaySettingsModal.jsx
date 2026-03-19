@@ -114,6 +114,79 @@ function StyleCard({ item, selected, onClick }) {
   );
 }
 
+function formatLastSeen(value) {
+  if (!value) return "";
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+  return d.toLocaleString();
+}
+
+function normalizeDeviceStatus(device) {
+  if (!device || typeof device !== "object") {
+    return { online: null, text: "--" };
+  }
+
+  const raw =
+    device.status ??
+    device.deviceStatus ??
+    device.onlineStatus ??
+    device.connectionStatus ??
+    device.state ??
+    "";
+
+  const s = String(raw || "").trim().toLowerCase();
+
+  if (["online", "connected", "up", "active", "running"].includes(s)) {
+    return { online: true, text: "ONLINE" };
+  }
+
+  if (
+    [
+      "offline",
+      "disconnected",
+      "down",
+      "inactive",
+      "not running",
+      "not_running",
+    ].includes(s)
+  ) {
+    return { online: false, text: "OFFLINE" };
+  }
+
+  if (typeof device.online === "boolean") {
+    return { online: device.online, text: device.online ? "ONLINE" : "OFFLINE" };
+  }
+
+  if (typeof device.isOnline === "boolean") {
+    return {
+      online: device.isOnline,
+      text: device.isOnline ? "ONLINE" : "OFFLINE",
+    };
+  }
+
+  const lastSeenRaw =
+    device.lastSeen ??
+    device.last_seen ??
+    device.lastTelemetryAt ??
+    device.last_telemetry_at ??
+    device.updatedAt ??
+    device.updated_at ??
+    null;
+
+  if (lastSeenRaw) {
+    const ts = new Date(lastSeenRaw).getTime();
+    if (Number.isFinite(ts)) {
+      const ageMs = Date.now() - ts;
+      if (ageMs > 15000) {
+        return { online: false, text: "OFFLINE" };
+      }
+      return { online: true, text: "ONLINE" };
+    }
+  }
+
+  return { online: null, text: "--" };
+}
+
 export default function GaugeDisplaySettingsModal({
   open,
   onClose,
@@ -201,6 +274,11 @@ export default function GaugeDisplaySettingsModal({
       d.highWarn === null || d.highWarn === undefined ? "" : d.highWarn
     );
 
+    setTelemetryLiveValue(null);
+    setTelemetryPollError("");
+    setTelemetryPollMs(2000);
+    setTelemetrySelectedDevice(null);
+
     // ✅ reset modal position when opening a new modal
     if (open) {
       setModalPos(null);
@@ -237,6 +315,92 @@ export default function GaugeDisplaySettingsModal({
       window.removeEventListener("mouseup", handleUp);
     };
   }, []);
+
+  const normalizedDeviceStatus = useMemo(
+    () => normalizeDeviceStatus(telemetrySelectedDevice),
+    [telemetrySelectedDevice]
+  );
+
+  const statusCard = useMemo(() => {
+    const hasBinding = !!String(bindDeviceId || "").trim();
+
+    if (!hasBinding) {
+      return {
+        text: "Select a device",
+        subtext: "Choose a device and tag to preview live telemetry.",
+        color: "#64748b",
+        bg: "rgba(148,163,184,0.10)",
+        border: "rgba(148,163,184,0.28)",
+        fontWeight: 800,
+      };
+    }
+
+    if (telemetryPollError) {
+      return {
+        text: "OFFLINE",
+        subtext: telemetryPollError,
+        color: "#dc2626",
+        bg: "rgba(254,226,226,0.70)",
+        border: "rgba(220,38,38,0.24)",
+        fontWeight: 900,
+      };
+    }
+
+    if (normalizedDeviceStatus.online === false) {
+      const lastSeen =
+        telemetrySelectedDevice?.lastSeen ??
+        telemetrySelectedDevice?.last_seen ??
+        telemetrySelectedDevice?.lastTelemetryAt ??
+        telemetrySelectedDevice?.last_telemetry_at ??
+        telemetrySelectedDevice?.updatedAt ??
+        telemetrySelectedDevice?.updated_at ??
+        "";
+
+      return {
+        text: "OFFLINE",
+        subtext: lastSeen
+          ? `Last seen: ${formatLastSeen(lastSeen)}`
+          : "Device is not reporting live telemetry.",
+        color: "#dc2626",
+        bg: "rgba(254,226,226,0.70)",
+        border: "rgba(220,38,38,0.24)",
+        fontWeight: 900,
+      };
+    }
+
+    if (normalizedDeviceStatus.online === true) {
+      return {
+        text: "ONLINE",
+        subtext:
+          telemetryLiveValue === null || telemetryLiveValue === undefined
+            ? "Connected. Waiting for live value..."
+            : `Live telemetry is updating every ${Math.max(
+                250,
+                Number(telemetryPollMs) || 2000
+              )} ms.`,
+        color: "#16a34a",
+        bg: "rgba(220,252,231,0.85)",
+        border: "rgba(22,163,74,0.24)",
+        fontWeight: 900,
+      };
+    }
+
+    return {
+      text: "CHECKING...",
+      subtext: "Reading device status from telemetry.",
+      color: "#64748b",
+      bg: "rgba(148,163,184,0.10)",
+      border: "rgba(148,163,184,0.28)",
+      fontWeight: 800,
+    };
+  }, [
+    bindDeviceId,
+    telemetryPollError,
+    telemetrySelectedDevice,
+    telemetryLiveValue,
+    telemetryPollMs,
+    normalizedDeviceStatus.online,
+  ]);
 
   if (!open) return null;
 
@@ -507,6 +671,68 @@ export default function GaugeDisplaySettingsModal({
               onPollMsChange={setTelemetryPollMs}
               onSelectedDeviceChange={setTelemetrySelectedDevice}
             />
+
+            <section
+              style={{
+                border: `1px solid ${statusCard.border}`,
+                borderRadius: 14,
+                padding: 16,
+                background: statusCard.bg,
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 13,
+                  fontWeight: 800,
+                  color: "#111827",
+                  marginBottom: 10,
+                }}
+              >
+                Device Status
+              </div>
+
+              <div
+                style={{
+                  fontSize: 24,
+                  fontWeight: statusCard.fontWeight,
+                  color: statusCard.color,
+                  lineHeight: 1,
+                  letterSpacing: 0.25,
+                }}
+              >
+                {statusCard.text}
+              </div>
+
+              <div
+                style={{
+                  marginTop: 8,
+                  fontSize: 12,
+                  color:
+                    statusCard.text === "OFFLINE" ? "#991b1b" : "#475569",
+                  fontWeight: statusCard.text === "OFFLINE" ? 700 : 500,
+                }}
+              >
+                {statusCard.subtext}
+              </div>
+
+              {bindDeviceId ? (
+                <div
+                  style={{
+                    marginTop: 10,
+                    fontSize: 12,
+                    color: "#64748b",
+                  }}
+                >
+                  Bound Device: <b>{bindDeviceId}</b>
+                  {bindField ? (
+                    <>
+                      {" "}
+                      • Tag: <b>{bindField}</b>
+                    </>
+                  ) : null}
+                </div>
+              ) : null}
+            </section>
           </div>
 
           {/* RIGHT COLUMN */}
