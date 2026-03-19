@@ -471,56 +471,58 @@ export default function RightSidebar({
               </span>
 
               {/* ✅ VISIBLE TOGGLE */}
-              <div
-                style={{
-                  marginTop: 2,
-                  width: 62,
-                  height: 24,
-                  borderRadius: 999,
-                  background: isDashboardIdsDetailsOpen ? "#22c55e" : "#d1d5db",
-                  position: "relative",
-                  transition: "all 0.18s ease",
-                  boxShadow: isDashboardIdsDetailsOpen
-                    ? "inset 0 0 0 1px rgba(0,0,0,0.05), 0 0 8px rgba(34,197,94,0.22)"
-                    : "inset 0 0 0 1px rgba(0,0,0,0.06)",
-                  flexShrink: 0,
-                }}
-              >
-                <div
-                  style={{
-                    position: "absolute",
-                    top: 3,
-                    left: isDashboardIdsDetailsOpen ? 41 : 3,
-                    width: 18,
-                    height: 18,
-                    borderRadius: "50%",
-                    background: "#ffffff",
-                    boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
-                    transition: "left 0.18s ease",
-                  }}
-                />
-                <div
-                  style={{
-                    position: "absolute",
-                    inset: 0,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: isDashboardIdsDetailsOpen
-                      ? "flex-start"
-                      : "flex-end",
-                    paddingLeft: 8,
-                    paddingRight: 8,
-                    fontSize: 10,
-                    fontWeight: 700,
-                    color: "#ffffff",
-                    letterSpacing: "0.3px",
-                    pointerEvents: "none",
-                    userSelect: "none",
-                  }}
-                >
-                  {isDashboardIdsDetailsOpen ? "ON" : "OFF"}
-                </div>
-              </div>
+<div
+  style={{
+    marginTop: 2,
+    width: 72,
+    height: 26,
+    borderRadius: 999,
+    background: isDashboardIdsDetailsOpen ? "#22c55e" : "#d1d5db",
+    position: "relative",
+    transition: "all 0.22s ease",
+    boxShadow: isDashboardIdsDetailsOpen
+      ? "inset 0 0 0 1px rgba(0,0,0,0.05), 0 0 10px rgba(34,197,94,0.28)"
+      : "inset 0 0 0 1px rgba(0,0,0,0.06)",
+    flexShrink: 0,
+    overflow: "hidden",
+  }}
+>
+  <div
+    style={{
+      position: "absolute",
+      top: 3,
+      left: isDashboardIdsDetailsOpen ? 47 : 3,
+      width: 20,
+      height: 20,
+      borderRadius: "50%",
+      background: "#ffffff",
+      boxShadow: "0 1px 4px rgba(0,0,0,0.22)",
+      transition: "left 0.22s ease, transform 0.22s ease",
+      transform: isDashboardIdsDetailsOpen ? "scale(1.03)" : "scale(1)",
+    }}
+  />
+
+  <div
+    style={{
+      position: "absolute",
+      inset: 0,
+      display: "flex",
+      alignItems: "center",
+      justifyContent: isDashboardIdsDetailsOpen ? "flex-start" : "flex-end",
+      paddingLeft: 10,
+      paddingRight: 10,
+      fontSize: 10,
+      fontWeight: 600,
+      color: "#ffffff",
+      letterSpacing: "0.2px",
+      pointerEvents: "none",
+      userSelect: "none",
+      transition: "all 0.22s ease",
+    }}
+  >
+    {isDashboardIdsDetailsOpen ? "Active" : "OFF"}
+  </div>
+</div>
             </button>
           </div>
         </div>
