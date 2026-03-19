@@ -1,10 +1,46 @@
-import React, { useMemo, useRef, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { API_URL } from "../../config/api";
 import { getToken } from "../../utils/authToken";
 
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function to01(v) {
+  if (v === undefined || v === null) return null;
+  if (typeof v === "boolean") return v ? 1 : 0;
+  if (typeof v === "number") return v > 0 ? 1 : 0;
+  const s = String(v).trim().toLowerCase();
+  if (s === "1" || s === "true" || s === "on" || s === "yes") return 1;
+  if (s === "0" || s === "false" || s === "off" || s === "no") return 0;
+  const n = Number(s);
+  if (!Number.isNaN(n)) return n > 0 ? 1 : 0;
+  return v ? 1 : 0;
+}
+
+function readDoFromRow(row, field) {
+  if (!row || !field) return undefined;
+
+  const f = String(field).toLowerCase().trim();
+  if (!/^do[1-4]$/.test(f)) return undefined;
+
+  if (row[f] !== undefined) return row[f];
+
+  const up = f.toUpperCase();
+  if (row[up] !== undefined) return row[up];
+
+  const n = f.replace("do", "");
+  const alt = `out${n}`;
+  if (row[alt] !== undefined) return row[alt];
+  const altUp = `OUT${n}`;
+  if (row[altUp] !== undefined) return row[altUp];
+
+  return undefined;
+}
+
+function readStatusFromRow(row) {
+  return String(row?.status ?? row?.Status ?? "").trim().toLowerCase();
 }
 
 async function defaultWriteToBackend({ dashboardId, widgetId, value01 }) {
@@ -108,10 +144,12 @@ export default function PushButtonControl({
   dashboardId = null,
   pulseMs = 12000,
   onWrite = null,
+  pollMs = 12000,
 }) {
   const [localPressed, setLocalPressed] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
   const [banner, setBanner] = useState({ kind: "none", text: "" });
+  const [deviceStatus, setDeviceStatus] = useState("");
   const pointerActiveRef = useRef(false);
   const runningRef = useRef(false);
   const pulseTimerRef = useRef(null);
@@ -125,6 +163,7 @@ export default function PushButtonControl({
     .trim()
     .toLowerCase();
   const hasBinding = !!bindDeviceId && /^do[1-4]$/.test(bindField);
+  const isOffline = play && hasBinding && deviceStatus === "offline";
 
   const safeW = Math.max(70, Number(width) || 110);
   const safeH = Math.max(70, Number(height) || 110);
@@ -180,6 +219,7 @@ export default function PushButtonControl({
     !visualOnly &&
     !disabled &&
     hasBinding &&
+    !isOffline &&
     !isBusy &&
     !runningRef.current;
 
@@ -213,6 +253,73 @@ export default function PushButtonControl({
       }, ms);
     }
   }
+
+  const fetchRemote = React.useCallback(async () => {
+    if (!play) return;
+    if (!hasBinding) return;
+
+    try {
+      const token = String(getToken() || "").trim();
+      if (!token) return;
+
+      const res = await fetch(`${API_URL}/zhc1921/my-devices`, {
+        method: "GET",
+        headers: {
+          ...getAuthHeaders(),
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+      });
+      if (!res.ok) return;
+
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : [];
+      const row =
+        list.find(
+          (r) => String(r.deviceId ?? r.device_id ?? "").trim() === bindDeviceId
+        ) || null;
+
+      if (!row) {
+        setDeviceStatus("offline");
+        return;
+      }
+
+      const status = readStatusFromRow(row);
+      setDeviceStatus(status || "");
+
+      if (status === "offline") return;
+
+      readDoFromRow(row, bindField);
+    } catch {
+      // ignore
+    }
+  }, [play, hasBinding, bindDeviceId, bindField]);
+
+  useEffect(() => {
+    if (!play) {
+      setDeviceStatus("");
+      return;
+    }
+    if (!hasBinding) {
+      setDeviceStatus("");
+      return;
+    }
+    fetchRemote();
+  }, [play, hasBinding, fetchRemote]);
+
+  useEffect(() => {
+    if (!play) return;
+    if (!hasBinding) return;
+
+    const ms = Math.max(500, Number(pollMs) || 2000);
+
+    const t = setInterval(() => {
+      if (document.hidden) return;
+      fetchRemote();
+    }, ms);
+
+    return () => clearInterval(t);
+  }, [play, hasBinding, fetchRemote, pollMs]);
 
   async function performPulse() {
     if (!canActuateInPlay) return;
@@ -383,7 +490,22 @@ export default function PushButtonControl({
     onPressEnd?.(e);
   }
 
-  React.useEffect(() => {
+  useEffect(() => {
+    if (!play) return;
+    if (!hasBinding) return;
+    if (isOffline) {
+      setLocalPressed(false);
+      setIsBusy(false);
+      runningRef.current = false;
+      showBanner("none", "");
+      if (pulseTimerRef.current) {
+        clearTimeout(pulseTimerRef.current);
+        pulseTimerRef.current = null;
+      }
+    }
+  }, [play, hasBinding, isOffline]);
+
+  useEffect(() => {
     return () => {
       if (pulseTimerRef.current) {
         clearTimeout(pulseTimerRef.current);
@@ -393,8 +515,9 @@ export default function PushButtonControl({
     };
   }, []);
 
-  const showBusyText = banner.kind === "occupied" && !!banner.text;
-  const showErrorText = banner.kind === "error" && !!banner.text;
+  const showOfflineText = isOffline;
+  const showBusyText = !showOfflineText && banner.kind === "occupied" && !!banner.text;
+  const showErrorText = !showOfflineText && banner.kind === "error" && !!banner.text;
 
   return (
     <div
@@ -417,7 +540,7 @@ export default function PushButtonControl({
             maxWidth: containerW,
             textAlign: "center",
             fontWeight: 900,
-            fontSize:18,
+            fontSize: 18,
             color: "#0f172a",
             letterSpacing: 0.3,
             lineHeight: 1.15,
@@ -449,7 +572,7 @@ export default function PushButtonControl({
           touchAction: play ? "none" : "auto",
           WebkitTouchCallout: "none",
           cursor: play
-            ? disabled || !hasBinding || isBusy
+            ? disabled || !hasBinding || isBusy || isOffline
               ? "not-allowed"
               : "pointer"
             : "default",
@@ -459,6 +582,8 @@ export default function PushButtonControl({
           play
             ? !hasBinding
               ? "Bind this push button to a DO"
+              : isOffline
+              ? "Device Offline"
               : isBusy
               ? "Control Action in Progress"
               : safeTitle || text
@@ -552,7 +677,21 @@ export default function PushButtonControl({
         </div>
       </div>
 
-      {showBusyText && <div style={{ ...bannerStyle, color: "#d97706" }}>{banner.text}</div>}
+      {showOfflineText && (
+        <div
+          style={{
+            ...bannerStyle,
+            color: "#dc2626",
+            fontWeight: 400,
+          }}
+        >
+          Offline
+        </div>
+      )}
+
+      {showBusyText && (
+        <div style={{ ...bannerStyle, color: "#d97706" }}>{banner.text}</div>
+      )}
 
       {showErrorText && (
         <div
