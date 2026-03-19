@@ -88,7 +88,8 @@ export default function StatusTextSettingsModal({
   const MODAL_H = Math.min(680, window.innerHeight - 120);
 
   // Tag binding
-  const initialDeviceModel = String(p?.tag?.model || "zhc1921").trim() || "zhc1921";
+  const initialDeviceModel =
+    String(p?.tag?.model || "zhc1921").trim() || "zhc1921";
   const initialDeviceId = String(p?.tag?.deviceId ?? "");
   const initialField = String(p?.tag?.field ?? "");
 
@@ -182,8 +183,14 @@ export default function StatusTextSettingsModal({
       const mw = rect?.width ?? MODAL_W;
       const mh = rect?.height ?? MODAL_H;
 
-      const clampedLeft = Math.min(window.innerWidth - 20, Math.max(20 - (mw - 60), nextLeft));
-      const clampedTop = Math.min(window.innerHeight - 20, Math.max(20, nextTop));
+      const clampedLeft = Math.min(
+        window.innerWidth - 20,
+        Math.max(20 - (mw - 60), nextLeft)
+      );
+      const clampedTop = Math.min(
+        window.innerHeight - 20,
+        Math.max(20, nextTop)
+      );
 
       setPos({ left: clampedLeft, top: clampedTop });
     };
@@ -256,7 +263,8 @@ export default function StatusTextSettingsModal({
       setDevicesErr("");
       try {
         const token = String(getToken() || "").trim();
-        if (!token) throw new Error("Missing auth token. Please logout and login again.");
+        if (!token)
+          throw new Error("Missing auth token. Please logout and login again.");
 
         const [d1, d2, d3] = await Promise.all([
           fetchModelDevices("zhc1921"),
@@ -289,7 +297,9 @@ export default function StatusTextSettingsModal({
   }, [open]);
 
   const filteredDevices = React.useMemo(() => {
-    const q = String(deviceSearch || "").trim().toLowerCase();
+    const q = String(deviceSearch || "")
+      .trim()
+      .toLowerCase();
     if (!q) return devices;
     return devices.filter((d) => {
       const id = String(d.id || "").toLowerCase();
@@ -318,7 +328,8 @@ export default function StatusTextSettingsModal({
     telemetryRef.current.loading = true;
     try {
       const token = String(getToken() || "").trim();
-      if (!token) throw new Error("Missing auth token. Please logout and login again.");
+      if (!token)
+        throw new Error("Missing auth token. Please logout and login again.");
 
       const res = await fetch(`${API_URL}/${base}/my-devices`, {
         headers: getAuthHeaders(),
@@ -331,7 +342,10 @@ export default function StatusTextSettingsModal({
 
       const data = await res.json();
       const list = Array.isArray(data) ? data : [];
-      const row = list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
+      const row =
+        list.find(
+          (r) => String(r.deviceId ?? r.device_id ?? "").trim() === id
+        ) || null;
 
       setTelemetryRow(row);
     } catch {
@@ -354,7 +368,9 @@ export default function StatusTextSettingsModal({
   }, [open, fetchTelemetryRow]);
 
   const backendDeviceStatus = React.useMemo(() => {
-    const s = String(telemetryRow?.status || "").trim().toLowerCase();
+    const s = String(telemetryRow?.status || "")
+      .trim()
+      .toLowerCase();
     if (!deviceId) return "";
     return s || "";
   }, [telemetryRow, deviceId]);
@@ -368,8 +384,44 @@ export default function StatusTextSettingsModal({
     return readTagFromRow(telemetryRow, effectiveField);
   }, [telemetryRow, effectiveField]);
 
-  const isOnline = deviceIsOnline && rawValue !== undefined && rawValue !== null && !!effectiveField;
+  const isOnline =
+    deviceIsOnline &&
+    rawValue !== undefined &&
+    rawValue !== null &&
+    !!effectiveField;
   const as01 = React.useMemo(() => (isOnline ? to01(rawValue) : null), [isOnline, rawValue]);
+
+  const statusSummary = React.useMemo(() => {
+    if (!deviceId || !effectiveField) {
+      return {
+        text: "Select a device and tag",
+        color: "#64748b",
+        fontWeight: 500,
+      };
+    }
+
+    if (isOnline) {
+      return {
+        text: "Online",
+        color: "#16a34a",
+        fontWeight: 900,
+      };
+    }
+
+    if (deviceId && deviceIsOnline) {
+      return {
+        text: "No data for tag",
+        color: "#dc2626",
+        fontWeight: 900,
+      };
+    }
+
+    return {
+      text: "Offline",
+      color: "#dc2626",
+      fontWeight: 900,
+    };
+  }, [deviceId, effectiveField, isOnline, deviceIsOnline]);
 
   // =========================
   // APPLY SAVE
@@ -401,7 +453,11 @@ export default function StatusTextSettingsModal({
         borderRadius: undefined,
         letterSpacing: undefined,
 
-        tag: { model: String(deviceModel || "zhc1921"), deviceId, field: effectiveField },
+        tag: {
+          model: String(deviceModel || "zhc1921"),
+          deviceId,
+          field: effectiveField,
+        },
       },
     });
 
@@ -424,7 +480,9 @@ export default function StatusTextSettingsModal({
   };
 
   const Label = ({ children }) => (
-    <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>{children}</div>
+    <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
+      {children}
+    </div>
   );
 
   const Num = ({ value, onChange, min = 0, max = 200, step = 1 }) => (
@@ -548,7 +606,9 @@ export default function StatusTextSettingsModal({
         </div>
 
         {/* Body */}
-        <div style={{ padding: 18, fontSize: 14, overflow: "auto", flex: "1 1 auto" }}>
+        <div
+          style={{ padding: 18, fontSize: 14, overflow: "auto", flex: "1 1 auto" }}
+        >
           {/* Preview */}
           <div
             style={{
@@ -559,16 +619,28 @@ export default function StatusTextSettingsModal({
               marginBottom: 14,
             }}
           >
-            <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 10 }}>Preview</div>
+            <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 10 }}>
+              Preview
+            </div>
 
             <div style={{ display: "flex", gap: 10 }}>
-              <MiniState label="OFF" dotColor="#94a3b8" text={offText || "OFF"} active={true} />
-              <MiniState label="ON" dotColor="#22c55e" text={onText || "ON"} active={false} />
+              <MiniState
+                label="OFF"
+                dotColor="#94a3b8"
+                text={offText || "OFF"}
+                active={true}
+              />
+              <MiniState
+                label="ON"
+                dotColor="#22c55e"
+                text={onText || "ON"}
+                active={false}
+              />
             </div>
 
             <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
-              Tip: <b>ON</b> means “truthy”. If your tag is numeric, any value <b>&gt; 0</b> will be
-              read as ON.
+              Tip: <b>ON</b> means “truthy”. If your tag is numeric, any value{" "}
+              <b>&gt; 0</b> will be read as ON.
             </div>
           </div>
 
@@ -611,7 +683,9 @@ export default function StatusTextSettingsModal({
                 </div>
               </div>
 
-              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 12 }}>Shared Style</div>
+              <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 12 }}>
+                Shared Style
+              </div>
 
               <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
                 <div style={{ flex: 1 }}>
@@ -620,7 +694,13 @@ export default function StatusTextSettingsModal({
                 </div>
                 <div style={{ flex: 1 }}>
                   <Label>Font Weight</Label>
-                  <Num value={fontWeight} onChange={setFontWeight} min={100} max={900} step={100} />
+                  <Num
+                    value={fontWeight}
+                    onChange={setFontWeight}
+                    min={100}
+                    max={900}
+                    step={100}
+                  />
                 </div>
               </div>
 
@@ -669,7 +749,9 @@ export default function StatusTextSettingsModal({
               </div>
 
               {devicesErr && (
-                <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>{devicesErr}</div>
+                <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>
+                  {devicesErr}
+                </div>
               )}
 
               <div style={{ marginBottom: 10 }}>
@@ -768,15 +850,18 @@ export default function StatusTextSettingsModal({
                 }}
               >
                 <div style={{ flex: 1 }}>
-                  <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>Status</div>
-                  <div style={{ fontSize: 12, color: "#64748b", marginTop: 4 }}>
-                    {!deviceId || !effectiveField
-                      ? "Select a device and tag"
-                      : isOnline
-                      ? "Online"
-                      : deviceId && deviceIsOnline
-                      ? "No data for tag"
-                      : "Offline"}
+                  <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>
+                    Status
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: statusSummary.color,
+                      fontWeight: statusSummary.fontWeight,
+                      marginTop: 4,
+                    }}
+                  >
+                    {statusSummary.text}
                   </div>
 
                   {deviceId && effectiveField && (
@@ -787,7 +872,9 @@ export default function StatusTextSettingsModal({
                 </div>
 
                 <div style={{ textAlign: "right", minWidth: 90 }}>
-                  <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>Value</div>
+                  <div style={{ fontSize: 13, fontWeight: 900, color: "#0f172a" }}>
+                    Value
+                  </div>
                   <div
                     style={{
                       marginTop: 6,
@@ -802,8 +889,8 @@ export default function StatusTextSettingsModal({
               </div>
 
               <div style={{ fontSize: 12, color: "#64748b", marginTop: 10 }}>
-                Offline means there is no current value for that tag. When Online, the value is shown
-                as <b>0</b> or <b>1</b>.
+                Offline means there is no current value for that tag. When Online, the
+                value is shown as <b>0</b> or <b>1</b>.
               </div>
             </div>
           </div>
