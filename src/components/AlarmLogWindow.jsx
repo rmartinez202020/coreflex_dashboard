@@ -239,112 +239,6 @@ function csvEscape(value) {
   return s;
 }
 
-function normalizeDefinitionEnabled(value) {
-  return value !== false;
-}
-
-function definitionToAlarmRow(definition) {
-  const enabled = normalizeDefinitionEnabled(definition?.enabled);
-  const alarmDefinitionId = definition?.id ?? null;
-  const uniqueAlarmKey = buildAlarmUniqueKey({
-    alarm_definition_id: alarmDefinitionId,
-    device_id: definition?.device_id,
-    tag: definition?.tag,
-    message: definition?.message,
-    group_name: definition?.group_name,
-  });
-
-  return {
-    id:
-      alarmDefinitionId != null
-        ? `alarm_definition:${alarmDefinitionId}`
-        : uniqueAlarmKey,
-    uniqueAlarmKey,
-    alarmDefinitionId,
-    ts: null,
-    time: "—",
-    state: enabled ? "RETURNED" : "DISABLED",
-    alarmText: String(definition?.message || "").trim(),
-    ack: "No",
-    acknowledged: false,
-    device: String(definition?.device_id || "").trim(),
-    tag: String(definition?.tag || "").trim(),
-    value:
-      definition?.threshold ??
-      definition?.value ??
-      "",
-    group: String(definition?.group_name || "General").trim(),
-    severity: String(definition?.severity || "").trim(),
-    enabled,
-    occurrences: 0,
-    raw: definition,
-  };
-}
-
-function mergeDefinitionsWithHistory(definitions = [], historyRows = []) {
-  const normalizedHistory = Array.isArray(historyRows)
-    ? historyRows.map((row, idx) =>
-        row?.uniqueAlarmKey ? row : normalizeHistoryRow(row, idx)
-      )
-    : [];
-
-  const summarizedHistory = applyLatestDefinitionFields(
-    summarizeAlarmRows(normalizedHistory),
-    definitions
-  );
-
-  const byKey = new Map();
-  for (const row of summarizedHistory) {
-    byKey.set(String(row?.uniqueAlarmKey || "").trim(), row);
-  }
-
-  const merged = [];
-
-  for (const definition of Array.isArray(definitions) ? definitions : []) {
-    const baseRow = definitionToAlarmRow(definition);
-    const historyRow = byKey.get(baseRow.uniqueAlarmKey);
-
-    if (historyRow) {
-      merged.push({
-        ...historyRow,
-        id:
-          baseRow.alarmDefinitionId != null
-            ? `alarm_definition:${baseRow.alarmDefinitionId}`
-            : historyRow.id,
-        alarmDefinitionId: baseRow.alarmDefinitionId,
-        uniqueAlarmKey: baseRow.uniqueAlarmKey,
-        alarmText: baseRow.alarmText || historyRow.alarmText,
-        device: baseRow.device || historyRow.device,
-        tag: baseRow.tag || historyRow.tag,
-        group: baseRow.group || historyRow.group,
-        severity: baseRow.severity || historyRow.severity,
-        enabled: baseRow.enabled,
-        state:
-          baseRow.enabled === false
-            ? "DISABLED"
-            : String(historyRow.state || "").trim().toUpperCase() || "RETURNED",
-        raw: {
-          ...(historyRow.raw || {}),
-          ...(definition || {}),
-        },
-      });
-      byKey.delete(baseRow.uniqueAlarmKey);
-    } else {
-      merged.push(baseRow);
-    }
-  }
-
-  for (const orphanHistoryRow of byKey.values()) {
-    merged.push(orphanHistoryRow);
-  }
-
-  return merged.sort((a, b) => {
-    const ta = a?.ts ? new Date(a.ts).getTime() : -Infinity;
-    const tb = b?.ts ? new Date(b.ts).getTime() : -Infinity;
-    return tb - ta;
-  });
-}
-
 export default function AlarmLogWindow({
   onLaunch,
   onMinimize,
@@ -374,69 +268,53 @@ export default function AlarmLogWindow({
   const [showAlarmSetup, setShowAlarmSetup] = React.useState(false);
   const [isDeletingClose, setIsDeletingClose] = React.useState(false);
   const [closeError, setCloseError] = React.useState("");
-  const [alarmDefinitions, setAlarmDefinitions] = React.useState([]);
-  const [toggleError, setToggleError] = React.useState("");
+  const [disabledMap, setDisabledMap] = React.useState({});
 
   const normalizedDashboardName =
     String(dashboardName || "").trim() ||
     (resolvedDashboardId === "main" ? "Main Dashboard" : "Dashboard");
 
+  const applyDisabledMap = React.useCallback(
+    (rows) => {
+      return rows.map((row) => {
+        const forcedDisabled = disabledMap[row.uniqueAlarmKey];
+
+        if (forcedDisabled === true) {
+          return {
+            ...row,
+            enabled: false,
+            state: "DISABLED",
+          };
+        }
+
+        if (forcedDisabled === false) {
+          return {
+            ...row,
+            enabled: true,
+            state: "RETURNED",
+          };
+        }
+
+        return row;
+      });
+    },
+    [disabledMap]
+  );
+
   const {
     alarms,
     setAlarms,
     rawHistoryRows,
+    setRawHistoryRows,
     expandedHistoryMap,
     setExpandedHistoryMap,
+    isLoadingHistory,
     historyError,
     loadAlarmHistory,
   } = useAlarmHistory({
     resolvedAlarmLogKey,
-    applyDisabledMap: (rows) => rows,
+    applyDisabledMap,
   });
-
-  const loadAlarmDefinitions = React.useCallback(async () => {
-    try {
-      const res = await fetch(
-        `${API_URL}/alarm-definitions/?alarm_log_key=${encodeURIComponent(
-          resolvedAlarmLogKey
-        )}`,
-        {
-          method: "GET",
-          headers: {
-            "Content-Type": "application/json",
-            ...getAuthHeaders(),
-          },
-        }
-      );
-
-      let data = null;
-      try {
-        data = await res.json();
-      } catch {
-        data = [];
-      }
-
-      if (!res.ok) {
-        throw new Error(
-          data?.detail || data?.error || "Failed to load alarm definitions"
-        );
-      }
-
-      setAlarmDefinitions(Array.isArray(data) ? data : []);
-    } catch (err) {
-      console.error("❌ Failed to load alarm definitions for alarm window:", err);
-      setAlarmDefinitions([]);
-    }
-  }, [resolvedAlarmLogKey]);
-
-  React.useEffect(() => {
-    loadAlarmDefinitions();
-  }, [loadAlarmDefinitions]);
-
-  React.useEffect(() => {
-    const merged = mergeDefinitionsWithHistory(alarmDefinitions, rawHistoryRows);
-    setAlarms(merged);
-  }, [alarmDefinitions, rawHistoryRows, setAlarms]);
 
   const visibleAlarms = React.useMemo(() => {
     const source = Array.isArray(alarms) ? alarms : [];
@@ -594,52 +472,64 @@ export default function AlarmLogWindow({
   );
 
   const handleToggleAlarmEnabled = React.useCallback(
-    async (alarm) => {
-      const alarmDefinitionId =
-        alarm?.alarmDefinitionId ??
-        (String(alarm?.id || "").startsWith("alarm_definition:")
-          ? String(alarm.id).replace("alarm_definition:", "")
-          : null);
+    (alarm) => {
+      if (!alarm?.id || !alarm?.uniqueAlarmKey) return;
 
-      if (!alarmDefinitionId) {
-        throw new Error("Alarm definition id not found.");
-      }
+      const willDisable = alarm.enabled !== false;
 
-      setToggleError("");
+      setDisabledMap((prev) => ({
+        ...prev,
+        [alarm.uniqueAlarmKey]: willDisable,
+      }));
 
-      const willEnable = alarm.enabled === false;
+      setAlarms((prev) =>
+        prev.map((a) => {
+          if (a.uniqueAlarmKey !== alarm.uniqueAlarmKey) return a;
 
-      const res = await fetch(
-        `${API_URL}/alarm-definitions/${alarmDefinitionId}`,
-        {
-          method: "PATCH",
-          headers: {
-            "Content-Type": "application/json",
-            ...getAuthHeaders(),
-          },
-          body: JSON.stringify({
-            enabled: willEnable,
-          }),
-        }
+          if (willDisable) {
+            return {
+              ...a,
+              enabled: false,
+              state: "DISABLED",
+            };
+          }
+
+          return {
+            ...a,
+            enabled: true,
+            state: "RETURNED",
+          };
+        })
       );
 
-      let data = null;
-      try {
-        data = await res.json();
-      } catch {
-        data = null;
-      }
+      setExpandedHistoryMap((prev) => {
+        const next = { ...prev };
+        const rows = next[alarm.uniqueAlarmKey] || [];
 
-      if (!res.ok) {
-        const msg =
-          data?.detail || data?.error || "Failed to update alarm enabled state";
-        setToggleError(msg);
-        throw new Error(msg);
-      }
+        next[alarm.uniqueAlarmKey] = rows.map((r) =>
+          willDisable
+            ? { ...r, enabled: false, state: "DISABLED" }
+            : {
+                ...r,
+                enabled: true,
+                state: "RETURNED",
+              }
+        );
 
-      await Promise.all([loadAlarmDefinitions(), loadAlarmHistory(false)]);
+        return next;
+      });
+
+      setCheckedIds((prev) => {
+        const next = new Set(prev);
+        next.delete(alarm.id);
+        return next;
+      });
+
+      if (selectedId === alarm.id) {
+        setSelectedId(null);
+      }
     },
-    [loadAlarmDefinitions, loadAlarmHistory]
+    [selectedId, setAlarms, setExpandedHistoryMap]
   );
 
   const handleToggleExpandAlarm = React.useCallback(
@@ -664,16 +554,16 @@ export default function AlarmLogWindow({
         if (prev[key]) return prev;
 
         const rowsForAlarm = sortAlarmRowsNewestFirst(
-          (rawHistoryRows || []).filter((r) => r.uniqueAlarmKey === key)
+          rawHistoryRows.filter((r) => r.uniqueAlarmKey === key)
         );
 
         return {
           ...prev,
-          [key]: rowsForAlarm,
+          [key]: applyDisabledMap(rowsForAlarm),
         };
       });
     },
-    [rawHistoryRows, setExpandedHistoryMap]
+    [rawHistoryRows, applyDisabledMap, setExpandedHistoryMap]
   );
 
   const handleCloseAnyway = async () => {
@@ -835,7 +725,6 @@ export default function AlarmLogWindow({
       </div>
 
       {!!historyError && <div style={errorBar}>{historyError}</div>}
-      {!!toggleError && <div style={errorBar}>{toggleError}</div>}
 
       <AlarmLogWindowListTable
         alarmView={alarmView}
@@ -880,14 +769,9 @@ export default function AlarmLogWindow({
 
       <AlarmSetupModal
         open={showAlarmSetup}
-        onClose={() => {
-          setShowAlarmSetup(false);
-          loadAlarmDefinitions();
-          loadAlarmHistory(false);
-        }}
+        onClose={() => setShowAlarmSetup(false)}
         onAddAlarm={(alarmObj) => {
           onAddAlarm?.(alarmObj);
-          loadAlarmDefinitions();
           loadAlarmHistory(false);
         }}
         devices={devices}
