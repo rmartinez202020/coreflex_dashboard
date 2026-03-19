@@ -913,9 +913,19 @@ export default function StateImageSettingsModal({
                 <div style={{ fontSize: 13, color: "#475569", marginTop: 2 }}>
                   {deviceId && effectiveField ? (
                     <>
-                      <span style={{ fontWeight: 900, color: "#0f172a" }}>
-                        {statusText}
-                      </span>
+                      <span
+  style={{
+    fontWeight: 900,
+    color: isOnline
+      ? "#16a34a"
+      : deviceId && effectiveField
+      ? "#dc2626"
+      : "#0f172a",
+  }}
+>
+  {statusText}
+</span>
+
                       <span style={{ marginLeft: 10, color: "#64748b" }}>
                         Bound: <b>{deviceId}</b> / <b>{effectiveField}</b>
                       </span>
