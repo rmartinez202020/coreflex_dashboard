@@ -269,7 +269,10 @@ function definitionToAlarmRow(definition) {
     acknowledged: false,
     device: String(definition?.device_id || "").trim(),
     tag: String(definition?.tag || "").trim(),
-    value: definition?.threshold ?? definition?.value ?? "",
+    value:
+      definition?.threshold ??
+      definition?.value ??
+      "",
     group: String(definition?.group_name || "General").trim(),
     severity: String(definition?.severity || "").trim(),
     enabled,
@@ -379,8 +382,9 @@ export default function AlarmLogWindow({
     (resolvedDashboardId === "main" ? "Main Dashboard" : "Dashboard");
 
   const {
+    alarms,
+    setAlarms,
     rawHistoryRows,
-    setRawHistoryRows,
     expandedHistoryMap,
     setExpandedHistoryMap,
     historyError,
@@ -429,12 +433,13 @@ export default function AlarmLogWindow({
     loadAlarmDefinitions();
   }, [loadAlarmDefinitions]);
 
-  const mergedAlarms = React.useMemo(() => {
-    return mergeDefinitionsWithHistory(alarmDefinitions, rawHistoryRows);
-  }, [alarmDefinitions, rawHistoryRows]);
+  React.useEffect(() => {
+    const merged = mergeDefinitionsWithHistory(alarmDefinitions, rawHistoryRows);
+    setAlarms(merged);
+  }, [alarmDefinitions, rawHistoryRows, setAlarms]);
 
   const visibleAlarms = React.useMemo(() => {
-    const source = Array.isArray(mergedAlarms) ? mergedAlarms : [];
+    const source = Array.isArray(alarms) ? alarms : [];
 
     if (alarmView === "disabled") {
       return source.filter((a) => a.enabled === false);
@@ -453,7 +458,7 @@ export default function AlarmLogWindow({
     }
 
     return source.filter((a) => a.enabled !== false);
-  }, [alarmView, mergedAlarms]);
+  }, [alarmView, alarms]);
 
   const toggleChecked = (id) => {
     setCheckedIds((prev) => {
@@ -547,19 +552,19 @@ export default function AlarmLogWindow({
     (alarm) => {
       if (!alarm?.id) return;
 
-      setRawHistoryRows((prev) =>
-        (Array.isArray(prev) ? prev : []).map((r) =>
-          r.id === alarm.id || String(r?.uniqueAlarmKey || "") === String(alarm?.uniqueAlarmKey || "")
+      setAlarms((prev) =>
+        prev.map((a) =>
+          a.id === alarm.id
             ? {
-                ...r,
+                ...a,
                 acknowledged: true,
                 ack: "Yes",
                 state:
-                  String(r?.state || "").trim().toUpperCase() === "ACTIVE"
+                  String(a.state || "").trim().toUpperCase() === "ACTIVE"
                     ? "ACKED"
-                    : r?.state,
+                    : a.state,
               }
-            : r
+            : a
         )
       );
 
@@ -585,7 +590,7 @@ export default function AlarmLogWindow({
         return next;
       });
     },
-    [setRawHistoryRows, setExpandedHistoryMap]
+    [setAlarms, setExpandedHistoryMap]
   );
 
   const handleToggleAlarmEnabled = React.useCallback(

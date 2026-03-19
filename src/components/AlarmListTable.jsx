@@ -88,7 +88,9 @@ export default function AlarmListTable({
 }) {
   const [isAdding, setIsAdding] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
-  const [savingEnabledIds, setSavingEnabledIds] = React.useState(() => new Set());
+  const [savingEnabledIds, setSavingEnabledIds] = React.useState(
+    () => new Set()
+  );
   const [addError, setAddError] = React.useState("");
 
   const handleAddClick = async () => {
@@ -277,6 +279,8 @@ export default function AlarmListTable({
               const enabled = a?.enabled !== false;
               const isEditing = editingAlarmId === a.id;
               const isTogglingEnabled = savingEnabledIds.has(a.id);
+              const isEditDisabled =
+                !enabled || isTogglingEnabled || isAdding || isSaving;
 
               return (
                 <div
@@ -360,10 +364,22 @@ export default function AlarmListTable({
                     <input
                       type="checkbox"
                       checked={isEditing}
-                      onChange={() => onToggleEdit?.(a.id)}
-                      style={checkbox}
+                      disabled={isEditDisabled}
+                      onChange={() => {
+                        if (isEditDisabled) return;
+                        onToggleEdit?.(a.id);
+                      }}
+                      style={{
+                        ...checkbox,
+                        cursor: isEditDisabled ? "not-allowed" : "pointer",
+                        opacity: isEditDisabled ? 0.45 : 1,
+                      }}
                       title={
-                        isEditing
+                        !enabled
+                          ? "Disabled alarms cannot be edited"
+                          : isTogglingEnabled
+                          ? "Updating..."
+                          : isEditing
                           ? "Editing this alarm"
                           : "Edit this alarm"
                       }
