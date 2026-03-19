@@ -103,6 +103,7 @@ export default function GraphicDisplay({
   const [runningTotalizer, setRunningTotalizer] = useState(0);
   const totalizerAccumRef = useRef(0);
   const totalizerLastPointRef = useRef(null);
+  const lastOnlineRef = useRef(null);
 
   // ✅ NEW: runtime Timeseries Bar modal state
   const [timeseriesBarOpen, setTimeseriesBarOpen] = useState(false);
@@ -123,6 +124,7 @@ export default function GraphicDisplay({
     setRunningTotalizer(0);
     totalizerAccumRef.current = 0;
     totalizerLastPointRef.current = null;
+    lastOnlineRef.current = null;
   }, [
     tankTotEnabled,
     T?.singleUnitsEnabled,
@@ -375,6 +377,8 @@ export default function GraphicDisplay({
       setErr("");
       setPoints([]);
       setDeviceOnline(null);
+      totalizerLastPointRef.current = null;
+      lastOnlineRef.current = null;
       return;
     }
 
@@ -427,8 +431,43 @@ export default function GraphicDisplay({
       if (now - last < smp) return;
       lastSampleAtRef.current = now;
 
+      const isOnlineNow = st.online === true;
+      const wasOnline = lastOnlineRef.current === true;
+
+      if (!isOnlineNow) {
+        totalizerLastPointRef.current = null;
+
+        setPoints((prev) => {
+          const lastPoint = prev.length ? prev[prev.length - 1] : null;
+          if (lastPoint?.gap) return prev;
+
+          dbg("OFFLINE: inserting GAP point", { now });
+          return [...prev, { t: now, y: null, gap: true }];
+        });
+
+        lastOnlineRef.current = false;
+
+        if (err === "Failed to load saved history.") {
+          setErr("");
+        }
+        return;
+      }
+
+      if (!wasOnline) {
+        setPoints((prev) => {
+          const t = now;
+          const lastPoint = prev.length ? prev[prev.length - 1] : null;
+          if (lastPoint?.gap) return prev;
+          dbg("ONLINE RESUME: inserting GAP point", { t });
+          return [...prev, { t, y: null, gap: true }];
+        });
+      }
+
+      lastOnlineRef.current = true;
+
       if (Number.isFinite(out)) {
         if (
+          isOnlineNow &&
           !singleUnitsEnabled &&
           totEnabled &&
           totalizerRateUnit &&
@@ -468,6 +507,8 @@ export default function GraphicDisplay({
           }
 
           totalizerLastPointRef.current = currPoint;
+        } else {
+          totalizerLastPointRef.current = null;
         }
 
         setPoints((prev) => {
@@ -497,6 +538,7 @@ export default function GraphicDisplay({
           return next;
         });
       } else {
+        totalizerLastPointRef.current = null;
         dbgWarn("LIVE: no numeric output to append", {
           raw,
           safeLive,
@@ -513,6 +555,8 @@ export default function GraphicDisplay({
       dbgErr("LIVE ERROR:", e);
       setErr("Trend read failed (common poller map).");
       setDeviceOnline(false);
+      totalizerLastPointRef.current = null;
+      lastOnlineRef.current = false;
     }
   }, [
     isRunMode,
@@ -670,6 +714,7 @@ export default function GraphicDisplay({
 
   const onTotalizerDisable = () => {
     setTotEnabled(false);
+    totalizerLastPointRef.current = null;
     dbg("TOTALIZER: disabled from header");
   };
 
