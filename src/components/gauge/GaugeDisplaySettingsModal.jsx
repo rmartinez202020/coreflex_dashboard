@@ -136,7 +136,7 @@ function normalizeDeviceStatus(device) {
 
   const s = String(raw || "").trim().toLowerCase();
 
-  if (["online", "connected", "up", "active", "running"].includes(s)) {
+  if (["online", "connected", "up", "active", "running", "live"].includes(s)) {
     return { online: true, text: "ONLINE" };
   }
 
@@ -148,6 +148,7 @@ function normalizeDeviceStatus(device) {
       "inactive",
       "not running",
       "not_running",
+      "stopped",
     ].includes(s)
   ) {
     return { online: false, text: "OFFLINE" };
@@ -195,7 +196,6 @@ export default function GaugeDisplaySettingsModal({
 }) {
   const defaults = useMemo(() => buildGaugeDefaults(widget), [widget]);
 
-  // ✅ allow blank title; only use "Gauge" when title is truly null/undefined
   const [title, setTitle] = useState(
     defaults.title === null || defaults.title === undefined
       ? "Gauge"
@@ -234,7 +234,6 @@ export default function GaugeDisplaySettingsModal({
   const [telemetryPollMs, setTelemetryPollMs] = useState(2000);
   const [telemetrySelectedDevice, setTelemetrySelectedDevice] = useState(null);
 
-  // ✅ draggable modal state
   const [modalPos, setModalPos] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
   const dragRef = useRef({
@@ -248,7 +247,6 @@ export default function GaugeDisplaySettingsModal({
   useEffect(() => {
     const d = buildGaugeDefaults(widget);
 
-    // ✅ keep blank blank
     setTitle(
       d.title === null || d.title === undefined ? "Gauge" : String(d.title)
     );
@@ -279,7 +277,6 @@ export default function GaugeDisplaySettingsModal({
     setTelemetryPollMs(2000);
     setTelemetrySelectedDevice(null);
 
-    // ✅ reset modal position when opening a new modal
     if (open) {
       setModalPos(null);
       setIsDragging(false);
@@ -329,8 +326,7 @@ export default function GaugeDisplaySettingsModal({
         text: "Select a device",
         subtext: "Choose a device and tag to preview live telemetry.",
         color: "#64748b",
-        bg: "rgba(148,163,184,0.10)",
-        border: "rgba(148,163,184,0.28)",
+        subColor: "#64748b",
         fontWeight: 800,
       };
     }
@@ -340,8 +336,7 @@ export default function GaugeDisplaySettingsModal({
         text: "OFFLINE",
         subtext: telemetryPollError,
         color: "#dc2626",
-        bg: "rgba(254,226,226,0.70)",
-        border: "rgba(220,38,38,0.24)",
+        subColor: "#991b1b",
         fontWeight: 900,
       };
     }
@@ -362,8 +357,7 @@ export default function GaugeDisplaySettingsModal({
           ? `Last seen: ${formatLastSeen(lastSeen)}`
           : "Device is not reporting live telemetry.",
         color: "#dc2626",
-        bg: "rgba(254,226,226,0.70)",
-        border: "rgba(220,38,38,0.24)",
+        subColor: "#991b1b",
         fontWeight: 900,
       };
     }
@@ -373,14 +367,16 @@ export default function GaugeDisplaySettingsModal({
         text: "ONLINE",
         subtext:
           telemetryLiveValue === null || telemetryLiveValue === undefined
-            ? "Connected. Waiting for live value..."
+            ? `Connected. Waiting for live value... (${Math.max(
+                250,
+                Number(telemetryPollMs) || 2000
+              )} ms)`
             : `Live telemetry is updating every ${Math.max(
                 250,
                 Number(telemetryPollMs) || 2000
               )} ms.`,
         color: "#16a34a",
-        bg: "rgba(220,252,231,0.85)",
-        border: "rgba(22,163,74,0.24)",
+        subColor: "#475569",
         fontWeight: 900,
       };
     }
@@ -389,8 +385,7 @@ export default function GaugeDisplaySettingsModal({
       text: "CHECKING...",
       subtext: "Reading device status from telemetry.",
       color: "#64748b",
-      bg: "rgba(148,163,184,0.10)",
-      border: "rgba(148,163,184,0.28)",
+      subColor: "#64748b",
       fontWeight: 800,
     };
   }, [
@@ -407,7 +402,6 @@ export default function GaugeDisplaySettingsModal({
   const savePayload = {
     ...widget,
     type: "gaugeDisplay",
-    // ✅ allow blank title to remain blank
     title: String(title ?? ""),
     units: String(units || "").trim(),
     gaugeStyle: gaugeStyle || "classic",
@@ -461,14 +455,14 @@ export default function GaugeDisplaySettingsModal({
         inset: 0,
         background: "rgba(15,23,42,0.45)",
         zIndex: 3000,
-        padding: 18,
+        padding: 14,
       }}
     >
       <div
         onMouseDown={(e) => e.stopPropagation()}
         style={{
-          width: "min(1380px, 98vw)",
-          maxHeight: "94vh",
+          width: "min(1320px, 98vw)",
+          maxHeight: "92vh",
           overflow: "hidden",
           background: "#ffffff",
           borderRadius: 16,
@@ -485,7 +479,7 @@ export default function GaugeDisplaySettingsModal({
         <div
           onMouseDown={startDrag}
           style={{
-            padding: "16px 18px",
+            padding: "14px 18px",
             borderBottom: "1px solid #e5e7eb",
             display: "flex",
             alignItems: "center",
@@ -524,21 +518,20 @@ export default function GaugeDisplaySettingsModal({
 
         <div
           style={{
-            padding: 18,
+            padding: 16,
             display: "grid",
             gridTemplateColumns: "1.15fr 1fr",
-            gap: 18,
+            gap: 16,
             overflowY: "auto",
             minHeight: 0,
           }}
         >
-          {/* LEFT COLUMN */}
-          <div style={{ display: "grid", gap: 18 }}>
+          <div style={{ display: "grid", gap: 16 }}>
             <section
               style={{
                 border: "1px solid #e5e7eb",
                 borderRadius: 14,
-                padding: 16,
+                padding: 14,
                 background: "#fcfcfd",
               }}
             >
@@ -575,7 +568,7 @@ export default function GaugeDisplaySettingsModal({
               style={{
                 border: "1px solid #e5e7eb",
                 borderRadius: 14,
-                padding: 16,
+                padding: 14,
                 background: "#fcfcfd",
               }}
             >
@@ -674,10 +667,10 @@ export default function GaugeDisplaySettingsModal({
 
             <section
               style={{
-                border: `1px solid ${statusCard.border}`,
+                border: "1px solid #e5e7eb",
                 borderRadius: 14,
-                padding: 16,
-                background: statusCard.bg,
+                padding: 14,
+                background: "#ffffff",
               }}
             >
               <div
@@ -685,7 +678,7 @@ export default function GaugeDisplaySettingsModal({
                   fontSize: 13,
                   fontWeight: 800,
                   color: "#111827",
-                  marginBottom: 10,
+                  marginBottom: 8,
                 }}
               >
                 Device Status
@@ -693,11 +686,11 @@ export default function GaugeDisplaySettingsModal({
 
               <div
                 style={{
-                  fontSize: 24,
+                  fontSize: 16,
                   fontWeight: statusCard.fontWeight,
                   color: statusCard.color,
-                  lineHeight: 1,
-                  letterSpacing: 0.25,
+                  lineHeight: 1.1,
+                  letterSpacing: 0.2,
                 }}
               >
                 {statusCard.text}
@@ -705,10 +698,9 @@ export default function GaugeDisplaySettingsModal({
 
               <div
                 style={{
-                  marginTop: 8,
+                  marginTop: 6,
                   fontSize: 12,
-                  color:
-                    statusCard.text === "OFFLINE" ? "#991b1b" : "#475569",
+                  color: statusCard.subColor,
                   fontWeight: statusCard.text === "OFFLINE" ? 700 : 500,
                 }}
               >
@@ -718,7 +710,7 @@ export default function GaugeDisplaySettingsModal({
               {bindDeviceId ? (
                 <div
                   style={{
-                    marginTop: 10,
+                    marginTop: 8,
                     fontSize: 12,
                     color: "#64748b",
                   }}
@@ -735,8 +727,7 @@ export default function GaugeDisplaySettingsModal({
             </section>
           </div>
 
-          {/* RIGHT COLUMN */}
-          <div style={{ display: "grid", gap: 18, alignContent: "start" }}>
+          <div style={{ display: "grid", gap: 16, alignContent: "start" }}>
             <GaugeRangeMathSection
               minValue={minValue}
               setMinValue={setMinValue}
@@ -756,7 +747,7 @@ export default function GaugeDisplaySettingsModal({
               style={{
                 border: "1px solid #e5e7eb",
                 borderRadius: 14,
-                padding: 16,
+                padding: 14,
                 background: "#fcfcfd",
               }}
             >
@@ -906,7 +897,7 @@ export default function GaugeDisplaySettingsModal({
 
         <div
           style={{
-            padding: 18,
+            padding: 16,
             borderTop: "1px solid #e5e7eb",
             display: "flex",
             justifyContent: "flex-end",
