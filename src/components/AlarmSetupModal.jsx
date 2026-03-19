@@ -330,12 +330,43 @@ export default function AlarmSetupModal({
     loadAlarmIntoEditor(alarm);
   };
 
-  const toggleAlarmEnabled = (id) => {
-    const next = alarms.map((a) =>
-      a.id === id ? { ...a, enabled: a.enabled === false ? true : false } : a
-    );
-    setAlarms(next);
-    emitChange(next);
+  const toggleAlarmEnabled = async (alarmOrId) => {
+    const alarm =
+      typeof alarmOrId === "object" && alarmOrId !== null
+        ? alarmOrId
+        : alarms.find((a) => a.id === alarmOrId);
+
+    if (!alarm?.id) {
+      throw new Error("Alarm id not found.");
+    }
+
+    const nextEnabled = alarm.enabled === false ? true : false;
+
+    const res = await fetch(`${API_URL}/alarm-definitions/${alarm.id}`, {
+      method: "PATCH",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      },
+      body: JSON.stringify({
+        enabled: nextEnabled,
+      }),
+    });
+
+    let data = null;
+    try {
+      data = await res.json();
+    } catch {
+      data = null;
+    }
+
+    if (!res.ok) {
+      throw new Error(
+        data?.detail || data?.error || "Failed to update alarm enabled state"
+      );
+    }
+
+    await loadAlarmDefinitions();
   };
 
   const deleteSelected = async () => {

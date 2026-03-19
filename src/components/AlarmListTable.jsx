@@ -56,7 +56,6 @@ function getGroupText(alarm) {
   ).trim();
 }
 
-// ✅ UPDATED: Boolean alarms can also show severity now
 function getSeverityText(alarm) {
   return String(
     alarm?.severity || alarm?.config?.severity || "Warning"
@@ -89,6 +88,7 @@ export default function AlarmListTable({
 }) {
   const [isAdding, setIsAdding] = React.useState(false);
   const [isSaving, setIsSaving] = React.useState(false);
+  const [savingEnabledIds, setSavingEnabledIds] = React.useState(() => new Set());
   const [addError, setAddError] = React.useState("");
 
   const handleAddClick = async () => {
@@ -120,6 +120,33 @@ export default function AlarmListTable({
       setAddError(err?.message || "Failed to update alarm.");
     } finally {
       setIsSaving(false);
+    }
+  };
+
+  const handleToggleEnabledClick = async (alarm) => {
+    const alarmId = alarm?.id;
+    if (!alarmId || isAdding || isSaving) return;
+
+    if (savingEnabledIds.has(alarmId)) return;
+
+    setAddError("");
+    setSavingEnabledIds((prev) => {
+      const next = new Set(prev);
+      next.add(alarmId);
+      return next;
+    });
+
+    try {
+      await onToggleEnabled?.(alarm);
+    } catch (err) {
+      console.error("❌ Toggle Enable/Disable failed:", err);
+      setAddError(err?.message || "Failed to update Enable/Disable.");
+    } finally {
+      setSavingEnabledIds((prev) => {
+        const next = new Set(prev);
+        next.delete(alarmId);
+        return next;
+      });
     }
   };
 
@@ -249,6 +276,7 @@ export default function AlarmListTable({
               const checked = checkedIds.has(a.id);
               const enabled = a?.enabled !== false;
               const isEditing = editingAlarmId === a.id;
+              const isTogglingEnabled = savingEnabledIds.has(a.id);
 
               return (
                 <div
@@ -353,9 +381,24 @@ export default function AlarmListTable({
                     <input
                       type="checkbox"
                       checked={enabled}
-                      onChange={() => onToggleEnabled?.(a.id)}
-                      style={checkbox}
-                      title={enabled ? "Disable alarm" : "Enable alarm"}
+                      disabled={isTogglingEnabled || isAdding || isSaving}
+                      onChange={() => handleToggleEnabledClick(a)}
+                      style={{
+                        ...checkbox,
+                        cursor:
+                          isTogglingEnabled || isAdding || isSaving
+                            ? "not-allowed"
+                            : "pointer",
+                        opacity:
+                          isTogglingEnabled || isAdding || isSaving ? 0.6 : 1,
+                      }}
+                      title={
+                        isTogglingEnabled
+                          ? "Updating..."
+                          : enabled
+                          ? "Disable alarm"
+                          : "Enable alarm"
+                      }
                     />
                   </div>
                 </div>
