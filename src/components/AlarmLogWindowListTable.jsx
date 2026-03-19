@@ -213,13 +213,7 @@ export default function AlarmLogWindowListTable({
             Value
           </div>
 
-          <div
-            style={getHeadCellStyle(isCompactLatestOnlyView, {
-              ...(isCompactLatestOnlyView ? {} : {}),
-            })}
-          >
-            Group
-          </div>
+          <div style={getHeadCellStyle(isCompactLatestOnlyView)}>Group</div>
 
           {isCompactLatestOnlyView && (
             <div style={getHeadCellStyle(true)}>Severity</div>
@@ -416,11 +410,14 @@ export default function AlarmLogWindowListTable({
 
                   {!isCompactLatestOnlyView &&
                     isExpanded &&
-                    historyRows.map((h) => {
+                    historyRows.map((h, idx) => {
                       const historyState = renderState(h);
                       const historyAcked = isAcknowledged(h, localAck);
+                      const isLatestOccurrence = idx === 0;
                       const historyCanAck =
-                        historyState === "ACTIVE" && !historyAcked;
+                        isLatestOccurrence &&
+                        historyState === "ACTIVE" &&
+                        !historyAcked;
 
                       let historyBg = "#f8fafc";
                       if (historyState === "ACTIVE" && !historyAcked) {
@@ -503,29 +500,44 @@ export default function AlarmLogWindowListTable({
                               background: historyBg,
                             })}
                           >
-                            <button
-                              type="button"
-                              style={{
-                                ...ackBtn,
-                                ...(historyCanAck
-                                  ? ackBtnReady
-                                  : ackBtnDisabled),
-                              }}
-                              disabled={!historyCanAck}
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                if (!historyCanAck) return;
+                            {isLatestOccurrence ? (
+                              <button
+                                type="button"
+                                style={{
+                                  ...ackBtn,
+                                  ...(historyCanAck
+                                    ? ackBtnReady
+                                    : ackBtnDisabled),
+                                }}
+                                disabled={!historyCanAck}
+                                title={
+                                  historyCanAck
+                                    ? "Acknowledge last occurrence"
+                                    : historyAcked
+                                    ? "Alarm already acknowledged"
+                                    : historyState === "RETURNED"
+                                    ? "Returned alarms cannot be acknowledged"
+                                    : historyState === "DISABLED"
+                                    ? "Disabled alarms cannot be acknowledged"
+                                    : "Only the latest active occurrence can be acknowledged"
+                                }
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  if (!historyCanAck) return;
 
-                                setLocalAck((prev) => ({
-                                  ...prev,
-                                  [h.id]: true,
-                                }));
+                                  setLocalAck((prev) => ({
+                                    ...prev,
+                                    [h.id]: true,
+                                  }));
 
-                                onAcknowledgeAlarm?.(h);
-                              }}
-                            >
-                              {historyAcked ? "Acked" : "Ack"}
-                            </button>
+                                  onAcknowledgeAlarm?.(h);
+                                }}
+                              >
+                                {historyAcked ? "Acked" : "Ack"}
+                              </button>
+                            ) : (
+                              <span style={ackPlaceholder}>—</span>
+                            )}
                           </div>
 
                           <div
@@ -716,6 +728,12 @@ const ackBtnDisabled = {
   cursor: "not-allowed",
   boxShadow: "inset 0 1px 1px rgba(0,0,0,0.04)",
   opacity: 0.9,
+};
+
+const ackPlaceholder = {
+  color: "#9ca3af",
+  fontSize: 12,
+  fontWeight: 700,
 };
 
 const stateBadge = {
