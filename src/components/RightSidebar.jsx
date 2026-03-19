@@ -44,8 +44,6 @@ export default function RightSidebar({
     const normalizedDashboardId = String(dashboardId || "").trim();
     const normalizedDashboardName = String(dashboardName || "").trim();
 
-    // ✅ CRITICAL RULE:
-    // Alarm Log can NEVER open unless a real dashboard is open on canvas
     if (!isDashboardOpenOnCanvas || !normalizedDashboardId) {
       alert("Open a dashboard on canvas first before opening Alarms Log.");
       return;
@@ -395,7 +393,7 @@ export default function RightSidebar({
               aria-pressed={isDashboardIdsDetailsOpen}
               style={{
                 width: "100%",
-                minHeight: 120,
+                minHeight: 138,
                 borderRadius: 12,
                 border: isDashboardIdsDetailsOpen
                   ? "1px solid #60a5fa"
@@ -405,7 +403,7 @@ export default function RightSidebar({
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 4,
+                gap: 6,
                 cursor: isDashboardOpenOnCanvas ? "pointer" : "not-allowed",
                 transition: "all 0.18s ease",
                 padding: "8px 8px 12px",
@@ -471,6 +469,58 @@ export default function RightSidebar({
               >
                 IDs Details
               </span>
+
+              {/* ✅ VISIBLE TOGGLE */}
+              <div
+                style={{
+                  marginTop: 2,
+                  width: 62,
+                  height: 24,
+                  borderRadius: 999,
+                  background: isDashboardIdsDetailsOpen ? "#22c55e" : "#d1d5db",
+                  position: "relative",
+                  transition: "all 0.18s ease",
+                  boxShadow: isDashboardIdsDetailsOpen
+                    ? "inset 0 0 0 1px rgba(0,0,0,0.05), 0 0 8px rgba(34,197,94,0.22)"
+                    : "inset 0 0 0 1px rgba(0,0,0,0.06)",
+                  flexShrink: 0,
+                }}
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 3,
+                    left: isDashboardIdsDetailsOpen ? 41 : 3,
+                    width: 18,
+                    height: 18,
+                    borderRadius: "50%",
+                    background: "#ffffff",
+                    boxShadow: "0 1px 4px rgba(0,0,0,0.18)",
+                    transition: "left 0.18s ease",
+                  }}
+                />
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: isDashboardIdsDetailsOpen
+                      ? "flex-start"
+                      : "flex-end",
+                    paddingLeft: 8,
+                    paddingRight: 8,
+                    fontSize: 10,
+                    fontWeight: 700,
+                    color: "#ffffff",
+                    letterSpacing: "0.3px",
+                    pointerEvents: "none",
+                    userSelect: "none",
+                  }}
+                >
+                  {isDashboardIdsDetailsOpen ? "ON" : "OFF"}
+                </div>
+              </div>
             </button>
           </div>
         </div>
