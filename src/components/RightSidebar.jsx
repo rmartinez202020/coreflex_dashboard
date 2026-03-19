@@ -438,17 +438,16 @@ export default function RightSidebar({
               </div>
 
               <span
-                style={{
-                  fontSize: 12,
-                  lineHeight: 1.1,
-                  fontWeight: 800,
-                  letterSpacing: "0.2px",
-                  color: isDashboardOpenOnCanvas ? "#111827" : "#6b7280",
-                  textAlign: "center",
-                }}
-              >
-                IDs Details
-              </span>
+  style={{
+    fontSize: 12,
+    lineHeight: 1.1,
+    fontWeight: 500, // ✅ match other labels
+    color: isDashboardOpenOnCanvas ? "#374151" : "#9ca3af",
+    textAlign: "center",
+  }}
+>
+  IDs Details
+</span>
             </button>
           </div>
         </div>
