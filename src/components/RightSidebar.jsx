@@ -2,96 +2,11 @@
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 import GaugeDisplayDraggable from "./gauge/GaugeDisplayDraggable";
+import dashboardIdsDetailsIcon from "../assets/dashboard-ids-details-icon.png";
 
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-function DashboardIdsDetailsIcon({ size = 56 }) {
-  return (
-    <svg
-      width={size}
-      height={size}
-      viewBox="0 0 64 64"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      aria-hidden="true"
-    >
-      <defs>
-        <linearGradient
-          id="coreflexIdsDetailsGrad"
-          x1="10"
-          y1="54"
-          x2="55"
-          y2="10"
-        >
-          <stop offset="0%" stopColor="#7c3aed" />
-          <stop offset="55%" stopColor="#3b82f6" />
-          <stop offset="100%" stopColor="#06b6d4" />
-        </linearGradient>
-      </defs>
-
-      {/* outer circular arrows */}
-      <path
-        d="M16 10C23 4 33 2 43 5C48 6.5 52 9 55 12"
-        stroke="url(#coreflexIdsDetailsGrad)"
-        strokeWidth="2.8"
-        strokeLinecap="round"
-      />
-      <path
-        d="M51.5 8.5L55.5 12L52.2 16"
-        stroke="url(#coreflexIdsDetailsGrad)"
-        strokeWidth="2.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-
-      <path
-        d="M55 48C49 56 39 61 28 60C22 59.5 17 57.4 12.8 54"
-        stroke="url(#coreflexIdsDetailsGrad)"
-        strokeWidth="2.8"
-        strokeLinecap="round"
-      />
-      <path
-        d="M16.7 49.8L12.2 54L16 57.6"
-        stroke="url(#coreflexIdsDetailsGrad)"
-        strokeWidth="2.8"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      />
-
-      {/* magnifier */}
-      <circle
-        cx="31"
-        cy="28"
-        r="16"
-        stroke="url(#coreflexIdsDetailsGrad)"
-        strokeWidth="3.2"
-      />
-      <path
-        d="M18.5 40.5L8.8 50.2"
-        stroke="url(#coreflexIdsDetailsGrad)"
-        strokeWidth="4.2"
-        strokeLinecap="round"
-      />
-
-      {/* gear */}
-      <path
-        d="M31 19.7L33.2 22.2L36.6 21.7L37.7 24.9L40.8 26.4L39.9 29.7L41.4 32.8L38.2 33.9L36.7 37L33.4 36.1L31 38.3L28.6 36.1L25.3 37L23.8 33.9L20.6 32.8L22.1 29.7L21.2 26.4L24.3 24.9L25.4 21.7L28.8 22.2L31 19.7Z"
-        stroke="url(#coreflexIdsDetailsGrad)"
-        strokeWidth="2.3"
-        strokeLinejoin="round"
-      />
-      <circle
-        cx="31"
-        cy="29"
-        r="5.2"
-        stroke="url(#coreflexIdsDetailsGrad)"
-        strokeWidth="2.3"
-      />
-    </svg>
-  );
 }
 
 export default function RightSidebar({
@@ -473,7 +388,7 @@ export default function RightSidebar({
               }
               style={{
                 width: "100%",
-                minHeight: 108,
+                minHeight: 120,
                 borderRadius: 12,
                 border: "1px solid #d1d5db",
                 background: "#ffffff",
@@ -484,7 +399,7 @@ export default function RightSidebar({
                 gap: 4,
                 cursor: isDashboardOpenOnCanvas ? "pointer" : "not-allowed",
                 transition: "all 0.18s ease",
-                padding: "10px 8px 12px",
+                padding: "8px 8px 12px",
                 opacity: isDashboardOpenOnCanvas ? 1 : 0.6,
                 boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
               }}
@@ -501,8 +416,8 @@ export default function RightSidebar({
             >
               <div
                 style={{
-                  width: 68,
-                  height: 68,
+                  width: 86,
+                  height: 86,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
@@ -510,7 +425,16 @@ export default function RightSidebar({
                   flexShrink: 0,
                 }}
               >
-                <DashboardIdsDetailsIcon size={60} />
+                <img
+                  src={dashboardIdsDetailsIcon}
+                  alt="IDs Details"
+                  style={{
+                    width: 82,
+                    height: 82,
+                    objectFit: "contain",
+                    display: "block",
+                  }}
+                />
               </div>
 
               <span
