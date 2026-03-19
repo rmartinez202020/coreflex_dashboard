@@ -704,21 +704,23 @@ export default function AlarmLogWindow({
             </button>
           )}
 
-          <button
-            type="button"
-            style={settingsTabBtn}
-            title="Alarm Manager"
-            onClick={(e) => {
-              e.stopPropagation();
-              setShowAlarmSetup(true);
-              onOpenSettings?.();
-            }}
-          >
-            <span style={gearPill}>⚙</span>
-            <span style={{ fontSize: 12, fontWeight: 900, color: "#111827" }}>
-              Settings
-            </span>
-          </button>
+          {!isPage && (
+            <button
+              type="button"
+              style={settingsTabBtn}
+              title="Alarm Manager"
+              onClick={(e) => {
+                e.stopPropagation();
+                setShowAlarmSetup(true);
+                onOpenSettings?.();
+              }}
+            >
+              <span style={gearPill}>⚙</span>
+              <span style={{ fontSize: 12, fontWeight: 900, color: "#111827" }}>
+                Settings
+              </span>
+            </button>
+          )}
         </div>
       </div>
 
