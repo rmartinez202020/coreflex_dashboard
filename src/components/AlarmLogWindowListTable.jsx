@@ -135,6 +135,39 @@ function getBodyCellStyle(isLast = false, extra = {}) {
   };
 }
 
+function isSameOccurrenceRow(summaryRow, historyRow) {
+  if (!summaryRow || !historyRow) return false;
+
+  const summaryTs = String(
+    summaryRow?.ts ?? summaryRow?.time ?? ""
+  ).trim();
+  const historyTs = String(
+    historyRow?.ts ?? historyRow?.time ?? ""
+  ).trim();
+
+  const summaryState = renderState(summaryRow);
+  const historyState = renderState(historyRow);
+
+  const summaryText = String(renderAlarmText(summaryRow)).trim();
+  const historyText = String(renderAlarmText(historyRow)).trim();
+
+  const summaryDevice = String(renderDevice(summaryRow)).trim();
+  const historyDevice = String(renderDevice(historyRow)).trim();
+
+  const summaryTag = String(renderTag(summaryRow)).trim();
+  const historyTag = String(renderTag(historyRow)).trim();
+
+  return (
+    summaryTs &&
+    historyTs &&
+    summaryTs === historyTs &&
+    summaryState === historyState &&
+    summaryText === historyText &&
+    summaryDevice === historyDevice &&
+    summaryTag === historyTag
+  );
+}
+
 export default function AlarmLogWindowListTable({
   alarmView = "alarms",
   visibleAlarms = [],
@@ -231,7 +264,14 @@ export default function AlarmLogWindowListTable({
               const isExpanded =
                 !isCompactLatestOnlyView &&
                 expandedAlarmKeys?.has?.(a.uniqueAlarmKey);
-              const historyRows = expandedHistoryMap?.[a.uniqueAlarmKey] || [];
+
+              const allHistoryRows = expandedHistoryMap?.[a.uniqueAlarmKey] || [];
+              const historyRows =
+                !isCompactLatestOnlyView &&
+                allHistoryRows.length > 0 &&
+                isSameOccurrenceRow(a, allHistoryRows[0])
+                  ? allHistoryRows.slice(1)
+                  : allHistoryRows;
 
               let rowBg = "#ffffff";
               if (isActiveUnacked) {
