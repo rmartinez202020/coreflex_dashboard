@@ -2,10 +2,10 @@
 import React from "react";
 
 const GRID_TEMPLATE_DEFAULT =
-  "34px 34px minmax(130px,1.1fr) minmax(96px,0.8fr) minmax(220px,2.2fr) minmax(100px,0.9fr) minmax(110px,0.9fr) minmax(84px,0.8fr) minmax(140px,1.1fr) minmax(90px,0.8fr) minmax(90px,0.8fr) minmax(100px,0.9fr)";
+  "34px minmax(130px,1.1fr) minmax(96px,0.8fr) minmax(220px,2.2fr) minmax(100px,0.9fr) minmax(110px,0.9fr) minmax(84px,0.8fr) minmax(140px,1.1fr) minmax(90px,0.8fr) minmax(90px,0.8fr) minmax(100px,0.9fr)";
 
 const GRID_TEMPLATE_COMPACT =
-  "34px minmax(130px,1.1fr) minmax(96px,0.8fr) minmax(220px,2.2fr) minmax(84px,0.8fr) minmax(140px,1.1fr) minmax(90px,0.8fr) minmax(90px,0.8fr) minmax(100px,0.9fr) minmax(100px,0.9fr)";
+  "minmax(130px,1.1fr) minmax(96px,0.8fr) minmax(220px,2.2fr) minmax(84px,0.8fr) minmax(140px,1.1fr) minmax(90px,0.8fr) minmax(90px,0.8fr) minmax(100px,0.9fr) minmax(100px,0.9fr)";
 
 function isAcknowledged(alarm, localAck = {}) {
   if (localAck?.[alarm?.id]) return true;
@@ -157,10 +157,6 @@ export default function AlarmLogWindowListTable({
     ? GRID_TEMPLATE_COMPACT
     : GRID_TEMPLATE_DEFAULT;
 
-  const allVisibleSelected =
-    visibleAlarms.length > 0 &&
-    visibleAlarms.every((a) => checkedIds?.has?.(a.id));
-
   React.useEffect(() => {
     const next = {};
     for (const a of visibleAlarms) {
@@ -181,20 +177,6 @@ export default function AlarmLogWindowListTable({
     <div style={tableOuter}>
       <div style={tableInner}>
         <div style={{ ...headerRow, gridTemplateColumns: gridTemplate }}>
-          <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
-            <input
-              type="checkbox"
-              checked={allVisibleSelected}
-              onChange={(e) => {
-                e.stopPropagation();
-                toggleAllVisible?.();
-              }}
-              style={checkbox}
-              title="Select all"
-              disabled={visibleAlarms.length === 0}
-            />
-          </div>
-
           {!isCompactLatestOnlyView && (
             <div style={getHeadCellStyle(false, { justifyContent: "center" })}>
               ▼
@@ -239,7 +221,6 @@ export default function AlarmLogWindowListTable({
         <div style={bodyWrap}>
           <div style={rowsLayer}>
             {visibleAlarms.map((a) => {
-              const isChecked = checkedIds?.has?.(a.id);
               const isSelected = selectedId === a.id;
               const stateText = renderState(a);
               const acked = isAcknowledged(a, localAck);
@@ -273,23 +254,6 @@ export default function AlarmLogWindowListTable({
                       setSelectedId?.(a.id);
                     }}
                   >
-                    <div
-                      style={getBodyCellStyle(false, {
-                        justifyContent: "center",
-                        background: rowBg,
-                      })}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={!!isChecked}
-                        onChange={(e) => {
-                          e.stopPropagation();
-                          toggleChecked?.(a.id);
-                        }}
-                        style={checkbox}
-                      />
-                    </div>
-
                     {!isCompactLatestOnlyView && (
                       <div
                         style={getBodyCellStyle(false, {
@@ -461,13 +425,6 @@ export default function AlarmLogWindowListTable({
                             color: "#111827",
                           }}
                         >
-                          <div
-                            style={getBodyCellStyle(false, {
-                              justifyContent: "center",
-                              background: historyBg,
-                            })}
-                          />
-
                           <div
                             style={getBodyCellStyle(false, {
                               justifyContent: "center",
@@ -702,13 +659,6 @@ const cell = {
 
 const noRightBorder = {
   borderRight: "none",
-};
-
-const checkbox = {
-  width: 14,
-  height: 14,
-  cursor: "pointer",
-  accentColor: "#111827",
 };
 
 const expandBtn = {
