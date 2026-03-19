@@ -21,8 +21,11 @@ export default function RightSidebar({
   // ✅ open Alarm Log window (system FloatingWindow)
   onOpenAlarmLog,
 
-  // ✅ optional new dashboard IDs details open handler
+  // ✅ Dashboard IDs Details toggle handler from parent
   onOpenDashboardIdsDetails,
+
+  // ✅ optional current toggle state from parent
+  isDashboardIdsDetailsOpen = false,
 
   // ✅ active dashboard context from parent
   dashboardId = "",
@@ -49,7 +52,6 @@ export default function RightSidebar({
     }
 
     try {
-      // ✅ OPTIONAL: match the sidebar width so it opens nicely near the right area
       window.dispatchEvent(
         new CustomEvent("coreflex-alarm-log-open-at", {
           detail: { x: 175, y: 120 },
@@ -89,7 +91,6 @@ export default function RightSidebar({
         );
       }
 
-      // ✅ send the saved row back to parent so parent can render/open it
       onOpenAlarmLog?.(data);
     } catch (err) {
       console.error("Alarm log open failed:", err);
@@ -97,7 +98,7 @@ export default function RightSidebar({
     }
   };
 
-  const openDashboardIdsDetails = (e) => {
+  const toggleDashboardIdsDetails = (e) => {
     e?.stopPropagation?.();
 
     const normalizedDashboardId = String(dashboardId || "").trim();
@@ -108,8 +109,11 @@ export default function RightSidebar({
       return;
     }
 
+    const nextEnabled = !isDashboardIdsDetailsOpen;
+
     if (typeof onOpenDashboardIdsDetails === "function") {
       onOpenDashboardIdsDetails({
+        enabled: nextEnabled,
         dashboardId: normalizedDashboardId,
         dashboardName:
           normalizedDashboardName ||
@@ -121,8 +125,9 @@ export default function RightSidebar({
     }
 
     window.dispatchEvent(
-      new CustomEvent("coreflex-dashboard-ids-details-open", {
+      new CustomEvent("coreflex-dashboard-ids-details-toggle", {
         detail: {
+          enabled: nextEnabled,
           dashboardId: normalizedDashboardId,
           dashboardName:
             normalizedDashboardName ||
@@ -134,7 +139,6 @@ export default function RightSidebar({
     );
   };
 
-  // ✅ Make it smaller like SidebarLeft (feel like “90% zoom” at 100%)
   const EXPANDED_W = 175;
   const COLLAPSED_W = 28;
 
@@ -375,23 +379,28 @@ export default function RightSidebar({
             <span className="truncate">Alarms Log (DI-AI)</span>
           </button>
 
-          {/* ✅ BOTTOM TOOL BUTTON */}
+          {/* ✅ BOTTOM TOOL TOGGLE BUTTON */}
           <div className="mt-auto pt-5">
             <button
               type="button"
-              onClick={openDashboardIdsDetails}
+              onClick={toggleDashboardIdsDetails}
               disabled={!isDashboardOpenOnCanvas}
               title={
                 isDashboardOpenOnCanvas
-                  ? "Open Dashboard IDs Details"
+                  ? isDashboardIdsDetailsOpen
+                    ? "Hide Dashboard IDs Details"
+                    : "Show Dashboard IDs Details"
                   : "Open a dashboard on canvas first"
               }
+              aria-pressed={isDashboardIdsDetailsOpen}
               style={{
                 width: "100%",
                 minHeight: 120,
                 borderRadius: 12,
-                border: "1px solid #d1d5db",
-                background: "#ffffff",
+                border: isDashboardIdsDetailsOpen
+                  ? "1px solid #60a5fa"
+                  : "1px solid #d1d5db",
+                background: isDashboardIdsDetailsOpen ? "#eff6ff" : "#ffffff",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -401,17 +410,23 @@ export default function RightSidebar({
                 transition: "all 0.18s ease",
                 padding: "8px 8px 12px",
                 opacity: isDashboardOpenOnCanvas ? 1 : 0.6,
-                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
+                boxShadow: isDashboardIdsDetailsOpen
+                  ? "0 0 0 1px rgba(96,165,250,0.14), 0 4px 12px rgba(59,130,246,0.14)"
+                  : "0 2px 8px rgba(0,0,0,0.08)",
               }}
               onMouseEnter={(e) => {
                 if (!isDashboardOpenOnCanvas) return;
                 e.currentTarget.style.transform = "scale(1.03)";
-                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
+                e.currentTarget.style.boxShadow = isDashboardIdsDetailsOpen
+                  ? "0 0 0 1px rgba(96,165,250,0.18), 0 6px 16px rgba(59,130,246,0.18)"
+                  : "0 4px 12px rgba(0,0,0,0.15)";
               }}
               onMouseLeave={(e) => {
                 if (!isDashboardOpenOnCanvas) return;
                 e.currentTarget.style.transform = "scale(1)";
-                e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
+                e.currentTarget.style.boxShadow = isDashboardIdsDetailsOpen
+                  ? "0 0 0 1px rgba(96,165,250,0.14), 0 4px 12px rgba(59,130,246,0.14)"
+                  : "0 2px 8px rgba(0,0,0,0.08)";
               }}
             >
               <div
@@ -433,21 +448,29 @@ export default function RightSidebar({
                     height: 82,
                     objectFit: "contain",
                     display: "block",
+                    opacity: isDashboardOpenOnCanvas ? 1 : 0.7,
+                    filter: isDashboardIdsDetailsOpen
+                      ? "drop-shadow(0 0 6px rgba(59,130,246,0.20))"
+                      : "none",
                   }}
                 />
               </div>
 
               <span
-  style={{
-    fontSize: 12,
-    lineHeight: 1.1,
-    fontWeight: 500, // ✅ match other labels
-    color: isDashboardOpenOnCanvas ? "#374151" : "#9ca3af",
-    textAlign: "center",
-  }}
->
-  IDs Details
-</span>
+                style={{
+                  fontSize: 12,
+                  lineHeight: 1.1,
+                  fontWeight: 500,
+                  color: isDashboardOpenOnCanvas
+                    ? isDashboardIdsDetailsOpen
+                      ? "#1d4ed8"
+                      : "#374151"
+                    : "#9ca3af",
+                  textAlign: "center",
+                }}
+              >
+                IDs Details
+              </span>
             </button>
           </div>
         </div>
