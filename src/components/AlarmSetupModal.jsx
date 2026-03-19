@@ -11,6 +11,18 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function getResolvedAlarmLogKey(dashboardId = "") {
+  const resolvedDashboardId = String(dashboardId || "").trim() || "main";
+
+  try {
+    const params = new URLSearchParams(window.location.search);
+    const fromWindowKey = String(params.get("windowKey") || "").trim();
+    if (fromWindowKey) return fromWindowKey;
+  } catch {}
+
+  return `${resolvedDashboardId}__alarmLog`;
+}
+
 function computeMathOutput(rawValue, mathFormula) {
   if (rawValue === null || rawValue === undefined || rawValue === "") {
     return null;
@@ -162,13 +174,20 @@ export default function AlarmSetupModal({
   const loadAlarmDefinitions = React.useCallback(async () => {
     setIsLoadingAlarms(true);
     try {
-      const res = await fetch(`${API_URL}/alarm-definitions/`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          ...getAuthHeaders(),
-        },
-      });
+      const alarmLogKey = getResolvedAlarmLogKey(dashboardId);
+
+      const res = await fetch(
+        `${API_URL}/alarm-definitions/?alarm_log_key=${encodeURIComponent(
+          alarmLogKey
+        )}`,
+        {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+          },
+        }
+      );
 
       let data = null;
       try {
@@ -198,7 +217,7 @@ export default function AlarmSetupModal({
     } finally {
       setIsLoadingAlarms(false);
     }
-  }, [initialAlarms]);
+  }, [initialAlarms, dashboardId]);
 
   const clearEditor = React.useCallback(() => {
     setEditingAlarmId(null);
@@ -414,11 +433,10 @@ export default function AlarmSetupModal({
   const buildPayload = () => {
     const isBoolean = alarmType === "boolean";
     const trimmedMathFormula = String(mathFormula || "").trim();
-    const resolvedDashboardId = String(dashboardId || "").trim() || "main";
 
     return {
       device_id: String(selectedTag?.deviceId || "").trim(),
-      alarm_log_key: `${resolvedDashboardId}__alarmLog`,
+      alarm_log_key: getResolvedAlarmLogKey(dashboardId),
       model: String(model || "").trim() || "zhc1921",
       tag: String(selectedTag?.field || "").trim(),
       alarm_type: isBoolean ? "DI" : "AI",
