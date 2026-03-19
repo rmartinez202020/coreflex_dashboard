@@ -93,7 +93,6 @@ function mapBackendAlarmToUi(alarm) {
     deadbandMode: isBoolean ? "—" : "Absolute",
     deadbandLevel: isBoolean ? "—" : 0,
 
-    // ✅ FIX: boolean alarms also keep severity from backend
     severity: normalizedSeverity,
 
     enabled: alarm?.enabled !== false,
@@ -104,7 +103,7 @@ function mapBackendAlarmToUi(alarm) {
     config: isBoolean
       ? {
           contactType,
-          severity: normalizedSeverity, // ✅ FIX
+          severity: normalizedSeverity,
         }
       : {
           operator: alarm?.operator ?? "",
@@ -116,6 +115,61 @@ function mapBackendAlarmToUi(alarm) {
           rawValue: null,
           outputValue: null,
         },
+  };
+}
+
+function buildPayloadFromAlarmUi(alarm, dashboardId = "", enabledOverride) {
+  const isBoolean =
+    String(alarm?.type || "").trim().toLowerCase() === "boolean";
+
+  const contactType =
+    String(alarm?.config?.contactType || alarm?.contactType || "NO")
+      .trim()
+      .toUpperCase() === "NC"
+      ? "NC"
+      : "NO";
+
+  const operator = String(
+    alarm?.config?.operator ?? alarm?.operator ?? ">="
+  ).trim();
+
+  const thresholdRaw = isBoolean
+    ? contactType === "NO"
+      ? 1
+      : 0
+    : alarm?.config?.threshold ?? alarm?.threshold ?? alarm?.value ?? 0;
+
+  const thresholdNum = Number(thresholdRaw);
+  const threshold = Number.isFinite(thresholdNum) ? thresholdNum : 0;
+
+  const mathFormula = isBoolean
+    ? null
+    : String(
+        alarm?.config?.mathFormula || alarm?.mathFormula || ""
+      ).trim() || null;
+
+  const severity = String(
+    alarm?.config?.severity || alarm?.severity || "warning"
+  ).trim();
+
+  return {
+    device_id: String(alarm?.deviceId || "").trim(),
+    alarm_log_key:
+      String(alarm?.alarmLogKey || "").trim() || getResolvedAlarmLogKey(dashboardId),
+    model: String(alarm?.model || "").trim() || "zhc1921",
+    tag: String(alarm?.field || "").trim(),
+    alarm_type: isBoolean ? "DI" : "AI",
+    contact_type: isBoolean ? contactType : null,
+    operator: isBoolean ? null : operator || null,
+    threshold,
+    math_formula: mathFormula,
+    group_name: String(alarm?.group || alarm?.groupName || "General").trim(),
+    severity: severity || "warning",
+    message: String(alarm?.message || "").trim(),
+    enabled:
+      typeof enabledOverride === "boolean"
+        ? enabledOverride
+        : alarm?.enabled !== false,
   };
 }
 
@@ -342,15 +396,19 @@ export default function AlarmSetupModal({
 
     const nextEnabled = alarm.enabled === false ? true : false;
 
+    // ✅ IMPORTANT FIX:
+    // Send the full alarm payload + new enabled value.
+    // Some backends overwrite missing fields on PATCH, which was causing
+    // math/options to disappear when only { enabled } was sent.
+    const payload = buildPayloadFromAlarmUi(alarm, dashboardId, nextEnabled);
+
     const res = await fetch(`${API_URL}/alarm-definitions/${alarm.id}`, {
       method: "PATCH",
       headers: {
         "Content-Type": "application/json",
         ...getAuthHeaders(),
       },
-      body: JSON.stringify({
-        enabled: nextEnabled,
-      }),
+      body: JSON.stringify(payload),
     });
 
     let data = null;
@@ -449,7 +507,6 @@ export default function AlarmSetupModal({
     !Number.isNaN(Number(threshold)) &&
     String(severity || "").trim() !== "";
 
-  // ✅ FIX: boolean alarm should also require severity
   const formIsValid =
     alarmType === "boolean"
       ? hasSelectedTag &&
@@ -482,10 +539,7 @@ export default function AlarmSetupModal({
         : Number(threshold),
       math_formula: !isBoolean && trimmedMathFormula ? trimmedMathFormula : null,
       group_name: "General",
-
-      // ✅ FIX: save severity for BOTH boolean and dynamic
       severity: String(severity || "").trim() || null,
-
       message: message?.trim() || "",
       enabled: true,
     };
