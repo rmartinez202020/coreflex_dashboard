@@ -8,6 +8,86 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function DashboardIdsDetailsIcon({ size = 28 }) {
+  return (
+    <svg
+      width={size}
+      height={size}
+      viewBox="0 0 64 64"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      aria-hidden="true"
+    >
+      <defs>
+        <linearGradient id="coreflexIdsDetailsGrad" x1="10" y1="54" x2="55" y2="10">
+          <stop offset="0%" stopColor="#7c3aed" />
+          <stop offset="55%" stopColor="#3b82f6" />
+          <stop offset="100%" stopColor="#06b6d4" />
+        </linearGradient>
+      </defs>
+
+      {/* outer circular arrows */}
+      <path
+        d="M16 10C23 4 33 2 43 5C48 6.5 52 9 55 12"
+        stroke="url(#coreflexIdsDetailsGrad)"
+        strokeWidth="2.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M51.5 8.5L55.5 12L52.2 16"
+        stroke="url(#coreflexIdsDetailsGrad)"
+        strokeWidth="2.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      <path
+        d="M55 48C49 56 39 61 28 60C22 59.5 17 57.4 12.8 54"
+        stroke="url(#coreflexIdsDetailsGrad)"
+        strokeWidth="2.8"
+        strokeLinecap="round"
+      />
+      <path
+        d="M16.7 49.8L12.2 54L16 57.6"
+        stroke="url(#coreflexIdsDetailsGrad)"
+        strokeWidth="2.8"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      />
+
+      {/* magnifier */}
+      <circle
+        cx="31"
+        cy="28"
+        r="16"
+        stroke="url(#coreflexIdsDetailsGrad)"
+        strokeWidth="3.2"
+      />
+      <path
+        d="M18.5 40.5L8.8 50.2"
+        stroke="url(#coreflexIdsDetailsGrad)"
+        strokeWidth="4.2"
+        strokeLinecap="round"
+      />
+
+      {/* gear */}
+      <path
+        d="M31 19.7L33.2 22.2L36.6 21.7L37.7 24.9L40.8 26.4L39.9 29.7L41.4 32.8L38.2 33.9L36.7 37L33.4 36.1L31 38.3L28.6 36.1L25.3 37L23.8 33.9L20.6 32.8L22.1 29.7L21.2 26.4L24.3 24.9L25.4 21.7L28.8 22.2L31 19.7Z"
+        stroke="url(#coreflexIdsDetailsGrad)"
+        strokeWidth="2.3"
+        strokeLinejoin="round"
+      />
+      <circle
+        cx="31"
+        cy="29"
+        r="5.2"
+        stroke="url(#coreflexIdsDetailsGrad)"
+        strokeWidth="2.3"
+      />
+    </svg>
+  );
+}
+
 export default function RightSidebar({
   isRightCollapsed,
   setIsRightCollapsed,
@@ -19,6 +99,9 @@ export default function RightSidebar({
 
   // ✅ open Alarm Log window (system FloatingWindow)
   onOpenAlarmLog,
+
+  // ✅ optional new dashboard IDs details open handler
+  onOpenDashboardIdsDetails,
 
   // ✅ active dashboard context from parent
   dashboardId = "",
@@ -93,6 +176,43 @@ export default function RightSidebar({
     }
   };
 
+  const openDashboardIdsDetails = (e) => {
+    e?.stopPropagation?.();
+
+    const normalizedDashboardId = String(dashboardId || "").trim();
+    const normalizedDashboardName = String(dashboardName || "").trim();
+
+    if (!isDashboardOpenOnCanvas || !normalizedDashboardId) {
+      alert("Open a dashboard on canvas first before opening IDs Details.");
+      return;
+    }
+
+    if (typeof onOpenDashboardIdsDetails === "function") {
+      onOpenDashboardIdsDetails({
+        dashboardId: normalizedDashboardId,
+        dashboardName:
+          normalizedDashboardName ||
+          (normalizedDashboardId === "main"
+            ? "Main Dashboard"
+            : "Customer Dashboard"),
+      });
+      return;
+    }
+
+    window.dispatchEvent(
+      new CustomEvent("coreflex-dashboard-ids-details-open", {
+        detail: {
+          dashboardId: normalizedDashboardId,
+          dashboardName:
+            normalizedDashboardName ||
+            (normalizedDashboardId === "main"
+              ? "Main Dashboard"
+              : "Customer Dashboard"),
+        },
+      })
+    );
+  };
+
   // ✅ Make it smaller like SidebarLeft (feel like “90% zoom” at 100%)
   const EXPANDED_W = 175;
   const COLLAPSED_W = 28;
@@ -123,7 +243,7 @@ export default function RightSidebar({
       </button>
 
       {!isRightCollapsed && (
-        <div className="flex-1">
+        <div className="flex-1 flex flex-col min-h-0">
           <h2 className="text-[15px] font-semibold mb-2 text-gray-800">
             Entities
           </h2>
@@ -333,6 +453,84 @@ export default function RightSidebar({
             </span>
             <span className="truncate">Alarms Log (DI-AI)</span>
           </button>
+
+          {/* ✅ BOTTOM TOOL BUTTON */}
+          <div className="mt-auto pt-5">
+            <button
+              type="button"
+              onClick={openDashboardIdsDetails}
+              disabled={!isDashboardOpenOnCanvas}
+              title={
+                isDashboardOpenOnCanvas
+                  ? "Open Dashboard IDs Details"
+                  : "Open a dashboard on canvas first"
+              }
+              style={{
+                width: "100%",
+                minHeight: 74,
+                borderRadius: 12,
+                border: isDashboardOpenOnCanvas
+                  ? "1px solid #22c55e"
+                  : "1px solid #9ca3af",
+                background: isDashboardOpenOnCanvas
+                  ? "linear-gradient(180deg, #0d1712 0%, #122219 100%)"
+                  : "linear-gradient(180deg, #f3f4f6 0%, #e5e7eb 100%)",
+                boxShadow: isDashboardOpenOnCanvas
+                  ? "0 0 10px rgba(34, 197, 94, 0.18), inset 0 0 0 1px rgba(255,255,255,0.04)"
+                  : "none",
+                display: "flex",
+                flexDirection: "column",
+                alignItems: "center",
+                justifyContent: "center",
+                gap: 6,
+                cursor: isDashboardOpenOnCanvas ? "pointer" : "not-allowed",
+                transition: "all 0.18s ease",
+                padding: "10px 8px",
+                opacity: isDashboardOpenOnCanvas ? 1 : 0.7,
+              }}
+              onMouseEnter={(e) => {
+                if (!isDashboardOpenOnCanvas) return;
+                e.currentTarget.style.transform = "translateY(-1px)";
+                e.currentTarget.style.boxShadow =
+                  "0 0 14px rgba(34, 197, 94, 0.28), inset 0 0 0 1px rgba(255,255,255,0.06)";
+              }}
+              onMouseLeave={(e) => {
+                if (!isDashboardOpenOnCanvas) return;
+                e.currentTarget.style.transform = "translateY(0)";
+                e.currentTarget.style.boxShadow =
+                  "0 0 10px rgba(34, 197, 94, 0.18), inset 0 0 0 1px rgba(255,255,255,0.04)";
+              }}
+            >
+              <div
+                style={{
+                  width: 34,
+                  height: 34,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  borderRadius: 10,
+                  background: isDashboardOpenOnCanvas
+                    ? "rgba(255,255,255,0.03)"
+                    : "rgba(0,0,0,0.03)",
+                }}
+              >
+                <DashboardIdsDetailsIcon size={28} />
+              </div>
+
+              <span
+                style={{
+                  fontSize: 12,
+                  lineHeight: 1.1,
+                  fontWeight: 800,
+                  letterSpacing: "0.2px",
+                  color: isDashboardOpenOnCanvas ? "#f9fafb" : "#6b7280",
+                  textAlign: "center",
+                }}
+              >
+                IDs Details
+              </span>
+            </button>
+          </div>
         </div>
       )}
     </aside>
