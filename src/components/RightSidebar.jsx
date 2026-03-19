@@ -395,10 +395,8 @@ export default function RightSidebar({
                 width: "100%",
                 minHeight: 138,
                 borderRadius: 12,
-                border: isDashboardIdsDetailsOpen
-                  ? "1px solid #60a5fa"
-                  : "1px solid #d1d5db",
-                background: isDashboardIdsDetailsOpen ? "#eff6ff" : "#ffffff",
+                border: "1px solid #d1d5db",
+                background: "#ffffff",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -408,23 +406,17 @@ export default function RightSidebar({
                 transition: "all 0.18s ease",
                 padding: "8px 8px 12px",
                 opacity: isDashboardOpenOnCanvas ? 1 : 0.6,
-                boxShadow: isDashboardIdsDetailsOpen
-                  ? "0 0 0 1px rgba(96,165,250,0.14), 0 4px 12px rgba(59,130,246,0.14)"
-                  : "0 2px 8px rgba(0,0,0,0.08)",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
               }}
               onMouseEnter={(e) => {
                 if (!isDashboardOpenOnCanvas) return;
                 e.currentTarget.style.transform = "scale(1.03)";
-                e.currentTarget.style.boxShadow = isDashboardIdsDetailsOpen
-                  ? "0 0 0 1px rgba(96,165,250,0.18), 0 6px 16px rgba(59,130,246,0.18)"
-                  : "0 4px 12px rgba(0,0,0,0.15)";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
               }}
               onMouseLeave={(e) => {
                 if (!isDashboardOpenOnCanvas) return;
                 e.currentTarget.style.transform = "scale(1)";
-                e.currentTarget.style.boxShadow = isDashboardIdsDetailsOpen
-                  ? "0 0 0 1px rgba(96,165,250,0.14), 0 4px 12px rgba(59,130,246,0.14)"
-                  : "0 2px 8px rgba(0,0,0,0.08)";
+                e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
               }}
             >
               <div
@@ -447,9 +439,6 @@ export default function RightSidebar({
                     objectFit: "contain",
                     display: "block",
                     opacity: isDashboardOpenOnCanvas ? 1 : 0.7,
-                    filter: isDashboardIdsDetailsOpen
-                      ? "drop-shadow(0 0 6px rgba(59,130,246,0.20))"
-                      : "none",
                   }}
                 />
               </div>
@@ -459,11 +448,7 @@ export default function RightSidebar({
                   fontSize: 12,
                   lineHeight: 1.1,
                   fontWeight: 500,
-                  color: isDashboardOpenOnCanvas
-                    ? isDashboardIdsDetailsOpen
-                      ? "#1d4ed8"
-                      : "#374151"
-                    : "#9ca3af",
+                  color: isDashboardOpenOnCanvas ? "#374151" : "#9ca3af",
                   textAlign: "center",
                 }}
               >
@@ -471,58 +456,62 @@ export default function RightSidebar({
               </span>
 
               {/* ✅ VISIBLE TOGGLE */}
-<div
-  style={{
-    marginTop: 2,
-    width: 72,
-    height: 26,
-    borderRadius: 999,
-    background: isDashboardIdsDetailsOpen ? "#22c55e" : "#d1d5db",
-    position: "relative",
-    transition: "all 0.22s ease",
-    boxShadow: isDashboardIdsDetailsOpen
-      ? "inset 0 0 0 1px rgba(0,0,0,0.05), 0 0 10px rgba(34,197,94,0.28)"
-      : "inset 0 0 0 1px rgba(0,0,0,0.06)",
-    flexShrink: 0,
-    overflow: "hidden",
-  }}
->
-  <div
-    style={{
-      position: "absolute",
-      top: 3,
-      left: isDashboardIdsDetailsOpen ? 47 : 3,
-      width: 20,
-      height: 20,
-      borderRadius: "50%",
-      background: "#ffffff",
-      boxShadow: "0 1px 4px rgba(0,0,0,0.22)",
-      transition: "left 0.22s ease, transform 0.22s ease",
-      transform: isDashboardIdsDetailsOpen ? "scale(1.03)" : "scale(1)",
-    }}
-  />
+              <div
+                style={{
+                  marginTop: 2,
+                  width: 72,
+                  height: 26,
+                  borderRadius: 999,
+                  background: isDashboardIdsDetailsOpen ? "#22c55e" : "#d1d5db",
+                  position: "relative",
+                  transition: "all 0.22s ease",
+                  boxShadow: isDashboardIdsDetailsOpen
+                    ? "inset 0 0 0 1px rgba(0,0,0,0.05), 0 0 10px rgba(34,197,94,0.28)"
+                    : "inset 0 0 0 1px rgba(0,0,0,0.06)",
+                  flexShrink: 0,
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    position: "absolute",
+                    top: 3,
+                    left: isDashboardIdsDetailsOpen ? 47 : 3,
+                    width: 20,
+                    height: 20,
+                    borderRadius: "50%",
+                    background: "#ffffff",
+                    boxShadow: "0 1px 4px rgba(0,0,0,0.22)",
+                    transition: "left 0.22s ease, transform 0.22s ease",
+                    transform: isDashboardIdsDetailsOpen
+                      ? "scale(1.03)"
+                      : "scale(1)",
+                  }}
+                />
 
-  <div
-    style={{
-      position: "absolute",
-      inset: 0,
-      display: "flex",
-      alignItems: "center",
-      justifyContent: isDashboardIdsDetailsOpen ? "flex-start" : "flex-end",
-      paddingLeft: 10,
-      paddingRight: 10,
-      fontSize: 10,
-      fontWeight: 600,
-      color: "#ffffff",
-      letterSpacing: "0.2px",
-      pointerEvents: "none",
-      userSelect: "none",
-      transition: "all 0.22s ease",
-    }}
-  >
-    {isDashboardIdsDetailsOpen ? "Active" : "OFF"}
-  </div>
-</div>
+                <div
+                  style={{
+                    position: "absolute",
+                    inset: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: isDashboardIdsDetailsOpen
+                      ? "flex-start"
+                      : "flex-end",
+                    paddingLeft: 10,
+                    paddingRight: 10,
+                    fontSize: 10,
+                    fontWeight: 600,
+                    color: "#ffffff",
+                    letterSpacing: "0.2px",
+                    pointerEvents: "none",
+                    userSelect: "none",
+                    transition: "all 0.22s ease",
+                  }}
+                >
+                  {isDashboardIdsDetailsOpen ? "Active" : "OFF"}
+                </div>
+              </div>
             </button>
           </div>
         </div>
