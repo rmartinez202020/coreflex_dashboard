@@ -279,8 +279,12 @@ export default function AlarmListTable({
               const enabled = a?.enabled !== false;
               const isEditing = editingAlarmId === a.id;
               const isTogglingEnabled = savingEnabledIds.has(a.id);
+
               const isEditDisabled =
                 !enabled || isTogglingEnabled || isAdding || isSaving;
+
+              const isEnableDisabled =
+                isEditing || isTogglingEnabled || isAdding || isSaving;
 
               return (
                 <div
@@ -397,19 +401,20 @@ export default function AlarmListTable({
                     <input
                       type="checkbox"
                       checked={enabled}
-                      disabled={isTogglingEnabled || isAdding || isSaving}
-                      onChange={() => handleToggleEnabledClick(a)}
+                      disabled={isEnableDisabled}
+                      onChange={() => {
+                        if (isEnableDisabled) return;
+                        handleToggleEnabledClick(a);
+                      }}
                       style={{
                         ...checkbox,
-                        cursor:
-                          isTogglingEnabled || isAdding || isSaving
-                            ? "not-allowed"
-                            : "pointer",
-                        opacity:
-                          isTogglingEnabled || isAdding || isSaving ? 0.6 : 1,
+                        cursor: isEnableDisabled ? "not-allowed" : "pointer",
+                        opacity: isEnableDisabled ? 0.6 : 1,
                       }}
                       title={
-                        isTogglingEnabled
+                        isEditing
+                          ? "Cannot enable/disable while editing this alarm"
+                          : isTogglingEnabled
                           ? "Updating..."
                           : enabled
                           ? "Disable alarm"
