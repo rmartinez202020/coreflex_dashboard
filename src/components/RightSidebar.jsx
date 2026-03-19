@@ -8,7 +8,7 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-function DashboardIdsDetailsIcon({ size = 28 }) {
+function DashboardIdsDetailsIcon({ size = 40 }) {
   return (
     <svg
       width={size}
@@ -19,7 +19,13 @@ function DashboardIdsDetailsIcon({ size = 28 }) {
       aria-hidden="true"
     >
       <defs>
-        <linearGradient id="coreflexIdsDetailsGrad" x1="10" y1="54" x2="55" y2="10">
+        <linearGradient
+          id="coreflexIdsDetailsGrad"
+          x1="10"
+          y1="54"
+          x2="55"
+          y2="10"
+        >
           <stop offset="0%" stopColor="#7c3aed" />
           <stop offset="55%" stopColor="#3b82f6" />
           <stop offset="100%" stopColor="#06b6d4" />
@@ -467,17 +473,10 @@ export default function RightSidebar({
               }
               style={{
                 width: "100%",
-                minHeight: 74,
+                minHeight: 92,
                 borderRadius: 12,
-                border: isDashboardOpenOnCanvas
-                  ? "1px solid #22c55e"
-                  : "1px solid #9ca3af",
-                background: isDashboardOpenOnCanvas
-                  ? "linear-gradient(180deg, #0d1712 0%, #122219 100%)"
-                  : "linear-gradient(180deg, #f3f4f6 0%, #e5e7eb 100%)",
-                boxShadow: isDashboardOpenOnCanvas
-                  ? "0 0 10px rgba(34, 197, 94, 0.18), inset 0 0 0 1px rgba(255,255,255,0.04)"
-                  : "none",
+                border: "1px solid #d1d5db",
+                background: "#ffffff",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -485,36 +484,31 @@ export default function RightSidebar({
                 gap: 6,
                 cursor: isDashboardOpenOnCanvas ? "pointer" : "not-allowed",
                 transition: "all 0.18s ease",
-                padding: "10px 8px",
-                opacity: isDashboardOpenOnCanvas ? 1 : 0.7,
+                padding: "12px 8px",
+                opacity: isDashboardOpenOnCanvas ? 1 : 0.6,
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
               }}
               onMouseEnter={(e) => {
                 if (!isDashboardOpenOnCanvas) return;
-                e.currentTarget.style.transform = "translateY(-1px)";
-                e.currentTarget.style.boxShadow =
-                  "0 0 14px rgba(34, 197, 94, 0.28), inset 0 0 0 1px rgba(255,255,255,0.06)";
+                e.currentTarget.style.transform = "scale(1.03)";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
               }}
               onMouseLeave={(e) => {
                 if (!isDashboardOpenOnCanvas) return;
-                e.currentTarget.style.transform = "translateY(0)";
-                e.currentTarget.style.boxShadow =
-                  "0 0 10px rgba(34, 197, 94, 0.18), inset 0 0 0 1px rgba(255,255,255,0.04)";
+                e.currentTarget.style.transform = "scale(1)";
+                e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
               }}
             >
               <div
                 style={{
-                  width: 34,
-                  height: 34,
+                  width: 54,
+                  height: 54,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
-                  borderRadius: 10,
-                  background: isDashboardOpenOnCanvas
-                    ? "rgba(255,255,255,0.03)"
-                    : "rgba(0,0,0,0.03)",
                 }}
               >
-                <DashboardIdsDetailsIcon size={28} />
+                <DashboardIdsDetailsIcon size={46} />
               </div>
 
               <span
@@ -523,7 +517,7 @@ export default function RightSidebar({
                   lineHeight: 1.1,
                   fontWeight: 800,
                   letterSpacing: "0.2px",
-                  color: isDashboardOpenOnCanvas ? "#f9fafb" : "#6b7280",
+                  color: isDashboardOpenOnCanvas ? "#111827" : "#6b7280",
                   textAlign: "center",
                 }}
               >
