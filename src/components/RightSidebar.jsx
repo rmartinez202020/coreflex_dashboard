@@ -8,7 +8,7 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-function DashboardIdsDetailsIcon({ size = 40 }) {
+function DashboardIdsDetailsIcon({ size = 56 }) {
   return (
     <svg
       width={size}
@@ -473,7 +473,7 @@ export default function RightSidebar({
               }
               style={{
                 width: "100%",
-                minHeight: 92,
+                minHeight: 108,
                 borderRadius: 12,
                 border: "1px solid #d1d5db",
                 background: "#ffffff",
@@ -481,10 +481,10 @@ export default function RightSidebar({
                 flexDirection: "column",
                 alignItems: "center",
                 justifyContent: "center",
-                gap: 6,
+                gap: 4,
                 cursor: isDashboardOpenOnCanvas ? "pointer" : "not-allowed",
                 transition: "all 0.18s ease",
-                padding: "12px 8px",
+                padding: "10px 8px 12px",
                 opacity: isDashboardOpenOnCanvas ? 1 : 0.6,
                 boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
               }}
@@ -501,14 +501,16 @@ export default function RightSidebar({
             >
               <div
                 style={{
-                  width: 54,
-                  height: 54,
+                  width: 68,
+                  height: 68,
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
+                  overflow: "visible",
+                  flexShrink: 0,
                 }}
               >
-                <DashboardIdsDetailsIcon size={46} />
+                <DashboardIdsDetailsIcon size={60} />
               </div>
 
               <span
