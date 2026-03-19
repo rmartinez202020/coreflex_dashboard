@@ -84,9 +84,9 @@ export default function StateImageSettingsModal({
   // ✅ do NOT early return before hooks
   const p = tank?.properties || {};
 
-  // ✅ Modal sizing (same feel as the other)
-  const MODAL_W = Math.min(980, window.innerWidth - 80);
-  const MODAL_H = Math.min(680, window.innerHeight - 120);
+  // ✅ BIGGER modal so user does not need to scroll
+  const MODAL_W = Math.min(1120, window.innerWidth - 40);
+  const MODAL_H = Math.min(820, window.innerHeight - 40);
 
   // ✅ Tag binding (backward compatible)
   const initialModel = String(p?.tag?.model || "zhc1921").trim() || "zhc1921";
@@ -148,6 +148,14 @@ export default function StateImageSettingsModal({
   });
 
   React.useEffect(() => {
+    if (!open) return;
+
+    const left = Math.max(20, Math.round((window.innerWidth - MODAL_W) / 2));
+    const top = Math.max(20, Math.round((window.innerHeight - MODAL_H) / 2));
+    setPos({ left, top });
+  }, [open, MODAL_W, MODAL_H]);
+
+  React.useEffect(() => {
     const onMove = (e) => {
       if (!dragRef.current.dragging) return;
       e.preventDefault();
@@ -160,12 +168,16 @@ export default function StateImageSettingsModal({
 
       const rect = modalRef.current?.getBoundingClientRect();
       const mw = rect?.width ?? MODAL_W;
+      const mh = rect?.height ?? MODAL_H;
 
       const clampedLeft = Math.min(
         window.innerWidth - 20,
         Math.max(20 - (mw - 60), nextLeft)
       );
-      const clampedTop = Math.min(window.innerHeight - 20, Math.max(20, nextTop));
+      const clampedTop = Math.min(
+        window.innerHeight - 20,
+        Math.max(20, Math.min(window.innerHeight - mh, nextTop))
+      );
 
       setPos({ left: clampedLeft, top: clampedTop });
     };
@@ -236,7 +248,9 @@ export default function StateImageSettingsModal({
       setDevicesErr("");
       try {
         const token = String(getToken() || "").trim();
-        if (!token) throw new Error("Missing auth token. Please logout and login again.");
+        if (!token) {
+          throw new Error("Missing auth token. Please logout and login again.");
+        }
 
         const [d1, d2, d3] = await Promise.all([
           fetchModelDevices("zhc1921"),
@@ -269,7 +283,9 @@ export default function StateImageSettingsModal({
   }, [open]);
 
   const filteredDevices = React.useMemo(() => {
-    const q = String(deviceSearch || "").trim().toLowerCase();
+    const q = String(deviceSearch || "")
+      .trim()
+      .toLowerCase();
     if (!q) return devices;
     return devices.filter((d) => {
       const id = String(d.id || "").toLowerCase();
@@ -298,7 +314,9 @@ export default function StateImageSettingsModal({
     telemetryRef.current.loading = true;
     try {
       const token = String(getToken() || "").trim();
-      if (!token) throw new Error("Missing auth token. Please logout and login again.");
+      if (!token) {
+        throw new Error("Missing auth token. Please logout and login again.");
+      }
 
       const res = await fetch(`${API_URL}/${base}/my-devices`, {
         headers: getAuthHeaders(),
@@ -312,7 +330,9 @@ export default function StateImageSettingsModal({
       const data = await res.json();
       const list = Array.isArray(data) ? data : [];
       const row =
-        list.find((r) => String(r.deviceId ?? r.device_id ?? "").trim() === id) || null;
+        list.find(
+          (r) => String(r.deviceId ?? r.device_id ?? "").trim() === id
+        ) || null;
 
       setTelemetryRow(row);
     } catch {
@@ -335,7 +355,9 @@ export default function StateImageSettingsModal({
   }, [open, fetchTelemetryRow]);
 
   const backendDeviceStatus = React.useMemo(() => {
-    const s = String(telemetryRow?.status || "").trim().toLowerCase();
+    const s = String(telemetryRow?.status || "")
+      .trim()
+      .toLowerCase();
     if (!deviceId) return "";
     return s || "";
   }, [telemetryRow, deviceId]);
@@ -350,9 +372,16 @@ export default function StateImageSettingsModal({
   }, [telemetryRow, effectiveField]);
 
   const isOnline =
-    !!deviceId && !!effectiveField && deviceIsOnline && rawValue !== undefined && rawValue !== null;
+    !!deviceId &&
+    !!effectiveField &&
+    deviceIsOnline &&
+    rawValue !== undefined &&
+    rawValue !== null;
 
-  const as01 = React.useMemo(() => (isOnline ? to01(rawValue) : null), [isOnline, rawValue]);
+  const as01 = React.useMemo(
+    () => (isOnline ? to01(rawValue) : null),
+    [isOnline, rawValue]
+  );
 
   // =========================
   // IMAGE HELPERS
@@ -407,7 +436,11 @@ export default function StateImageSettingsModal({
     // Generic close (also harmless if unused)
     window.dispatchEvent(
       new CustomEvent("coreflex-modal-close", {
-        detail: { name: "CoreFlexIOTsLibrary", tankId, from: "StateImageSettingsModal" },
+        detail: {
+          name: "CoreFlexIOTsLibrary",
+          tankId,
+          from: "StateImageSettingsModal",
+        },
       })
     );
   }, [tank?.id]);
@@ -420,7 +453,10 @@ export default function StateImageSettingsModal({
       if (!url) return;
 
       // respect tank id if provided
-      if (ev?.detail?.tankId != null && String(ev.detail.tankId) !== String(tank.id)) {
+      if (
+        ev?.detail?.tankId != null &&
+        String(ev.detail.tankId) !== String(tank.id)
+      ) {
         return;
       }
 
@@ -430,7 +466,9 @@ export default function StateImageSettingsModal({
           : null;
 
       const fromEvent =
-        ev?.detail?.which === "on" || ev?.detail?.which === "off" ? ev.detail.which : null;
+        ev?.detail?.which === "on" || ev?.detail?.which === "off"
+          ? ev.detail.which
+          : null;
 
       const which = fromRef || fromEvent;
       if (which !== "on" && which !== "off") return;
@@ -445,7 +483,8 @@ export default function StateImageSettingsModal({
     };
 
     window.addEventListener("coreflex-iots-library-selected", onSelected);
-    return () => window.removeEventListener("coreflex-iots-library-selected", onSelected);
+    return () =>
+      window.removeEventListener("coreflex-iots-library-selected", onSelected);
   }, [tank?.id, closeIOTsLibraryWindow]);
 
   // =========================
@@ -475,14 +514,16 @@ export default function StateImageSettingsModal({
   };
 
   const Label = ({ children }) => (
-    <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>{children}</div>
+    <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
+      {children}
+    </div>
   );
 
   const ImgBox = ({ src, title }) => (
     <div
       style={{
         width: "100%",
-        height: 150,
+        height: 180,
         borderRadius: 12,
         border: "1px solid #e5e7eb",
         background: "#f8fafc",
@@ -555,9 +596,9 @@ export default function StateImageSettingsModal({
           left: pos.left,
           top: pos.top,
           width: MODAL_W,
-          maxWidth: "calc(100vw - 80px)",
+          maxWidth: "calc(100vw - 40px)",
           height: MODAL_H,
-          maxHeight: "calc(100vh - 120px)",
+          maxHeight: "calc(100vh - 40px)",
           background: "#fff",
           borderRadius: 12,
           boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
@@ -616,7 +657,13 @@ export default function StateImageSettingsModal({
               State Images (OFF / ON)
             </div>
 
-            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+            <div
+              style={{
+                display: "grid",
+                gridTemplateColumns: "1fr 1fr",
+                gap: 16,
+              }}
+            >
               {/* OFF */}
               <div>
                 <div style={{ fontSize: 12, fontWeight: 1000, marginBottom: 8 }}>
@@ -682,7 +729,9 @@ export default function StateImageSettingsModal({
 
               {/* ON */}
               <div>
-                <div style={{ fontSize: 12, fontWeight: 1000, marginBottom: 8 }}>ON Image</div>
+                <div style={{ fontSize: 12, fontWeight: 1000, marginBottom: 8 }}>
+                  ON Image
+                </div>
 
                 <ImgBox src={onImage} title="ON" />
 
@@ -743,8 +792,8 @@ export default function StateImageSettingsModal({
             </div>
 
             <div style={{ marginTop: 10, fontSize: 12, color: "#64748b" }}>
-              Default state is <b>OFF</b>. If your tag becomes ON (truthy / &gt; 0), the ON image
-              will display.
+              Default state is <b>OFF</b>. If your tag becomes ON (truthy / &gt;
+              0), the ON image will display.
             </div>
           </div>
 
@@ -755,7 +804,9 @@ export default function StateImageSettingsModal({
             </div>
 
             {devicesErr && (
-              <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>{devicesErr}</div>
+              <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>
+                {devicesErr}
+              </div>
             )}
 
             {/* Search Device */}
@@ -856,11 +907,15 @@ export default function StateImageSettingsModal({
               }}
             >
               <div>
-                <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>Status</div>
+                <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>
+                  Status
+                </div>
                 <div style={{ fontSize: 13, color: "#475569", marginTop: 2 }}>
                   {deviceId && effectiveField ? (
                     <>
-                      <span style={{ fontWeight: 900, color: "#0f172a" }}>{statusText}</span>
+                      <span style={{ fontWeight: 900, color: "#0f172a" }}>
+                        {statusText}
+                      </span>
                       <span style={{ marginLeft: 10, color: "#64748b" }}>
                         Bound: <b>{deviceId}</b> / <b>{effectiveField}</b>
                       </span>
@@ -872,7 +927,9 @@ export default function StateImageSettingsModal({
               </div>
 
               <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>Value</div>
+                <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>
+                  Value
+                </div>
                 <div
                   style={{
                     marginTop: 2,
@@ -889,7 +946,8 @@ export default function StateImageSettingsModal({
             </div>
 
             <div style={{ fontSize: 12, color: "#64748b", marginTop: 10 }}>
-              Tip: ON means <b>truthy</b> (or numeric <b>&gt; 0</b>). OFF means false / 0 / empty.
+              Tip: ON means <b>truthy</b> (or numeric <b>&gt; 0</b>). OFF means false / 0 /
+              empty.
             </div>
           </div>
         </div>
