@@ -213,9 +213,17 @@ export default function AlarmLogWindowListTable({
             Value
           </div>
 
-          <div style={getHeadCellStyle()}>Group</div>
+          <div
+            style={getHeadCellStyle(isCompactLatestOnlyView, {
+              ...(isCompactLatestOnlyView ? {} : {}),
+            })}
+          >
+            Group
+          </div>
 
-          <div style={getHeadCellStyle(true)}>Severity</div>
+          {isCompactLatestOnlyView && (
+            <div style={getHeadCellStyle(true)}>Severity</div>
+          )}
         </div>
 
         <div style={bodyWrap}>
@@ -389,15 +397,21 @@ export default function AlarmLogWindowListTable({
                       {renderValue(a)}
                     </div>
 
-                    <div style={getBodyCellStyle(false, { background: rowBg })}>
+                    <div
+                      style={getBodyCellStyle(isCompactLatestOnlyView, {
+                        background: rowBg,
+                      })}
+                    >
                       {renderGroup(a)}
                     </div>
 
-                    <div
-                      style={getBodyCellStyle(true, { background: rowBg })}
-                    >
-                      {renderSeverity(a)}
-                    </div>
+                    {isCompactLatestOnlyView && (
+                      <div
+                        style={getBodyCellStyle(true, { background: rowBg })}
+                      >
+                        {renderSeverity(a)}
+                      </div>
+                    )}
                   </div>
 
                   {!isCompactLatestOnlyView &&
@@ -540,19 +554,11 @@ export default function AlarmLogWindowListTable({
                           </div>
 
                           <div
-                            style={getBodyCellStyle(false, {
-                              background: historyBg,
-                            })}
-                          >
-                            {renderGroup(h)}
-                          </div>
-
-                          <div
                             style={getBodyCellStyle(true, {
                               background: historyBg,
                             })}
                           >
-                            {renderSeverity(h)}
+                            {renderGroup(h)}
                           </div>
                         </div>
                       );
