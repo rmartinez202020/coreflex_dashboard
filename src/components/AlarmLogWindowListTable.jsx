@@ -2,10 +2,10 @@
 import React from "react";
 
 const GRID_TEMPLATE_DEFAULT =
-  "34px 34px minmax(130px,1.1fr) minmax(96px,0.8fr) minmax(220px,2.2fr) minmax(100px,0.9fr) minmax(110px,0.9fr) minmax(84px,0.8fr) minmax(140px,1.1fr) minmax(90px,0.8fr) minmax(90px,0.8fr) minmax(100px,0.9fr) minmax(92px,0.8fr)";
+  "34px 34px minmax(130px,1.1fr) minmax(96px,0.8fr) minmax(220px,2.2fr) minmax(100px,0.9fr) minmax(110px,0.9fr) minmax(84px,0.8fr) minmax(140px,1.1fr) minmax(90px,0.8fr) minmax(90px,0.8fr) minmax(100px,0.9fr)";
 
 const GRID_TEMPLATE_COMPACT =
-  "34px minmax(130px,1.1fr) minmax(96px,0.8fr) minmax(220px,2.2fr) minmax(84px,0.8fr) minmax(140px,1.1fr) minmax(90px,0.8fr) minmax(90px,0.8fr) minmax(100px,0.9fr) minmax(100px,0.9fr) minmax(92px,0.8fr)";
+  "34px minmax(130px,1.1fr) minmax(96px,0.8fr) minmax(220px,2.2fr) minmax(84px,0.8fr) minmax(140px,1.1fr) minmax(90px,0.8fr) minmax(90px,0.8fr) minmax(100px,0.9fr) minmax(100px,0.9fr)";
 
 function isAcknowledged(alarm, localAck = {}) {
   if (localAck?.[alarm?.id]) return true;
@@ -144,7 +144,6 @@ export default function AlarmLogWindowListTable({
   toggleChecked,
   toggleAllVisible,
   onAcknowledgeAlarm,
-  onDisableAlarm,
   expandedAlarmKeys = new Set(),
   onToggleExpandAlarm,
   expandedHistoryMap = {},
@@ -152,9 +151,7 @@ export default function AlarmLogWindowListTable({
   const [localAck, setLocalAck] = React.useState({});
 
   const isCompactLatestOnlyView =
-    alarmView === "alarms" ||
-    alarmView === "disabled" ||
-    alarmView === "active";
+    alarmView === "alarms" || alarmView === "active";
 
   const gridTemplate = isCompactLatestOnlyView
     ? GRID_TEMPLATE_COMPACT
@@ -236,13 +233,7 @@ export default function AlarmLogWindowListTable({
 
           <div style={getHeadCellStyle()}>Group</div>
 
-          {isCompactLatestOnlyView && (
-            <div style={getHeadCellStyle()}>Severity</div>
-          )}
-
-          <div style={getHeadCellStyle(true, { justifyContent: "center" })}>
-            Disable
-          </div>
+          <div style={getHeadCellStyle(true)}>Severity</div>
         </div>
 
         <div style={bodyWrap}>
@@ -254,12 +245,6 @@ export default function AlarmLogWindowListTable({
               const acked = isAcknowledged(a, localAck);
               const isActiveUnacked = stateText === "ACTIVE" && !acked;
               const canAck = stateText === "ACTIVE" && !acked;
-              const isDisabled =
-                stateText === "DISABLED" || a?.enabled === false;
-              const disableLabel = isDisabled ? "Enable" : "Disable";
-              const disableTitle = isDisabled
-                ? "Enable this alarm"
-                : "Disable this alarm";
               const isExpanded =
                 !isCompactLatestOnlyView &&
                 expandedAlarmKeys?.has?.(a.uniqueAlarmKey);
@@ -444,42 +429,10 @@ export default function AlarmLogWindowListTable({
                       {renderGroup(a)}
                     </div>
 
-                    {isCompactLatestOnlyView && (
-                      <div
-                        style={getBodyCellStyle(false, { background: rowBg })}
-                      >
-                        {renderSeverity(a)}
-                      </div>
-                    )}
-
                     <div
-                      style={getBodyCellStyle(true, {
-                        justifyContent: "center",
-                        background: rowBg,
-                      })}
+                      style={getBodyCellStyle(true, { background: rowBg })}
                     >
-                      <button
-                        type="button"
-                        style={{
-                          ...disableBtn,
-                          ...disableBtnReady,
-                        }}
-                        title={disableTitle}
-                        onMouseEnter={(e) => {
-                          e.currentTarget.style.background = "#e5e7eb";
-                          e.currentTarget.style.borderColor = "#bfc6cf";
-                        }}
-                        onMouseLeave={(e) => {
-                          e.currentTarget.style.background = "#f3f4f6";
-                          e.currentTarget.style.borderColor = "#c7cdd4";
-                        }}
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          onDisableAlarm?.(a);
-                        }}
-                      >
-                        {disableLabel}
-                      </button>
+                      {renderSeverity(a)}
                     </div>
                   </div>
 
@@ -639,10 +592,11 @@ export default function AlarmLogWindowListTable({
 
                           <div
                             style={getBodyCellStyle(true, {
-                              justifyContent: "center",
                               background: historyBg,
                             })}
-                          />
+                          >
+                            {renderSeverity(h)}
+                          </div>
                         </div>
                       );
                     })}
@@ -800,37 +754,6 @@ const ackBtnReady = {
 };
 
 const ackBtnDisabled = {
-  background: "#e5e7eb",
-  color: "#9ca3af",
-  borderColor: "#d1d5db",
-  cursor: "not-allowed",
-  boxShadow: "inset 0 1px 1px rgba(0,0,0,0.04)",
-  opacity: 0.9,
-};
-
-const disableBtn = {
-  minWidth: 72,
-  height: 26,
-  padding: "0 12px",
-  borderRadius: 6,
-  fontSize: 11,
-  fontWeight: 700,
-  border: "1px solid #c7cdd4",
-  background: "#f3f4f6",
-  color: "#111827",
-  transition:
-    "background 120ms ease, border-color 120ms ease, color 120ms ease, box-shadow 120ms ease, opacity 120ms ease",
-};
-
-const disableBtnReady = {
-  background: "#f3f4f6",
-  color: "#111827",
-  borderColor: "#c7cdd4",
-  cursor: "pointer",
-  boxShadow: "0 1px 2px rgba(15, 23, 42, 0.08)",
-};
-
-const disableBtnDisabled = {
   background: "#e5e7eb",
   color: "#9ca3af",
   borderColor: "#d1d5db",

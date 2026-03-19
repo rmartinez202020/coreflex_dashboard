@@ -268,38 +268,12 @@ export default function AlarmLogWindow({
   const [showAlarmSetup, setShowAlarmSetup] = React.useState(false);
   const [isDeletingClose, setIsDeletingClose] = React.useState(false);
   const [closeError, setCloseError] = React.useState("");
-  const [disabledMap, setDisabledMap] = React.useState({});
 
   const normalizedDashboardName =
     String(dashboardName || "").trim() ||
     (resolvedDashboardId === "main" ? "Main Dashboard" : "Dashboard");
 
-  const applyDisabledMap = React.useCallback(
-    (rows) => {
-      return rows.map((row) => {
-        const forcedDisabled = disabledMap[row.uniqueAlarmKey];
-
-        if (forcedDisabled === true) {
-          return {
-            ...row,
-            enabled: false,
-            state: "DISABLED",
-          };
-        }
-
-        if (forcedDisabled === false) {
-          return {
-            ...row,
-            enabled: true,
-            state: "RETURNED",
-          };
-        }
-
-        return row;
-      });
-    },
-    [disabledMap]
-  );
+  const applyDisabledMap = React.useCallback((rows) => rows, []);
 
   const {
     alarms,
@@ -318,10 +292,6 @@ export default function AlarmLogWindow({
 
   const visibleAlarms = React.useMemo(() => {
     const source = Array.isArray(alarms) ? alarms : [];
-
-    if (alarmView === "disabled") {
-      return source.filter((a) => a.enabled === false);
-    }
 
     if (alarmView === "active") {
       return source.filter(
@@ -471,67 +441,6 @@ export default function AlarmLogWindow({
     [setAlarms, setExpandedHistoryMap]
   );
 
-  const handleToggleAlarmEnabled = React.useCallback(
-    (alarm) => {
-      if (!alarm?.id || !alarm?.uniqueAlarmKey) return;
-
-      const willDisable = alarm.enabled !== false;
-
-      setDisabledMap((prev) => ({
-        ...prev,
-        [alarm.uniqueAlarmKey]: willDisable,
-      }));
-
-      setAlarms((prev) =>
-        prev.map((a) => {
-          if (a.uniqueAlarmKey !== alarm.uniqueAlarmKey) return a;
-
-          if (willDisable) {
-            return {
-              ...a,
-              enabled: false,
-              state: "DISABLED",
-            };
-          }
-
-          return {
-            ...a,
-            enabled: true,
-            state: "RETURNED",
-          };
-        })
-      );
-
-      setExpandedHistoryMap((prev) => {
-        const next = { ...prev };
-        const rows = next[alarm.uniqueAlarmKey] || [];
-
-        next[alarm.uniqueAlarmKey] = rows.map((r) =>
-          willDisable
-            ? { ...r, enabled: false, state: "DISABLED" }
-            : {
-                ...r,
-                enabled: true,
-                state: "RETURNED",
-              }
-        );
-
-        return next;
-      });
-
-      setCheckedIds((prev) => {
-        const next = new Set(prev);
-        next.delete(alarm.id);
-        return next;
-      });
-
-      if (selectedId === alarm.id) {
-        setSelectedId(null);
-      }
-    },
-    [selectedId, setAlarms, setExpandedHistoryMap]
-  );
-
   const handleToggleExpandAlarm = React.useCallback(
     (alarm) => {
       if (!alarm?.uniqueAlarmKey) return;
@@ -659,7 +568,7 @@ export default function AlarmLogWindow({
 
       <div style={tabsBar}>
         <div style={tabsLeft}>
-          {["alarms", "history", "active", "disabled"].map((v) => (
+          {["alarms", "history", "active"].map((v) => (
             <TabButton
               key={v}
               label={v.charAt(0).toUpperCase() + v.slice(1)}
@@ -735,7 +644,6 @@ export default function AlarmLogWindow({
         toggleChecked={toggleChecked}
         toggleAllVisible={toggleAllVisible}
         onAcknowledgeAlarm={handleAcknowledgeAlarm}
-        onDisableAlarm={handleToggleAlarmEnabled}
         expandedAlarmKeys={expandedAlarmKeys}
         onToggleExpandAlarm={handleToggleExpandAlarm}
         expandedHistoryMap={expandedHistoryMap}
