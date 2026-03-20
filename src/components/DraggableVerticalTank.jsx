@@ -234,7 +234,7 @@ export default function DraggableVerticalTank({
     style={{
       position: "absolute",
       left: "50%",
-      top: `${34 * scale}px`,
+      top: `${52 * scale}px`,
       transform: "translate(-50%, -50%)",
       width: `${42 * scale}px`,     // ✅ keep text inside tank body
       maxWidth: `${42 * scale}px`,
