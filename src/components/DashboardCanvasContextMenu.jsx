@@ -312,16 +312,7 @@ export default function DashboardCanvasContextMenu({
               })}
 
               <div style={{ height: 6 }} />
-              <div
-                style={{
-                  fontSize: 12,
-                  opacity: 0.7,
-                  padding: "4px 4px",
-                  textAlign: "center",
-                }}
-              >
-                Range: {SCALE_MIN} — {SCALE_MAX}x
-              </div>
+              
             </div>
           </>
         )}
