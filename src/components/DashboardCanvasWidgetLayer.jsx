@@ -66,6 +66,22 @@ function getBoundField(tank, fallback = "") {
   ).trim();
 }
 
+function getDeviceName(tank) {
+  return String(
+    tank?.deviceName ||
+      tank?.properties?.deviceName ||
+      tank?.selectedDeviceName ||
+      tank?.properties?.selectedDeviceName ||
+      tank?.title ||
+      tank?.properties?.title ||
+      tank?.label ||
+      tank?.properties?.label ||
+      tank?.name ||
+      tank?.properties?.name ||
+      ""
+  ).trim();
+}
+
 function getTelemetryRow(telemetryMap, model, deviceId) {
   if (!deviceId) return null;
   return telemetryMap?.[model]?.[deviceId] || telemetryMap?.[deviceId] || null;
@@ -118,12 +134,25 @@ function formatOverlayValue(value) {
 function DashboardIdsOverlayBadge({
   visible,
   deviceId,
+  deviceName,
   deviceStatus,
   field,
   value,
+  isVisibleValue,
 }) {
   if (!visible) return null;
-  if (!deviceId && !field) return null;
+  if (!deviceId && !field && !deviceName) return null;
+
+  const statusText = String(deviceStatus || "OFFLINE").toUpperCase();
+
+  const titleText = [
+    `Device Id: ${deviceId || "—"}`,
+    `Device: ${deviceName || "—"}`,
+    `Status: ${statusText}`,
+    `Tag: ${field || "—"}`,
+    `Value: ${formatOverlayValue(value)}`,
+    `visible: ${String(isVisibleValue ?? true)}`,
+  ].join("\n");
 
   return (
     <div
@@ -134,23 +163,26 @@ function DashboardIdsOverlayBadge({
         background: "#000",
         color: "#fff",
         borderRadius: 6,
-        padding: "5px 7px",
+        padding: "7px 9px",
         fontSize: 10,
         fontWeight: 700,
-        lineHeight: 1.2,
-        whiteSpace: "nowrap",
+        lineHeight: 1.28,
+        whiteSpace: "pre-line",
         pointerEvents: "none",
         zIndex: 999999,
         boxShadow: "0 6px 16px rgba(0,0,0,0.28)",
         border: "1px solid rgba(255,255,255,0.18)",
-        maxWidth: "calc(100% - 8px)",
-        overflow: "hidden",
-        textOverflow: "ellipsis",
+        minWidth: 150,
+        maxWidth: 240,
       }}
-      title={`${deviceId}-${String(deviceStatus || "OFFLINE").toUpperCase()}-${field}-${formatOverlayValue(value)}`}
+      title={titleText}
     >
-      {deviceId || "—"}-{String(deviceStatus || "OFFLINE").toUpperCase()}-
-      {field || "—"}-{formatOverlayValue(value)}
+      <div>Device Id: {deviceId || "—"}</div>
+      <div>Device: {deviceName || "—"}</div>
+      <div>Status: {statusText}</div>
+      <div>Tag: {field || "—"}</div>
+      <div>Value: {formatOverlayValue(value)}</div>
+      <div>visible: {String(isVisibleValue ?? true)}</div>
     </div>
   );
 }
@@ -205,8 +237,9 @@ export default function DashboardCanvasWidgetLayer({
 
       const deviceId = getBoundDeviceId(tank);
       const field = getBoundField(tank, fallbackField);
+      const deviceName = getDeviceName(tank);
 
-      return Boolean(deviceId || field);
+      return Boolean(deviceId || field || deviceName);
     },
     [showDashboardIdsDetails]
   );
@@ -217,16 +250,26 @@ export default function DashboardCanvasWidgetLayer({
 
       const model = getBoundModel(tank, "zhc1921");
       const deviceId = getBoundDeviceId(tank);
+      const deviceName = getDeviceName(tank);
       const field = getBoundField(tank, fallbackField);
       const row = getTelemetryRow(telemetryMap, model, deviceId);
+
+      const isVisibleValue =
+        tank?.visible ??
+        tank?.properties?.visible ??
+        tank?.isVisible ??
+        tank?.properties?.isVisible ??
+        true;
 
       return (
         <DashboardIdsOverlayBadge
           visible={showDashboardIdsDetails}
           deviceId={deviceId}
+          deviceName={deviceName}
           deviceStatus={row?.status || "offline"}
           field={field}
           value={getTelemetryValue(row, field)}
+          isVisibleValue={isVisibleValue}
         />
       );
     },
@@ -362,7 +405,10 @@ export default function DashboardCanvasWidgetLayer({
 
       if (tank.shape === "graphicDisplay") {
         return (
-          <div key={tank.id} style={{ position: "relative", overflow: "visible" }}>
+          <div
+            key={tank.id}
+            style={{ position: "relative", overflow: "visible" }}
+          >
             {renderTelemetryOverlay(tank)}
             <DraggableGraphicDisplay
               tank={tank}
