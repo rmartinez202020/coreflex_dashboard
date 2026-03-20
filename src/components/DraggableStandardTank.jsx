@@ -115,7 +115,11 @@ function ensureAlphaHex(hex, alphaHex = "88") {
  * ✅ NEW RULE:
  * - In EDIT mode -> HIDE LIQUID (force level=0)
  */
-export default function DraggableStandardTank({ tank, isPlay = false, telemetryMap = null }) {
+export default function DraggableStandardTank({
+  tank,
+  isPlay = false,
+  telemetryMap = null,
+}) {
   const props = tank?.properties || {};
   const scale = tank?.scale || 1;
 
@@ -149,6 +153,7 @@ export default function DraggableStandardTank({ tank, isPlay = false, telemetryM
   }, [isPlay, hasBinding, telemetryMap, bindModel, bindDeviceId]);
 
   const backendStatus = String(telemetryRow?.status || "").trim().toLowerCase();
+  const deviceIsOffline = isPlay && hasBinding && backendStatus === "offline";
   const deviceIsOnline = backendStatus ? backendStatus === "online" : true;
 
   const liveValue = useMemo(() => {
@@ -211,7 +216,7 @@ export default function DraggableStandardTank({ tank, isPlay = false, telemetryM
   }, [hasBinding, isPlay, deviceIsOnline, outputValue]);
 
   // ✅ EDIT MODE: hide percent so it looks truly empty
-  const showPercent = isPlay;
+  const showPercent = isPlay && !deviceIsOffline;
 
   return (
     <div style={{ textAlign: "center", pointerEvents: "none" }}>
@@ -230,7 +235,7 @@ export default function DraggableStandardTank({ tank, isPlay = false, telemetryM
       ) : null}
 
       {/* ✅ STANDARD TANK */}
-      <div style={{ display: "inline-block" }}>
+      <div style={{ display: "inline-block", position: "relative" }}>
         <div style={{ width: `${140 * scale}px`, height: `${220 * scale}px` }}>
           <StandardTank
             level={levelPct}
@@ -245,6 +250,33 @@ export default function DraggableStandardTank({ tank, isPlay = false, telemetryM
             bottomTextColor="#111827"
           />
         </div>
+
+        {/* ✅ OFFLINE text only in PLAY mode, centered inside tank body */}
+        {deviceIsOffline && (
+          <div
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: `${88 * scale}px`,
+              transform: "translate(-50%, -50%)",
+              width: `${56 * scale}px`,
+              maxWidth: `${56 * scale}px`,
+              color: "#dc2626",
+              fontWeight: 500,
+              fontSize: `${11 * scale}px`,
+              lineHeight: 1.05,
+              letterSpacing: "0px",
+              textAlign: "center",
+              whiteSpace: "normal",
+              wordBreak: "break-word",
+              overflowWrap: "break-word",
+              pointerEvents: "none",
+              userSelect: "none",
+            }}
+          >
+            Offline
+          </div>
+        )}
       </div>
 
       {/* hidden (kept) */}
