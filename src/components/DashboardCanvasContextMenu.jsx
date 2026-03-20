@@ -25,10 +25,14 @@ export default function DashboardCanvasContextMenu({
   onRedo,
 }) {
   const [openScale, setOpenScale] = React.useState(false);
+  const [hoveredItem, setHoveredItem] = React.useState(null);
   const closeTimerRef = React.useRef(null);
 
   React.useEffect(() => {
-    if (!show) setOpenScale(false);
+    if (!show) {
+      setOpenScale(false);
+      setHoveredItem(null);
+    }
   }, [show]);
 
   React.useEffect(() => {
@@ -130,6 +134,7 @@ export default function DashboardCanvasContextMenu({
     alignItems: "center",
     justifyContent: "space-between",
     gap: 10,
+    transition: "background 0.12s ease, color 0.12s ease",
   };
 
   const disabledItemStyle = {
@@ -143,6 +148,15 @@ export default function DashboardCanvasContextMenu({
     background: "rgba(0,0,0,0.06)",
     margin: "6px 0",
   };
+
+  const getHoverStyle = (key, extra = {}) => ({
+    ...extra,
+    ...(hoveredItem === key
+      ? {
+          background: "rgba(59, 130, 246, 0.18)", // light blue hover
+        }
+      : null),
+  });
 
   // =====================================================
   // ✅ EMPTY CANVAS MENU: ONLY Undo / Redo
@@ -158,7 +172,9 @@ export default function DashboardCanvasContextMenu({
         onClick={(e) => e.stopPropagation()}
       >
         <div
-          style={canUndo ? itemStyle : disabledItemStyle}
+          style={canUndo ? getHoverStyle("undo", itemStyle) : disabledItemStyle}
+          onMouseEnter={() => canUndo && setHoveredItem("undo")}
+          onMouseLeave={() => setHoveredItem(null)}
           onClick={() => {
             if (!canUndo) return;
             onUndo?.();
@@ -169,7 +185,9 @@ export default function DashboardCanvasContextMenu({
         </div>
 
         <div
-          style={canRedo ? itemStyle : disabledItemStyle}
+          style={canRedo ? getHoverStyle("redo", itemStyle) : disabledItemStyle}
+          onMouseEnter={() => canRedo && setHoveredItem("redo")}
+          onMouseLeave={() => setHoveredItem(null)}
           onClick={() => {
             if (!canRedo) return;
             onRedo?.();
@@ -182,7 +200,12 @@ export default function DashboardCanvasContextMenu({
         {/* If undo/redo not wired yet, at least give a close */}
         {!hasUndoRedo && <div style={sepStyle} />}
 
-        <div style={itemStyle} onClick={() => onClose?.()}>
+        <div
+          style={getHoverStyle("close-empty", itemStyle)}
+          onMouseEnter={() => setHoveredItem("close-empty")}
+          onMouseLeave={() => setHoveredItem(null)}
+          onClick={() => onClose?.()}
+        >
           <span>Close</span>
         </div>
       </div>
@@ -200,7 +223,9 @@ export default function DashboardCanvasContextMenu({
     >
       {/* Copy */}
       <div
-        style={itemStyle}
+        style={getHoverStyle("copy", itemStyle)}
+        onMouseEnter={() => setHoveredItem("copy")}
+        onMouseLeave={() => setHoveredItem(null)}
         onClick={() => {
           onCopy?.();
           onClose?.();
@@ -211,9 +236,15 @@ export default function DashboardCanvasContextMenu({
 
       {/* Scale submenu */}
       <div
-        style={{ ...itemStyle, position: "relative" }}
-        onMouseEnter={openScaleNow}
-        onMouseLeave={closeScaleSoon}
+        style={getHoverStyle("scale", { ...itemStyle, position: "relative" })}
+        onMouseEnter={() => {
+          setHoveredItem("scale");
+          openScaleNow();
+        }}
+        onMouseLeave={() => {
+          setHoveredItem(null);
+          closeScaleSoon();
+        }}
         onClick={(e) => {
           e.stopPropagation();
           setOpenScale((v) => !v);
@@ -256,21 +287,29 @@ export default function DashboardCanvasContextMenu({
               onMouseDown={(e) => e.stopPropagation()}
               onClick={(e) => e.stopPropagation()}
             >
-              {SCALE_PRESETS.map((s) => (
-                <div
-                  key={s}
-                  style={{
-                    padding: "8px 8px",
-                    cursor: "pointer",
-                    borderRadius: 6,
-                    fontSize: 13,
-                  }}
-                  onClick={() => applyScale(s)}
-                  onMouseEnter={openScaleNow}
-                >
-                  {s}x
-                </div>
-              ))}
+              {SCALE_PRESETS.map((s) => {
+                const key = `scale-${s}`;
+                return (
+                  <div
+                    key={s}
+                    style={getHoverStyle(key, {
+                      padding: "8px 8px",
+                      cursor: "pointer",
+                      borderRadius: 6,
+                      fontSize: 13,
+                      transition: "background 0.12s ease, color 0.12s ease",
+                    })}
+                    onClick={() => applyScale(s)}
+                    onMouseEnter={() => {
+                      openScaleNow();
+                      setHoveredItem(key);
+                    }}
+                    onMouseLeave={() => setHoveredItem(null)}
+                  >
+                    {s}x
+                  </div>
+                );
+              })}
 
               <div style={{ height: 6 }} />
               <div
@@ -292,7 +331,9 @@ export default function DashboardCanvasContextMenu({
 
       {/* Bring / Send */}
       <div
-        style={itemStyle}
+        style={getHoverStyle("bring-front", itemStyle)}
+        onMouseEnter={() => setHoveredItem("bring-front")}
+        onMouseLeave={() => setHoveredItem(null)}
         onClick={() => {
           onBringToFront?.();
           onClose?.();
@@ -302,7 +343,9 @@ export default function DashboardCanvasContextMenu({
       </div>
 
       <div
-        style={itemStyle}
+        style={getHoverStyle("send-back", itemStyle)}
+        onMouseEnter={() => setHoveredItem("send-back")}
+        onMouseLeave={() => setHoveredItem(null)}
         onClick={() => {
           onSendToBack?.();
           onClose?.();
@@ -315,7 +358,12 @@ export default function DashboardCanvasContextMenu({
 
       {/* Delete */}
       <div
-        style={{ ...itemStyle, color: "#dc2626" }}
+        style={getHoverStyle("delete", {
+          ...itemStyle,
+          color: "#dc2626",
+        })}
+        onMouseEnter={() => setHoveredItem("delete")}
+        onMouseLeave={() => setHoveredItem(null)}
         onClick={() => {
           // ✅ IMPORTANT:
           // pass the ids so the caller can delete UI + backend rows
@@ -332,11 +380,17 @@ export default function DashboardCanvasContextMenu({
 
       {/* Paste (optional) */}
       <div
-        style={{
-          ...itemStyle,
-          opacity: hasClipboard ? 1 : 0.5,
-          pointerEvents: hasClipboard ? "auto" : "none",
-        }}
+        style={
+          hasClipboard
+            ? getHoverStyle("paste", itemStyle)
+            : {
+                ...itemStyle,
+                opacity: 0.5,
+                pointerEvents: "none",
+              }
+        }
+        onMouseEnter={() => hasClipboard && setHoveredItem("paste")}
+        onMouseLeave={() => setHoveredItem(null)}
         onClick={() => {
           if (!hasClipboard) return;
           onPaste?.();
@@ -346,7 +400,12 @@ export default function DashboardCanvasContextMenu({
         <span>Paste</span>
       </div>
 
-      <div style={itemStyle} onClick={() => onClose?.()}>
+      <div
+        style={getHoverStyle("close", itemStyle)}
+        onMouseEnter={() => setHoveredItem("close")}
+        onMouseLeave={() => setHoveredItem(null)}
+        onClick={() => onClose?.()}
+      >
         <span>Close</span>
       </div>
     </div>
