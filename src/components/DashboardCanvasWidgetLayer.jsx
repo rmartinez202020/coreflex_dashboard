@@ -24,6 +24,25 @@ import {
 } from "./indicators";
 import GaugeDisplay from "./gauge/GaugeDisplay";
 
+function normalizeTagField(field) {
+  const raw = String(field || "").trim();
+  if (!raw) return "";
+  const s = raw.toLowerCase().replace(/[\s_-]+/g, "");
+  return s;
+}
+
+function prettyTagField(field) {
+  const f = normalizeTagField(field);
+  if (!f) return "—";
+
+  return f
+    .toUpperCase()
+    .replace(/^AI(\d+)$/, "AI-$1")
+    .replace(/^DI(\d+)$/, "DI-$1")
+    .replace(/^DO(\d+)$/, "DO-$1")
+    .replace(/^AO(\d+)$/, "AO-$1");
+}
+
 function getBoundModel(tank, fallback = "") {
   return String(
     tank?.bindModel ||
@@ -32,6 +51,8 @@ function getBoundModel(tank, fallback = "") {
       tank?.properties?.deviceModel ||
       tank?.model ||
       tank?.properties?.model ||
+      tank?.tag?.model ||
+      tank?.properties?.tag?.model ||
       fallback
   )
     .trim()
@@ -48,22 +69,25 @@ function getBoundDeviceId(tank) {
       tank?.properties?.selectedDeviceId ||
       tank?.properties?.device_id ||
       tank?.device_id ||
+      tank?.tag?.deviceId ||
+      tank?.properties?.tag?.deviceId ||
       ""
   ).trim();
 }
 
 function getBoundField(tank, fallback = "") {
-  return String(
+  const raw =
     tank?.bindField ||
-      tank?.properties?.bindField ||
-      tank?.tag ||
-      tank?.properties?.tag ||
-      tank?.selectedTag ||
-      tank?.properties?.selectedTag ||
-      tank?.field ||
-      tank?.properties?.field ||
-      fallback
-  ).trim();
+    tank?.properties?.bindField ||
+    tank?.selectedTag ||
+    tank?.properties?.selectedTag ||
+    tank?.field ||
+    tank?.properties?.field ||
+    tank?.tag?.field ||
+    tank?.properties?.tag?.field ||
+    fallback;
+
+  return normalizeTagField(raw);
 }
 
 function getDeviceName(tank) {
@@ -90,36 +114,67 @@ function getTelemetryRow(telemetryMap, model, deviceId) {
 function getTelemetryValue(row, field) {
   if (!row || !field) return null;
 
-  const f = String(field || "").trim();
+  const f = normalizeTagField(field);
   if (!f) return null;
 
   const direct = [
     f,
     f.toLowerCase(),
     f.toUpperCase(),
-    f.replace("-", "_"),
-    f.replace("_", "-"),
+    f.replace(/(\D+)(\d+)/, "$1_$2"),
+    f.replace(/(\D+)(\d+)/, "$1-$2"),
   ];
 
   for (const key of direct) {
     if (row[key] !== undefined) return row[key];
   }
 
-  const lower = f.toLowerCase();
-  const extra = [
-    lower.replace("ai", "a"),
-    lower.replace("ao", "a"),
-    lower.replace("di", "d"),
-    lower.replace("do", "d"),
-    `ai_${lower.replace("ai", "")}`,
-    `di_${lower.replace("di", "")}`,
-    `do_${lower.replace("do", "")}`,
-    `ao_${lower.replace("ao", "")}`,
-  ];
+  if (/^di\d+$/.test(f)) {
+    const n = f.replace("di", "");
+    const extra = [`in${n}`, `IN${n}`, `in_${n}`, `IN_${n}`, `in-${n}`, `IN-${n}`];
+    for (const key of extra) {
+      if (row[key] !== undefined) return row[key];
+    }
+  }
 
-  for (const key of extra) {
-    if (row[key] !== undefined) return row[key];
-    if (row[key.toUpperCase()] !== undefined) return row[key.toUpperCase()];
+  if (/^do\d+$/.test(f)) {
+    const n = f.replace("do", "");
+    const extra = [
+      `out${n}`,
+      `OUT${n}`,
+      `out_${n}`,
+      `OUT_${n}`,
+      `out-${n}`,
+      `OUT-${n}`,
+    ];
+    for (const key of extra) {
+      if (row[key] !== undefined) return row[key];
+    }
+  }
+
+  if (/^ai\d+$/.test(f)) {
+    const n = f.replace("ai", "");
+    const extra = [
+      `a${n}`,
+      `A${n}`,
+      `analog${n}`,
+      `ANALOG${n}`,
+      `ai_${n}`,
+      `AI_${n}`,
+      `ai-${n}`,
+      `AI-${n}`,
+    ];
+    for (const key of extra) {
+      if (row[key] !== undefined) return row[key];
+    }
+  }
+
+  if (/^ao\d+$/.test(f)) {
+    const n = f.replace("ao", "");
+    const extra = [`ao_${n}`, `AO_${n}`, `ao-${n}`, `AO-${n}`];
+    for (const key of extra) {
+      if (row[key] !== undefined) return row[key];
+    }
   }
 
   return null;
@@ -142,14 +197,7 @@ function DashboardIdsOverlayBadge({
   if (!deviceId && !field) return null;
 
   const statusText = String(deviceStatus || "OFFLINE");
-
-  const tagText = String(field || "—")
-    .trim()
-    .toUpperCase()
-    .replace(/^AI(\d+)$/, "AI-$1")
-    .replace(/^DI(\d+)$/, "DI-$1")
-    .replace(/^DO(\d+)$/, "DO-$1")
-    .replace(/^AO(\d+)$/, "AO-$1");
+  const tagText = prettyTagField(field);
 
   return (
     <div
@@ -178,7 +226,6 @@ function DashboardIdsOverlayBadge({
     </div>
   );
 }
-
 
 export default function DashboardCanvasWidgetLayer({
   droppedTanks,
@@ -243,26 +290,16 @@ export default function DashboardCanvasWidgetLayer({
 
       const model = getBoundModel(tank, "zhc1921");
       const deviceId = getBoundDeviceId(tank);
-      const deviceName = getDeviceName(tank);
       const field = getBoundField(tank, fallbackField);
       const row = getTelemetryRow(telemetryMap, model, deviceId);
-
-      const isVisibleValue =
-        tank?.visible ??
-        tank?.properties?.visible ??
-        tank?.isVisible ??
-        tank?.properties?.isVisible ??
-        true;
 
       return (
         <DashboardIdsOverlayBadge
           visible={showDashboardIdsDetails}
           deviceId={deviceId}
-          deviceName={deviceName}
           deviceStatus={row?.status || "offline"}
           field={field}
           value={getTelemetryValue(row, field)}
-          isVisibleValue={isVisibleValue}
         />
       );
     },
