@@ -45,8 +45,19 @@ export default function DraggableDroppedTank({
     [setNodeRef]
   );
 
-  const isImage = tank?.shape === "img";
-  const maxForThisWidget = isImage ? IMAGE_SCALE_MAX : SCALE_MAX;
+  const shape = String(tank?.shape || "").trim();
+const isImage = shape === "img";
+
+let minForThisWidget = SCALE_MIN;
+let maxForThisWidget = isImage ? IMAGE_SCALE_MAX : SCALE_MAX;
+
+if (shape === "toggleSwitch" || shape === "toggleControl") {
+  minForThisWidget = 0.75;
+}
+
+if (shape === "gaugeDisplay") {
+  minForThisWidget = 0.25;
+}
 
   const isToggle =
     tank?.shape === "toggleSwitch" || tank?.shape === "toggleControl";
@@ -76,7 +87,7 @@ export default function DraggableDroppedTank({
         // clamp the incoming scale request
         const mult = Math.min(
           maxForThisWidget,
-          Math.max(SCALE_MIN, scaleValueRaw)
+          Math.max(minForThisWidget, scaleValueRaw)
         );
 
         // ✅ KEY FIX:
@@ -185,7 +196,7 @@ export default function DraggableDroppedTank({
 
       const nextScale = Math.min(
         maxForThisWidget,
-        Math.max(SCALE_MIN, rawNext)
+        Math.max(minForThisWidget, rawNext)
       );
 
       resizeScaleRef.current = nextScale;
