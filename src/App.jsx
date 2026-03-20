@@ -72,6 +72,13 @@ export default function App() {
   // ⭐ DASHBOARD MODE — DEFAULT EDIT
   const [dashboardMode, setDashboardMode] = useState("edit");
 
+  // ✅ NEW: IDs Details global state from RightPanel
+  const [dashboardIdsDetailsState, setDashboardIdsDetailsState] = useState({
+    enabled: false,
+    dashboardId: "",
+    dashboardName: "",
+  });
+
   const resetToGuestState = () => {
     setDroppedTanks([]);
     setSelectedTank(null);
@@ -80,6 +87,11 @@ export default function App() {
     setActivePage("home");
     setActiveSubPage(null);
     setSubPageColor("");
+    setDashboardIdsDetailsState({
+      enabled: false,
+      dashboardId: "",
+      dashboardName: "",
+    });
   };
 
   const resetForUserChange = (newUserKey, oldUserKey) => {
@@ -97,6 +109,11 @@ export default function App() {
     setActivePage("home");
     setActiveSubPage(null);
     setSubPageColor("");
+    setDashboardIdsDetailsState({
+      enabled: false,
+      dashboardId: "",
+      dashboardName: "",
+    });
   };
 
   const { currentUserKey, handleLogout } = useAuthController({
@@ -180,6 +197,18 @@ export default function App() {
     const id = String(activeDashboard?.dashboardId || "").trim();
     return id || null;
   }, [activeDashboard]);
+
+  // ✅ NEW: only active dashboard receives the IDs Details signal
+  const showDashboardIdsDetailsForActiveCanvas = useMemo(() => {
+    const activeDash = String(effectiveDashboardId || "").trim();
+    const detailsDash = String(
+      dashboardIdsDetailsState?.dashboardId || ""
+    ).trim();
+
+    return Boolean(
+      dashboardIdsDetailsState?.enabled && activeDash && detailsDash === activeDash
+    );
+  }, [dashboardIdsDetailsState, effectiveDashboardId]);
 
   // ===============================
   // ✅ Delete hook (UI + backend for counters)
@@ -318,37 +347,37 @@ export default function App() {
     setPushButtonNCSettingsId(null);
   };
 
-    const {
-  alarmLogOpen,
-  alarmLogMinimized,
-  alarmLogWindowRow,
-  openAlarmLog,
-  closeAlarmLog,
-  minimizeAlarmLog,
-  restoreAlarmLog,
-} = useAlarmLogWindowState({
-  apiUrl: API_URL,
-  dashboardId: effectiveDashboardId,
-  dashboardName: String(activeDashboard?.dashboardName || "").trim(), // ✅ NEW
-  activePage,
-  currentUserKey,
-  defaultTitle: "Alarms Log (DI-AI)",
-  defaultPosition: { x: 140, y: 90 },
-  defaultSize: { width: 900, height: 420 },
-});
+  const {
+    alarmLogOpen,
+    alarmLogMinimized,
+    alarmLogWindowRow,
+    openAlarmLog,
+    closeAlarmLog,
+    minimizeAlarmLog,
+    restoreAlarmLog,
+  } = useAlarmLogWindowState({
+    apiUrl: API_URL,
+    dashboardId: effectiveDashboardId,
+    dashboardName: String(activeDashboard?.dashboardName || "").trim(), // ✅ NEW
+    activePage,
+    currentUserKey,
+    defaultTitle: "Alarms Log (DI-AI)",
+    defaultPosition: { x: 140, y: 90 },
+    defaultSize: { width: 900, height: 420 },
+  });
 
   // Launch = separate window (always tracking alarms)
   const launchAlarmLog = (payload = {}) => {
-  const qs = new URLSearchParams({
-    dashboardId: String(payload?.dashboardId || effectiveDashboardId || "main"),
-    dashboardName: String(
-      payload?.dashboardName || activeDashboard?.dashboardName || ""
-    ),
-    windowKey: String(payload?.windowKey || "alarmLog"),
-  });
+    const qs = new URLSearchParams({
+      dashboardId: String(payload?.dashboardId || effectiveDashboardId || "main"),
+      dashboardName: String(
+        payload?.dashboardName || activeDashboard?.dashboardName || ""
+      ),
+      windowKey: String(payload?.windowKey || "alarmLog"),
+    });
 
-  window.open(`/launchAlarmLog?${qs.toString()}`, "_blank");
-};
+    window.open(`/launchAlarmLog?${qs.toString()}`, "_blank");
+  };
 
   // SENSOR SETUP
   const sensors = useSensors(
@@ -658,6 +687,7 @@ export default function App() {
             onSaveProject={handleSaveProject}
             telemetryMap={telemetryMap}
             sensorsData={sensorsData}
+            showDashboardIdsDetails={showDashboardIdsDetailsForActiveCanvas}
           />
         ) : activePage === "deviceControls" ? (
           <div className="w-full h-full border rounded-lg bg-white p-6">
@@ -727,20 +757,23 @@ export default function App() {
       </main>
 
       <RightPanel
-  isRightCollapsed={isRightCollapsed}
-  setIsRightCollapsed={setIsRightCollapsed}
-  dashboardMode={dashboardMode}
-  onOpenAlarmLog={openAlarmLog}
-
-  // ✅ real active dashboard context
-  dashboardId={String(effectiveDashboardId || "").trim()}
-  dashboardName={String(activeDashboard?.dashboardName || "").trim()}
-
-  // ✅ Alarm Log can open only when dashboard canvas is actually active
-  isDashboardOpenOnCanvas={
-    activePage === "dashboard" && !!String(effectiveDashboardId || "").trim()
-  }
-/>
+        isRightCollapsed={isRightCollapsed}
+        setIsRightCollapsed={setIsRightCollapsed}
+        dashboardMode={dashboardMode}
+        onOpenAlarmLog={openAlarmLog}
+        dashboardId={String(effectiveDashboardId || "").trim()}
+        dashboardName={String(activeDashboard?.dashboardName || "").trim()}
+        isDashboardOpenOnCanvas={
+          activePage === "dashboard" && !!String(effectiveDashboardId || "").trim()
+        }
+        onOpenDashboardIdsDetails={(payload = {}) => {
+          setDashboardIdsDetailsState({
+            enabled: !!payload?.enabled,
+            dashboardId: String(payload?.dashboardId || "").trim(),
+            dashboardName: String(payload?.dashboardName || "").trim(),
+          });
+        }}
+      />
     </div>
   );
 }
