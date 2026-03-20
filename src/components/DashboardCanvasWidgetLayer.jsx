@@ -30,6 +30,8 @@ function getBoundModel(tank, fallback = "") {
       tank?.properties?.bindModel ||
       tank?.deviceModel ||
       tank?.properties?.deviceModel ||
+      tank?.model ||
+      tank?.properties?.model ||
       fallback
   )
     .trim()
@@ -42,6 +44,10 @@ function getBoundDeviceId(tank) {
       tank?.properties?.bindDeviceId ||
       tank?.deviceId ||
       tank?.properties?.deviceId ||
+      tank?.selectedDeviceId ||
+      tank?.properties?.selectedDeviceId ||
+      tank?.properties?.device_id ||
+      tank?.device_id ||
       ""
   ).trim();
 }
@@ -52,6 +58,10 @@ function getBoundField(tank, fallback = "") {
       tank?.properties?.bindField ||
       tank?.tag ||
       tank?.properties?.tag ||
+      tank?.selectedTag ||
+      tank?.properties?.selectedTag ||
+      tank?.field ||
+      tank?.properties?.field ||
       fallback
   ).trim();
 }
@@ -79,6 +89,23 @@ function getTelemetryValue(row, field) {
     if (row[key] !== undefined) return row[key];
   }
 
+  const lower = f.toLowerCase();
+  const extra = [
+    lower.replace("ai", "a"),
+    lower.replace("ao", "a"),
+    lower.replace("di", "d"),
+    lower.replace("do", "d"),
+    `ai_${lower.replace("ai", "")}`,
+    `di_${lower.replace("di", "")}`,
+    `do_${lower.replace("do", "")}`,
+    `ao_${lower.replace("ao", "")}`,
+  ];
+
+  for (const key of extra) {
+    if (row[key] !== undefined) return row[key];
+    if (row[key.toUpperCase()] !== undefined) return row[key.toUpperCase()];
+  }
+
   return null;
 }
 
@@ -96,30 +123,34 @@ function DashboardIdsOverlayBadge({
   value,
 }) {
   if (!visible) return null;
-  if (!deviceId || !field) return null;
+  if (!deviceId && !field) return null;
 
   return (
     <div
       style={{
         position: "absolute",
-        left: 0,
-        top: -44,
+        left: 4,
+        top: 4,
         background: "#000",
         color: "#fff",
         borderRadius: 6,
-        padding: "6px 8px",
+        padding: "5px 7px",
         fontSize: 10,
         fontWeight: 700,
-        lineHeight: 1.25,
+        lineHeight: 1.2,
         whiteSpace: "nowrap",
         pointerEvents: "none",
         zIndex: 999999,
         boxShadow: "0 6px 16px rgba(0,0,0,0.28)",
         border: "1px solid rgba(255,255,255,0.18)",
+        maxWidth: "calc(100% - 8px)",
+        overflow: "hidden",
+        textOverflow: "ellipsis",
       }}
+      title={`${deviceId}-${String(deviceStatus || "OFFLINE").toUpperCase()}-${field}-${formatOverlayValue(value)}`}
     >
-      {deviceId}-{String(deviceStatus || "OFFLINE").toUpperCase()}-{field}-
-      {formatOverlayValue(value)}
+      {deviceId || "—"}-{String(deviceStatus || "OFFLINE").toUpperCase()}-
+      {field || "—"}-{formatOverlayValue(value)}
     </div>
   );
 }
@@ -172,22 +203,12 @@ export default function DashboardCanvasWidgetLayer({
     (tank, fallbackField = "") => {
       if (!showDashboardIdsDetails) return false;
 
-      const currentDash = String(dashboardIdsDetailsDashboardId || "").trim();
-      const tankDash = String(
-        tank?.dashboard_id ||
-          tank?.dashboardId ||
-          tank?.properties?.dashboard_id ||
-          tank?.properties?.dashboardId ||
-          ""
-      ).trim();
-
-      if (currentDash && tankDash && currentDash !== tankDash) return false;
-
       const deviceId = getBoundDeviceId(tank);
       const field = getBoundField(tank, fallbackField);
-      return Boolean(deviceId && field);
+
+      return Boolean(deviceId || field);
     },
-    [showDashboardIdsDetails, dashboardIdsDetailsDashboardId]
+    [showDashboardIdsDetails]
   );
 
   const renderTelemetryOverlay = React.useCallback(
@@ -201,7 +222,7 @@ export default function DashboardCanvasWidgetLayer({
 
       return (
         <DashboardIdsOverlayBadge
-          visible
+          visible={showDashboardIdsDetails}
           deviceId={deviceId}
           deviceStatus={row?.status || "offline"}
           field={field}
@@ -209,7 +230,17 @@ export default function DashboardCanvasWidgetLayer({
         />
       );
     },
-    [shouldShowIdsOverlay, telemetryMap]
+    [shouldShowIdsOverlay, telemetryMap, showDashboardIdsDetails]
+  );
+
+  const wrapWithOverlay = React.useCallback(
+    (tank, child, fallbackField = "") => (
+      <div style={{ position: "relative", overflow: "visible" }}>
+        {renderTelemetryOverlay(tank, fallbackField)}
+        {child}
+      </div>
+    ),
+    [renderTelemetryOverlay]
   );
 
   return (Array.isArray(droppedTanks) ? droppedTanks : [])
@@ -262,10 +293,7 @@ export default function DashboardCanvasWidgetLayer({
               if (!isPlay) onOpenDisplaySettings?.(tank);
             }}
           >
-            <div style={{ position: "relative" }}>
-              {renderTelemetryOverlay(tank)}
-              <DraggableDisplayBox tank={tank} />
-            </div>
+            {wrapWithOverlay(tank, <DraggableDisplayBox tank={tank} />)}
           </DraggableDroppedTank>
         );
       }
@@ -278,14 +306,14 @@ export default function DashboardCanvasWidgetLayer({
               if (!isPlay) onOpenDisplaySettings?.(tank);
             }}
           >
-            <div style={{ position: "relative" }}>
-              {renderTelemetryOverlay(tank)}
+            {wrapWithOverlay(
+              tank,
               <DisplayOutputTextBoxStyle
                 tank={tank}
                 isPlay={isPlay}
                 onUpdate={commonProps.onUpdate}
               />
-            </div>
+            )}
           </DraggableDroppedTank>
         );
       }
@@ -299,7 +327,6 @@ export default function DashboardCanvasWidgetLayer({
         const field = getBoundField(tank, "ai1");
 
         const row = getTelemetryRow(telemetryMap, model, deviceId);
-
         const rawValue = getTelemetryValue(row, field);
 
         const numericValue =
@@ -316,8 +343,8 @@ export default function DashboardCanvasWidgetLayer({
               if (!isPlay) onOpenGaugeDisplaySettings?.(tank);
             }}
           >
-            <div style={{ position: "relative" }}>
-              {renderTelemetryOverlay(tank, "ai1")}
+            {wrapWithOverlay(
+              tank,
               <GaugeDisplay
                 value={Number.isFinite(numericValue) ? numericValue : 0}
                 width={w}
@@ -326,15 +353,16 @@ export default function DashboardCanvasWidgetLayer({
                   ...tank,
                   ...(tank.properties || {}),
                 }}
-              />
-            </div>
+              />,
+              "ai1"
+            )}
           </DraggableDroppedTank>
         );
       }
 
       if (tank.shape === "graphicDisplay") {
         return (
-          <div key={tank.id} style={{ position: "relative" }}>
+          <div key={tank.id} style={{ position: "relative", overflow: "visible" }}>
             {renderTelemetryOverlay(tank)}
             <DraggableGraphicDisplay
               tank={tank}
@@ -411,8 +439,8 @@ export default function DashboardCanvasWidgetLayer({
 
         return (
           <DraggableDroppedTank {...commonProps}>
-            <div style={{ position: "relative" }}>
-              {renderTelemetryOverlay(tank)}
+            {wrapWithOverlay(
+              tank,
               <ToggleSwitchControl
                 isOn={isOn}
                 width={w}
@@ -425,7 +453,7 @@ export default function DashboardCanvasWidgetLayer({
                 dashboardName={resolvedDashboardName}
                 onSaveProject={onSaveProject}
               />
-            </div>
+            )}
           </DraggableDroppedTank>
         );
       }
@@ -449,8 +477,8 @@ export default function DashboardCanvasWidgetLayer({
               if (!isPlay) onOpenPushButtonNOSettings?.(tank);
             }}
           >
-            <div style={{ position: "relative" }}>
-              {renderTelemetryOverlay(tank)}
+            {wrapWithOverlay(
+              tank,
               <PushButtonControl
                 variant="NO"
                 width={w}
@@ -463,7 +491,7 @@ export default function DashboardCanvasWidgetLayer({
                 dashboardId={resolvedDash}
                 dashboardName={resolvedDashboardName}
               />
-            </div>
+            )}
           </DraggableDroppedTank>
         );
       }
@@ -487,8 +515,8 @@ export default function DashboardCanvasWidgetLayer({
               if (!isPlay) onOpenPushButtonNCSettings?.(tank);
             }}
           >
-            <div style={{ position: "relative" }}>
-              {renderTelemetryOverlay(tank)}
+            {wrapWithOverlay(
+              tank,
               <PushButtonControl
                 variant="NC"
                 width={w}
@@ -501,7 +529,7 @@ export default function DashboardCanvasWidgetLayer({
                 dashboardId={resolvedDash}
                 dashboardName={resolvedDashboardName}
               />
-            </div>
+            )}
           </DraggableDroppedTank>
         );
       }
@@ -517,14 +545,16 @@ export default function DashboardCanvasWidgetLayer({
               }
             }}
           >
-            <div className="flex flex-col items-center" style={{ position: "relative" }}>
-              {renderTelemetryOverlay(tank)}
-              <DraggableStandardTank
-                tank={tank}
-                isPlay={isPlay}
-                telemetryMap={telemetryMap}
-              />
-            </div>
+            {wrapWithOverlay(
+              tank,
+              <div className="flex flex-col items-center">
+                <DraggableStandardTank
+                  tank={tank}
+                  isPlay={isPlay}
+                  telemetryMap={telemetryMap}
+                />
+              </div>
+            )}
           </DraggableDroppedTank>
         );
       }
@@ -540,15 +570,17 @@ export default function DashboardCanvasWidgetLayer({
               }
             }}
           >
-            <div className="flex flex-col items-center" style={{ position: "relative" }}>
-              {renderTelemetryOverlay(tank)}
-              <DraggableHorizontalTank
-                tank={tank}
-                onChange={(nextTank) => commonProps.onUpdate?.(nextTank)}
-                isPlay={isPlay}
-                telemetryMap={telemetryMap}
-              />
-            </div>
+            {wrapWithOverlay(
+              tank,
+              <div className="flex flex-col items-center">
+                <DraggableHorizontalTank
+                  tank={tank}
+                  onChange={(nextTank) => commonProps.onUpdate?.(nextTank)}
+                  isPlay={isPlay}
+                  telemetryMap={telemetryMap}
+                />
+              </div>
+            )}
           </DraggableDroppedTank>
         );
       }
@@ -564,14 +596,16 @@ export default function DashboardCanvasWidgetLayer({
               }
             }}
           >
-            <div className="flex flex-col items-center" style={{ position: "relative" }}>
-              {renderTelemetryOverlay(tank)}
-              <DraggableVerticalTank
-                tank={tank}
-                isPlay={isPlay}
-                telemetryMap={telemetryMap}
-              />
-            </div>
+            {wrapWithOverlay(
+              tank,
+              <div className="flex flex-col items-center">
+                <DraggableVerticalTank
+                  tank={tank}
+                  isPlay={isPlay}
+                  telemetryMap={telemetryMap}
+                />
+              </div>
+            )}
           </DraggableDroppedTank>
         );
       }
@@ -587,14 +621,16 @@ export default function DashboardCanvasWidgetLayer({
               }
             }}
           >
-            <div className="flex flex-col items-center" style={{ position: "relative" }}>
-              {renderTelemetryOverlay(tank)}
-              <DraggableSiloTank
-                tank={tank}
-                isPlay={isPlay}
-                telemetryMap={telemetryMap}
-              />
-            </div>
+            {wrapWithOverlay(
+              tank,
+              <div className="flex flex-col items-center">
+                <DraggableSiloTank
+                  tank={tank}
+                  isPlay={isPlay}
+                  telemetryMap={telemetryMap}
+                />
+              </div>
+            )}
           </DraggableDroppedTank>
         );
       }
@@ -619,14 +655,14 @@ export default function DashboardCanvasWidgetLayer({
               if (!isPlay) onOpenIndicatorSettings?.(tank);
             }}
           >
-            <div style={{ position: "relative" }}>
-              {renderTelemetryOverlay(tank)}
+            {wrapWithOverlay(
+              tank,
               <DraggableLedCircle
                 tank={tank}
                 isPlay={isPlay}
                 telemetryMap={telemetryMap}
               />
-            </div>
+            )}
           </DraggableDroppedTank>
         );
       }
@@ -639,8 +675,8 @@ export default function DashboardCanvasWidgetLayer({
               if (!isPlay) onOpenStatusTextSettings?.(tank);
             }}
           >
-            <div style={{ position: "relative" }}>
-              {renderTelemetryOverlay(tank)}
+            {wrapWithOverlay(
+              tank,
               <DraggableStatusTextBox
                 tank={tank}
                 isPlay={isPlay}
@@ -648,7 +684,7 @@ export default function DashboardCanvasWidgetLayer({
                 telemetryMap={telemetryMap}
                 sensorsData={sensorsData}
               />
-            </div>
+            )}
           </DraggableDroppedTank>
         );
       }
@@ -661,15 +697,15 @@ export default function DashboardCanvasWidgetLayer({
               if (!isPlay) onOpenBlinkingAlarmSettings?.(tank);
             }}
           >
-            <div style={{ position: "relative" }}>
-              {renderTelemetryOverlay(tank)}
+            {wrapWithOverlay(
+              tank,
               <DraggableBlinkingAlarm
                 tank={tank}
                 isPlay={isPlay}
                 telemetryMap={telemetryMap}
                 sensorsData={sensorsData}
               />
-            </div>
+            )}
           </DraggableDroppedTank>
         );
       }
@@ -682,15 +718,15 @@ export default function DashboardCanvasWidgetLayer({
               if (!isPlay) onOpenStateImageSettings?.(tank);
             }}
           >
-            <div style={{ position: "relative" }}>
-              {renderTelemetryOverlay(tank)}
+            {wrapWithOverlay(
+              tank,
               <DraggableStateImage
                 tank={tank}
                 isPlay={isPlay}
                 telemetryMap={telemetryMap}
                 sensorsData={sensorsData}
               />
-            </div>
+            )}
           </DraggableDroppedTank>
         );
       }
@@ -710,8 +746,8 @@ export default function DashboardCanvasWidgetLayer({
               if (!isPlay) onOpenCounterInputSettings?.(tank);
             }}
           >
-            <div style={{ position: "relative" }}>
-              {renderTelemetryOverlay(tank)}
+            {wrapWithOverlay(
+              tank,
               <DraggableCounterInput
                 variant="canvas"
                 label="Counter"
@@ -732,7 +768,7 @@ export default function DashboardCanvasWidgetLayer({
                   }
                 }}
               />
-            </div>
+            )}
           </DraggableDroppedTank>
         );
       }
