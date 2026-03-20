@@ -164,15 +164,37 @@ export default function DraggableDroppedTank({
       return;
     }
 
-    // ✅ Existing: bake image scale into baseW
-    if (!isImage) return;
+    // ✅ bake image scale into baseW so new size becomes 1:1
+    if (isImage) {
+      const baseW = Number(tank?.baseW || IMAGE_BASE_W_DEFAULT);
+      const nextBaseW = Math.max(20, Math.round(baseW * currentScale));
 
-    const baseW = Number(tank?.baseW || IMAGE_BASE_W_DEFAULT);
-    const nextBaseW = Math.max(20, Math.round(baseW * currentScale));
+      onUpdate?.({
+        ...tank,
+        baseW: nextBaseW,
+        scale: 1,
+      });
+      return;
+    }
+
+    // ✅ NEW: for all other widgets, commit resized visual size as new base 1:1
+    const baseW =
+      Number(tank?.w ?? tank?.width ?? tank?.measuredW ?? 100) || 100;
+
+    const baseH =
+      Number(tank?.h ?? tank?.height ?? tank?.measuredH ?? 100) || 100;
+
+    const nextW = Math.max(20, Math.round(baseW * currentScale));
+    const nextH = Math.max(20, Math.round(baseH * currentScale));
 
     onUpdate?.({
       ...tank,
-      baseW: nextBaseW,
+      w: nextW,
+      h: nextH,
+      width: nextW,
+      height: nextH,
+      measuredW: nextW,
+      measuredH: nextH,
       scale: 1,
     });
   }, [isImage, isToggle, tank, onUpdate]);
