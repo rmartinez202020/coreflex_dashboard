@@ -154,6 +154,7 @@ export default function DraggableSiloTank({
   }, [isPlay, hasBinding, telemetryMap, bindModel, bindDeviceId]);
 
   const backendStatus = String(telemetryRow?.status || "").trim().toLowerCase();
+  const deviceIsOffline = isPlay && hasBinding && backendStatus === "offline";
   const deviceIsOnline = backendStatus ? backendStatus === "online" : true;
 
   const liveValue = useMemo(() => {
@@ -198,7 +199,7 @@ export default function DraggableSiloTank({
     return String(Math.round(n));
   }, [hasBinding, isPlay, deviceIsOnline, outputValue]);
 
-  const showPercent = isPlay;
+  const showPercent = isPlay && !deviceIsOffline;
 
   return (
     <div style={{ textAlign: "center", pointerEvents: "none" }}>
@@ -216,7 +217,7 @@ export default function DraggableSiloTank({
         </div>
       ) : null}
 
-      <div style={{ display: "inline-block" }}>
+      <div style={{ display: "inline-block", position: "relative" }}>
         {/* ✅ SMALLER SIZE */}
         <div style={{ width: `${100 * scale}px`, height: `${170 * scale}px` }}>
           <SiloTank
@@ -232,6 +233,33 @@ export default function DraggableSiloTank({
             bottomTextColor="#111827"
           />
         </div>
+
+        {/* ✅ OFFLINE text only in PLAY mode, centered inside tank body */}
+        {deviceIsOffline && (
+          <div
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: `${58 * scale}px`,
+              transform: "translate(-50%, -50%)",
+              width: `${42 * scale}px`,
+              maxWidth: `${42 * scale}px`,
+              color: "#dc2626",
+              fontWeight: 500,
+              fontSize: `${8.5 * scale}px`,
+              lineHeight: 1.05,
+              letterSpacing: "0px",
+              textAlign: "center",
+              whiteSpace: "normal",
+              wordBreak: "break-word",
+              overflowWrap: "break-word",
+              pointerEvents: "none",
+              userSelect: "none",
+            }}
+          >
+            Offline
+          </div>
+        )}
       </div>
     </div>
   );
