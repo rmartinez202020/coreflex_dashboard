@@ -558,11 +558,11 @@ export default function ToggleSwitchControl({
   const showOverlay =
     play && hasBinding && (isOffline || isStartupLocked || isManualCooldown);
 
-  const showOfflineText = isOffline;
-
-  const showOccupiedText = !isOffline && banner.kind === "occupied";
-  const showSuccessText = !isOffline && banner.kind === "success";
-  const showErrorText = !isOffline && banner.kind === "error";
+  // ✅ ONLY show status banners in PLAY / LAUNCH, never in EDIT
+  const showOfflineText = play && isOffline;
+  const showOccupiedText = play && !isOffline && banner.kind === "occupied";
+  const showSuccessText = play && !isOffline && banner.kind === "success";
+  const showErrorText = play && !isOffline && banner.kind === "error";
 
   return (
     <>
@@ -702,7 +702,7 @@ export default function ToggleSwitchControl({
           </div>
         </div>
 
-        {/* ✅ OFFLINE text under toggle */}
+        {/* ✅ OFFLINE text under toggle (PLAY / LAUNCH ONLY) */}
         {showOfflineText && (
           <div
             style={{
