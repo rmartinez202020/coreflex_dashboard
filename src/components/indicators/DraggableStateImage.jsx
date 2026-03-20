@@ -16,31 +16,116 @@ function to01(v) {
   return v ? 1 : 0;
 }
 
-// ✅ Read tag from backend row (same logic as modal)
+// ✅ Normalize tag names like DO-1 / do_1 / DO1 -> do1
+function normalizeTagField(field) {
+  const raw = String(field || "").trim();
+  if (!raw) return "";
+
+  const s = raw.toLowerCase().replace(/[\s_-]+/g, "");
+
+  if (/^di\d+$/.test(s)) return s;
+  if (/^do\d+$/.test(s)) return s;
+  if (/^ai\d+$/.test(s)) return s;
+  if (/^ao\d+$/.test(s)) return s;
+
+  return s;
+}
+
+// ✅ Pretty label for debug/title only
+function prettyTagField(field) {
+  const f = normalizeTagField(field);
+  if (!f) return "—";
+
+  return f
+    .toUpperCase()
+    .replace(/^AI(\d+)$/, "AI-$1")
+    .replace(/^AO(\d+)$/, "AO-$1")
+    .replace(/^DI(\d+)$/, "DI-$1")
+    .replace(/^DO(\d+)$/, "DO-$1");
+}
+
+// ✅ Read tag from backend row (robust)
 function readTagFromRow(row, field) {
   if (!row || !field) return undefined;
 
-  if (row[field] !== undefined) return row[field];
+  const normalized = normalizeTagField(field);
+  if (!normalized) return undefined;
 
-  const up = String(field).toUpperCase();
-  if (row[up] !== undefined) return row[up];
+  const candidates = [
+    normalized,
+    normalized.toUpperCase(),
+    normalized.replace(/(\D+)(\d+)/, "$1_$2"),
+    normalized.replace(/(\D+)(\d+)/, "$1-$2"),
+  ];
 
-  // di1..di6 -> in1..in6
-  if (/^di[1-6]$/.test(field)) {
-    const n = field.replace("di", "");
-    const alt = `in${n}`;
-    if (row[alt] !== undefined) return row[alt];
-    const altUp = `IN${n}`;
-    if (row[altUp] !== undefined) return row[altUp];
+  for (const key of candidates) {
+    if (row[key] !== undefined) return row[key];
   }
 
-  // do1..do4 -> out1..out4
-  if (/^do[1-4]$/.test(field)) {
-    const n = field.replace("do", "");
+  // di1..diN -> in1..inN
+  if (/^di\d+$/.test(normalized)) {
+    const n = normalized.replace("di", "");
+    const alt = `in${n}`;
+    const altCandidates = [
+      alt,
+      alt.toUpperCase(),
+      `in_${n}`,
+      `IN_${n}`,
+      `in-${n}`,
+      `IN-${n}`,
+    ];
+    for (const key of altCandidates) {
+      if (row[key] !== undefined) return row[key];
+    }
+  }
+
+  // do1..doN -> out1..outN
+  if (/^do\d+$/.test(normalized)) {
+    const n = normalized.replace("do", "");
     const alt = `out${n}`;
-    if (row[alt] !== undefined) return row[alt];
-    const altUp = `OUT${n}`;
-    if (row[altUp] !== undefined) return row[altUp];
+    const altCandidates = [
+      alt,
+      alt.toUpperCase(),
+      `out_${n}`,
+      `OUT_${n}`,
+      `out-${n}`,
+      `OUT-${n}`,
+    ];
+    for (const key of altCandidates) {
+      if (row[key] !== undefined) return row[key];
+    }
+  }
+
+  // ai1..aiN -> a1..aN / analog1
+  if (/^ai\d+$/.test(normalized)) {
+    const n = normalized.replace("ai", "");
+    const altCandidates = [
+      `a${n}`,
+      `A${n}`,
+      `analog${n}`,
+      `ANALOG${n}`,
+      `ai_${n}`,
+      `AI_${n}`,
+      `ai-${n}`,
+      `AI-${n}`,
+    ];
+    for (const key of altCandidates) {
+      if (row[key] !== undefined) return row[key];
+    }
+  }
+
+  // ao1..aoN
+  if (/^ao\d+$/.test(normalized)) {
+    const n = normalized.replace("ao", "");
+    const altCandidates = [
+      `ao_${n}`,
+      `AO_${n}`,
+      `ao-${n}`,
+      `AO-${n}`,
+    ];
+    for (const key of altCandidates) {
+      if (row[key] !== undefined) return row[key];
+    }
   }
 
   return undefined;
@@ -52,7 +137,7 @@ function getTelemetryRow(telemetryMap, model, deviceId) {
   const id = String(deviceId || "").trim();
   if (!telemetryMap || !id) return null;
 
-  const m = String(model || "").trim();
+  const m = String(model || "").trim().toLowerCase();
   if (m && telemetryMap?.[m]?.[id]) return telemetryMap[m][id];
 
   for (const mk of Object.keys(telemetryMap || {})) {
@@ -76,6 +161,7 @@ function getTelemetryRow(telemetryMap, model, deviceId) {
  * - ✅ NO internal polling
  * - ✅ Uses shared telemetryMap from useDashboardTelemetryPoller (common poller)
  * - Live state changes ONLY in Play/Launch (isPlay=true)
+ * - ✅ Fixed DO-1 / DI-1 / AI-2 normalization
  */
 export default function DraggableStateImage({
   // Canvas mode
@@ -114,16 +200,19 @@ export default function DraggableStateImage({
     const h = tank.h ?? tank.height ?? payload.h;
 
     // ✅ images (prefer properties)
-    const offImage = tank.properties?.offImage ?? tank.offImage ?? payload.offImage;
+    const offImage =
+      tank.properties?.offImage ?? tank.offImage ?? payload.offImage;
     const onImage = tank.properties?.onImage ?? tank.onImage ?? payload.onImage;
 
-    const imageFit = tank.properties?.imageFit ?? tank.imageFit ?? payload.imageFit;
+    const imageFit =
+      tank.properties?.imageFit ?? tank.imageFit ?? payload.imageFit;
 
     // ✅ tag binding (model/device/field)
     const tag = tank?.properties?.tag || tank?.tag || {};
-    const tagModel = String(tag?.model || "").trim();
+    const tagModel = String(tag?.model || "").trim().toLowerCase();
     const tagDeviceId = String(tag?.deviceId || "").trim();
     const tagField = String(tag?.field || "").trim();
+    const normalizedTagField = normalizeTagField(tagField);
 
     // ✅ EDIT MODE SHOULD NOT CHANGE:
     const savedIsOn = tank?.properties?.isOn ?? tank?.isOn ?? payload.isOn;
@@ -131,25 +220,33 @@ export default function DraggableStateImage({
     // =========================
     // ✅ LIVE READ (NO FETCH) — from telemetryMap
     // =========================
-    const telemetryRow = isPlay ? getTelemetryRow(telemetryMap, tagModel, tagDeviceId) : null;
+    const telemetryRow = isPlay
+      ? getTelemetryRow(telemetryMap, tagModel, tagDeviceId)
+      : null;
 
-    const backendStatus = String(telemetryRow?.status || "").trim().toLowerCase();
+    const backendStatus = String(telemetryRow?.status || "")
+      .trim()
+      .toLowerCase();
+
     const deviceIsOnline = backendStatus ? backendStatus === "online" : true;
 
     const rawValueFromTelemetry =
-      telemetryRow && tagField ? readTagFromRow(telemetryRow, tagField) : undefined;
+      telemetryRow && normalizedTagField
+        ? readTagFromRow(telemetryRow, normalizedTagField)
+        : undefined;
 
     // ✅ optional fallback: sensorsData (ONLY IN PLAY)
     const rawValue =
       rawValueFromTelemetry !== undefined
         ? rawValueFromTelemetry
         : isPlay
-        ? sensorsData?.values?.[tagDeviceId]?.[tagField]
+        ? sensorsData?.values?.[tagDeviceId]?.[normalizedTagField] ??
+          sensorsData?.values?.[tagDeviceId]?.[tagField]
         : undefined;
 
     const v01 = isPlay && deviceIsOnline ? to01(rawValue) : null;
 
-    const tagReady = !!(tagModel && tagDeviceId && tagField);
+    const tagReady = !!(tagModel && tagDeviceId && normalizedTagField);
     const liveIsOn = !!(tagReady && isPlay && deviceIsOnline && v01 === 1);
 
     // ✅ Final: freeze in edit, live in play
@@ -158,9 +255,13 @@ export default function DraggableStateImage({
     const imgSrc = isOn ? onImage : offImage;
     const showPlaceholder = !imgSrc;
 
-    const title = `StateImage | ${isOn ? "ON" : "OFF"} | ${tagModel || "—"}:${tagDeviceId || "—"}/${
-      tagField || "—"
-    } | row=${telemetryRow ? "YES" : "NO"} | status=${backendStatus || "—"} | v=${String(rawValue)}`;
+    const title = `StateImage | ${
+      isOn ? "ON" : "OFF"
+    } | ${tagModel || "—"}:${tagDeviceId || "—"}/${prettyTagField(
+      normalizedTagField
+    )} | row=${telemetryRow ? "YES" : "NO"} | status=${
+      backendStatus || "—"
+    } | v=${String(rawValue)}`;
 
     if (showPlaceholder) {
       return (
@@ -191,9 +292,15 @@ export default function DraggableStateImage({
                 boxShadow: "0 8px 18px rgba(0,0,0,0.10)",
               }}
             />
-            <div style={{ fontWeight: 1000, letterSpacing: 1 }}>STATE IMAGE</div>
-            <div style={{ fontSize: 12, marginTop: 6, opacity: 0.9 }}>{isOn ? "ON" : "OFF"}</div>
-            <div style={{ fontSize: 11, marginTop: 8, opacity: 0.75 }}>Double-click to setup</div>
+            <div style={{ fontWeight: 1000, letterSpacing: 1 }}>
+              STATE IMAGE
+            </div>
+            <div style={{ fontSize: 12, marginTop: 6, opacity: 0.9 }}>
+              {isOn ? "ON" : "OFF"}
+            </div>
+            <div style={{ fontSize: 11, marginTop: 8, opacity: 0.75 }}>
+              Double-click to setup
+            </div>
           </div>
         </div>
       );
