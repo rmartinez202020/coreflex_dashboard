@@ -212,21 +212,6 @@ export default function RadialBarGauge({
             </text>
           </>
         )}
-
-        {cfg.formula ? (
-          <text
-            x={cx}
-            y={outerH - 10}
-            fill={computed.formulaOk ? palette.label : "#ef4444"}
-            fontSize="10.5"
-            fontWeight="700"
-            textAnchor="middle"
-            dominantBaseline="middle"
-            style={{ userSelect: "none" }}
-          >
-            {computed.formulaOk ? `RAW ${computed.rawValue} → OUT ${displayValue}` : "FORMULA ERROR"}
-          </text>
-        ) : null}
       </svg>
     </div>
   );
