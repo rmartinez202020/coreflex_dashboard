@@ -134,25 +134,22 @@ function formatOverlayValue(value) {
 function DashboardIdsOverlayBadge({
   visible,
   deviceId,
-  deviceName,
   deviceStatus,
   field,
   value,
-  isVisibleValue,
 }) {
   if (!visible) return null;
-  if (!deviceId && !field && !deviceName) return null;
+  if (!deviceId && !field) return null;
 
-  const statusText = String(deviceStatus || "OFFLINE").toUpperCase();
+  const statusText = String(deviceStatus || "OFFLINE");
 
-  const titleText = [
-    `Device Id: ${deviceId || "—"}`,
-    `Device: ${deviceName || "—"}`,
-    `Status: ${statusText}`,
-    `Tag: ${field || "—"}`,
-    `Value: ${formatOverlayValue(value)}`,
-    `visible: ${String(isVisibleValue ?? true)}`,
-  ].join("\n");
+  const tagText = String(field || "—")
+    .trim()
+    .toUpperCase()
+    .replace(/^AI(\d+)$/, "AI-$1")
+    .replace(/^DI(\d+)$/, "DI-$1")
+    .replace(/^DO(\d+)$/, "DO-$1")
+    .replace(/^AO(\d+)$/, "AO-$1");
 
   return (
     <div
@@ -172,20 +169,16 @@ function DashboardIdsOverlayBadge({
         zIndex: 999999,
         boxShadow: "0 6px 16px rgba(0,0,0,0.28)",
         border: "1px solid rgba(255,255,255,0.18)",
-        minWidth: 150,
-        maxWidth: 240,
       }}
-      title={titleText}
     >
-      <div>Device Id: {deviceId || "—"}</div>
-      <div>Device: {deviceName || "—"}</div>
-      <div>Status: {statusText}</div>
-      <div>Tag: {field || "—"}</div>
-      <div>Value: {formatOverlayValue(value)}</div>
-      <div>visible: {String(isVisibleValue ?? true)}</div>
+      <div>{deviceId}</div>
+      <div>{statusText}</div>
+      <div>{tagText}</div>
+      <div>{`Value=${formatOverlayValue(value)}`}</div>
     </div>
   );
 }
+
 
 export default function DashboardCanvasWidgetLayer({
   droppedTanks,
