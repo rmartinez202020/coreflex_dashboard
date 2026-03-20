@@ -229,28 +229,31 @@ export default function DraggableVerticalTank({
           />
         </div>
 
-        {/* ✅ OFFLINE text only in PLAY mode, centered where the X appears */}
         {deviceIsOffline && (
-          <div
-            style={{
-              position: "absolute",
-              left: "50%",
-              top: `${34 * scale}px`,
-              transform: "translate(-50%, -50%)",
-              color: "#dc2626",
-              fontWeight: 800,
-              fontSize: `${14 * scale}px`,
-              lineHeight: 1,
-              letterSpacing: "0.2px",
-              textAlign: "center",
-              whiteSpace: "nowrap",
-              pointerEvents: "none",
-              userSelect: "none",
-            }}
-          >
-            Offline
-          </div>
-        )}
+  <div
+    style={{
+      position: "absolute",
+      left: "50%",
+      top: `${34 * scale}px`,
+      transform: "translate(-50%, -50%)",
+      width: `${42 * scale}px`,     // ✅ keep text inside tank body
+      maxWidth: `${42 * scale}px`,
+      color: "#dc2626",
+      fontWeight: 500,              // ✅ not bold
+      fontSize: `${8.5 * scale}px`, // ✅ smaller so it fits inside
+      lineHeight: 1.05,
+      letterSpacing: "0px",
+      textAlign: "center",
+      whiteSpace: "normal",         // ✅ allow wrap
+      wordBreak: "break-word",
+      overflowWrap: "break-word",
+      pointerEvents: "none",
+      userSelect: "none",
+    }}
+  >
+    Offline
+  </div>
+)}
       </div>
     </div>
   );
