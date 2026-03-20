@@ -160,14 +160,14 @@ function getTelemetryRow(telemetryMap, model, deviceId) {
  * ✅ UPDATED:
  * - ✅ NO internal polling
  * - ✅ Uses shared telemetryMap from useDashboardTelemetryPoller (common poller)
- * - Live state changes ONLY in Play/Launch (isPlay=true)
+ * - ✅ Live state now works in BOTH edit and play
  * - ✅ Fixed DO-1 / DI-1 / AI-2 normalization
  */
 export default function DraggableStateImage({
   // Canvas mode
   tank,
-  telemetryMap = null, // ✅ NEW: common poller data
-  sensorsData, // optional fallback (USED ONLY IN PLAY)
+  telemetryMap = null,
+  sensorsData,
   isPlay = false,
 
   // Palette mode
@@ -179,16 +179,10 @@ export default function DraggableStateImage({
     shape: "stateImage",
     w: 160,
     h: 160,
-
-    // default state
     isOn: false,
-
-    // images saved in properties
     offImage: "",
     onImage: "",
-    imageFit: "contain", // contain|cover
-
-    // tag binding includes model too
+    imageFit: "contain",
     tag: { model: "zhc1921", deviceId: "", field: "" },
   };
 
@@ -214,15 +208,13 @@ export default function DraggableStateImage({
     const tagField = String(tag?.field || "").trim();
     const normalizedTagField = normalizeTagField(tagField);
 
-    // ✅ EDIT MODE SHOULD NOT CHANGE:
+    // ✅ saved state fallback
     const savedIsOn = tank?.properties?.isOn ?? tank?.isOn ?? payload.isOn;
 
     // =========================
-    // ✅ LIVE READ (NO FETCH) — from telemetryMap
+    // ✅ LIVE READ (NO FETCH) — from telemetryMap in BOTH edit + play
     // =========================
-    const telemetryRow = isPlay
-      ? getTelemetryRow(telemetryMap, tagModel, tagDeviceId)
-      : null;
+    const telemetryRow = getTelemetryRow(telemetryMap, tagModel, tagDeviceId);
 
     const backendStatus = String(telemetryRow?.status || "")
       .trim()
@@ -235,22 +227,20 @@ export default function DraggableStateImage({
         ? readTagFromRow(telemetryRow, normalizedTagField)
         : undefined;
 
-    // ✅ optional fallback: sensorsData (ONLY IN PLAY)
+    // ✅ optional fallback: sensorsData
     const rawValue =
       rawValueFromTelemetry !== undefined
         ? rawValueFromTelemetry
-        : isPlay
-        ? sensorsData?.values?.[tagDeviceId]?.[normalizedTagField] ??
-          sensorsData?.values?.[tagDeviceId]?.[tagField]
-        : undefined;
+        : sensorsData?.values?.[tagDeviceId]?.[normalizedTagField] ??
+          sensorsData?.values?.[tagDeviceId]?.[tagField];
 
-    const v01 = isPlay && deviceIsOnline ? to01(rawValue) : null;
+    const v01 = deviceIsOnline ? to01(rawValue) : null;
 
     const tagReady = !!(tagModel && tagDeviceId && normalizedTagField);
-    const liveIsOn = !!(tagReady && isPlay && deviceIsOnline && v01 === 1);
 
-    // ✅ Final: freeze in edit, live in play
-    const isOn = isPlay ? liveIsOn : !!savedIsOn;
+    // ✅ use live whenever we actually have a real bound value
+    const hasLiveState = !!(tagReady && deviceIsOnline && v01 !== null);
+    const isOn = hasLiveState ? v01 === 1 : !!savedIsOn;
 
     const imgSrc = isOn ? onImage : offImage;
     const showPlaceholder = !imgSrc;
