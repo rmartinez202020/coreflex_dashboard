@@ -24,6 +24,106 @@ import {
 } from "./indicators";
 import GaugeDisplay from "./gauge/GaugeDisplay";
 
+function getBoundModel(tank, fallback = "") {
+  return String(
+    tank?.bindModel ||
+      tank?.properties?.bindModel ||
+      tank?.deviceModel ||
+      tank?.properties?.deviceModel ||
+      fallback
+  )
+    .trim()
+    .toLowerCase();
+}
+
+function getBoundDeviceId(tank) {
+  return String(
+    tank?.bindDeviceId ||
+      tank?.properties?.bindDeviceId ||
+      tank?.deviceId ||
+      tank?.properties?.deviceId ||
+      ""
+  ).trim();
+}
+
+function getBoundField(tank, fallback = "") {
+  return String(
+    tank?.bindField ||
+      tank?.properties?.bindField ||
+      tank?.tag ||
+      tank?.properties?.tag ||
+      fallback
+  ).trim();
+}
+
+function getTelemetryRow(telemetryMap, model, deviceId) {
+  if (!deviceId) return null;
+  return telemetryMap?.[model]?.[deviceId] || telemetryMap?.[deviceId] || null;
+}
+
+function getTelemetryValue(row, field) {
+  if (!row || !field) return null;
+
+  const f = String(field || "").trim();
+  if (!f) return null;
+
+  const direct = [
+    f,
+    f.toLowerCase(),
+    f.toUpperCase(),
+    f.replace("-", "_"),
+    f.replace("_", "-"),
+  ];
+
+  for (const key of direct) {
+    if (row[key] !== undefined) return row[key];
+  }
+
+  return null;
+}
+
+function formatOverlayValue(value) {
+  if (value === null || value === undefined || value === "") return "—";
+  if (typeof value === "number" && Number.isFinite(value)) return String(value);
+  return String(value);
+}
+
+function DashboardIdsOverlayBadge({
+  visible,
+  deviceId,
+  deviceStatus,
+  field,
+  value,
+}) {
+  if (!visible) return null;
+  if (!deviceId || !field) return null;
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: 0,
+        top: -44,
+        background: "#000",
+        color: "#fff",
+        borderRadius: 6,
+        padding: "6px 8px",
+        fontSize: 10,
+        fontWeight: 700,
+        lineHeight: 1.25,
+        whiteSpace: "nowrap",
+        pointerEvents: "none",
+        zIndex: 999999,
+        boxShadow: "0 6px 16px rgba(0,0,0,0.28)",
+        border: "1px solid rgba(255,255,255,0.18)",
+      }}
+    >
+      {deviceId}-{String(deviceStatus || "OFFLINE").toUpperCase()}-{field}-
+      {formatOverlayValue(value)}
+    </div>
+  );
+}
+
 export default function DashboardCanvasWidgetLayer({
   droppedTanks,
   selectedIds,
@@ -63,8 +163,54 @@ export default function DashboardCanvasWidgetLayer({
   setActiveSiloId,
   setShowSiloProps,
   getTankZ,
+  showDashboardIdsDetails = false,
+  dashboardIdsDetailsDashboardId = "",
 }) {
   const resolvedDashboardName = String(dashboardName || "").trim();
+
+  const shouldShowIdsOverlay = React.useCallback(
+    (tank, fallbackField = "") => {
+      if (!showDashboardIdsDetails) return false;
+
+      const currentDash = String(dashboardIdsDetailsDashboardId || "").trim();
+      const tankDash = String(
+        tank?.dashboard_id ||
+          tank?.dashboardId ||
+          tank?.properties?.dashboard_id ||
+          tank?.properties?.dashboardId ||
+          ""
+      ).trim();
+
+      if (currentDash && tankDash && currentDash !== tankDash) return false;
+
+      const deviceId = getBoundDeviceId(tank);
+      const field = getBoundField(tank, fallbackField);
+      return Boolean(deviceId && field);
+    },
+    [showDashboardIdsDetails, dashboardIdsDetailsDashboardId]
+  );
+
+  const renderTelemetryOverlay = React.useCallback(
+    (tank, fallbackField = "") => {
+      if (!shouldShowIdsOverlay(tank, fallbackField)) return null;
+
+      const model = getBoundModel(tank, "zhc1921");
+      const deviceId = getBoundDeviceId(tank);
+      const field = getBoundField(tank, fallbackField);
+      const row = getTelemetryRow(telemetryMap, model, deviceId);
+
+      return (
+        <DashboardIdsOverlayBadge
+          visible
+          deviceId={deviceId}
+          deviceStatus={row?.status || "offline"}
+          field={field}
+          value={getTelemetryValue(row, field)}
+        />
+      );
+    },
+    [shouldShowIdsOverlay, telemetryMap]
+  );
 
   return (Array.isArray(droppedTanks) ? droppedTanks : [])
     .slice()
@@ -116,7 +262,10 @@ export default function DashboardCanvasWidgetLayer({
               if (!isPlay) onOpenDisplaySettings?.(tank);
             }}
           >
-            <DraggableDisplayBox tank={tank} />
+            <div style={{ position: "relative" }}>
+              {renderTelemetryOverlay(tank)}
+              <DraggableDisplayBox tank={tank} />
+            </div>
           </DraggableDroppedTank>
         );
       }
@@ -129,11 +278,14 @@ export default function DashboardCanvasWidgetLayer({
               if (!isPlay) onOpenDisplaySettings?.(tank);
             }}
           >
-            <DisplayOutputTextBoxStyle
-              tank={tank}
-              isPlay={isPlay}
-              onUpdate={commonProps.onUpdate}
-            />
+            <div style={{ position: "relative" }}>
+              {renderTelemetryOverlay(tank)}
+              <DisplayOutputTextBoxStyle
+                tank={tank}
+                isPlay={isPlay}
+                onUpdate={commonProps.onUpdate}
+              />
+            </div>
           </DraggableDroppedTank>
         );
       }
@@ -142,25 +294,13 @@ export default function DashboardCanvasWidgetLayer({
         const w = tank.w ?? tank.width ?? 220;
         const h = tank.h ?? tank.height ?? 220;
 
-        const model = String(
-          tank?.bindModel || tank?.properties?.bindModel || "zhc1921"
-        )
-          .trim()
-          .toLowerCase();
+        const model = getBoundModel(tank, "zhc1921");
+        const deviceId = getBoundDeviceId(tank);
+        const field = getBoundField(tank, "ai1");
 
-        const deviceId = String(
-          tank?.bindDeviceId || tank?.properties?.bindDeviceId || ""
-        ).trim();
+        const row = getTelemetryRow(telemetryMap, model, deviceId);
 
-        const field = String(
-          tank?.bindField || tank?.properties?.bindField || "ai1"
-        ).trim();
-
-        const row =
-          telemetryMap?.[model]?.[deviceId] || telemetryMap?.[deviceId] || null;
-
-        const rawValue =
-          row?.[field] ?? row?.[field.toUpperCase?.() || field] ?? null;
+        const rawValue = getTelemetryValue(row, field);
 
         const numericValue =
           rawValue === null || rawValue === undefined || rawValue === ""
@@ -176,39 +316,44 @@ export default function DashboardCanvasWidgetLayer({
               if (!isPlay) onOpenGaugeDisplaySettings?.(tank);
             }}
           >
-            <GaugeDisplay
-              value={Number.isFinite(numericValue) ? numericValue : 0}
-              width={w}
-              height={h}
-              settings={{
-                ...tank,
-                ...(tank.properties || {}),
-              }}
-            />
+            <div style={{ position: "relative" }}>
+              {renderTelemetryOverlay(tank, "ai1")}
+              <GaugeDisplay
+                value={Number.isFinite(numericValue) ? numericValue : 0}
+                width={w}
+                height={h}
+                settings={{
+                  ...tank,
+                  ...(tank.properties || {}),
+                }}
+              />
+            </div>
           </DraggableDroppedTank>
         );
       }
 
       if (tank.shape === "graphicDisplay") {
         return (
-          <DraggableGraphicDisplay
-            key={tank.id}
-            tank={tank}
-            telemetryMap={telemetryMap}
-            selected={isSelected && !isPlay}
-            selectedIds={selectedIds}
-            dragDelta={dragDelta}
-            dashboardMode={dashboardMode}
-            onSelect={handleObjectSelect}
-            onUpdate={commonProps.onUpdate}
-            onRightClick={(e) => handleRightClick?.(e, tank)}
-            onOpenSettings={() => {
-              if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
-            }}
-            onDoubleClick={() => {
-              if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
-            }}
-          />
+          <div key={tank.id} style={{ position: "relative" }}>
+            {renderTelemetryOverlay(tank)}
+            <DraggableGraphicDisplay
+              tank={tank}
+              telemetryMap={telemetryMap}
+              selected={isSelected && !isPlay}
+              selectedIds={selectedIds}
+              dragDelta={dragDelta}
+              dashboardMode={dashboardMode}
+              onSelect={handleObjectSelect}
+              onUpdate={commonProps.onUpdate}
+              onRightClick={(e) => handleRightClick?.(e, tank)}
+              onOpenSettings={() => {
+                if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
+              }}
+              onDoubleClick={() => {
+                if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
+              }}
+            />
+          </div>
         );
       }
 
@@ -266,18 +411,21 @@ export default function DashboardCanvasWidgetLayer({
 
         return (
           <DraggableDroppedTank {...commonProps}>
-            <ToggleSwitchControl
-              isOn={isOn}
-              width={w}
-              height={h}
-              isLaunched={isPlay}
-              visualOnly={false}
-              widget={tank}
-              onSaveWidget={commonProps.onUpdate}
-              dashboardId={resolvedDash}
-              dashboardName={resolvedDashboardName}
-              onSaveProject={onSaveProject}
-            />
+            <div style={{ position: "relative" }}>
+              {renderTelemetryOverlay(tank)}
+              <ToggleSwitchControl
+                isOn={isOn}
+                width={w}
+                height={h}
+                isLaunched={isPlay}
+                visualOnly={false}
+                widget={tank}
+                onSaveWidget={commonProps.onUpdate}
+                dashboardId={resolvedDash}
+                dashboardName={resolvedDashboardName}
+                onSaveProject={onSaveProject}
+              />
+            </div>
           </DraggableDroppedTank>
         );
       }
@@ -301,18 +449,21 @@ export default function DashboardCanvasWidgetLayer({
               if (!isPlay) onOpenPushButtonNOSettings?.(tank);
             }}
           >
-            <PushButtonControl
-              variant="NO"
-              width={w}
-              height={h}
-              pressed={pressed}
-              title={tank?.properties?.title || ""}
-              isLaunched={isPlay}
-              visualOnly={false}
-              widget={tank}
-              dashboardId={resolvedDash}
-              dashboardName={resolvedDashboardName}
-            />
+            <div style={{ position: "relative" }}>
+              {renderTelemetryOverlay(tank)}
+              <PushButtonControl
+                variant="NO"
+                width={w}
+                height={h}
+                pressed={pressed}
+                title={tank?.properties?.title || ""}
+                isLaunched={isPlay}
+                visualOnly={false}
+                widget={tank}
+                dashboardId={resolvedDash}
+                dashboardName={resolvedDashboardName}
+              />
+            </div>
           </DraggableDroppedTank>
         );
       }
@@ -336,18 +487,21 @@ export default function DashboardCanvasWidgetLayer({
               if (!isPlay) onOpenPushButtonNCSettings?.(tank);
             }}
           >
-            <PushButtonControl
-              variant="NC"
-              width={w}
-              height={h}
-              pressed={pressed}
-              title={tank?.properties?.title || ""}
-              isLaunched={isPlay}
-              visualOnly={false}
-              widget={tank}
-              dashboardId={resolvedDash}
-              dashboardName={resolvedDashboardName}
-            />
+            <div style={{ position: "relative" }}>
+              {renderTelemetryOverlay(tank)}
+              <PushButtonControl
+                variant="NC"
+                width={w}
+                height={h}
+                pressed={pressed}
+                title={tank?.properties?.title || ""}
+                isLaunched={isPlay}
+                visualOnly={false}
+                widget={tank}
+                dashboardId={resolvedDash}
+                dashboardName={resolvedDashboardName}
+              />
+            </div>
           </DraggableDroppedTank>
         );
       }
@@ -363,7 +517,8 @@ export default function DashboardCanvasWidgetLayer({
               }
             }}
           >
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center" style={{ position: "relative" }}>
+              {renderTelemetryOverlay(tank)}
               <DraggableStandardTank
                 tank={tank}
                 isPlay={isPlay}
@@ -385,7 +540,8 @@ export default function DashboardCanvasWidgetLayer({
               }
             }}
           >
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center" style={{ position: "relative" }}>
+              {renderTelemetryOverlay(tank)}
               <DraggableHorizontalTank
                 tank={tank}
                 onChange={(nextTank) => commonProps.onUpdate?.(nextTank)}
@@ -408,7 +564,8 @@ export default function DashboardCanvasWidgetLayer({
               }
             }}
           >
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center" style={{ position: "relative" }}>
+              {renderTelemetryOverlay(tank)}
               <DraggableVerticalTank
                 tank={tank}
                 isPlay={isPlay}
@@ -430,7 +587,8 @@ export default function DashboardCanvasWidgetLayer({
               }
             }}
           >
-            <div className="flex flex-col items-center">
+            <div className="flex flex-col items-center" style={{ position: "relative" }}>
+              {renderTelemetryOverlay(tank)}
               <DraggableSiloTank
                 tank={tank}
                 isPlay={isPlay}
@@ -461,11 +619,14 @@ export default function DashboardCanvasWidgetLayer({
               if (!isPlay) onOpenIndicatorSettings?.(tank);
             }}
           >
-            <DraggableLedCircle
-              tank={tank}
-              isPlay={isPlay}
-              telemetryMap={telemetryMap}
-            />
+            <div style={{ position: "relative" }}>
+              {renderTelemetryOverlay(tank)}
+              <DraggableLedCircle
+                tank={tank}
+                isPlay={isPlay}
+                telemetryMap={telemetryMap}
+              />
+            </div>
           </DraggableDroppedTank>
         );
       }
@@ -478,13 +639,16 @@ export default function DashboardCanvasWidgetLayer({
               if (!isPlay) onOpenStatusTextSettings?.(tank);
             }}
           >
-            <DraggableStatusTextBox
-              tank={tank}
-              isPlay={isPlay}
-              dashboardMode={dashboardMode}
-              telemetryMap={telemetryMap}
-              sensorsData={sensorsData}
-            />
+            <div style={{ position: "relative" }}>
+              {renderTelemetryOverlay(tank)}
+              <DraggableStatusTextBox
+                tank={tank}
+                isPlay={isPlay}
+                dashboardMode={dashboardMode}
+                telemetryMap={telemetryMap}
+                sensorsData={sensorsData}
+              />
+            </div>
           </DraggableDroppedTank>
         );
       }
@@ -497,12 +661,15 @@ export default function DashboardCanvasWidgetLayer({
               if (!isPlay) onOpenBlinkingAlarmSettings?.(tank);
             }}
           >
-            <DraggableBlinkingAlarm
-              tank={tank}
-              isPlay={isPlay}
-              telemetryMap={telemetryMap}
-              sensorsData={sensorsData}
-            />
+            <div style={{ position: "relative" }}>
+              {renderTelemetryOverlay(tank)}
+              <DraggableBlinkingAlarm
+                tank={tank}
+                isPlay={isPlay}
+                telemetryMap={telemetryMap}
+                sensorsData={sensorsData}
+              />
+            </div>
           </DraggableDroppedTank>
         );
       }
@@ -515,12 +682,15 @@ export default function DashboardCanvasWidgetLayer({
               if (!isPlay) onOpenStateImageSettings?.(tank);
             }}
           >
-            <DraggableStateImage
-              tank={tank}
-              isPlay={isPlay}
-              telemetryMap={telemetryMap}
-              sensorsData={sensorsData}
-            />
+            <div style={{ position: "relative" }}>
+              {renderTelemetryOverlay(tank)}
+              <DraggableStateImage
+                tank={tank}
+                isPlay={isPlay}
+                telemetryMap={telemetryMap}
+                sensorsData={sensorsData}
+              />
+            </div>
           </DraggableDroppedTank>
         );
       }
@@ -540,26 +710,29 @@ export default function DashboardCanvasWidgetLayer({
               if (!isPlay) onOpenCounterInputSettings?.(tank);
             }}
           >
-            <DraggableCounterInput
-              variant="canvas"
-              label="Counter"
-              tank={tank}
-              id={tank.id}
-              dashboardId={resolvedDash}
-              dashboardMode={dashboardMode}
-              onReset={async (widgetId) => {
-                if (!isPlay) return;
-                try {
-                  await resetCounterOnBackend({
-                    widgetId,
-                    dash: resolvedDash,
-                  });
-                } catch (e) {
-                  console.error("Reset failed:", e);
-                  alert(e?.message || "Reset failed");
-                }
-              }}
-            />
+            <div style={{ position: "relative" }}>
+              {renderTelemetryOverlay(tank)}
+              <DraggableCounterInput
+                variant="canvas"
+                label="Counter"
+                tank={tank}
+                id={tank.id}
+                dashboardId={resolvedDash}
+                dashboardMode={dashboardMode}
+                onReset={async (widgetId) => {
+                  if (!isPlay) return;
+                  try {
+                    await resetCounterOnBackend({
+                      widgetId,
+                      dash: resolvedDash,
+                    });
+                  } catch (e) {
+                    console.error("Reset failed:", e);
+                    alert(e?.message || "Reset failed");
+                  }
+                }}
+              />
+            </div>
           </DraggableDroppedTank>
         );
       }

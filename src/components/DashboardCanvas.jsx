@@ -130,8 +130,31 @@ export default function DashboardCanvas({
   dashboardName,
   onOpenPushButtonNOSettings,
   onOpenPushButtonNCSettings,
+
+  // ✅ NEW: IDs Details overlay toggle from parent/sidebar
+  showDashboardIdsDetails = false,
 }) {
   const isPlay = dashboardMode === "play" || dashboardMode === "launch";
+
+  // =====================================================
+  // ✅ Resolve current dashboard once
+  // =====================================================
+  const resolvedDashboardIdValue = React.useMemo(() => {
+    return resolveDashboardId({
+      activeDashboardId,
+      dashboardId,
+      selectedTank,
+      droppedTanks,
+    });
+  }, [activeDashboardId, dashboardId, selectedTank, droppedTanks]);
+
+  // =====================================================
+  // ✅ Only active dashboard should show IDs Details overlay
+  // =====================================================
+  const shouldShowDashboardIdsDetails = React.useMemo(() => {
+    const dash = String(resolvedDashboardIdValue || "").trim();
+    return Boolean(showDashboardIdsDetails && dash);
+  }, [showDashboardIdsDetails, resolvedDashboardIdValue]);
 
   // =====================================================
   // ✅ Ctrl/Cmd + click multi-select handler (EDIT only)
@@ -492,6 +515,8 @@ export default function DashboardCanvas({
           setActiveSiloId={setActiveSiloId}
           setShowSiloProps={setShowSiloProps}
           getTankZ={getTankZ}
+          showDashboardIdsDetails={shouldShowDashboardIdsDetails}
+          dashboardIdsDetailsDashboardId={resolvedDashboardIdValue}
         />
 
         {!isPlay && selectionBox && (
