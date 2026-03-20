@@ -190,6 +190,7 @@ export default function DraggableHorizontalTank({
   }, [isPlay, hasBinding, telemetryMap, bindModel, bindDeviceId]);
 
   const backendStatus = String(telemetryRow?.status || "").trim().toLowerCase();
+  const deviceIsOffline = isPlay && hasBinding && backendStatus === "offline";
   const deviceIsOnline = backendStatus ? backendStatus === "online" : true;
 
   // ✅ Live analog only in play
@@ -232,14 +233,15 @@ export default function DraggableHorizontalTank({
   const levelPercent = isPlay ? levelPercentLive : 0;
 
   const percentText = `${Math.round(levelPercent)}%`;
-  const showPercentText = isPlay; // ✅ hide % in edit mode for a "blank" tank
+  const showPercentText = isPlay && !deviceIsOffline; // ✅ hide % when offline too
 
   const bottomValueText = useMemo(() => {
     if (!hasBinding) return "--";
     if (!isPlay) return "--";
     if (!deviceIsOnline) return "--";
 
-    if (typeof outputValue === "string") return String(outputValue || "").trim() || "--";
+    if (typeof outputValue === "string")
+      return String(outputValue || "").trim() || "--";
     return formatOutputNoTrailingZeros(outputValue, 2);
   }, [hasBinding, isPlay, deviceIsOnline, outputValue]);
 
@@ -319,6 +321,7 @@ export default function DraggableHorizontalTank({
             alignItems: "center",
             justifyContent: "center",
             pointerEvents: "none",
+            position: "relative",
           }}
         >
           <div style={{ width: "100%", height: "100%" }}>
@@ -333,6 +336,33 @@ export default function DraggableHorizontalTank({
               pointerEvents="none"
             />
           </div>
+
+          {/* ✅ OFFLINE text only in PLAY mode, centered inside tank body */}
+          {deviceIsOffline && (
+            <div
+              style={{
+                position: "absolute",
+                left: "50%",
+                top: `${h * 0.48}px`,
+                transform: "translate(-50%, -50%)",
+                width: `${Math.min(w * 0.34, 60 * scale)}px`,
+                maxWidth: `${Math.min(w * 0.34, 60 * scale)}px`,
+                color: "#dc2626",
+                fontWeight: 500,
+                fontSize: `${Math.max(8.5, 10 * scale)}px`,
+                lineHeight: 1.05,
+                letterSpacing: "0px",
+                textAlign: "center",
+                whiteSpace: "normal",
+                wordBreak: "break-word",
+                overflowWrap: "break-word",
+                pointerEvents: "none",
+                userSelect: "none",
+              }}
+            >
+              Offline
+            </div>
+          )}
         </div>
 
         <div
