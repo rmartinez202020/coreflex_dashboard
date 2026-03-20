@@ -149,6 +149,7 @@ export default function DraggableVerticalTank({
   }, [isPlay, hasBinding, telemetryMap, bindModel, bindDeviceId]);
 
   const backendStatus = String(telemetryRow?.status || "").trim().toLowerCase();
+  const deviceIsOffline = isPlay && hasBinding && backendStatus === "offline";
   const deviceIsOnline = backendStatus ? backendStatus === "online" : true;
 
   const liveValue = useMemo(() => {
@@ -193,7 +194,7 @@ export default function DraggableVerticalTank({
     return String(Math.round(n));
   }, [hasBinding, isPlay, deviceIsOnline, outputValue]);
 
-  const showPercentText = isPlay;
+  const showPercentText = isPlay && !deviceIsOffline;
 
   return (
     <div style={{ textAlign: "center", pointerEvents: "none" }}>
@@ -212,7 +213,7 @@ export default function DraggableVerticalTank({
       ) : null}
 
       {/* ✅ SMALLER SIZE */}
-      <div style={{ display: "inline-block" }}>
+      <div style={{ display: "inline-block", position: "relative" }}>
         <div style={{ width: `${70 * scale}px`, height: `${100 * scale}px` }}>
           <VerticalTank
             level={levelPct}
@@ -227,6 +228,29 @@ export default function DraggableVerticalTank({
             bottomTextColor="#111827"
           />
         </div>
+
+        {/* ✅ OFFLINE text only in PLAY mode, centered where the X appears */}
+        {deviceIsOffline && (
+          <div
+            style={{
+              position: "absolute",
+              left: "50%",
+              top: `${34 * scale}px`,
+              transform: "translate(-50%, -50%)",
+              color: "#dc2626",
+              fontWeight: 800,
+              fontSize: `${14 * scale}px`,
+              lineHeight: 1,
+              letterSpacing: "0.2px",
+              textAlign: "center",
+              whiteSpace: "nowrap",
+              pointerEvents: "none",
+              userSelect: "none",
+            }}
+          >
+            Offline
+          </div>
+        )}
       </div>
     </div>
   );
