@@ -58,6 +58,9 @@ export default function RightPanel({
 
   // ✅ Alarm Log opener (system window lives in AppModals / App layer)
   onOpenAlarmLog,
+
+  // ✅ NEW: callback back to App.jsx
+  onOpenDashboardIdsDetails,
 }) {
   // 🪟 WINDOW MANAGER (floating libraries)
   const wm = useWindowDragResize({
@@ -125,9 +128,23 @@ export default function RightPanel({
   React.useEffect(() => {
     if (!isDashboardOpenOnCanvas || !String(dashboardId || "").trim()) {
       setIsDashboardIdsDetailsOpen(false);
+
+      if (typeof onOpenDashboardIdsDetails === "function") {
+        onOpenDashboardIdsDetails({
+          enabled: false,
+          dashboardId: "",
+          dashboardName: "",
+        });
+      }
+
       return;
     }
-  }, [dashboardId, isDashboardOpenOnCanvas]);
+  }, [
+    dashboardId,
+    dashboardName,
+    isDashboardOpenOnCanvas,
+    onOpenDashboardIdsDetails,
+  ]);
 
   // ✅ Listen: "open IOTs Library to pick OFF/ON image"
   React.useEffect(() => {
@@ -169,24 +186,38 @@ export default function RightPanel({
 
   // ✅ NEW: visible toggle handler for RightSidebar
   const handleDashboardIdsDetailsToggle = React.useCallback(
-    ({ enabled, dashboardId: activeDashboardId, dashboardName: activeDashboardName }) => {
+    ({
+      enabled,
+      dashboardId: activeDashboardId,
+      dashboardName: activeDashboardName,
+    }) => {
+      const normalizedEnabled = Boolean(enabled);
       const normalizedDashboardId = String(activeDashboardId || "").trim();
       const normalizedDashboardName = String(activeDashboardName || "").trim();
 
-      setIsDashboardIdsDetailsOpen(Boolean(enabled));
+      setIsDashboardIdsDetailsOpen(normalizedEnabled);
 
-      // Notify the rest of the app/canvas layer
+      // ✅ Notify App.jsx directly
+      if (typeof onOpenDashboardIdsDetails === "function") {
+        onOpenDashboardIdsDetails({
+          enabled: normalizedEnabled,
+          dashboardId: normalizedDashboardId,
+          dashboardName: normalizedDashboardName,
+        });
+      }
+
+      // ✅ Keep window event too (backward compatibility)
       window.dispatchEvent(
         new CustomEvent("coreflex-dashboard-ids-details-toggle", {
           detail: {
-            enabled: Boolean(enabled),
+            enabled: normalizedEnabled,
             dashboardId: normalizedDashboardId,
             dashboardName: normalizedDashboardName,
           },
         })
       );
     },
-    []
+    [onOpenDashboardIdsDetails]
   );
 
   return (
