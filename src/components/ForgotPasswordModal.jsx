@@ -200,9 +200,7 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
       }
 
       if (!res.ok) {
-        throw new Error(
-          getErrorMessage(data, "Failed to reset password.")
-        );
+        throw new Error(getErrorMessage(data, "Failed to reset password."));
       }
 
       setMessage("✅ Password reset successfully. You can now log in.");
@@ -221,7 +219,7 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
 
   return (
     <div style={overlay}>
-      <div style={modal} onClick={(e) => e.stopPropagation()}>
+      <div style={card}>
         <h2 style={title}>CoreFlex IIoTs Platform</h2>
 
         {step === 1 && (
@@ -246,7 +244,7 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
             <button
               type="button"
               onClick={handleSendCode}
-              style={button}
+              style={primaryButton}
               disabled={loading}
             >
               {loading ? "Sending..." : "Send Temporary Code"}
@@ -313,7 +311,7 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
             <button
               type="button"
               onClick={handleResetPassword}
-              style={button}
+              style={primaryButton}
               disabled={loading}
             >
               {loading ? "Resetting..." : "Reset Password"}
@@ -337,13 +335,13 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
           </>
         )}
 
-        {message && <p style={successText}>{message}</p>}
-        {error && <p style={errorText}>{error}</p>}
+        {message && <div style={successBox}>{message}</div>}
+        {error && <div style={errorBox}>{error}</div>}
 
         <button
           type="button"
           onClick={handleClose}
-          style={closeBtn}
+          style={closeButton}
           disabled={loading}
         >
           Close
@@ -356,7 +354,7 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
 const overlay = {
   position: "fixed",
   inset: 0,
-  background: "rgba(0, 0, 0, 0.72)",
+  background: "rgba(0, 0, 0, 0.58)",
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
@@ -364,112 +362,123 @@ const overlay = {
   padding: "20px",
 };
 
-const modal = {
+const card = {
   width: "100%",
-  maxWidth: "400px",
-  background:
-    "linear-gradient(180deg, rgba(2,6,23,0.98) 0%, rgba(1,10,30,0.98) 100%)",
-  padding: "28px 30px 22px",
-  borderRadius: "16px",
+  maxWidth: "460px",
+  borderRadius: "22px",
+  border: "1px solid rgba(255,255,255,0.30)",
+  background: "rgba(255,255,255,0.30)",
+  backdropFilter: "blur(20px)",
+  WebkitBackdropFilter: "blur(20px)",
+  boxShadow: "0 24px 60px rgba(0,0,0,0.35)",
+  padding: "30px 32px 24px",
   textAlign: "center",
-  boxShadow:
-    "0 0 0 1px rgba(34,197,94,0.15), 0 0 26px rgba(34,197,94,0.18), 0 18px 50px rgba(0,0,0,0.48)",
-  border: "1px solid rgba(51, 65, 85, 0.9)",
 };
 
 const title = {
-  color: "#22c55e",
-  fontSize: "29px",
+  fontSize: "2.05rem",
   fontWeight: 800,
-  margin: "0 0 10px 0",
-  lineHeight: 1.1,
+  color: "#020617",
+  margin: "0 0 12px 0",
+  lineHeight: 1.08,
+  letterSpacing: "-0.02em",
 };
 
 const subtitle = {
-  color: "#d5dbe5",
-  margin: "0 0 18px 0",
+  color: "#1e293b",
   fontSize: "15px",
-  lineHeight: 1.45,
+  fontWeight: 600,
+  lineHeight: 1.5,
+  margin: "0 0 20px 0",
 };
 
 const fieldWrap = {
   textAlign: "left",
-  marginBottom: "12px",
+  marginBottom: "14px",
 };
 
 const label = {
   display: "block",
-  color: "#cbd5e1",
-  fontSize: "13px",
+  color: "#0f172a",
+  fontSize: "15px",
   fontWeight: 700,
-  marginBottom: "6px",
+  marginBottom: "8px",
 };
 
 const input = {
   width: "100%",
-  padding: "12px 14px",
-  borderRadius: "8px",
-  border: "1px solid #334155",
-  background: "#020617",
-  color: "#ffffff",
-  outline: "none",
-  fontSize: "15px",
+  border: "1px solid #cbd5e1",
+  borderRadius: "10px",
+  padding: "14px 16px",
+  fontSize: "16px",
+  color: "#0f172a",
+  background: "rgba(255,255,255,0.96)",
   boxSizing: "border-box",
+  outline: "none",
+  boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
 };
 
 const readOnlyInput = {
   ...input,
   background: "#e5e7eb",
-  color: "#111827",
-  border: "1px solid #cbd5e1",
+  color: "#334155",
   cursor: "default",
 };
 
-const button = {
+const primaryButton = {
   width: "100%",
-  padding: "12px",
-  background: "#22c55e",
+  padding: "14px",
+  borderRadius: "10px",
   border: "none",
-  borderRadius: "8px",
-  color: "#000000",
-  fontWeight: 800,
-  fontSize: "18px",
+  background: "#2563eb",
+  color: "#ffffff",
+  fontSize: "1.1rem",
+  fontWeight: 700,
   cursor: "pointer",
   marginTop: "4px",
+  boxShadow: "0 6px 18px rgba(37,99,235,0.28)",
 };
 
 const linkButton = {
-  marginTop: "10px",
+  marginTop: "12px",
   background: "transparent",
   border: "none",
-  color: "#60a5fa",
+  color: "#1d4ed8",
   cursor: "pointer",
   fontWeight: 700,
   fontSize: "14px",
 };
 
-const successText = {
-  color: "#22c55e",
-  marginTop: "12px",
-  fontWeight: 700,
+const successBox = {
+  marginTop: "14px",
+  background: "rgba(220,252,231,0.95)",
+  color: "#166534",
+  border: "1px solid #bbf7d0",
+  borderRadius: "10px",
+  padding: "10px 12px",
   fontSize: "14px",
+  fontWeight: 700,
 };
 
-const errorText = {
-  color: "#ff2b2b",
-  marginTop: "12px",
-  fontWeight: 700,
+const errorBox = {
+  marginTop: "14px",
+  background: "rgba(254,226,226,0.96)",
+  color: "#b91c1c",
+  border: "1px solid #fecaca",
+  borderRadius: "10px",
+  padding: "10px 12px",
   fontSize: "14px",
+  fontWeight: 700,
 };
 
-const closeBtn = {
+const closeButton = {
   marginTop: "14px",
   background: "transparent",
-  border: "1px solid #334155",
-  color: "#cbd5e1",
-  padding: "8px 16px",
-  borderRadius: "8px",
+  border: "1px solid rgba(15,23,42,0.18)",
+  color: "#0f172a",
+  padding: "9px 16px",
+  borderRadius: "10px",
   cursor: "pointer",
   fontSize: "14px",
-  fontWeight: 600,
+  fontWeight: 700,
 };
