@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import bgImage from "../assets/login_photo/satellite.jpg";
 import logoWhite from "../assets/coreflex-logo-white.png";
 import { API_URL } from "../config/api";
+import ForgotPasswordModal from "../components/ForgotPasswordModal";
 
 import { setToken, clearAuth } from "../utils/authToken";
 
@@ -32,7 +33,7 @@ export default function LoginPage() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
-  const [showResetInfo, setShowResetInfo] = useState(false);
+  const [showForgotModal, setShowForgotModal] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
 
   const blockedPhone = useMemo(() => {
@@ -305,29 +306,13 @@ export default function LoginPage() {
               </form>
 
               <div className="text-center text-slate-800 text-sm mt-5">
-                <div className="flex items-center justify-center gap-2">
-                  <span className="font-semibold">Forgot your password?</span>
-                  <button
-                    type="button"
-                    onClick={() => setShowResetInfo((prev) => !prev)}
-                    className="text-blue-700 hover:text-blue-800 font-semibold"
-                    title="How to reset password"
-                  >
-                    ℹ️
-                  </button>
-                </div>
-
-                {showResetInfo && (
-                  <div className="mt-3 text-slate-900 font-semibold">
-                    Request a Reset Password at{" "}
-                    <a
-                      href="mailto:info@coreflexiiotsplatform.com"
-                      className="text-blue-700 font-semibold hover:underline"
-                    >
-                      info@coreflexiiotsplatform.com
-                    </a>
-                  </div>
-                )}
+                <button
+                  type="button"
+                  onClick={() => setShowForgotModal(true)}
+                  className="font-semibold text-blue-700 hover:text-blue-800 hover:underline"
+                >
+                  Forgot your password?
+                </button>
               </div>
 
               <p className="text-center text-slate-800 text-sm mt-4 font-semibold">
@@ -343,6 +328,11 @@ export default function LoginPage() {
           )}
         </div>
       </div>
+
+      <ForgotPasswordModal
+        isOpen={showForgotModal}
+        onClose={() => setShowForgotModal(false)}
+      />
 
       <style>{`
         .data-stream {
