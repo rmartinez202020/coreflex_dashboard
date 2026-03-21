@@ -132,6 +132,10 @@ export default function LoginPage() {
 
   useEffect(() => {
     const onKeyDown = (e) => {
+      // ✅ IMPORTANT: while forgot-password modal is open,
+      // never let Enter submit the login form behind it
+      if (showForgotModal) return;
+
       if (e.key !== "Enter") return;
       if (loading) return;
       if (e.isComposing) return;
@@ -149,7 +153,7 @@ export default function LoginPage() {
 
     window.addEventListener("keydown", onKeyDown);
     return () => window.removeEventListener("keydown", onKeyDown);
-  }, [loading]);
+  }, [loading, showForgotModal]);
 
   return (
     <div

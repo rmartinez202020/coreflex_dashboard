@@ -1,5 +1,5 @@
 // src/components/ForgotPasswordModal.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import { API_URL } from "../config/api";
 
 export default function ForgotPasswordModal({ isOpen, onClose }) {
@@ -14,8 +14,16 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  // ✅ prevent old success timeout from closing a newly-opened modal
+  const closeTimerRef = useRef(null);
+
   useEffect(() => {
     if (!isOpen) {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+
       setStep(1);
       setEmail("");
       setCode("");
@@ -27,10 +35,25 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
     }
   }, [isOpen]);
 
+  useEffect(() => {
+    return () => {
+      if (closeTimerRef.current) {
+        clearTimeout(closeTimerRef.current);
+        closeTimerRef.current = null;
+      }
+    };
+  }, []);
+
   if (!isOpen) return null;
 
   const handleClose = () => {
     if (loading) return;
+
+    if (closeTimerRef.current) {
+      clearTimeout(closeTimerRef.current);
+      closeTimerRef.current = null;
+    }
+
     onClose?.();
   };
 
@@ -65,10 +88,14 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
       }
 
       setEmail(emailClean);
+      setCode("");
+      setNewPassword("");
+      setConfirmPassword("");
       setMessage(
         data?.message ||
           "If an account exists for this email, a temporary code has been sent."
       );
+      setError("");
       setStep(2);
     } catch (err) {
       setError(err?.message || "Failed to send code.");
@@ -142,7 +169,9 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
       setMessage("✅ Password reset successfully. You can now log in.");
       setError("");
 
-      setTimeout(() => {
+      // ✅ close only after a successful reset
+      closeTimerRef.current = setTimeout(() => {
+        closeTimerRef.current = null;
         onClose?.();
       }, 1600);
     } catch (err) {
@@ -153,7 +182,8 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
   };
 
   return (
-    <div style={overlay} onClick={handleClose}>
+    // ✅ removed outside-click close to avoid accidental closing
+    <div style={overlay}>
       <div style={modal} onClick={(e) => e.stopPropagation()}>
         <h2 style={title}>CoreFlex IIoTs Platform</h2>
 
@@ -176,7 +206,12 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
               />
             </div>
 
-            <button onClick={handleSendCode} style={button} disabled={loading}>
+            <button
+              type="button"
+              onClick={handleSendCode}
+              style={button}
+              disabled={loading}
+            >
               {loading ? "Sending..." : "Send Temporary Code"}
             </button>
           </>
@@ -239,6 +274,7 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
             </div>
 
             <button
+              type="button"
               onClick={handleResetPassword}
               style={button}
               disabled={loading}
@@ -267,7 +303,12 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
         {message && <p style={successText}>{message}</p>}
         {error && <p style={errorText}>{error}</p>}
 
-        <button onClick={handleClose} style={closeBtn} disabled={loading}>
+        <button
+          type="button"
+          onClick={handleClose}
+          style={closeBtn}
+          disabled={loading}
+        >
           Close
         </button>
       </div>
