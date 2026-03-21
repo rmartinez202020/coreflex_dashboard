@@ -1,5 +1,5 @@
 // src/components/ForgotPasswordModal.jsx
-import React, { useState } from "react";
+import React, { useEffect, useState } from "react";
 import { API_URL } from "../config/api";
 
 export default function ForgotPasswordModal({ isOpen, onClose }) {
@@ -8,14 +8,40 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
   const [email, setEmail] = useState("");
   const [code, setCode] = useState("");
   const [newPassword, setNewPassword] = useState("");
+  const [confirmPassword, setConfirmPassword] = useState("");
 
   const [loading, setLoading] = useState(false);
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
+  useEffect(() => {
+    if (!isOpen) {
+      setStep(1);
+      setEmail("");
+      setCode("");
+      setNewPassword("");
+      setConfirmPassword("");
+      setLoading(false);
+      setMessage("");
+      setError("");
+    }
+  }, [isOpen]);
+
   if (!isOpen) return null;
 
+  const handleClose = () => {
+    if (loading) return;
+    onClose?.();
+  };
+
   const handleSendCode = async () => {
+    const emailClean = String(email || "").trim().toLowerCase();
+
+    if (!emailClean) {
+      setError("Please enter your email address.");
+      return;
+    }
+
     setLoading(true);
     setError("");
     setMessage("");
@@ -24,21 +50,69 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
       const res = await fetch(`${API_URL}/auth/forgot-password`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: emailClean }),
       });
 
-      const data = await res.json();
+      let data = {};
+      try {
+        data = await res.json();
+      } catch {
+        data = {};
+      }
 
-      setMessage(data.message || "Code sent");
+      if (!res.ok) {
+        throw new Error(data?.detail || "Failed to send reset code.");
+      }
+
+      setEmail(emailClean);
+      setMessage(
+        data?.message ||
+          "If an account exists for this email, a temporary code has been sent."
+      );
       setStep(2);
     } catch (err) {
-      setError("Failed to send code");
+      setError(err?.message || "Failed to send code.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   const handleResetPassword = async () => {
+    const emailClean = String(email || "").trim().toLowerCase();
+    const codeClean = String(code || "").trim();
+    const newPass = String(newPassword || "");
+    const confirmPass = String(confirmPassword || "");
+
+    if (!emailClean) {
+      setError("Email is required.");
+      return;
+    }
+
+    if (!codeClean) {
+      setError("Please enter the reset code.");
+      return;
+    }
+
+    if (!newPass) {
+      setError("Please enter your new password.");
+      return;
+    }
+
+    if (newPass.length < 6) {
+      setError("New password must be at least 6 characters.");
+      return;
+    }
+
+    if (!confirmPass) {
+      setError("Please confirm your new password.");
+      return;
+    }
+
+    if (newPass !== confirmPass) {
+      setError("Passwords do not match.");
+      return;
+    }
+
     setLoading(true);
     setError("");
     setMessage("");
@@ -48,92 +122,152 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          email,
-          code,
-          new_password: newPassword,
+          email: emailClean,
+          code: codeClean,
+          new_password: newPass,
         }),
       });
 
-      const data = await res.json();
-
-      if (!res.ok) {
-        throw new Error(data.detail || "Error");
+      let data = {};
+      try {
+        data = await res.json();
+      } catch {
+        data = {};
       }
 
-      setMessage("✅ Password reset successfully");
+      if (!res.ok) {
+        throw new Error(data?.detail || data?.error || "Failed to reset password.");
+      }
+
+      setMessage("✅ Password reset successfully. You can now log in.");
+      setError("");
 
       setTimeout(() => {
-        onClose();
-        setStep(1);
-        setEmail("");
-        setCode("");
-        setNewPassword("");
-      }, 1500);
+        onClose?.();
+      }, 1600);
     } catch (err) {
-      setError(err.message || "Failed to reset password");
+      setError(err?.message || "Failed to reset password.");
+    } finally {
+      setLoading(false);
     }
-
-    setLoading(false);
   };
 
   return (
-    <div style={overlay}>
-      <div style={modal}>
-        <h2 style={{ color: "#22c55e" }}>
-          CoreFlex IIoTs Platform
-        </h2>
+    <div style={overlay} onClick={handleClose}>
+      <div style={modal} onClick={(e) => e.stopPropagation()}>
+        <h2 style={title}>CoreFlex IIoTs Platform</h2>
 
         {step === 1 && (
           <>
-            <p style={{ color: "#ccc" }}>
-              Enter your email to receive a reset code
+            <p style={subtitle}>
+              Enter the email associated with your account to receive a temporary
+              reset code.
             </p>
 
-            <input
-              type="email"
-              placeholder="Email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              style={input}
-            />
+            <div style={fieldWrap}>
+              <input
+                type="email"
+                placeholder="Email address"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                style={input}
+                disabled={loading}
+                autoComplete="email"
+              />
+            </div>
 
-            <button onClick={handleSendCode} style={button}>
-              {loading ? "Sending..." : "Send Code"}
+            <button onClick={handleSendCode} style={button} disabled={loading}>
+              {loading ? "Sending..." : "Send Temporary Code"}
             </button>
           </>
         )}
 
         {step === 2 && (
           <>
-            <p style={{ color: "#ccc" }}>
-              Enter the code and your new password
+            <p style={subtitle}>
+              Enter the temporary code from your email and create a new password.
             </p>
 
-            <input
-              placeholder="Code"
-              value={code}
-              onChange={(e) => setCode(e.target.value)}
-              style={input}
-            />
+            <div style={fieldWrap}>
+              <label style={label}>Email</label>
+              <input
+                type="email"
+                value={email}
+                style={readOnlyInput}
+                readOnly
+                disabled
+              />
+            </div>
 
-            <input
-              type="password"
-              placeholder="New Password"
-              value={newPassword}
-              onChange={(e) => setNewPassword(e.target.value)}
-              style={input}
-            />
+            <div style={fieldWrap}>
+              <label style={label}>Reset Code</label>
+              <input
+                type="text"
+                placeholder="Enter 6-digit code"
+                value={code}
+                onChange={(e) => setCode(e.target.value)}
+                style={input}
+                disabled={loading}
+                autoComplete="one-time-code"
+              />
+            </div>
 
-            <button onClick={handleResetPassword} style={button}>
+            <div style={fieldWrap}>
+              <label style={label}>New Password</label>
+              <input
+                type="password"
+                placeholder="Enter new password"
+                value={newPassword}
+                onChange={(e) => setNewPassword(e.target.value)}
+                style={input}
+                disabled={loading}
+                autoComplete="new-password"
+              />
+            </div>
+
+            <div style={fieldWrap}>
+              <label style={label}>Confirm Password</label>
+              <input
+                type="password"
+                placeholder="Confirm new password"
+                value={confirmPassword}
+                onChange={(e) => setConfirmPassword(e.target.value)}
+                style={input}
+                disabled={loading}
+                autoComplete="new-password"
+              />
+            </div>
+
+            <button
+              onClick={handleResetPassword}
+              style={button}
+              disabled={loading}
+            >
               {loading ? "Resetting..." : "Reset Password"}
+            </button>
+
+            <button
+              type="button"
+              onClick={() => {
+                if (loading) return;
+                setCode("");
+                setNewPassword("");
+                setConfirmPassword("");
+                setMessage("");
+                setError("");
+                setStep(1);
+              }}
+              style={linkButton}
+            >
+              Send a new code
             </button>
           </>
         )}
 
-        {message && <p style={{ color: "#22c55e" }}>{message}</p>}
-        {error && <p style={{ color: "red" }}>{error}</p>}
+        {message && <p style={successText}>{message}</p>}
+        {error && <p style={errorText}>{error}</p>}
 
-        <button onClick={onClose} style={closeBtn}>
+        <button onClick={handleClose} style={closeBtn} disabled={loading}>
           Close
         </button>
       </div>
@@ -143,53 +277,121 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
 
 const overlay = {
   position: "fixed",
-  top: 0,
-  left: 0,
-  width: "100%",
-  height: "100%",
-  background: "rgba(0,0,0,0.7)",
+  inset: 0,
+  background: "rgba(0, 0, 0, 0.72)",
   display: "flex",
   justifyContent: "center",
   alignItems: "center",
   zIndex: 9999,
+  padding: "20px",
 };
 
 const modal = {
-  background: "#020617",
-  padding: "30px",
-  borderRadius: "12px",
-  width: "360px",
+  width: "100%",
+  maxWidth: "400px",
+  background:
+    "linear-gradient(180deg, rgba(2,6,23,0.98) 0%, rgba(1,10,30,0.98) 100%)",
+  padding: "28px 30px 22px",
+  borderRadius: "16px",
   textAlign: "center",
-  boxShadow: "0 0 25px rgba(34,197,94,0.25)",
-  border: "1px solid #1e293b",
+  boxShadow:
+    "0 0 0 1px rgba(34,197,94,0.15), 0 0 26px rgba(34,197,94,0.18), 0 18px 50px rgba(0,0,0,0.48)",
+  border: "1px solid rgba(51, 65, 85, 0.9)",
+};
+
+const title = {
+  color: "#22c55e",
+  fontSize: "29px",
+  fontWeight: 800,
+  margin: "0 0 10px 0",
+  lineHeight: 1.1,
+};
+
+const subtitle = {
+  color: "#d5dbe5",
+  margin: "0 0 18px 0",
+  fontSize: "15px",
+  lineHeight: 1.45,
+};
+
+const fieldWrap = {
+  textAlign: "left",
+  marginBottom: "12px",
+};
+
+const label = {
+  display: "block",
+  color: "#cbd5e1",
+  fontSize: "13px",
+  fontWeight: 700,
+  marginBottom: "6px",
 };
 
 const input = {
   width: "100%",
-  padding: "10px",
-  margin: "10px 0",
-  borderRadius: "6px",
+  padding: "12px 14px",
+  borderRadius: "8px",
   border: "1px solid #334155",
   background: "#020617",
-  color: "#fff",
+  color: "#ffffff",
+  outline: "none",
+  fontSize: "15px",
+  boxSizing: "border-box",
+};
+
+const readOnlyInput = {
+  ...input,
+  background: "#e5e7eb",
+  color: "#111827",
+  border: "1px solid #cbd5e1",
+  cursor: "default",
 };
 
 const button = {
   width: "100%",
-  padding: "10px",
+  padding: "12px",
   background: "#22c55e",
   border: "none",
-  borderRadius: "6px",
-  color: "#000",
-  fontWeight: "bold",
+  borderRadius: "8px",
+  color: "#000000",
+  fontWeight: 800,
+  fontSize: "18px",
   cursor: "pointer",
+  marginTop: "4px",
+};
+
+const linkButton = {
+  marginTop: "10px",
+  background: "transparent",
+  border: "none",
+  color: "#60a5fa",
+  cursor: "pointer",
+  fontWeight: 700,
+  fontSize: "14px",
+};
+
+const successText = {
+  color: "#22c55e",
+  marginTop: "12px",
+  fontWeight: 700,
+  fontSize: "14px",
+};
+
+const errorText = {
+  color: "#ff2b2b",
+  marginTop: "12px",
+  fontWeight: 700,
+  fontSize: "14px",
 };
 
 const closeBtn = {
-  marginTop: "10px",
+  marginTop: "14px",
   background: "transparent",
   border: "1px solid #334155",
-  color: "#aaa",
-  padding: "6px",
-  borderRadius: "6px",
+  color: "#cbd5e1",
+  padding: "8px 16px",
+  borderRadius: "8px",
+  cursor: "pointer",
+  fontSize: "14px",
+  fontWeight: 600,
 };
