@@ -2,6 +2,42 @@
 import React, { useEffect, useRef, useState } from "react";
 import { API_URL } from "../config/api";
 
+function getErrorMessage(data, fallback) {
+  if (!data) return fallback;
+
+  if (typeof data.detail === "string" && data.detail.trim()) {
+    return data.detail.trim();
+  }
+
+  if (Array.isArray(data.detail) && data.detail.length > 0) {
+    const first = data.detail[0];
+
+    if (typeof first === "string" && first.trim()) {
+      return first.trim();
+    }
+
+    if (first && typeof first === "object") {
+      const msg = String(first.msg || "").trim().toLowerCase();
+
+      if (msg.includes("valid email")) {
+        return "Please enter a valid email address.";
+      }
+
+      if (msg) {
+        return first.msg;
+      }
+    }
+
+    return fallback;
+  }
+
+  if (typeof data.error === "string" && data.error.trim()) {
+    return data.error.trim();
+  }
+
+  return fallback;
+}
+
 export default function ForgotPasswordModal({ isOpen, onClose }) {
   const [step, setStep] = useState(1);
 
@@ -14,7 +50,6 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
   const [message, setMessage] = useState("");
   const [error, setError] = useState("");
 
-  // ✅ prevent old success timeout from closing a newly-opened modal
   const closeTimerRef = useRef(null);
 
   useEffect(() => {
@@ -84,7 +119,9 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
       }
 
       if (!res.ok) {
-        throw new Error(data?.detail || "Failed to send reset code.");
+        throw new Error(
+          getErrorMessage(data, "Failed to send the temporary reset code.")
+        );
       }
 
       setEmail(emailClean);
@@ -98,7 +135,7 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
       setError("");
       setStep(2);
     } catch (err) {
-      setError(err?.message || "Failed to send code.");
+      setError(err?.message || "Failed to send the temporary reset code.");
     } finally {
       setLoading(false);
     }
@@ -163,13 +200,14 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
       }
 
       if (!res.ok) {
-        throw new Error(data?.detail || data?.error || "Failed to reset password.");
+        throw new Error(
+          getErrorMessage(data, "Failed to reset password.")
+        );
       }
 
       setMessage("✅ Password reset successfully. You can now log in.");
       setError("");
 
-      // ✅ close only after a successful reset
       closeTimerRef.current = setTimeout(() => {
         closeTimerRef.current = null;
         onClose?.();
@@ -182,7 +220,6 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
   };
 
   return (
-    // ✅ removed outside-click close to avoid accidental closing
     <div style={overlay}>
       <div style={modal} onClick={(e) => e.stopPropagation()}>
         <h2 style={title}>CoreFlex IIoTs Platform</h2>
