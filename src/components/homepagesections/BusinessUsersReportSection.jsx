@@ -63,7 +63,7 @@ export default function BusinessUsersReportSection({
   return (
     <div className="mt-4 md:mt-6">
       {/* ✅ UPDATED SMALLER HEADER */}
-      <div className="rounded-xl bg-blue-600 text-white px-4 md:px-5 py-3 md:py-4 shadow-sm">
+      <div className="rounded-xl bg-teal-600 text-white px-4 md:px-5 py-3 md:py-4 shadow-sm">
         <button
           onClick={onBack}
           className="mb-2 inline-flex items-center rounded-md bg-white/15 hover:bg-white/20 px-3 py-2 text-sm font-semibold transition"
