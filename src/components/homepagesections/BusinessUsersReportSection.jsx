@@ -62,16 +62,16 @@ export default function BusinessUsersReportSection({
 
   return (
     <div className="mt-4 md:mt-6">
-      {/* ✅ Blue section header like Profile */}
-      <div className="rounded-xl bg-blue-600 text-white px-4 md:px-5 py-4 md:py-5 shadow-sm">
+      {/* ✅ UPDATED SMALLER HEADER */}
+      <div className="rounded-xl bg-blue-600 text-white px-4 md:px-5 py-3 md:py-4 shadow-sm">
         <button
           onClick={onBack}
-          className="mb-3 inline-flex items-center rounded-md bg-white/15 hover:bg-white/20 px-3 py-2 text-sm font-semibold transition"
+          className="mb-2 inline-flex items-center rounded-md bg-white/15 hover:bg-white/20 px-3 py-2 text-sm font-semibold transition"
         >
           ← Back
         </button>
 
-        <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight">
+        <h1 className="text-xl md:text-2xl font-extrabold tracking-tight">
           Business Users Report
         </h1>
       </div>
