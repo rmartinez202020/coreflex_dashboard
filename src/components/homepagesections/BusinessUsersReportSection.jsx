@@ -71,7 +71,7 @@ export default function BusinessUsersReportSection({
           ← Back
         </button>
 
-        <h1 className="text-xl md:text-2xl font-extrabold tracking-tight">
+        <h1 className="text-lg md:text-xl font-bold tracking-tight">
           Business Users Report
         </h1>
       </div>
