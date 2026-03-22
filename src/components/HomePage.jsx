@@ -2,6 +2,7 @@ import React from "react";
 import DeviceManagerSection from "./homepagesections/DeviceManagerSection";
 import RegisterDevicesSection from "./homepagesections/RegisterDevicesSection";
 import BusinessUsersReportSection from "./homepagesections/BusinessUsersReportSection";
+import BusinessDashboardsReportSection from "./homepagesections/BusinessDashboardsReportSection";
 
 // ✅ IMPORTANT: read token the same way the rest of the app does (sessionStorage per-tab)
 import { getToken, parseJwt } from "../utils/authToken";
@@ -91,6 +92,10 @@ export default function HomePage({
   const [showBusinessUsersReportPage, setShowBusinessUsersReportPage] =
     React.useState(false);
 
+  // ✅ NEW: dedicated Business Dashboards Report page state
+  const [showBusinessDashboardsReportPage, setShowBusinessDashboardsReportPage] =
+    React.useState(false);
+
   // ✅ Placeholder rows (later replace with backend API)
   const [zhc1921Rows, setZhc1921Rows] = React.useState([
     {
@@ -158,6 +163,7 @@ export default function HomePage({
     if (!isPlatformOwner) {
       setActiveModel(null);
       setShowBusinessUsersReportPage(false);
+      setShowBusinessDashboardsReportPage(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlatformOwner, normalizedUser]);
@@ -178,6 +184,13 @@ export default function HomePage({
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [showBusinessUsersReportPage]);
+
+  // ✅ When Business Dashboards Report opens, scroll to top too
+  React.useEffect(() => {
+    if (showBusinessDashboardsReportPage) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [showBusinessDashboardsReportPage]);
 
   // ✅ Treat “device manager open” like a full-page section
   const isDeviceManagerOpen = isPlatformOwner && !!activeModel;
@@ -214,6 +227,18 @@ export default function HomePage({
       <div className="mt-4 md:mt-6">
         <BusinessUsersReportSection
           onBack={() => setShowBusinessUsersReportPage(false)}
+          ownerEmail={detectedEmail || normalizedUser}
+        />
+      </div>
+    );
+  }
+
+  // ✅ FULL “BUSINESS DASHBOARDS REPORT PAGE” VIEW
+  if (isPlatformOwner && showBusinessDashboardsReportPage) {
+    return (
+      <div className="mt-4 md:mt-6">
+        <BusinessDashboardsReportSection
+          onBack={() => setShowBusinessDashboardsReportPage(false)}
           ownerEmail={detectedEmail || normalizedUser}
         />
       </div>
@@ -346,10 +371,7 @@ export default function HomePage({
 
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <button
-              onClick={() => {
-                setActiveSubPage("businessDashboardsReport");
-                setSubPageColor("bg-gray-900");
-              }}
+              onClick={() => setShowBusinessDashboardsReportPage(true)}
               className="w-full rounded-xl bg-gray-900 text-white px-5 py-4 text-left hover:opacity-90 transition"
             >
               <div className="text-lg font-semibold">
@@ -357,6 +379,9 @@ export default function HomePage({
               </div>
               <div className="text-sm opacity-80">
                 View all users and dashboards created.
+              </div>
+              <div className="mt-2 text-xs opacity-90">
+                Click to open dashboards report
               </div>
             </button>
 
