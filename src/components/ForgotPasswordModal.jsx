@@ -335,7 +335,19 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
           </>
         )}
 
-        {message && <div style={successBox}>{message}</div>}
+        {/* ✅ UPDATED NOTE STYLE MESSAGE */}
+        {message && (
+          <div style={noteBox}>
+            <div>{message}</div>
+
+            {step === 2 && (
+              <div style={noteSubText}>
+                If you don’t see the email, please check your spam or junk folder.
+              </div>
+            )}
+          </div>
+        )}
+
         {error && <div style={errorBox}>{error}</div>}
 
         <button
@@ -350,6 +362,8 @@ export default function ForgotPasswordModal({ isOpen, onClose }) {
     </div>
   );
 }
+
+/* ================= STYLES ================= */
 
 const overlay = {
   position: "fixed",
@@ -380,16 +394,13 @@ const title = {
   fontWeight: 800,
   color: "#020617",
   margin: "0 0 12px 0",
-  lineHeight: 1.08,
-  letterSpacing: "-0.02em",
 };
 
 const subtitle = {
   color: "#1e293b",
   fontSize: "15px",
   fontWeight: 600,
-  lineHeight: 1.5,
-  margin: "0 0 20px 0",
+  marginBottom: "20px",
 };
 
 const fieldWrap = {
@@ -398,9 +409,7 @@ const fieldWrap = {
 };
 
 const label = {
-  display: "block",
   color: "#0f172a",
-  fontSize: "15px",
   fontWeight: 700,
   marginBottom: "8px",
 };
@@ -409,34 +418,23 @@ const input = {
   width: "100%",
   border: "1px solid #cbd5e1",
   borderRadius: "10px",
-  padding: "14px 16px",
-  fontSize: "16px",
-  color: "#0f172a",
+  padding: "14px",
   background: "rgba(255,255,255,0.96)",
-  boxSizing: "border-box",
-  outline: "none",
-  boxShadow: "0 1px 2px rgba(0,0,0,0.04)",
 };
 
 const readOnlyInput = {
   ...input,
   background: "#e5e7eb",
-  color: "#334155",
-  cursor: "default",
 };
 
 const primaryButton = {
   width: "100%",
   padding: "14px",
   borderRadius: "10px",
-  border: "none",
   background: "#2563eb",
-  color: "#ffffff",
-  fontSize: "1.1rem",
+  color: "#fff",
   fontWeight: 700,
-  cursor: "pointer",
   marginTop: "4px",
-  boxShadow: "0 6px 18px rgba(37,99,235,0.28)",
 };
 
 const linkButton = {
@@ -446,18 +444,27 @@ const linkButton = {
   color: "#1d4ed8",
   cursor: "pointer",
   fontWeight: 700,
-  fontSize: "14px",
 };
 
-const successBox = {
+/* ✅ NEW NOTE STYLE */
+const noteBox = {
   marginTop: "14px",
-  background: "rgba(220,252,231,0.95)",
-  color: "#166534",
-  border: "1px solid #bbf7d0",
+  background: "#ffffff",
+  color: "#0f172a",
+  border: "1px solid #e5e7eb",
+  borderLeft: "5px solid #2563eb",
   borderRadius: "10px",
-  padding: "10px 12px",
+  padding: "12px 14px",
   fontSize: "14px",
-  fontWeight: 700,
+  fontWeight: 600,
+  textAlign: "left",
+};
+
+const noteSubText = {
+  marginTop: "6px",
+  fontSize: "13px",
+  color: "#475569",
+  fontWeight: 500,
 };
 
 const errorBox = {
@@ -466,19 +473,12 @@ const errorBox = {
   color: "#b91c1c",
   border: "1px solid #fecaca",
   borderRadius: "10px",
-  padding: "10px 12px",
-  fontSize: "14px",
-  fontWeight: 700,
+  padding: "10px",
 };
 
 const closeButton = {
   marginTop: "14px",
-  background: "transparent",
   border: "1px solid rgba(15,23,42,0.18)",
-  color: "#0f172a",
   padding: "9px 16px",
   borderRadius: "10px",
-  cursor: "pointer",
-  fontSize: "14px",
-  fontWeight: 700,
 };
