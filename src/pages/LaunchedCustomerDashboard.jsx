@@ -1,29 +1,57 @@
 // src/pages/LaunchedCustomerDashboard.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import { useParams } from "react-router-dom";
+import { useLocation, useParams } from "react-router-dom";
 import DashboardCanvas from "../components/DashboardCanvas";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 
 export default function LaunchedCustomerDashboard() {
-  const { dashboardId, dashboardSlug, publicLaunchId } = useParams();
+  const params = useParams();
+  const location = useLocation();
 
-  // ✅ Old private launch mode: /launch-customer-dashboard/:dashboardId
-  const privateDashId = useMemo(
-    () => String(dashboardId || "").trim(),
-    [dashboardId]
-  );
+  // ✅ Fallback parser because this app renders launch pages manually from App.jsx
+  // and not from a <Route path="/launchDashboard/:slug/:id" ... />
+  const pathParts = useMemo(() => {
+    return String(location.pathname || "")
+      .split("/")
+      .map((p) => String(p || "").trim())
+      .filter(Boolean);
+  }, [location.pathname]);
 
-  // ✅ New public launch mode:
-  // /launchDashboard/:dashboardSlug/:publicLaunchId
-  const publicDashSlug = useMemo(
-    () => String(dashboardSlug || "").trim(),
-    [dashboardSlug]
-  );
+  // Supported:
+  // 1) /launchDashboard/:dashboardId
+  // 2) /launchDashboard/:dashboardSlug/:publicLaunchId
+  const fallbackDashboardId =
+    pathParts[0] === "launchDashboard" && pathParts.length === 2
+      ? String(pathParts[1] || "").trim()
+      : "";
 
+  const fallbackDashboardSlug =
+    pathParts[0] === "launchDashboard" && pathParts.length >= 3
+      ? String(pathParts[1] || "").trim()
+      : "";
+
+  const fallbackPublicLaunchId =
+    pathParts[0] === "launchDashboard" && pathParts.length >= 3
+      ? String(pathParts[2] || "").trim()
+      : "";
+
+  const dashboardIdRaw = String(params?.dashboardId || fallbackDashboardId || "").trim();
+  const dashboardSlugRaw = String(
+    params?.dashboardSlug || fallbackDashboardSlug || ""
+  ).trim();
+  const publicLaunchIdRaw = String(
+    params?.publicLaunchId || fallbackPublicLaunchId || ""
+  ).trim();
+
+  // ✅ Old private launch mode: /launchDashboard/:dashboardId
+  const privateDashId = useMemo(() => dashboardIdRaw, [dashboardIdRaw]);
+
+  // ✅ New public launch mode: /launchDashboard/:dashboardSlug/:publicLaunchId
+  const publicDashSlug = useMemo(() => dashboardSlugRaw, [dashboardSlugRaw]);
   const publicDashLaunchId = useMemo(
-    () => String(publicLaunchId || "").trim(),
-    [publicLaunchId]
+    () => publicLaunchIdRaw,
+    [publicLaunchIdRaw]
   );
 
   const isPublicLaunch = !!publicDashSlug && !!publicDashLaunchId;
@@ -34,14 +62,9 @@ export default function LaunchedCustomerDashboard() {
   const [fatalError, setFatalError] = useState("");
 
   // ✅ resolved dashboard id used internally by canvas/widgets
-  // private launch => dashboardId from route
-  // public launch => dashboard numeric id returned by backend (if available)
   const [resolvedDashboardId, setResolvedDashboardId] = useState("");
 
   // ✅ helper: inject dashboardId into every widget
-  // IMPORTANT:
-  // - private launch: yes (controls can work normally)
-  // - public launch: no (keeps public dashboards more read-only / safer)
   const injectDashboardIdIntoObjects = (objects, dash, allowInject = true) => {
     if (!Array.isArray(objects)) return [];
     if (!allowInject) return objects;
@@ -52,8 +75,11 @@ export default function LaunchedCustomerDashboard() {
     return objects.map((o) => {
       if (!o || typeof o !== "object") return o;
       const props = o.properties || {};
-      const existing = String(props.dashboardId || props.dashboard_id || "").trim();
+      const existing = String(
+        props.dashboardId || props.dashboard_id || ""
+      ).trim();
       if (existing === did) return o;
+
       return {
         ...o,
         properties: {
@@ -99,12 +125,9 @@ export default function LaunchedCustomerDashboard() {
             data?.canvas?.objects ||
             [];
 
-          // ✅ keep numeric dashboard id if backend returned it
           const backendDashId = String(data?.id || "").trim();
           setResolvedDashboardId(backendDashId);
 
-          // ✅ public launch = do NOT inject dashboardId into widgets
-          // this helps keep public dashboards view-only
           const finalObjects = injectDashboardIdIntoObjects(
             Array.isArray(objects) ? objects : [],
             backendDashId,
@@ -157,7 +180,6 @@ export default function LaunchedCustomerDashboard() {
 
         setResolvedDashboardId(privateDashId);
 
-        // ✅ private launch = inject dashboardId so controls can write in launch
         const withDash = injectDashboardIdIntoObjects(
           Array.isArray(objects) ? objects : [],
           privateDashId,
@@ -179,8 +201,6 @@ export default function LaunchedCustomerDashboard() {
   }, [privateDashId, publicDashSlug, publicDashLaunchId, isPublicLaunch]);
 
   // ✅ Devices polling
-  // Public dashboards try without token
-  // Private dashboards include token when available
   useEffect(() => {
     let alive = true;
     let timer = null;
@@ -236,7 +256,6 @@ export default function LaunchedCustomerDashboard() {
     };
   }, [isPublicLaunch]);
 
-  // ✅ never blank
   if (loading) {
     return (
       <div
@@ -289,13 +308,10 @@ export default function LaunchedCustomerDashboard() {
         embedMode={true}
         dashboardId={resolvedDashboardId}
         activeDashboardId={resolvedDashboardId}
-        /* ----- Layout Objects ----- */
         droppedTanks={droppedTanks}
         setDroppedTanks={setDroppedTanks}
-        /* ----- Sensor Data ----- */
         sensorsData={sensorsData}
         sensors={[]}
-        /* ----- Disable editing UI / interactions ----- */
         selectedIds={[]}
         setSelectedIds={() => {}}
         selectedTank={null}
