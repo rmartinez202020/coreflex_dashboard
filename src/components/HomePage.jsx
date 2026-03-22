@@ -1,10 +1,10 @@
 import React from "react";
 import DeviceManagerSection from "./homepagesections/DeviceManagerSection";
 import RegisterDevicesSection from "./homepagesections/RegisterDevicesSection";
+import BusinessUsersReportSection from "./homepagesections/BusinessUsersReportSection";
 
 // ✅ IMPORTANT: read token the same way the rest of the app does (sessionStorage per-tab)
 import { getToken, parseJwt } from "../utils/authToken";
-import { API_URL } from "../config/api";
 
 // ✅ Owner allowlist (LOCKED to one admin email only)
 const PLATFORM_OWNER_EMAIL = "roquemartinez_8@hotmail.com";
@@ -47,13 +47,6 @@ function looksLikeEmail(s) {
   return v.includes("@") && v.includes(".");
 }
 
-function formatDateTime(value) {
-  if (!value) return "—";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return String(value);
-  return d.toLocaleString();
-}
-
 /**
  * ✅ Detect identity ONLY from:
  * - currentUserKey (from useAuthController)
@@ -94,11 +87,9 @@ export default function HomePage({
   const [showRegisterDevices, setShowRegisterDevices] = React.useState(false);
   const [activeModel, setActiveModel] = React.useState(null);
 
-  // ✅ NEW: business users inline report state
-  const [showBusinessUsersReport, setShowBusinessUsersReport] = React.useState(false);
-  const [businessUsers, setBusinessUsers] = React.useState([]);
-  const [businessUsersLoading, setBusinessUsersLoading] = React.useState(false);
-  const [businessUsersError, setBusinessUsersError] = React.useState("");
+  // ✅ NEW: dedicated Business Users Report page state
+  const [showBusinessUsersReportPage, setShowBusinessUsersReportPage] =
+    React.useState(false);
 
   // ✅ Placeholder rows (later replace with backend API)
   const [zhc1921Rows, setZhc1921Rows] = React.useState([
@@ -166,9 +157,7 @@ export default function HomePage({
   React.useEffect(() => {
     if (!isPlatformOwner) {
       setActiveModel(null);
-      setShowBusinessUsersReport(false);
-      setBusinessUsers([]);
-      setBusinessUsersError("");
+      setShowBusinessUsersReportPage(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlatformOwner, normalizedUser]);
@@ -183,58 +172,12 @@ export default function HomePage({
     if (showRegisterDevices) window.scrollTo({ top: 0, behavior: "smooth" });
   }, [showRegisterDevices]);
 
-  const fetchBusinessUsers = React.useCallback(async () => {
-    setBusinessUsersLoading(true);
-    setBusinessUsersError("");
-
-    try {
-      const token = String(getToken() || "").trim();
-
-      const res = await fetch(`${API_URL}/auth/business-users`, {
-        method: "GET",
-        headers: {
-          "Content-Type": "application/json",
-          ...(token ? { Authorization: `Bearer ${token}` } : {}),
-          "Cache-Control": "no-cache",
-          Pragma: "no-cache",
-        },
-      });
-
-      let data = {};
-      try {
-        data = await res.json();
-      } catch {
-        data = {};
-      }
-
-      if (!res.ok) {
-        throw new Error(
-          data?.detail || data?.error || "Failed to load registered users."
-        );
-      }
-
-      setBusinessUsers(Array.isArray(data?.users) ? data.users : []);
-    } catch (err) {
-      setBusinessUsersError(
-        err?.message || "Failed to load registered users."
-      );
-      setBusinessUsers([]);
-    } finally {
-      setBusinessUsersLoading(false);
+  // ✅ When Business Users Report opens, scroll to top too
+  React.useEffect(() => {
+    if (showBusinessUsersReportPage) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
     }
-  }, []);
-
-  const handleBusinessUsersClick = async () => {
-    const nextOpen = !showBusinessUsersReport;
-    setShowBusinessUsersReport(nextOpen);
-
-    if (nextOpen) {
-      await fetchBusinessUsers();
-      window.setTimeout(() => {
-        window.scrollTo({ top: document.body.scrollHeight, behavior: "smooth" });
-      }, 80);
-    }
-  };
+  }, [showBusinessUsersReportPage]);
 
   // ✅ Treat “device manager open” like a full-page section
   const isDeviceManagerOpen = isPlatformOwner && !!activeModel;
@@ -260,6 +203,18 @@ export default function HomePage({
           zhc1921Columns={ZHC1921_COLUMNS}
           zhc1921Rows={zhc1921Rows}
           setZhc1921Rows={setZhc1921Rows}
+        />
+      </div>
+    );
+  }
+
+  // ✅ FULL “BUSINESS USERS REPORT PAGE” VIEW
+  if (isPlatformOwner && showBusinessUsersReportPage) {
+    return (
+      <div className="mt-4 md:mt-6">
+        <BusinessUsersReportSection
+          onBack={() => setShowBusinessUsersReportPage(false)}
+          ownerEmail={detectedEmail || normalizedUser}
         />
       </div>
     );
@@ -406,7 +361,7 @@ export default function HomePage({
             </button>
 
             <button
-              onClick={handleBusinessUsersClick}
+              onClick={() => setShowBusinessUsersReportPage(true)}
               className="w-full rounded-xl bg-teal-600 text-white px-5 py-4 text-left hover:opacity-90 transition"
             >
               <div className="text-lg font-semibold">Business Users Report</div>
@@ -414,115 +369,10 @@ export default function HomePage({
                 View total users and account stats.
               </div>
               <div className="mt-2 text-xs opacity-90">
-                {showBusinessUsersReport ? "Click to hide users table" : "Click to view registered users"}
+                Click to open users report
               </div>
             </button>
           </div>
-
-          {showBusinessUsersReport && (
-            <div className="mt-6 rounded-2xl border border-gray-200 bg-white shadow-sm overflow-hidden">
-              <div className="flex items-center justify-between px-5 py-4 border-b border-gray-200 bg-slate-50">
-                <div>
-                  <h3 className="text-lg font-bold text-gray-900">
-                    Registered Platform Users
-                  </h3>
-                  <p className="text-sm text-gray-600">
-                    Showing all registered users without password hashes.
-                  </p>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={fetchBusinessUsers}
-                  disabled={businessUsersLoading}
-                  className={`rounded-lg px-4 py-2 text-sm font-semibold transition ${
-                    businessUsersLoading
-                      ? "bg-gray-200 text-gray-500 cursor-not-allowed"
-                      : "bg-slate-700 text-white hover:bg-slate-800"
-                  }`}
-                >
-                  {businessUsersLoading ? "Refreshing..." : "Refresh"}
-                </button>
-              </div>
-
-              {businessUsersError && (
-                <div className="mx-5 mt-4 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-sm text-red-700">
-                  {businessUsersError}
-                </div>
-              )}
-
-              {businessUsersLoading ? (
-                <div className="px-5 py-8 text-sm text-gray-600">
-                  Loading registered users...
-                </div>
-              ) : businessUsers.length === 0 ? (
-                <div className="px-5 py-8 text-sm text-gray-600">
-                  No registered users found.
-                </div>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="min-w-full text-sm">
-                    <thead className="bg-slate-800 text-white">
-                      <tr>
-                        <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
-                          ID
-                        </th>
-                        <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
-                          Name
-                        </th>
-                        <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
-                          Company
-                        </th>
-                        <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
-                          Email
-                        </th>
-                        <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
-                          Terms Accepted At
-                        </th>
-                        <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
-                          Terms Version
-                        </th>
-                        <th className="px-4 py-3 text-left font-semibold whitespace-nowrap">
-                          Accepted Control Terms
-                        </th>
-                      </tr>
-                    </thead>
-
-                    <tbody>
-                      {businessUsers.map((user, idx) => (
-                        <tr
-                          key={`${user.id}-${user.email}-${idx}`}
-                          className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}
-                        >
-                          <td className="px-4 py-3 border-t border-gray-200 whitespace-nowrap text-gray-900">
-                            {user.id ?? "—"}
-                          </td>
-                          <td className="px-4 py-3 border-t border-gray-200 whitespace-nowrap text-gray-900">
-                            {user.name || "—"}
-                          </td>
-                          <td className="px-4 py-3 border-t border-gray-200 whitespace-nowrap text-gray-900">
-                            {user.company || "—"}
-                          </td>
-                          <td className="px-4 py-3 border-t border-gray-200 whitespace-nowrap text-gray-900">
-                            {user.email || "—"}
-                          </td>
-                          <td className="px-4 py-3 border-t border-gray-200 whitespace-nowrap text-gray-900">
-                            {formatDateTime(user.control_terms_accepted_at)}
-                          </td>
-                          <td className="px-4 py-3 border-t border-gray-200 whitespace-nowrap text-gray-900">
-                            {user.control_terms_version || "—"}
-                          </td>
-                          <td className="px-4 py-3 border-t border-gray-200 whitespace-nowrap text-gray-900">
-                            {user.accepted_control_terms ? "true" : "false"}
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
-              )}
-            </div>
-          )}
         </div>
       )}
     </>
