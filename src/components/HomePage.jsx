@@ -324,7 +324,7 @@ export default function HomePage({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <button
               onClick={() => {
                 setActiveSubPage("businessDashboardsReport");
@@ -350,19 +350,6 @@ export default function HomePage({
               <div className="text-lg font-semibold">Business Users Report</div>
               <div className="text-sm opacity-90">
                 View total users and account stats.
-              </div>
-            </button>
-
-            <button
-              onClick={() => {
-                setActiveSubPage("resetUserPassword");
-                setSubPageColor("bg-orange-700");
-              }}
-              className="w-full rounded-xl bg-orange-700 text-white px-5 py-4 text-left hover:opacity-90 transition"
-            >
-              <div className="text-lg font-semibold">Reset User Password</div>
-              <div className="text-sm opacity-90">
-                Reset password for any user (owner-only).
               </div>
             </button>
           </div>
