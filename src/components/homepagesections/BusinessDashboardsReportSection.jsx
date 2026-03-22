@@ -54,7 +54,7 @@ export default function BusinessDashboardsReportSection({
   return (
     <div className="mt-4 md:mt-6">
       {/* ✅ HEADER (MATCH USERS STYLE — SMALL + TEAL) */}
-      <div className="rounded-xl bg-teal-600 text-white px-4 md:px-5 py-3 md:py-4 shadow-sm">
+      <div className="rounded-xl bg-gray-900 text-white px-4 md:px-5 py-3 md:py-4 shadow-sm">
         <button
           onClick={onBack}
           className="mb-2 inline-flex items-center rounded-md bg-white/15 hover:bg-white/20 px-3 py-1.5 text-xs font-semibold transition"
