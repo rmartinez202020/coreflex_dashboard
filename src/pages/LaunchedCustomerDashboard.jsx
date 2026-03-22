@@ -6,17 +6,46 @@ import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 
 export default function LaunchedCustomerDashboard() {
-  const { dashboardId } = useParams();
-  const dashId = useMemo(() => String(dashboardId || "").trim(), [dashboardId]);
+  const { dashboardId, dashboardSlug, publicLaunchId } = useParams();
+
+  // ✅ Old private launch mode: /launch-customer-dashboard/:dashboardId
+  const privateDashId = useMemo(
+    () => String(dashboardId || "").trim(),
+    [dashboardId]
+  );
+
+  // ✅ New public launch mode:
+  // /launchDashboard/:dashboardSlug/:publicLaunchId
+  const publicDashSlug = useMemo(
+    () => String(dashboardSlug || "").trim(),
+    [dashboardSlug]
+  );
+
+  const publicDashLaunchId = useMemo(
+    () => String(publicLaunchId || "").trim(),
+    [publicLaunchId]
+  );
+
+  const isPublicLaunch = !!publicDashSlug && !!publicDashLaunchId;
 
   const [sensorsData, setSensorsData] = useState([]);
   const [droppedTanks, setDroppedTanks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fatalError, setFatalError] = useState("");
 
-  // ✅ helper: inject dashboardId into every widget so controls can write in Launch
-  const injectDashboardIdIntoObjects = (objects, dash) => {
+  // ✅ resolved dashboard id used internally by canvas/widgets
+  // private launch => dashboardId from route
+  // public launch => dashboard numeric id returned by backend (if available)
+  const [resolvedDashboardId, setResolvedDashboardId] = useState("");
+
+  // ✅ helper: inject dashboardId into every widget
+  // IMPORTANT:
+  // - private launch: yes (controls can work normally)
+  // - public launch: no (keeps public dashboards more read-only / safer)
+  const injectDashboardIdIntoObjects = (objects, dash, allowInject = true) => {
     if (!Array.isArray(objects)) return [];
+    if (!allowInject) return objects;
+
     const did = String(dash || "").trim();
     if (!did) return objects;
 
@@ -35,31 +64,85 @@ export default function LaunchedCustomerDashboard() {
     });
   };
 
-  // ✅ Load customer dashboard layout from backend
+  // ✅ Load customer dashboard layout
   useEffect(() => {
     const loadLayout = async () => {
       try {
         setLoading(true);
         setFatalError("");
+        setDroppedTanks([]);
+        setResolvedDashboardId("");
 
-        const token = String(getToken() || "").trim();
-        if (!token) {
-          setFatalError("Not logged in. Please login first, then click Launch.");
-          setDroppedTanks([]);
+        let res;
+
+        // ==========================================
+        // 🌐 PUBLIC LAUNCH (NO LOGIN REQUIRED)
+        // ==========================================
+        if (isPublicLaunch) {
+          res = await fetch(
+            `${API_URL}/customers-dashboards/public/${encodeURIComponent(
+              publicDashSlug
+            )}/${encodeURIComponent(publicDashLaunchId)}`
+          );
+
+          if (!res.ok) {
+            setFatalError("Public dashboard not found or no longer available.");
+            setLoading(false);
+            return;
+          }
+
+          const data = await res.json();
+
+          const objects =
+            data?.layout?.canvas?.objects ||
+            data?.layout?.objects ||
+            data?.canvas?.objects ||
+            [];
+
+          // ✅ keep numeric dashboard id if backend returned it
+          const backendDashId = String(data?.id || "").trim();
+          setResolvedDashboardId(backendDashId);
+
+          // ✅ public launch = do NOT inject dashboardId into widgets
+          // this helps keep public dashboards view-only
+          const finalObjects = injectDashboardIdIntoObjects(
+            Array.isArray(objects) ? objects : [],
+            backendDashId,
+            false
+          );
+
+          setDroppedTanks(finalObjects);
           setLoading(false);
           return;
         }
 
-        const res = await fetch(
-          `${API_URL}/customers-dashboards/${encodeURIComponent(dashId)}`,
-          { headers: { Authorization: `Bearer ${token}` } }
+        // ==========================================
+        // 🔐 PRIVATE LAUNCH (LOGIN REQUIRED)
+        // ==========================================
+        const token = String(getToken() || "").trim();
+        if (!token) {
+          setFatalError("Not logged in. Please login first, then click Launch.");
+          setLoading(false);
+          return;
+        }
+
+        if (!privateDashId) {
+          setFatalError("Missing dashboard id.");
+          setLoading(false);
+          return;
+        }
+
+        res = await fetch(
+          `${API_URL}/customers-dashboards/${encodeURIComponent(privateDashId)}`,
+          {
+            headers: { Authorization: `Bearer ${token}` },
+          }
         );
 
         if (!res.ok) {
           setFatalError(
-            `Dashboard not found or not owned by user (id=${dashId}).`
+            `Dashboard not found or not owned by user (id=${privateDashId}).`
           );
-          setDroppedTanks([]);
           setLoading(false);
           return;
         }
@@ -72,9 +155,13 @@ export default function LaunchedCustomerDashboard() {
           data?.canvas?.objects ||
           [];
 
+        setResolvedDashboardId(privateDashId);
+
+        // ✅ private launch = inject dashboardId so controls can write in launch
         const withDash = injectDashboardIdIntoObjects(
           Array.isArray(objects) ? objects : [],
-          dashId
+          privateDashId,
+          true
         );
 
         setDroppedTanks(withDash);
@@ -83,17 +170,21 @@ export default function LaunchedCustomerDashboard() {
         console.error("❌ Launch customer load error:", e);
         setFatalError("Failed to load customer dashboard layout.");
         setDroppedTanks([]);
+        setResolvedDashboardId("");
         setLoading(false);
       }
     };
 
-    if (dashId) loadLayout();
-  }, [dashId]);
+    loadLayout();
+  }, [privateDashId, publicDashSlug, publicDashLaunchId, isPublicLaunch]);
 
-  // ✅ Devices polling (same as main launch)
+  // ✅ Devices polling
+  // Public dashboards try without token
+  // Private dashboards include token when available
   useEffect(() => {
     let alive = true;
-    const controller = new AbortController();
+    let timer = null;
+    let controller = null;
 
     const normalize = (data) =>
       (data || []).map((s) => ({
@@ -113,8 +204,11 @@ export default function LaunchedCustomerDashboard() {
 
     const fetchDevices = async () => {
       try {
+        controller = new AbortController();
+
         const token = String(getToken() || "").trim();
-        const headers = token ? { Authorization: `Bearer ${token}` } : {};
+        const headers =
+          !isPublicLaunch && token ? { Authorization: `Bearer ${token}` } : {};
 
         const res = await fetch(`${API_URL}/devices`, {
           headers,
@@ -122,6 +216,7 @@ export default function LaunchedCustomerDashboard() {
         });
 
         if (!res.ok) throw new Error("Failed to load devices");
+
         const data = await res.json();
         if (!alive) return;
         setSensorsData(normalize(data));
@@ -132,14 +227,14 @@ export default function LaunchedCustomerDashboard() {
     };
 
     fetchDevices();
-    const timer = setInterval(fetchDevices, 1000);
+    timer = setInterval(fetchDevices, 1000);
 
     return () => {
       alive = false;
-      clearInterval(timer);
-      controller.abort();
+      if (timer) clearInterval(timer);
+      if (controller) controller.abort();
     };
-  }, []);
+  }, [isPublicLaunch]);
 
   // ✅ never blank
   if (loading) {
@@ -151,6 +246,7 @@ export default function LaunchedCustomerDashboard() {
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
+          background: "white",
         }}
       >
         Loading dashboard…
@@ -168,6 +264,7 @@ export default function LaunchedCustomerDashboard() {
           alignItems: "center",
           justifyContent: "center",
           padding: 24,
+          background: "white",
         }}
       >
         <div>
@@ -190,8 +287,8 @@ export default function LaunchedCustomerDashboard() {
       <DashboardCanvas
         dashboardMode="play"
         embedMode={true}
-        dashboardId={dashId}
-        activeDashboardId={dashId}
+        dashboardId={resolvedDashboardId}
+        activeDashboardId={resolvedDashboardId}
         /* ----- Layout Objects ----- */
         droppedTanks={droppedTanks}
         setDroppedTanks={setDroppedTanks}

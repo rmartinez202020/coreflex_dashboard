@@ -4,6 +4,7 @@ import { PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { API_URL } from "./config/api";
 import { getToken } from "./utils/authToken";
 import LaunchedMainDashboard from "./pages/LaunchedMainDashboard";
+import LaunchedCustomerDashboard from "./pages/LaunchedCustomerDashboard";
 import AlarmLogPage from "./pages/AlarmLogPage";
 import Header from "./components/Header";
 import AppTopBar from "./components/AppTopBar";
@@ -34,7 +35,16 @@ import useAlarmLogWindowState from "./hooks/useAlarmLogWindowState";
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
-  const isLaunchPage = location.pathname === "/launchMainDashboard";
+
+  const pathname = String(location.pathname || "").trim();
+
+  const isLaunchPage = pathname === "/launchMainDashboard";
+  const isLaunchAlarmLog = pathname === "/launchAlarmLog";
+
+  // ✅ SUPPORT BOTH:
+  // 1) old private route: /launchDashboard/:dashboardId
+  // 2) new public route: /launchDashboard/:dashboardSlug/:publicLaunchId
+  const isLaunchCustomerDashboard = pathname.startsWith("/launchDashboard/");
 
   // ✅ NAVIGATION (persist on refresh)
   const {
@@ -521,8 +531,12 @@ export default function App() {
     return <LaunchedMainDashboard />;
   }
 
+  // ✅ CUSTOMER DASHBOARD LAUNCH PAGE
+  if (isLaunchCustomerDashboard) {
+    return <LaunchedCustomerDashboard />;
+  }
+
   // ✅ ALARM LOG LAUNCH PAGE — render full-page Alarm Log
-  const isLaunchAlarmLog = location.pathname === "/launchAlarmLog";
   if (isLaunchAlarmLog) {
     return <AlarmLogPage />;
   }
