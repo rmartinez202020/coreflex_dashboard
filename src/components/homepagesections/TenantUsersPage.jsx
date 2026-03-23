@@ -62,6 +62,7 @@ export default function TenantUsersPage({
 }) {
   const [users, setUsers] = useState([]);
   const [showModal, setShowModal] = useState(false);
+  const [editingUserId, setEditingUserId] = useState(null);
 
   const [form, setForm] = useState({
     name: "",
@@ -95,20 +96,7 @@ export default function TenantUsersPage({
     );
   }, [adminOwnedDashboards, form.customerName]);
 
-  const handleCreateUser = () => {
-    if (!form.name || !form.email || !form.customerName) return;
-
-    const newUser = {
-      id: Date.now(),
-      name: form.name,
-      email: form.email,
-      access: normalizeAccess(form.access),
-      customerName: form.customerName,
-      dashboards: form.dashboards,
-    };
-
-    setUsers((prev) => [...prev, newUser]);
-
+  const resetForm = () => {
     setForm({
       name: "",
       email: "",
@@ -116,7 +104,33 @@ export default function TenantUsersPage({
       customerName: "",
       dashboards: [],
     });
+    setEditingUserId(null);
+  };
 
+  const handleSaveUser = () => {
+    if (!form.name || !form.email || !form.customerName) return;
+
+    const payload = {
+      name: form.name,
+      email: form.email,
+      access: normalizeAccess(form.access),
+      customerName: form.customerName,
+      dashboards: form.dashboards,
+    };
+
+    if (editingUserId) {
+      setUsers((prev) =>
+        prev.map((u) => (u.id === editingUserId ? { ...u, ...payload } : u))
+      );
+    } else {
+      const newUser = {
+        id: Date.now(),
+        ...payload,
+      };
+      setUsers((prev) => [...prev, newUser]);
+    }
+
+    resetForm();
     setShowModal(false);
   };
 
@@ -133,12 +147,18 @@ export default function TenantUsersPage({
   };
 
   const openCreateModal = () => {
+    resetForm();
+    setShowModal(true);
+  };
+
+  const openEditModal = (user) => {
+    setEditingUserId(user.id);
     setForm({
-      name: "",
-      email: "",
-      access: "read",
-      customerName: "",
-      dashboards: [],
+      name: user.name || "",
+      email: user.email || "",
+      access: normalizeAccess(user.access),
+      customerName: user.customerName || "",
+      dashboards: Array.isArray(user.dashboards) ? user.dashboards : [],
     });
     setShowModal(true);
   };
@@ -152,8 +172,15 @@ export default function TenantUsersPage({
   return (
     <div className="w-full h-full border rounded-lg bg-white p-6">
       {/* HEADER */}
-      <div className="mb-6 rounded-lg bg-[#374151] text-white px-5 py-4 flex items-center justify-between">
-        <div>
+      <div className="mb-6 rounded-lg bg-[#374151] text-white px-5 py-4 flex items-center gap-4">
+        <button
+          onClick={onGoBack}
+          className="px-3 py-1 rounded-md bg-[#4B5563] hover:bg-[#6B7280] text-sm shrink-0"
+        >
+          ← Back
+        </button>
+
+        <div className="flex-1">
           <h2 className="text-lg font-semibold">Tenant Users & Access</h2>
           <p className="text-sm text-gray-200">
             Create tenant users and assign dashboard access by permission level.
@@ -162,13 +189,6 @@ export default function TenantUsersPage({
             Admin dashboards scope: {currentAdminEmail}
           </div>
         </div>
-
-        <button
-          onClick={onGoBack}
-          className="px-3 py-1 rounded-md bg-[#4B5563] hover:bg-[#6B7280] text-sm"
-        >
-          ← Back
-        </button>
       </div>
 
       {/* ACTION BAR */}
@@ -187,12 +207,13 @@ export default function TenantUsersPage({
 
       {/* TABLE */}
       <div className="border rounded-md overflow-hidden">
-        <div className="grid grid-cols-5 bg-gray-100 text-sm font-semibold text-gray-700 px-4 py-2">
+        <div className="grid grid-cols-6 bg-gray-100 text-sm font-semibold text-gray-700 px-4 py-2">
           <div>Name</div>
           <div>Email</div>
           <div>Access</div>
           <div>Customer</div>
           <div>Dashboards</div>
+          <div className="text-right">Actions</div>
         </div>
 
         {users.length === 0 ? (
@@ -201,7 +222,7 @@ export default function TenantUsersPage({
           users.map((u) => (
             <div
               key={u.id}
-              className="grid grid-cols-5 px-4 py-2 text-sm border-t"
+              className="grid grid-cols-6 px-4 py-2 text-sm border-t items-center gap-3"
             >
               <div>{u.name}</div>
               <div>{u.email}</div>
@@ -214,6 +235,15 @@ export default function TenantUsersPage({
                   ? "—"
                   : selectedDashboardNames(u.dashboards)}
               </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={() => openEditModal(u)}
+                  className="px-2.5 py-1.5 text-xs rounded-md border bg-white hover:bg-gray-100"
+                >
+                  ✏️ Edit
+                </button>
+              </div>
             </div>
           ))
         )}
@@ -223,7 +253,9 @@ export default function TenantUsersPage({
       {showModal && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40">
           <div className="bg-white w-[560px] rounded-lg shadow-lg p-5">
-            <h3 className="text-lg font-semibold mb-3">Create User</h3>
+            <h3 className="text-lg font-semibold mb-3">
+              {editingUserId ? "Edit User" : "Create User"}
+            </h3>
 
             {/* NAME */}
             <input
@@ -268,7 +300,7 @@ export default function TenantUsersPage({
                 setForm((p) => ({
                   ...p,
                   customerName: e.target.value,
-                  dashboards: [], // ✅ reset dashboards when customer changes
+                  dashboards: [],
                 }))
               }
             >
@@ -321,18 +353,21 @@ export default function TenantUsersPage({
             {/* ACTIONS */}
             <div className="flex justify-end gap-2">
               <button
-                onClick={() => setShowModal(false)}
+                onClick={() => {
+                  resetForm();
+                  setShowModal(false);
+                }}
                 className="px-3 py-2 border rounded-md text-sm"
               >
                 Cancel
               </button>
 
               <button
-                onClick={handleCreateUser}
+                onClick={handleSaveUser}
                 className="px-3 py-2 bg-blue-600 text-white rounded-md text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
                 disabled={!form.name || !form.email || !form.customerName}
               >
-                Create
+                {editingUserId ? "Save Changes" : "Create"}
               </button>
             </div>
           </div>
