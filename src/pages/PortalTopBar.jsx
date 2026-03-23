@@ -1,5 +1,6 @@
 // src/components/pages/PortalTopBar.jsx
 import React, { useEffect, useMemo, useState } from "react";
+import logoWhite from "../../assets/coreflex-logo-white.png";
 
 function formatClock(date) {
   try {
@@ -31,12 +32,11 @@ function getAccessClasses(accessLevel) {
 
 export default function PortalTopBar({
   dashboardName = "Dashboard",
-  tenantName = "Tenant User",
+  tenantName = "Portal User",
   accessLevel = "read_only",
   onLogout,
   onLogin,
   isAuthenticated = false,
-  logoSrc = "/coreflex-favicon.png",
 }) {
   const [now, setNow] = useState(() => new Date());
 
@@ -68,11 +68,11 @@ export default function PortalTopBar({
           {/* LEFT */}
           <div className="flex items-center gap-4 min-w-0">
             <img
-              src={logoSrc || "/coreflex-favicon.png"}
+              src={logoWhite}
               alt="CoreFlex Logo"
-              className="h-14 w-auto object-contain"
+              className="h-14 w-auto object-contain select-none pointer-events-none"
               style={{
-                filter: "brightness(0) invert(1)",
+                filter: "drop-shadow(0 0 12px rgba(255,255,255,0.20))",
               }}
             />
 
@@ -100,7 +100,7 @@ export default function PortalTopBar({
             {isAuthenticated ? (
               <>
                 <div className="hidden lg:block text-sm text-slate-200 whitespace-nowrap">
-                  <span className="font-semibold">Tenant:</span> {tenantName}
+                  {tenantName}
                 </div>
 
                 <span
@@ -132,11 +132,9 @@ export default function PortalTopBar({
         {/* mobile row */}
         <div className="mt-2 flex md:hidden items-center justify-between gap-3 text-xs text-slate-300">
           {isAuthenticated ? (
-            <div className="truncate">
-              <span className="font-semibold">Tenant:</span> {tenantName}
-            </div>
+            <div className="truncate">{tenantName}</div>
           ) : (
-            <div className="truncate">Authorized tenant access only</div>
+            <div className="truncate">Authorized portal access only</div>
           )}
           <div className="shrink-0">{clockText}</div>
         </div>
