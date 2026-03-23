@@ -34,7 +34,7 @@ export default function PortalTopBar({
   tenantName = "Tenant User",
   accessLevel = "read_only",
   onLogout,
-  logoSrc = "",
+  logoSrc = "/coreflex-favicon.png",
 }) {
   const [now, setNow] = useState(() => new Date());
 
@@ -57,7 +57,7 @@ export default function PortalTopBar({
   );
 
   return (
-    <div className="w-full bg-white border-b border-sky-200 shadow-sm">
+    <div className="w-full bg-[#374151] border-b border-slate-600 shadow-sm">
       {/* top accent line */}
       <div className="h-[3px] w-full bg-sky-300" />
 
@@ -65,38 +65,38 @@ export default function PortalTopBar({
         <div className="flex items-center justify-between gap-4">
           {/* LEFT */}
           <div className="flex items-center gap-3 min-w-0">
-            {logoSrc ? (
+            <div className="flex items-center gap-2">
               <img
-                src={logoSrc}
+                src={logoSrc || "/coreflex-favicon.png"}
                 alt="CoreFlex Logo"
-                className="h-10 w-auto object-contain"
+                className="h-9 w-auto object-contain"
               />
-            ) : (
+
               <div className="flex flex-col leading-tight">
-                <span className="text-lg font-bold text-slate-800">
+                <span className="text-lg font-bold text-white">
                   CoreFlex
                 </span>
-                <span className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                <span className="text-[11px] uppercase tracking-[0.18em] text-slate-300">
                   IIoTs Platform
                 </span>
               </div>
-            )}
+            </div>
           </div>
 
           {/* CENTER */}
           <div className="flex-1 min-w-0 text-center">
-            <div className="text-base md:text-lg font-semibold text-slate-800 truncate">
+            <div className="text-base md:text-lg font-semibold text-white truncate">
               Customer Dashboard — {dashboardName}
             </div>
           </div>
 
           {/* RIGHT */}
           <div className="flex items-center gap-3 md:gap-4 shrink-0">
-            <div className="hidden md:block text-sm font-medium text-slate-700 whitespace-nowrap">
+            <div className="hidden md:block text-sm font-medium text-slate-200 whitespace-nowrap">
               {clockText}
             </div>
 
-            <div className="hidden lg:block text-sm text-slate-700 whitespace-nowrap">
+            <div className="hidden lg:block text-sm text-slate-200 whitespace-nowrap">
               <span className="font-semibold">Tenant:</span> {tenantName}
             </div>
 
@@ -109,7 +109,7 @@ export default function PortalTopBar({
             <button
               type="button"
               onClick={() => onLogout?.()}
-              className="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+              className="inline-flex items-center rounded-md border border-slate-500 bg-[#4B5563] px-3 py-2 text-sm font-medium text-white hover:bg-[#6B7280]"
             >
               Logout
             </button>
@@ -117,7 +117,7 @@ export default function PortalTopBar({
         </div>
 
         {/* mobile second row */}
-        <div className="mt-2 flex md:hidden items-center justify-between gap-3 text-xs text-slate-600">
+        <div className="mt-2 flex md:hidden items-center justify-between gap-3 text-xs text-slate-300">
           <div className="truncate">
             <span className="font-semibold">Tenant:</span> {tenantName}
           </div>
