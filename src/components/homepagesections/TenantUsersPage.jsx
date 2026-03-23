@@ -63,7 +63,7 @@ export default function TenantUsersPage({
   const [showModal, setShowModal] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
 
-  // ✅ NEW: search/filter states
+  // ✅ search/filter states
   const [searchCustomer, setSearchCustomer] = useState("");
   const [searchEmail, setSearchEmail] = useState("");
 
@@ -80,9 +80,10 @@ export default function TenantUsersPage({
   // ✅ page-level message
   const [pageMsg, setPageMsg] = useState("");
 
-  // ✅ modal validation / save state
+  // ✅ modal validation / save/delete state
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isDeleting, setIsDeleting] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -96,7 +97,6 @@ export default function TenantUsersPage({
     .trim()
     .toLowerCase();
 
-  // ✅ load tenant users from backend when page opens
   const fetchTenantUsersFromBackend = useCallback(async () => {
     try {
       setLoadingUsers(true);
@@ -127,8 +127,6 @@ export default function TenantUsersPage({
     }
   }, []);
 
-  // ✅ load customers created by authenticated admin user only
-  // backend router already scopes /customer-locations to current_user.id
   const fetchCustomersFromBackend = useCallback(async () => {
     try {
       setLoadingCustomers(true);
@@ -177,9 +175,6 @@ export default function TenantUsersPage({
     }
   }, []);
 
-  // ✅ load dashboards assigned to selected customer in DB
-  // backend router already scopes /customers-dashboards to current_user.id
-  // and supports ?customer_name=
   const fetchDashboardsForCustomer = useCallback(async (customerName) => {
     const customer = norm(customerName);
     if (!customer) {
@@ -228,13 +223,11 @@ export default function TenantUsersPage({
     }
   }, []);
 
-  // ✅ load page data on open
   useEffect(() => {
     fetchTenantUsersFromBackend();
     fetchCustomersFromBackend();
   }, [fetchTenantUsersFromBackend, fetchCustomersFromBackend]);
 
-  // ✅ when customer changes in modal, search DB for dashboards assigned to that customer
   useEffect(() => {
     fetchDashboardsForCustomer(form.customerName);
   }, [form.customerName, fetchDashboardsForCustomer]);
@@ -266,7 +259,6 @@ export default function TenantUsersPage({
     return Array.from(map.values());
   }, [customerDashboards, users]);
 
-  // ✅ NEW: filter users by customer and/or email
   const filteredUsers = useMemo(() => {
     const customerQuery = norm(searchCustomer).toLowerCase();
     const emailQuery = norm(searchEmail).toLowerCase();
@@ -296,6 +288,7 @@ export default function TenantUsersPage({
     setCustomerDashboards([]);
     setDashboardsError("");
     setFormError("");
+    setIsDeleting(false);
   };
 
   const clearSearch = () => {
@@ -319,14 +312,6 @@ export default function TenantUsersPage({
     return "";
   };
 
-  // ✅ IMPORTANT:
-  // Frontend validates and sends to backend.
-  // Backend must:
-  // - generate temporary password
-  // - hash password
-  // - save tenant user + dashboard access
-  // - email credentials via Resend from access@coreflexiiotsplatform.com
-  // - NEVER return the password to admin UI
   const handleSaveUser = async () => {
     const validationError = validateForm();
     if (validationError) {
@@ -404,14 +389,56 @@ export default function TenantUsersPage({
 
       resetForm();
       setShowModal(false);
-
-      // ✅ re-sync from backend so table always matches database
       await fetchTenantUsersFromBackend();
     } catch (err) {
       console.error("❌ Failed to save tenant user:", err);
       setFormError(String(err?.message || err));
     } finally {
       setIsSubmitting(false);
+    }
+  };
+
+  const handleDeleteUser = async () => {
+    if (!editingUserId) return;
+
+    const confirmed = window.confirm(
+      "Are you sure you want to delete this tenant user? This action cannot be undone."
+    );
+    if (!confirmed) return;
+
+    try {
+      setIsDeleting(true);
+      setFormError("");
+      setPageMsg("");
+
+      const res = await fetch(
+        `${API_URL}/tenant-users/${encodeURIComponent(editingUserId)}`,
+        {
+          method: "DELETE",
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+          },
+        }
+      );
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(text || "Failed to delete tenant user.");
+      }
+
+      setUsers((prev) =>
+        prev.filter((u) => String(u.id) !== String(editingUserId))
+      );
+      setPageMsg("✅ Tenant user deleted.");
+      resetForm();
+      setShowModal(false);
+      await fetchTenantUsersFromBackend();
+    } catch (err) {
+      console.error("❌ Failed to delete tenant user:", err);
+      setFormError(String(err?.message || err));
+    } finally {
+      setIsDeleting(false);
     }
   };
 
@@ -545,7 +572,7 @@ export default function TenantUsersPage({
           <div className="flex gap-2">
             <button
               onClick={clearSearch}
-              className="px-3 py-2 border rounded-md bg-white hover:bg-gray-100 text-sm"
+              className="px-3 py-2 border rounded-md bg-white hover:bg-gray-100 text-sm disabled:opacity-50"
               disabled={!searchCustomer && !searchEmail}
             >
               Clear Search
@@ -647,24 +674,31 @@ export default function TenantUsersPage({
                 setFormError("");
                 setForm((p) => ({ ...p, name: e.target.value }));
               }}
+              disabled={isSubmitting || isDeleting}
             />
 
             {/* EMAIL */}
             <input
               placeholder="Email"
-              className={`w-full border rounded-md px-3 py-2 mb-2 ${
+              className={`w-full border rounded-md px-3 py-2 mb-1 ${
                 form.email && !isValidEmail(form.email)
                   ? "border-red-400 bg-red-50"
                   : ""
-              }`}
+              } ${editingUserId ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
               value={form.email}
               onChange={(e) => {
+                if (editingUserId) return;
                 setFormError("");
                 setForm((p) => ({ ...p, email: e.target.value }));
               }}
+              disabled={Boolean(editingUserId) || isSubmitting || isDeleting}
             />
 
-            {form.email && !isValidEmail(form.email) ? (
+            {editingUserId ? (
+              <div className="mb-2 text-xs text-gray-500">
+                Email cannot be modified after the tenant user is created.
+              </div>
+            ) : form.email && !isValidEmail(form.email) ? (
               <div className="mb-2 text-xs text-red-600">
                 Please enter a valid email address.
               </div>
@@ -678,6 +712,7 @@ export default function TenantUsersPage({
                 setFormError("");
                 setForm((p) => ({ ...p, access: e.target.value }));
               }}
+              disabled={isSubmitting || isDeleting}
             >
               {ACCESS_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -698,7 +733,7 @@ export default function TenantUsersPage({
                   dashboards: [],
                 }));
               }}
-              disabled={loadingCustomers || isSubmitting}
+              disabled={loadingCustomers || isSubmitting || isDeleting}
             >
               <option value="">
                 {loadingCustomers ? "Loading customers..." : "Select customer"}
@@ -756,7 +791,7 @@ export default function TenantUsersPage({
                         type="checkbox"
                         checked={form.dashboards.includes(String(d.id))}
                         onChange={() => toggleDashboard(d.id)}
-                        disabled={isSubmitting}
+                        disabled={isSubmitting || isDeleting}
                       />
                       <span>{d.name}</span>
                     </label>
@@ -772,41 +807,58 @@ export default function TenantUsersPage({
             ) : null}
 
             {/* ACTIONS */}
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => {
-                  resetForm();
-                  setShowModal(false);
-                }}
-                className="px-3 py-2 border rounded-md text-sm"
-                disabled={isSubmitting}
-              >
-                Cancel
-              </button>
+            <div className="flex justify-between items-center gap-2">
+              <div>
+                {editingUserId ? (
+                  <button
+                    onClick={handleDeleteUser}
+                    className="px-3 py-2 rounded-md text-sm border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isSubmitting || isDeleting}
+                  >
+                    {isDeleting ? "Deleting..." : "Delete User"}
+                  </button>
+                ) : (
+                  <span />
+                )}
+              </div>
 
-              <button
-                onClick={handleSaveUser}
-                className="px-3 py-2 bg-blue-600 text-white rounded-md text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
-                disabled={
-                  !norm(form.name) ||
-                  !norm(form.email) ||
-                  !isValidEmail(form.email) ||
-                  !norm(form.customerName) ||
-                  !Array.isArray(form.dashboards) ||
-                  form.dashboards.length === 0 ||
-                  loadingCustomers ||
-                  loadingDashboards ||
-                  isSubmitting
-                }
-              >
-                {isSubmitting
-                  ? editingUserId
-                    ? "Saving..."
-                    : "Creating..."
-                  : editingUserId
-                  ? "Save Changes"
-                  : "Create"}
-              </button>
+              <div className="flex justify-end gap-2">
+                <button
+                  onClick={() => {
+                    resetForm();
+                    setShowModal(false);
+                  }}
+                  className="px-3 py-2 border rounded-md text-sm"
+                  disabled={isSubmitting || isDeleting}
+                >
+                  Cancel
+                </button>
+
+                <button
+                  onClick={handleSaveUser}
+                  className="px-3 py-2 bg-blue-600 text-white rounded-md text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  disabled={
+                    !norm(form.name) ||
+                    !norm(form.email) ||
+                    !isValidEmail(form.email) ||
+                    !norm(form.customerName) ||
+                    !Array.isArray(form.dashboards) ||
+                    form.dashboards.length === 0 ||
+                    loadingCustomers ||
+                    loadingDashboards ||
+                    isSubmitting ||
+                    isDeleting
+                  }
+                >
+                  {isSubmitting
+                    ? editingUserId
+                      ? "Saving..."
+                      : "Creating..."
+                    : editingUserId
+                    ? "Save Changes"
+                    : "Create"}
+                </button>
+              </div>
             </div>
           </div>
         </div>
