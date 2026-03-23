@@ -5,7 +5,8 @@ import React from "react";
  * useDashboardTelemetryPoller
  * - ONE poller per DashboardCanvas (Play/Launch only)
  * - Polls every pollMs (default 3000ms)
- * - Fetches /{base}/my-devices at most once per model per tick
+ * - Private mode: fetches /{base}/my-devices at most once per model per tick
+ * - Public tenant mode: fetches /tenant-access/devices once per tick
  * - Builds telemetryMap[model][deviceId] = row
  *
  * Supports bindings stored as:
@@ -22,6 +23,14 @@ export default function useDashboardTelemetryPoller({
   dashboardId,
   selectedTank,
   resolveDashboardId,
+
+  // ✅ NEW: public tenant launch support
+  isPublicLaunch = false,
+  publicDashSlug = "",
+  publicDashLaunchId = "",
+  tenantEmail = "",
+  isTenantAuthenticated = false,
+
   pollMs = 3000,
   modelMeta = {
     zhc1921: { base: "zhc1921" },
@@ -46,7 +55,9 @@ export default function useDashboardTelemetryPoller({
       if (typeof window === "undefined") return false;
       const qs = window.location?.search || "";
       const params = new URLSearchParams(qs.startsWith("?") ? qs.slice(1) : qs);
-      const v = String(params.get("gddebug") || "").trim().toLowerCase();
+      const v = String(params.get("gddebug") || "")
+        .trim()
+        .toLowerCase();
       return v === "1" || v === "true" || v === "yes";
     } catch {
       return false;
@@ -71,7 +82,7 @@ export default function useDashboardTelemetryPoller({
     [debugEnabled]
   );
 
-  // ✅ normalize API response to array (matches loader.js idea)
+  // ✅ normalize API response to array
   function normalizeArray(data) {
     return Array.isArray(data)
       ? data
@@ -82,7 +93,7 @@ export default function useDashboardTelemetryPoller({
       : [];
   }
 
-  // ✅ read device id robustly (matches loader.js)
+  // ✅ read device id robustly
   function readDeviceId(row) {
     return (
       row?.deviceId ??
@@ -95,6 +106,30 @@ export default function useDashboardTelemetryPoller({
     );
   }
 
+  // ✅ normalize model names from row payload
+  function readModelKey(row) {
+    const raw = String(
+      row?.model ??
+        row?.bindModel ??
+        row?.bind_model ??
+        row?.deviceModel ??
+        row?.device_model ??
+        ""
+    )
+      .trim()
+      .toLowerCase();
+
+    if (!raw) return "";
+
+    if (raw === "zhc1921" || raw === "cf-2000" || raw === "cf2000")
+      return "zhc1921";
+    if (raw === "zhc1661" || raw === "cf-1600" || raw === "cf1600")
+      return "zhc1661";
+    if (raw === "tp4000" || raw === "tp-4000") return "tp4000";
+
+    return raw;
+  }
+
   // ✅ Extract binding from ANY widget shape we support
   const extractBinding = React.useCallback(
     (t) => {
@@ -105,12 +140,16 @@ export default function useDashboardTelemetryPoller({
       if (tag) {
         const model = String(tag?.model || "").trim();
         const deviceId = String(tag?.deviceId || "").trim();
-        if (model && deviceId && modelMeta?.[model]?.base) return { model, deviceId };
+        if (model && deviceId && modelMeta?.[model]?.base) {
+          return { model, deviceId };
+        }
       }
 
       // B) graphicDisplay binding style
       const bm = String(t?.bindModel ?? t?.properties?.bindModel ?? "").trim();
-      const bd = String(t?.bindDeviceId ?? t?.properties?.bindDeviceId ?? "").trim();
+      const bd = String(
+        t?.bindDeviceId ?? t?.properties?.bindDeviceId ?? ""
+      ).trim();
       if (bm && bd && modelMeta?.[bm]?.base) return { model: bm, deviceId: bd };
 
       return null;
@@ -126,11 +165,25 @@ export default function useDashboardTelemetryPoller({
     for (const t of list) {
       const x = extractBinding(t);
       if (!x) continue;
+      if (!wanted[x.model]) wanted[x.model] = new Set();
       wanted[x.model].add(x.deviceId);
     }
 
     return wanted;
   }, [droppedTanks, extractBinding, modelMeta]);
+
+  const clearTelemetryMap = React.useCallback(() => {
+    setTelemetryMap((prev) => {
+      let changed = false;
+      const next = {};
+      for (const k of Object.keys(modelMeta || {})) {
+        const wasSize = Object.keys(prev?.[k] || {}).length;
+        next[k] = {};
+        if (wasSize) changed = true;
+      }
+      return changed ? next : prev;
+    });
+  }, [modelMeta]);
 
   const fetchOnce = React.useCallback(async () => {
     if (!isPlay) return;
@@ -147,30 +200,103 @@ export default function useDashboardTelemetryPoller({
     loadingRef.current = true;
 
     try {
-      const token = String(getToken?.() || "").trim();
-      if (!token) {
-        dbg("skip: no token");
-        return;
-      }
-
       const wanted = collectWanted();
-      dbg("wanted devices", Object.fromEntries(
-        Object.entries(wanted).map(([k, set]) => [k, Array.from(set).slice(0, 20)])
-      ));
+
+      dbg(
+        "wanted devices",
+        Object.fromEntries(
+          Object.entries(wanted).map(([k, set]) => [k, Array.from(set).slice(0, 20)])
+        )
+      );
 
       const anyWanted = Object.values(wanted).some((s) => s && s.size > 0);
       if (!anyWanted) {
         dbg("no wanted bindings -> clearing telemetryMap");
-        setTelemetryMap((prev) => {
-          let changed = false;
-          const next = {};
-          for (const k of Object.keys(modelMeta || {})) {
-            const wasSize = Object.keys(prev?.[k] || {}).length;
-            next[k] = {};
-            if (wasSize) changed = true;
-          }
-          return changed ? next : prev;
+        clearTelemetryMap();
+        return;
+      }
+
+      // ==========================================
+      // ✅ PUBLIC TENANT MODE
+      // fetch once from /tenant-access/devices
+      // ==========================================
+      if (isPublicLaunch) {
+        const email = String(tenantEmail || "")
+          .trim()
+          .toLowerCase();
+        const slug = String(publicDashSlug || "").trim();
+        const publicId = String(publicDashLaunchId || "").trim();
+
+        if (!isTenantAuthenticated || !email || !slug || !publicId) {
+          dbg("public mode skip", {
+            isTenantAuthenticated,
+            hasEmail: !!email,
+            hasSlug: !!slug,
+            hasPublicId: !!publicId,
+          });
+          clearTelemetryMap();
+          return;
+        }
+
+        const qs = new URLSearchParams({
+          dashboard_slug: slug,
+          public_launch_id: publicId,
+          tenant_email: email,
         });
+
+        const url = `${API_URL}/tenant-access/devices?${qs.toString()}`;
+        dbg("public fetch", { url });
+
+        const res = await fetch(url);
+        if (!res.ok) {
+          dbgErr("public fetch failed", { status: res.status, url });
+          clearTelemetryMap();
+          return;
+        }
+
+        const data = await res.json().catch(() => []);
+        const rows = normalizeArray(data);
+
+        dbg("public fetch ok", {
+          rows: rows.length,
+          sample: rows.slice(0, 6).map((r) => ({
+            model: readModelKey(r),
+            id: String(readDeviceId(r) || "").trim(),
+          })),
+        });
+
+        const next = {};
+        for (const k of Object.keys(modelMeta || {})) next[k] = {};
+
+        for (const row of rows || []) {
+          const modelKey = readModelKey(row);
+          const id = String(readDeviceId(row) || "").trim();
+
+          if (!modelKey || !id) continue;
+          if (!wanted?.[modelKey]?.has(id)) continue;
+
+          if (!next[modelKey]) next[modelKey] = {};
+          next[modelKey][id] = row;
+        }
+
+        dbg(
+          "public telemetryMap built",
+          Object.fromEntries(
+            Object.entries(next).map(([k, bucket]) => [k, Object.keys(bucket).slice(0, 20)])
+          )
+        );
+
+        setTelemetryMap(next);
+        return;
+      }
+
+      // ==========================================
+      // ✅ PRIVATE PLATFORM MODE
+      // fetch /{base}/my-devices per model
+      // ==========================================
+      const token = String(getToken?.() || "").trim();
+      if (!token) {
+        dbg("private mode skip: no token");
         return;
       }
 
@@ -193,9 +319,13 @@ export default function useDashboardTelemetryPoller({
         dbg("fetchModel ok", {
           base,
           dataType: data ? typeof data : "null",
-          topKeys: data && typeof data === "object" ? Object.keys(data).slice(0, 10) : null,
+          topKeys:
+            data && typeof data === "object" ? Object.keys(data).slice(0, 10) : null,
           rows: arr.length,
-          sampleIds: arr.slice(0, 6).map((r) => String(readDeviceId(r)).trim()).filter(Boolean),
+          sampleIds: arr
+            .slice(0, 6)
+            .map((r) => String(readDeviceId(r)).trim())
+            .filter(Boolean),
         });
 
         return arr;
@@ -224,9 +354,12 @@ export default function useDashboardTelemetryPoller({
         }
       }
 
-      dbg("telemetryMap built", Object.fromEntries(
-        Object.entries(next).map(([k, bucket]) => [k, Object.keys(bucket).slice(0, 20)])
-      ));
+      dbg(
+        "private telemetryMap built",
+        Object.fromEntries(
+          Object.entries(next).map(([k, bucket]) => [k, Object.keys(bucket).slice(0, 20)])
+        )
+      );
 
       setTelemetryMap(next);
     } catch (e) {
@@ -247,6 +380,12 @@ export default function useDashboardTelemetryPoller({
     resolveDashboardId,
     collectWanted,
     modelMeta,
+    isPublicLaunch,
+    publicDashSlug,
+    publicDashLaunchId,
+    tenantEmail,
+    isTenantAuthenticated,
+    clearTelemetryMap,
     dbg,
     dbgErr,
   ]);

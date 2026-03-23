@@ -131,6 +131,13 @@ export default function DashboardCanvas({
   onOpenPushButtonNOSettings,
   onOpenPushButtonNCSettings,
 
+  // ✅ NEW: public tenant launch support
+  isPublicLaunch = false,
+  publicDashSlug = "",
+  publicDashLaunchId = "",
+  tenantEmail = "",
+  isTenantAuthenticated = false,
+
   // ✅ NEW: IDs Details overlay toggle from parent/sidebar
   showDashboardIdsDetails = false,
 }) {
@@ -180,6 +187,14 @@ export default function DashboardCanvas({
     dashboardId,
     selectedTank,
     resolveDashboardId,
+
+    // ✅ pass public tenant launch context into poller
+    isPublicLaunch,
+    publicDashSlug,
+    publicDashLaunchId,
+    tenantEmail,
+    isTenantAuthenticated,
+
     pollMs: 2200,
     modelMeta: {
       zhc1921: { base: "zhc1921" },
