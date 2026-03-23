@@ -3,6 +3,7 @@ import DeviceManagerSection from "./homepagesections/DeviceManagerSection";
 import RegisterDevicesSection from "./homepagesections/RegisterDevicesSection";
 import BusinessUsersReportSection from "./homepagesections/BusinessUsersReportSection";
 import BusinessDashboardsReportSection from "./homepagesections/BusinessDashboardsReportSection";
+import TenantUsersPage from "./homepagesections/TenantUsersPage";
 
 // ✅ IMPORTANT: read token the same way the rest of the app does (sessionStorage per-tab)
 import { getToken, parseJwt } from "../utils/authToken";
@@ -95,6 +96,9 @@ export default function HomePage({
   // ✅ NEW: dedicated Business Dashboards Report page state
   const [showBusinessDashboardsReportPage, setShowBusinessDashboardsReportPage] =
     React.useState(false);
+
+  // ✅ NEW: dedicated Tenant Users & Access page state
+  const [showTenantUsersPage, setShowTenantUsersPage] = React.useState(false);
 
   // ✅ Placeholder rows (later replace with backend API)
   const [zhc1921Rows, setZhc1921Rows] = React.useState([
@@ -192,6 +196,13 @@ export default function HomePage({
     }
   }, [showBusinessDashboardsReportPage]);
 
+  // ✅ When Tenant Users page opens, scroll to top too
+  React.useEffect(() => {
+    if (showTenantUsersPage) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [showTenantUsersPage]);
+
   // ✅ Treat “device manager open” like a full-page section
   const isDeviceManagerOpen = isPlatformOwner && !!activeModel;
 
@@ -241,6 +252,15 @@ export default function HomePage({
           onBack={() => setShowBusinessDashboardsReportPage(false)}
           ownerEmail={detectedEmail || normalizedUser}
         />
+      </div>
+    );
+  }
+
+  // ✅ FULL “TENANT USERS & ACCESS PAGE” VIEW
+  if (showTenantUsersPage) {
+    return (
+      <div className="mt-4 md:mt-6">
+        <TenantUsersPage onGoBack={() => setShowTenantUsersPage(false)} />
       </div>
     );
   }
@@ -328,9 +348,17 @@ export default function HomePage({
 
       {/* BOTTOM ROW */}
       <div className="mt-4 md:mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-        <div className="rounded-xl bg-slate-600 text-white p-4 md:p-5 flex flex-col justify-between">
-          <h2 className="text-lg font-semibold mb-2">Settings</h2>
-          <p className="text-sm text-slate-100">Configure preferences.</p>
+        <div
+          className="rounded-xl bg-slate-600 text-white p-4 md:p-5 flex flex-col justify-between cursor-pointer hover:bg-slate-700 transition"
+          onClick={() => setShowTenantUsersPage(true)}
+        >
+          <h2 className="text-lg font-semibold mb-2">Tenant Users & Access</h2>
+          <p className="text-sm text-slate-100">
+            Create tenant users and assign dashboard access by permission level.
+          </p>
+          <div className="mt-3 text-xs text-slate-200 opacity-90">
+            Click to open Tenant Users & Access
+          </div>
         </div>
 
         <div className="rounded-xl bg-emerald-500 text-white p-4 md:p-5 flex flex-col justify-between">
