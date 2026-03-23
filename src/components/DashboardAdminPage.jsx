@@ -422,12 +422,12 @@ export default function DashboardAdminPage({
     const showLink = canShowPublicLink(d);
 
     return (
-      <div className="flex flex-wrap gap-2 md:justify-end md:self-center">
+      <div className="flex flex-wrap items-start gap-2 md:self-start md:pt-[30px]">
         {showLink ? (
           <>
             <button
               type="button"
-              className="px-3 py-2 rounded-md text-sm border bg-white hover:bg-blue-50"
+              className="px-2.5 py-1.5 rounded-md text-xs border bg-white hover:bg-blue-50 whitespace-nowrap"
               onClick={() => copyPublicLink(d)}
               title="Copy public launch link"
             >
@@ -436,7 +436,7 @@ export default function DashboardAdminPage({
 
             <button
               type="button"
-              className="px-3 py-2 rounded-md text-sm border bg-indigo-600 text-white hover:bg-indigo-700"
+              className="px-2.5 py-1.5 rounded-md text-xs border bg-indigo-600 text-white hover:bg-indigo-700 whitespace-nowrap"
               onClick={() => openPublicLink(d)}
               title="Open public launch link in a new tab"
             >
@@ -447,7 +447,7 @@ export default function DashboardAdminPage({
 
         <button
           type="button"
-          className="px-3 py-2 rounded-md text-sm border bg-white hover:bg-gray-100"
+          className="px-2.5 py-1.5 rounded-md text-xs border bg-white hover:bg-gray-100 whitespace-nowrap"
           onClick={() => onOpenDashboard?.(d)}
           title="Open this dashboard in the main editor"
         >
@@ -456,7 +456,7 @@ export default function DashboardAdminPage({
 
         <button
           type="button"
-          className="px-3 py-2 rounded-md text-sm border bg-green-600 text-white hover:bg-green-700"
+          className="px-2.5 py-1.5 rounded-md text-xs border bg-green-600 text-white hover:bg-green-700 whitespace-nowrap"
           onClick={() => onLaunchDashboard?.(d)}
           title="Launch play-mode in a new tab"
         >
@@ -465,7 +465,7 @@ export default function DashboardAdminPage({
 
         <button
           type="button"
-          className="px-3 py-2 rounded-md text-sm border bg-red-600 text-white hover:bg-red-700"
+          className="px-2.5 py-1.5 rounded-md text-xs border bg-red-600 text-white hover:bg-red-700 whitespace-nowrap"
           onClick={() => setDeleteTarget(d)}
           title="Delete this dashboard"
         >
@@ -628,7 +628,7 @@ export default function DashboardAdminPage({
               {filteredDashboards.map((d) => (
                 <div
                   key={d.id}
-                  className="p-4 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
+                  className="p-4 flex flex-col md:flex-row md:items-start md:justify-between gap-4"
                 >
                   {renderPublicLinkArea(d)}
                   {renderActionButtons(d)}
@@ -657,7 +657,7 @@ export default function DashboardAdminPage({
                     {groupedByCustomer[customerName].map((d) => (
                       <div
                         key={d.id}
-                        className="px-4 py-3 flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-gray-50"
+                        className="px-4 py-3 flex flex-col md:flex-row md:items-start md:justify-between gap-4 bg-gray-50"
                       >
                         {renderPublicLinkArea(d)}
                         {renderActionButtons(d)}
