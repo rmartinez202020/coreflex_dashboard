@@ -8,45 +8,6 @@ const ACCESS_OPTIONS = [
   { value: "read_control", label: "Read + Control" },
 ];
 
-// ✅ Mock dashboards still include:
-// - customerName
-// - createdBy
-// Later this can also come from backend
-const MOCK_DASHBOARDS = [
-  {
-    id: "1",
-    name: "Main Dashboard",
-    customerName: "COREFLEX LAB",
-    createdBy: "roquemartinezpolanco@gmail.com",
-  },
-  {
-    id: "2",
-    name: "Utilities Room",
-    customerName: "COREFLEX LAB",
-    createdBy: "roquemartinezpolanco@gmail.com",
-  },
-  {
-    id: "3",
-    name: "Pump Station",
-    customerName: "COREFLEX LAB",
-    createdBy: "roquemartinezpolanco@gmail.com",
-  },
-
-  // ❌ these will not appear for roquemartinezpolanco@gmail.com
-  {
-    id: "4",
-    name: "Boiler Room",
-    customerName: "COREFLEX LAB",
-    createdBy: "anotheradmin@gmail.com",
-  },
-  {
-    id: "5",
-    name: "Warehouse",
-    customerName: "MAIN PLANT",
-    createdBy: "anotheradmin@gmail.com",
-  },
-];
-
 function normalizeAccess(value) {
   const v = String(value || "").toLowerCase();
   if (v === "read_control") return "read_control";
@@ -70,10 +31,15 @@ export default function TenantUsersPage({
   const [showModal, setShowModal] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
 
-  // ✅ Customers now come from backend (/customer-locations)
+  // ✅ Customers from backend (/customer-locations)
   const [customers, setCustomers] = useState([]);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [customersError, setCustomersError] = useState("");
+
+  // ✅ Dashboards from backend (/customers-dashboards?customer_name=...)
+  const [customerDashboards, setCustomerDashboards] = useState([]);
+  const [loadingDashboards, setLoadingDashboards] = useState(false);
+  const [dashboardsError, setDashboardsError] = useState("");
 
   const [form, setForm] = useState({
     name: "",
@@ -87,27 +53,8 @@ export default function TenantUsersPage({
     .trim()
     .toLowerCase();
 
-  // ✅ Only dashboards created by THIS admin user
-  const adminOwnedDashboards = useMemo(() => {
-    return MOCK_DASHBOARDS.filter(
-      (d) =>
-        String(d.createdBy || "").trim().toLowerCase() === normalizedAdminEmail
-    );
-  }, [normalizedAdminEmail]);
-
-  // ✅ Filter dashboards by selected customer + current admin user
-  const availableDashboards = useMemo(() => {
-    const selectedCustomer = norm(form.customerName);
-    if (!selectedCustomer) return [];
-
-    return adminOwnedDashboards.filter(
-      (d) => norm(d.customerName) === selectedCustomer
-    );
-  }, [adminOwnedDashboards, form.customerName]);
-
-  // ✅ Read only customers that belong to the authenticated admin user
-  // Backend reference:
-  // GET /customer-locations returns current_user.id scoped rows only
+  // ✅ load customers created by authenticated admin user only
+  // backend router already scopes /customer-locations to current_user.id
   const fetchCustomersFromBackend = async () => {
     try {
       setLoadingCustomers(true);
@@ -128,7 +75,6 @@ export default function TenantUsersPage({
       const rows = await res.json().catch(() => []);
       const arr = Array.isArray(rows) ? rows : [];
 
-      // ✅ De-duplicate customer_name from current admin's rows
       const seen = new Set();
       const uniqueCustomers = [];
 
@@ -157,9 +103,92 @@ export default function TenantUsersPage({
     }
   };
 
+  // ✅ load dashboards assigned to selected customer in DB
+  // backend router already scopes /customers-dashboards to current_user.id
+  // and supports ?customer_name=
+  const fetchDashboardsForCustomer = async (customerName) => {
+    const customer = norm(customerName);
+    if (!customer) {
+      setCustomerDashboards([]);
+      setDashboardsError("");
+      return;
+    }
+
+    try {
+      setLoadingDashboards(true);
+      setDashboardsError("");
+
+      const res = await fetch(
+        `${API_URL}/customers-dashboards?customer_name=${encodeURIComponent(
+          customer
+        )}`,
+        {
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+          },
+        }
+      );
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(text || "Failed to load dashboards.");
+      }
+
+      const rows = await res.json().catch(() => []);
+      const arr = Array.isArray(rows) ? rows : [];
+
+      const cleaned = arr.map((row) => ({
+        id: String(row?.id ?? "").trim(),
+        name: norm(row?.dashboard_name),
+        customerName: norm(row?.customer_name),
+      }));
+
+      setCustomerDashboards(cleaned.filter((d) => d.id && d.name));
+    } catch (err) {
+      console.error("❌ Failed to load dashboards for customer:", err);
+      setCustomerDashboards([]);
+      setDashboardsError(String(err?.message || err));
+    } finally {
+      setLoadingDashboards(false);
+    }
+  };
+
   useEffect(() => {
     fetchCustomersFromBackend();
   }, []);
+
+  // ✅ when customer changes in modal, search DB for dashboards assigned to that customer
+  useEffect(() => {
+    fetchDashboardsForCustomer(form.customerName);
+  }, [form.customerName]);
+
+  const availableDashboards = useMemo(() => {
+    const selectedCustomer = norm(form.customerName);
+    if (!selectedCustomer) return [];
+
+    return customerDashboards.filter(
+      (d) => norm(d.customerName) === selectedCustomer
+    );
+  }, [customerDashboards, form.customerName]);
+
+  const allKnownDashboards = useMemo(() => {
+    const map = new Map();
+
+    for (const d of customerDashboards) {
+      map.set(String(d.id), d);
+    }
+
+    for (const u of users) {
+      if (Array.isArray(u.dashboardObjects)) {
+        for (const d of u.dashboardObjects) {
+          if (d?.id) map.set(String(d.id), d);
+        }
+      }
+    }
+
+    return Array.from(map.values());
+  }, [customerDashboards, users]);
 
   const resetForm = () => {
     setForm({
@@ -170,10 +199,16 @@ export default function TenantUsersPage({
       dashboards: [],
     });
     setEditingUserId(null);
+    setCustomerDashboards([]);
+    setDashboardsError("");
   };
 
   const handleSaveUser = () => {
     if (!form.name || !form.email || !form.customerName) return;
+
+    const selectedDashboardObjects = availableDashboards.filter((d) =>
+      form.dashboards.includes(String(d.id))
+    );
 
     const payload = {
       name: form.name,
@@ -181,6 +216,7 @@ export default function TenantUsersPage({
       access: normalizeAccess(form.access),
       customerName: form.customerName,
       dashboards: form.dashboards,
+      dashboardObjects: selectedDashboardObjects,
     };
 
     if (editingUserId) {
@@ -200,13 +236,14 @@ export default function TenantUsersPage({
   };
 
   const toggleDashboard = (id) => {
+    const dashboardId = String(id);
     setForm((prev) => {
-      const exists = prev.dashboards.includes(id);
+      const exists = prev.dashboards.includes(dashboardId);
       return {
         ...prev,
         dashboards: exists
-          ? prev.dashboards.filter((d) => d !== id)
-          : [...prev.dashboards, id],
+          ? prev.dashboards.filter((d) => d !== dashboardId)
+          : [...prev.dashboards, dashboardId],
       };
     });
   };
@@ -227,7 +264,9 @@ export default function TenantUsersPage({
       email: user.email || "",
       access: normalizeAccess(user.access),
       customerName: user.customerName || "",
-      dashboards: Array.isArray(user.dashboards) ? user.dashboards : [],
+      dashboards: Array.isArray(user.dashboards)
+        ? user.dashboards.map((id) => String(id))
+        : [],
     });
     setShowModal(true);
 
@@ -236,11 +275,19 @@ export default function TenantUsersPage({
     }
   };
 
-  const selectedDashboardNames = (dashboardIds) =>
-    adminOwnedDashboards
-      .filter((d) => dashboardIds.includes(d.id))
+  const selectedDashboardNames = (dashboardIds, dashboardObjects = null) => {
+    if (Array.isArray(dashboardObjects) && dashboardObjects.length > 0) {
+      return dashboardObjects
+        .map((d) => norm(d?.name))
+        .filter(Boolean)
+        .join(", ");
+    }
+
+    return allKnownDashboards
+      .filter((d) => dashboardIds.includes(String(d.id)))
       .map((d) => d.name)
       .join(", ");
+  };
 
   return (
     <div className="w-full h-full border rounded-lg bg-white p-6">
@@ -306,7 +353,7 @@ export default function TenantUsersPage({
               <div className="text-xs text-gray-600">
                 {u.dashboards.length === 0
                   ? "—"
-                  : selectedDashboardNames(u.dashboards)}
+                  : selectedDashboardNames(u.dashboards, u.dashboardObjects)}
               </div>
 
               <div className="flex justify-end">
@@ -402,15 +449,23 @@ export default function TenantUsersPage({
               </div>
 
               <div className="text-xs text-gray-500 mb-2">
-                Customers are loaded from the backend for the authenticated admin
-                user. Only dashboards created by <b>{currentAdminEmail}</b> for
-                the selected customer are shown.
+                After selecting a customer, the system searches the dashboard DB
+                for dashboards assigned to that customer under the authenticated
+                admin user.
               </div>
 
               <div className="space-y-1 max-h-[140px] overflow-y-auto border rounded-md p-2">
                 {!form.customerName ? (
                   <div className="text-sm text-gray-500">
                     Select a customer first.
+                  </div>
+                ) : loadingDashboards ? (
+                  <div className="text-sm text-gray-500">
+                    Loading customer dashboards...
+                  </div>
+                ) : dashboardsError ? (
+                  <div className="text-sm text-red-600">
+                    Failed to load dashboards: {dashboardsError}
                   </div>
                 ) : availableDashboards.length === 0 ? (
                   <div className="text-sm text-gray-500">
@@ -424,7 +479,7 @@ export default function TenantUsersPage({
                     >
                       <input
                         type="checkbox"
-                        checked={form.dashboards.includes(d.id)}
+                        checked={form.dashboards.includes(String(d.id))}
                         onChange={() => toggleDashboard(d.id)}
                       />
                       <span>{d.name}</span>
@@ -453,7 +508,8 @@ export default function TenantUsersPage({
                   !form.name ||
                   !form.email ||
                   !form.customerName ||
-                  loadingCustomers
+                  loadingCustomers ||
+                  loadingDashboards
                 }
               >
                 {editingUserId ? "Save Changes" : "Create"}
