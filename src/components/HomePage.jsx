@@ -349,7 +349,7 @@ export default function HomePage({
       {/* BOTTOM ROW */}
       <div className="mt-4 md:mt-6 grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
         <div
-          className="rounded-xl bg-slate-600 text-white p-4 md:p-5 flex flex-col justify-between cursor-pointer hover:bg-slate-700 transition"
+          className="rounded-xl bg-violet-600 text-white p-4 md:p-5 flex flex-col justify-between cursor-pointer hover:bg-violet-700 transition"
           onClick={() => setShowTenantUsersPage(true)}
         >
           <h2 className="text-lg font-semibold mb-2">Tenant Users & Access</h2>
