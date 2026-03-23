@@ -9,8 +9,6 @@ export default function LaunchedCustomerDashboard() {
   const params = useParams();
   const location = useLocation();
 
-  // ✅ Fallback parser because this app renders launch pages manually from App.jsx
-  // and not from a <Route path="/launchDashboard/:slug/:id" ... />
   const pathParts = useMemo(() => {
     return String(location.pathname || "")
       .split("/")
@@ -18,9 +16,6 @@ export default function LaunchedCustomerDashboard() {
       .filter(Boolean);
   }, [location.pathname]);
 
-  // Supported:
-  // 1) /launchDashboard/:dashboardId
-  // 2) /launchDashboard/:dashboardSlug/:publicLaunchId
   const fallbackDashboardId =
     pathParts[0] === "launchDashboard" && pathParts.length === 2
       ? String(pathParts[1] || "").trim()
@@ -36,18 +31,19 @@ export default function LaunchedCustomerDashboard() {
       ? String(pathParts[2] || "").trim()
       : "";
 
-  const dashboardIdRaw = String(params?.dashboardId || fallbackDashboardId || "").trim();
+  const dashboardIdRaw = String(
+    params?.dashboardId || fallbackDashboardId || ""
+  ).trim();
+
   const dashboardSlugRaw = String(
     params?.dashboardSlug || fallbackDashboardSlug || ""
   ).trim();
+
   const publicLaunchIdRaw = String(
     params?.publicLaunchId || fallbackPublicLaunchId || ""
   ).trim();
 
-  // ✅ Old private launch mode: /launchDashboard/:dashboardId
   const privateDashId = useMemo(() => dashboardIdRaw, [dashboardIdRaw]);
-
-  // ✅ New public launch mode: /launchDashboard/:dashboardSlug/:publicLaunchId
   const publicDashSlug = useMemo(() => dashboardSlugRaw, [dashboardSlugRaw]);
   const publicDashLaunchId = useMemo(
     () => publicLaunchIdRaw,
@@ -60,11 +56,8 @@ export default function LaunchedCustomerDashboard() {
   const [droppedTanks, setDroppedTanks] = useState([]);
   const [loading, setLoading] = useState(true);
   const [fatalError, setFatalError] = useState("");
-
-  // ✅ resolved dashboard id used internally by canvas/widgets
   const [resolvedDashboardId, setResolvedDashboardId] = useState("");
 
-  // ✅ helper: inject dashboardId into every widget
   const injectDashboardIdIntoObjects = (objects, dash, allowInject = true) => {
     if (!Array.isArray(objects)) return [];
     if (!allowInject) return objects;
@@ -78,6 +71,7 @@ export default function LaunchedCustomerDashboard() {
       const existing = String(
         props.dashboardId || props.dashboard_id || ""
       ).trim();
+
       if (existing === did) return o;
 
       return {
@@ -90,7 +84,6 @@ export default function LaunchedCustomerDashboard() {
     });
   };
 
-  // ✅ Load customer dashboard layout
   useEffect(() => {
     const loadLayout = async () => {
       try {
@@ -101,9 +94,6 @@ export default function LaunchedCustomerDashboard() {
 
         let res;
 
-        // ==========================================
-        // 🌐 PUBLIC LAUNCH (NO LOGIN REQUIRED)
-        // ==========================================
         if (isPublicLaunch) {
           res = await fetch(
             `${API_URL}/customers-dashboards/public/${encodeURIComponent(
@@ -128,10 +118,12 @@ export default function LaunchedCustomerDashboard() {
           const backendDashId = String(data?.id || "").trim();
           setResolvedDashboardId(backendDashId);
 
+          // ✅ IMPORTANT FIX:
+          // public launch also needs dashboardId injected so canvas/widgets render
           const finalObjects = injectDashboardIdIntoObjects(
             Array.isArray(objects) ? objects : [],
             backendDashId,
-            false
+            true
           );
 
           setDroppedTanks(finalObjects);
@@ -139,9 +131,6 @@ export default function LaunchedCustomerDashboard() {
           return;
         }
 
-        // ==========================================
-        // 🔐 PRIVATE LAUNCH (LOGIN REQUIRED)
-        // ==========================================
         const token = String(getToken() || "").trim();
         if (!token) {
           setFatalError("Not logged in. Please login first, then click Launch.");
@@ -200,7 +189,6 @@ export default function LaunchedCustomerDashboard() {
     loadLayout();
   }, [privateDashId, publicDashSlug, publicDashLaunchId, isPublicLaunch]);
 
-  // ✅ Devices polling
   useEffect(() => {
     let alive = true;
     let timer = null;
