@@ -613,21 +613,6 @@ export default function DashboardAdminPage({
 
       {/* LIST */}
       <div className="border rounded-lg overflow-hidden">
-        <div className="bg-gray-50 px-4 py-2 text-sm font-semibold text-gray-700 flex items-center justify-between">
-          <span>
-            {selectedCustomer
-              ? `Dashboards — ${selectedCustomer}`
-              : "Dashboards — All customers"}
-            <span className="ml-2 text-xs text-gray-500">
-              ({filteredDashboards.length})
-            </span>
-          </span>
-
-          {search ? (
-            <span className="text-xs text-gray-500">Search: “{search}”</span>
-          ) : null}
-        </div>
-
         {/* ✅ SCROLLABLE LIST CONTAINER */}
         <div className="max-h-[520px] overflow-y-auto">
           {filteredDashboards.length === 0 ? (
