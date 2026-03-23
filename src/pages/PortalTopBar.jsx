@@ -1,6 +1,6 @@
 // src/components/pages/PortalTopBar.jsx
 import React, { useEffect, useMemo, useState } from "react";
-import logoWhite from "../../assets/coreflex-logo-white.png";
+import logoWhite from "../assets/coreflex-logo-white.png";
 
 function formatClock(date) {
   try {
