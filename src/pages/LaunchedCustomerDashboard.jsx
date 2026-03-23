@@ -301,18 +301,21 @@ export default function LaunchedCustomerDashboard() {
     setPasswordChangeError("");
 
     try {
-      const res = await fetch(`${API_URL}/tenant-access/login`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          dashboard_slug: publicDashSlug,
-          public_launch_id: publicDashLaunchId,
-          email,
-          password,
-        }),
-      });
+      const res = await fetch(
+        `${API_URL}/customers-dashboards/tenant-access/login`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            dashboard_slug: publicDashSlug,
+            public_launch_id: publicDashLaunchId,
+            email,
+            password,
+          }),
+        }
+      );
 
       const data = await res.json().catch(() => ({}));
 
@@ -376,28 +379,29 @@ export default function LaunchedCustomerDashboard() {
     setTenantAuthError("");
 
     try {
-      const res = await fetch(`${API_URL}/tenant-access/set-password`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          dashboard_slug: publicDashSlug,
-          public_launch_id: publicDashLaunchId,
-          email,
-          temporary_password: currentPassword,
-          new_password: nextPassword,
-        }),
-      });
+      const res = await fetch(
+        `${API_URL}/customers-dashboards/tenant-access/set-password`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            dashboard_slug: publicDashSlug,
+            public_launch_id: publicDashLaunchId,
+            email,
+            temporary_password: currentPassword,
+            new_password: nextPassword,
+          }),
+        }
+      );
 
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
         throw new Error(
           String(
-            data?.detail ||
-              data?.error ||
-              "Failed to set the new password."
+            data?.detail || data?.error || "Failed to set the new password."
           )
         );
       }
