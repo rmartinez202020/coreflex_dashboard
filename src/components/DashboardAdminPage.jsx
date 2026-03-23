@@ -395,10 +395,6 @@ export default function DashboardAdminPage({
       <div className="flex-1 min-w-0">
         <div className="font-semibold text-gray-900">{d.dashboard_name}</div>
 
-        <div className="text-xs text-gray-500 mt-1">
-          Customer: {d.customer_name}
-        </div>
-
         {showLink ? (
           <div className="mt-3 rounded-md border border-blue-200 bg-blue-50 px-3 py-2">
             <div className="text-[11px] font-semibold uppercase tracking-wide text-blue-700 mb-1">
