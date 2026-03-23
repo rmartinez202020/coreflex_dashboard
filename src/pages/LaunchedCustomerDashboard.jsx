@@ -60,8 +60,21 @@ export default function LaunchedCustomerDashboard() {
   const [resolvedDashboardId, setResolvedDashboardId] = useState("");
   const [dashboardTitle, setDashboardTitle] = useState("Dashboard");
 
-  // ✅ NEW: public portal gate
+  // ✅ Public portal gate/auth states
   const [isTenantAuthenticated, setIsTenantAuthenticated] = useState(false);
+  const [tenantName, setTenantName] = useState("Portal User");
+  const [tenantAccessLevel, setTenantAccessLevel] = useState("read_only");
+
+  const [tenantEmail, setTenantEmail] = useState("");
+  const [tenantPassword, setTenantPassword] = useState("");
+  const [tenantAuthLoading, setTenantAuthLoading] = useState(false);
+  const [tenantAuthError, setTenantAuthError] = useState("");
+
+  const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [passwordChangeLoading, setPasswordChangeLoading] = useState(false);
+  const [passwordChangeError, setPasswordChangeError] = useState("");
 
   const injectDashboardIdIntoObjects = (objects, dash, allowInject = true) => {
     if (!Array.isArray(objects)) return [];
@@ -89,6 +102,19 @@ export default function LaunchedCustomerDashboard() {
     });
   };
 
+  const resetTenantAuthState = () => {
+    setIsTenantAuthenticated(false);
+    setTenantName("Portal User");
+    setTenantAccessLevel("read_only");
+    setTenantAuthError("");
+    setRequiresPasswordChange(false);
+    setNewPassword("");
+    setConfirmNewPassword("");
+    setPasswordChangeError("");
+    setTenantPassword("");
+    setSensorsData([]);
+  };
+
   useEffect(() => {
     const loadLayout = async () => {
       try {
@@ -97,6 +123,7 @@ export default function LaunchedCustomerDashboard() {
         setDroppedTanks([]);
         setResolvedDashboardId("");
         setDashboardTitle("Dashboard");
+        resetTenantAuthState();
 
         let res;
 
@@ -201,7 +228,6 @@ export default function LaunchedCustomerDashboard() {
   }, [privateDashId, publicDashSlug, publicDashLaunchId, isPublicLaunch]);
 
   useEffect(() => {
-    // ✅ Public portal must never show live data before tenant login
     if (isPublicLaunch && !isTenantAuthenticated) {
       setSensorsData([]);
       return;
@@ -261,6 +287,140 @@ export default function LaunchedCustomerDashboard() {
     };
   }, [isPublicLaunch, isTenantAuthenticated]);
 
+  const handleTenantLogin = async () => {
+    const email = String(tenantEmail || "").trim().toLowerCase();
+    const password = String(tenantPassword || "").trim();
+
+    if (!email || !password) {
+      setTenantAuthError("Please enter your email and password.");
+      return;
+    }
+
+    setTenantAuthLoading(true);
+    setTenantAuthError("");
+    setPasswordChangeError("");
+
+    try {
+      const res = await fetch(`${API_URL}/tenant-access/login`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          dashboard_slug: publicDashSlug,
+          public_launch_id: publicDashLaunchId,
+          email,
+          password,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(
+          String(
+            data?.detail ||
+              data?.error ||
+              "Tenant login failed. Please verify your credentials."
+          )
+        );
+      }
+
+      const mustChange = Boolean(data?.must_change_password);
+      setTenantName(
+        String(data?.tenant_name || data?.full_name || email || "Portal User")
+      );
+      setTenantAccessLevel(
+        String(data?.access_level || "read_only").trim() || "read_only"
+      );
+
+      if (mustChange) {
+        setRequiresPasswordChange(true);
+        setIsTenantAuthenticated(false);
+        return;
+      }
+
+      setRequiresPasswordChange(false);
+      setIsTenantAuthenticated(true);
+    } catch (err) {
+      console.error("❌ Tenant login failed:", err);
+      setTenantAuthError(String(err?.message || err));
+    } finally {
+      setTenantAuthLoading(false);
+    }
+  };
+
+  const handleTenantSetPassword = async () => {
+    const email = String(tenantEmail || "").trim().toLowerCase();
+    const currentPassword = String(tenantPassword || "").trim();
+    const nextPassword = String(newPassword || "").trim();
+    const confirmPassword = String(confirmNewPassword || "").trim();
+
+    if (!nextPassword || !confirmPassword) {
+      setPasswordChangeError("Please enter and confirm the new password.");
+      return;
+    }
+
+    if (nextPassword.length < 8) {
+      setPasswordChangeError("New password must be at least 8 characters.");
+      return;
+    }
+
+    if (nextPassword !== confirmPassword) {
+      setPasswordChangeError("New password and confirmation do not match.");
+      return;
+    }
+
+    setPasswordChangeLoading(true);
+    setPasswordChangeError("");
+    setTenantAuthError("");
+
+    try {
+      const res = await fetch(`${API_URL}/tenant-access/set-password`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          dashboard_slug: publicDashSlug,
+          public_launch_id: publicDashLaunchId,
+          email,
+          temporary_password: currentPassword,
+          new_password: nextPassword,
+        }),
+      });
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(
+          String(
+            data?.detail ||
+              data?.error ||
+              "Failed to set the new password."
+          )
+        );
+      }
+
+      setTenantPassword(nextPassword);
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setRequiresPasswordChange(false);
+      setTenantName(
+        String(data?.tenant_name || data?.full_name || email || "Portal User")
+      );
+      setTenantAccessLevel(
+        String(data?.access_level || "read_only").trim() || "read_only"
+      );
+      setIsTenantAuthenticated(true);
+    } catch (err) {
+      console.error("❌ Tenant password change failed:", err);
+      setPasswordChangeError(String(err?.message || err));
+    } finally {
+      setPasswordChangeLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div
@@ -299,10 +459,6 @@ export default function LaunchedCustomerDashboard() {
     );
   }
 
-  // ✅ Public portal gate:
-  // - top bar visible
-  // - login button only
-  // - dashboard hidden until authenticated
   const shouldHideDashboard = isPublicLaunch && !isTenantAuthenticated;
 
   return (
@@ -318,18 +474,13 @@ export default function LaunchedCustomerDashboard() {
     >
       <PortalTopBar
         dashboardName={dashboardTitle}
-        tenantName="Portal User"
-        accessLevel="read_only"
+        tenantName={tenantName}
+        accessLevel={tenantAccessLevel}
         isAuthenticated={!shouldHideDashboard}
-        onLogin={() => {
-          // ✅ frontend placeholder for now
-          // later this will open real tenant login flow
-          setIsTenantAuthenticated(true);
-        }}
+        onLogin={() => {}}
         onLogout={() => {
           if (isPublicLaunch) {
-            setIsTenantAuthenticated(false);
-            setSensorsData([]);
+            resetTenantAuthState();
             return;
           }
           window.close();
@@ -360,13 +511,12 @@ export default function LaunchedCustomerDashboard() {
             <div
               style={{
                 width: "100%",
-                maxWidth: 520,
+                maxWidth: 560,
                 background: "white",
                 border: "1px solid #dbe3ea",
                 borderRadius: 18,
                 boxShadow: "0 16px 40px rgba(15, 23, 42, 0.10)",
                 padding: 28,
-                textAlign: "center",
               }}
             >
               <div
@@ -375,6 +525,7 @@ export default function LaunchedCustomerDashboard() {
                   fontWeight: 800,
                   color: "#0f172a",
                   marginBottom: 10,
+                  textAlign: "center",
                 }}
               >
                 Customer Portal Access
@@ -386,6 +537,7 @@ export default function LaunchedCustomerDashboard() {
                   color: "#334155",
                   lineHeight: 1.6,
                   marginBottom: 8,
+                  textAlign: "center",
                 }}
               >
                 Please sign in to access this dashboard.
@@ -397,31 +549,284 @@ export default function LaunchedCustomerDashboard() {
                   color: "#64748b",
                   lineHeight: 1.5,
                   marginBottom: 24,
+                  textAlign: "center",
                 }}
               >
                 This dashboard is available only to authorized tenant users.
               </div>
 
-              <button
-                type="button"
-                onClick={() => setIsTenantAuthenticated(true)}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  minWidth: 150,
-                  height: 44,
-                  borderRadius: 10,
-                  border: "1px solid #475569",
-                  background: "#374151",
-                  color: "white",
-                  fontSize: 15,
-                  fontWeight: 700,
-                  cursor: "pointer",
-                }}
-              >
-                Login
-              </button>
+              {!requiresPasswordChange ? (
+                <>
+                  <div style={{ marginBottom: 14 }}>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: "#475569",
+                        marginBottom: 6,
+                      }}
+                    >
+                      Email
+                    </label>
+                    <input
+                      type="email"
+                      value={tenantEmail}
+                      onChange={(e) => {
+                        setTenantEmail(e.target.value);
+                        setTenantAuthError("");
+                      }}
+                      placeholder="Enter your tenant email"
+                      style={{
+                        width: "100%",
+                        height: 44,
+                        borderRadius: 10,
+                        border: "1px solid #cbd5e1",
+                        padding: "0 14px",
+                        fontSize: 14,
+                        outline: "none",
+                        boxSizing: "border-box",
+                      }}
+                      autoComplete="username"
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: 14 }}>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: "#475569",
+                        marginBottom: 6,
+                      }}
+                    >
+                      Password
+                    </label>
+                    <input
+                      type="password"
+                      value={tenantPassword}
+                      onChange={(e) => {
+                        setTenantPassword(e.target.value);
+                        setTenantAuthError("");
+                      }}
+                      placeholder="Enter your password"
+                      style={{
+                        width: "100%",
+                        height: 44,
+                        borderRadius: 10,
+                        border: "1px solid #cbd5e1",
+                        padding: "0 14px",
+                        fontSize: 14,
+                        outline: "none",
+                        boxSizing: "border-box",
+                      }}
+                      autoComplete="current-password"
+                    />
+                  </div>
+
+                  {tenantAuthError ? (
+                    <div
+                      style={{
+                        marginBottom: 14,
+                        border: "1px solid #fecaca",
+                        background: "#fef2f2",
+                        color: "#b91c1c",
+                        borderRadius: 10,
+                        padding: "10px 12px",
+                        fontSize: 13,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {tenantAuthError}
+                    </div>
+                  ) : null}
+
+                  <button
+                    type="button"
+                    onClick={handleTenantLogin}
+                    disabled={tenantAuthLoading}
+                    style={{
+                      display: "inline-flex",
+                      width: "100%",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      height: 46,
+                      borderRadius: 10,
+                      border: "1px solid #475569",
+                      background: tenantAuthLoading ? "#94a3b8" : "#374151",
+                      color: "white",
+                      fontSize: 15,
+                      fontWeight: 700,
+                      cursor: tenantAuthLoading ? "not-allowed" : "pointer",
+                    }}
+                  >
+                    {tenantAuthLoading ? "Signing In..." : "Sign In"}
+                  </button>
+                </>
+              ) : (
+                <>
+                  <div
+                    style={{
+                      marginBottom: 16,
+                      border: "1px solid #dbeafe",
+                      background: "#eff6ff",
+                      color: "#1e3a8a",
+                      borderRadius: 10,
+                      padding: "12px 14px",
+                      fontSize: 13,
+                      lineHeight: 1.6,
+                    }}
+                  >
+                    For security, please create a new password before opening
+                    this dashboard.
+                  </div>
+
+                  <div style={{ marginBottom: 14 }}>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: "#475569",
+                        marginBottom: 6,
+                      }}
+                    >
+                      New Password
+                    </label>
+                    <input
+                      type="password"
+                      value={newPassword}
+                      onChange={(e) => {
+                        setNewPassword(e.target.value);
+                        setPasswordChangeError("");
+                      }}
+                      placeholder="Enter new password"
+                      style={{
+                        width: "100%",
+                        height: 44,
+                        borderRadius: 10,
+                        border: "1px solid #cbd5e1",
+                        padding: "0 14px",
+                        fontSize: 14,
+                        outline: "none",
+                        boxSizing: "border-box",
+                      }}
+                      autoComplete="new-password"
+                    />
+                  </div>
+
+                  <div style={{ marginBottom: 14 }}>
+                    <label
+                      style={{
+                        display: "block",
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: "#475569",
+                        marginBottom: 6,
+                      }}
+                    >
+                      Confirm New Password
+                    </label>
+                    <input
+                      type="password"
+                      value={confirmNewPassword}
+                      onChange={(e) => {
+                        setConfirmNewPassword(e.target.value);
+                        setPasswordChangeError("");
+                      }}
+                      placeholder="Confirm new password"
+                      style={{
+                        width: "100%",
+                        height: 44,
+                        borderRadius: 10,
+                        border: "1px solid #cbd5e1",
+                        padding: "0 14px",
+                        fontSize: 14,
+                        outline: "none",
+                        boxSizing: "border-box",
+                      }}
+                      autoComplete="new-password"
+                    />
+                  </div>
+
+                  {passwordChangeError ? (
+                    <div
+                      style={{
+                        marginBottom: 14,
+                        border: "1px solid #fecaca",
+                        background: "#fef2f2",
+                        color: "#b91c1c",
+                        borderRadius: 10,
+                        padding: "10px 12px",
+                        fontSize: 13,
+                        lineHeight: 1.5,
+                      }}
+                    >
+                      {passwordChangeError}
+                    </div>
+                  ) : null}
+
+                  <div
+                    style={{
+                      display: "flex",
+                      gap: 10,
+                      alignItems: "center",
+                    }}
+                  >
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRequiresPasswordChange(false);
+                        setNewPassword("");
+                        setConfirmNewPassword("");
+                        setPasswordChangeError("");
+                      }}
+                      disabled={passwordChangeLoading}
+                      style={{
+                        flex: 1,
+                        height: 46,
+                        borderRadius: 10,
+                        border: "1px solid #cbd5e1",
+                        background: "white",
+                        color: "#334155",
+                        fontSize: 14,
+                        fontWeight: 700,
+                        cursor: passwordChangeLoading
+                          ? "not-allowed"
+                          : "pointer",
+                      }}
+                    >
+                      Back
+                    </button>
+
+                    <button
+                      type="button"
+                      onClick={handleTenantSetPassword}
+                      disabled={passwordChangeLoading}
+                      style={{
+                        flex: 1.4,
+                        height: 46,
+                        borderRadius: 10,
+                        border: "1px solid #475569",
+                        background: passwordChangeLoading
+                          ? "#94a3b8"
+                          : "#374151",
+                        color: "white",
+                        fontSize: 15,
+                        fontWeight: 700,
+                        cursor: passwordChangeLoading
+                          ? "not-allowed"
+                          : "pointer",
+                      }}
+                    >
+                      {passwordChangeLoading
+                        ? "Saving..."
+                        : "Save New Password"}
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         ) : (
