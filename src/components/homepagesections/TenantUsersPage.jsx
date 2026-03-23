@@ -18,6 +18,11 @@ function norm(value) {
   return String(value || "").trim();
 }
 
+function isValidEmail(value) {
+  const v = norm(value).toLowerCase();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+}
+
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
@@ -40,6 +45,13 @@ export default function TenantUsersPage({
   const [customerDashboards, setCustomerDashboards] = useState([]);
   const [loadingDashboards, setLoadingDashboards] = useState(false);
   const [dashboardsError, setDashboardsError] = useState("");
+
+  // ✅ page-level message
+  const [pageMsg, setPageMsg] = useState("");
+
+  // ✅ modal validation / save state
+  const [formError, setFormError] = useState("");
+  const [isSubmitting, setIsSubmitting] = useState(false);
 
   const [form, setForm] = useState({
     name: "",
@@ -201,38 +213,118 @@ export default function TenantUsersPage({
     setEditingUserId(null);
     setCustomerDashboards([]);
     setDashboardsError("");
+    setFormError("");
   };
 
-  const handleSaveUser = () => {
-    if (!form.name || !form.email || !form.customerName) return;
+  const validateForm = () => {
+    const name = norm(form.name);
+    const email = norm(form.email).toLowerCase();
+    const customerName = norm(form.customerName);
+
+    if (!name) return "Name is required.";
+    if (!email) return "Email is required.";
+    if (!isValidEmail(email)) return "Please enter a valid email address.";
+    if (!customerName) return "Customer is required.";
+    if (!norm(form.access)) return "Access level is required.";
+    if (!Array.isArray(form.dashboards) || form.dashboards.length === 0) {
+      return "Select at least one dashboard.";
+    }
+    return "";
+  };
+
+  // ✅ IMPORTANT:
+  // Frontend validates and sends to backend.
+  // Backend must:
+  // - generate temporary password
+  // - hash password
+  // - save tenant user + dashboard access
+  // - email credentials via Resend from access@coreflexiiotsplatform.com
+  // - NEVER return the password to admin UI
+  const handleSaveUser = async () => {
+    const validationError = validateForm();
+    if (validationError) {
+      setFormError(validationError);
+      return;
+    }
+
+    setFormError("");
+    setPageMsg("");
 
     const selectedDashboardObjects = availableDashboards.filter((d) =>
       form.dashboards.includes(String(d.id))
     );
 
     const payload = {
-      name: form.name,
-      email: form.email,
+      name: norm(form.name),
+      email: norm(form.email).toLowerCase(),
       access: normalizeAccess(form.access),
-      customerName: form.customerName,
-      dashboards: form.dashboards,
-      dashboardObjects: selectedDashboardObjects,
+      customer_name: norm(form.customerName),
+      dashboard_ids: form.dashboards.map((id) => Number(id)).filter(Boolean),
     };
 
-    if (editingUserId) {
-      setUsers((prev) =>
-        prev.map((u) => (u.id === editingUserId ? { ...u, ...payload } : u))
-      );
-    } else {
-      const newUser = {
-        id: Date.now(),
-        ...payload,
-      };
-      setUsers((prev) => [...prev, newUser]);
-    }
+    try {
+      setIsSubmitting(true);
 
-    resetForm();
-    setShowModal(false);
+      // ✅ Expected backend endpoints:
+      // POST   /tenant-users        -> create user + generate password + email user
+      // PUT    /tenant-users/{id}   -> update user access/customer/dashboard assignments
+      //
+      // This frontend is ready for that flow.
+      // If backend route is not added yet, it will show a clear error.
+      const endpoint = editingUserId
+        ? `${API_URL}/tenant-users/${encodeURIComponent(editingUserId)}`
+        : `${API_URL}/tenant-users`;
+
+      const method = editingUserId ? "PUT" : "POST";
+
+      const res = await fetch(endpoint, {
+        method,
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify(payload),
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(text || "Failed to save tenant user.");
+      }
+
+      const data = await res.json().catch(() => ({}));
+
+      const normalizedSavedUser = {
+        id: data?.id ?? editingUserId ?? Date.now(),
+        name: payload.name,
+        email: payload.email,
+        access: payload.access,
+        customerName: payload.customer_name,
+        dashboards: payload.dashboard_ids.map(String),
+        dashboardObjects: selectedDashboardObjects,
+      };
+
+      if (editingUserId) {
+        setUsers((prev) =>
+          prev.map((u) =>
+            String(u.id) === String(editingUserId) ? normalizedSavedUser : u
+          )
+        );
+        setPageMsg("✅ Tenant user updated.");
+      } else {
+        setUsers((prev) => [...prev, normalizedSavedUser]);
+        setPageMsg(
+          "✅ Tenant user created. A temporary password should be sent only to that user's email."
+        );
+      }
+
+      resetForm();
+      setShowModal(false);
+    } catch (err) {
+      console.error("❌ Failed to save tenant user:", err);
+      setFormError(String(err?.message || err));
+    } finally {
+      setIsSubmitting(false);
+    }
   };
 
   const toggleDashboard = (id) => {
@@ -268,6 +360,7 @@ export default function TenantUsersPage({
         ? user.dashboards.map((id) => String(id))
         : [],
     });
+    setFormError("");
     setShowModal(true);
 
     if (!customers.length) {
@@ -310,6 +403,13 @@ export default function TenantUsersPage({
           </div>
         </div>
       </div>
+
+      {/* PAGE MESSAGE */}
+      {pageMsg ? (
+        <div className="mb-4 rounded-md border border-gray-200 bg-gray-50 px-3 py-2 text-sm text-gray-800">
+          {pageMsg}
+        </div>
+      ) : null}
 
       {/* ACTION BAR */}
       <div className="mb-4 flex justify-between items-center">
@@ -382,28 +482,41 @@ export default function TenantUsersPage({
               placeholder="Name"
               className="w-full border rounded-md px-3 py-2 mb-2"
               value={form.name}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, name: e.target.value }))
-              }
+              onChange={(e) => {
+                setFormError("");
+                setForm((p) => ({ ...p, name: e.target.value }));
+              }}
             />
 
             {/* EMAIL */}
             <input
               placeholder="Email"
-              className="w-full border rounded-md px-3 py-2 mb-2"
+              className={`w-full border rounded-md px-3 py-2 mb-2 ${
+                form.email && !isValidEmail(form.email)
+                  ? "border-red-400 bg-red-50"
+                  : ""
+              }`}
               value={form.email}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, email: e.target.value }))
-              }
+              onChange={(e) => {
+                setFormError("");
+                setForm((p) => ({ ...p, email: e.target.value }));
+              }}
             />
+
+            {form.email && !isValidEmail(form.email) ? (
+              <div className="mb-2 text-xs text-red-600">
+                Please enter a valid email address.
+              </div>
+            ) : null}
 
             {/* ACCESS */}
             <select
               className="w-full border rounded-md px-3 py-2 mb-2"
               value={form.access}
-              onChange={(e) =>
-                setForm((p) => ({ ...p, access: e.target.value }))
-              }
+              onChange={(e) => {
+                setFormError("");
+                setForm((p) => ({ ...p, access: e.target.value }));
+              }}
             >
               {ACCESS_OPTIONS.map((o) => (
                 <option key={o.value} value={o.value}>
@@ -416,14 +529,15 @@ export default function TenantUsersPage({
             <select
               className="w-full border rounded-md px-3 py-2 mb-3"
               value={form.customerName}
-              onChange={(e) =>
+              onChange={(e) => {
+                setFormError("");
                 setForm((p) => ({
                   ...p,
                   customerName: e.target.value,
                   dashboards: [],
-                }))
-              }
-              disabled={loadingCustomers}
+                }));
+              }}
+              disabled={loadingCustomers || isSubmitting}
             >
               <option value="">
                 {loadingCustomers ? "Loading customers..." : "Select customer"}
@@ -481,6 +595,7 @@ export default function TenantUsersPage({
                         type="checkbox"
                         checked={form.dashboards.includes(String(d.id))}
                         onChange={() => toggleDashboard(d.id)}
+                        disabled={isSubmitting}
                       />
                       <span>{d.name}</span>
                     </label>
@@ -488,6 +603,12 @@ export default function TenantUsersPage({
                 )}
               </div>
             </div>
+
+            {formError ? (
+              <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                {formError}
+              </div>
+            ) : null}
 
             {/* ACTIONS */}
             <div className="flex justify-end gap-2">
@@ -497,6 +618,7 @@ export default function TenantUsersPage({
                   setShowModal(false);
                 }}
                 className="px-3 py-2 border rounded-md text-sm"
+                disabled={isSubmitting}
               >
                 Cancel
               </button>
@@ -505,14 +627,24 @@ export default function TenantUsersPage({
                 onClick={handleSaveUser}
                 className="px-3 py-2 bg-blue-600 text-white rounded-md text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
                 disabled={
-                  !form.name ||
-                  !form.email ||
-                  !form.customerName ||
+                  !norm(form.name) ||
+                  !norm(form.email) ||
+                  !isValidEmail(form.email) ||
+                  !norm(form.customerName) ||
+                  !Array.isArray(form.dashboards) ||
+                  form.dashboards.length === 0 ||
                   loadingCustomers ||
-                  loadingDashboards
+                  loadingDashboards ||
+                  isSubmitting
                 }
               >
-                {editingUserId ? "Save Changes" : "Create"}
+                {isSubmitting
+                  ? editingUserId
+                    ? "Saving..."
+                    : "Creating..."
+                  : editingUserId
+                  ? "Save Changes"
+                  : "Create"}
               </button>
             </div>
           </div>
