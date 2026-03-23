@@ -63,22 +63,22 @@ export default function PortalTopBar({
       {/* top accent line */}
       <div className="h-[3px] w-full bg-sky-300" />
 
-      <div className="w-full px-4 md:px-6 py-3">
+      <div className="w-full px-4 md:px-6 py-2">
         <div className="flex items-center justify-between gap-4">
           {/* LEFT */}
-          <div className="flex items-center gap-4 min-w-0">
+          <div className="flex items-center gap-3 min-w-0">
             <img
               src={logoWhite}
               alt="CoreFlex Logo"
-              className="h-14 w-auto object-contain select-none pointer-events-none"
+              className="h-10 w-auto object-contain select-none pointer-events-none"
               style={{
                 filter: "drop-shadow(0 0 12px rgba(255,255,255,0.20))",
               }}
             />
 
             <div className="flex flex-col leading-tight">
-              <span className="text-2xl font-bold text-white">CoreFlex</span>
-              <span className="text-xs uppercase tracking-[0.25em] text-slate-300">
+              <span className="text-xl font-bold text-white">CoreFlex</span>
+              <span className="text-[10px] uppercase tracking-[0.18em] text-slate-300">
                 IIoTs Platform
               </span>
             </div>
@@ -86,7 +86,7 @@ export default function PortalTopBar({
 
           {/* CENTER */}
           <div className="flex-1 min-w-0 text-center">
-            <div className="text-base md:text-lg font-semibold text-white truncate">
+            <div className="text-sm md:text-base font-semibold text-white truncate">
               Customer Dashboard — {dashboardName}
             </div>
           </div>
@@ -112,7 +112,7 @@ export default function PortalTopBar({
                 <button
                   type="button"
                   onClick={() => onLogout?.()}
-                  className="inline-flex items-center rounded-md border border-slate-500 bg-[#4B5563] px-3 py-2 text-sm font-medium text-white hover:bg-[#6B7280]"
+                  className="inline-flex items-center rounded-md border border-slate-500 bg-[#4B5563] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#6B7280]"
                 >
                   Logout
                 </button>
@@ -121,7 +121,7 @@ export default function PortalTopBar({
               <button
                 type="button"
                 onClick={() => onLogin?.()}
-                className="inline-flex items-center rounded-md border border-slate-500 bg-[#4B5563] px-4 py-2 text-sm font-medium text-white hover:bg-[#6B7280]"
+                className="inline-flex items-center rounded-md border border-slate-500 bg-[#4B5563] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#6B7280]"
               >
                 Login
               </button>
@@ -130,7 +130,7 @@ export default function PortalTopBar({
         </div>
 
         {/* mobile row */}
-        <div className="mt-2 flex md:hidden items-center justify-between gap-3 text-xs text-slate-300">
+        <div className="mt-1.5 flex md:hidden items-center justify-between gap-3 text-xs text-slate-300">
           {isAuthenticated ? (
             <div className="truncate">{tenantName}</div>
           ) : (
