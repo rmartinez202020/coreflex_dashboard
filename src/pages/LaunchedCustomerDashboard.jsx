@@ -258,13 +258,33 @@ export default function LaunchedCustomerDashboard() {
         controller = new AbortController();
 
         const token = String(getToken() || "").trim();
-        const headers =
-          !isPublicLaunch && token ? { Authorization: `Bearer ${token}` } : {};
+        let res;
 
-        const res = await fetch(`${API_URL}/devices`, {
-          headers,
-          signal: controller.signal,
-        });
+        if (isPublicLaunch) {
+          const email = String(tenantEmail || "").trim().toLowerCase();
+
+          if (!email || !isTenantAuthenticated) {
+            if (alive) setSensorsData([]);
+            return;
+          }
+
+          const qs = new URLSearchParams({
+            dashboard_slug: publicDashSlug,
+            public_launch_id: publicDashLaunchId,
+            tenant_email: email,
+          });
+
+          res = await fetch(`${API_URL}/tenant-access/devices?${qs.toString()}`, {
+            signal: controller.signal,
+          });
+        } else {
+          const headers = token ? { Authorization: `Bearer ${token}` } : {};
+
+          res = await fetch(`${API_URL}/devices`, {
+            headers,
+            signal: controller.signal,
+          });
+        }
 
         if (!res.ok) throw new Error("Failed to load devices");
 
@@ -285,7 +305,13 @@ export default function LaunchedCustomerDashboard() {
       if (timer) clearInterval(timer);
       if (controller) controller.abort();
     };
-  }, [isPublicLaunch, isTenantAuthenticated]);
+  }, [
+    isPublicLaunch,
+    isTenantAuthenticated,
+    tenantEmail,
+    publicDashSlug,
+    publicDashLaunchId,
+  ]);
 
   const handleTenantLogin = async () => {
     const email = String(tenantEmail || "").trim().toLowerCase();
