@@ -64,22 +64,24 @@ export default function PortalTopBar({
       <div className="w-full px-4 md:px-6 py-3">
         <div className="flex items-center justify-between gap-4">
           {/* LEFT */}
-          <div className="flex items-center gap-3 min-w-0">
-            <div className="flex items-center gap-2">
-              <img
-                src={logoSrc || "/coreflex-favicon.png"}
-                alt="CoreFlex Logo"
-                className="h-9 w-auto object-contain"
-              />
+          <div className="flex items-center gap-4 min-w-0">
+            {/* 🔥 BIGGER + FORCED WHITE LOGO */}
+            <img
+              src={logoSrc || "/coreflex-favicon.png"}
+              alt="CoreFlex Logo"
+              className="h-14 w-auto object-contain"
+              style={{
+                filter: "brightness(0) invert(1)", // 🔥 makes black logo white
+              }}
+            />
 
-              <div className="flex flex-col leading-tight">
-                <span className="text-lg font-bold text-white">
-                  CoreFlex
-                </span>
-                <span className="text-[11px] uppercase tracking-[0.18em] text-slate-300">
-                  IIoTs Platform
-                </span>
-              </div>
+            <div className="flex flex-col leading-tight">
+              <span className="text-2xl font-bold text-white">
+                CoreFlex
+              </span>
+              <span className="text-xs uppercase tracking-[0.25em] text-slate-300">
+                IIoTs Platform
+              </span>
             </div>
           </div>
 
@@ -116,7 +118,7 @@ export default function PortalTopBar({
           </div>
         </div>
 
-        {/* mobile second row */}
+        {/* mobile row */}
         <div className="mt-2 flex md:hidden items-center justify-between gap-3 text-xs text-slate-300">
           <div className="truncate">
             <span className="font-semibold">Tenant:</span> {tenantName}
@@ -125,7 +127,7 @@ export default function PortalTopBar({
         </div>
       </div>
 
-      {/* bottom accent line */}
+      {/* bottom accent */}
       <div className="h-[2px] w-full bg-sky-200" />
     </div>
   );
