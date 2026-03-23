@@ -2,7 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import DashboardCanvas from "../components/DashboardCanvas";
-import PortalTopBar from "../components/pages/PortalTopBar";
+import PortalTopBar from "../components/pages/PortalTopBar.jsx";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 
