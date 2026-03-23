@@ -63,6 +63,10 @@ export default function TenantUsersPage({
   const [showModal, setShowModal] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
 
+  // ✅ NEW: search/filter states
+  const [searchCustomer, setSearchCustomer] = useState("");
+  const [searchEmail, setSearchEmail] = useState("");
+
   // ✅ Customers from backend (/customer-locations)
   const [customers, setCustomers] = useState([]);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
@@ -262,6 +266,24 @@ export default function TenantUsersPage({
     return Array.from(map.values());
   }, [customerDashboards, users]);
 
+  // ✅ NEW: filter users by customer and/or email
+  const filteredUsers = useMemo(() => {
+    const customerQuery = norm(searchCustomer).toLowerCase();
+    const emailQuery = norm(searchEmail).toLowerCase();
+
+    return users.filter((u) => {
+      const customerOk = customerQuery
+        ? norm(u.customerName).toLowerCase().includes(customerQuery)
+        : true;
+
+      const emailOk = emailQuery
+        ? norm(u.email).toLowerCase().includes(emailQuery)
+        : true;
+
+      return customerOk && emailOk;
+    });
+  }, [users, searchCustomer, searchEmail]);
+
   const resetForm = () => {
     setForm({
       name: "",
@@ -274,6 +296,11 @@ export default function TenantUsersPage({
     setCustomerDashboards([]);
     setDashboardsError("");
     setFormError("");
+  };
+
+  const clearSearch = () => {
+    setSearchCustomer("");
+    setSearchEmail("");
   };
 
   const validateForm = () => {
@@ -482,21 +509,66 @@ export default function TenantUsersPage({
         </div>
       ) : null}
 
+      {/* SEARCH BAR */}
+      <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+        <div className="mb-2 text-sm font-semibold text-gray-800">
+          Search Tenant Users
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3 items-end">
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              Search by Customer
+            </label>
+            <input
+              type="text"
+              value={searchCustomer}
+              onChange={(e) => setSearchCustomer(e.target.value)}
+              placeholder="Enter customer name..."
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-medium text-gray-600 mb-1">
+              Search by User Email
+            </label>
+            <input
+              type="text"
+              value={searchEmail}
+              onChange={(e) => setSearchEmail(e.target.value)}
+              placeholder="Enter user email..."
+              className="w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-200"
+            />
+          </div>
+
+          <div className="flex gap-2">
+            <button
+              onClick={clearSearch}
+              className="px-3 py-2 border rounded-md bg-white hover:bg-gray-100 text-sm"
+              disabled={!searchCustomer && !searchEmail}
+            >
+              Clear Search
+            </button>
+
+            <button
+              onClick={fetchTenantUsersFromBackend}
+              className="px-3 py-2 border rounded-md bg-white hover:bg-gray-50 text-sm"
+              disabled={loadingUsers}
+            >
+              {loadingUsers ? "Refreshing..." : "Refresh"}
+            </button>
+          </div>
+        </div>
+      </div>
+
       {/* ACTION BAR */}
       <div className="mb-4 flex justify-between items-center">
         <h3 className="text-md font-semibold text-gray-800">
-          Tenant Users ({users.length})
+          Tenant Users ({filteredUsers.length})
         </h3>
 
         <div className="flex items-center gap-2">
-          <button
-            onClick={fetchTenantUsersFromBackend}
-            className="px-3 py-2 border rounded-md bg-white hover:bg-gray-50 text-sm"
-            disabled={loadingUsers}
-          >
-            {loadingUsers ? "Refreshing..." : "Refresh"}
-          </button>
-
           <button
             onClick={openCreateModal}
             className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
@@ -521,10 +593,14 @@ export default function TenantUsersPage({
           <div className="p-4 text-sm text-gray-500">
             Loading tenant users from backend...
           </div>
-        ) : users.length === 0 ? (
-          <div className="p-4 text-sm text-gray-500">No users created yet.</div>
+        ) : filteredUsers.length === 0 ? (
+          <div className="p-4 text-sm text-gray-500">
+            {!users.length
+              ? "No users created yet."
+              : "No users matched the current search filters."}
+          </div>
         ) : (
-          users.map((u) => (
+          filteredUsers.map((u) => (
             <div
               key={u.id}
               className="grid grid-cols-6 px-4 py-2 text-sm border-t items-center gap-3"
