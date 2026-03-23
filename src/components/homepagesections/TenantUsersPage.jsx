@@ -1,20 +1,17 @@
 // src/components/homepagesections/TenantUsersPage.jsx
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { API_URL } from "../../config/api";
+import { getToken } from "../../utils/authToken";
 
 const ACCESS_OPTIONS = [
   { value: "read", label: "Read" },
   { value: "read_control", label: "Read + Control" },
 ];
 
-const MOCK_CUSTOMERS = [
-  { id: "c1", name: "COREFLEX LAB" },
-  { id: "c2", name: "MAIN PLANT" },
-  { id: "c3", name: "PUMP STATION" },
-];
-
-// ✅ Mock dashboards now include:
+// ✅ Mock dashboards still include:
 // - customerName
 // - createdBy
+// Later this can also come from backend
 const MOCK_DASHBOARDS = [
   {
     id: "1",
@@ -56,6 +53,15 @@ function normalizeAccess(value) {
   return "read";
 }
 
+function norm(value) {
+  return String(value || "").trim();
+}
+
+function getAuthHeaders() {
+  const token = String(getToken() || "").trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
 export default function TenantUsersPage({
   onGoBack,
   currentAdminEmail = "roquemartinezpolanco@gmail.com",
@@ -63,6 +69,11 @@ export default function TenantUsersPage({
   const [users, setUsers] = useState([]);
   const [showModal, setShowModal] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
+
+  // ✅ Customers now come from backend (/customer-locations)
+  const [customers, setCustomers] = useState([]);
+  const [loadingCustomers, setLoadingCustomers] = useState(false);
+  const [customersError, setCustomersError] = useState("");
 
   const [form, setForm] = useState({
     name: "",
@@ -76,8 +87,6 @@ export default function TenantUsersPage({
     .trim()
     .toLowerCase();
 
-  const customers = useMemo(() => MOCK_CUSTOMERS, []);
-
   // ✅ Only dashboards created by THIS admin user
   const adminOwnedDashboards = useMemo(() => {
     return MOCK_DASHBOARDS.filter(
@@ -88,13 +97,69 @@ export default function TenantUsersPage({
 
   // ✅ Filter dashboards by selected customer + current admin user
   const availableDashboards = useMemo(() => {
-    const selectedCustomer = String(form.customerName || "").trim();
+    const selectedCustomer = norm(form.customerName);
     if (!selectedCustomer) return [];
 
     return adminOwnedDashboards.filter(
-      (d) => String(d.customerName || "").trim() === selectedCustomer
+      (d) => norm(d.customerName) === selectedCustomer
     );
   }, [adminOwnedDashboards, form.customerName]);
+
+  // ✅ Read only customers that belong to the authenticated admin user
+  // Backend reference:
+  // GET /customer-locations returns current_user.id scoped rows only
+  const fetchCustomersFromBackend = async () => {
+    try {
+      setLoadingCustomers(true);
+      setCustomersError("");
+
+      const res = await fetch(`${API_URL}/customer-locations`, {
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(text || "Failed to load customers.");
+      }
+
+      const rows = await res.json().catch(() => []);
+      const arr = Array.isArray(rows) ? rows : [];
+
+      // ✅ De-duplicate customer_name from current admin's rows
+      const seen = new Set();
+      const uniqueCustomers = [];
+
+      for (const row of arr) {
+        const customerName = norm(row?.customer_name);
+        if (!customerName) continue;
+
+        const key = customerName.toLowerCase();
+        if (seen.has(key)) continue;
+        seen.add(key);
+
+        uniqueCustomers.push({
+          id: row?.id || `${key}-${uniqueCustomers.length + 1}`,
+          name: customerName,
+        });
+      }
+
+      uniqueCustomers.sort((a, b) => a.name.localeCompare(b.name));
+      setCustomers(uniqueCustomers);
+    } catch (err) {
+      console.error("❌ Failed to load customer list:", err);
+      setCustomers([]);
+      setCustomersError(String(err?.message || err));
+    } finally {
+      setLoadingCustomers(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchCustomersFromBackend();
+  }, []);
 
   const resetForm = () => {
     setForm({
@@ -146,12 +211,16 @@ export default function TenantUsersPage({
     });
   };
 
-  const openCreateModal = () => {
+  const openCreateModal = async () => {
     resetForm();
     setShowModal(true);
+
+    if (!customers.length) {
+      await fetchCustomersFromBackend();
+    }
   };
 
-  const openEditModal = (user) => {
+  const openEditModal = async (user) => {
     setEditingUserId(user.id);
     setForm({
       name: user.name || "",
@@ -161,6 +230,10 @@ export default function TenantUsersPage({
       dashboards: Array.isArray(user.dashboards) ? user.dashboards : [],
     });
     setShowModal(true);
+
+    if (!customers.length) {
+      await fetchCustomersFromBackend();
+    }
   };
 
   const selectedDashboardNames = (dashboardIds) =>
@@ -303,14 +376,24 @@ export default function TenantUsersPage({
                   dashboards: [],
                 }))
               }
+              disabled={loadingCustomers}
             >
-              <option value="">Select customer</option>
+              <option value="">
+                {loadingCustomers ? "Loading customers..." : "Select customer"}
+              </option>
+
               {customers.map((c) => (
                 <option key={c.id} value={c.name}>
                   {c.name}
                 </option>
               ))}
             </select>
+
+            {customersError ? (
+              <div className="mb-3 text-xs text-red-600">
+                Failed to load customers from backend: {customersError}
+              </div>
+            ) : null}
 
             {/* DASHBOARDS */}
             <div className="mb-3">
@@ -319,8 +402,9 @@ export default function TenantUsersPage({
               </div>
 
               <div className="text-xs text-gray-500 mb-2">
-                Only dashboards created by <b>{currentAdminEmail}</b> for the
-                selected customer are shown.
+                Customers are loaded from the backend for the authenticated admin
+                user. Only dashboards created by <b>{currentAdminEmail}</b> for
+                the selected customer are shown.
               </div>
 
               <div className="space-y-1 max-h-[140px] overflow-y-auto border rounded-md p-2">
@@ -365,7 +449,12 @@ export default function TenantUsersPage({
               <button
                 onClick={handleSaveUser}
                 className="px-3 py-2 bg-blue-600 text-white rounded-md text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
-                disabled={!form.name || !form.email || !form.customerName}
+                disabled={
+                  !form.name ||
+                  !form.email ||
+                  !form.customerName ||
+                  loadingCustomers
+                }
               >
                 {editingUserId ? "Save Changes" : "Create"}
               </button>
