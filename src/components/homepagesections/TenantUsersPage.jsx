@@ -1,5 +1,5 @@
 // src/components/homepagesections/TenantUsersPage.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useCallback, useEffect, useMemo, useState } from "react";
 import { API_URL } from "../../config/api";
 import { getToken } from "../../utils/authToken";
 
@@ -9,8 +9,8 @@ const ACCESS_OPTIONS = [
 ];
 
 function normalizeAccess(value) {
-  const v = String(value || "").toLowerCase();
-  if (v === "read_control") return "read_control";
+  const v = String(value || "").toLowerCase().trim();
+  if (v === "read_control" || v === "read-and-control") return "read_control";
   return "read";
 }
 
@@ -28,11 +28,38 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function normalizeUserFromBackend(row) {
+  const dashboards = Array.isArray(row?.dashboards) ? row.dashboards : [];
+
+  return {
+    id: row?.id ?? Date.now(),
+    name: norm(row?.full_name || row?.name),
+    email: norm(row?.email).toLowerCase(),
+    access: normalizeAccess(row?.access_level || row?.access),
+    customerName: norm(row?.customer_name || row?.customerName),
+    dashboards: dashboards
+      .map((d) => String(d?.id ?? "").trim())
+      .filter(Boolean),
+    dashboardObjects: dashboards
+      .map((d) => ({
+        id: String(d?.id ?? "").trim(),
+        name: norm(d?.dashboard_name || d?.name),
+        customerName: norm(row?.customer_name || row?.customerName),
+      }))
+      .filter((d) => d.id && d.name),
+    isActive: Boolean(row?.is_active ?? true),
+    mustChangePassword: Boolean(row?.must_change_password ?? false),
+  };
+}
+
 export default function TenantUsersPage({
   onGoBack,
   currentAdminEmail = "roquemartinezpolanco@gmail.com",
 }) {
   const [users, setUsers] = useState([]);
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [usersError, setUsersError] = useState("");
+
   const [showModal, setShowModal] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
 
@@ -65,9 +92,40 @@ export default function TenantUsersPage({
     .trim()
     .toLowerCase();
 
+  // ✅ load tenant users from backend when page opens
+  const fetchTenantUsersFromBackend = useCallback(async () => {
+    try {
+      setLoadingUsers(true);
+      setUsersError("");
+
+      const res = await fetch(`${API_URL}/tenant-users`, {
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(text || "Failed to load tenant users.");
+      }
+
+      const rows = await res.json().catch(() => []);
+      const arr = Array.isArray(rows) ? rows : [];
+
+      setUsers(arr.map(normalizeUserFromBackend));
+    } catch (err) {
+      console.error("❌ Failed to load tenant users:", err);
+      setUsers([]);
+      setUsersError(String(err?.message || err));
+    } finally {
+      setLoadingUsers(false);
+    }
+  }, []);
+
   // ✅ load customers created by authenticated admin user only
   // backend router already scopes /customer-locations to current_user.id
-  const fetchCustomersFromBackend = async () => {
+  const fetchCustomersFromBackend = useCallback(async () => {
     try {
       setLoadingCustomers(true);
       setCustomersError("");
@@ -113,12 +171,12 @@ export default function TenantUsersPage({
     } finally {
       setLoadingCustomers(false);
     }
-  };
+  }, []);
 
   // ✅ load dashboards assigned to selected customer in DB
   // backend router already scopes /customers-dashboards to current_user.id
   // and supports ?customer_name=
-  const fetchDashboardsForCustomer = async (customerName) => {
+  const fetchDashboardsForCustomer = useCallback(async (customerName) => {
     const customer = norm(customerName);
     if (!customer) {
       setCustomerDashboards([]);
@@ -164,16 +222,18 @@ export default function TenantUsersPage({
     } finally {
       setLoadingDashboards(false);
     }
-  };
-
-  useEffect(() => {
-    fetchCustomersFromBackend();
   }, []);
+
+  // ✅ load page data on open
+  useEffect(() => {
+    fetchTenantUsersFromBackend();
+    fetchCustomersFromBackend();
+  }, [fetchTenantUsersFromBackend, fetchCustomersFromBackend]);
 
   // ✅ when customer changes in modal, search DB for dashboards assigned to that customer
   useEffect(() => {
     fetchDashboardsForCustomer(form.customerName);
-  }, [form.customerName]);
+  }, [form.customerName, fetchDashboardsForCustomer]);
 
   const availableDashboards = useMemo(() => {
     const selectedCustomer = norm(form.customerName);
@@ -265,12 +325,6 @@ export default function TenantUsersPage({
     try {
       setIsSubmitting(true);
 
-      // ✅ Expected backend endpoints:
-      // POST   /tenant-users        -> create user + generate password + email user
-      // PUT    /tenant-users/{id}   -> update user access/customer/dashboard assignments
-      //
-      // This frontend is ready for that flow.
-      // If backend route is not added yet, it will show a clear error.
       const endpoint = editingUserId
         ? `${API_URL}/tenant-users/${encodeURIComponent(editingUserId)}`
         : `${API_URL}/tenant-users`;
@@ -293,15 +347,19 @@ export default function TenantUsersPage({
 
       const data = await res.json().catch(() => ({}));
 
-      const normalizedSavedUser = {
-        id: data?.id ?? editingUserId ?? Date.now(),
-        name: payload.name,
-        email: payload.email,
-        access: payload.access,
-        customerName: payload.customer_name,
-        dashboards: payload.dashboard_ids.map(String),
-        dashboardObjects: selectedDashboardObjects,
-      };
+      const normalizedSavedUser = data?.id
+        ? normalizeUserFromBackend(data)
+        : {
+            id: editingUserId ?? Date.now(),
+            name: payload.name,
+            email: payload.email,
+            access: payload.access,
+            customerName: payload.customer_name,
+            dashboards: payload.dashboard_ids.map(String),
+            dashboardObjects: selectedDashboardObjects,
+            isActive: true,
+            mustChangePassword: !editingUserId,
+          };
 
       if (editingUserId) {
         setUsers((prev) =>
@@ -311,7 +369,7 @@ export default function TenantUsersPage({
         );
         setPageMsg("✅ Tenant user updated.");
       } else {
-        setUsers((prev) => [...prev, normalizedSavedUser]);
+        setUsers((prev) => [normalizedSavedUser, ...prev]);
         setPageMsg(
           "✅ Tenant user created. A temporary password should be sent only to that user's email."
         );
@@ -319,6 +377,9 @@ export default function TenantUsersPage({
 
       resetForm();
       setShowModal(false);
+
+      // ✅ re-sync from backend so table always matches database
+      await fetchTenantUsersFromBackend();
     } catch (err) {
       console.error("❌ Failed to save tenant user:", err);
       setFormError(String(err?.message || err));
@@ -366,6 +427,10 @@ export default function TenantUsersPage({
     if (!customers.length) {
       await fetchCustomersFromBackend();
     }
+
+    if (user.customerName) {
+      await fetchDashboardsForCustomer(user.customerName);
+    }
   };
 
   const selectedDashboardNames = (dashboardIds, dashboardObjects = null) => {
@@ -399,7 +464,7 @@ export default function TenantUsersPage({
             Create tenant users and assign dashboard access by permission level.
           </p>
           <div className="mt-1 text-xs text-gray-300">
-            Admin dashboards scope: {currentAdminEmail}
+            Admin dashboards scope: {normalizedAdminEmail}
           </div>
         </div>
       </div>
@@ -411,18 +476,34 @@ export default function TenantUsersPage({
         </div>
       ) : null}
 
+      {usersError ? (
+        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          Failed to load tenant users from backend: {usersError}
+        </div>
+      ) : null}
+
       {/* ACTION BAR */}
       <div className="mb-4 flex justify-between items-center">
         <h3 className="text-md font-semibold text-gray-800">
           Tenant Users ({users.length})
         </h3>
 
-        <button
-          onClick={openCreateModal}
-          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
-        >
-          + Add User
-        </button>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={fetchTenantUsersFromBackend}
+            className="px-3 py-2 border rounded-md bg-white hover:bg-gray-50 text-sm"
+            disabled={loadingUsers}
+          >
+            {loadingUsers ? "Refreshing..." : "Refresh"}
+          </button>
+
+          <button
+            onClick={openCreateModal}
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+          >
+            + Add User
+          </button>
+        </div>
       </div>
 
       {/* TABLE */}
@@ -436,7 +517,11 @@ export default function TenantUsersPage({
           <div className="text-right">Actions</div>
         </div>
 
-        {users.length === 0 ? (
+        {loadingUsers ? (
+          <div className="p-4 text-sm text-gray-500">
+            Loading tenant users from backend...
+          </div>
+        ) : users.length === 0 ? (
           <div className="p-4 text-sm text-gray-500">No users created yet.</div>
         ) : (
           users.map((u) => (
