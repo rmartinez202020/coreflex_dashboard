@@ -383,7 +383,7 @@ export default function TenantUsersPage({
       } else {
         setUsers((prev) => [normalizedSavedUser, ...prev]);
         setPageMsg(
-          "✅ Tenant user created. A temporary password should be sent only to that user's email."
+          "✅ Tenant user created. Temporary credentials were sent to the tenant email."
         );
       }
 
@@ -684,7 +684,11 @@ export default function TenantUsersPage({
                 form.email && !isValidEmail(form.email)
                   ? "border-red-400 bg-red-50"
                   : ""
-              } ${editingUserId ? "bg-gray-100 text-gray-500 cursor-not-allowed" : ""}`}
+              } ${
+                editingUserId
+                  ? "bg-gray-100 text-gray-500 cursor-not-allowed"
+                  : ""
+              }`}
               value={form.email}
               onChange={(e) => {
                 if (editingUserId) return;
