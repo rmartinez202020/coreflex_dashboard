@@ -1,0 +1,132 @@
+// src/components/pages/PortalTopBar.jsx
+import React, { useEffect, useMemo, useState } from "react";
+
+function formatClock(date) {
+  try {
+    return new Intl.DateTimeFormat([], {
+      hour: "numeric",
+      minute: "2-digit",
+      second: "2-digit",
+    }).format(date);
+  } catch {
+    return "";
+  }
+}
+
+function getAccessLabel(accessLevel) {
+  const v = String(accessLevel || "").trim().toLowerCase();
+  if (v === "read_control" || v === "read-and-control") {
+    return "Read + Control";
+  }
+  return "Read Only";
+}
+
+function getAccessClasses(accessLevel) {
+  const v = String(accessLevel || "").trim().toLowerCase();
+  if (v === "read_control" || v === "read-and-control") {
+    return "bg-green-100 text-green-800 border-green-300";
+  }
+  return "bg-slate-100 text-slate-700 border-slate-300";
+}
+
+export default function PortalTopBar({
+  dashboardName = "Dashboard",
+  tenantName = "Tenant User",
+  accessLevel = "read_only",
+  onLogout,
+  logoSrc = "",
+}) {
+  const [now, setNow] = useState(() => new Date());
+
+  useEffect(() => {
+    const timer = setInterval(() => {
+      setNow(new Date());
+    }, 1000);
+
+    return () => clearInterval(timer);
+  }, []);
+
+  const clockText = useMemo(() => formatClock(now), [now]);
+  const accessLabel = useMemo(
+    () => getAccessLabel(accessLevel),
+    [accessLevel]
+  );
+  const accessClasses = useMemo(
+    () => getAccessClasses(accessLevel),
+    [accessLevel]
+  );
+
+  return (
+    <div className="w-full bg-white border-b border-sky-200 shadow-sm">
+      {/* top accent line */}
+      <div className="h-[3px] w-full bg-sky-300" />
+
+      <div className="w-full px-4 md:px-6 py-3">
+        <div className="flex items-center justify-between gap-4">
+          {/* LEFT */}
+          <div className="flex items-center gap-3 min-w-0">
+            {logoSrc ? (
+              <img
+                src={logoSrc}
+                alt="CoreFlex Logo"
+                className="h-10 w-auto object-contain"
+              />
+            ) : (
+              <div className="flex flex-col leading-tight">
+                <span className="text-lg font-bold text-slate-800">
+                  CoreFlex
+                </span>
+                <span className="text-[11px] uppercase tracking-[0.18em] text-slate-500">
+                  IIoTs Platform
+                </span>
+              </div>
+            )}
+          </div>
+
+          {/* CENTER */}
+          <div className="flex-1 min-w-0 text-center">
+            <div className="text-base md:text-lg font-semibold text-slate-800 truncate">
+              Customer Dashboard — {dashboardName}
+            </div>
+          </div>
+
+          {/* RIGHT */}
+          <div className="flex items-center gap-3 md:gap-4 shrink-0">
+            <div className="hidden md:block text-sm font-medium text-slate-700 whitespace-nowrap">
+              {clockText}
+            </div>
+
+            <div className="hidden lg:block text-sm text-slate-700 whitespace-nowrap">
+              <span className="font-semibold">Tenant:</span> {tenantName}
+            </div>
+
+            <span
+              className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold whitespace-nowrap ${accessClasses}`}
+            >
+              {accessLabel}
+            </span>
+
+            <button
+              type="button"
+              onClick={() => onLogout?.()}
+              className="inline-flex items-center rounded-md border border-slate-300 bg-white px-3 py-2 text-sm font-medium text-slate-700 hover:bg-slate-50"
+            >
+              Logout
+            </button>
+          </div>
+        </div>
+
+        {/* mobile second row */}
+        <div className="mt-2 flex md:hidden items-center justify-between gap-3 text-xs text-slate-600">
+          <div className="truncate">
+            <span className="font-semibold">Tenant:</span> {tenantName}
+          </div>
+          <div className="shrink-0">{clockText}</div>
+        </div>
+      </div>
+
+      {/* bottom accent line */}
+      <div className="h-[2px] w-full bg-sky-200" />
+    </div>
+  );
+}

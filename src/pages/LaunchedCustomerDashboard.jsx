@@ -2,6 +2,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import DashboardCanvas from "../components/DashboardCanvas";
+import PortalTopBar from "../components/pages/PortalTopBar";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 
@@ -57,6 +58,7 @@ export default function LaunchedCustomerDashboard() {
   const [loading, setLoading] = useState(true);
   const [fatalError, setFatalError] = useState("");
   const [resolvedDashboardId, setResolvedDashboardId] = useState("");
+  const [dashboardTitle, setDashboardTitle] = useState("Dashboard");
 
   const injectDashboardIdIntoObjects = (objects, dash, allowInject = true) => {
     if (!Array.isArray(objects)) return [];
@@ -91,6 +93,7 @@ export default function LaunchedCustomerDashboard() {
         setFatalError("");
         setDroppedTanks([]);
         setResolvedDashboardId("");
+        setDashboardTitle("Dashboard");
 
         let res;
 
@@ -117,9 +120,10 @@ export default function LaunchedCustomerDashboard() {
 
           const backendDashId = String(data?.id || "").trim();
           setResolvedDashboardId(backendDashId);
+          setDashboardTitle(
+            String(data?.dashboard_name || publicDashSlug || "Dashboard").trim()
+          );
 
-          // ✅ IMPORTANT FIX:
-          // public launch also needs dashboardId injected so canvas/widgets render
           const finalObjects = injectDashboardIdIntoObjects(
             Array.isArray(objects) ? objects : [],
             backendDashId,
@@ -168,6 +172,9 @@ export default function LaunchedCustomerDashboard() {
           [];
 
         setResolvedDashboardId(privateDashId);
+        setDashboardTitle(
+          String(data?.dashboard_name || privateDashId || "Dashboard").trim()
+        );
 
         const withDash = injectDashboardIdIntoObjects(
           Array.isArray(objects) ? objects : [],
@@ -182,6 +189,7 @@ export default function LaunchedCustomerDashboard() {
         setFatalError("Failed to load customer dashboard layout.");
         setDroppedTanks([]);
         setResolvedDashboardId("");
+        setDashboardTitle("Dashboard");
         setLoading(false);
       }
     };
@@ -289,43 +297,67 @@ export default function LaunchedCustomerDashboard() {
         height: "100vh",
         background: "white",
         overflow: "hidden",
+        display: "flex",
+        flexDirection: "column",
       }}
     >
-      <DashboardCanvas
-        dashboardMode="play"
-        embedMode={true}
-        dashboardId={resolvedDashboardId}
-        activeDashboardId={resolvedDashboardId}
-        droppedTanks={droppedTanks}
-        setDroppedTanks={setDroppedTanks}
-        sensorsData={sensorsData}
-        sensors={[]}
-        selectedIds={[]}
-        setSelectedIds={() => {}}
-        selectedTank={null}
-        setSelectedTank={() => {}}
-        dragDelta={{ x: 0, y: 0 }}
-        setDragDelta={() => {}}
-        contextMenu={{ visible: false }}
-        setContextMenu={() => {}}
-        activeSiloId={null}
-        setActiveSiloId={() => {}}
-        setShowSiloProps={() => {}}
-        handleSelect={() => {}}
-        handleRightClick={() => {}}
-        handleDrop={() => {}}
-        handleDragMove={() => {}}
-        handleDragEnd={() => {}}
-        handleCanvasMouseDown={() => {}}
-        handleCanvasMouseMove={() => {}}
-        handleCanvasMouseUp={() => {}}
-        getLayerScore={(o) => o.zIndex || 1}
-        selectionBox={null}
-        hideContextMenu={() => {}}
-        guides={[]}
-        onOpenDisplaySettings={() => {}}
-        onOpenGraphicDisplaySettings={() => {}}
+      <PortalTopBar
+        dashboardName={dashboardTitle}
+        tenantName={isPublicLaunch ? "Portal User" : "Signed-in User"}
+        accessLevel={isPublicLaunch ? "read_only" : "read_control"}
+        onLogout={() => {
+          if (isPublicLaunch) {
+            window.location.href = "/";
+            return;
+          }
+          window.close();
+        }}
       />
+
+      <div
+        style={{
+          flex: 1,
+          minHeight: 0,
+          overflow: "hidden",
+          background: "white",
+        }}
+      >
+        <DashboardCanvas
+          dashboardMode="play"
+          embedMode={true}
+          dashboardId={resolvedDashboardId}
+          activeDashboardId={resolvedDashboardId}
+          droppedTanks={droppedTanks}
+          setDroppedTanks={setDroppedTanks}
+          sensorsData={sensorsData}
+          sensors={[]}
+          selectedIds={[]}
+          setSelectedIds={() => {}}
+          selectedTank={null}
+          setSelectedTank={() => {}}
+          dragDelta={{ x: 0, y: 0 }}
+          setDragDelta={() => {}}
+          contextMenu={{ visible: false }}
+          setContextMenu={() => {}}
+          activeSiloId={null}
+          setActiveSiloId={() => {}}
+          setShowSiloProps={() => {}}
+          handleSelect={() => {}}
+          handleRightClick={() => {}}
+          handleDrop={() => {}}
+          handleDragMove={() => {}}
+          handleDragEnd={() => {}}
+          handleCanvasMouseDown={() => {}}
+          handleCanvasMouseMove={() => {}}
+          handleCanvasMouseUp={() => {}}
+          getLayerScore={(o) => o.zIndex || 1}
+          selectionBox={null}
+          hideContextMenu={() => {}}
+          guides={[]}
+          onOpenDisplaySettings={() => {}}
+          onOpenGraphicDisplaySettings={() => {}}
+        />
+      </div>
     </div>
   );
 }
