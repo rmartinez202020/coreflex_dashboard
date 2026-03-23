@@ -37,7 +37,7 @@ createRoot(document.getElementById("root")).render(
         }
       />
 
-      {/* 🚀 LAUNCH MODE */}
+      {/* 🚀 LAUNCH MAIN DASHBOARD (protected) */}
       <Route
         path="/launchMainDashboard"
         element={
@@ -47,15 +47,21 @@ createRoot(document.getElementById("root")).render(
         }
       />
 
-      {/* 🚀 LAUNCH CUSTOMER DASHBOARD */}
-<Route
-  path="/launchDashboard/:dashboardId"
-  element={
-    <RequireAuth>
-      <LaunchedCustomerDashboard />
-    </RequireAuth>
-  }
-/>
+      {/* 🚀 PRIVATE CUSTOMER DASHBOARD LAUNCH (protected, old path) */}
+      <Route
+        path="/launchDashboard/:dashboardId"
+        element={
+          <RequireAuth>
+            <LaunchedCustomerDashboard />
+          </RequireAuth>
+        }
+      />
+
+      {/* 🌐 PUBLIC CUSTOMER DASHBOARD LAUNCH (NO LOGIN) */}
+      <Route
+        path="/launchDashboard/:dashboardSlug/:publicLaunchId"
+        element={<LaunchedCustomerDashboard />}
+      />
 
       {/* 🚀 LAUNCH ALARM LOG (protected) */}
       <Route
