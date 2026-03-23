@@ -6,13 +6,60 @@ const ACCESS_OPTIONS = [
   { value: "read_control", label: "Read + Control" },
 ];
 
+const MOCK_CUSTOMERS = [
+  { id: "c1", name: "COREFLEX LAB" },
+  { id: "c2", name: "MAIN PLANT" },
+  { id: "c3", name: "PUMP STATION" },
+];
+
+// ✅ Mock dashboards now include:
+// - customerName
+// - createdBy
+const MOCK_DASHBOARDS = [
+  {
+    id: "1",
+    name: "Main Dashboard",
+    customerName: "COREFLEX LAB",
+    createdBy: "roquemartinezpolanco@gmail.com",
+  },
+  {
+    id: "2",
+    name: "Utilities Room",
+    customerName: "COREFLEX LAB",
+    createdBy: "roquemartinezpolanco@gmail.com",
+  },
+  {
+    id: "3",
+    name: "Pump Station",
+    customerName: "COREFLEX LAB",
+    createdBy: "roquemartinezpolanco@gmail.com",
+  },
+
+  // ❌ these will not appear for roquemartinezpolanco@gmail.com
+  {
+    id: "4",
+    name: "Boiler Room",
+    customerName: "COREFLEX LAB",
+    createdBy: "anotheradmin@gmail.com",
+  },
+  {
+    id: "5",
+    name: "Warehouse",
+    customerName: "MAIN PLANT",
+    createdBy: "anotheradmin@gmail.com",
+  },
+];
+
 function normalizeAccess(value) {
   const v = String(value || "").toLowerCase();
   if (v === "read_control") return "read_control";
   return "read";
 }
 
-export default function TenantUsersPage({ onGoBack }) {
+export default function TenantUsersPage({
+  onGoBack,
+  currentAdminEmail = "roquemartinezpolanco@gmail.com",
+}) {
   const [users, setUsers] = useState([]);
   const [showModal, setShowModal] = useState(false);
 
@@ -20,37 +67,53 @@ export default function TenantUsersPage({ onGoBack }) {
     name: "",
     email: "",
     access: "read",
+    customerName: "",
     dashboards: [],
   });
 
-  // MOCK dashboards (later you will load from backend)
-  const dashboards = useMemo(
-    () => [
-      { id: "1", name: "Main Dashboard" },
-      { id: "2", name: "Utilities Room" },
-      { id: "3", name: "Pump Station" },
-    ],
-    []
-  );
+  const normalizedAdminEmail = String(currentAdminEmail || "")
+    .trim()
+    .toLowerCase();
+
+  const customers = useMemo(() => MOCK_CUSTOMERS, []);
+
+  // ✅ Only dashboards created by THIS admin user
+  const adminOwnedDashboards = useMemo(() => {
+    return MOCK_DASHBOARDS.filter(
+      (d) =>
+        String(d.createdBy || "").trim().toLowerCase() === normalizedAdminEmail
+    );
+  }, [normalizedAdminEmail]);
+
+  // ✅ Filter dashboards by selected customer + current admin user
+  const availableDashboards = useMemo(() => {
+    const selectedCustomer = String(form.customerName || "").trim();
+    if (!selectedCustomer) return [];
+
+    return adminOwnedDashboards.filter(
+      (d) => String(d.customerName || "").trim() === selectedCustomer
+    );
+  }, [adminOwnedDashboards, form.customerName]);
 
   const handleCreateUser = () => {
-    if (!form.name || !form.email) return;
+    if (!form.name || !form.email || !form.customerName) return;
 
     const newUser = {
       id: Date.now(),
       name: form.name,
       email: form.email,
       access: normalizeAccess(form.access),
+      customerName: form.customerName,
       dashboards: form.dashboards,
     };
 
     setUsers((prev) => [...prev, newUser]);
 
-    // reset
     setForm({
       name: "",
       email: "",
       access: "read",
+      customerName: "",
       dashboards: [],
     });
 
@@ -69,6 +132,23 @@ export default function TenantUsersPage({ onGoBack }) {
     });
   };
 
+  const openCreateModal = () => {
+    setForm({
+      name: "",
+      email: "",
+      access: "read",
+      customerName: "",
+      dashboards: [],
+    });
+    setShowModal(true);
+  };
+
+  const selectedDashboardNames = (dashboardIds) =>
+    adminOwnedDashboards
+      .filter((d) => dashboardIds.includes(d.id))
+      .map((d) => d.name)
+      .join(", ");
+
   return (
     <div className="w-full h-full border rounded-lg bg-white p-6">
       {/* HEADER */}
@@ -78,6 +158,9 @@ export default function TenantUsersPage({ onGoBack }) {
           <p className="text-sm text-gray-200">
             Create tenant users and assign dashboard access by permission level.
           </p>
+          <div className="mt-1 text-xs text-gray-300">
+            Admin dashboards scope: {currentAdminEmail}
+          </div>
         </div>
 
         <button
@@ -95,7 +178,7 @@ export default function TenantUsersPage({ onGoBack }) {
         </h3>
 
         <button
-          onClick={() => setShowModal(true)}
+          onClick={openCreateModal}
           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
         >
           + Add User
@@ -104,10 +187,11 @@ export default function TenantUsersPage({ onGoBack }) {
 
       {/* TABLE */}
       <div className="border rounded-md overflow-hidden">
-        <div className="grid grid-cols-4 bg-gray-100 text-sm font-semibold text-gray-700 px-4 py-2">
+        <div className="grid grid-cols-5 bg-gray-100 text-sm font-semibold text-gray-700 px-4 py-2">
           <div>Name</div>
           <div>Email</div>
           <div>Access</div>
+          <div>Customer</div>
           <div>Dashboards</div>
         </div>
 
@@ -117,20 +201,18 @@ export default function TenantUsersPage({ onGoBack }) {
           users.map((u) => (
             <div
               key={u.id}
-              className="grid grid-cols-4 px-4 py-2 text-sm border-t"
+              className="grid grid-cols-5 px-4 py-2 text-sm border-t"
             >
               <div>{u.name}</div>
               <div>{u.email}</div>
               <div>
                 {u.access === "read_control" ? "Read + Control" : "Read"}
               </div>
+              <div>{u.customerName || "—"}</div>
               <div className="text-xs text-gray-600">
                 {u.dashboards.length === 0
                   ? "—"
-                  : dashboards
-                      .filter((d) => u.dashboards.includes(d.id))
-                      .map((d) => d.name)
-                      .join(", ")}
+                  : selectedDashboardNames(u.dashboards)}
               </div>
             </div>
           ))
@@ -140,7 +222,7 @@ export default function TenantUsersPage({ onGoBack }) {
       {/* MODAL */}
       {showModal && (
         <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40">
-          <div className="bg-white w-[500px] rounded-lg shadow-lg p-5">
+          <div className="bg-white w-[560px] rounded-lg shadow-lg p-5">
             <h3 className="text-lg font-semibold mb-3">Create User</h3>
 
             {/* NAME */}
@@ -165,7 +247,7 @@ export default function TenantUsersPage({ onGoBack }) {
 
             {/* ACCESS */}
             <select
-              className="w-full border rounded-md px-3 py-2 mb-3"
+              className="w-full border rounded-md px-3 py-2 mb-2"
               value={form.access}
               onChange={(e) =>
                 setForm((p) => ({ ...p, access: e.target.value }))
@@ -178,23 +260,61 @@ export default function TenantUsersPage({ onGoBack }) {
               ))}
             </select>
 
+            {/* CUSTOMER */}
+            <select
+              className="w-full border rounded-md px-3 py-2 mb-3"
+              value={form.customerName}
+              onChange={(e) =>
+                setForm((p) => ({
+                  ...p,
+                  customerName: e.target.value,
+                  dashboards: [], // ✅ reset dashboards when customer changes
+                }))
+              }
+            >
+              <option value="">Select customer</option>
+              {customers.map((c) => (
+                <option key={c.id} value={c.name}>
+                  {c.name}
+                </option>
+              ))}
+            </select>
+
             {/* DASHBOARDS */}
             <div className="mb-3">
               <div className="text-sm font-semibold mb-1">
                 Assign Dashboards
               </div>
 
-              <div className="space-y-1 max-h-[120px] overflow-y-auto border rounded-md p-2">
-                {dashboards.map((d) => (
-                  <label key={d.id} className="flex items-center gap-2 text-sm">
-                    <input
-                      type="checkbox"
-                      checked={form.dashboards.includes(d.id)}
-                      onChange={() => toggleDashboard(d.id)}
-                    />
-                    {d.name}
-                  </label>
-                ))}
+              <div className="text-xs text-gray-500 mb-2">
+                Only dashboards created by <b>{currentAdminEmail}</b> for the
+                selected customer are shown.
+              </div>
+
+              <div className="space-y-1 max-h-[140px] overflow-y-auto border rounded-md p-2">
+                {!form.customerName ? (
+                  <div className="text-sm text-gray-500">
+                    Select a customer first.
+                  </div>
+                ) : availableDashboards.length === 0 ? (
+                  <div className="text-sm text-gray-500">
+                    No dashboards found for this customer under this admin user.
+                  </div>
+                ) : (
+                  availableDashboards.map((d) => (
+                    <label
+                      key={d.id}
+                      className="flex items-center gap-2 text-sm"
+                    >
+                      <input
+                        type="checkbox"
+                        checked={form.dashboards.includes(d.id)}
+                        onChange={() => toggleDashboard(d.id)}
+                      />
+                      <span>{d.name}</span>
+                    </label>
+                  ))
+                )}
               </div>
             </div>
 
@@ -209,7 +329,8 @@ export default function TenantUsersPage({ onGoBack }) {
 
               <button
                 onClick={handleCreateUser}
-                className="px-3 py-2 bg-blue-600 text-white rounded-md text-sm"
+                className="px-3 py-2 bg-blue-600 text-white rounded-md text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
+                disabled={!form.name || !form.email || !form.customerName}
               >
                 Create
               </button>
