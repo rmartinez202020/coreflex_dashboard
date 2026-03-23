@@ -34,6 +34,8 @@ export default function PortalTopBar({
   tenantName = "Tenant User",
   accessLevel = "read_only",
   onLogout,
+  onLogin,
+  isAuthenticated = false,
   logoSrc = "/coreflex-favicon.png",
 }) {
   const [now, setNow] = useState(() => new Date());
@@ -65,20 +67,17 @@ export default function PortalTopBar({
         <div className="flex items-center justify-between gap-4">
           {/* LEFT */}
           <div className="flex items-center gap-4 min-w-0">
-            {/* 🔥 BIGGER + FORCED WHITE LOGO */}
             <img
               src={logoSrc || "/coreflex-favicon.png"}
               alt="CoreFlex Logo"
               className="h-14 w-auto object-contain"
               style={{
-                filter: "brightness(0) invert(1)", // 🔥 makes black logo white
+                filter: "brightness(0) invert(1)",
               }}
             />
 
             <div className="flex flex-col leading-tight">
-              <span className="text-2xl font-bold text-white">
-                CoreFlex
-              </span>
+              <span className="text-2xl font-bold text-white">CoreFlex</span>
               <span className="text-xs uppercase tracking-[0.25em] text-slate-300">
                 IIoTs Platform
               </span>
@@ -98,31 +97,47 @@ export default function PortalTopBar({
               {clockText}
             </div>
 
-            <div className="hidden lg:block text-sm text-slate-200 whitespace-nowrap">
-              <span className="font-semibold">Tenant:</span> {tenantName}
-            </div>
+            {isAuthenticated ? (
+              <>
+                <div className="hidden lg:block text-sm text-slate-200 whitespace-nowrap">
+                  <span className="font-semibold">Tenant:</span> {tenantName}
+                </div>
 
-            <span
-              className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold whitespace-nowrap ${accessClasses}`}
-            >
-              {accessLabel}
-            </span>
+                <span
+                  className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold whitespace-nowrap ${accessClasses}`}
+                >
+                  {accessLabel}
+                </span>
 
-            <button
-              type="button"
-              onClick={() => onLogout?.()}
-              className="inline-flex items-center rounded-md border border-slate-500 bg-[#4B5563] px-3 py-2 text-sm font-medium text-white hover:bg-[#6B7280]"
-            >
-              Logout
-            </button>
+                <button
+                  type="button"
+                  onClick={() => onLogout?.()}
+                  className="inline-flex items-center rounded-md border border-slate-500 bg-[#4B5563] px-3 py-2 text-sm font-medium text-white hover:bg-[#6B7280]"
+                >
+                  Logout
+                </button>
+              </>
+            ) : (
+              <button
+                type="button"
+                onClick={() => onLogin?.()}
+                className="inline-flex items-center rounded-md border border-slate-500 bg-[#4B5563] px-4 py-2 text-sm font-medium text-white hover:bg-[#6B7280]"
+              >
+                Login
+              </button>
+            )}
           </div>
         </div>
 
         {/* mobile row */}
         <div className="mt-2 flex md:hidden items-center justify-between gap-3 text-xs text-slate-300">
-          <div className="truncate">
-            <span className="font-semibold">Tenant:</span> {tenantName}
-          </div>
+          {isAuthenticated ? (
+            <div className="truncate">
+              <span className="font-semibold">Tenant:</span> {tenantName}
+            </div>
+          ) : (
+            <div className="truncate">Authorized tenant access only</div>
+          )}
           <div className="shrink-0">{clockText}</div>
         </div>
       </div>

@@ -60,6 +60,9 @@ export default function LaunchedCustomerDashboard() {
   const [resolvedDashboardId, setResolvedDashboardId] = useState("");
   const [dashboardTitle, setDashboardTitle] = useState("Dashboard");
 
+  // ✅ NEW: public portal gate
+  const [isTenantAuthenticated, setIsTenantAuthenticated] = useState(false);
+
   const injectDashboardIdIntoObjects = (objects, dash, allowInject = true) => {
     if (!Array.isArray(objects)) return [];
     if (!allowInject) return objects;
@@ -198,6 +201,12 @@ export default function LaunchedCustomerDashboard() {
   }, [privateDashId, publicDashSlug, publicDashLaunchId, isPublicLaunch]);
 
   useEffect(() => {
+    // ✅ Public portal must never show live data before tenant login
+    if (isPublicLaunch && !isTenantAuthenticated) {
+      setSensorsData([]);
+      return;
+    }
+
     let alive = true;
     let timer = null;
     let controller = null;
@@ -250,7 +259,7 @@ export default function LaunchedCustomerDashboard() {
       if (timer) clearInterval(timer);
       if (controller) controller.abort();
     };
-  }, [isPublicLaunch]);
+  }, [isPublicLaunch, isTenantAuthenticated]);
 
   if (loading) {
     return (
@@ -290,6 +299,12 @@ export default function LaunchedCustomerDashboard() {
     );
   }
 
+  // ✅ Public portal gate:
+  // - top bar visible
+  // - login button only
+  // - dashboard hidden until authenticated
+  const shouldHideDashboard = isPublicLaunch && !isTenantAuthenticated;
+
   return (
     <div
       style={{
@@ -303,11 +318,18 @@ export default function LaunchedCustomerDashboard() {
     >
       <PortalTopBar
         dashboardName={dashboardTitle}
-        tenantName={isPublicLaunch ? "Portal User" : "Signed-in User"}
-        accessLevel={isPublicLaunch ? "read_only" : "read_control"}
+        tenantName="Portal User"
+        accessLevel="read_only"
+        isAuthenticated={!shouldHideDashboard}
+        onLogin={() => {
+          // ✅ frontend placeholder for now
+          // later this will open real tenant login flow
+          setIsTenantAuthenticated(true);
+        }}
         onLogout={() => {
           if (isPublicLaunch) {
-            window.location.href = "/";
+            setIsTenantAuthenticated(false);
+            setSensorsData([]);
             return;
           }
           window.close();
@@ -320,43 +342,125 @@ export default function LaunchedCustomerDashboard() {
           minHeight: 0,
           overflow: "hidden",
           background: "white",
+          position: "relative",
         }}
       >
-        <DashboardCanvas
-          dashboardMode="play"
-          embedMode={true}
-          dashboardId={resolvedDashboardId}
-          activeDashboardId={resolvedDashboardId}
-          droppedTanks={droppedTanks}
-          setDroppedTanks={setDroppedTanks}
-          sensorsData={sensorsData}
-          sensors={[]}
-          selectedIds={[]}
-          setSelectedIds={() => {}}
-          selectedTank={null}
-          setSelectedTank={() => {}}
-          dragDelta={{ x: 0, y: 0 }}
-          setDragDelta={() => {}}
-          contextMenu={{ visible: false }}
-          setContextMenu={() => {}}
-          activeSiloId={null}
-          setActiveSiloId={() => {}}
-          setShowSiloProps={() => {}}
-          handleSelect={() => {}}
-          handleRightClick={() => {}}
-          handleDrop={() => {}}
-          handleDragMove={() => {}}
-          handleDragEnd={() => {}}
-          handleCanvasMouseDown={() => {}}
-          handleCanvasMouseMove={() => {}}
-          handleCanvasMouseUp={() => {}}
-          getLayerScore={(o) => o.zIndex || 1}
-          selectionBox={null}
-          hideContextMenu={() => {}}
-          guides={[]}
-          onOpenDisplaySettings={() => {}}
-          onOpenGraphicDisplaySettings={() => {}}
-        />
+        {shouldHideDashboard ? (
+          <div
+            style={{
+              width: "100%",
+              height: "100%",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              padding: 24,
+              background: "#f8fafc",
+            }}
+          >
+            <div
+              style={{
+                width: "100%",
+                maxWidth: 520,
+                background: "white",
+                border: "1px solid #dbe3ea",
+                borderRadius: 18,
+                boxShadow: "0 16px 40px rgba(15, 23, 42, 0.10)",
+                padding: 28,
+                textAlign: "center",
+              }}
+            >
+              <div
+                style={{
+                  fontSize: 22,
+                  fontWeight: 800,
+                  color: "#0f172a",
+                  marginBottom: 10,
+                }}
+              >
+                Customer Portal Access
+              </div>
+
+              <div
+                style={{
+                  fontSize: 15,
+                  color: "#334155",
+                  lineHeight: 1.6,
+                  marginBottom: 8,
+                }}
+              >
+                Please sign in to access this dashboard.
+              </div>
+
+              <div
+                style={{
+                  fontSize: 13,
+                  color: "#64748b",
+                  lineHeight: 1.5,
+                  marginBottom: 24,
+                }}
+              >
+                This dashboard is available only to authorized tenant users.
+              </div>
+
+              <button
+                type="button"
+                onClick={() => setIsTenantAuthenticated(true)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  minWidth: 150,
+                  height: 44,
+                  borderRadius: 10,
+                  border: "1px solid #475569",
+                  background: "#374151",
+                  color: "white",
+                  fontSize: 15,
+                  fontWeight: 700,
+                  cursor: "pointer",
+                }}
+              >
+                Login
+              </button>
+            </div>
+          </div>
+        ) : (
+          <DashboardCanvas
+            dashboardMode="play"
+            embedMode={true}
+            dashboardId={resolvedDashboardId}
+            activeDashboardId={resolvedDashboardId}
+            droppedTanks={droppedTanks}
+            setDroppedTanks={setDroppedTanks}
+            sensorsData={sensorsData}
+            sensors={[]}
+            selectedIds={[]}
+            setSelectedIds={() => {}}
+            selectedTank={null}
+            setSelectedTank={() => {}}
+            dragDelta={{ x: 0, y: 0 }}
+            setDragDelta={() => {}}
+            contextMenu={{ visible: false }}
+            setContextMenu={() => {}}
+            activeSiloId={null}
+            setActiveSiloId={() => {}}
+            setShowSiloProps={() => {}}
+            handleSelect={() => {}}
+            handleRightClick={() => {}}
+            handleDrop={() => {}}
+            handleDragMove={() => {}}
+            handleDragEnd={() => {}}
+            handleCanvasMouseDown={() => {}}
+            handleCanvasMouseMove={() => {}}
+            handleCanvasMouseUp={() => {}}
+            getLayerScore={(o) => o.zIndex || 1}
+            selectionBox={null}
+            hideContextMenu={() => {}}
+            guides={[]}
+            onOpenDisplaySettings={() => {}}
+            onOpenGraphicDisplaySettings={() => {}}
+          />
+        )}
       </div>
     </div>
   );
