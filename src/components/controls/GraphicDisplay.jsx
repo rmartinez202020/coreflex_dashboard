@@ -112,6 +112,33 @@ export default function GraphicDisplay({
   // ✅ NEW: runtime Timeseries Bar modal state
   const [timeseriesBarOpen, setTimeseriesBarOpen] = useState(false);
 
+  // ✅ NEW: force historian refresh every time user enters Play / Launch
+  const [historyReloadSeq, setHistoryReloadSeq] = useState(0);
+  const prevRunModeRef = useRef(isRunMode);
+
+  // ✅ NEW: avoid inserting a fake visual gap right after a fresh history reload
+  const suppressNextResumeGapRef = useRef(false);
+
+  useEffect(() => {
+    const wasRunMode = prevRunModeRef.current === true;
+    const isEnteringRunMode = !wasRunMode && isRunMode === true;
+
+    if (isEnteringRunMode) {
+      setHistoryReloadSeq((n) => n + 1);
+      suppressNextResumeGapRef.current = true;
+      lastSampleAtRef.current = 0;
+
+      dbg("RUN MODE ENTER: forcing historian refresh", {
+        widgetId,
+        resolvedDashboardId,
+        isPlay,
+      });
+    }
+
+    prevRunModeRef.current = isRunMode;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isRunMode, widgetId, resolvedDashboardId, isPlay]);
+
   useEffect(() => {
     const nextSingleEnabled = T?.singleUnitsEnabled === true;
     const nextSingleUnit = String(
@@ -234,7 +261,8 @@ export default function GraphicDisplay({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ load full historian from backend once per widget/dashboard
+  // ✅ load full historian from backend
+  // ✅ refresh again every time user enters Play / Launch
   useEffect(() => {
     let cancelled = false;
 
@@ -254,6 +282,14 @@ export default function GraphicDisplay({
         setHistoryLoaded(true);
         return;
       }
+
+      dbg("LOAD HISTORY: start", {
+        widgetId,
+        resolvedDashboardId,
+        windowMs,
+        isRunMode,
+        historyReloadSeq,
+      });
 
       setHistoryLoading(true);
       setHistoryLoaded(false);
@@ -295,6 +331,13 @@ export default function GraphicDisplay({
           });
         }
 
+        dbg("LOAD HISTORY: success", {
+          normalizedCount: normalized.length,
+          clippedCount: clipped.length,
+          lastPoint:
+            clipped.length > 0 ? clipped[clipped.length - 1] : null,
+        });
+
         setPoints(clipped);
 
         if (
@@ -327,6 +370,17 @@ export default function GraphicDisplay({
           totalizerLastPointRef.current = null;
         }
 
+        const lastHistOnlinePoint = [...clipped]
+          .reverse()
+          .find(
+            (p) =>
+              !p?.gap &&
+              Number.isFinite(Number(p?.t)) &&
+              Number.isFinite(Number(p?.y))
+          );
+
+        lastOnlineRef.current = !!lastHistOnlinePoint;
+
         const lastNumeric = [...clipped]
           .reverse()
           .find((p) => Number.isFinite(Number(p?.y)));
@@ -334,9 +388,11 @@ export default function GraphicDisplay({
         if (lastNumeric) setMathOutput(Number(lastNumeric.y));
         else setMathOutput(null);
 
+        lastSampleAtRef.current = 0;
         setErr("");
       } catch (e) {
         if (cancelled) return;
+        dbgErr("LOAD HISTORY: failed", e);
         setErr("Failed to load saved history.");
         setPoints([]);
       } finally {
@@ -363,6 +419,7 @@ export default function GraphicDisplay({
     tenantEmail,
     tenantAccessLevel,
     isRunMode,
+    historyReloadSeq,
   ]);
 
   // ✅ if user pauses, insert a gap marker
@@ -471,13 +528,22 @@ export default function GraphicDisplay({
       }
 
       if (!wasOnline) {
-        setPoints((prev) => {
-          const t = now;
-          const lastPoint = prev.length ? prev[prev.length - 1] : null;
-          if (lastPoint?.gap) return prev;
-          dbg("ONLINE RESUME: inserting GAP point", { t });
-          return [...prev, { t, y: null, gap: true }];
-        });
+        if (suppressNextResumeGapRef.current) {
+          dbg("ONLINE RESUME: suppressing first GAP after fresh history reload", {
+            now,
+          });
+          suppressNextResumeGapRef.current = false;
+        } else {
+          setPoints((prev) => {
+            const t = now;
+            const lastPoint = prev.length ? prev[prev.length - 1] : null;
+            if (lastPoint?.gap) return prev;
+            dbg("ONLINE RESUME: inserting GAP point", { t });
+            return [...prev, { t, y: null, gap: true }];
+          });
+        }
+      } else {
+        suppressNextResumeGapRef.current = false;
       }
 
       lastOnlineRef.current = true;
