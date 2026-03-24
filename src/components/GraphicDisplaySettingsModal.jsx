@@ -109,6 +109,19 @@ function normalizeModelKey(m) {
   return s;
 }
 
+function resolveDashboardIdForSave(dashboardId, tank) {
+  return (
+    String(
+      dashboardId ||
+        tank?.dashboard_id ||
+        tank?.dashboardId ||
+        tank?.properties?.dashboardId ||
+        tank?.properties?.dashboard_id ||
+        "main"
+    ).trim() || "main"
+  );
+}
+
 /**
  * ✅ NO-SPAM LIVE ROW LOADER
  * - Prefer telemetryMap (common poller)
@@ -177,6 +190,7 @@ export default function GraphicDisplaySettingsModal({
   onClose,
   onSave,
   telemetryMap = null,
+  dashboardId = "",
 }) {
   const portalTarget = typeof document !== "undefined" ? document.body : null;
 
@@ -444,16 +458,7 @@ export default function GraphicDisplaySettingsModal({
     const wid = String(tank?.id || "").trim();
     if (!wid) throw new Error("Missing widget id (tank.id)");
 
-    // ✅ include properties.* dashboardId too (Launch injects here sometimes)
-    const dash =
-      String(
-        tank?.dashboard_id ||
-          tank?.dashboardId ||
-          tank?.properties?.dashboardId ||
-          tank?.properties?.dashboard_id ||
-          "main"
-      ).trim() || "main";
-
+    const dash = resolveDashboardIdForSave(dashboardId, tank);
     const normModel = normalizeModelKey(bindModel);
 
     const res = await apiPost("/graphic-display-bindings/upsert", {
@@ -499,6 +504,7 @@ export default function GraphicDisplaySettingsModal({
       setIsApplying(true);
 
       const normModel = normalizeModelKey(bindModel);
+      const resolvedDash = resolveDashboardIdForSave(dashboardId, tank);
 
       // ✅ 1) persist backend row
       await persistBinding();
@@ -506,6 +512,14 @@ export default function GraphicDisplaySettingsModal({
       // ✅ 2) update widget in UI/state (AppModals will save the project)
       const nextTank = {
         ...tank,
+        dashboardId: resolvedDash,
+        dashboard_id: resolvedDash,
+        properties: {
+          ...(tank?.properties || {}),
+          dashboardId: resolvedDash,
+          dashboard_id: resolvedDash,
+        },
+
         title,
         timeUnit,
         window: safeWindow,
@@ -644,28 +658,26 @@ export default function GraphicDisplaySettingsModal({
           </div>
 
           <div style={{ minWidth: 0 }}>
-
-           <GraphicDisplaySettingsPanel
-  title={title}
-  setTitle={setTitle}
-  timeUnit={timeUnit}
-  setTimeUnit={setTimeUnit}
-  windowSize={windowSize}
-  setWindowSize={setWindowSize}
-  yMin={safeYMin}
-  setYMin={setYMin}
-  yMax={safeYMax}
-  setYMax={setYMax}
-  yUnits={yUnits}
-  setYUnits={(u) => {
-    const unit = String(u ?? "");
-    setYUnits(unit);
-    setTotalizerUnit(unit);
-  }}
-  lineColor={safeLineColor}
-  setLineColor={setLineColor}
-/>
-
+            <GraphicDisplaySettingsPanel
+              title={title}
+              setTitle={setTitle}
+              timeUnit={timeUnit}
+              setTimeUnit={setTimeUnit}
+              windowSize={windowSize}
+              setWindowSize={setWindowSize}
+              yMin={safeYMin}
+              setYMin={setYMin}
+              yMax={safeYMax}
+              setYMax={setYMax}
+              yUnits={yUnits}
+              setYUnits={(u) => {
+                const unit = String(u ?? "");
+                setYUnits(unit);
+                setTotalizerUnit(unit);
+              }}
+              lineColor={safeLineColor}
+              setLineColor={setLineColor}
+            />
           </div>
 
           <div
@@ -719,7 +731,9 @@ export default function GraphicDisplaySettingsModal({
               telemetryMap={telemetryMap}
             />
 
-            <div style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}>
+            <div
+              style={{ display: "flex", justifyContent: "flex-end", gap: 10 }}
+            >
               <button
                 type="button"
                 onClick={(e) => {
