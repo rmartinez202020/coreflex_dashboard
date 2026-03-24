@@ -131,7 +131,14 @@ function getTelemetryValue(row, field) {
 
   if (/^di\d+$/.test(f)) {
     const n = f.replace("di", "");
-    const extra = [`in${n}`, `IN${n}`, `in_${n}`, `IN_${n}`, `in-${n}`, `IN-${n}`];
+    const extra = [
+      `in${n}`,
+      `IN${n}`,
+      `in_${n}`,
+      `IN_${n}`,
+      `in-${n}`,
+      `IN-${n}`,
+    ];
     for (const key of extra) {
       if (row[key] !== undefined) return row[key];
     }
@@ -299,7 +306,7 @@ export default function DashboardCanvasWidgetLayer({
   dashboardIdsDetailsDashboardId = "",
   isPublicLaunch = false,
   isTenantAuthenticated = false,
-   tenantEmail = "",
+  tenantEmail = "",
   tenantAccessLevel = "read_only",
 }) {
   const resolvedDashboardName = String(dashboardName || "").trim();
@@ -499,6 +506,8 @@ export default function DashboardCanvasWidgetLayer({
               onDoubleClick={() => {
                 if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
               }}
+              tenantEmail={tenantEmail}
+              tenantAccessLevel={tenantAccessLevel}
             />
           </div>
         );
@@ -573,7 +582,6 @@ export default function DashboardCanvasWidgetLayer({
                 onSaveProject={onSaveProject}
                 tenantEmail={tenantEmail}
                 tenantAccessLevel={tenantAccessLevel}
-                
               />
             )}
           </DraggableDroppedTank>

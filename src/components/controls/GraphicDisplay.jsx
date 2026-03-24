@@ -31,6 +31,10 @@ export default function GraphicDisplay({
   onSaveSettings,
   onOpenSettings: onOpenSettingsProp = null,
   dashboardId = null,
+
+  // ✅ NEW: public tenant support
+  tenantEmail = "",
+  tenantAccessLevel = "",
 }) {
   const isRunMode = useMemo(() => {
     return !!isPlay || detectLaunchMode();
@@ -219,6 +223,8 @@ export default function GraphicDisplay({
       totalizerTotalUnit,
       singleUnitsEnabled,
       singleUnitsUnit,
+      tenantEmail,
+      tenantAccessLevel,
       telemetryMapType: telemetryMap ? typeof telemetryMap : "null",
       telemetryMapKeys:
         telemetryMap && typeof telemetryMap === "object"
@@ -240,7 +246,11 @@ export default function GraphicDisplay({
       }
 
       const token = String(getToken() || "").trim();
-      if (!token) {
+      const tenantEmailSafe = String(tenantEmail || "").trim().toLowerCase();
+      const tenantAccessSafe = String(tenantAccessLevel || "").trim();
+
+      // ✅ allow private JWT flow OR public tenant flow
+      if (!token && !tenantEmailSafe) {
         setHistoryLoaded(true);
         return;
       }
@@ -253,11 +263,15 @@ export default function GraphicDisplay({
         url.searchParams.set("dashboard_id", resolvedDashboardId);
         url.searchParams.set("widget_id", widgetId);
 
+        const headers = {
+          ...(token ? { Authorization: `Bearer ${token}` } : {}),
+          ...(tenantEmailSafe ? { "X-Tenant-Email": tenantEmailSafe } : {}),
+          ...(tenantAccessSafe ? { "X-Tenant-Access": tenantAccessSafe } : {}),
+        };
+
         const res = await fetch(url.toString(), {
           method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers,
         });
 
         if (!res.ok) {
@@ -346,6 +360,8 @@ export default function GraphicDisplay({
     tankTotEnabled,
     totalizerRateUnit,
     totalizerTotalUnit,
+    tenantEmail,
+    tenantAccessLevel,
   ]);
 
   // ✅ if user pauses, insert a gap marker

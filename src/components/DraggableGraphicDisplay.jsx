@@ -17,6 +17,10 @@ export default function DraggableGraphicDisplay({
   dragDelta = { x: 0, y: 0 },
   dashboardMode = "edit",
   telemetryMap = null, // ✅ NEW: common poller map
+
+  // ✅ NEW: public tenant support
+  tenantEmail = "",
+  tenantAccessLevel = "",
 }) {
   if (!tank) return null;
 
@@ -215,7 +219,11 @@ export default function DraggableGraphicDisplay({
       if (!widgetId) return;
 
       const token = String(getToken() || "").trim();
-      if (!token) return;
+      const tenantEmailSafe = String(tenantEmail || "").trim().toLowerCase();
+      const tenantAccessSafe = String(tenantAccessLevel || "").trim();
+
+      // ✅ allow owner JWT OR public tenant flow
+      if (!token && !tenantEmailSafe) return;
 
       if (!force && visibilityRef.current.lastSent === !!isVisible) return;
       visibilityRef.current.lastSent = !!isVisible;
@@ -225,7 +233,9 @@ export default function DraggableGraphicDisplay({
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            Authorization: `Bearer ${token}`,
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...(tenantEmailSafe ? { "X-Tenant-Email": tenantEmailSafe } : {}),
+            ...(tenantAccessSafe ? { "X-Tenant-Access": tenantAccessSafe } : {}),
           },
           body: JSON.stringify({
             dashboard_id: resolvedDashboardId,
@@ -237,7 +247,7 @@ export default function DraggableGraphicDisplay({
         console.warn("Graphic visibility update failed:", err);
       }
     },
-    [resolvedDashboardId, tank?.id]
+    [resolvedDashboardId, tank?.id, tenantEmail, tenantAccessLevel]
   );
 
   // ✅ NEW: mounted in browser = visible
@@ -314,6 +324,8 @@ export default function DraggableGraphicDisplay({
           isPlay={isPlay} // ✅ true in play/launch/launched
           onSaveSettings={handleSaveSettings} // ✅ persist units/settings so Launch matches
           dashboardId={resolvedDashboardId} // ✅ pass dashboard id so GraphicDisplay can load historian correctly
+          tenantEmail={tenantEmail}
+          tenantAccessLevel={tenantAccessLevel}
 
           // ✅ NEW: Settings button inside GraphicDisplay should call this
           // so it opens the AppModals GraphicDisplaySettingsModal (which auto-saves project on Apply)
