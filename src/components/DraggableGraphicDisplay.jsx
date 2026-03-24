@@ -151,10 +151,11 @@ export default function DraggableGraphicDisplay({
     (nextTank) => {
       // Keep dashboardId injected in Launch, if present.
       const existingDashId = String(
-        dashboardId ||
-          tank?.properties?.dashboardId ||
+        tank?.properties?.dashboardId ||
           tank?.properties?.dashboard_id ||
+          tank?.dashboard_id ||
           tank?.dashboardId ||
+          dashboardId ||
           ""
       ).trim();
 
@@ -200,19 +201,19 @@ export default function DraggableGraphicDisplay({
     }
   }, [isPlay, onOpenSettings, onDoubleClick, tank]);
 
-  // ✅ NEW: resolve dashboard id used by backend visibility route
+  // ✅ FIX: prefer widget-stored dashboard id first, then parent prop
   const resolvedDashboardId = useMemo(() => {
     return (
       String(
-        dashboardId ||
+        tank?.properties?.dashboardId ||
+          tank?.properties?.dashboard_id ||
           tank?.dashboard_id ||
           tank?.dashboardId ||
-          tank?.properties?.dashboardId ||
-          tank?.properties?.dashboard_id ||
+          dashboardId ||
           "main"
       ).trim() || "main"
     );
-  }, [dashboardId, tank]);
+  }, [tank, dashboardId]);
 
   // ✅ NEW: tell backend whether this graphic is visible to the user
   // force=true bypasses duplicate suppression (used for heartbeat)
