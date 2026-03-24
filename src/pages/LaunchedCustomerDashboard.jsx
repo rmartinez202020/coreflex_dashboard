@@ -925,6 +925,7 @@ export default function LaunchedCustomerDashboard() {
             publicDashLaunchId={publicDashLaunchId}
             tenantEmail={tenantEmail}
             isTenantAuthenticated={isTenantAuthenticated}
+            tenantAccessLevel={tenantAccessLevel}
           />
         )}
       </div>
