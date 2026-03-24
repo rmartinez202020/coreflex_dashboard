@@ -362,6 +362,7 @@ export default function GraphicDisplay({
     totalizerTotalUnit,
     tenantEmail,
     tenantAccessLevel,
+    isRunMode,
   ]);
 
   // ✅ if user pauses, insert a gap marker
