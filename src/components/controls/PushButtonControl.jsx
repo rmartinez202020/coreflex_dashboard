@@ -43,9 +43,17 @@ function readStatusFromRow(row) {
   return String(row?.status ?? row?.Status ?? "").trim().toLowerCase();
 }
 
-async function defaultWriteToBackend({ dashboardId, widgetId, value01 }) {
+async function defaultWriteToBackend({
+  dashboardId,
+  widgetId,
+  value01,
+  tenantEmail = "",
+  tenantAccessLevel = "",
+}) {
   const dash = String(dashboardId || "").trim();
   const wid = String(widgetId || "").trim();
+  const tenantEmailSafe = String(tenantEmail || "").trim().toLowerCase();
+  const tenantAccessSafe = String(tenantAccessLevel || "").trim();
 
   if (!dash || !wid) {
     throw new Error("Missing dashboardId/widgetId for write");
@@ -56,6 +64,8 @@ async function defaultWriteToBackend({ dashboardId, widgetId, value01 }) {
     headers: {
       "Content-Type": "application/json",
       ...getAuthHeaders(),
+      ...(tenantEmailSafe ? { "X-Tenant-Email": tenantEmailSafe } : {}),
+      ...(tenantAccessSafe ? { "X-Tenant-Access": tenantAccessSafe } : {}),
       "Cache-Control": "no-cache",
       Pragma: "no-cache",
     },
@@ -145,6 +155,10 @@ export default function PushButtonControl({
   pulseMs = 12000,
   onWrite = null,
   pollMs = 12000,
+
+  // ✅ NEW: tenant/public launch context
+  tenantEmail = "",
+  tenantAccessLevel = "",
 }) {
   const [localPressed, setLocalPressed] = useState(false);
   const [isBusy, setIsBusy] = useState(false);
@@ -260,12 +274,18 @@ export default function PushButtonControl({
 
     try {
       const token = String(getToken() || "").trim();
-      if (!token) return;
+      const tenantEmailSafe = String(tenantEmail || "").trim().toLowerCase();
+      const tenantAccessSafe = String(tenantAccessLevel || "").trim();
+
+      // ✅ private flow uses token, public flow uses tenant headers
+      if (!token && !tenantEmailSafe) return;
 
       const res = await fetch(`${API_URL}/zhc1921/my-devices`, {
         method: "GET",
         headers: {
           ...getAuthHeaders(),
+          ...(tenantEmailSafe ? { "X-Tenant-Email": tenantEmailSafe } : {}),
+          ...(tenantAccessSafe ? { "X-Tenant-Access": tenantAccessSafe } : {}),
           "Cache-Control": "no-cache",
           Pragma: "no-cache",
         },
@@ -293,7 +313,7 @@ export default function PushButtonControl({
     } catch {
       // ignore
     }
-  }, [play, hasBinding, bindDeviceId, bindField]);
+  }, [play, hasBinding, bindDeviceId, bindField, tenantEmail, tenantAccessLevel]);
 
   useEffect(() => {
     if (!play) {
@@ -346,12 +366,16 @@ export default function PushButtonControl({
           field: bindField,
           value01: pulseStartValue01,
           widget,
+          tenantEmail,
+          tenantAccessLevel,
         });
       } else {
         resp = await defaultWriteToBackend({
           dashboardId: dash,
           widgetId: wid,
           value01: pulseStartValue01,
+          tenantEmail,
+          tenantAccessLevel,
         });
       }
 
@@ -382,12 +406,16 @@ export default function PushButtonControl({
               field: bindField,
               value01: pulseEndValue01,
               widget,
+              tenantEmail,
+              tenantAccessLevel,
             });
           } else {
             endResp = await defaultWriteToBackend({
               dashboardId: dash,
               widgetId: wid,
               value01: pulseEndValue01,
+              tenantEmail,
+              tenantAccessLevel,
             });
           }
 

@@ -51,9 +51,17 @@ function readStatusFromRow(row) {
 
 // ✅ Default backend writer (so Launch works even if parent forgot to pass onWrite)
 // ✅ Handles 409 gracefully (backend lock) so UI can show "Control Action in Progress"
-async function defaultWriteToBackend({ dashboardId, widgetId, value01 }) {
+async function defaultWriteToBackend({
+  dashboardId,
+  widgetId,
+  value01,
+  tenantEmail = "",
+  tenantAccessLevel = "",
+}) {
   const dash = String(dashboardId || "").trim();
   const wid = String(widgetId || "").trim();
+  const tenantEmailSafe = String(tenantEmail || "").trim().toLowerCase();
+  const tenantAccessSafe = String(tenantAccessLevel || "").trim();
 
   if (!dash || !wid) throw new Error("Missing dashboardId/widgetId for write");
 
@@ -62,6 +70,8 @@ async function defaultWriteToBackend({ dashboardId, widgetId, value01 }) {
     headers: {
       "Content-Type": "application/json",
       ...getAuthHeaders(),
+      ...(tenantEmailSafe ? { "X-Tenant-Email": tenantEmailSafe } : {}),
+      ...(tenantAccessSafe ? { "X-Tenant-Access": tenantAccessSafe } : {}),
       "Cache-Control": "no-cache",
       Pragma: "no-cache",
     },
@@ -164,6 +174,10 @@ export default function ToggleSwitchControl({
 
   // ✅ match backend hold time for occupied state (your backend = 10s)
   actuationHoldMs = 10000,
+
+  // ✅ NEW: tenant/public launch context
+  tenantEmail = "",
+  tenantAccessLevel = "",
 }) {
   const [openProps, setOpenProps] = React.useState(false);
 
@@ -326,12 +340,18 @@ export default function ToggleSwitchControl({
 
     try {
       const token = String(getToken() || "").trim();
-      if (!token) return;
+      const tenantEmailSafe = String(tenantEmail || "").trim().toLowerCase();
+      const tenantAccessSafe = String(tenantAccessLevel || "").trim();
+
+      // ✅ private flow uses token, public flow uses tenant headers
+      if (!token && !tenantEmailSafe) return;
 
       const res = await fetch(`${API_URL}/zhc1921/my-devices`, {
         method: "GET",
         headers: {
           ...getAuthHeaders(),
+          ...(tenantEmailSafe ? { "X-Tenant-Email": tenantEmailSafe } : {}),
+          ...(tenantAccessSafe ? { "X-Tenant-Access": tenantAccessSafe } : {}),
           "Cache-Control": "no-cache",
           Pragma: "no-cache",
         },
@@ -372,7 +392,7 @@ export default function ToggleSwitchControl({
     } catch {
       // ignore
     }
-  }, [play, hasBinding, bindDeviceId, bindField]);
+  }, [play, hasBinding, bindDeviceId, bindField, tenantEmail, tenantAccessLevel]);
 
   // Fetch once when play starts
   React.useEffect(() => {
@@ -435,6 +455,8 @@ export default function ToggleSwitchControl({
           field: bindField,
           value01: nextDo01,
           widget,
+          tenantEmail,
+          tenantAccessLevel,
         });
       } else {
         const wid = resolveWidgetId(widget);
@@ -456,6 +478,8 @@ export default function ToggleSwitchControl({
           dashboardId: dash,
           widgetId: wid,
           value01: nextDo01,
+          tenantEmail,
+          tenantAccessLevel,
         });
       }
 
