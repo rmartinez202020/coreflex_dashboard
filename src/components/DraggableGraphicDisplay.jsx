@@ -17,6 +17,7 @@ export default function DraggableGraphicDisplay({
   dragDelta = { x: 0, y: 0 },
   dashboardMode = "edit",
   telemetryMap = null, // ✅ NEW: common poller map
+  dashboardId = null, // ✅ NEW: explicit dashboard id from parent
 
   // ✅ NEW: public tenant support
   tenantEmail = "",
@@ -150,7 +151,8 @@ export default function DraggableGraphicDisplay({
     (nextTank) => {
       // Keep dashboardId injected in Launch, if present.
       const existingDashId = String(
-        tank?.properties?.dashboardId ||
+        dashboardId ||
+          tank?.properties?.dashboardId ||
           tank?.properties?.dashboard_id ||
           tank?.dashboardId ||
           ""
@@ -179,7 +181,7 @@ export default function DraggableGraphicDisplay({
         },
       });
     },
-    [safeOnUpdate, tank]
+    [safeOnUpdate, tank, dashboardId]
   );
 
   // ✅ NEW: unified way to open settings (Settings button should call this)
@@ -202,14 +204,15 @@ export default function DraggableGraphicDisplay({
   const resolvedDashboardId = useMemo(() => {
     return (
       String(
-        tank?.dashboard_id ||
+        dashboardId ||
+          tank?.dashboard_id ||
           tank?.dashboardId ||
           tank?.properties?.dashboardId ||
           tank?.properties?.dashboard_id ||
           "main"
       ).trim() || "main"
     );
-  }, [tank]);
+  }, [dashboardId, tank]);
 
   // ✅ NEW: tell backend whether this graphic is visible to the user
   // force=true bypasses duplicate suppression (used for heartbeat)
@@ -235,7 +238,9 @@ export default function DraggableGraphicDisplay({
             "Content-Type": "application/json",
             ...(token ? { Authorization: `Bearer ${token}` } : {}),
             ...(tenantEmailSafe ? { "X-Tenant-Email": tenantEmailSafe } : {}),
-            ...(tenantAccessSafe ? { "X-Tenant-Access": tenantAccessSafe } : {}),
+            ...(tenantAccessSafe
+              ? { "X-Tenant-Access": tenantAccessSafe }
+              : {}),
           },
           body: JSON.stringify({
             dashboard_id: resolvedDashboardId,
@@ -326,7 +331,6 @@ export default function DraggableGraphicDisplay({
           dashboardId={resolvedDashboardId} // ✅ pass dashboard id so GraphicDisplay can load historian correctly
           tenantEmail={tenantEmail}
           tenantAccessLevel={tenantAccessLevel}
-
           // ✅ NEW: Settings button inside GraphicDisplay should call this
           // so it opens the AppModals GraphicDisplaySettingsModal (which auto-saves project on Apply)
           onOpenSettings={handleOpenSettings}

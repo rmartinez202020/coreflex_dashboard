@@ -484,34 +484,42 @@ export default function DashboardCanvasWidgetLayer({
       }
 
       if (tank.shape === "graphicDisplay") {
-        return (
-          <div
-            key={tank.id}
-            style={{ position: "relative", overflow: "visible" }}
-          >
-            {renderTelemetryOverlay(tank)}
-            <DraggableGraphicDisplay
-              tank={tank}
-              telemetryMap={telemetryMap}
-              selected={isSelected && !isPlay}
-              selectedIds={selectedIds}
-              dragDelta={dragDelta}
-              dashboardMode={dashboardMode}
-              onSelect={handleObjectSelect}
-              onUpdate={commonProps.onUpdate}
-              onRightClick={(e) => handleRightClick?.(e, tank)}
-              onOpenSettings={() => {
-                if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
-              }}
-              onDoubleClick={() => {
-                if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
-              }}
-              tenantEmail={tenantEmail}
-              tenantAccessLevel={tenantAccessLevel}
-            />
-          </div>
-        );
-      }
+  const resolvedDash = resolveDashboardId({
+    activeDashboardId,
+    dashboardId,
+    selectedTank,
+    droppedTanks,
+  });
+
+  return (
+    <div
+      key={tank.id}
+      style={{ position: "relative", overflow: "visible" }}
+    >
+      {renderTelemetryOverlay(tank)}
+      <DraggableGraphicDisplay
+        tank={tank}
+        telemetryMap={telemetryMap}
+        selected={isSelected && !isPlay}
+        selectedIds={selectedIds}
+        dragDelta={dragDelta}
+        dashboardMode={dashboardMode}
+        dashboardId={resolvedDash}
+        onSelect={handleObjectSelect}
+        onUpdate={commonProps.onUpdate}
+        onRightClick={(e) => handleRightClick?.(e, tank)}
+        onOpenSettings={() => {
+          if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
+        }}
+        onDoubleClick={() => {
+          if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
+        }}
+        tenantEmail={tenantEmail}
+        tenantAccessLevel={tenantAccessLevel}
+      />
+    </div>
+  );
+}
 
       if (tank.shape === "alarmLog") {
         const w = tank.w ?? tank.width ?? 780;
