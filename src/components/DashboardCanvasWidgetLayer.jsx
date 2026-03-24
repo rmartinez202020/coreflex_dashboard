@@ -299,6 +299,7 @@ export default function DashboardCanvasWidgetLayer({
   dashboardIdsDetailsDashboardId = "",
   isPublicLaunch = false,
   isTenantAuthenticated = false,
+   tenantEmail = "",
   tenantAccessLevel = "read_only",
 }) {
   const resolvedDashboardName = String(dashboardName || "").trim();
@@ -570,6 +571,9 @@ export default function DashboardCanvasWidgetLayer({
                 dashboardId={resolvedDash}
                 dashboardName={resolvedDashboardName}
                 onSaveProject={onSaveProject}
+                tenantEmail={tenantEmail}
+                tenantAccessLevel={tenantAccessLevel}
+                
               />
             )}
           </DraggableDroppedTank>
@@ -608,6 +612,8 @@ export default function DashboardCanvasWidgetLayer({
                 widget={tank}
                 dashboardId={resolvedDash}
                 dashboardName={resolvedDashboardName}
+                tenantEmail={tenantEmail}
+                tenantAccessLevel={tenantAccessLevel}
               />
             )}
           </DraggableDroppedTank>
@@ -646,6 +652,8 @@ export default function DashboardCanvasWidgetLayer({
                 widget={tank}
                 dashboardId={resolvedDash}
                 dashboardName={resolvedDashboardName}
+                tenantEmail={tenantEmail}
+                tenantAccessLevel={tenantAccessLevel}
               />
             )}
           </DraggableDroppedTank>

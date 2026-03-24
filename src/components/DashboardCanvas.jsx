@@ -535,7 +535,9 @@ export default function DashboardCanvas({
           dashboardIdsDetailsDashboardId={resolvedDashboardIdValue}
           isPublicLaunch={isPublicLaunch}
           isTenantAuthenticated={isTenantAuthenticated}
+          tenantEmail={tenantEmail}
           tenantAccessLevel={tenantAccessLevel}
+
         />
 
         {!isPlay && selectionBox && (
