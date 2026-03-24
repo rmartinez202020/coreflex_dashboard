@@ -24,7 +24,7 @@ export default function useDashboardTelemetryPoller({
   selectedTank,
   resolveDashboardId,
 
-  // ✅ NEW: public tenant launch support
+  // ✅ public tenant launch support
   isPublicLaunch = false,
   publicDashSlug = "",
   publicDashLaunchId = "",
@@ -90,7 +90,26 @@ export default function useDashboardTelemetryPoller({
       ? data.devices
       : Array.isArray(data?.rows)
       ? data.rows
+      : Array.isArray(data?.items)
+      ? data.items
+      : Array.isArray(data?.results)
+      ? data.results
       : [];
+  }
+
+  // ✅ normalize model names from bindings / rows
+  function normalizeModelName(raw) {
+    const v = String(raw || "")
+      .trim()
+      .toLowerCase();
+
+    if (!v) return "";
+
+    if (v === "zhc1921" || v === "cf-2000" || v === "cf2000") return "zhc1921";
+    if (v === "zhc1661" || v === "cf-1600" || v === "cf1600") return "zhc1661";
+    if (v === "tp4000" || v === "tp-4000") return "tp4000";
+
+    return v;
   }
 
   // ✅ read device id robustly
@@ -108,26 +127,14 @@ export default function useDashboardTelemetryPoller({
 
   // ✅ normalize model names from row payload
   function readModelKey(row) {
-    const raw = String(
+    return normalizeModelName(
       row?.model ??
         row?.bindModel ??
         row?.bind_model ??
         row?.deviceModel ??
         row?.device_model ??
         ""
-    )
-      .trim()
-      .toLowerCase();
-
-    if (!raw) return "";
-
-    if (raw === "zhc1921" || raw === "cf-2000" || raw === "cf2000")
-      return "zhc1921";
-    if (raw === "zhc1661" || raw === "cf-1600" || raw === "cf1600")
-      return "zhc1661";
-    if (raw === "tp4000" || raw === "tp-4000") return "tp4000";
-
-    return raw;
+    );
   }
 
   // ✅ Extract binding from ANY widget shape we support
@@ -138,19 +145,28 @@ export default function useDashboardTelemetryPoller({
       // A) common binding: properties.tag
       const tag = t?.properties?.tag || t?.tag || null;
       if (tag) {
-        const model = String(tag?.model || "").trim();
-        const deviceId = String(tag?.deviceId || "").trim();
+        const model = normalizeModelName(tag?.model);
+        const deviceId = String(tag?.deviceId || tag?.device_id || "").trim();
         if (model && deviceId && modelMeta?.[model]?.base) {
           return { model, deviceId };
         }
       }
 
       // B) graphicDisplay binding style
-      const bm = String(t?.bindModel ?? t?.properties?.bindModel ?? "").trim();
+      const bm = normalizeModelName(
+        t?.bindModel ?? t?.properties?.bindModel ?? ""
+      );
       const bd = String(
-        t?.bindDeviceId ?? t?.properties?.bindDeviceId ?? ""
+        t?.bindDeviceId ??
+          t?.properties?.bindDeviceId ??
+          t?.bind_device_id ??
+          t?.properties?.bind_device_id ??
+          ""
       ).trim();
-      if (bm && bd && modelMeta?.[bm]?.base) return { model: bm, deviceId: bd };
+
+      if (bm && bd && modelMeta?.[bm]?.base) {
+        return { model: bm, deviceId: bd };
+      }
 
       return null;
     },
@@ -219,6 +235,7 @@ export default function useDashboardTelemetryPoller({
       // ==========================================
       // ✅ PUBLIC TENANT MODE
       // fetch once from /tenant-access/devices
+      // build telemetryMap same way as private mode
       // ==========================================
       if (isPublicLaunch) {
         const email = String(tenantEmail || "")
@@ -269,10 +286,23 @@ export default function useDashboardTelemetryPoller({
         for (const k of Object.keys(modelMeta || {})) next[k] = {};
 
         for (const row of rows || []) {
-          const modelKey = readModelKey(row);
           const id = String(readDeviceId(row) || "").trim();
+          let modelKey = readModelKey(row);
 
-          if (!modelKey || !id) continue;
+          if (!id) continue;
+
+          // ✅ If public payload does not include model,
+          // infer it from the wanted bindings by matching device id
+          if (!modelKey) {
+            for (const mk of Object.keys(wanted || {})) {
+              if (wanted?.[mk]?.has(id)) {
+                modelKey = mk;
+                break;
+              }
+            }
+          }
+
+          if (!modelKey) continue;
           if (!wanted?.[modelKey]?.has(id)) continue;
 
           if (!next[modelKey]) next[modelKey] = {};
