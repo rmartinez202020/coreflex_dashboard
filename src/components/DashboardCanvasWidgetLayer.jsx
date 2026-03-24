@@ -186,6 +186,35 @@ function formatOverlayValue(value) {
   return String(value);
 }
 
+function normalizeAccessLevel(value) {
+  const v = String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/\s+/g, "_")
+    .replace(/\+/g, "_")
+    .replace(/-/g, "_");
+
+  if (
+    v === "read_control" ||
+    v === "readandcontrol" ||
+    v === "read_and_control"
+  ) {
+    return "read_control";
+  }
+
+  return "read_only";
+}
+
+function canTenantControl({
+  isPublicLaunch,
+  isTenantAuthenticated,
+  tenantAccessLevel,
+}) {
+  if (!isPublicLaunch) return true;
+  if (!isTenantAuthenticated) return false;
+  return normalizeAccessLevel(tenantAccessLevel) === "read_control";
+}
+
 function DashboardIdsOverlayBadge({
   visible,
   deviceId,
@@ -268,8 +297,21 @@ export default function DashboardCanvasWidgetLayer({
   getTankZ,
   showDashboardIdsDetails = false,
   dashboardIdsDetailsDashboardId = "",
+  isPublicLaunch = false,
+  isTenantAuthenticated = false,
+  tenantAccessLevel = "read_only",
 }) {
   const resolvedDashboardName = String(dashboardName || "").trim();
+
+  const tenantCanControl = React.useMemo(
+    () =>
+      canTenantControl({
+        isPublicLaunch,
+        isTenantAuthenticated,
+        tenantAccessLevel,
+      }),
+    [isPublicLaunch, isTenantAuthenticated, tenantAccessLevel]
+  );
 
   const shouldShowIdsOverlay = React.useCallback(
     (tank, fallbackField = "") => {
@@ -522,7 +564,7 @@ export default function DashboardCanvasWidgetLayer({
                 width={w}
                 height={h}
                 isLaunched={isPlay}
-                visualOnly={false}
+                visualOnly={isPlay && !tenantCanControl}
                 widget={tank}
                 onSaveWidget={commonProps.onUpdate}
                 dashboardId={resolvedDash}
@@ -562,7 +604,7 @@ export default function DashboardCanvasWidgetLayer({
                 pressed={pressed}
                 title={tank?.properties?.title || ""}
                 isLaunched={isPlay}
-                visualOnly={false}
+                visualOnly={isPlay && !tenantCanControl}
                 widget={tank}
                 dashboardId={resolvedDash}
                 dashboardName={resolvedDashboardName}
@@ -600,7 +642,7 @@ export default function DashboardCanvasWidgetLayer({
                 pressed={pressed}
                 title={tank?.properties?.title || ""}
                 isLaunched={isPlay}
-                visualOnly={false}
+                visualOnly={isPlay && !tenantCanControl}
                 widget={tank}
                 dashboardId={resolvedDash}
                 dashboardName={resolvedDashboardName}
@@ -833,6 +875,11 @@ export default function DashboardCanvasWidgetLayer({
                 dashboardMode={dashboardMode}
                 onReset={async (widgetId) => {
                   if (!isPlay) return;
+                  if (!tenantCanControl) {
+                    alert("This tenant has read-only access.");
+                    return;
+                  }
+
                   try {
                     await resetCounterOnBackend({
                       widgetId,

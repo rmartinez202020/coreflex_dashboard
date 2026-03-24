@@ -131,14 +131,15 @@ export default function DashboardCanvas({
   onOpenPushButtonNOSettings,
   onOpenPushButtonNCSettings,
 
-  // ✅ NEW: public tenant launch support
+  // ✅ public tenant launch support
   isPublicLaunch = false,
   publicDashSlug = "",
   publicDashLaunchId = "",
   tenantEmail = "",
   isTenantAuthenticated = false,
+  tenantAccessLevel = "read_only",
 
-  // ✅ NEW: IDs Details overlay toggle from parent/sidebar
+  // ✅ IDs Details overlay toggle from parent/sidebar
   showDashboardIdsDetails = false,
 }) {
   const isPlay = dashboardMode === "play" || dashboardMode === "launch";
@@ -532,6 +533,9 @@ export default function DashboardCanvas({
           getTankZ={getTankZ}
           showDashboardIdsDetails={shouldShowDashboardIdsDetails}
           dashboardIdsDetailsDashboardId={resolvedDashboardIdValue}
+          isPublicLaunch={isPublicLaunch}
+          isTenantAuthenticated={isTenantAuthenticated}
+          tenantAccessLevel={tenantAccessLevel}
         />
 
         {!isPlay && selectionBox && (
