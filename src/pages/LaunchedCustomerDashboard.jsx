@@ -85,7 +85,10 @@ export default function LaunchedCustomerDashboard() {
 
     return objects.map((o) => {
       if (!o || typeof o !== "object") return o;
-      const props = o.properties || {};
+
+      const props =
+        o.properties && typeof o.properties === "object" ? o.properties : {};
+
       const existing = String(
         props.dashboardId || props.dashboard_id || ""
       ).trim();
@@ -149,6 +152,7 @@ export default function LaunchedCustomerDashboard() {
             [];
 
           const backendDashId = String(data?.id || "").trim();
+
           setResolvedDashboardId(backendDashId);
           setDashboardTitle(
             String(data?.dashboard_name || publicDashSlug || "Dashboard").trim()
@@ -237,15 +241,24 @@ export default function LaunchedCustomerDashboard() {
     let timer = null;
     let controller = null;
 
+    const toArray = (data) => {
+      if (Array.isArray(data)) return data;
+      if (Array.isArray(data?.devices)) return data.devices;
+      if (Array.isArray(data?.rows)) return data.rows;
+      if (Array.isArray(data?.items)) return data.items;
+      if (Array.isArray(data?.results)) return data.results;
+      return [];
+    };
+
     const normalize = (data) =>
-      (data || []).map((s) => ({
+      toArray(data).map((s) => ({
         ...s,
         level_percent: Math.min(
           100,
-          Math.round((Number(s.level || 0) / 55) * 100)
+          Math.round((Number(s?.level || 0) / 55) * 100)
         ),
-        date_received: s.last_update?.split?.("T")?.[0] || "",
-        time_received: s.last_update
+        date_received: s?.last_update?.split?.("T")?.[0] || "",
+        time_received: s?.last_update
           ? new Date(s.last_update).toLocaleTimeString([], {
               hour: "2-digit",
               minute: "2-digit",
@@ -288,11 +301,13 @@ export default function LaunchedCustomerDashboard() {
 
         if (!res.ok) throw new Error("Failed to load devices");
 
-        const data = await res.json();
+        const data = await res.json().catch(() => []);
         if (!alive) return;
+
         setSensorsData(normalize(data));
       } catch (err) {
         if (err?.name === "AbortError") return;
+        console.error("❌ Launch device poll failed:", err);
         if (alive) setSensorsData([]);
       }
     };
@@ -356,6 +371,7 @@ export default function LaunchedCustomerDashboard() {
       }
 
       const mustChange = Boolean(data?.must_change_password);
+
       setTenantName(
         String(data?.tenant_name || data?.full_name || email || "Portal User")
       );
@@ -652,6 +668,11 @@ export default function LaunchedCustomerDashboard() {
                         boxSizing: "border-box",
                       }}
                       autoComplete="current-password"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !tenantAuthLoading) {
+                          handleTenantLogin();
+                        }
+                      }}
                     />
                   </div>
 
@@ -777,6 +798,11 @@ export default function LaunchedCustomerDashboard() {
                         boxSizing: "border-box",
                       }}
                       autoComplete="new-password"
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" && !passwordChangeLoading) {
+                          handleTenantSetPassword();
+                        }
+                      }}
                     />
                   </div>
 
@@ -894,6 +920,11 @@ export default function LaunchedCustomerDashboard() {
             guides={[]}
             onOpenDisplaySettings={() => {}}
             onOpenGraphicDisplaySettings={() => {}}
+            isPublicLaunch={isPublicLaunch}
+            publicDashSlug={publicDashSlug}
+            publicDashLaunchId={publicDashLaunchId}
+            tenantEmail={tenantEmail}
+            isTenantAuthenticated={isTenantAuthenticated}
           />
         )}
       </div>
