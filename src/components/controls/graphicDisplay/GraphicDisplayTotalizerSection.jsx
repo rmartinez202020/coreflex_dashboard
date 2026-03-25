@@ -138,7 +138,7 @@ export default function GraphicDisplayTotalizerSection({
     height: 34,
     padding: "0 12px",
     borderRadius: 10,
-    fontWeight: 900,
+    fontWeight: 400,
     fontSize: 13,
     cursor: "pointer",
     border: "1px solid #d1d5db",
@@ -169,7 +169,7 @@ export default function GraphicDisplayTotalizerSection({
     border: "1px solid #f7c948",
     background: "linear-gradient(180deg,#fde68a,#facc15)",
     color: "#5b4100",
-    fontWeight: 900,
+    fontWeight: 400,
     boxShadow: "0 2px 8px rgba(250,204,21,0.18)",
   };
 
