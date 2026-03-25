@@ -299,6 +299,14 @@ export default function GraphicDisplay({
         return;
       }
 
+      // ✅ first-time widget: no device/signal assigned yet
+      if (!bindDeviceId || !bindField) {
+        setPoints([]);
+        setErr("");
+        setHistoryLoaded(true);
+        return;
+      }
+
       dbg("LOAD HISTORY: start", {
         widgetId,
         resolvedDashboardId,
@@ -440,6 +448,8 @@ export default function GraphicDisplay({
     tenantAccessLevel,
     isRunMode,
     historyReloadSeq,
+    bindDeviceId,
+    bindField,
   ]);
 
   // ✅ if user pauses, insert a gap marker
@@ -855,6 +865,18 @@ export default function GraphicDisplay({
     totalizerRateUnit,
   ]);
 
+  const panelMessage = useMemo(() => {
+    if (historyLoading) return "Loading saved history...";
+
+    const hasBinding = !!bindDeviceId && !!bindField;
+
+    if (!hasBinding) {
+      return "Please open Settings, configure the device and signal, then click Apply.";
+    }
+
+    return err;
+  }, [historyLoading, bindDeviceId, bindField, err]);
+
   const onOpenSettings = () => {
     dbg("SETTINGS: open");
     if (typeof onOpenSettingsProp === "function") {
@@ -943,7 +965,7 @@ export default function GraphicDisplay({
         fmtTime={fmtTimeWithDate}
         svg={svg}
         mathOutput={mathOutput}
-        err={historyLoading ? "Loading saved history..." : err}
+        err={panelMessage}
         onSave={handleSettingsSave}
       />
     );
