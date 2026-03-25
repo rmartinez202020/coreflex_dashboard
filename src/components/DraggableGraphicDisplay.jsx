@@ -49,7 +49,7 @@ export default function DraggableGraphicDisplay({
     lastSent: null,
   });
 
-  const width = tank.w ?? 720;
+  const width = tank.w ?? 920;
   const height = tank.h ?? 300;
 
   const isMultiDragging =
