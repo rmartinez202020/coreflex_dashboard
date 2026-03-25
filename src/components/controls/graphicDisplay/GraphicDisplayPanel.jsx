@@ -611,24 +611,27 @@ export default function GraphicDisplayPanel({
             </div>
 
             {err ? (
-              <div
-                style={{
-                  position: "absolute",
-                  left: 10,
-                  bottom: 10,
-                  fontSize: 12,
-                  color: "#991b1b",
-                  background: "rgba(255,241,242,0.92)",
-                  border: "1px solid #fecaca",
-                  padding: "6px 10px",
-                  borderRadius: 10,
-                  pointerEvents: "none",
-                  fontWeight: 400,
-                }}
-              >
-                {err}
-              </div>
-            ) : null}
+  <div
+    style={{
+      position: "absolute",
+      left: 10,
+      bottom: 10,
+      fontSize: 12,
+      color: "#111827",              // ✅ black text
+      background: "#FEF9C3",         // ✅ light yellow
+      border: "1px solid #FDE68A",   // ✅ soft yellow border
+      padding: "6px 10px",
+      borderRadius: 10,
+      pointerEvents: "none",
+      fontWeight: 400,               // ✅ NOT bold
+      boxShadow: "0 2px 6px rgba(0,0,0,0.05)", // optional nice touch
+    }}
+  >
+    {err}
+  </div>
+) : null}
+
+
           </div>
 
           <div
