@@ -37,6 +37,10 @@ export default function PortalTopBar({
   onLogout,
   onLogin,
   isAuthenticated = false,
+
+  // ✅ NEW: public alarm-log support
+  hasAlarmLog = false,
+  onOpenAlarmLog,
 }) {
   const [now, setNow] = useState(() => new Date());
 
@@ -85,10 +89,25 @@ export default function PortalTopBar({
           </div>
 
           {/* CENTER */}
-          <div className="flex-1 min-w-0 text-center">
-            <div className="text-sm md:text-base font-semibold text-white truncate">
+          <div className="flex-1 min-w-0 flex flex-col items-center justify-center">
+            <div className="text-sm md:text-base font-semibold text-white truncate text-center w-full">
               Customer Dashboard — {dashboardName}
             </div>
+
+            {/* ✅ NEW: public alarm button */}
+            {hasAlarmLog ? (
+              <div className="mt-2 hidden md:flex items-center justify-center">
+                <button
+                  type="button"
+                  onClick={() => onOpenAlarmLog?.()}
+                  className="inline-flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-900 shadow-sm hover:bg-amber-100"
+                  title="Open Alarm Log in a new tab"
+                >
+                  <span aria-hidden="true">⚠️</span>
+                  <span>Alarms Log (DI-AI)</span>
+                </button>
+              </div>
+            ) : null}
           </div>
 
           {/* RIGHT */}
@@ -128,6 +147,21 @@ export default function PortalTopBar({
             )}
           </div>
         </div>
+
+        {/* ✅ NEW: mobile alarm row */}
+        {hasAlarmLog ? (
+          <div className="mt-2 flex md:hidden justify-center">
+            <button
+              type="button"
+              onClick={() => onOpenAlarmLog?.()}
+              className="inline-flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-xs font-semibold text-amber-900 shadow-sm hover:bg-amber-100"
+              title="Open Alarm Log in a new tab"
+            >
+              <span aria-hidden="true">⚠️</span>
+              <span>Alarms Log (DI-AI)</span>
+            </button>
+          </div>
+        ) : null}
 
         {/* mobile row */}
         <div className="mt-1.5 flex md:hidden items-center justify-between gap-3 text-xs text-slate-300">

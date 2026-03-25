@@ -6,6 +6,71 @@ import PortalTopBar from "./PortalTopBar.jsx";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 
+function looksLikeAlarmLogObject(obj) {
+  if (!obj || typeof obj !== "object") return false;
+
+  const props =
+    obj.properties && typeof obj.properties === "object" ? obj.properties : {};
+
+  const typeCandidates = [
+    obj.type,
+    obj.widgetType,
+    obj.componentType,
+    props.type,
+    props.widgetType,
+    props.componentType,
+    props.windowType,
+    props.kind,
+    props.name,
+    props.title,
+    props.windowKey,
+    props.key,
+  ]
+    .map((v) => String(v || "").trim().toLowerCase())
+    .filter(Boolean);
+
+  const joined = typeCandidates.join(" | ");
+
+  return (
+    joined.includes("alarmlog") ||
+    joined.includes("alarm log") ||
+    joined.includes("alarms log") ||
+    joined.includes("alarm-log") ||
+    joined.includes("alarm_log")
+  );
+}
+
+function buildAlarmLogLaunchUrl({
+  dashboardId,
+  dashboardName,
+  isPublicLaunch,
+  publicDashSlug,
+  publicDashLaunchId,
+}) {
+  const dash = String(dashboardId || "").trim() || "main";
+  const title = String(dashboardName || "Alarms Log (DI-AI)").trim();
+
+  let basePath = `/launchDashboard/${encodeURIComponent(dash)}`;
+
+  if (isPublicLaunch) {
+    const slug = String(publicDashSlug || "").trim();
+    const launchId = String(publicDashLaunchId || "").trim();
+    if (slug && launchId) {
+      basePath = `/launchDashboard/${encodeURIComponent(
+        slug
+      )}/${encodeURIComponent(launchId)}`;
+    }
+  }
+
+  const url = new URL(basePath, window.location.origin);
+  url.searchParams.set("openAlarmLog", "1");
+  url.searchParams.set("windowKey", "alarmLog");
+  url.searchParams.set("title", title);
+  url.searchParams.set("dashboardId", dash);
+
+  return url.toString();
+}
+
 export default function LaunchedCustomerDashboard() {
   const params = useParams();
   const location = useLocation();
@@ -287,9 +352,12 @@ export default function LaunchedCustomerDashboard() {
             tenant_email: email,
           });
 
-          res = await fetch(`${API_URL}/tenant-access/devices?${qs.toString()}`, {
-            signal: controller.signal,
-          });
+          res = await fetch(
+            `${API_URL}/tenant-access/devices?${qs.toString()}`,
+            {
+              signal: controller.signal,
+            }
+          );
         } else {
           const headers = token ? { Authorization: `Bearer ${token}` } : {};
 
@@ -327,6 +395,27 @@ export default function LaunchedCustomerDashboard() {
     publicDashSlug,
     publicDashLaunchId,
   ]);
+
+  const hasAlarmLog = useMemo(() => {
+    return Array.isArray(droppedTanks)
+      ? droppedTanks.some((obj) => looksLikeAlarmLogObject(obj))
+      : false;
+  }, [droppedTanks]);
+
+  const handleOpenAlarmLog = () => {
+    const dashboardIdSafe = String(resolvedDashboardId || privateDashId || "main")
+      .trim() || "main";
+
+    const url = buildAlarmLogLaunchUrl({
+      dashboardId: dashboardIdSafe,
+      dashboardName: "Alarms Log (DI-AI)",
+      isPublicLaunch,
+      publicDashSlug,
+      publicDashLaunchId,
+    });
+
+    window.open(url, "_blank", "noopener,noreferrer");
+  };
 
   const handleTenantLogin = async () => {
     const email = String(tenantEmail || "").trim().toLowerCase();
@@ -523,6 +612,8 @@ export default function LaunchedCustomerDashboard() {
         tenantName={tenantName}
         accessLevel={tenantAccessLevel}
         isAuthenticated={!shouldHideDashboard}
+        hasAlarmLog={hasAlarmLog}
+        onOpenAlarmLog={handleOpenAlarmLog}
         onLogin={() => {}}
         onLogout={() => {
           if (isPublicLaunch) {
