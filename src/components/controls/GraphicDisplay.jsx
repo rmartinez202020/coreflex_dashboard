@@ -72,17 +72,29 @@ export default function GraphicDisplay({
   const mathFormula = T?.mathFormula ?? "";
   const lineColor = normalizeLineColor(T?.lineColor);
 
+  // ✅ IMPORTANT:
+  // Prefer the widget's own saved/internal dashboard id first.
+  // Public launch injects properties.dashboardId with the customer dashboard id,
+  // but the GraphicDisplay binding/history may still be stored under the
+  // original internal widget dashboard id (often "main").
   const resolvedDashboardId = useMemo(() => {
-    return (
-      String(
-        dashboardId ||
-          T?.dashboard_id ||
-          T?.dashboardId ||
-          T?.properties?.dashboardId ||
-          T?.properties?.dashboard_id ||
-          "main"
-      ).trim() || "main"
-    );
+    const bindingDash = String(
+      T?.bindingDashboardId ||
+        T?.binding_dashboard_id ||
+        T?.properties?.bindingDashboardId ||
+        T?.properties?.binding_dashboard_id ||
+        ""
+    ).trim();
+
+    const rootDash = String(T?.dashboard_id || T?.dashboardId || "").trim();
+
+    const injectedDash = String(
+      T?.properties?.dashboardId || T?.properties?.dashboard_id || ""
+    ).trim();
+
+    const parentDash = String(dashboardId || "").trim();
+
+    return bindingDash || rootDash || injectedDash || parentDash || "main";
   }, [dashboardId, T]);
 
   const widgetId = useMemo(() => {
@@ -257,6 +269,10 @@ export default function GraphicDisplay({
         telemetryMap && typeof telemetryMap === "object"
           ? Object.keys(telemetryMap).slice(0, 10)
           : null,
+      rootDashboardId: T?.dashboard_id || T?.dashboardId || "",
+      injectedDashboardId:
+        T?.properties?.dashboardId || T?.properties?.dashboard_id || "",
+      parentDashboardId: dashboardId || "",
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
@@ -332,6 +348,10 @@ export default function GraphicDisplay({
         }
 
         dbg("LOAD HISTORY: success", {
+          requestedDashboardId: resolvedDashboardId,
+          responseDashboardId: data?.dashboard_id,
+          files: data?.files || [],
+          filePointCounts: data?.file_point_counts || {},
           normalizedCount: normalized.length,
           clippedCount: clipped.length,
           lastPoint:
