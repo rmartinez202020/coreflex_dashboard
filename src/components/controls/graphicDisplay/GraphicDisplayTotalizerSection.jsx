@@ -158,11 +158,11 @@ export default function GraphicDisplayTotalizerSection({
   };
 
   const btnOff = {
-    ...btnBase,
-    border: "1px solid #fecaca",
-    background: "linear-gradient(180deg,#fee2e2,#fecaca)",
-    color: "#7f1d1d",
-  };
+  ...btnBase,
+  border: "1px solid #fecaca",
+  background: "linear-gradient(180deg,#fee2e2,#fecaca)",
+  color: "#111827", // ✅ force black text
+};
 
   const timeseriesBtn = {
     ...btnBase,
