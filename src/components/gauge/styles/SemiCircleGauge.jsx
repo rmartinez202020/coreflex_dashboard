@@ -324,29 +324,23 @@ export default function SemiCircleGauge({
             {displayValue}
           </text>
         )}
-      </svg>
 
-      {deviceIsOffline && (
-        <div
-          style={{
-            position: "absolute",
-            left: "50%",
-            top: `${gaugeH - 10}px`,
-            transform: "translateX(-100%)",
-            color: "#dc2626",
-            fontWeight: 600,
-            fontSize: "12px",
-            lineHeight: 1,
-            textAlign: "center",
-            pointerEvents: "none",
-            userSelect: "none",
-            whiteSpace: "nowrap",
-            zIndex: 5,
-          }}
-        >
-          Offline
-        </div>
-      )}
+        {/* ✅ OFFLINE BELOW VALUE, INSIDE SAME SVG */}
+        {deviceIsOffline && (
+          <text
+            x={cx}
+            y={cy + 48}
+            fill="#dc2626"
+            fontSize="12"
+            fontWeight="600"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            style={{ userSelect: "none", pointerEvents: "none" }}
+          >
+            Offline
+          </text>
+        )}
+      </svg>
     </div>
   );
 }
