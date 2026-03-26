@@ -124,6 +124,11 @@ function getTelemetryRow(telemetryMap, model, deviceId) {
 }
 
 function getTelemetryStatus(row) {
+  // ✅ If there is no telemetry row, treat it as offline
+  if (!row || typeof row !== "object") {
+    return "offline";
+  }
+
   const raw =
     row?.status ??
     row?.deviceStatus ??
@@ -152,7 +157,7 @@ function getTelemetryStatus(row) {
     return "online";
   }
 
-  return s;
+  return s || "offline";
 }
 
 function getTelemetryValue(row, field) {
