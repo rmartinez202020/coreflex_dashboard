@@ -535,13 +535,13 @@ export default function ClassicRoundGauge({
         )}
       </svg>
 
-      {/* ✅ HTML overlay inside the blue widget box */}
+      {/* ✅ moved lower so it stays below 27 */}
       {deviceIsOffline && (
         <div
           style={{
             position: "absolute",
             left: "50%",
-            bottom: "16px",
+            bottom: "4px",
             transform: "translateX(-50%)",
             color: "#dc2626",
             fontWeight: 600,
