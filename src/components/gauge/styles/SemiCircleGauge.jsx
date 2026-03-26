@@ -85,7 +85,7 @@ export default function SemiCircleGauge({
   const outerH = gaugeH + BOTTOM_EXTRA;
 
   const cx = gaugeW / 2;
-  const cy = gaugeH * 0.58;
+  const cy = gaugeH * 0.68;
 
   const radius = Math.min(gaugeW / 2 - 8, cy - 8);
 
