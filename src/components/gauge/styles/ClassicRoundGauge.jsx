@@ -13,6 +13,24 @@ import {
   valueToAngle,
 } from "../utils";
 
+// ✅ Get row from shared telemetryMap (same idea as working tank widget)
+function getTelemetryRow(telemetryMap, model, deviceId) {
+  const id = String(deviceId || "").trim();
+  if (!telemetryMap || !id) return null;
+
+  const m = String(model || "").trim();
+
+  // preferred model bucket
+  if (m && telemetryMap?.[m]?.[id]) return telemetryMap[m][id];
+
+  // fallback scan all buckets
+  for (const mk of Object.keys(telemetryMap || {})) {
+    if (telemetryMap?.[mk]?.[id]) return telemetryMap[mk][id];
+  }
+
+  return null;
+}
+
 function TickMarks({
   cx,
   cy,
@@ -272,85 +290,43 @@ function GaugeZones({
   );
 }
 
-function isOfflineStatus(v) {
-  if (v === true) return true;
-  if (v == null) return false;
-
-  const s = String(v).trim().toLowerCase();
-  return (
-    s === "offline" ||
-    s === "false" ||
-    s === "0" ||
-    s === "down" ||
-    s === "disconnected" ||
-    s === "not running"
-  );
-}
-
-function isOnlineFalse(v) {
-  if (v === false) return true;
-  if (v == null) return false;
-
-  const s = String(v).trim().toLowerCase();
-  return s === "false" || s === "0" || s === "offline" || s === "down";
-}
-
-function detectOffline(settings = {}, cfg = {}, restProps = {}) {
-  const sources = [restProps, settings, cfg].filter(Boolean);
-
-  for (const src of sources) {
-    if (
-      src.isOffline === true ||
-      src.offline === true ||
-      src.deviceOffline === true ||
-      src.telemetryOffline === true ||
-      src.isDeviceOffline === true ||
-      src.isTelemetryOffline === true
-    ) {
-      return true;
-    }
-  }
-
-  for (const src of sources) {
-    if (
-      isOnlineFalse(src.online) ||
-      isOnlineFalse(src.isOnline) ||
-      isOnlineFalse(src.deviceOnline) ||
-      isOnlineFalse(src.telemetryOnline) ||
-      isOnlineFalse(src.isDeviceOnline) ||
-      isOnlineFalse(src.isTelemetryOnline)
-    ) {
-      return true;
-    }
-  }
-
-  for (const src of sources) {
-    if (
-      isOfflineStatus(src.status) ||
-      isOfflineStatus(src.deviceStatus) ||
-      isOfflineStatus(src.telemetryStatus) ||
-      isOfflineStatus(src.onlineStatus) ||
-      isOfflineStatus(src.selectedDeviceStatus) ||
-      isOfflineStatus(src.bindDeviceStatus)
-    ) {
-      return true;
-    }
-  }
-
-  return false;
-}
-
 export default function ClassicRoundGauge({
   value = 0,
   settings = {},
   width = 220,
   height = 220,
-  ...restProps
+
+  // ✅ same pattern as working widgets
+  isPlay = false,
+  telemetryMap = null,
 }) {
   const cfg = useMemo(() => buildGaugeDefaults(settings), [settings]);
   const palette = useMemo(() => getGaugePalette(cfg), [cfg]);
 
-  const computed = useMemo(() => computeGaugeValue(value, cfg), [value, cfg]);
+  // ✅ binding info from widget properties/settings
+  const bindModel = String(cfg.bindModel || settings?.bindModel || "zhc1921").trim();
+  const bindDeviceId = String(cfg.bindDeviceId || settings?.bindDeviceId || "").trim();
+  const hasBinding = !!bindDeviceId;
+
+  // ✅ live row from shared poller, only in play mode
+  const telemetryRow = useMemo(() => {
+    if (!isPlay) return null;
+    if (!hasBinding) return null;
+    return getTelemetryRow(telemetryMap, bindModel, bindDeviceId);
+  }, [isPlay, hasBinding, telemetryMap, bindModel, bindDeviceId]);
+
+  const backendStatus = String(telemetryRow?.status || "").trim().toLowerCase();
+  const deviceIsOffline = isPlay && hasBinding && backendStatus === "offline";
+  const deviceIsOnline = backendStatus ? backendStatus === "online" : true;
+
+  // ✅ when offline, don't use the live value for the gauge draw
+  const safeValue = deviceIsOffline ? 0 : value;
+
+  const computed = useMemo(
+    () => computeGaugeValue(safeValue, cfg),
+    [safeValue, cfg]
+  );
+
   const { min: minValue, max: maxValue } = useMemo(
     () => normalizeRange(cfg.minValue, cfg.maxValue),
     [cfg.minValue, cfg.maxValue]
@@ -389,11 +365,6 @@ export default function ClassicRoundGauge({
     tipOffset: 8,
   });
 
-  const isOffline = useMemo(
-    () => detectOffline(settings, cfg, restProps),
-    [settings, cfg, restProps]
-  );
-
   const displayInt = Number.isFinite(Number(computed.displayValue))
     ? Math.round(Number(computed.displayValue))
     : 0;
@@ -401,9 +372,6 @@ export default function ClassicRoundGauge({
   const displayPlain = String(
     Math.max(0, Math.min(9999, Math.abs(displayInt)))
   );
-
-  const valueY = cy + radius * 0.7;
-  const offlineY = cy + radius * 0.9;
 
   return (
     <div
@@ -414,6 +382,7 @@ export default function ClassicRoundGauge({
         alignItems: "center",
         justifyContent: "center",
         background: "transparent",
+        position: "relative",
       }}
     >
       <svg
@@ -550,10 +519,10 @@ export default function ClassicRoundGauge({
           strokeWidth="1"
         />
 
-        {showValue && (
+        {showValue && !deviceIsOffline && (
           <text
             x={cx}
-            y={valueY}
+            y={cy + radius * 0.74}
             fill={palette.valueText}
             fontSize="28"
             fontWeight="900"
@@ -570,16 +539,20 @@ export default function ClassicRoundGauge({
           </text>
         )}
 
-        {isOffline && (
+        {/* ✅ OFFLINE text, same logic style as working tank */}
+        {deviceIsOffline && (
           <text
             x={cx}
-            y={offlineY}
-            fill="#ef4444"
-            fontSize="12"
-            fontWeight="800"
+            y={cy + radius * 0.78}
+            fill="#dc2626"
+            fontSize="14"
+            fontWeight="700"
             textAnchor="middle"
             dominantBaseline="middle"
-            style={{ userSelect: "none" }}
+            style={{
+              userSelect: "none",
+              pointerEvents: "none",
+            }}
           >
             Offline
           </text>
