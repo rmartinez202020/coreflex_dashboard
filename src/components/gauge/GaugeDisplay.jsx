@@ -14,6 +14,7 @@ export default function GaugeDisplay({
   settings = {},
   width = 220,
   height = 220,
+  ...restProps
 }) {
   const cfg = buildGaugeDefaults(settings);
 
@@ -29,6 +30,7 @@ export default function GaugeDisplay({
           settings={cfg}
           width={width}
           height={height}
+          {...restProps}
         />
       );
 
@@ -41,6 +43,7 @@ export default function GaugeDisplay({
           settings={cfg}
           width={width}
           height={height}
+          {...restProps}
         />
       );
 
@@ -52,6 +55,7 @@ export default function GaugeDisplay({
           settings={cfg}
           width={width}
           height={height}
+          {...restProps}
         />
       );
 
@@ -63,6 +67,7 @@ export default function GaugeDisplay({
           settings={cfg}
           width={width}
           height={height}
+          {...restProps}
         />
       );
   }
