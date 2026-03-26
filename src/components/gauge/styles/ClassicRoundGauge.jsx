@@ -13,17 +13,15 @@ import {
   valueToAngle,
 } from "../utils";
 
-// ✅ Get row from shared telemetryMap (same idea as working tank widget)
+// ✅ same shared telemetry lookup pattern as working widgets
 function getTelemetryRow(telemetryMap, model, deviceId) {
   const id = String(deviceId || "").trim();
   if (!telemetryMap || !id) return null;
 
   const m = String(model || "").trim();
 
-  // preferred model bucket
   if (m && telemetryMap?.[m]?.[id]) return telemetryMap[m][id];
 
-  // fallback scan all buckets
   for (const mk of Object.keys(telemetryMap || {})) {
     if (telemetryMap?.[mk]?.[id]) return telemetryMap[mk][id];
   }
@@ -296,37 +294,34 @@ export default function ClassicRoundGauge({
   width = 220,
   height = 220,
 
-  // ✅ same pattern as working widgets
+  // ✅ same as working widgets
   isPlay = false,
   telemetryMap = null,
 }) {
   const cfg = useMemo(() => buildGaugeDefaults(settings), [settings]);
   const palette = useMemo(() => getGaugePalette(cfg), [cfg]);
 
-  // ✅ binding info from widget properties/settings
-  const bindModel = String(cfg.bindModel || settings?.bindModel || "zhc1921").trim();
-  const bindDeviceId = String(cfg.bindDeviceId || settings?.bindDeviceId || "").trim();
+  const bindModel = String(
+    cfg.bindModel || settings?.bindModel || "zhc1921"
+  ).trim();
+  const bindDeviceId = String(
+    cfg.bindDeviceId || settings?.bindDeviceId || ""
+  ).trim();
   const hasBinding = !!bindDeviceId;
 
-  // ✅ live row from shared poller, only in play mode
   const telemetryRow = useMemo(() => {
     if (!isPlay) return null;
     if (!hasBinding) return null;
     return getTelemetryRow(telemetryMap, bindModel, bindDeviceId);
   }, [isPlay, hasBinding, telemetryMap, bindModel, bindDeviceId]);
 
-  const backendStatus = String(telemetryRow?.status || "").trim().toLowerCase();
+  const backendStatus = String(telemetryRow?.status || "")
+    .trim()
+    .toLowerCase();
+
   const deviceIsOffline = isPlay && hasBinding && backendStatus === "offline";
-  const deviceIsOnline = backendStatus ? backendStatus === "online" : true;
 
-  // ✅ when offline, don't use the live value for the gauge draw
-  const safeValue = deviceIsOffline ? 0 : value;
-
-  const computed = useMemo(
-    () => computeGaugeValue(safeValue, cfg),
-    [safeValue, cfg]
-  );
-
+  const computed = useMemo(() => computeGaugeValue(value, cfg), [value, cfg]);
   const { min: minValue, max: maxValue } = useMemo(
     () => normalizeRange(cfg.minValue, cfg.maxValue),
     [cfg.minValue, cfg.maxValue]
@@ -519,7 +514,7 @@ export default function ClassicRoundGauge({
           strokeWidth="1"
         />
 
-        {showValue && !deviceIsOffline && (
+        {showValue && (
           <text
             x={cx}
             y={cy + radius * 0.74}
@@ -538,26 +533,30 @@ export default function ClassicRoundGauge({
             {displayPlain}
           </text>
         )}
-
-        {/* ✅ OFFLINE text, same logic style as working tank */}
-        {deviceIsOffline && (
-          <text
-            x={cx}
-            y={cy + radius * 0.78}
-            fill="#dc2626"
-            fontSize="14"
-            fontWeight="700"
-            textAnchor="middle"
-            dominantBaseline="middle"
-            style={{
-              userSelect: "none",
-              pointerEvents: "none",
-            }}
-          >
-            Offline
-          </text>
-        )}
       </svg>
+
+      {/* ✅ HTML overlay inside the blue widget box */}
+      {deviceIsOffline && (
+        <div
+          style={{
+            position: "absolute",
+            left: "50%",
+            bottom: "16px",
+            transform: "translateX(-50%)",
+            color: "#dc2626",
+            fontWeight: 600,
+            fontSize: "12px",
+            lineHeight: 1,
+            textAlign: "center",
+            pointerEvents: "none",
+            userSelect: "none",
+            whiteSpace: "nowrap",
+            zIndex: 5,
+          }}
+        >
+          Offline
+        </div>
+      )}
     </div>
   );
 }
