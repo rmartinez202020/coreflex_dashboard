@@ -78,9 +78,11 @@ export default function SemiCircleGauge({
   const gaugeW = Math.max(180, Number(width) || 220);
   const gaugeH = Math.max(120, Number(height) || 160);
 
+  // ✅ extra bottom room for Offline label
   const BLUE_BOX_EXTRA = 40;
+  const BOTTOM_EXTRA = 22;
   const outerW = gaugeW + BLUE_BOX_EXTRA;
-  const outerH = gaugeH;
+  const outerH = gaugeH + BOTTOM_EXTRA;
 
   const cx = gaugeW / 2;
   const cy = gaugeH * 0.85;
@@ -178,10 +180,10 @@ export default function SemiCircleGauge({
         width: outerW,
         height: outerH,
         display: "flex",
-        alignItems: "center",
+        alignItems: "flex-start",
         justifyContent: "center",
         background: "transparent",
-        position: "relative", // ✅ REQUIRED
+        position: "relative",
       }}
     >
       <svg
@@ -324,18 +326,22 @@ export default function SemiCircleGauge({
         )}
       </svg>
 
-      {/* ✅ OFFLINE UNDER VALUE */}
       {deviceIsOffline && (
         <div
           style={{
             position: "absolute",
             left: "50%",
-            bottom: "6px", // 👈 BELOW VALUE
+            top: `${gaugeH - 2}px`,
             transform: "translateX(-50%)",
             color: "#dc2626",
             fontWeight: 600,
             fontSize: "12px",
+            lineHeight: 1,
+            textAlign: "center",
             pointerEvents: "none",
+            userSelect: "none",
+            whiteSpace: "nowrap",
+            zIndex: 5,
           }}
         >
           Offline
