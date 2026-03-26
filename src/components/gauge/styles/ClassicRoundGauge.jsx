@@ -292,7 +292,52 @@ function isOnlineFalse(v) {
   if (v == null) return false;
 
   const s = String(v).trim().toLowerCase();
-  return s === "false" || s === "0";
+  return s === "false" || s === "0" || s === "offline" || s === "down";
+}
+
+function detectOffline(settings = {}, cfg = {}, restProps = {}) {
+  const sources = [restProps, settings, cfg].filter(Boolean);
+
+  for (const src of sources) {
+    if (
+      src.isOffline === true ||
+      src.offline === true ||
+      src.deviceOffline === true ||
+      src.telemetryOffline === true ||
+      src.isDeviceOffline === true ||
+      src.isTelemetryOffline === true
+    ) {
+      return true;
+    }
+  }
+
+  for (const src of sources) {
+    if (
+      isOnlineFalse(src.online) ||
+      isOnlineFalse(src.isOnline) ||
+      isOnlineFalse(src.deviceOnline) ||
+      isOnlineFalse(src.telemetryOnline) ||
+      isOnlineFalse(src.isDeviceOnline) ||
+      isOnlineFalse(src.isTelemetryOnline)
+    ) {
+      return true;
+    }
+  }
+
+  for (const src of sources) {
+    if (
+      isOfflineStatus(src.status) ||
+      isOfflineStatus(src.deviceStatus) ||
+      isOfflineStatus(src.telemetryStatus) ||
+      isOfflineStatus(src.onlineStatus) ||
+      isOfflineStatus(src.selectedDeviceStatus) ||
+      isOfflineStatus(src.bindDeviceStatus)
+    ) {
+      return true;
+    }
+  }
+
+  return false;
 }
 
 export default function ClassicRoundGauge({
@@ -300,17 +345,7 @@ export default function ClassicRoundGauge({
   settings = {},
   width = 220,
   height = 220,
-
-  // ✅ direct status props support
-  isOffline = false,
-  offline = false,
-  deviceStatus = "",
-  telemetryStatus = "",
-  status = "",
-  online = undefined,
-  isOnline = undefined,
-  deviceOnline = undefined,
-  telemetryOnline = undefined,
+  ...restProps
 }) {
   const cfg = useMemo(() => buildGaugeDefaults(settings), [settings]);
   const palette = useMemo(() => getGaugePalette(cfg), [cfg]);
@@ -322,7 +357,7 @@ export default function ClassicRoundGauge({
   );
 
   const outerW = Math.max(160, Number(width) || 220);
-  const outerH = Math.max(195, Number(height) || 220);
+  const outerH = Math.max(170, Number(height) || 220);
 
   const title = String(cfg.title || "").trim();
   const units = String(cfg.units || "").trim();
@@ -334,8 +369,8 @@ export default function ClassicRoundGauge({
   const svgH = outerH;
 
   const cx = svgW / 2;
-  const cy = Math.max(78, svgH * 0.455);
-  const radius = Math.max(56, Math.min(svgW, svgH) * 0.385);
+  const cy = Math.max(82, svgH * 0.5);
+  const radius = Math.max(56, Math.min(svgW, svgH) * 0.42);
 
   const needleAngle = valueToAngle(
     computed.clampedValue,
@@ -354,45 +389,10 @@ export default function ClassicRoundGauge({
     tipOffset: 8,
   });
 
-  const offlineDetected = useMemo(() => {
-    // ✅ priority 1: direct props on this component
-    if (isOffline === true || offline === true) return true;
-    if (isOnlineFalse(online)) return true;
-    if (isOnlineFalse(isOnline)) return true;
-    if (isOnlineFalse(deviceOnline)) return true;
-    if (isOnlineFalse(telemetryOnline)) return true;
-
-    if (isOfflineStatus(status)) return true;
-    if (isOfflineStatus(deviceStatus)) return true;
-    if (isOfflineStatus(telemetryStatus)) return true;
-
-    // ✅ priority 2: settings fallback
-    if (settings?.isOffline === true || settings?.offline === true) return true;
-    if (settings?.deviceOffline === true || settings?.telemetryOffline === true)
-      return true;
-
-    if (isOnlineFalse(settings?.online)) return true;
-    if (isOnlineFalse(settings?.isOnline)) return true;
-    if (isOnlineFalse(settings?.deviceOnline)) return true;
-    if (isOnlineFalse(settings?.telemetryOnline)) return true;
-
-    if (isOfflineStatus(settings?.status)) return true;
-    if (isOfflineStatus(settings?.deviceStatus)) return true;
-    if (isOfflineStatus(settings?.telemetryStatus)) return true;
-
-    return false;
-  }, [
-    isOffline,
-    offline,
-    status,
-    deviceStatus,
-    telemetryStatus,
-    online,
-    isOnline,
-    deviceOnline,
-    telemetryOnline,
-    settings,
-  ]);
+  const isOffline = useMemo(
+    () => detectOffline(settings, cfg, restProps),
+    [settings, cfg, restProps]
+  );
 
   const displayInt = Number.isFinite(Number(computed.displayValue))
     ? Math.round(Number(computed.displayValue))
@@ -401,6 +401,9 @@ export default function ClassicRoundGauge({
   const displayPlain = String(
     Math.max(0, Math.min(9999, Math.abs(displayInt)))
   );
+
+  const valueY = cy + radius * 0.7;
+  const offlineY = cy + radius * 0.9;
 
   return (
     <div
@@ -550,7 +553,7 @@ export default function ClassicRoundGauge({
         {showValue && (
           <text
             x={cx}
-            y={cy + radius * 0.74}
+            y={valueY}
             fill={palette.valueText}
             fontSize="28"
             fontWeight="900"
@@ -567,12 +570,12 @@ export default function ClassicRoundGauge({
           </text>
         )}
 
-        {offlineDetected ? (
+        {isOffline && (
           <text
             x={cx}
-            y={svgH - 14}
+            y={offlineY}
             fill="#ef4444"
-            fontSize="16"
+            fontSize="12"
             fontWeight="800"
             textAnchor="middle"
             dominantBaseline="middle"
@@ -580,7 +583,7 @@ export default function ClassicRoundGauge({
           >
             Offline
           </text>
-        ) : null}
+        )}
       </svg>
     </div>
   );
