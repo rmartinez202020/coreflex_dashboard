@@ -272,6 +272,46 @@ function GaugeZones({
   );
 }
 
+function isOfflineFromSettings(settings = {}, cfg = {}) {
+  const rawCandidates = [
+    settings?.isOffline,
+    settings?.offline,
+    settings?.deviceOffline,
+    settings?.isDeviceOffline,
+    settings?.telemetryOffline,
+    settings?.isTelemetryOffline,
+    cfg?.isOffline,
+    cfg?.offline,
+    cfg?.deviceOffline,
+    cfg?.isDeviceOffline,
+    cfg?.telemetryOffline,
+    cfg?.isTelemetryOffline,
+  ];
+
+  if (rawCandidates.some((v) => v === true)) return true;
+
+  const textCandidates = [
+    settings?.telemetryStatus,
+    settings?.deviceStatus,
+    settings?.status,
+    settings?.onlineStatus,
+    cfg?.telemetryStatus,
+    cfg?.deviceStatus,
+    cfg?.status,
+    cfg?.onlineStatus,
+  ]
+    .map((v) => String(v || "").trim().toLowerCase())
+    .filter(Boolean);
+
+  return textCandidates.some(
+    (v) =>
+      v === "offline" ||
+      v === "disconnected" ||
+      v === "not running" ||
+      v === "down"
+  );
+}
+
 export default function ClassicRoundGauge({
   value = 0,
   settings = {},
@@ -288,7 +328,7 @@ export default function ClassicRoundGauge({
   );
 
   const outerW = Math.max(160, Number(width) || 220);
-  const outerH = Math.max(170, Number(height) || 220);
+  const outerH = Math.max(185, Number(height) || 220);
 
   const title = String(cfg.title || "").trim();
   const units = String(cfg.units || "").trim();
@@ -299,9 +339,10 @@ export default function ClassicRoundGauge({
   const svgW = outerW;
   const svgH = outerH;
 
+  // ✅ move gauge slightly up to reserve space for OFFLINE at bottom
   const cx = svgW / 2;
-  const cy = Math.max(82, svgH * 0.5);
-  const radius = Math.max(56, Math.min(svgW, svgH) * 0.42);
+  const cy = Math.max(78, svgH * 0.47);
+  const radius = Math.max(56, Math.min(svgW, svgH) * 0.39);
 
   const needleAngle = valueToAngle(
     computed.clampedValue,
@@ -319,6 +360,11 @@ export default function ClassicRoundGauge({
     tailLength: 15,
     tipOffset: 8,
   });
+
+  const isOffline = useMemo(
+    () => isOfflineFromSettings(settings, cfg),
+    [settings, cfg]
+  );
 
   // ✅ no left-padded zeros
   const displayInt = Number.isFinite(Number(computed.displayValue))
@@ -491,6 +537,24 @@ export default function ClassicRoundGauge({
             }}
           >
             {displayPlain}
+          </text>
+        )}
+
+        {/* ✅ NEW: show OFFLINE at the bottom when assigned device is offline */}
+        {isOffline && (
+          <text
+            x={cx}
+            y={svgH - 12}
+            fill="#ef4444"
+            fontSize="15"
+            fontWeight="800"
+            textAnchor="middle"
+            dominantBaseline="middle"
+            style={{
+              userSelect: "none",
+            }}
+          >
+            Offline
           </text>
         )}
 
