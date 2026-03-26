@@ -18,11 +18,31 @@ function isFiniteNumber(v) {
   return Number.isFinite(Number(v));
 }
 
+// ✅ SAME helper as other widgets
+function getTelemetryRow(telemetryMap, model, deviceId) {
+  const id = String(deviceId || "").trim();
+  if (!telemetryMap || !id) return null;
+
+  const m = String(model || "").trim();
+
+  if (m && telemetryMap?.[m]?.[id]) return telemetryMap[m][id];
+
+  for (const mk of Object.keys(telemetryMap || {})) {
+    if (telemetryMap?.[mk]?.[id]) return telemetryMap[mk][id];
+  }
+
+  return null;
+}
+
 export default function SemiCircleGauge({
   value = 0,
   settings = {},
   width = 220,
   height = 160,
+
+  // ✅ ADD THIS (same pattern)
+  isPlay = false,
+  telemetryMap = null,
 }) {
   const cfg = useMemo(() => buildGaugeDefaults(settings), [settings]);
   const palette = useMemo(() => getGaugePalette(cfg), [cfg]);
@@ -33,6 +53,27 @@ export default function SemiCircleGauge({
     () => normalizeRange(cfg.minValue, cfg.maxValue),
     [cfg.minValue, cfg.maxValue]
   );
+
+  // ✅ binding
+  const bindModel = String(
+    cfg.bindModel || settings?.bindModel || "zhc1921"
+  ).trim();
+  const bindDeviceId = String(
+    cfg.bindDeviceId || settings?.bindDeviceId || ""
+  ).trim();
+  const hasBinding = !!bindDeviceId;
+
+  const telemetryRow = useMemo(() => {
+    if (!isPlay) return null;
+    if (!hasBinding) return null;
+    return getTelemetryRow(telemetryMap, bindModel, bindDeviceId);
+  }, [isPlay, hasBinding, telemetryMap, bindModel, bindDeviceId]);
+
+  const backendStatus = String(telemetryRow?.status || "")
+    .trim()
+    .toLowerCase();
+
+  const deviceIsOffline = isPlay && hasBinding && backendStatus === "offline";
 
   const gaugeW = Math.max(180, Number(width) || 220);
   const gaugeH = Math.max(120, Number(height) || 160);
@@ -96,74 +137,38 @@ export default function SemiCircleGauge({
 
     if (low !== null && high !== null) {
       if (low > minValue) {
-        segments.push({
-          from: minValue,
-          to: low,
-          color: palette.warning,
-        });
+        segments.push({ from: minValue, to: low, color: palette.warning });
       }
-
       if (high > low) {
-        segments.push({
-          from: low,
-          to: high,
-          color: palette.normal,
-        });
+        segments.push({ from: low, to: high, color: palette.normal });
       }
-
       if (high < maxValue) {
-        segments.push({
-          from: high,
-          to: maxValue,
-          color: palette.alarm,
-        });
+        segments.push({ from: high, to: maxValue, color: palette.alarm });
       }
-
       return segments;
     }
 
     if (low !== null) {
       if (low > minValue) {
-        segments.push({
-          from: minValue,
-          to: low,
-          color: palette.warning,
-        });
+        segments.push({ from: minValue, to: low, color: palette.warning });
       }
       if (low < maxValue) {
-        segments.push({
-          from: low,
-          to: maxValue,
-          color: palette.normal,
-        });
+        segments.push({ from: low, to: maxValue, color: palette.normal });
       }
       return segments;
     }
 
     if (high !== null) {
       if (high > minValue) {
-        segments.push({
-          from: minValue,
-          to: high,
-          color: palette.normal,
-        });
+        segments.push({ from: minValue, to: high, color: palette.normal });
       }
       if (high < maxValue) {
-        segments.push({
-          from: high,
-          to: maxValue,
-          color: palette.alarm,
-        });
+        segments.push({ from: high, to: maxValue, color: palette.alarm });
       }
       return segments;
     }
 
-    segments.push({
-      from: minValue,
-      to: maxValue,
-      color: palette.normal,
-    });
-
+    segments.push({ from: minValue, to: maxValue, color: palette.normal });
     return segments;
   }, [cfg.showZones, zoneBounds, minValue, maxValue, palette]);
 
@@ -176,6 +181,7 @@ export default function SemiCircleGauge({
         alignItems: "center",
         justifyContent: "center",
         background: "transparent",
+        position: "relative", // ✅ REQUIRED
       }}
     >
       <svg
@@ -184,7 +190,6 @@ export default function SemiCircleGauge({
         viewBox={`0 0 ${gaugeW} ${gaugeH}`}
         style={{ display: "block" }}
       >
-        {/* TITLE */}
         {cfg.title && (
           <text
             x={cx}
@@ -198,7 +203,6 @@ export default function SemiCircleGauge({
           </text>
         )}
 
-        {/* Base arc */}
         <path
           d={describeArc(cx, cy, radius, startAngle, endAngle)}
           fill="none"
@@ -207,7 +211,6 @@ export default function SemiCircleGauge({
           strokeLinecap="round"
         />
 
-        {/* Zone overlay */}
         {cfg.showZones !== false &&
           zoneSegments.map((seg, i) => {
             if (!(seg.to > seg.from)) return null;
@@ -239,7 +242,6 @@ export default function SemiCircleGauge({
             );
           })}
 
-        {/* Ticks + labels */}
         {cfg.showTicks !== false &&
           ticks.map((t, i) => {
             const angle = valueToAngle(
@@ -282,7 +284,6 @@ export default function SemiCircleGauge({
             );
           })}
 
-        {/* Needle */}
         <line
           x1={needle.x1}
           y1={needle.y1}
@@ -293,10 +294,8 @@ export default function SemiCircleGauge({
           strokeLinecap="round"
         />
 
-        {/* Needle center */}
         <circle cx={cx} cy={cy} r="7" fill={palette.centerCap} />
 
-        {/* UNITS */}
         {cfg.units && (
           <text
             x={cx}
@@ -311,7 +310,6 @@ export default function SemiCircleGauge({
           </text>
         )}
 
-        {/* VALUE */}
         {cfg.showValue !== false && (
           <text
             x={cx}
@@ -325,6 +323,24 @@ export default function SemiCircleGauge({
           </text>
         )}
       </svg>
+
+      {/* ✅ OFFLINE UNDER VALUE */}
+      {deviceIsOffline && (
+        <div
+          style={{
+            position: "absolute",
+            left: "50%",
+            bottom: "6px", // 👈 BELOW VALUE
+            transform: "translateX(-50%)",
+            color: "#dc2626",
+            fontWeight: 600,
+            fontSize: "12px",
+            pointerEvents: "none",
+          }}
+        >
+          Offline
+        </div>
+      )}
     </div>
   );
 }
