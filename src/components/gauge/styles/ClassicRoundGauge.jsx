@@ -272,44 +272,129 @@ function GaugeZones({
   );
 }
 
-function isOfflineFromSettings(settings = {}, cfg = {}) {
-  const rawCandidates = [
-    settings?.isOffline,
-    settings?.offline,
-    settings?.deviceOffline,
-    settings?.isDeviceOffline,
-    settings?.telemetryOffline,
-    settings?.isTelemetryOffline,
-    cfg?.isOffline,
-    cfg?.offline,
-    cfg?.deviceOffline,
-    cfg?.isDeviceOffline,
-    cfg?.telemetryOffline,
-    cfg?.isTelemetryOffline,
+function readPath(obj, path) {
+  try {
+    return path.reduce((acc, key) => (acc == null ? undefined : acc[key]), obj);
+  } catch {
+    return undefined;
+  }
+}
+
+function isTruthyOfflineValue(v) {
+  if (v === true) return true;
+  if (v === false) return false;
+  if (v == null) return false;
+
+  const s = String(v).trim().toLowerCase();
+
+  return (
+    s === "offline" ||
+    s === "false" ||
+    s === "0" ||
+    s === "down" ||
+    s === "disconnected" ||
+    s === "not running"
+  );
+}
+
+function isExplicitOnlineFalse(v) {
+  if (v === false) return true;
+  if (v == null) return false;
+  const s = String(v).trim().toLowerCase();
+  return s === "false" || s === "0" || s === "offline" || s === "down";
+}
+
+function resolveOfflineState(settings = {}, cfg = {}) {
+  const sources = [settings, settings?.properties, cfg, cfg?.properties].filter(
+    Boolean
+  );
+
+  const explicitOfflineKeys = [
+    "isOffline",
+    "offline",
+    "deviceOffline",
+    "isDeviceOffline",
+    "telemetryOffline",
+    "isTelemetryOffline",
+    "bindDeviceOffline",
+    "selectedDeviceOffline",
   ];
 
-  if (rawCandidates.some((v) => v === true)) return true;
+  for (const src of sources) {
+    for (const key of explicitOfflineKeys) {
+      if (src[key] === true) return true;
+    }
+  }
 
-  const textCandidates = [
-    settings?.telemetryStatus,
-    settings?.deviceStatus,
+  const explicitOnlineKeys = [
+    "isOnline",
+    "online",
+    "deviceOnline",
+    "isDeviceOnline",
+    "telemetryOnline",
+    "bindDeviceOnline",
+    "selectedDeviceOnline",
+  ];
+
+  for (const src of sources) {
+    for (const key of explicitOnlineKeys) {
+      if (isExplicitOnlineFalse(src[key])) return true;
+    }
+  }
+
+  const statusCandidates = [
     settings?.status,
+    settings?.deviceStatus,
+    settings?.telemetryStatus,
     settings?.onlineStatus,
-    cfg?.telemetryStatus,
-    cfg?.deviceStatus,
-    cfg?.status,
-    cfg?.onlineStatus,
-  ]
-    .map((v) => String(v || "").trim().toLowerCase())
-    .filter(Boolean);
+    settings?.bindDeviceStatus,
+    settings?.selectedDeviceStatus,
 
-  return textCandidates.some(
-    (v) =>
-      v === "offline" ||
-      v === "disconnected" ||
-      v === "not running" ||
-      v === "down"
-  );
+    settings?.properties?.status,
+    settings?.properties?.deviceStatus,
+    settings?.properties?.telemetryStatus,
+    settings?.properties?.onlineStatus,
+    settings?.properties?.bindDeviceStatus,
+    settings?.properties?.selectedDeviceStatus,
+
+    cfg?.status,
+    cfg?.deviceStatus,
+    cfg?.telemetryStatus,
+    cfg?.onlineStatus,
+    cfg?.bindDeviceStatus,
+    cfg?.selectedDeviceStatus,
+
+    cfg?.properties?.status,
+    cfg?.properties?.deviceStatus,
+    cfg?.properties?.telemetryStatus,
+    cfg?.properties?.onlineStatus,
+    cfg?.properties?.bindDeviceStatus,
+    cfg?.properties?.selectedDeviceStatus,
+
+    readPath(settings, ["telemetry", "status"]),
+    readPath(settings, ["device", "status"]),
+    readPath(settings, ["live", "status"]),
+    readPath(settings, ["binding", "status"]),
+
+    readPath(settings, ["properties", "telemetry", "status"]),
+    readPath(settings, ["properties", "device", "status"]),
+    readPath(settings, ["properties", "live", "status"]),
+    readPath(settings, ["properties", "binding", "status"]),
+
+    readPath(cfg, ["telemetry", "status"]),
+    readPath(cfg, ["device", "status"]),
+    readPath(cfg, ["live", "status"]),
+    readPath(cfg, ["binding", "status"]),
+
+    readPath(cfg, ["properties", "telemetry", "status"]),
+    readPath(cfg, ["properties", "device", "status"]),
+    readPath(cfg, ["properties", "live", "status"]),
+    readPath(cfg, ["properties", "binding", "status"]),
+  ];
+
+  if (statusCandidates.some(isTruthyOfflineValue)) return true;
+
+  return false;
 }
 
 export default function ClassicRoundGauge({
@@ -328,7 +413,7 @@ export default function ClassicRoundGauge({
   );
 
   const outerW = Math.max(160, Number(width) || 220);
-  const outerH = Math.max(185, Number(height) || 220);
+  const outerH = Math.max(195, Number(height) || 220);
 
   const title = String(cfg.title || "").trim();
   const units = String(cfg.units || "").trim();
@@ -339,10 +424,10 @@ export default function ClassicRoundGauge({
   const svgW = outerW;
   const svgH = outerH;
 
-  // ✅ move gauge slightly up to reserve space for OFFLINE at bottom
+  // ✅ moved a bit up so bottom OFFLINE has room
   const cx = svgW / 2;
-  const cy = Math.max(78, svgH * 0.47);
-  const radius = Math.max(56, Math.min(svgW, svgH) * 0.39);
+  const cy = Math.max(78, svgH * 0.455);
+  const radius = Math.max(56, Math.min(svgW, svgH) * 0.385);
 
   const needleAngle = valueToAngle(
     computed.clampedValue,
@@ -362,11 +447,10 @@ export default function ClassicRoundGauge({
   });
 
   const isOffline = useMemo(
-    () => isOfflineFromSettings(settings, cfg),
+    () => resolveOfflineState(settings, cfg),
     [settings, cfg]
   );
 
-  // ✅ no left-padded zeros
   const displayInt = Number.isFinite(Number(computed.displayValue))
     ? Math.round(Number(computed.displayValue))
     : 0;
@@ -540,25 +624,20 @@ export default function ClassicRoundGauge({
           </text>
         )}
 
-        {/* ✅ NEW: show OFFLINE at the bottom when assigned device is offline */}
-        {isOffline && (
+        {isOffline ? (
           <text
             x={cx}
-            y={svgH - 12}
+            y={svgH - 14}
             fill="#ef4444"
-            fontSize="15"
+            fontSize="16"
             fontWeight="800"
             textAnchor="middle"
             dominantBaseline="middle"
-            style={{
-              userSelect: "none",
-            }}
+            style={{ userSelect: "none" }}
           >
             Offline
           </text>
-        )}
-
-        {/* ✅ removed RAW → OUT text */}
+        ) : null}
       </svg>
     </div>
   );
