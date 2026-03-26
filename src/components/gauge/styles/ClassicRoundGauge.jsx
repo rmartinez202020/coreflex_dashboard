@@ -272,21 +272,11 @@ function GaugeZones({
   );
 }
 
-function readPath(obj, path) {
-  try {
-    return path.reduce((acc, key) => (acc == null ? undefined : acc[key]), obj);
-  } catch {
-    return undefined;
-  }
-}
-
-function isTruthyOfflineValue(v) {
+function isOfflineStatus(v) {
   if (v === true) return true;
-  if (v === false) return false;
   if (v == null) return false;
 
   const s = String(v).trim().toLowerCase();
-
   return (
     s === "offline" ||
     s === "false" ||
@@ -297,104 +287,12 @@ function isTruthyOfflineValue(v) {
   );
 }
 
-function isExplicitOnlineFalse(v) {
+function isOnlineFalse(v) {
   if (v === false) return true;
   if (v == null) return false;
+
   const s = String(v).trim().toLowerCase();
-  return s === "false" || s === "0" || s === "offline" || s === "down";
-}
-
-function resolveOfflineState(settings = {}, cfg = {}) {
-  const sources = [settings, settings?.properties, cfg, cfg?.properties].filter(
-    Boolean
-  );
-
-  const explicitOfflineKeys = [
-    "isOffline",
-    "offline",
-    "deviceOffline",
-    "isDeviceOffline",
-    "telemetryOffline",
-    "isTelemetryOffline",
-    "bindDeviceOffline",
-    "selectedDeviceOffline",
-  ];
-
-  for (const src of sources) {
-    for (const key of explicitOfflineKeys) {
-      if (src[key] === true) return true;
-    }
-  }
-
-  const explicitOnlineKeys = [
-    "isOnline",
-    "online",
-    "deviceOnline",
-    "isDeviceOnline",
-    "telemetryOnline",
-    "bindDeviceOnline",
-    "selectedDeviceOnline",
-  ];
-
-  for (const src of sources) {
-    for (const key of explicitOnlineKeys) {
-      if (isExplicitOnlineFalse(src[key])) return true;
-    }
-  }
-
-  const statusCandidates = [
-    settings?.status,
-    settings?.deviceStatus,
-    settings?.telemetryStatus,
-    settings?.onlineStatus,
-    settings?.bindDeviceStatus,
-    settings?.selectedDeviceStatus,
-
-    settings?.properties?.status,
-    settings?.properties?.deviceStatus,
-    settings?.properties?.telemetryStatus,
-    settings?.properties?.onlineStatus,
-    settings?.properties?.bindDeviceStatus,
-    settings?.properties?.selectedDeviceStatus,
-
-    cfg?.status,
-    cfg?.deviceStatus,
-    cfg?.telemetryStatus,
-    cfg?.onlineStatus,
-    cfg?.bindDeviceStatus,
-    cfg?.selectedDeviceStatus,
-
-    cfg?.properties?.status,
-    cfg?.properties?.deviceStatus,
-    cfg?.properties?.telemetryStatus,
-    cfg?.properties?.onlineStatus,
-    cfg?.properties?.bindDeviceStatus,
-    cfg?.properties?.selectedDeviceStatus,
-
-    readPath(settings, ["telemetry", "status"]),
-    readPath(settings, ["device", "status"]),
-    readPath(settings, ["live", "status"]),
-    readPath(settings, ["binding", "status"]),
-
-    readPath(settings, ["properties", "telemetry", "status"]),
-    readPath(settings, ["properties", "device", "status"]),
-    readPath(settings, ["properties", "live", "status"]),
-    readPath(settings, ["properties", "binding", "status"]),
-
-    readPath(cfg, ["telemetry", "status"]),
-    readPath(cfg, ["device", "status"]),
-    readPath(cfg, ["live", "status"]),
-    readPath(cfg, ["binding", "status"]),
-
-    readPath(cfg, ["properties", "telemetry", "status"]),
-    readPath(cfg, ["properties", "device", "status"]),
-    readPath(cfg, ["properties", "live", "status"]),
-    readPath(cfg, ["properties", "binding", "status"]),
-  ];
-
-  if (statusCandidates.some(isTruthyOfflineValue)) return true;
-
-  return false;
+  return s === "false" || s === "0";
 }
 
 export default function ClassicRoundGauge({
@@ -402,6 +300,17 @@ export default function ClassicRoundGauge({
   settings = {},
   width = 220,
   height = 220,
+
+  // ✅ direct status props support
+  isOffline = false,
+  offline = false,
+  deviceStatus = "",
+  telemetryStatus = "",
+  status = "",
+  online = undefined,
+  isOnline = undefined,
+  deviceOnline = undefined,
+  telemetryOnline = undefined,
 }) {
   const cfg = useMemo(() => buildGaugeDefaults(settings), [settings]);
   const palette = useMemo(() => getGaugePalette(cfg), [cfg]);
@@ -424,7 +333,6 @@ export default function ClassicRoundGauge({
   const svgW = outerW;
   const svgH = outerH;
 
-  // ✅ moved a bit up so bottom OFFLINE has room
   const cx = svgW / 2;
   const cy = Math.max(78, svgH * 0.455);
   const radius = Math.max(56, Math.min(svgW, svgH) * 0.385);
@@ -446,10 +354,45 @@ export default function ClassicRoundGauge({
     tipOffset: 8,
   });
 
-  const isOffline = useMemo(
-    () => resolveOfflineState(settings, cfg),
-    [settings, cfg]
-  );
+  const offlineDetected = useMemo(() => {
+    // ✅ priority 1: direct props on this component
+    if (isOffline === true || offline === true) return true;
+    if (isOnlineFalse(online)) return true;
+    if (isOnlineFalse(isOnline)) return true;
+    if (isOnlineFalse(deviceOnline)) return true;
+    if (isOnlineFalse(telemetryOnline)) return true;
+
+    if (isOfflineStatus(status)) return true;
+    if (isOfflineStatus(deviceStatus)) return true;
+    if (isOfflineStatus(telemetryStatus)) return true;
+
+    // ✅ priority 2: settings fallback
+    if (settings?.isOffline === true || settings?.offline === true) return true;
+    if (settings?.deviceOffline === true || settings?.telemetryOffline === true)
+      return true;
+
+    if (isOnlineFalse(settings?.online)) return true;
+    if (isOnlineFalse(settings?.isOnline)) return true;
+    if (isOnlineFalse(settings?.deviceOnline)) return true;
+    if (isOnlineFalse(settings?.telemetryOnline)) return true;
+
+    if (isOfflineStatus(settings?.status)) return true;
+    if (isOfflineStatus(settings?.deviceStatus)) return true;
+    if (isOfflineStatus(settings?.telemetryStatus)) return true;
+
+    return false;
+  }, [
+    isOffline,
+    offline,
+    status,
+    deviceStatus,
+    telemetryStatus,
+    online,
+    isOnline,
+    deviceOnline,
+    telemetryOnline,
+    settings,
+  ]);
 
   const displayInt = Number.isFinite(Number(computed.displayValue))
     ? Math.round(Number(computed.displayValue))
@@ -624,7 +567,7 @@ export default function ClassicRoundGauge({
           </text>
         )}
 
-        {isOffline ? (
+        {offlineDetected ? (
           <text
             x={cx}
             y={svgH - 14}
