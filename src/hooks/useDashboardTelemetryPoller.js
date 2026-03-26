@@ -221,7 +221,10 @@ export default function useDashboardTelemetryPoller({
       dbg(
         "wanted devices",
         Object.fromEntries(
-          Object.entries(wanted).map(([k, set]) => [k, Array.from(set).slice(0, 20)])
+          Object.entries(wanted).map(([k, set]) => [
+            k,
+            Array.from(set).slice(0, 20),
+          ])
         )
       );
 
@@ -285,24 +288,8 @@ export default function useDashboardTelemetryPoller({
         const next = {};
         for (const k of Object.keys(modelMeta || {})) next[k] = {};
 
+        // ✅ First load rows that actually came back from backend
         for (const row of rows || []) {
-
-          // ✅ FORCE OFFLINE DEVICES INTO telemetryMap
-for (const modelKey of Object.keys(wanted || {})) {
-  for (const id of wanted[modelKey] || []) {
-    if (!next?.[modelKey]?.[id]) {
-      if (!next[modelKey]) next[modelKey] = {};
-
-      next[modelKey][id] = {
-        deviceId: id,
-        status: "offline", // 🔥 CRITICAL
-      };
-    }
-  }
-}
-
-
-
           const id = String(readDeviceId(row) || "").trim();
           let modelKey = readModelKey(row);
 
@@ -326,10 +313,37 @@ for (const modelKey of Object.keys(wanted || {})) {
           next[modelKey][id] = row;
         }
 
+        // ✅ FORCE MISSING DEVICES AS OFFLINE
+        for (const modelKey of Object.keys(wanted || {})) {
+          const wantedSet = wanted?.[modelKey];
+          if (!wantedSet) continue;
+
+          for (const id of wantedSet) {
+            if (!id) continue;
+
+            if (!next[modelKey]) next[modelKey] = {};
+
+            if (!next[modelKey][id]) {
+              next[modelKey][id] = {
+                deviceId: id,
+                device_id: id,
+                model: modelKey,
+                status: "offline",
+                online: false,
+                onlineStatus: "offline",
+                connectionStatus: "offline",
+              };
+            }
+          }
+        }
+
         dbg(
           "public telemetryMap built",
           Object.fromEntries(
-            Object.entries(next).map(([k, bucket]) => [k, Object.keys(bucket).slice(0, 20)])
+            Object.entries(next).map(([k, bucket]) => [
+              k,
+              Object.keys(bucket).slice(0, 20),
+            ])
           )
         );
 
@@ -367,7 +381,9 @@ for (const modelKey of Object.keys(wanted || {})) {
           base,
           dataType: data ? typeof data : "null",
           topKeys:
-            data && typeof data === "object" ? Object.keys(data).slice(0, 10) : null,
+            data && typeof data === "object"
+              ? Object.keys(data).slice(0, 10)
+              : null,
           rows: arr.length,
           sampleIds: arr
             .slice(0, 6)
@@ -404,7 +420,10 @@ for (const modelKey of Object.keys(wanted || {})) {
       dbg(
         "private telemetryMap built",
         Object.fromEntries(
-          Object.entries(next).map(([k, bucket]) => [k, Object.keys(bucket).slice(0, 20)])
+          Object.entries(next).map(([k, bucket]) => [
+            k,
+            Object.keys(bucket).slice(0, 20),
+          ])
         )
       );
 
