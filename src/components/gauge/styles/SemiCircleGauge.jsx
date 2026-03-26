@@ -331,7 +331,7 @@ export default function SemiCircleGauge({
           style={{
             position: "absolute",
             left: "50%",
-            top: `${gaugeH + 10}px`,
+            top: `${gaugeH - 100}px`,
             transform: "translateX(-50%)",
             color: "#dc2626",
             fontWeight: 600,
