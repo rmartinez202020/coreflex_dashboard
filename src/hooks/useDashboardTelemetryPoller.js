@@ -286,6 +286,23 @@ export default function useDashboardTelemetryPoller({
         for (const k of Object.keys(modelMeta || {})) next[k] = {};
 
         for (const row of rows || []) {
+
+          // ✅ FORCE OFFLINE DEVICES INTO telemetryMap
+for (const modelKey of Object.keys(wanted || {})) {
+  for (const id of wanted[modelKey] || []) {
+    if (!next?.[modelKey]?.[id]) {
+      if (!next[modelKey]) next[modelKey] = {};
+
+      next[modelKey][id] = {
+        deviceId: id,
+        status: "offline", // 🔥 CRITICAL
+      };
+    }
+  }
+}
+
+
+
           const id = String(readDeviceId(row) || "").trim();
           let modelKey = readModelKey(row);
 
