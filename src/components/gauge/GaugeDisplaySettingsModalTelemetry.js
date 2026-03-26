@@ -179,7 +179,6 @@ export function useGaugeSettingDevices({
 
         setDevices(list);
 
-        // keep selection if still exists
         if (
           bindDeviceId &&
           !list.find((d) => String(d.deviceId) === String(bindDeviceId))
@@ -198,7 +197,7 @@ export function useGaugeSettingDevices({
       cancelled = true;
       ctrl.abort();
     };
-  }, [open, bindModel]);
+  }, [open, bindModel, bindDeviceId, setBindDeviceId]);
 
   const selectedDevice = useMemo(() => {
     return (
@@ -220,6 +219,8 @@ export function useGaugeSettingLiveValue({
   bindField,
 }) {
   const [liveValue, setLiveValue] = useState(null);
+  const [liveRow, setLiveRow] = useState(null);
+  const [deviceStatus, setDeviceStatus] = useState("");
   const [pollError, setPollError] = useState("");
 
   useEffect(() => {
@@ -227,6 +228,8 @@ export function useGaugeSettingLiveValue({
 
     if (!bindModel || !bindDeviceId || !bindField) {
       setLiveValue(null);
+      setLiveRow(null);
+      setDeviceStatus("");
       setPollError("");
       return;
     }
@@ -252,12 +255,20 @@ export function useGaugeSettingLiveValue({
             : Number(value);
 
         const safeLive = Number.isFinite(num) ? num : null;
+        const safeStatus = String(row?.status ?? row?.online ?? "")
+          .trim()
+          .toLowerCase();
 
         if (cancelled) return;
+
+        setLiveRow(row || null);
+        setDeviceStatus(safeStatus);
         setLiveValue(safeLive);
       } catch (e) {
         if (cancelled) return;
         if (String(e?.name || "").toLowerCase().includes("abort")) return;
+        setLiveRow(null);
+        setDeviceStatus("");
         setPollError("Could not read live value (check API endpoint / fields).");
       }
     };
@@ -272,5 +283,16 @@ export function useGaugeSettingLiveValue({
     };
   }, [open, bindModel, bindDeviceId, bindField]);
 
-  return { liveValue, pollError, pollMs: POLL_MS };
+  const deviceIsOffline = deviceStatus === "offline";
+  const deviceIsOnline = deviceStatus ? deviceStatus === "online" : true;
+
+  return {
+    liveValue,
+    liveRow,
+    deviceStatus,
+    deviceIsOffline,
+    deviceIsOnline,
+    pollError,
+    pollMs: POLL_MS,
+  };
 }
