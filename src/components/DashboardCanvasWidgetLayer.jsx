@@ -108,7 +108,51 @@ function getDeviceName(tank) {
 
 function getTelemetryRow(telemetryMap, model, deviceId) {
   if (!deviceId) return null;
-  return telemetryMap?.[model]?.[deviceId] || telemetryMap?.[deviceId] || null;
+
+  const m = String(model || "").trim();
+  const id = String(deviceId || "").trim();
+  if (!id) return null;
+
+  if (m && telemetryMap?.[m]?.[id]) return telemetryMap[m][id];
+  if (telemetryMap?.[id]) return telemetryMap[id];
+
+  for (const mk of Object.keys(telemetryMap || {})) {
+    if (telemetryMap?.[mk]?.[id]) return telemetryMap[mk][id];
+  }
+
+  return null;
+}
+
+function getTelemetryStatus(row) {
+  const raw =
+    row?.status ??
+    row?.deviceStatus ??
+    row?.telemetryStatus ??
+    row?.onlineStatus ??
+    row?.connectionStatus ??
+    row?.state ??
+    row?.online ??
+    "";
+
+  const s = String(raw || "").trim().toLowerCase();
+
+  if (
+    s === "offline" ||
+    s === "false" ||
+    s === "0" ||
+    s === "down" ||
+    s === "disconnected" ||
+    s === "not_running" ||
+    s === "not running"
+  ) {
+    return "offline";
+  }
+
+  if (s === "online" || s === "true" || s === "1" || s === "up") {
+    return "online";
+  }
+
+  return s;
 }
 
 function getTelemetryValue(row, field) {
@@ -347,7 +391,7 @@ export default function DashboardCanvasWidgetLayer({
         <DashboardIdsOverlayBadge
           visible={showDashboardIdsDetails}
           deviceId={deviceId}
-          deviceStatus={row?.status || "offline"}
+          deviceStatus={getTelemetryStatus(row) || "offline"}
           field={field}
           value={getTelemetryValue(row, field)}
         />
@@ -459,11 +503,13 @@ export default function DashboardCanvasWidgetLayer({
             ? rawValue
             : Number(rawValue);
 
-        // ✅ NEW: explicit live status for gauge components
-        const backendStatus = String(row?.status || "").trim().toLowerCase();
+        const backendStatus = getTelemetryStatus(row);
         const hasBinding = !!deviceId && !!field;
-        const deviceIsOffline = isPlay && hasBinding && backendStatus === "offline";
-        const deviceIsOnline = backendStatus ? backendStatus === "online" : true;
+        const deviceIsOffline =
+          isPlay && hasBinding && backendStatus === "offline";
+        const deviceIsOnline = backendStatus
+          ? backendStatus === "online"
+          : true;
 
         return (
           <DraggableDroppedTank
@@ -474,20 +520,53 @@ export default function DashboardCanvasWidgetLayer({
           >
             {wrapWithOverlay(
               tank,
-              <GaugeDisplay
-                value={Number.isFinite(numericValue) ? numericValue : 0}
-                width={w}
-                height={h}
-                isPlay={isPlay}
-                telemetryMap={telemetryMap}
-                deviceStatus={backendStatus}
-                deviceIsOffline={deviceIsOffline}
-                deviceIsOnline={deviceIsOnline}
-                settings={{
-                  ...tank,
-                  ...(tank.properties || {}),
+              <div
+                style={{
+                  position: "relative",
+                  width: w,
+                  height: h,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
                 }}
-              />,
+              >
+                <GaugeDisplay
+                  value={Number.isFinite(numericValue) ? numericValue : 0}
+                  width={w}
+                  height={h}
+                  isPlay={isPlay}
+                  telemetryMap={telemetryMap}
+                  deviceStatus={backendStatus}
+                  deviceIsOffline={deviceIsOffline}
+                  deviceIsOnline={deviceIsOnline}
+                  settings={{
+                    ...tank,
+                    ...(tank.properties || {}),
+                  }}
+                />
+
+                {deviceIsOffline && (
+                  <div
+                    style={{
+                      position: "absolute",
+                      left: "50%",
+                      bottom: 18,
+                      transform: "translateX(-50%)",
+                      color: "#dc2626",
+                      fontWeight: 700,
+                      fontSize: 13,
+                      lineHeight: 1,
+                      textAlign: "center",
+                      pointerEvents: "none",
+                      userSelect: "none",
+                      whiteSpace: "nowrap",
+                      zIndex: 20,
+                    }}
+                  >
+                    Offline
+                  </div>
+                )}
+              </div>,
               "ai1"
             )}
           </DraggableDroppedTank>
