@@ -459,6 +459,12 @@ export default function DashboardCanvasWidgetLayer({
             ? rawValue
             : Number(rawValue);
 
+        // ✅ NEW: explicit live status for gauge components
+        const backendStatus = String(row?.status || "").trim().toLowerCase();
+        const hasBinding = !!deviceId && !!field;
+        const deviceIsOffline = isPlay && hasBinding && backendStatus === "offline";
+        const deviceIsOnline = backendStatus ? backendStatus === "online" : true;
+
         return (
           <DraggableDroppedTank
             {...commonProps}
@@ -472,6 +478,11 @@ export default function DashboardCanvasWidgetLayer({
                 value={Number.isFinite(numericValue) ? numericValue : 0}
                 width={w}
                 height={h}
+                isPlay={isPlay}
+                telemetryMap={telemetryMap}
+                deviceStatus={backendStatus}
+                deviceIsOffline={deviceIsOffline}
+                deviceIsOnline={deviceIsOnline}
                 settings={{
                   ...tank,
                   ...(tank.properties || {}),
@@ -484,42 +495,42 @@ export default function DashboardCanvasWidgetLayer({
       }
 
       if (tank.shape === "graphicDisplay") {
-  const resolvedDash = resolveDashboardId({
-    activeDashboardId,
-    dashboardId,
-    selectedTank,
-    droppedTanks,
-  });
+        const resolvedDash = resolveDashboardId({
+          activeDashboardId,
+          dashboardId,
+          selectedTank,
+          droppedTanks,
+        });
 
-  return (
-    <div
-      key={tank.id}
-      style={{ position: "relative", overflow: "visible" }}
-    >
-      {renderTelemetryOverlay(tank)}
-      <DraggableGraphicDisplay
-        tank={tank}
-        telemetryMap={telemetryMap}
-        selected={isSelected && !isPlay}
-        selectedIds={selectedIds}
-        dragDelta={dragDelta}
-        dashboardMode={dashboardMode}
-        dashboardId={resolvedDash}
-        onSelect={handleObjectSelect}
-        onUpdate={commonProps.onUpdate}
-        onRightClick={(e) => handleRightClick?.(e, tank)}
-        onOpenSettings={() => {
-          if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
-        }}
-        onDoubleClick={() => {
-          if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
-        }}
-        tenantEmail={tenantEmail}
-        tenantAccessLevel={tenantAccessLevel}
-      />
-    </div>
-  );
-}
+        return (
+          <div
+            key={tank.id}
+            style={{ position: "relative", overflow: "visible" }}
+          >
+            {renderTelemetryOverlay(tank)}
+            <DraggableGraphicDisplay
+              tank={tank}
+              telemetryMap={telemetryMap}
+              selected={isSelected && !isPlay}
+              selectedIds={selectedIds}
+              dragDelta={dragDelta}
+              dashboardMode={dashboardMode}
+              dashboardId={resolvedDash}
+              onSelect={handleObjectSelect}
+              onUpdate={commonProps.onUpdate}
+              onRightClick={(e) => handleRightClick?.(e, tank)}
+              onOpenSettings={() => {
+                if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
+              }}
+              onDoubleClick={() => {
+                if (!isPlay) onOpenGraphicDisplaySettings?.(tank);
+              }}
+              tenantEmail={tenantEmail}
+              tenantAccessLevel={tenantAccessLevel}
+            />
+          </div>
+        );
+      }
 
       if (tank.shape === "alarmLog") {
         const w = tank.w ?? tank.width ?? 780;
