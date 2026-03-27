@@ -97,6 +97,7 @@ function getTelemetryStatus(row) {
 }
 
 // ✅ resolve telemetry row from map using saved widget tag
+// if model is missing, search all models
 function getTelemetryRow(telemetryMap, model, deviceId) {
   const id = String(deviceId || "").trim();
   if (!telemetryMap || !id) return null;
@@ -237,10 +238,15 @@ export default function DraggableCounterInput({
       : 4;
 
     // ✅ counter binding from widget settings/modal
+    // IMPORTANT:
+    // - model may be missing
+    // - deviceId is enough because getTelemetryRow() can search all models
     const tag = props?.tag || tank?.tag || {};
     const tagModel = String(tag?.model || "").trim();
     const tagDeviceId = String(tag?.deviceId || "").trim();
-    const hasBinding = !!tagModel && !!tagDeviceId;
+
+    // ✅ do NOT require model
+    const hasBinding = !!tagDeviceId;
 
     // ✅ runtime offline comes from telemetryMap only
     const telemetryRow =
