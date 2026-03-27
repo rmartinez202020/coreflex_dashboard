@@ -147,6 +147,51 @@ function getTelemetryRow(telemetryMap, model, deviceId) {
   return null;
 }
 
+// ✅ Normalize backend status
+function getTelemetryStatus(row) {
+  if (!row || typeof row !== "object") return "offline";
+
+  const raw =
+    row?.status ??
+    row?.deviceStatus ??
+    row?.telemetryStatus ??
+    row?.onlineStatus ??
+    row?.connectionStatus ??
+    row?.state ??
+    row?.online ??
+    "";
+
+  if (typeof raw === "boolean") return raw ? "online" : "offline";
+  if (typeof raw === "number") return raw > 0 ? "online" : "offline";
+
+  const s = String(raw || "").trim().toLowerCase();
+
+  if (
+    s === "online" ||
+    s === "true" ||
+    s === "1" ||
+    s === "up" ||
+    s === "running" ||
+    s === "connected"
+  ) {
+    return "online";
+  }
+
+  if (
+    s === "offline" ||
+    s === "false" ||
+    s === "0" ||
+    s === "down" ||
+    s === "disconnected" ||
+    s === "not_running" ||
+    s === "not running"
+  ) {
+    return "offline";
+  }
+
+  return "offline";
+}
+
 /**
  * DraggableStateImage
  * ✅ Dual mode:
@@ -160,7 +205,8 @@ function getTelemetryRow(telemetryMap, model, deviceId) {
  * ✅ UPDATED:
  * - ✅ NO internal polling
  * - ✅ Uses shared telemetryMap from useDashboardTelemetryPoller (common poller)
- * - ✅ Live state now works in BOTH edit and play
+ * - ✅ Edit mode NEVER shows Offline
+ * - ✅ Runtime (play / launch / public) CAN show Offline
  * - ✅ Fixed DO-1 / DI-1 / AI-2 normalization
  */
 export default function DraggableStateImage({
@@ -211,46 +257,73 @@ export default function DraggableStateImage({
     // ✅ saved state fallback
     const savedIsOn = tank?.properties?.isOn ?? tank?.isOn ?? payload.isOn;
 
-    // =========================
-    // ✅ LIVE READ (NO FETCH) — from telemetryMap in BOTH edit + play
-    // =========================
-    const telemetryRow = getTelemetryRow(telemetryMap, tagModel, tagDeviceId);
+    // ✅ IMPORTANT:
+    // Edit mode = never show Offline
+    // Runtime = allow Offline
+    const isRuntime = !!isPlay;
 
-    const backendStatus = String(telemetryRow?.status || "")
-      .trim()
-      .toLowerCase();
+    // =========================
+    // ✅ LIVE READ (NO FETCH)
+    // - edit mode: do not use offline state
+    // - runtime: use telemetryMap and allow offline
+    // =========================
+    const telemetryRow =
+      tagDeviceId && isRuntime
+        ? getTelemetryRow(telemetryMap, tagModel, tagDeviceId)
+        : null;
 
-    const deviceIsOnline = backendStatus ? backendStatus === "online" : true;
+    const normalizedStatus =
+      tagDeviceId && isRuntime ? getTelemetryStatus(telemetryRow) : "unbound";
+
+    const deviceIsOnline =
+      tagDeviceId && isRuntime && normalizedStatus === "online";
+
+    const deviceIsOffline =
+      tagDeviceId && isRuntime && normalizedStatus === "offline";
 
     const rawValueFromTelemetry =
       telemetryRow && normalizedTagField
         ? readTagFromRow(telemetryRow, normalizedTagField)
         : undefined;
 
-    // ✅ optional fallback: sensorsData
+    // ✅ optional fallback: sensorsData (runtime only)
     const rawValue =
       rawValueFromTelemetry !== undefined
         ? rawValueFromTelemetry
-        : sensorsData?.values?.[tagDeviceId]?.[normalizedTagField] ??
-          sensorsData?.values?.[tagDeviceId]?.[tagField];
+        : isRuntime
+        ? sensorsData?.values?.[tagDeviceId]?.[normalizedTagField] ??
+          sensorsData?.values?.[tagDeviceId]?.[tagField]
+        : undefined;
 
     const v01 = deviceIsOnline ? to01(rawValue) : null;
 
-    const tagReady = !!(tagModel && tagDeviceId && normalizedTagField);
+    // ✅ binding is valid even if model is missing
+    const tagReady = !!(tagDeviceId && normalizedTagField);
 
-    // ✅ use live whenever we actually have a real bound value
-    const hasLiveState = !!(tagReady && deviceIsOnline && v01 !== null);
+    // ✅ Runtime:
+    // - only trust live value when online + real value exists
+    // ✅ Edit:
+    // - freeze to saved state, never show Offline
+    const hasLiveState = !!(tagReady && isRuntime && deviceIsOnline && v01 !== null);
     const isOn = hasLiveState ? v01 === 1 : !!savedIsOn;
 
     const imgSrc = isOn ? onImage : offImage;
     const showPlaceholder = !imgSrc;
 
     const title = `StateImage | ${
-      isOn ? "ON" : "OFF"
+      isRuntime
+        ? deviceIsOffline
+          ? "OFFLINE"
+          : isOn
+          ? "ON"
+          : "OFF"
+        : isOn
+        ? "ON"
+        : "OFF"
     } | ${tagModel || "—"}:${tagDeviceId || "—"}/${prettyTagField(
       normalizedTagField
     )} | row=${telemetryRow ? "YES" : "NO"} | status=${
-      backendStatus || "—"
+      isRuntime ? normalizedStatus || "—" : "edit"
     } | v=${String(rawValue)}`;
 
     if (showPlaceholder) {
@@ -309,6 +382,7 @@ export default function DraggableStateImage({
           userSelect: "none",
           overflow: "hidden",
           pointerEvents: "none",
+          position: "relative",
         }}
         title={title}
       >
@@ -323,6 +397,29 @@ export default function DraggableStateImage({
           }}
           draggable={false}
         />
+
+        {/* ✅ Runtime only: show Offline label */}
+        {isRuntime && deviceIsOffline && (
+          <div
+            style={{
+              position: "absolute",
+              left: "50%",
+              bottom: 8,
+              transform: "translateX(-50%)",
+              color: "#dc2626",
+              fontWeight: 800,
+              fontSize: 13,
+              lineHeight: 1,
+              textAlign: "center",
+              pointerEvents: "none",
+              userSelect: "none",
+              whiteSpace: "nowrap",
+              textShadow: "0 1px 2px rgba(255,255,255,0.75)",
+            }}
+          >
+            Offline
+          </div>
+        )}
       </div>
     );
   }
