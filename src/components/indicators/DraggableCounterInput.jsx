@@ -82,6 +82,10 @@ export default function DraggableCounterInput({
   };
 
   const isEdit = dashboardMode === "edit";
+  const isRuntime =
+    dashboardMode === "play" ||
+    dashboardMode === "launch" ||
+    dashboardMode === "launched";
 
   // ===============================
   // ✅ UI feedback state
@@ -162,6 +166,9 @@ export default function DraggableCounterInput({
 
   // ===============================
   // ✅ CANVAS VARIANT
+  // ✅ PC-189:
+  // - Edit mode: never show Offline
+  // - Play / launch / public: keep runtime behavior from widget props only
   // ===============================
   if (variant === "canvas") {
     const props = tank?.properties || {};
@@ -172,26 +179,23 @@ export default function DraggableCounterInput({
       ? Math.max(1, Math.min(10, digitsRaw))
       : 4;
 
-    // ✅ NO fetch here. Read from widget props/state (DashboardCanvas updates these in PLAY).
-    const nRaw =
-      dashboardMode === "play"
-        ? (props?.count ?? tank?.count ?? count ?? value ?? 0)
-        : (props?.count ?? tank?.count ?? count ?? value ?? 0);
-
+    // ✅ Counter value from widget props/state
+    const nRaw = props?.count ?? tank?.count ?? count ?? value ?? 0;
     const n = Number(nRaw);
     const safe = Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : 0;
 
     const effective = overrideCount !== null ? overrideCount : safe;
     const display = String(effective).padStart(digits, "0");
 
-    // ✅ Running Hours (PLAY): also from widget props (DashboardCanvas should update run_seconds)
-    const runSecondsRaw =
-      dashboardMode === "play"
-        ? (props?.run_seconds ?? props?.runSeconds ?? 0)
-        : 0;
+    // ✅ Running Hours:
+    // - runtime: use live widget props
+    // - edit: do NOT show runtime/offline behavior
+    const runSecondsRaw = isRuntime
+      ? props?.run_seconds ?? props?.runSeconds ?? 0
+      : 0;
 
     const runSeconds = Number(runSecondsRaw) || 0;
-    const showRun = dashboardMode === "play";
+    const showRun = isRuntime;
     const { hrsStr, minsStr } = runSecondsToHrsMinParts(runSeconds);
 
     const legacyRunText = formatRunSecondsToHrsMin(runSeconds);
