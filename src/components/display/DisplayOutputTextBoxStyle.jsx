@@ -1,7 +1,5 @@
 // src/components/display/DisplayOutputTextBoxStyle.jsx
 import React from "react";
-import { API_URL } from "../../config/api";
-import { getToken } from "../../utils/authToken";
 
 // ===============================
 // ✅ helpers for Display Output input formatting (SETPOINT MODE)
@@ -27,98 +25,176 @@ function padToFormat(rawDigits, numberFormat) {
 }
 
 // ===============================
-// ✅ helpers for "Display Output" BINDING MODE (AI + MATH)
+// ✅ helpers for telemetryMap BINDING MODE (AI + MATH)
 // ===============================
-function getAuthHeaders() {
-  const token = String(getToken() || "").trim();
-  return token ? { Authorization: `Bearer ${token}` } : {};
+function normalizeField(field) {
+  return String(field || "").trim().toLowerCase();
 }
 
-function withNoCache(path) {
-  const sep = path.includes("?") ? "&" : "?";
-  return `${path}${sep}_ts=${Date.now()}`;
-}
+function getTelemetryRow(telemetryMap, model, deviceId) {
+  if (!telemetryMap || !deviceId) return null;
 
-async function apiGet(path, { signal } = {}) {
-  const res = await fetch(`${API_URL}${withNoCache(path)}`, {
-    method: "GET",
-    headers: {
-      ...getAuthHeaders(),
-      "Cache-Control": "no-cache",
-      Pragma: "no-cache",
-    },
-    cache: "no-store",
-    signal,
-  });
-  if (!res.ok) throw new Error(`GET ${path} failed (${res.status})`);
-  return res.json();
-}
+  const m = String(model || "").trim().toLowerCase();
+  const id = String(deviceId || "").trim();
+  if (!id) return null;
 
-function normalizeList(data) {
-  return Array.isArray(data)
-    ? data
-    : Array.isArray(data?.devices)
-    ? data.devices
-    : Array.isArray(data?.rows)
-    ? data.rows
-    : [];
-}
+  if (m && telemetryMap?.[m]?.[id]) return telemetryMap[m][id];
+  if (telemetryMap?.[id]) return telemetryMap[id];
 
-// ✅ IMPORTANT: user-safe endpoints (avoid /devices which gave 403/405)
-async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
-  const base = String(modelKey || "zhc1921").toLowerCase(); // "zhc1921" | "zhc1661"
-  const root = base === "zhc1661" ? "zhc1661" : "zhc1921";
-
-  const listCandidates = [`/${root}/my-devices`, `/${root}/list`, `/${root}`];
-
-  for (const p of listCandidates) {
-    try {
-      const data = await apiGet(p, { signal });
-      const arr = normalizeList(data);
-
-      const hit =
-        arr.find((r) => {
-          const id =
-            r.deviceId ??
-            r.device_id ??
-            r.id ??
-            r.imei ??
-            r.IMEI ??
-            r.DEVICE_ID ??
-            "";
-          return String(id) === String(deviceId);
-        }) || null;
-
-      if (hit) return hit;
-    } catch {
-      // continue
-    }
+  for (const mk of Object.keys(telemetryMap || {})) {
+    if (telemetryMap?.[mk]?.[id]) return telemetryMap[mk][id];
   }
 
   return null;
 }
 
-function readAiField(row, bindField) {
-  if (!row || !bindField) return null;
-  const f = String(bindField).toLowerCase();
+function getTelemetryStatus(row) {
+  if (!row || typeof row !== "object") return "offline";
 
-  const candidates = [
-    f,
-    f.toUpperCase(),
-    f.replace("ai", "a"),
-    f.replace("ai", "A"),
-    f.replace("ai", "analog"),
-    f.replace("ai", "ANALOG"),
-  ];
+  const raw =
+    row?.status ??
+    row?.deviceStatus ??
+    row?.telemetryStatus ??
+    row?.onlineStatus ??
+    row?.connectionStatus ??
+    row?.state ??
+    row?.online ??
+    row?.is_online ??
+    row?.connected ??
+    "";
 
-  for (const k of candidates) {
-    if (row[k] !== undefined) return row[k];
+  const s = String(raw || "").trim().toLowerCase();
+
+  if (
+    s === "offline" ||
+    s === "false" ||
+    s === "0" ||
+    s === "down" ||
+    s === "disconnected" ||
+    s === "not_running" ||
+    s === "not running"
+  ) {
+    return "offline";
   }
 
-  const n = f.replace("ai", "");
-  const extra = [`ai_${n}`, `AI_${n}`, `ai-${n}`, `AI-${n}`];
-  for (const k of extra) {
-    if (row[k] !== undefined) return row[k];
+  if (
+    s === "online" ||
+    s === "true" ||
+    s === "1" ||
+    s === "up" ||
+    s === "connected"
+  ) {
+    return "online";
+  }
+
+  if (row?.online === true) return "online";
+  if (row?.online === false) return "offline";
+  if (row?.is_online === true) return "online";
+  if (row?.is_online === false) return "offline";
+  if (row?.connected === true) return "online";
+  if (row?.connected === false) return "offline";
+
+  return s || "offline";
+}
+
+function getTelemetryValue(row, field) {
+  if (!row || !field) return null;
+
+  const f = normalizeField(field);
+  if (!f) return null;
+
+  const direct = [
+    f,
+    f.toLowerCase(),
+    f.toUpperCase(),
+    f.replace(/(\D+)(\d+)/, "$1_$2"),
+    f.replace(/(\D+)(\d+)/, "$1-$2"),
+  ];
+
+  for (const key of direct) {
+    if (row[key] !== undefined) return row[key];
+  }
+
+  if (/^ai\d+$/.test(f)) {
+    const n = f.replace("ai", "");
+    const extra = [
+      `a${n}`,
+      `A${n}`,
+      `analog${n}`,
+      `ANALOG${n}`,
+      `ai_${n}`,
+      `AI_${n}`,
+      `ai-${n}`,
+      `AI-${n}`,
+      `analog_${n}`,
+      `ANALOG_${n}`,
+      `analog-${n}`,
+      `ANALOG-${n}`,
+    ];
+    for (const key of extra) {
+      if (row[key] !== undefined) return row[key];
+    }
+  }
+
+  const nestedContainers = [
+    row.data,
+    row.row,
+    row.device,
+    row.telemetry,
+    row.values,
+    row.payload,
+    row.latest,
+    row.readings,
+    row.tags,
+  ].filter(Boolean);
+
+  for (const obj of nestedContainers) {
+    for (const key of direct) {
+      if (obj?.[key] !== undefined) return obj[key];
+    }
+
+    if (/^ai\d+$/.test(f)) {
+      const n = f.replace("ai", "");
+      const extra = [
+        `a${n}`,
+        `A${n}`,
+        `analog${n}`,
+        `ANALOG${n}`,
+        `ai_${n}`,
+        `AI_${n}`,
+        `ai-${n}`,
+        `AI-${n}`,
+        `analog_${n}`,
+        `ANALOG_${n}`,
+        `analog-${n}`,
+        `ANALOG-${n}`,
+      ];
+      for (const key of extra) {
+        if (obj?.[key] !== undefined) return obj[key];
+      }
+    }
+  }
+
+  const tagArrays = [row.tags, row.points, row.values, row.readings].filter(Array.isArray);
+
+  for (const arr of tagArrays) {
+    const hit = arr.find((item) => {
+      const name = String(
+        item?.name ?? item?.tag ?? item?.field ?? item?.key ?? item?.id ?? ""
+      )
+        .trim()
+        .toLowerCase();
+      return (
+        name === f ||
+        name === f.replace(/(\D+)(\d+)/, "$1_$2") ||
+        name === f.replace(/(\D+)(\d+)/, "$1-$2")
+      );
+    });
+
+    if (hit) {
+      const v = hit.value ?? hit.val ?? hit.reading ?? hit.data;
+      if (v !== undefined) return v;
+    }
   }
 
   return null;
@@ -276,9 +352,14 @@ function SetButton({ isPlay, onSet, disabled }) {
 }
 
 // ✅ DISPLAY OUTPUT (textbox style)
-// - If bound (bindDeviceId + bindField): show live MATH output value (read-only) ✅
+// - If bound (bindDeviceId + bindField): show live MATH output from telemetryMap ✅
 // - If not bound: keep old behavior (editable in PLAY + SET button) ✅
-export default function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
+export default function DisplayOutputTextBoxStyle({
+  tank,
+  isPlay,
+  onUpdate,
+  telemetryMap = null,
+}) {
   const w = tank.w ?? tank.width ?? 160;
   const h = tank.h ?? tank.height ?? 60;
 
@@ -287,68 +368,59 @@ export default function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
   const { maxDigits } = getFormatSpec(numberFormat);
 
   // ✅ Binding props saved by DisplaySettingModal
-  const bindModel = tank?.properties?.bindModel || "zhc1921";
-  const bindDeviceId = tank?.properties?.bindDeviceId || "";
-  const bindField = tank?.properties?.bindField || "";
-  const formula = tank?.properties?.formula || "";
-  const sampleMs = Number(tank?.properties?.sampleMs || 3000);
+  const bindModel = String(
+    tank?.properties?.bindModel ?? tank?.bindModel ?? "zhc1921"
+  )
+    .trim()
+    .toLowerCase();
+  const bindDeviceId = String(
+    tank?.properties?.bindDeviceId ?? tank?.bindDeviceId ?? ""
+  ).trim();
+  const bindField = String(
+    tank?.properties?.bindField ?? tank?.bindField ?? ""
+  ).trim();
+  const formula = tank?.properties?.formula ?? tank?.formula ?? "";
 
   const hasBinding = !!bindDeviceId && !!bindField;
 
   // -------------------------
-  // ✅ LIVE POLL (binding mode)
+  // ✅ telemetryMap mode (binding mode)
   // -------------------------
-  const [liveValue, setLiveValue] = React.useState(null);
-  const [outValue, setOutValue] = React.useState(null);
+  const row = React.useMemo(() => {
+    if (!hasBinding) return null;
+    return getTelemetryRow(telemetryMap, bindModel, bindDeviceId);
+  }, [telemetryMap, bindModel, bindDeviceId, hasBinding]);
 
-  React.useEffect(() => {
-    if (!hasBinding) {
-      setLiveValue(null);
-      setOutValue(null);
-      return;
+  const backendStatus = React.useMemo(() => getTelemetryStatus(row), [row]);
+
+  const rawValue = React.useMemo(() => {
+    if (!hasBinding) return null;
+    return getTelemetryValue(row, bindField);
+  }, [row, bindField, hasBinding]);
+
+  const liveValue = React.useMemo(() => {
+    if (rawValue === null || rawValue === undefined || rawValue === "") {
+      return null;
     }
 
-    let cancelled = false;
-    const ctrl = new AbortController();
+    if (typeof rawValue === "number") {
+      return Number.isFinite(rawValue) ? rawValue : null;
+    }
 
-    const tick = async () => {
-      try {
-        const row = await loadLiveRowForDevice(bindModel, bindDeviceId, {
-          signal: ctrl.signal,
-        });
+    const parsed = Number(rawValue);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [rawValue]);
 
-        const raw = row ? readAiField(row, bindField) : null;
+  const outValue = React.useMemo(() => {
+    if (!hasBinding) return null;
+    return computeMathOutput(liveValue, formula);
+  }, [hasBinding, liveValue, formula]);
 
-        const num =
-          raw === null || raw === undefined || raw === ""
-            ? null
-            : typeof raw === "number"
-            ? raw
-            : Number(raw);
-
-        const safeLive = Number.isFinite(num) ? num : null;
-
-        const computed = computeMathOutput(safeLive, formula);
-
-        if (cancelled) return;
-        setLiveValue(safeLive);
-        setOutValue(computed);
-      } catch {
-        if (cancelled) return;
-        setLiveValue(null);
-        setOutValue(null);
-      }
-    };
-
-    tick();
-    const id = window.setInterval(tick, Math.max(250, sampleMs || 3000));
-
-    return () => {
-      cancelled = true;
-      ctrl.abort();
-      window.clearInterval(id);
-    };
-  }, [hasBinding, bindModel, bindDeviceId, bindField, formula, sampleMs]);
+  const isOffline =
+    hasBinding &&
+    row &&
+    backendStatus === "offline" &&
+    (liveValue === null || liveValue === undefined);
 
   // -------------------------
   // ✅ SETPOINT MODE (legacy)
@@ -399,7 +471,9 @@ export default function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
   // ✅ DISPLAY PICKER
   // -------------------------
   const displayText = hasBinding
-    ? formatByPattern(outValue, numberFormat) // ✅ show MATH OUTPUT on the item
+    ? isOffline
+      ? "--"
+      : formatByPattern(outValue, numberFormat)
     : displayedSetpoint;
 
   const setBtnH = 26;
@@ -445,21 +519,25 @@ export default function DisplayOutputTextBoxStyle({ tank, isPlay, onUpdate }) {
             boxSizing: "border-box",
           }}
         >
-          {/* ✅ BINDING MODE: READ-ONLY SHOW OUTPUT */}
+          {/* ✅ BINDING MODE: READ-ONLY SHOW OUTPUT FROM telemetryMap */}
           {hasBinding ? (
             <div
               style={{
                 fontFamily: "monospace",
                 fontWeight: 900,
                 fontSize: 22,
-                color: "#111",
+                color: isOffline ? "#dc2626" : "#111",
                 letterSpacing: 1.5,
                 lineHeight: "22px",
               }}
               title={
-                Number.isFinite(liveValue)
+                isOffline
+                  ? "Offline"
+                  : Number.isFinite(liveValue)
                   ? `LIVE VALUE: ${liveValue}`
-                  : "No live value"
+                  : row
+                  ? "No live value in telemetryMap"
+                  : "No telemetry row found in telemetryMap"
               }
             >
               {displayText}

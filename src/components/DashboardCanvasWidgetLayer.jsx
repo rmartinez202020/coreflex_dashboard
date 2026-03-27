@@ -487,6 +487,7 @@ export default function DashboardCanvasWidgetLayer({
                 tank={tank}
                 isPlay={isPlay}
                 onUpdate={commonProps.onUpdate}
+                telemetryMap={telemetryMap}
               />
             )}
           </DraggableDroppedTank>
