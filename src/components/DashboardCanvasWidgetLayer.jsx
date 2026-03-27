@@ -1002,6 +1002,7 @@ export default function DashboardCanvasWidgetLayer({
                 id={tank.id}
                 dashboardId={resolvedDash}
                 dashboardMode={dashboardMode}
+                telemetryMap={telemetryMap}
                 onReset={async (widgetId) => {
                   if (!isPlay) return;
                   if (!tenantCanControl) {

@@ -14,7 +14,6 @@ function getAuthHeaders() {
 
 // ✅ keep local fallback (in case you still want it here)
 function resolveDashboardIdFromProps({ dashboardId, tank }) {
-  // Prefer shared helper if available
   try {
     const v = resolveDashFromHelpers?.({ dashboardId, tank });
     if (v !== undefined) return v;
@@ -36,7 +35,7 @@ function resolveDashboardIdFromProps({ dashboardId, tank }) {
   return null;
 }
 
-// ✅ NEW: format run_seconds into HHHH : MM (for the UI you showed)
+// ✅ format run_seconds into HHHH : MM
 function runSecondsToHrsMinParts(runSeconds) {
   const s = Number(runSeconds);
   if (!Number.isFinite(s) || s <= 0) {
@@ -52,7 +51,7 @@ function runSecondsToHrsMinParts(runSeconds) {
   };
 }
 
-// ✅ Normalize backend online/offline status
+// ✅ normalize backend device status from telemetry row
 function getTelemetryStatus(row) {
   if (!row || typeof row !== "object") return "offline";
 
@@ -97,6 +96,22 @@ function getTelemetryStatus(row) {
   return "offline";
 }
 
+// ✅ resolve telemetry row from map using saved widget tag
+function getTelemetryRow(telemetryMap, model, deviceId) {
+  const id = String(deviceId || "").trim();
+  if (!telemetryMap || !id) return null;
+
+  const m = String(model || "").trim();
+
+  if (m && telemetryMap?.[m]?.[id]) return telemetryMap[m][id];
+
+  for (const mk of Object.keys(telemetryMap || {})) {
+    if (telemetryMap?.[mk]?.[id]) return telemetryMap[mk][id];
+  }
+
+  return null;
+}
+
 export default function DraggableCounterInput({
   variant = "menu",
   label = "Counter Input (DI)",
@@ -107,8 +122,8 @@ export default function DraggableCounterInput({
 
   dashboardId,
 
-  // ✅ NEW: allow canvas to control edit/play behavior
-  dashboardMode = "edit", // "edit" | "play" (launch also uses play)
+  // ✅ canvas mode
+  dashboardMode = "edit", // "edit" | "play" | "launch" | "launched"
 
   x,
   y,
@@ -117,10 +132,10 @@ export default function DraggableCounterInput({
   onSelect,
   onStartDragObject,
 
-  // ✅ NEW: preferred reset hook (DashboardCanvas already provides this)
+  // ✅ preferred reset hook
   onReset,
 
-  // ✅ runtime maps from canvas
+  // ✅ Option A: read device offline from telemetryMap
   telemetryMap = null,
 }) {
   const handleDragStart = (e) => {
@@ -140,7 +155,7 @@ export default function DraggableCounterInput({
   // ===============================
   const [resetting, setResetting] = React.useState(false);
   const [flash, setFlash] = React.useState(false);
-  const [statusMsg, setStatusMsg] = React.useState(""); // "Reset!" | "Failed"
+  const [statusMsg, setStatusMsg] = React.useState("");
 
   // ✅ override display so user sees immediate effect
   const [overrideCount, setOverrideCount] = React.useState(null);
@@ -172,20 +187,17 @@ export default function DraggableCounterInput({
 
     setResetting(true);
 
-    // ✅ immediate “feel” effect
     setOverrideCount(0);
     triggerFlash();
     showStatus("Reset!");
 
     try {
-      // ✅ Prefer the parent reset (DashboardCanvas). It will refresh counters correctly.
       if (typeof onReset === "function") {
         await onReset(widgetId);
         window.setTimeout(() => setOverrideCount(null), 350);
         return;
       }
 
-      // ✅ fallback (if used outside DashboardCanvas)
       const token = String(getToken() || "").trim();
       if (!token) throw new Error("Missing auth token");
 
@@ -214,9 +226,6 @@ export default function DraggableCounterInput({
 
   // ===============================
   // ✅ CANVAS VARIANT
-  // ✅ PC-189:
-  // - Edit mode: never show Offline
-  // - Play / launch / public: show Offline at the bottom
   // ===============================
   if (variant === "canvas") {
     const props = tank?.properties || {};
@@ -227,14 +236,17 @@ export default function DraggableCounterInput({
       ? Math.max(1, Math.min(10, digitsRaw))
       : 4;
 
-    // ✅ runtime binding info (used ONLY for runtime offline detection)
-    const tag = props?.tag || {};
+    // ✅ counter binding from widget settings/modal
+    const tag = props?.tag || tank?.tag || {};
     const tagModel = String(tag?.model || "").trim();
     const tagDeviceId = String(tag?.deviceId || "").trim();
     const hasBinding = !!tagModel && !!tagDeviceId;
 
+    // ✅ runtime offline comes from telemetryMap only
     const telemetryRow =
-      hasBinding && isRuntime ? telemetryMap?.[tagModel]?.[tagDeviceId] || null : null;
+      hasBinding && isRuntime
+        ? getTelemetryRow(telemetryMap, tagModel, tagDeviceId)
+        : null;
 
     const normalizedStatus =
       hasBinding && isRuntime ? getTelemetryStatus(telemetryRow) : "unbound";
@@ -242,22 +254,19 @@ export default function DraggableCounterInput({
     const deviceIsOffline =
       hasBinding && isRuntime && normalizedStatus === "offline";
 
-    // ✅ Counter value from widget props/state
+    // ✅ Counter value from backend-driven widget props/state
     const nRaw = props?.count ?? tank?.count ?? count ?? value ?? 0;
     const n = Number(nRaw);
     const safe = Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : 0;
 
     const effective = overrideCount !== null ? overrideCount : safe;
 
-    // ✅ Offline placeholders in runtime only
     const display =
       isRuntime && deviceIsOffline
         ? "-".repeat(digits)
         : String(effective).padStart(digits, "0");
 
-    // ✅ Running Hours:
-    // - runtime: use live widget props
-    // - edit: do NOT show runtime/offline behavior
+    // ✅ Running Hours from backend-driven widget props
     const runSecondsRaw = isRuntime
       ? props?.run_seconds ?? props?.runSeconds ?? 0
       : 0;
@@ -265,21 +274,15 @@ export default function DraggableCounterInput({
     const runSeconds = Number(runSecondsRaw) || 0;
     const showRun = isRuntime;
     const { hrsStr, minsStr } = runSecondsToHrsMinParts(runSeconds);
-
     const legacyRunText = formatRunSecondsToHrsMin(runSeconds);
 
-    const runtimeHrsStr =
-      isRuntime && deviceIsOffline ? "----" : hrsStr;
-    const runtimeMinsStr =
-      isRuntime && deviceIsOffline ? "--" : minsStr;
+    const runtimeHrsStr = isRuntime && deviceIsOffline ? "----" : hrsStr;
+    const runtimeMinsStr = isRuntime && deviceIsOffline ? "--" : minsStr;
 
     return (
       <div
         onMouseDown={(e) => {
-          // ✅ avoid drag/select when pressing button
           if (e.target?.closest?.("button")) return;
-
-          // ✅ drag cursor + drag action ONLY in edit mode
           if (!isEdit) return;
 
           e.stopPropagation();
