@@ -46,27 +46,6 @@ export default function App() {
   // 2) new public route: /launchDashboard/:dashboardSlug/:publicLaunchId
   const isLaunchCustomerDashboard = pathname.startsWith("/launchDashboard/");
 
-  // ✅ PC-189: detect current editor dashboard from URL
-  // supported:
-  // - /app
-  // - /app/dashboard/:dashboardId
-  const dashboardIdFromUrl = useMemo(() => {
-    const parts = String(pathname || "")
-      .split("/")
-      .map((p) => String(p || "").trim())
-      .filter(Boolean);
-
-    if (parts[0] === "app" && parts[1] === "dashboard" && parts[2]) {
-      return parts[2];
-    }
-
-    return null;
-  }, [pathname]);
-
-  // ✅ PC-189: avoid pushing /app too early before URL restore runs
-  const [didHydrateDashboardFromUrl, setDidHydrateDashboardFromUrl] =
-    useState(false);
-
   // ✅ NAVIGATION (persist on refresh)
   const {
     activePage,
@@ -207,63 +186,6 @@ export default function App() {
     endRestore,
   });
 
-  // ✅ PC-189: restore active editor dashboard from URL on refresh
-  useEffect(() => {
-    if (isLaunchPage || isLaunchCustomerDashboard || isLaunchAlarmLog) {
-      setDidHydrateDashboardFromUrl(true);
-      return;
-    }
-
-    if (dashboardIdFromUrl) {
-      setActivePage("dashboard");
-
-      setActiveDashboard((prev) => {
-        const prevId = String(prev?.dashboardId || "").trim();
-        const nextId = String(dashboardIdFromUrl || "").trim();
-
-        if (nextId === "main") {
-          return {
-            type: "main",
-            dashboardId: null,
-            dashboardName: prev?.dashboardName || "Main Dashboard",
-            customerId: null,
-            customerName: "",
-          };
-        }
-
-        if (prev?.type !== "main" && prevId === nextId) {
-          return prev;
-        }
-
-        return {
-          type: "customer",
-          dashboardId: nextId,
-          dashboardName:
-            prev?.type !== "main" && prevId === nextId
-              ? prev?.dashboardName || ""
-              : "",
-          customerId:
-            prev?.type !== "main" && prevId === nextId
-              ? prev?.customerId ?? null
-              : null,
-          customerName:
-            prev?.type !== "main" && prevId === nextId
-              ? prev?.customerName || ""
-              : "",
-        };
-      });
-    }
-
-    setDidHydrateDashboardFromUrl(true);
-  }, [
-    dashboardIdFromUrl,
-    isLaunchPage,
-    isLaunchCustomerDashboard,
-    isLaunchAlarmLog,
-    setActiveDashboard,
-    setActivePage,
-  ]);
-
   // ✅ Reset dashboard context when user logs out / token disappears
   useEffect(() => {
     if (!currentUserKey) {
@@ -285,37 +207,6 @@ export default function App() {
     const id = String(activeDashboard?.dashboardId || "").trim();
     return id || null;
   }, [activeDashboard]);
-
-  // ✅ PC-189: keep URL synced with the dashboard currently open in editor
-  useEffect(() => {
-    if (!didHydrateDashboardFromUrl) return;
-    if (isLaunchPage || isLaunchCustomerDashboard || isLaunchAlarmLog) return;
-
-    let nextPath = "/app";
-
-    if (activePage === "dashboard") {
-      const dashId = String(activeDashboard?.dashboardId || "").trim();
-
-      if (activeDashboard?.type === "main") {
-        nextPath = "/app";
-      } else if (dashId) {
-        nextPath = `/app/dashboard/${encodeURIComponent(dashId)}`;
-      }
-    }
-
-    if (pathname !== nextPath) {
-      navigate(nextPath, { replace: true });
-    }
-  }, [
-    didHydrateDashboardFromUrl,
-    isLaunchPage,
-    isLaunchCustomerDashboard,
-    isLaunchAlarmLog,
-    activePage,
-    activeDashboard,
-    pathname,
-    navigate,
-  ]);
 
   // ✅ NEW: only active dashboard receives the IDs Details signal
   const showDashboardIdsDetailsForActiveCanvas = useMemo(() => {
