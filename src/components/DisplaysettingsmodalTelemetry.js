@@ -49,6 +49,40 @@ async function apiGet(path, { signal } = {}) {
    DEVICE LOADER (SAFE ENDPOINTS ONLY)
 =========================================== */
 
+function normalizeStatus(raw) {
+  if (!raw || typeof raw !== "object") return "offline";
+
+  const statusText = String(raw.status ?? "").trim().toLowerCase();
+  if (
+    statusText === "online" ||
+    statusText === "connected" ||
+    statusText === "active" ||
+    statusText === "up"
+  ) {
+    return "online";
+  }
+
+  if (
+    statusText === "offline" ||
+    statusText === "disconnected" ||
+    statusText === "inactive" ||
+    statusText === "down"
+  ) {
+    return "offline";
+  }
+
+  if (raw.online === true) return "online";
+  if (raw.online === false) return "offline";
+
+  if (raw.is_online === true) return "online";
+  if (raw.is_online === false) return "offline";
+
+  if (raw.connected === true) return "online";
+  if (raw.connected === false) return "offline";
+
+  return statusText || "offline";
+}
+
 function normalizeDeviceList(data) {
   const arr = Array.isArray(data)
     ? data
@@ -67,13 +101,16 @@ function normalizeDeviceList(data) {
         r.imei ??
         r.IMEI ??
         r.DEVICE_ID ??
+        r.device ??
+        r.device_id_text ??
         "";
+
       if (!deviceId) return null;
 
       return {
         deviceId: String(deviceId),
-        status: String(r.status ?? r.online ?? "").toLowerCase(),
-        lastSeen: r.lastSeen ?? r.last_seen ?? r.updatedAt ?? r.updated_at,
+        status: normalizeStatus(r),
+        lastSeen: r.lastSeen ?? r.last_seen ?? r.updatedAt ?? r.updated_at ?? null,
         _raw: r,
       };
     })
@@ -102,7 +139,7 @@ async function loadDevicesForModel(modelKey, { signal } = {}) {
   return [];
 }
 
-// ✅ Prefer list-scan for live value to avoid 404/405 noisy endpoints
+// ✅ Prefer list-scan for live value, but support more payload shapes
 async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
   const base = MODEL_META[modelKey]?.base || modelKey;
 
@@ -127,26 +164,67 @@ async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
 
 function readAiField(row, bindField) {
   if (!row || !bindField) return null;
-  const f = String(bindField).toLowerCase();
 
-  const candidates = [
+  const f = String(bindField).toLowerCase();
+  const n = f.replace("ai", "");
+
+  const directCandidates = [
     f,
     f.toUpperCase(),
     f.replace("ai", "a"),
     f.replace("ai", "A"),
     f.replace("ai", "analog"),
     f.replace("ai", "ANALOG"),
+    `ai_${n}`,
+    `AI_${n}`,
+    `ai-${n}`,
+    `AI-${n}`,
+    `analog_${n}`,
+    `ANALOG_${n}`,
+    `analog-${n}`,
+    `ANALOG-${n}`,
   ];
 
-  for (const k of candidates) {
+  for (const k of directCandidates) {
     if (row[k] !== undefined) return row[k];
   }
 
-  const n = f.replace("ai", "");
-  const extra = [`ai_${n}`, `AI_${n}`, `ai-${n}`, `AI-${n}`];
+  // ✅ nested shapes commonly returned by APIs / Node-RED
+  const nestedContainers = [
+    row.data,
+    row.row,
+    row.device,
+    row.telemetry,
+    row.values,
+    row.payload,
+    row.latest,
+    row.readings,
+    row.tags,
+  ].filter(Boolean);
 
-  for (const k of extra) {
-    if (row[k] !== undefined) return row[k];
+  for (const obj of nestedContainers) {
+    for (const k of directCandidates) {
+      if (obj?.[k] !== undefined) return obj[k];
+    }
+  }
+
+  // ✅ array-based tag/value shape fallback
+  const tagArrays = [row.tags, row.points, row.values, row.readings].filter(Array.isArray);
+
+  for (const arr of tagArrays) {
+    const hit = arr.find((item) => {
+      const name = String(
+        item?.name ?? item?.tag ?? item?.field ?? item?.key ?? item?.id ?? ""
+      )
+        .trim()
+        .toLowerCase();
+      return name === f || name === `ai_${n}` || name === `ai-${n}`;
+    });
+
+    if (hit) {
+      const v = hit.value ?? hit.val ?? hit.reading ?? hit.data;
+      if (v !== undefined) return v;
+    }
   }
 
   return null;
@@ -196,7 +274,7 @@ export function useDisplaySettingDevices({
       cancelled = true;
       ctrl.abort();
     };
-  }, [open, bindModel]); // keep tight dependencies
+  }, [open, bindModel, bindDeviceId, setBindDeviceId]);
 
   const selectedDevice = useMemo(() => {
     return devices.find((d) => String(d.deviceId) === String(bindDeviceId)) || null;
@@ -223,9 +301,10 @@ export function useDisplaySettingLiveValue({ open, bindModel, bindDeviceId, bind
     }
 
     let cancelled = false;
-    const ctrl = new AbortController();
 
     const tick = async () => {
+      const ctrl = new AbortController();
+
       try {
         setPollError("");
 
@@ -251,6 +330,8 @@ export function useDisplaySettingLiveValue({ open, bindModel, bindDeviceId, bind
         if (String(e?.name || "").toLowerCase().includes("abort")) return;
         setPollError("Could not read live value (check API endpoint / fields).");
       }
+
+      return () => ctrl.abort();
     };
 
     tick();
@@ -258,7 +339,6 @@ export function useDisplaySettingLiveValue({ open, bindModel, bindDeviceId, bind
 
     return () => {
       cancelled = true;
-      ctrl.abort();
       window.clearInterval(id);
     };
   }, [open, bindModel, bindDeviceId, bindField]);
