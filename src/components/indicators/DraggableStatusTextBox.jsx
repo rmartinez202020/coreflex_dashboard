@@ -8,18 +8,11 @@ import { getToken } from "../../utils/authToken";
  * 1) Palette mode (Sidebar)
  * 2) Canvas mode (Dashboard)
  *
- * LIVE FIX (Platform Creation 69):
- * - Reads tag: { model, deviceId, field }
- * - Polls backend every 3 seconds (like Indicator Light)
- * - Shows OFF/ON text based on live value (0/1)
- * - Still stays a TEXT ONLY widget (no dot)
- *
- * ✅ NEW FIX (Platform Creation 116):
- * - Only changes status in PLAY / LAUNCH / LAUNCHED
- * - In EDIT, it stays frozen (no polling)
- *
- * ✅ NEW FIX (PC-116 update):
- * - In EDIT mode, ALWAYS show OFF text ONLY (ignore savedIsOn)
+ * ✅ PC-189 OFFLINE FIX:
+ * - Shows Offline when device is offline
+ * - Works in edit / launch / public link / play
+ * - If widget is bound and telemetry row is missing, it treats that as Offline
+ * - Keeps OFF/ON behavior only when device is online
  */
 
 // ✅ Model meta (must match backend routers)
@@ -81,6 +74,51 @@ function readTagFromRow(row, field) {
   return undefined;
 }
 
+// ✅ Normalize online/offline status
+function normalizeDeviceStatus(row) {
+  if (!row || typeof row !== "object") return "offline";
+
+  const raw =
+    row?.status ??
+    row?.deviceStatus ??
+    row?.telemetryStatus ??
+    row?.onlineStatus ??
+    row?.connectionStatus ??
+    row?.state ??
+    row?.online ??
+    "";
+
+  if (typeof raw === "boolean") return raw ? "online" : "offline";
+  if (typeof raw === "number") return raw > 0 ? "online" : "offline";
+
+  const s = String(raw || "").trim().toLowerCase();
+
+  if (
+    s === "online" ||
+    s === "true" ||
+    s === "1" ||
+    s === "up" ||
+    s === "running" ||
+    s === "connected"
+  ) {
+    return "online";
+  }
+
+  if (
+    s === "offline" ||
+    s === "false" ||
+    s === "0" ||
+    s === "down" ||
+    s === "disconnected" ||
+    s === "not_running" ||
+    s === "not running"
+  ) {
+    return "offline";
+  }
+
+  return "offline";
+}
+
 export default function DraggableStatusTextBox({
   // Canvas mode
   tank,
@@ -110,15 +148,16 @@ export default function DraggableStatusTextBox({
     const w = tank.w ?? tank.width ?? payload.w;
     const h = tank.h ?? tank.height ?? payload.h;
 
-    // ✅ Runtime modes (ONLY these can change live)
+    // ✅ Runtime modes
     const isRuntime =
       dashboardMode === "play" ||
       dashboardMode === "launch" ||
       dashboardMode === "launched";
 
-    // OFF/ON text logic
+    // OFF/ON/OFFLINE text logic
     const offText = String(tank.properties?.offText ?? "");
     const onText = String(tank.properties?.onText ?? "");
+    const offlineText = String(tank.properties?.offlineText ?? "Offline");
 
     const legacyText =
       tank.text ??
@@ -132,6 +171,7 @@ export default function DraggableStatusTextBox({
     const tagModel = MODEL_META[tagModelRaw] ? tagModelRaw : "zhc1921";
     const deviceId = String(tank.properties?.tag?.deviceId || "").trim();
     const field = String(tank.properties?.tag?.field || "").trim();
+    const hasBinding = !!deviceId && !!field;
 
     // Styles from settings modal
     const bg = tank.properties?.bgColor ?? payload.bg;
@@ -145,14 +185,14 @@ export default function DraggableStatusTextBox({
     const textAlign = tank.properties?.textAlign ?? "center";
     const textTransform = tank.properties?.textTransform ?? "none";
 
-    // ✅ Telemetry state (runtime only)
+    // ✅ Telemetry state
+    // IMPORTANT:
+    // - runtime: poll every 3s
+    // - edit: do one fetch too, so Offline can appear there as well
     const [telemetryRow, setTelemetryRow] = React.useState(null);
     const telemetryRef = React.useRef({ loading: false });
 
     const fetchTelemetryRow = React.useCallback(async () => {
-      // ✅ DO NOT POLL in EDIT
-      if (!isRuntime) return;
-
       if (!deviceId) {
         setTelemetryRow(null);
         return;
@@ -191,28 +231,34 @@ export default function DraggableStatusTextBox({
       } finally {
         telemetryRef.current.loading = false;
       }
-    }, [deviceId, tagModel, isRuntime]);
+    }, [deviceId, tagModel]);
 
     React.useEffect(() => {
-      // ✅ When leaving runtime, clear live state
-      if (!isRuntime) {
+      if (!hasBinding) {
         setTelemetryRow(null);
         return;
       }
 
+      // ✅ always do at least one read so EDIT can show Offline too
       fetchTelemetryRow();
+
+      // ✅ poll only in runtime
+      if (!isRuntime) return;
+
       const t = setInterval(() => {
         if (document.hidden) return;
         fetchTelemetryRow();
       }, 3000);
+
       return () => clearInterval(t);
-    }, [fetchTelemetryRow, isRuntime]);
+    }, [fetchTelemetryRow, isRuntime, hasBinding]);
 
-    const deviceStatus = React.useMemo(() => {
-      return String(telemetryRow?.status || "").trim().toLowerCase();
-    }, [telemetryRow]);
+    const normalizedStatus = React.useMemo(() => {
+      return hasBinding ? normalizeDeviceStatus(telemetryRow) : "unbound";
+    }, [telemetryRow, hasBinding]);
 
-    const deviceIsOnline = deviceStatus === "online";
+    const deviceIsOnline = hasBinding && normalizedStatus === "online";
+    const deviceIsOffline = hasBinding && normalizedStatus === "offline";
 
     const backendTagValue = React.useMemo(() => {
       if (!telemetryRow || !field) return undefined;
@@ -225,49 +271,51 @@ export default function DraggableStatusTextBox({
     const displayText = React.useMemo(() => {
       const safeOff = (offText || legacyText || "OFF").toString();
       const safeOn = (onText || legacyText || "ON").toString();
+      const safeOffline = (offlineText || "Offline").toString();
 
-      // ✅ EDIT MODE: ALWAYS show OFF text ONLY
-      if (!isRuntime) return safeOff;
+      // unbound widget
+      if (!hasBinding) return safeOff;
 
-      // ✅ RUNTIME: live rules
-      if (!deviceId || !field) return safeOff;
-      if (!deviceIsOnline) return safeOff;
-      if (backendTagValue === undefined || backendTagValue === null)
+      // bound but offline / missing row
+      if (deviceIsOffline) return safeOffline;
+
+      // bound and online but no value yet
+      if (backendTagValue === undefined || backendTagValue === null) {
         return safeOff;
+      }
 
       if (tag01 === 1) return safeOn;
       return safeOff;
     }, [
       offText,
       onText,
+      offlineText,
       legacyText,
-      isRuntime,
-      deviceId,
-      field,
-      deviceIsOnline,
+      hasBinding,
+      deviceIsOffline,
       backendTagValue,
       tag01,
     ]);
 
+    const resolvedTextColor = deviceIsOffline ? "#dc2626" : textColor;
+
     const titleText = React.useMemo(() => {
       if (!deviceId || !field) return displayText;
+
       const base = MODEL_META[tagModel]?.base || "zhc1921";
-
-      // ✅ In edit, show simple title
-      if (!isRuntime) return `${displayText} • (edit mode)`;
-
       const v = backendTagValue === undefined ? "—" : String(backendTagValue);
+
       return `${displayText} • ${base}/${deviceId}/${field} • status=${
-        deviceStatus || "—"
-      } • v=${v}`;
+        normalizedStatus || "—"
+      } • v=${v} • mode=${dashboardMode}`;
     }, [
       displayText,
       deviceId,
       field,
       tagModel,
       backendTagValue,
-      deviceStatus,
-      isRuntime,
+      normalizedStatus,
+      dashboardMode,
     ]);
 
     return (
@@ -291,7 +339,7 @@ export default function DraggableStatusTextBox({
           style={{
             fontSize,
             fontWeight,
-            color: textColor,
+            color: resolvedTextColor,
             textAlign,
             textTransform,
             width: "100%",
