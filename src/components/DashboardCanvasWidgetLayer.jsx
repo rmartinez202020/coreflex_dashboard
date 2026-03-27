@@ -689,6 +689,7 @@ export default function DashboardCanvasWidgetLayer({
                 isLaunched={isPlay}
                 visualOnly={isPlay && !tenantCanControl}
                 widget={tank}
+                telemetryMap={telemetryMap}
                 onSaveWidget={commonProps.onUpdate}
                 dashboardId={resolvedDash}
                 dashboardName={resolvedDashboardName}
