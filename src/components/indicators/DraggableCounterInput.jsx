@@ -52,6 +52,51 @@ function runSecondsToHrsMinParts(runSeconds) {
   };
 }
 
+// ✅ Normalize backend online/offline status
+function getTelemetryStatus(row) {
+  if (!row || typeof row !== "object") return "offline";
+
+  const raw =
+    row?.status ??
+    row?.deviceStatus ??
+    row?.telemetryStatus ??
+    row?.onlineStatus ??
+    row?.connectionStatus ??
+    row?.state ??
+    row?.online ??
+    "";
+
+  if (typeof raw === "boolean") return raw ? "online" : "offline";
+  if (typeof raw === "number") return raw > 0 ? "online" : "offline";
+
+  const s = String(raw || "").trim().toLowerCase();
+
+  if (
+    s === "online" ||
+    s === "true" ||
+    s === "1" ||
+    s === "up" ||
+    s === "running" ||
+    s === "connected"
+  ) {
+    return "online";
+  }
+
+  if (
+    s === "offline" ||
+    s === "false" ||
+    s === "0" ||
+    s === "down" ||
+    s === "disconnected" ||
+    s === "not_running" ||
+    s === "not running"
+  ) {
+    return "offline";
+  }
+
+  return "offline";
+}
+
 export default function DraggableCounterInput({
   variant = "menu",
   label = "Counter Input (DI)",
@@ -74,6 +119,9 @@ export default function DraggableCounterInput({
 
   // ✅ NEW: preferred reset hook (DashboardCanvas already provides this)
   onReset,
+
+  // ✅ runtime maps from canvas
+  telemetryMap = null,
 }) {
   const handleDragStart = (e) => {
     e.dataTransfer.setData("shape", "counterInput");
@@ -168,7 +216,7 @@ export default function DraggableCounterInput({
   // ✅ CANVAS VARIANT
   // ✅ PC-189:
   // - Edit mode: never show Offline
-  // - Play / launch / public: keep runtime behavior from widget props only
+  // - Play / launch / public: show Offline at the bottom
   // ===============================
   if (variant === "canvas") {
     const props = tank?.properties || {};
@@ -179,13 +227,33 @@ export default function DraggableCounterInput({
       ? Math.max(1, Math.min(10, digitsRaw))
       : 4;
 
+    // ✅ runtime binding info (used ONLY for runtime offline detection)
+    const tag = props?.tag || {};
+    const tagModel = String(tag?.model || "").trim();
+    const tagDeviceId = String(tag?.deviceId || "").trim();
+    const hasBinding = !!tagModel && !!tagDeviceId;
+
+    const telemetryRow =
+      hasBinding && isRuntime ? telemetryMap?.[tagModel]?.[tagDeviceId] || null : null;
+
+    const normalizedStatus =
+      hasBinding && isRuntime ? getTelemetryStatus(telemetryRow) : "unbound";
+
+    const deviceIsOffline =
+      hasBinding && isRuntime && normalizedStatus === "offline";
+
     // ✅ Counter value from widget props/state
     const nRaw = props?.count ?? tank?.count ?? count ?? value ?? 0;
     const n = Number(nRaw);
     const safe = Number.isFinite(n) ? Math.max(0, Math.trunc(n)) : 0;
 
     const effective = overrideCount !== null ? overrideCount : safe;
-    const display = String(effective).padStart(digits, "0");
+
+    // ✅ Offline placeholders in runtime only
+    const display =
+      isRuntime && deviceIsOffline
+        ? "-".repeat(digits)
+        : String(effective).padStart(digits, "0");
 
     // ✅ Running Hours:
     // - runtime: use live widget props
@@ -199,6 +267,11 @@ export default function DraggableCounterInput({
     const { hrsStr, minsStr } = runSecondsToHrsMinParts(runSeconds);
 
     const legacyRunText = formatRunSecondsToHrsMin(runSeconds);
+
+    const runtimeHrsStr =
+      isRuntime && deviceIsOffline ? "----" : hrsStr;
+    const runtimeMinsStr =
+      isRuntime && deviceIsOffline ? "--" : minsStr;
 
     return (
       <div
@@ -317,28 +390,43 @@ export default function DraggableCounterInput({
                 letterSpacing: "0.5px",
               }}
             >
-              {hrsStr} : {minsStr}
+              {runtimeHrsStr} : {runtimeMinsStr}
             </div>
           </div>
         ) : (
           <div style={{ height: 36, marginBottom: 6 }} />
         )}
 
-        {/* STATUS */}
+        {/* STATUS / OFFLINE LABEL AT BOTTOM */}
         {statusMsg ? (
           <div
             style={{
               fontSize: 11,
               fontWeight: 800,
               color: statusMsg === "Failed" ? "#b91c1c" : "#166534",
-              marginBottom: 6,
+              marginBottom: 4,
               cursor: "default",
+              textAlign: "center",
             }}
           >
             {statusMsg}
           </div>
+        ) : isRuntime && deviceIsOffline ? (
+          <div
+            style={{
+              fontSize: 12,
+              fontWeight: 900,
+              color: "#dc2626",
+              marginBottom: 4,
+              cursor: "default",
+              textAlign: "center",
+              lineHeight: 1.05,
+            }}
+          >
+            Offline
+          </div>
         ) : (
-          <div style={{ height: 16, marginBottom: 6 }} />
+          <div style={{ height: 16, marginBottom: 4 }} />
         )}
 
         {/* RESET BUTTON */}
