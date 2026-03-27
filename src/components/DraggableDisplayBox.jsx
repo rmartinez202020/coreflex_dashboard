@@ -424,8 +424,8 @@ export default function DraggableDisplayBox({ tank }) {
   ]);
 
   // ✅ style like your screenshot: NOT BOLD for title/label, tighter spacing
-  const titleFontW = 500; // no bold
-  const labelFontW = 500; // no bold
+  const titleFontW = 500;
+  const labelFontW = 500;
 
   return (
     <div style={{ textAlign: "center", pointerEvents: "none" }}>
@@ -484,7 +484,7 @@ export default function DraggableDisplayBox({ tank }) {
           textOverflow: "ellipsis",
           backdropFilter:
             displayStyle === "glassRounded" ? "blur(6px)" : undefined,
-          opacity: isOffline ? 0.9 : 1,
+          opacity: isOffline ? 0.92 : 1,
         }}
         title={
           isOffline
