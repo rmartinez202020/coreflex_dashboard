@@ -40,7 +40,15 @@ function readDoFromRow(row, field) {
 }
 
 function readStatusFromRow(row) {
-  return String(row?.status ?? row?.Status ?? "").trim().toLowerCase();
+  return String(
+    row?.status ??
+      row?.Status ??
+      row?.onlineStatus ??
+      row?.connectionStatus ??
+      ""
+  )
+    .trim()
+    .toLowerCase();
 }
 
 async function defaultWriteToBackend({
@@ -111,6 +119,25 @@ function isLaunchRoute() {
     return p.includes("launch");
   } catch {
     return false;
+  }
+}
+
+function getPublicLaunchParamsFromPath() {
+  try {
+    const path = String(window?.location?.pathname || "").trim();
+    const parts = path.split("/").filter(Boolean);
+
+    const idx = parts.findIndex(
+      (p) => String(p || "").toLowerCase() === "launchdashboard"
+    );
+    if (idx < 0) return { dashboardSlug: "", publicLaunchId: "" };
+
+    const dashboardSlug = String(parts[idx + 1] || "").trim();
+    const publicLaunchId = String(parts[idx + 2] || "").trim();
+
+    return { dashboardSlug, publicLaunchId };
+  } catch {
+    return { dashboardSlug: "", publicLaunchId: "" };
   }
 }
 
@@ -277,26 +304,56 @@ export default function PushButtonControl({
       const tenantEmailSafe = String(tenantEmail || "").trim().toLowerCase();
       const tenantAccessSafe = String(tenantAccessLevel || "").trim();
 
-      // ✅ private flow uses token, public flow uses tenant headers
-      if (!token && !tenantEmailSafe) return;
+      let url = "";
+      let headers = {
+        ...getAuthHeaders(),
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+      };
 
-      const res = await fetch(`${API_URL}/zhc1921/my-devices`, {
+      const isPublicLaunch = !token && !!tenantEmailSafe;
+
+      if (isPublicLaunch) {
+        const { dashboardSlug, publicLaunchId } = getPublicLaunchParamsFromPath();
+
+        if (!dashboardSlug || !publicLaunchId || !tenantEmailSafe) {
+          setDeviceStatus("offline");
+          return;
+        }
+
+        const qs = new URLSearchParams({
+          dashboard_slug: dashboardSlug,
+          public_launch_id: publicLaunchId,
+          tenant_email: tenantEmailSafe,
+        });
+
+        url = `${API_URL}/tenant-access/devices?${qs.toString()}`;
+      } else {
+        if (!token) {
+          setDeviceStatus("offline");
+          return;
+        }
+        url = `${API_URL}/devices`;
+      }
+
+      if (tenantEmailSafe) headers["X-Tenant-Email"] = tenantEmailSafe;
+      if (tenantAccessSafe) headers["X-Tenant-Access"] = tenantAccessSafe;
+
+      const res = await fetch(url, {
         method: "GET",
-        headers: {
-          ...getAuthHeaders(),
-          ...(tenantEmailSafe ? { "X-Tenant-Email": tenantEmailSafe } : {}),
-          ...(tenantAccessSafe ? { "X-Tenant-Access": tenantAccessSafe } : {}),
-          "Cache-Control": "no-cache",
-          Pragma: "no-cache",
-        },
+        headers,
       });
-      if (!res.ok) return;
 
-      const data = await res.json();
+      if (!res.ok) {
+        setDeviceStatus("offline");
+        return;
+      }
+
+      const data = await res.json().catch(() => []);
       const list = Array.isArray(data) ? data : [];
       const row =
         list.find(
-          (r) => String(r.deviceId ?? r.device_id ?? "").trim() === bindDeviceId
+          (r) => String(r?.deviceId ?? r?.device_id ?? "").trim() === bindDeviceId
         ) || null;
 
       if (!row) {
@@ -305,13 +362,13 @@ export default function PushButtonControl({
       }
 
       const status = readStatusFromRow(row);
-      setDeviceStatus(status || "");
+      setDeviceStatus(status || "offline");
 
       if (status === "offline") return;
 
       readDoFromRow(row, bindField);
     } catch {
-      // ignore
+      setDeviceStatus("offline");
     }
   }, [play, hasBinding, bindDeviceId, bindField, tenantEmail, tenantAccessLevel]);
 
@@ -544,8 +601,10 @@ export default function PushButtonControl({
   }, []);
 
   const showOfflineText = isOffline;
-  const showBusyText = !showOfflineText && banner.kind === "occupied" && !!banner.text;
-  const showErrorText = !showOfflineText && banner.kind === "error" && !!banner.text;
+  const showBusyText =
+    !showOfflineText && banner.kind === "occupied" && !!banner.text;
+  const showErrorText =
+    !showOfflineText && banner.kind === "error" && !!banner.text;
 
   return (
     <div
