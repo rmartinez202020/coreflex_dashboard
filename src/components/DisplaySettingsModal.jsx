@@ -109,10 +109,22 @@ export default function DisplaySettingModal({
     bindField,
   });
 
-  const outputValue = useMemo(
-    () => computeMathOutput(liveValue, formula),
-    [liveValue, formula]
-  );
+  const hasSelectedDevice = !!String(bindDeviceId || "").trim();
+  const selectedDeviceStatus = String(selectedDevice?.status || "")
+    .trim()
+    .toLowerCase();
+  const selectedDeviceIsOnline = hasSelectedDevice && selectedDeviceStatus === "online";
+  const selectedDeviceIsOffline =
+    hasSelectedDevice &&
+    !!selectedDevice &&
+    selectedDeviceStatus !== "online";
+
+  const effectiveLiveValue = selectedDeviceIsOnline ? liveValue : null;
+  const effectiveOutputValue = useMemo(() => {
+    if (!selectedDeviceIsOnline) return null;
+    return computeMathOutput(liveValue, formula);
+  }, [selectedDeviceIsOnline, liveValue, formula]);
+
   const liveErr = pollError;
 
   // -------------------------
@@ -204,8 +216,9 @@ export default function DisplaySettingModal({
     const t = e.target;
     if (
       t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")
-    )
+    ) {
       return;
+    }
 
     e.preventDefault();
 
@@ -332,11 +345,13 @@ export default function DisplaySettingModal({
               onChange={setDisplayStyle}
               previewLabel={tank?.properties?.label || "Temp"}
               previewValue={
-                typeof outputValue === "string"
-                  ? outputValue || "12068"
-                  : Number.isFinite(Number(outputValue))
-                  ? String(Math.round(Number(outputValue)))
-                  : "12068"
+                !selectedDeviceIsOnline
+                  ? "--"
+                  : typeof effectiveOutputValue === "string"
+                  ? effectiveOutputValue || "--"
+                  : Number.isFinite(Number(effectiveOutputValue))
+                  ? String(Math.round(Number(effectiveOutputValue)))
+                  : "--"
               }
             />
 
@@ -410,7 +425,9 @@ export default function DisplaySettingModal({
                       color: "#0b3b18",
                     }}
                   >
-                    {Number.isFinite(liveValue) ? liveValue.toFixed(2) : "--"}
+                    {Number.isFinite(effectiveLiveValue)
+                      ? effectiveLiveValue.toFixed(2)
+                      : "--"}
                   </div>
                 </div>
 
@@ -441,11 +458,11 @@ export default function DisplaySettingModal({
                       color: "#111827",
                     }}
                   >
-                    {typeof outputValue === "string"
-                      ? outputValue
-                      : Number.isFinite(Number(outputValue))
-                      ? Number(outputValue).toFixed(2)
-                      : "0.00"}
+                    {typeof effectiveOutputValue === "string"
+                      ? effectiveOutputValue || "--"
+                      : Number.isFinite(Number(effectiveOutputValue))
+                      ? Number(effectiveOutputValue).toFixed(2)
+                      : "--"}
                   </div>
                 </div>
               </div>
@@ -649,7 +666,9 @@ export default function DisplaySettingModal({
                       color: "#0b3b18",
                     }}
                   >
-                    {Number.isFinite(liveValue) ? liveValue.toFixed(2) : "--"}
+                    {Number.isFinite(effectiveLiveValue)
+                      ? effectiveLiveValue.toFixed(2)
+                      : "--"}
                   </div>
                 </div>
               </div>
