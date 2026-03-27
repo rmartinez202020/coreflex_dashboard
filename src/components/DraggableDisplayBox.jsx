@@ -109,6 +109,40 @@ function readAiField(row, bindField) {
   return null;
 }
 
+function readStatusFromRow(row) {
+  const raw =
+    row?.status ??
+    row?.Status ??
+    row?.onlineStatus ??
+    row?.connectionStatus ??
+    row?.deviceStatus ??
+    row?.telemetryStatus ??
+    row?.state ??
+    row?.online ??
+    row?.is_online ??
+    "";
+
+  const s = String(raw || "").trim().toLowerCase();
+
+  if (
+    s === "offline" ||
+    s === "false" ||
+    s === "0" ||
+    s === "down" ||
+    s === "disconnected" ||
+    s === "not_running" ||
+    s === "not running"
+  ) {
+    return "offline";
+  }
+
+  if (s === "online" || s === "true" || s === "1" || s === "up") {
+    return "online";
+  }
+
+  return "";
+}
+
 // ✅ small math evaluator: supports VALUE and CONCAT("a", VALUE, "b")
 function computeMathOutput(liveValue, formula) {
   const f = String(formula || "").trim();
@@ -197,6 +231,9 @@ function getStyleConfig(displayStyle, legacyTheme) {
       fontWeight: 700,
       shadow: "inset 0 0 8px rgba(0,0,0,0.35)",
       labelColor: "#374151",
+      offlineBg: "#f3f4f6",
+      offlineText: "#9ca3af",
+      offlineBorder: "#cbd5e1",
     },
 
     // ✅ Minimal
@@ -210,6 +247,9 @@ function getStyleConfig(displayStyle, legacyTheme) {
       fontWeight: 700,
       shadow: "none",
       labelColor: "#334155",
+      offlineBg: "#f8fafc",
+      offlineText: "#94a3b8",
+      offlineBorder: "#cbd5e1",
     },
 
     // ✅ Dark digital
@@ -223,6 +263,9 @@ function getStyleConfig(displayStyle, legacyTheme) {
       fontWeight: 900,
       shadow: "inset 0 0 12px rgba(0,0,0,0.55)",
       labelColor: "#e2e8f0",
+      offlineBg: "#0f172a",
+      offlineText: "#94a3b8",
+      offlineBorder: "#334155",
     },
 
     // ✅ Glass rounded
@@ -237,6 +280,9 @@ function getStyleConfig(displayStyle, legacyTheme) {
       shadow:
         "0 8px 18px rgba(2, 6, 23, 0.18), inset 0 0 10px rgba(255,255,255,0.35)",
       labelColor: "#334155",
+      offlineBg: "rgba(248,250,252,0.92)",
+      offlineText: "#94a3b8",
+      offlineBorder: "rgba(148,163,184,0.55)",
     },
   };
 
@@ -257,7 +303,10 @@ export default function DraggableDisplayBox({ tank }) {
 
   // style
   const displayStyle = props.displayStyle || "classic";
-  const styleCfg = useMemo(() => getStyleConfig(displayStyle, theme), [displayStyle, theme]);
+  const styleCfg = useMemo(
+    () => getStyleConfig(displayStyle, theme),
+    [displayStyle, theme]
+  );
 
   // binding + math
   const bindModel = props.bindModel || "zhc1921";
@@ -268,11 +317,15 @@ export default function DraggableDisplayBox({ tank }) {
 
   const [liveValue, setLiveValue] = useState(null);
   const [outputValue, setOutputValue] = useState(null);
+  const [deviceStatus, setDeviceStatus] = useState("");
+
+  const isOffline = hasBinding && deviceStatus === "offline";
 
   useEffect(() => {
     if (!hasBinding) {
       setLiveValue(null);
       setOutputValue(null);
+      setDeviceStatus("");
       return;
     }
 
@@ -281,7 +334,22 @@ export default function DraggableDisplayBox({ tank }) {
 
     const tick = async () => {
       try {
-        const row = await loadLiveRowForDevice(bindModel, bindDeviceId, { signal: ctrl.signal });
+        const row = await loadLiveRowForDevice(bindModel, bindDeviceId, {
+          signal: ctrl.signal,
+        });
+
+        const status = readStatusFromRow(row);
+        const offline = !row || status === "offline";
+
+        if (cancelled) return;
+
+        setDeviceStatus(offline ? "offline" : status || "online");
+
+        if (offline) {
+          setLiveValue(null);
+          setOutputValue(null);
+          return;
+        }
 
         const raw = row ? readAiField(row, bindField) : null;
 
@@ -295,12 +363,15 @@ export default function DraggableDisplayBox({ tank }) {
         const safeLive = Number.isFinite(num) ? num : null;
         const out = computeMathOutput(safeLive, formula);
 
-        if (cancelled) return;
         setLiveValue(safeLive);
         setOutputValue(out);
       } catch (e) {
         if (cancelled) return;
         if (String(e?.name || "").toLowerCase().includes("abort")) return;
+
+        setDeviceStatus("offline");
+        setLiveValue(null);
+        setOutputValue(null);
       }
     };
 
@@ -319,6 +390,8 @@ export default function DraggableDisplayBox({ tank }) {
   const totalDec = decPart ? decPart.length : 0;
 
   const displayText = useMemo(() => {
+    if (isOffline) return "--";
+
     const v = hasBinding ? outputValue : props.value ?? tank?.value ?? 0;
 
     if (v === null || v === undefined || v === "") return "--";
@@ -327,7 +400,8 @@ export default function DraggableDisplayBox({ tank }) {
     const n = typeof v === "number" ? v : Number(v);
     if (!Number.isFinite(n)) return String(v);
 
-    let formatted = totalDec > 0 ? Number(n).toFixed(totalDec) : String(Math.round(n));
+    let formatted =
+      totalDec > 0 ? Number(n).toFixed(totalDec) : String(Math.round(n));
 
     if (totalDec > 0) {
       let [i, d] = formatted.split(".");
@@ -339,7 +413,15 @@ export default function DraggableDisplayBox({ tank }) {
     }
 
     return formatted;
-  }, [hasBinding, outputValue, props.value, tank?.value, totalDec, totalInt]);
+  }, [
+    isOffline,
+    hasBinding,
+    outputValue,
+    props.value,
+    tank?.value,
+    totalDec,
+    totalInt,
+  ]);
 
   // ✅ style like your screenshot: NOT BOLD for title/label, tighter spacing
   const titleFontW = 500; // no bold
@@ -381,15 +463,17 @@ export default function DraggableDisplayBox({ tank }) {
         style={{
           width: `${160 * scale}px`,
           height: `${65 * scale}px`,
-          background: styleCfg.bg,
-          color: styleCfg.text,
+          background: isOffline ? styleCfg.offlineBg : styleCfg.bg,
+          color: isOffline ? styleCfg.offlineText : styleCfg.text,
           fontFamily: "monospace",
           fontSize: `${28 * scale}px`,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
           borderRadius: styleCfg.radius,
-          border: `${styleCfg.borderW}px solid ${styleCfg.border}`,
+          border: `${styleCfg.borderW}px solid ${
+            isOffline ? styleCfg.offlineBorder : styleCfg.border
+          }`,
           boxShadow: styleCfg.shadow,
           letterSpacing: `${styleCfg.letterSpacing}px`,
           padding: "0 8px",
@@ -398,18 +482,40 @@ export default function DraggableDisplayBox({ tank }) {
           whiteSpace: "nowrap",
           overflow: "hidden",
           textOverflow: "ellipsis",
-          backdropFilter: displayStyle === "glassRounded" ? "blur(6px)" : undefined,
+          backdropFilter:
+            displayStyle === "glassRounded" ? "blur(6px)" : undefined,
+          opacity: isOffline ? 0.9 : 1,
         }}
         title={
-          typeof outputValue === "string"
+          isOffline
+            ? "Offline"
+            : typeof outputValue === "string"
             ? outputValue
             : Number.isFinite(Number(outputValue))
-            ? `OUT=${String(outputValue)}  LIVE=${Number.isFinite(liveValue) ? liveValue : "--"}`
+            ? `OUT=${String(outputValue)}  LIVE=${
+                Number.isFinite(liveValue) ? liveValue : "--"
+              }`
             : ""
         }
       >
         {displayText}
       </div>
+
+      {isOffline && (
+        <div
+          style={{
+            marginTop: 6,
+            fontSize: `${18 * scale}px`,
+            fontWeight: 400,
+            color: "#dc2626",
+            lineHeight: 1.05,
+            pointerEvents: "none",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Offline
+        </div>
+      )}
     </div>
   );
 }
