@@ -66,7 +66,12 @@ function computeMathOutput(liveValue, formula) {
   }
 }
 
-export default function DisplaySettingModal({ open = true, tank, onClose, onSave }) {
+export default function DisplaySettingModal({
+  open = true,
+  tank,
+  onClose,
+  onSave,
+}) {
   if (!open) return null;
 
   const props = tank?.properties || {};
@@ -83,7 +88,9 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
   const [bindField, setBindField] = useState(props.bindField || "ai1");
 
   // ✅ display style (4 options)
-  const [displayStyle, setDisplayStyle] = useState(props.displayStyle || "classic");
+  const [displayStyle, setDisplayStyle] = useState(
+    props.displayStyle || "classic"
+  );
 
   // -------------------------
   // ✅ TELEMETRY (EXTRACTED) - fixed 2s poll inside hook
@@ -102,7 +109,10 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
     bindField,
   });
 
-  const outputValue = useMemo(() => computeMathOutput(liveValue, formula), [liveValue, formula]);
+  const outputValue = useMemo(
+    () => computeMathOutput(liveValue, formula),
+    [liveValue, formula]
+  );
   const liveErr = pollError;
 
   // -------------------------
@@ -192,7 +202,10 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
     if (e.button !== 0) return;
 
     const t = e.target;
-    if (t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")) return;
+    if (
+      t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")
+    )
+      return;
 
     e.preventDefault();
 
@@ -371,7 +384,15 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                 }}
               >
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>Live VALUE</div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: "#111827",
+                    }}
+                  >
+                    Live VALUE
+                  </div>
                   <div
                     style={{
                       marginTop: 6,
@@ -394,7 +415,15 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                 </div>
 
                 <div style={{ textAlign: "right" }}>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>Output</div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      fontWeight: 600,
+                      color: "#111827",
+                    }}
+                  >
+                    Output
+                  </div>
                   <div
                     style={{
                       marginTop: 6,
@@ -422,7 +451,15 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
               </div>
 
               <div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: "#111827" }}>Formula</div>
+                <div
+                  style={{
+                    fontSize: 12,
+                    fontWeight: 600,
+                    color: "#111827",
+                  }}
+                >
+                  Formula
+                </div>
                 <textarea
                   value={formula}
                   onChange={(e) => setFormula(e.target.value)}
@@ -453,7 +490,9 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                   lineHeight: 1.35,
                 }}
               >
-                <div style={{ fontWeight: 600, marginBottom: 8 }}>Supported Operators</div>
+                <div style={{ fontWeight: 600, marginBottom: 8 }}>
+                  Supported Operators
+                </div>
                 <div style={{ display: "grid", gap: 4 }}>
                   <div>VALUE + 10 → add</div>
                   <div>VALUE - 3 → subtract</div>
@@ -462,13 +501,17 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                   <div>VALUE % 60 → modulo</div>
                 </div>
 
-                <div style={{ fontWeight: 600, margin: "10px 0 6px" }}>Combined Examples</div>
+                <div style={{ fontWeight: 600, margin: "10px 0 6px" }}>
+                  Combined Examples
+                </div>
                 <div style={{ display: "grid", gap: 4 }}>
                   <div>(VALUE * 1.5) + 5 → scale &amp; offset</div>
                   <div>(VALUE / 4095) * 20 - 4 → ADC → 4–20 mA</div>
                 </div>
 
-                <div style={{ fontWeight: 600, margin: "10px 0 6px" }}>String Output Examples</div>
+                <div style={{ fontWeight: 600, margin: "10px 0 6px" }}>
+                  String Output Examples
+                </div>
                 <div style={{ display: "grid", gap: 4 }}>
                   <div>CONCAT("Temp=", VALUE)</div>
                   <div>CONCAT("Level=", VALUE, " %")</div>
@@ -568,15 +611,26 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
 
                 <div style={previewTextStyle}>
                   Selected:{" "}
-                  <span style={{ fontFamily: "monospace" }}>{bindDeviceId || "--"}</span> ·{" "}
-                  {selectedDevice?.status === "online" ? (
+                  <span style={{ fontFamily: "monospace" }}>
+                    {bindDeviceId || "--"}
+                  </span>{" "}
+                  ·{" "}
+                  {!bindDeviceId ? (
+                    <span style={{ color: "#64748b" }}>--</span>
+                  ) : selectedDevice?.status === "online" ? (
                     <span style={{ color: "#16a34a" }}>ONLINE</span>
                   ) : (
                     <span style={{ color: "#dc2626" }}>OFFLINE</span>
                   )}
                 </div>
 
-                <div style={{ marginTop: 12, display: "flex", justifyContent: "space-between" }}>
+                <div
+                  style={{
+                    marginTop: 12,
+                    display: "flex",
+                    justifyContent: "space-between",
+                  }}
+                >
                   <div style={previewTextStyle}>Current Value</div>
 
                   <div
@@ -601,7 +655,14 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
               </div>
 
               {/* ACTIONS */}
-              <div style={{ display: "flex", justifyContent: "flex-end", gap: 10, marginTop: 4 }}>
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "flex-end",
+                  gap: 10,
+                  marginTop: 4,
+                }}
+              >
                 <button
                   onClick={onClose}
                   style={{
@@ -623,7 +684,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
 
                     const nextProps = {
                       ...(tank?.properties || {}),
-                      title: cleanTitle, // ✅ NEW
+                      title: cleanTitle,
                       bindModel,
                       bindDeviceId,
                       bindField,
@@ -633,7 +694,7 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
 
                     const nextTank = {
                       ...tank,
-                      title: cleanTitle, // mirror (fallback)
+                      title: cleanTitle,
                       bindModel,
                       bindDeviceId,
                       bindField,
@@ -649,7 +710,9 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
                     padding: "10px 14px",
                     borderRadius: 10,
                     border: "1px solid #bfe6c8",
-                    background: canApply ? "linear-gradient(180deg,#bff2c7,#6fdc89)" : "#e5e7eb",
+                    background: canApply
+                      ? "linear-gradient(180deg,#bff2c7,#6fdc89)"
+                      : "#e5e7eb",
                     color: "#0b3b18",
                     fontWeight: 700,
                     cursor: canApply ? "pointer" : "not-allowed",
@@ -662,7 +725,8 @@ export default function DisplaySettingModal({ open = true, tank, onClose, onSave
           </div>
 
           <div style={{ marginTop: 10, fontSize: 11, color: "#64748b" }}>
-            Tip: if it feels tight on smaller screens, we can auto-switch to stacked layout.
+            Tip: if it feels tight on smaller screens, we can auto-switch to
+            stacked layout.
           </div>
         </div>
       </div>
