@@ -289,7 +289,7 @@ function getStyleConfig(displayStyle, legacyTheme) {
   return byId[styleId] || byId.classic;
 }
 
-export default function DraggableDisplayBox({ tank }) {
+export default function DraggableDisplayBox({ tank, telemetryMap }) {
   const props = tank?.properties || {};
 
   // ✅ title at top
@@ -315,11 +315,38 @@ export default function DraggableDisplayBox({ tank }) {
   const formula = props.formula || "";
   const hasBinding = !!bindDeviceId && !!bindField;
 
+  const rowFromMap =
+  telemetryMap?.[String(bindModel || "").toLowerCase()]?.[bindDeviceId] || null;
+
+const mapStatusRaw =
+  rowFromMap?.status ??
+  rowFromMap?.deviceStatus ??
+  rowFromMap?.telemetryStatus ??
+  rowFromMap?.onlineStatus ??
+  rowFromMap?.connectionStatus ??
+  rowFromMap?.state ??
+  rowFromMap?.online ??
+  rowFromMap?.is_online ??
+  "";
+
+const mapStatus = String(mapStatusRaw || "").trim().toLowerCase();
+
+const mapIsOffline =
+  !!hasBinding &&
+  (!rowFromMap ||
+    mapStatus === "offline" ||
+    mapStatus === "false" ||
+    mapStatus === "0" ||
+    mapStatus === "down" ||
+    mapStatus === "disconnected" ||
+    mapStatus === "not_running" ||
+    mapStatus === "not running");
+
   const [liveValue, setLiveValue] = useState(null);
   const [outputValue, setOutputValue] = useState(null);
   const [deviceStatus, setDeviceStatus] = useState("");
 
-  const isOffline = hasBinding && deviceStatus === "offline";
+  const isOffline = mapIsOffline || (hasBinding && deviceStatus === "offline");
 
   useEffect(() => {
     if (!hasBinding) {
