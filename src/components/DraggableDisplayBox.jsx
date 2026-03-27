@@ -1,205 +1,5 @@
 // src/components/DraggableDisplayBox.jsx
-import React, { useEffect, useMemo, useState } from "react";
-import { API_URL } from "../config/api";
-import { getToken } from "../utils/authToken";
-
-// ✅ Models allowed
-const MODEL_META = {
-  zhc1921: { base: "zhc1921" },
-  zhc1661: { base: "zhc1661" },
-};
-
-// -------------------------
-// ✅ auth + no-cache fetch helpers
-// -------------------------
-function getAuthHeaders() {
-  const token = String(getToken() || "").trim();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
-function withNoCache(path) {
-  const sep = path.includes("?") ? "&" : "?";
-  return `${path}${sep}_ts=${Date.now()}`;
-}
-
-async function apiGet(path, { signal } = {}) {
-  const res = await fetch(`${API_URL}${withNoCache(path)}`, {
-    method: "GET",
-    headers: {
-      ...getAuthHeaders(),
-      "Cache-Control": "no-cache",
-      Pragma: "no-cache",
-    },
-    cache: "no-store",
-    signal,
-  });
-  if (!res.ok) throw new Error(`GET ${path} failed (${res.status})`);
-  return res.json();
-}
-
-function normalizeList(data) {
-  return Array.isArray(data)
-    ? data
-    : Array.isArray(data?.devices)
-    ? data.devices
-    : Array.isArray(data?.rows)
-    ? data.rows
-    : [];
-}
-
-// ✅ IMPORTANT: avoid /devices (can be 403/405). Use user-safe list endpoints.
-async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
-  const base = MODEL_META[modelKey]?.base || modelKey;
-
-  const listCandidates =
-    base === "zhc1661"
-      ? ["/zhc1661/my-devices", "/zhc1661/list", "/zhc1661"]
-      : ["/zhc1921/my-devices", "/zhc1921/list", "/zhc1921"];
-
-  for (const p of listCandidates) {
-    try {
-      const data = await apiGet(p, { signal });
-      const arr = normalizeList(data);
-
-      const hit =
-        arr.find((r) => {
-          const id =
-            r.deviceId ??
-            r.device_id ??
-            r.id ??
-            r.imei ??
-            r.IMEI ??
-            r.DEVICE_ID ??
-            "";
-          return String(id) === String(deviceId);
-        }) || null;
-
-      if (hit) return hit;
-    } catch {
-      // continue
-    }
-  }
-
-  return null;
-}
-
-function readAiField(row, bindField) {
-  if (!row || !bindField) return null;
-  const f = String(bindField).toLowerCase();
-
-  const candidates = [
-    f,
-    f.toUpperCase(),
-    f.replace("ai", "a"),
-    f.replace("ai", "A"),
-    f.replace("ai", "analog"),
-    f.replace("ai", "ANALOG"),
-  ];
-
-  for (const k of candidates) {
-    if (row[k] !== undefined) return row[k];
-  }
-
-  const n = f.replace("ai", "");
-  const extra = [`ai_${n}`, `AI_${n}`, `ai-${n}`, `AI-${n}`];
-  for (const k of extra) {
-    if (row[k] !== undefined) return row[k];
-  }
-
-  return null;
-}
-
-function readStatusFromRow(row) {
-  const raw =
-    row?.status ??
-    row?.Status ??
-    row?.onlineStatus ??
-    row?.connectionStatus ??
-    row?.deviceStatus ??
-    row?.telemetryStatus ??
-    row?.state ??
-    row?.online ??
-    row?.is_online ??
-    "";
-
-  const s = String(raw || "").trim().toLowerCase();
-
-  if (
-    s === "offline" ||
-    s === "false" ||
-    s === "0" ||
-    s === "down" ||
-    s === "disconnected" ||
-    s === "not_running" ||
-    s === "not running"
-  ) {
-    return "offline";
-  }
-
-  if (s === "online" || s === "true" || s === "1" || s === "up") {
-    return "online";
-  }
-
-  return "";
-}
-
-// ✅ small math evaluator: supports VALUE and CONCAT("a", VALUE, "b")
-function computeMathOutput(liveValue, formula) {
-  const f = String(formula || "").trim();
-  if (!f) return liveValue;
-
-  const VALUE = liveValue;
-
-  // CONCAT support
-  const upper = f.toUpperCase();
-  if (upper.startsWith("CONCAT(") && f.endsWith(")")) {
-    const inner = f.slice(7, -1);
-    const parts = [];
-    let cur = "";
-    let inQ = false;
-
-    for (let i = 0; i < inner.length; i++) {
-      const ch = inner[i];
-      if (ch === '"' && inner[i - 1] !== "\\") inQ = !inQ;
-
-      if (ch === "," && !inQ) {
-        parts.push(cur.trim());
-        cur = "";
-      } else {
-        cur += ch;
-      }
-    }
-    if (cur.trim()) parts.push(cur.trim());
-
-    return parts
-      .map((p) => {
-        if (!p) return "";
-        if (p === "VALUE" || p === "value") return VALUE ?? "";
-        if (p.startsWith('"') && p.endsWith('"')) return p.slice(1, -1);
-
-        try {
-          const expr = p.replace(/\bVALUE\b/gi, "VALUE");
-          // eslint-disable-next-line no-new-func
-          const fn = new Function("VALUE", `return (${expr});`);
-          const r = fn(VALUE);
-          return r ?? "";
-        } catch {
-          return "";
-        }
-      })
-      .join("");
-  }
-
-  // Numeric expression
-  try {
-    const expr = f.replace(/\bVALUE\b/gi, "VALUE");
-    // eslint-disable-next-line no-new-func
-    const fn = new Function("VALUE", `return (${expr});`);
-    return fn(VALUE);
-  } catch {
-    return liveValue;
-  }
-}
+import React, { useMemo } from "react";
 
 // ==============================
 // ✅ DISPLAY STYLE THEMES (4 styles)
@@ -289,7 +89,201 @@ function getStyleConfig(displayStyle, legacyTheme) {
   return byId[styleId] || byId.classic;
 }
 
-export default function DraggableDisplayBox({ tank, telemetryMap }) {
+function normalizeField(field) {
+  return String(field || "").trim().toLowerCase();
+}
+
+function getTelemetryRow(telemetryMap, model, deviceId) {
+  if (!deviceId) return null;
+
+  const m = String(model || "").trim().toLowerCase();
+  const id = String(deviceId || "").trim();
+  if (!id) return null;
+
+  if (m && telemetryMap?.[m]?.[id]) return telemetryMap[m][id];
+  if (telemetryMap?.[id]) return telemetryMap[id];
+
+  for (const mk of Object.keys(telemetryMap || {})) {
+    if (telemetryMap?.[mk]?.[id]) return telemetryMap[mk][id];
+  }
+
+  return null;
+}
+
+function getTelemetryStatus(row) {
+  if (!row || typeof row !== "object") return "offline";
+
+  const raw =
+    row?.status ??
+    row?.deviceStatus ??
+    row?.telemetryStatus ??
+    row?.onlineStatus ??
+    row?.connectionStatus ??
+    row?.state ??
+    row?.online ??
+    row?.is_online ??
+    "";
+
+  const s = String(raw || "").trim().toLowerCase();
+
+  if (
+    s === "offline" ||
+    s === "false" ||
+    s === "0" ||
+    s === "down" ||
+    s === "disconnected" ||
+    s === "not_running" ||
+    s === "not running"
+  ) {
+    return "offline";
+  }
+
+  if (s === "online" || s === "true" || s === "1" || s === "up") {
+    return "online";
+  }
+
+  return s || "offline";
+}
+
+function getTelemetryValue(row, field) {
+  if (!row || !field) return null;
+
+  const f = normalizeField(field);
+  if (!f) return null;
+
+  const direct = [
+    f,
+    f.toLowerCase(),
+    f.toUpperCase(),
+    f.replace(/(\D+)(\d+)/, "$1_$2"),
+    f.replace(/(\D+)(\d+)/, "$1-$2"),
+  ];
+
+  for (const key of direct) {
+    if (row[key] !== undefined) return row[key];
+  }
+
+  if (/^ai\d+$/.test(f)) {
+    const n = f.replace("ai", "");
+    const extra = [
+      `a${n}`,
+      `A${n}`,
+      `analog${n}`,
+      `ANALOG${n}`,
+      `ai_${n}`,
+      `AI_${n}`,
+      `ai-${n}`,
+      `AI-${n}`,
+    ];
+    for (const key of extra) {
+      if (row[key] !== undefined) return row[key];
+    }
+  }
+
+  if (/^di\d+$/.test(f)) {
+    const n = f.replace("di", "");
+    const extra = [
+      `in${n}`,
+      `IN${n}`,
+      `in_${n}`,
+      `IN_${n}`,
+      `in-${n}`,
+      `IN-${n}`,
+    ];
+    for (const key of extra) {
+      if (row[key] !== undefined) return row[key];
+    }
+  }
+
+  if (/^do\d+$/.test(f)) {
+    const n = f.replace("do", "");
+    const extra = [
+      `out${n}`,
+      `OUT${n}`,
+      `out_${n}`,
+      `OUT_${n}`,
+      `out-${n}`,
+      `OUT-${n}`,
+    ];
+    for (const key of extra) {
+      if (row[key] !== undefined) return row[key];
+    }
+  }
+
+  if (/^ao\d+$/.test(f)) {
+    const n = f.replace("ao", "");
+    const extra = [`ao_${n}`, `AO_${n}`, `ao-${n}`, `AO-${n}`];
+    for (const key of extra) {
+      if (row[key] !== undefined) return row[key];
+    }
+  }
+
+  return null;
+}
+
+// ✅ small math evaluator: supports VALUE and CONCAT("a", VALUE, "b")
+function computeMathOutput(liveValue, formula) {
+  const f = String(formula || "").trim();
+  if (!f) return liveValue;
+
+  const VALUE = liveValue;
+
+  // CONCAT support
+  const upper = f.toUpperCase();
+  if (upper.startsWith("CONCAT(") && f.endsWith(")")) {
+    const inner = f.slice(7, -1);
+    const parts = [];
+    let cur = "";
+    let inQ = false;
+
+    for (let i = 0; i < inner.length; i++) {
+      const ch = inner[i];
+      if (ch === '"' && inner[i - 1] !== "\\") inQ = !inQ;
+
+      if (ch === "," && !inQ) {
+        parts.push(cur.trim());
+        cur = "";
+      } else {
+        cur += ch;
+      }
+    }
+    if (cur.trim()) parts.push(cur.trim());
+
+    return parts
+      .map((p) => {
+        if (!p) return "";
+        if (p === "VALUE" || p === "value") return VALUE ?? "";
+        if (p.startsWith('"') && p.endsWith('"')) return p.slice(1, -1);
+
+        try {
+          const expr = p.replace(/\bVALUE\b/gi, "VALUE");
+          // eslint-disable-next-line no-new-func
+          const fn = new Function("VALUE", `return (${expr});`);
+          const r = fn(VALUE);
+          return r ?? "";
+        } catch {
+          return "";
+        }
+      })
+      .join("");
+  }
+
+  // Numeric expression
+  try {
+    const expr = f.replace(/\bVALUE\b/gi, "VALUE");
+    // eslint-disable-next-line no-new-func
+    const fn = new Function("VALUE", `return (${expr});`);
+    return fn(VALUE);
+  } catch {
+    return liveValue;
+  }
+}
+
+export default function DraggableDisplayBox({
+  tank,
+  telemetryMap = null,
+  isPlay = false,
+}) {
   const props = tank?.properties || {};
 
   // ✅ title at top
@@ -309,108 +303,48 @@ export default function DraggableDisplayBox({ tank, telemetryMap }) {
   );
 
   // binding + math
-  const bindModel = props.bindModel || "zhc1921";
+  const bindModel = String(props.bindModel || "zhc1921")
+    .trim()
+    .toLowerCase();
   const bindDeviceId = String(props.bindDeviceId || "").trim();
   const bindField = String(props.bindField || "ai1").trim();
   const formula = props.formula || "";
   const hasBinding = !!bindDeviceId && !!bindField;
 
-  const rowFromMap =
-  telemetryMap?.[String(bindModel || "").toLowerCase()]?.[bindDeviceId] || null;
+  // ✅ ONLY USE telemetryMap now
+  const row = useMemo(
+    () => getTelemetryRow(telemetryMap, bindModel, bindDeviceId),
+    [telemetryMap, bindModel, bindDeviceId]
+  );
 
-const mapStatusRaw =
-  rowFromMap?.status ??
-  rowFromMap?.deviceStatus ??
-  rowFromMap?.telemetryStatus ??
-  rowFromMap?.onlineStatus ??
-  rowFromMap?.connectionStatus ??
-  rowFromMap?.state ??
-  rowFromMap?.online ??
-  rowFromMap?.is_online ??
-  "";
+  const backendStatus = useMemo(() => getTelemetryStatus(row), [row]);
 
-const mapStatus = String(mapStatusRaw || "").trim().toLowerCase();
+  // ✅ if there is a binding and widget is in play/launch context, honor offline
+  // Also works in normal view because the user wants consistent status behavior.
+  const isOffline = hasBinding && backendStatus === "offline";
 
-const mapIsOffline =
-  !!hasBinding &&
-  (!rowFromMap ||
-    mapStatus === "offline" ||
-    mapStatus === "false" ||
-    mapStatus === "0" ||
-    mapStatus === "down" ||
-    mapStatus === "disconnected" ||
-    mapStatus === "not_running" ||
-    mapStatus === "not running");
+  const rawValue = useMemo(
+    () => getTelemetryValue(row, bindField),
+    [row, bindField]
+  );
 
-  const [liveValue, setLiveValue] = useState(null);
-  const [outputValue, setOutputValue] = useState(null);
-  const [deviceStatus, setDeviceStatus] = useState("");
-
-  const isOffline = mapIsOffline || (hasBinding && deviceStatus === "offline");
-
-  useEffect(() => {
-    if (!hasBinding) {
-      setLiveValue(null);
-      setOutputValue(null);
-      setDeviceStatus("");
-      return;
+  const safeLive = useMemo(() => {
+    if (rawValue === null || rawValue === undefined || rawValue === "") {
+      return null;
     }
 
-    let cancelled = false;
-    const ctrl = new AbortController();
+    if (typeof rawValue === "number") {
+      return Number.isFinite(rawValue) ? rawValue : null;
+    }
 
-    const tick = async () => {
-      try {
-        const row = await loadLiveRowForDevice(bindModel, bindDeviceId, {
-          signal: ctrl.signal,
-        });
+    const parsed = Number(rawValue);
+    return Number.isFinite(parsed) ? parsed : null;
+  }, [rawValue]);
 
-        const status = readStatusFromRow(row);
-        const offline = !row || status === "offline";
-
-        if (cancelled) return;
-
-        setDeviceStatus(offline ? "offline" : status || "online");
-
-        if (offline) {
-          setLiveValue(null);
-          setOutputValue(null);
-          return;
-        }
-
-        const raw = row ? readAiField(row, bindField) : null;
-
-        const num =
-          raw === null || raw === undefined || raw === ""
-            ? null
-            : typeof raw === "number"
-            ? raw
-            : Number(raw);
-
-        const safeLive = Number.isFinite(num) ? num : null;
-        const out = computeMathOutput(safeLive, formula);
-
-        setLiveValue(safeLive);
-        setOutputValue(out);
-      } catch (e) {
-        if (cancelled) return;
-        if (String(e?.name || "").toLowerCase().includes("abort")) return;
-
-        setDeviceStatus("offline");
-        setLiveValue(null);
-        setOutputValue(null);
-      }
-    };
-
-    tick();
-    const id = window.setInterval(tick, 2000);
-
-    return () => {
-      cancelled = true;
-      ctrl.abort();
-      window.clearInterval(id);
-    };
-  }, [hasBinding, bindModel, bindDeviceId, bindField, formula]);
+  const outputValue = useMemo(
+    () => computeMathOutput(safeLive, formula),
+    [safeLive, formula]
+  );
 
   const [intPart, decPart] = String(numberFormat).split(".");
   const totalInt = Math.max(1, (intPart || "0").length);
@@ -520,7 +454,7 @@ const mapIsOffline =
             ? outputValue
             : Number.isFinite(Number(outputValue))
             ? `OUT=${String(outputValue)}  LIVE=${
-                Number.isFinite(liveValue) ? liveValue : "--"
+                Number.isFinite(safeLive) ? safeLive : "--"
               }`
             : ""
         }
