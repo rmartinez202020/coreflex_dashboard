@@ -55,6 +55,56 @@ function getTelemetryRow(telemetryMap, model, deviceId) {
   return null;
 }
 
+// ✅ Normalize backend online/offline status
+function getTelemetryStatus(row) {
+  if (!row || typeof row !== "object") return "offline";
+
+  const raw =
+    row?.status ??
+    row?.deviceStatus ??
+    row?.telemetryStatus ??
+    row?.onlineStatus ??
+    row?.connectionStatus ??
+    row?.state ??
+    row?.online ??
+    "";
+
+  if (typeof raw === "boolean") {
+    return raw ? "online" : "offline";
+  }
+
+  if (typeof raw === "number") {
+    return raw > 0 ? "online" : "offline";
+  }
+
+  const s = String(raw || "").trim().toLowerCase();
+
+  if (
+    s === "online" ||
+    s === "true" ||
+    s === "1" ||
+    s === "up" ||
+    s === "running" ||
+    s === "connected"
+  ) {
+    return "online";
+  }
+
+  if (
+    s === "offline" ||
+    s === "false" ||
+    s === "0" ||
+    s === "down" ||
+    s === "disconnected" ||
+    s === "not_running" ||
+    s === "not running"
+  ) {
+    return "offline";
+  }
+
+  return "offline";
+}
+
 export default function DraggableLedCircle({
   tank,
   isPlay = false,
@@ -74,6 +124,7 @@ export default function DraggableLedCircle({
       colorOff: "#9ca3af",
       offText: "OFF",
       onText: "ON",
+      offlineText: "Offline",
     },
   };
 
@@ -89,6 +140,8 @@ export default function DraggableLedCircle({
     const deviceId = String(tag?.deviceId || "").trim();
     const field = String(tag?.field || "").trim();
 
+    const hasBinding = !!deviceId && !!field;
+
     const savedStatus =
       tank.status ?? tank.properties?.status ?? tank.properties?.value ?? "off";
 
@@ -99,19 +152,21 @@ export default function DraggableLedCircle({
       savedStatus === "1";
 
     // =========================
-    // ✅ Live value (PLAY only)
+    // ✅ Live telemetry status/value
+    // ✅ IMPORTANT:
+    // - if widget is bound and row is missing => treat as OFFLINE
+    // - works in edit + play + launch/public
     // =========================
-    const telemetryRow = isPlay
+    const telemetryRow = hasBinding
       ? getTelemetryRow(telemetryMap, model, deviceId)
       : null;
 
-    const backendDeviceStatus = String(
-      telemetryRow?.status || ""
-    ).trim().toLowerCase();
+    const normalizedStatus = hasBinding
+      ? getTelemetryStatus(telemetryRow)
+      : "unbound";
 
-    const deviceIsOnline = backendDeviceStatus
-      ? backendDeviceStatus === "online"
-      : true;
+    const deviceIsOffline = hasBinding && normalizedStatus === "offline";
+    const deviceIsOnline = hasBinding && normalizedStatus === "online";
 
     const backendTagValue =
       telemetryRow && field
@@ -121,14 +176,13 @@ export default function DraggableLedCircle({
     const liveBit = deviceIsOnline ? to01(backendTagValue) : null;
 
     const liveIsOn =
-      !!deviceId &&
-      !!field &&
-      deviceIsOnline &&
-      liveBit !== null
-        ? liveBit === 1
-        : false;
+      hasBinding && deviceIsOnline && liveBit !== null ? liveBit === 1 : false;
 
-    const isOn = isPlay ? liveIsOn : savedIsOn;
+    // ✅ Edit mode:
+    // if bound and offline, show Offline too
+    // if bound and online, show live value
+    // if unbound, keep saved canvas value
+    const isOn = hasBinding ? liveIsOn : savedIsOn;
 
     // =========================
     // VISUALS
@@ -144,14 +198,22 @@ export default function DraggableLedCircle({
 
     const textOn = tank.properties?.onText ?? "ON";
     const textOff = tank.properties?.offText ?? "OFF";
+    const textOffline = tank.properties?.offlineText ?? "Offline";
 
     const diameter = Math.min(w, h - 22);
     const isCircle = shapeStyle !== "square";
 
-    const title =
-      deviceId && field
-        ? `LedCircle | ${isOn ? "ON" : "OFF"} | ${model || "—"}:${deviceId}/${field}`
-        : "Bind a device + DI/DO in settings";
+    const title = hasBinding
+      ? `LedCircle | ${
+          deviceIsOffline ? "OFFLINE" : isOn ? "ON" : "OFF"
+        } | ${model || "—"}:${deviceId}/${field}`
+      : "Bind a device + DI/DO in settings";
+
+    const displayText = deviceIsOffline
+      ? textOffline
+      : isOn
+      ? textOn
+      : textOff;
 
     return (
       <div
@@ -178,7 +240,7 @@ export default function DraggableLedCircle({
               ? "0 0 12px rgba(34,197,94,0.65)"
               : "inset 0 2px 6px rgba(0,0,0,0.35)",
             transition: "background 120ms ease, box-shadow 120ms ease",
-            opacity: deviceId && field ? 1 : 0.7,
+            opacity: hasBinding ? 1 : 0.7,
           }}
         />
 
@@ -186,13 +248,13 @@ export default function DraggableLedCircle({
           style={{
             fontSize: 13,
             fontWeight: 700,
-            color: "#111827",
+            color: deviceIsOffline ? "#dc2626" : "#111827",
             lineHeight: "14px",
             textAlign: "center",
             marginTop: 2,
           }}
         >
-          {isOn ? textOn : textOff}
+          {displayText}
         </div>
       </div>
     );
