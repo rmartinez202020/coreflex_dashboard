@@ -465,10 +465,16 @@ export default function DashboardCanvasWidgetLayer({
               if (!isPlay) onOpenDisplaySettings?.(tank);
             }}
           >
-            {wrapWithOverlay(tank, <DraggableDisplayBox
-  tank={tank}
-  telemetryMap={telemetryMap}
-/>)}
+           {wrapWithOverlay(
+  tank,
+  <DraggableDisplayBox
+    tank={tank}
+    telemetryMap={telemetryMap}
+    isPlay={isPlay}
+  />
+)}
+
+
           </DraggableDroppedTank>
         );
       }
