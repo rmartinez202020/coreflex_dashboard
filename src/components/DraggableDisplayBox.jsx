@@ -8,6 +8,7 @@ import React, { useMemo } from "react";
 function getStyleConfig(displayStyle, legacyTheme) {
   const styleId = String(displayStyle || "classic").trim() || "classic";
 
+  // legacy theme colors (used as fallback for classic)
   const legacyThemes = {
     green: { bg: "#d9ffe0", text: "#005500", border: "#00aa33" },
     red: { bg: "#ffe5e5", text: "#8b0000", border: "#cc0000" },
@@ -378,6 +379,7 @@ function getTelemetryValue(row, field) {
   return null;
 }
 
+// ✅ small math evaluator: supports VALUE and CONCAT("a", VALUE, "b")
 function computeMathOutput(liveValue, formula) {
   const f = String(formula || "").trim();
   if (!f) return liveValue;
@@ -453,6 +455,7 @@ export default function DraggableDisplayBox({
     [displayStyle, theme]
   );
 
+  // ✅ stronger binding fallback support
   const bindModel = getBoundModel(tank);
   const bindDeviceId = getBoundDeviceId(tank);
   const bindField = getBoundField(tank);
@@ -489,9 +492,7 @@ export default function DraggableDisplayBox({
     [safeLive, formula]
   );
 
-  // ✅ ONLY show offline behavior in Play / Launch mode
   const isOffline =
-    isPlay &&
     hasBinding &&
     (!row ||
       backendStatus === "offline" ||
@@ -505,7 +506,7 @@ export default function DraggableDisplayBox({
   const totalDec = decPart ? decPart.length : 0;
 
   const displayText = useMemo(() => {
-    if (hasBinding && isPlay) {
+    if (hasBinding) {
       if (isOffline) return "--";
       if (safeLive === null || safeLive === undefined) return "--";
 
@@ -554,7 +555,6 @@ export default function DraggableDisplayBox({
     return formatted;
   }, [
     hasBinding,
-    isPlay,
     isOffline,
     safeLive,
     outputValue,
@@ -645,7 +645,7 @@ export default function DraggableDisplayBox({
         {displayText}
       </div>
 
-      {isPlay && hasBinding && isOffline ? (
+      {hasBinding && isOffline ? (
         <div
           style={{
             marginTop: 6,
