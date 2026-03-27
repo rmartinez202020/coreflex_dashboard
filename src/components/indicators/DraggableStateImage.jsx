@@ -207,6 +207,7 @@ function getTelemetryStatus(row) {
  * - ✅ Uses shared telemetryMap from useDashboardTelemetryPoller (common poller)
  * - ✅ Edit mode NEVER shows Offline
  * - ✅ Runtime (play / launch / public) CAN show Offline
+ * - ✅ Offline label now sits BELOW the image box
  * - ✅ Fixed DO-1 / DI-1 / AI-2 normalization
  */
 export default function DraggableStateImage({
@@ -331,40 +332,68 @@ export default function DraggableStateImage({
         <div
           style={{
             width: w,
-            height: h,
-            borderRadius: 12,
-            border: "1px dashed rgba(148,163,184,0.65)",
-            background: "rgba(2,6,23,0.02)",
             display: "flex",
+            flexDirection: "column",
             alignItems: "center",
-            justifyContent: "center",
             userSelect: "none",
-            overflow: "hidden",
+            overflow: "visible",
             pointerEvents: "none",
           }}
           title={title}
         >
-          <div style={{ textAlign: "center", color: "#64748b", padding: 10 }}>
-            <div
-              style={{
-                width: Math.max(18, Math.round(Math.min(w, h) * 0.12)),
-                height: Math.max(18, Math.round(Math.min(w, h) * 0.12)),
-                borderRadius: 999,
-                background: "rgba(148,163,184,0.35)",
-                margin: "0 auto 10px auto",
-                boxShadow: "0 8px 18px rgba(0,0,0,0.10)",
-              }}
-            />
-            <div style={{ fontWeight: 1000, letterSpacing: 1 }}>
-              STATE IMAGE
-            </div>
-            <div style={{ fontSize: 12, marginTop: 6, opacity: 0.9 }}>
-              {isOn ? "ON" : "OFF"}
-            </div>
-            <div style={{ fontSize: 11, marginTop: 8, opacity: 0.75 }}>
-              Double-click to setup
+          <div
+            style={{
+              width: w,
+              height: h,
+              borderRadius: 12,
+              border: "1px dashed rgba(148,163,184,0.65)",
+              background: "rgba(2,6,23,0.02)",
+              display: "flex",
+              alignItems: "center",
+              justifyContent: "center",
+              overflow: "hidden",
+            }}
+          >
+            <div style={{ textAlign: "center", color: "#64748b", padding: 10 }}>
+              <div
+                style={{
+                  width: Math.max(18, Math.round(Math.min(w, h) * 0.12)),
+                  height: Math.max(18, Math.round(Math.min(w, h) * 0.12)),
+                  borderRadius: 999,
+                  background: "rgba(148,163,184,0.35)",
+                  margin: "0 auto 10px auto",
+                  boxShadow: "0 8px 18px rgba(0,0,0,0.10)",
+                }}
+              />
+              <div style={{ fontWeight: 1000, letterSpacing: 1 }}>
+                STATE IMAGE
+              </div>
+              <div style={{ fontSize: 12, marginTop: 6, opacity: 0.9 }}>
+                {isOn ? "ON" : "OFF"}
+              </div>
+              <div style={{ fontSize: 11, marginTop: 8, opacity: 0.75 }}>
+                Double-click to setup
+              </div>
             </div>
           </div>
+
+          {/* ✅ Runtime only: show Offline label BELOW the blue square */}
+          {isRuntime && deviceIsOffline && (
+            <div
+              style={{
+                marginTop: 6,
+                color: "#dc2626",
+                fontWeight: 800,
+                fontSize: 13,
+                lineHeight: 1,
+                textAlign: "center",
+                whiteSpace: "nowrap",
+                textShadow: "0 1px 2px rgba(255,255,255,0.75)",
+              }}
+            >
+              Offline
+            </div>
+          )}
         </div>
       );
     }
@@ -373,46 +402,50 @@ export default function DraggableStateImage({
       <div
         style={{
           width: w,
-          height: h,
-          border: "none",
-          background: "transparent",
           display: "flex",
+          flexDirection: "column",
           alignItems: "center",
-          justifyContent: "center",
           userSelect: "none",
-          overflow: "hidden",
+          overflow: "visible",
           pointerEvents: "none",
-          position: "relative",
         }}
         title={title}
       >
-        <img
-          src={imgSrc}
-          alt={isOn ? "ON" : "OFF"}
+        <div
           style={{
-            width: "100%",
-            height: "100%",
-            objectFit: imageFit,
-            display: "block",
+            width: w,
+            height: h,
+            border: "none",
+            background: "transparent",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            overflow: "hidden",
           }}
-          draggable={false}
-        />
+        >
+          <img
+            src={imgSrc}
+            alt={isOn ? "ON" : "OFF"}
+            style={{
+              width: "100%",
+              height: "100%",
+              objectFit: imageFit,
+              display: "block",
+            }}
+            draggable={false}
+          />
+        </div>
 
-        {/* ✅ Runtime only: show Offline label */}
+        {/* ✅ Runtime only: show Offline label BELOW the blue square */}
         {isRuntime && deviceIsOffline && (
           <div
             style={{
-              position: "absolute",
-              left: "50%",
-              bottom: 8,
-              transform: "translateX(-50%)",
+              marginTop: 6,
               color: "#dc2626",
               fontWeight: 800,
               fontSize: 13,
               lineHeight: 1,
               textAlign: "center",
-              pointerEvents: "none",
-              userSelect: "none",
               whiteSpace: "nowrap",
               textShadow: "0 1px 2px rgba(255,255,255,0.75)",
             }}
