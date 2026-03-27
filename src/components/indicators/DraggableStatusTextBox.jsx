@@ -9,9 +9,9 @@ import { getToken } from "../../utils/authToken";
  * 2) Canvas mode (Dashboard)
  *
  * ✅ PC-189 OFFLINE FIX:
- * - Shows Offline when device is offline
- * - Works in edit / launch / public link / play
- * - If widget is bound and telemetry row is missing, it treats that as Offline
+ * - Edit mode: NEVER shows Offline
+ * - Launch / public link / play: shows Offline when device is offline
+ * - If widget is bound and telemetry row is missing in runtime, it treats that as Offline
  * - Keeps OFF/ON behavior only when device is online
  */
 
@@ -188,7 +188,7 @@ export default function DraggableStatusTextBox({
     // ✅ Telemetry state
     // IMPORTANT:
     // - runtime: poll every 3s
-    // - edit: do one fetch too, so Offline can appear there as well
+    // - edit: do NOT fetch, so Offline never appears there
     const [telemetryRow, setTelemetryRow] = React.useState(null);
     const telemetryRef = React.useRef({ loading: false });
 
@@ -239,11 +239,14 @@ export default function DraggableStatusTextBox({
         return;
       }
 
-      // ✅ always do at least one read so EDIT can show Offline too
-      fetchTelemetryRow();
+      // ✅ EDIT MODE: never show Offline
+      if (!isRuntime) {
+        setTelemetryRow(null);
+        return;
+      }
 
-      // ✅ poll only in runtime
-      if (!isRuntime) return;
+      // ✅ PLAY / LAUNCH / PUBLIC LINK
+      fetchTelemetryRow();
 
       const t = setInterval(() => {
         if (document.hidden) return;
@@ -254,11 +257,14 @@ export default function DraggableStatusTextBox({
     }, [fetchTelemetryRow, isRuntime, hasBinding]);
 
     const normalizedStatus = React.useMemo(() => {
-      return hasBinding ? normalizeDeviceStatus(telemetryRow) : "unbound";
-    }, [telemetryRow, hasBinding]);
+      return hasBinding && isRuntime
+        ? normalizeDeviceStatus(telemetryRow)
+        : "unbound";
+    }, [telemetryRow, hasBinding, isRuntime]);
 
-    const deviceIsOnline = hasBinding && normalizedStatus === "online";
-    const deviceIsOffline = hasBinding && normalizedStatus === "offline";
+    const deviceIsOnline = hasBinding && isRuntime && normalizedStatus === "online";
+    const deviceIsOffline =
+      hasBinding && isRuntime && normalizedStatus === "offline";
 
     const backendTagValue = React.useMemo(() => {
       if (!telemetryRow || !field) return undefined;
@@ -276,28 +282,36 @@ export default function DraggableStatusTextBox({
       // unbound widget
       if (!hasBinding) return safeOff;
 
-      // bound but offline / missing row
+      // ✅ EDIT MODE: never show Offline
+      if (!isRuntime) {
+        if (backendTagValue === undefined || backendTagValue === null) {
+          return safeOff;
+        }
+        return tag01 === 1 ? safeOn : safeOff;
+      }
+
+      // ✅ PLAY / LAUNCH / PUBLIC LINK: allow Offline
       if (deviceIsOffline) return safeOffline;
 
-      // bound and online but no value yet
       if (backendTagValue === undefined || backendTagValue === null) {
         return safeOff;
       }
 
-      if (tag01 === 1) return safeOn;
-      return safeOff;
+      return tag01 === 1 ? safeOn : safeOff;
     }, [
       offText,
       onText,
       offlineText,
       legacyText,
       hasBinding,
+      isRuntime,
       deviceIsOffline,
       backendTagValue,
       tag01,
     ]);
 
-    const resolvedTextColor = deviceIsOffline ? "#dc2626" : textColor;
+    const resolvedTextColor =
+      isRuntime && deviceIsOffline ? "#dc2626" : textColor;
 
     const titleText = React.useMemo(() => {
       if (!deviceId || !field) return displayText;
