@@ -58,11 +58,56 @@ function hexToGlow(hex) {
   return `rgba(${r},${g},${b},0.55)`;
 }
 
+// ✅ Normalize backend online/offline status
+function getTelemetryStatus(row) {
+  if (!row || typeof row !== "object") return "offline";
+
+  const raw =
+    row?.status ??
+    row?.deviceStatus ??
+    row?.telemetryStatus ??
+    row?.onlineStatus ??
+    row?.connectionStatus ??
+    row?.state ??
+    row?.online ??
+    "";
+
+  if (typeof raw === "boolean") return raw ? "online" : "offline";
+  if (typeof raw === "number") return raw > 0 ? "online" : "offline";
+
+  const s = String(raw || "").trim().toLowerCase();
+
+  if (
+    s === "online" ||
+    s === "true" ||
+    s === "1" ||
+    s === "up" ||
+    s === "running" ||
+    s === "connected"
+  ) {
+    return "online";
+  }
+
+  if (
+    s === "offline" ||
+    s === "false" ||
+    s === "0" ||
+    s === "down" ||
+    s === "disconnected" ||
+    s === "not_running" ||
+    s === "not running"
+  ) {
+    return "offline";
+  }
+
+  return "offline";
+}
+
 export default function DraggableBlinkingAlarm({
   // Canvas mode
   tank,
   telemetryMap, // ✅ NEW: comes from useDashboardTelemetryPoller
-  sensorsData,  // optional fallback
+  sensorsData, // optional fallback
   isPlay = false,
 
   // Palette mode
@@ -115,43 +160,57 @@ export default function DraggableBlinkingAlarm({
     const tagModel = String(tag?.model || "").trim();
     const tagDeviceId = String(tag?.deviceId || "").trim();
     const tagField = String(tag?.field || "").trim();
+    const hasBinding = !!tagModel && !!tagDeviceId && !!tagField;
 
     // ✅ Saved design-time fallback (edit mode freeze)
     const savedIsActive = !!(p.isActive ?? p.value ?? false);
 
     // =========================
     // ✅ LIVE READ (NO FETCH) — from telemetryMap
+    // ✅ PC-189:
+    // - Edit mode: never use offline state
+    // - Play / launch / public: allow offline state
     // =========================
-    const telemetryRow =
-      tagModel && tagDeviceId ? telemetryMap?.[tagModel]?.[tagDeviceId] : null;
+    const isRuntime = !!isPlay;
 
-    const backendStatus = String(telemetryRow?.status || "").trim().toLowerCase();
-    const deviceIsOnline = backendStatus ? backendStatus === "online" : true;
+    const telemetryRow =
+      hasBinding && isRuntime
+        ? telemetryMap?.[tagModel]?.[tagDeviceId] || null
+        : null;
+
+    const normalizedStatus =
+      hasBinding && isRuntime ? getTelemetryStatus(telemetryRow) : "unbound";
+
+    const deviceIsOnline =
+      hasBinding && isRuntime && normalizedStatus === "online";
+
+    const deviceIsOffline =
+      hasBinding && isRuntime && normalizedStatus === "offline";
 
     const rawValueFromTelemetry =
       telemetryRow && tagField ? readTagFromRow(telemetryRow, tagField) : undefined;
 
-    // optional fallback: sensorsData (ONLY in play)
+    // optional fallback: sensorsData (ONLY in runtime)
     const rawValue =
       rawValueFromTelemetry !== undefined
         ? rawValueFromTelemetry
-        : isPlay
+        : isRuntime
         ? sensorsData?.values?.[tagDeviceId]?.[tagField]
         : undefined;
 
-    const v01 = isPlay && deviceIsOnline ? to01(rawValue) : null;
+    const v01 = isRuntime && deviceIsOnline ? to01(rawValue) : null;
 
     const liveIsActive = !!(
-      tagModel &&
-      tagDeviceId &&
-      tagField &&
-      isPlay &&
+      hasBinding &&
+      isRuntime &&
       deviceIsOnline &&
       v01 === 1
     );
 
-    // ✅ FINAL: freeze in edit mode, live in play
-    const isActive = isPlay ? liveIsActive : savedIsActive;
+    // ✅ FINAL:
+    // - edit mode: freeze to saved value, never show offline state
+    // - runtime: live only when online
+    const isActive = isRuntime ? liveIsActive : savedIsActive;
 
     // =========================
     // ✅ BLINK ENGINE
@@ -159,7 +218,7 @@ export default function DraggableBlinkingAlarm({
     const [blinkOn, setBlinkOn] = React.useState(true);
 
     React.useEffect(() => {
-      if (!isPlay) {
+      if (!isRuntime) {
         setBlinkOn(true);
         return;
       }
@@ -170,7 +229,7 @@ export default function DraggableBlinkingAlarm({
       const ms = Math.max(120, Number(blinkMs) || 500);
       const t = setInterval(() => setBlinkOn((x) => !x), ms);
       return () => clearInterval(t);
-    }, [isPlay, isActive, blinkMs]);
+    }, [isRuntime, isActive, blinkMs]);
 
     const dimAccent = "rgba(148,163,184,0.22)";
     const accent = isActive ? (blinkOn ? colorOn : dimAccent) : dimAccent;
@@ -192,8 +251,18 @@ export default function DraggableBlinkingAlarm({
       userSelect: "none",
     };
 
-    const title = `BlinkingAlarm | ${isActive ? "ON" : "OFF"} | ${tagModel}:${tagDeviceId}/${tagField} | status=${
-      backendStatus || "—"
+    const title = `BlinkingAlarm | ${
+      isRuntime
+        ? deviceIsOffline
+          ? "OFFLINE"
+          : isActive
+          ? "ON"
+          : "OFF"
+        : isActive
+        ? "ON"
+        : "OFF"
+    } | ${tagModel}:${tagDeviceId}/${tagField} | status=${
+      isRuntime ? normalizedStatus || "—" : "edit"
     } | v=${String(rawValue)}`;
 
     const textLeft = {
@@ -233,7 +302,17 @@ export default function DraggableBlinkingAlarm({
       >
         <div style={{ display: "flex", flexDirection: "column", gap: 2 }}>
           <div style={{ fontSize: 11, opacity: 0.65, letterSpacing: 1 }}>{safeLabel}</div>
-          <div style={textLeft}>{isActive ? "ACTIVE" : "NORMAL"}</div>
+          <div style={textLeft}>
+            {isRuntime
+              ? deviceIsOffline
+                ? "OFFLINE"
+                : isActive
+                ? "ACTIVE"
+                : "NORMAL"
+              : isActive
+              ? "ACTIVE"
+              : "NORMAL"}
+          </div>
         </div>
 
         <div
@@ -295,8 +374,28 @@ export default function DraggableBlinkingAlarm({
               opacity: isActive ? 1 : 0.85,
             }}
           >
-            <span style={textLeft}>{isActive ? "ALARM" : "OFF"}</span>
-            <span style={textRight}>{isActive ? "ACTIVE" : "NORMAL"}</span>
+            <span style={textLeft}>
+              {isRuntime
+                ? deviceIsOffline
+                  ? "OFFLINE"
+                  : isActive
+                  ? "ALARM"
+                  : "OFF"
+                : isActive
+                ? "ALARM"
+                : "OFF"}
+            </span>
+            <span style={textRight}>
+              {isRuntime
+                ? deviceIsOffline
+                  ? "OFFLINE"
+                  : isActive
+                  ? "ACTIVE"
+                  : "NORMAL"
+                : isActive
+                ? "ACTIVE"
+                : "NORMAL"}
+            </span>
           </div>
         </div>
       );
@@ -330,7 +429,15 @@ export default function DraggableBlinkingAlarm({
           }}
         />
         <div style={{ ...textLeft, fontSize: Math.max(12, Math.round(h * 0.2)) }}>
-          {isActive ? "ALARM ACTIVE" : "NORMAL"}
+          {isRuntime
+            ? deviceIsOffline
+              ? "OFFLINE"
+              : isActive
+              ? "ALARM ACTIVE"
+              : "NORMAL"
+            : isActive
+            ? "ALARM ACTIVE"
+            : "NORMAL"}
         </div>
       </div>
     );
@@ -371,7 +478,15 @@ export default function DraggableBlinkingAlarm({
             transition: "all 120ms linear",
           }}
         >
-          {isActive ? "ALARM" : "OFF"}
+          {isRuntime
+            ? deviceIsOffline
+              ? "OFFLINE"
+              : isActive
+              ? "ALARM"
+              : "OFF"
+            : isActive
+            ? "ALARM"
+            : "OFF"}
         </div>
       </div>
     );
