@@ -46,21 +46,7 @@ function getAuthHeaders() {
 }
 
 function readStatusFromRow(row) {
-  const raw =
-    row?.status ??
-    row?.Status ??
-    row?.deviceStatus ??
-    row?.telemetryStatus ??
-    row?.onlineStatus ??
-    row?.connectionStatus ??
-    row?.state ??
-    row?.online ??
-    "";
-
-  if (typeof raw === "boolean") return raw ? "online" : "offline";
-  if (typeof raw === "number") return raw > 0 ? "online" : "offline";
-
-  return String(raw || "").trim().toLowerCase(); // "online" | "offline" | ""
+  return String(row?.status ?? row?.Status ?? "").trim().toLowerCase(); // "online" | "offline" | ""
 }
 
 // ✅ Default backend writer (so Launch works even if parent forgot to pass onWrite)
@@ -170,83 +156,6 @@ function resolveDashboardName({ dashboardName, widget }) {
   ).trim();
 }
 
-// ✅ NEW: resolve bound model robustly
-function resolveBindModel(widget) {
-  const p = widget?.properties || {};
-  return String(
-    p.bindModel ||
-      p?.tag?.model ||
-      widget?.bindModel ||
-      widget?.tag?.model ||
-      ""
-  )
-    .trim()
-    .toLowerCase();
-}
-
-const MODEL_BASES = ["zhc1921", "zhc1661", "tp4000"];
-
-function getModelBasesToTry(model) {
-  const m = String(model || "").trim().toLowerCase();
-  if (MODEL_BASES.includes(m)) {
-    return [m, ...MODEL_BASES.filter((x) => x !== m)];
-  }
-  return [...MODEL_BASES];
-}
-
-// ✅ NEW: fetch bound device row using model first, then fallback scan
-async function fetchBoundDeviceRow({
-  bindModel,
-  bindDeviceId,
-  tenantEmail = "",
-  tenantAccessLevel = "",
-}) {
-  const cleanDeviceId = String(bindDeviceId || "").trim();
-  if (!cleanDeviceId) return null;
-
-  const token = String(getToken() || "").trim();
-  const tenantEmailSafe = String(tenantEmail || "").trim().toLowerCase();
-  const tenantAccessSafe = String(tenantAccessLevel || "").trim();
-
-  // private flow uses token, public flow uses tenant headers
-  if (!token && !tenantEmailSafe) return null;
-
-  const headers = {
-    ...getAuthHeaders(),
-    ...(tenantEmailSafe ? { "X-Tenant-Email": tenantEmailSafe } : {}),
-    ...(tenantAccessSafe ? { "X-Tenant-Access": tenantAccessSafe } : {}),
-    "Cache-Control": "no-cache",
-    Pragma: "no-cache",
-  };
-
-  const bases = getModelBasesToTry(bindModel);
-
-  for (const base of bases) {
-    try {
-      const res = await fetch(`${API_URL}/${base}/my-devices`, {
-        method: "GET",
-        headers,
-      });
-      if (!res.ok) continue;
-
-      const data = await res.json().catch(() => []);
-      const list = Array.isArray(data) ? data : [];
-      const row =
-        list.find(
-          (r) => String(r.deviceId ?? r.device_id ?? "").trim() === cleanDeviceId
-        ) || null;
-
-      if (row) {
-        return { base, row };
-      }
-    } catch {
-      // keep trying other model endpoints
-    }
-  }
-
-  return null;
-}
-
 export default function ToggleSwitchControl({
   isOn = true,
   width = 180,
@@ -327,7 +236,6 @@ export default function ToggleSwitchControl({
   const bindField = String(p.bindField || p?.tag?.field || "")
     .trim()
     .toLowerCase();
-  const bindModel = resolveBindModel(widget);
 
   const hasBinding = !!bindDeviceId && /^do[1-4]$/.test(bindField);
 
@@ -431,22 +339,40 @@ export default function ToggleSwitchControl({
     if (!hasBinding) return;
 
     try {
-      const found = await fetchBoundDeviceRow({
-        bindModel,
-        bindDeviceId,
-        tenantEmail,
-        tenantAccessLevel,
+      const token = String(getToken() || "").trim();
+      const tenantEmailSafe = String(tenantEmail || "").trim().toLowerCase();
+      const tenantAccessSafe = String(tenantAccessLevel || "").trim();
+
+      // ✅ private flow uses token, public flow uses tenant headers
+      if (!token && !tenantEmailSafe) return;
+
+      const res = await fetch(`${API_URL}/zhc1921/my-devices`, {
+        method: "GET",
+        headers: {
+          ...getAuthHeaders(),
+          ...(tenantEmailSafe ? { "X-Tenant-Email": tenantEmailSafe } : {}),
+          ...(tenantAccessSafe ? { "X-Tenant-Access": tenantAccessSafe } : {}),
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
       });
+      if (!res.ok) return;
+
+      const data = await res.json();
+      const list = Array.isArray(data) ? data : [];
+      const row =
+        list.find(
+          (r) => String(r.deviceId ?? r.device_id ?? "").trim() === bindDeviceId
+        ) || null;
 
       // If device not returned, treat as offline
-      if (!found?.row) {
+      if (!row) {
         setDeviceStatus("offline");
         return;
       }
 
-      const row = found.row;
       const status = readStatusFromRow(row);
-      setDeviceStatus(status || "offline");
+      setDeviceStatus(status);
 
       // ✅ If offline, do not try to sync DO
       if (status === "offline") return;
@@ -464,18 +390,9 @@ export default function ToggleSwitchControl({
       // ✅ ALWAYS sync UI position (online)
       setUiIsOn(do01 === 0); // invert
     } catch {
-      // safest runtime behavior
-      setDeviceStatus("offline");
+      // ignore
     }
-  }, [
-    play,
-    hasBinding,
-    bindModel,
-    bindDeviceId,
-    bindField,
-    tenantEmail,
-    tenantAccessLevel,
-  ]);
+  }, [play, hasBinding, bindDeviceId, bindField, tenantEmail, tenantAccessLevel]);
 
   // Fetch once when play starts
   React.useEffect(() => {
