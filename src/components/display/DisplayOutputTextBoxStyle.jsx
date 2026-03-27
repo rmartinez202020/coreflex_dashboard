@@ -418,9 +418,12 @@ export default function DisplayOutputTextBoxStyle({
 
   const isOffline =
     hasBinding &&
-    row &&
-    backendStatus === "offline" &&
-    (liveValue === null || liveValue === undefined);
+    (!row ||
+      backendStatus === "offline" ||
+      backendStatus === "false" ||
+      backendStatus === "0" ||
+      backendStatus === "down" ||
+      backendStatus === "disconnected");
 
   // -------------------------
   // ✅ SETPOINT MODE (legacy)
@@ -472,6 +475,8 @@ export default function DisplayOutputTextBoxStyle({
   // -------------------------
   const displayText = hasBinding
     ? isOffline
+      ? "--"
+      : liveValue === null || liveValue === undefined
       ? "--"
       : formatByPattern(outValue, numberFormat)
     : displayedSetpoint;
@@ -619,6 +624,22 @@ export default function DisplayOutputTextBoxStyle({
           <SetButton isPlay={isPlay} onSet={handleSet} disabled={hasBinding} />
         </div>
       </div>
+
+      {hasBinding && isOffline ? (
+        <div
+          style={{
+            marginTop: 6,
+            fontSize: 14,
+            fontWeight: 700,
+            color: "#dc2626",
+            textAlign: "center",
+            lineHeight: 1,
+            whiteSpace: "nowrap",
+          }}
+        >
+          Offline
+        </div>
+      ) : null}
     </div>
   );
 }
