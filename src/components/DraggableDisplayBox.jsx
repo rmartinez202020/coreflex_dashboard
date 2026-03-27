@@ -20,7 +20,6 @@ function getStyleConfig(displayStyle, legacyTheme) {
   const legacy = legacyThemes[legacyTheme] || legacyThemes.gray;
 
   const byId = {
-    // ✅ Original look (classic)
     classic: {
       bg: legacy.bg,
       text: legacy.text,
@@ -36,7 +35,6 @@ function getStyleConfig(displayStyle, legacyTheme) {
       offlineBorder: "#cbd5e1",
     },
 
-    // ✅ Minimal
     minimal: {
       bg: "#ffffff",
       text: "#0f172a",
@@ -52,7 +50,6 @@ function getStyleConfig(displayStyle, legacyTheme) {
       offlineBorder: "#cbd5e1",
     },
 
-    // ✅ Dark digital
     darkDigital: {
       bg: "#0b1220",
       text: "#22c55e",
@@ -68,7 +65,6 @@ function getStyleConfig(displayStyle, legacyTheme) {
       offlineBorder: "#334155",
     },
 
-    // ✅ Glass rounded
     glassRounded: {
       bg: "rgba(255,255,255,0.65)",
       text: "#0f172a",
@@ -91,6 +87,56 @@ function getStyleConfig(displayStyle, legacyTheme) {
 
 function normalizeField(field) {
   return String(field || "").trim().toLowerCase();
+}
+
+function getBoundModel(tank) {
+  return String(
+    tank?.properties?.bindModel ??
+      tank?.bindModel ??
+      tank?.properties?.deviceModel ??
+      tank?.deviceModel ??
+      tank?.properties?.model ??
+      tank?.model ??
+      tank?.tag?.model ??
+      tank?.properties?.tag?.model ??
+      "zhc1921"
+  )
+    .trim()
+    .toLowerCase();
+}
+
+function getBoundDeviceId(tank) {
+  return String(
+    tank?.properties?.bindDeviceId ??
+      tank?.bindDeviceId ??
+      tank?.properties?.deviceId ??
+      tank?.deviceId ??
+      tank?.properties?.device_id ??
+      tank?.device_id ??
+      tank?.properties?.selectedDeviceId ??
+      tank?.selectedDeviceId ??
+      tank?.tag?.deviceId ??
+      tank?.properties?.tag?.deviceId ??
+      tank?.tag?.device_id ??
+      tank?.properties?.tag?.device_id ??
+      ""
+  ).trim();
+}
+
+function getBoundField(tank) {
+  return String(
+    tank?.properties?.bindField ??
+      tank?.bindField ??
+      tank?.properties?.field ??
+      tank?.field ??
+      tank?.properties?.selectedTag ??
+      tank?.selectedTag ??
+      tank?.tag?.field ??
+      tank?.properties?.tag?.field ??
+      "ai1"
+  )
+    .trim()
+    .toLowerCase();
 }
 
 function getTelemetryRow(telemetryMap, model, deviceId) {
@@ -122,6 +168,7 @@ function getTelemetryStatus(row) {
     row?.state ??
     row?.online ??
     row?.is_online ??
+    row?.connected ??
     "";
 
   const s = String(raw || "").trim().toLowerCase();
@@ -138,9 +185,22 @@ function getTelemetryStatus(row) {
     return "offline";
   }
 
-  if (s === "online" || s === "true" || s === "1" || s === "up") {
+  if (
+    s === "online" ||
+    s === "true" ||
+    s === "1" ||
+    s === "up" ||
+    s === "connected"
+  ) {
     return "online";
   }
+
+  if (row?.online === true) return "online";
+  if (row?.online === false) return "offline";
+  if (row?.is_online === true) return "online";
+  if (row?.is_online === false) return "offline";
+  if (row?.connected === true) return "online";
+  if (row?.connected === false) return "offline";
 
   return s || "offline";
 }
@@ -174,6 +234,10 @@ function getTelemetryValue(row, field) {
       `AI_${n}`,
       `ai-${n}`,
       `AI-${n}`,
+      `analog_${n}`,
+      `ANALOG_${n}`,
+      `analog-${n}`,
+      `ANALOG-${n}`,
     ];
     for (const key of extra) {
       if (row[key] !== undefined) return row[key];
@@ -218,6 +282,100 @@ function getTelemetryValue(row, field) {
     }
   }
 
+  const nestedContainers = [
+    row.data,
+    row.row,
+    row.device,
+    row.telemetry,
+    row.values,
+    row.payload,
+    row.latest,
+    row.readings,
+    row.tags,
+  ].filter(Boolean);
+
+  for (const obj of nestedContainers) {
+    for (const key of direct) {
+      if (obj?.[key] !== undefined) return obj[key];
+    }
+
+    if (/^ai\d+$/.test(f)) {
+      const n = f.replace("ai", "");
+      const extra = [
+        `a${n}`,
+        `A${n}`,
+        `analog${n}`,
+        `ANALOG${n}`,
+        `ai_${n}`,
+        `AI_${n}`,
+        `ai-${n}`,
+        `AI-${n}`,
+        `analog_${n}`,
+        `ANALOG_${n}`,
+        `analog-${n}`,
+        `ANALOG-${n}`,
+      ];
+      for (const key of extra) {
+        if (obj?.[key] !== undefined) return obj[key];
+      }
+    }
+
+    if (/^di\d+$/.test(f)) {
+      const n = f.replace("di", "");
+      const extra = [
+        `in${n}`,
+        `IN${n}`,
+        `in_${n}`,
+        `IN_${n}`,
+        `in-${n}`,
+        `IN-${n}`,
+      ];
+      for (const key of extra) {
+        if (obj?.[key] !== undefined) return obj[key];
+      }
+    }
+
+    if (/^do\d+$/.test(f)) {
+      const n = f.replace("do", "");
+      const extra = [
+        `out${n}`,
+        `OUT${n}`,
+        `out_${n}`,
+        `OUT_${n}`,
+        `out-${n}`,
+        `OUT-${n}`,
+      ];
+      for (const key of extra) {
+        if (obj?.[key] !== undefined) return obj[key];
+      }
+    }
+  }
+
+  const tagArrays = [row.tags, row.points, row.values, row.readings].filter(
+    Array.isArray
+  );
+
+  for (const arr of tagArrays) {
+    const hit = arr.find((item) => {
+      const name = String(
+        item?.name ?? item?.tag ?? item?.field ?? item?.key ?? item?.id ?? ""
+      )
+        .trim()
+        .toLowerCase();
+
+      return (
+        name === f ||
+        name === f.replace(/(\D+)(\d+)/, "$1_$2") ||
+        name === f.replace(/(\D+)(\d+)/, "$1-$2")
+      );
+    });
+
+    if (hit) {
+      const v = hit.value ?? hit.val ?? hit.reading ?? hit.data;
+      if (v !== undefined) return v;
+    }
+  }
+
   return null;
 }
 
@@ -228,7 +386,6 @@ function computeMathOutput(liveValue, formula) {
 
   const VALUE = liveValue;
 
-  // CONCAT support
   const upper = f.toUpperCase();
   if (upper.startsWith("CONCAT(") && f.endsWith(")")) {
     const inner = f.slice(7, -1);
@@ -268,7 +425,6 @@ function computeMathOutput(liveValue, formula) {
       .join("");
   }
 
-  // Numeric expression
   try {
     const expr = f.replace(/\bVALUE\b/gi, "VALUE");
     // eslint-disable-next-line no-new-func
@@ -286,42 +442,32 @@ export default function DraggableDisplayBox({
 }) {
   const props = tank?.properties || {};
 
-  // ✅ title at top
   const title = String(props.title ?? props.displayTitle ?? "").trim();
 
-  // format
   const numberFormat = props.numberFormat || "00000";
   const label = props.label || "";
   const theme = props.theme || "gray";
   const scale = tank?.scale || 1;
 
-  // style
   const displayStyle = props.displayStyle || "classic";
   const styleCfg = useMemo(
     () => getStyleConfig(displayStyle, theme),
     [displayStyle, theme]
   );
 
-  // binding + math
-  const bindModel = String(props.bindModel || "zhc1921")
-    .trim()
-    .toLowerCase();
-  const bindDeviceId = String(props.bindDeviceId || "").trim();
-  const bindField = String(props.bindField || "ai1").trim();
-  const formula = props.formula || "";
+  // ✅ stronger binding fallback support
+  const bindModel = getBoundModel(tank);
+  const bindDeviceId = getBoundDeviceId(tank);
+  const bindField = getBoundField(tank);
+  const formula = props.formula ?? tank?.formula ?? "";
   const hasBinding = !!bindDeviceId && !!bindField;
 
-  // ✅ ONLY USE telemetryMap now
   const row = useMemo(
     () => getTelemetryRow(telemetryMap, bindModel, bindDeviceId),
     [telemetryMap, bindModel, bindDeviceId]
   );
 
   const backendStatus = useMemo(() => getTelemetryStatus(row), [row]);
-
-  // ✅ if there is a binding and widget is in play/launch context, honor offline
-  // Also works in normal view because the user wants consistent status behavior.
-  const isOffline = hasBinding && backendStatus === "offline";
 
   const rawValue = useMemo(
     () => getTelemetryValue(row, bindField),
@@ -346,15 +492,48 @@ export default function DraggableDisplayBox({
     [safeLive, formula]
   );
 
+  const isOffline =
+    hasBinding &&
+    (!row ||
+      backendStatus === "offline" ||
+      backendStatus === "false" ||
+      backendStatus === "0" ||
+      backendStatus === "down" ||
+      backendStatus === "disconnected");
+
   const [intPart, decPart] = String(numberFormat).split(".");
   const totalInt = Math.max(1, (intPart || "0").length);
   const totalDec = decPart ? decPart.length : 0;
 
   const displayText = useMemo(() => {
-    if (isOffline) return "--";
+    if (hasBinding) {
+      if (isOffline) return "--";
+      if (safeLive === null || safeLive === undefined) return "--";
 
-    const v = hasBinding ? outputValue : props.value ?? tank?.value ?? 0;
+      const v = outputValue;
 
+      if (v === null || v === undefined || v === "") return "--";
+      if (typeof v === "string") return v;
+
+      const n = typeof v === "number" ? v : Number(v);
+      if (!Number.isFinite(n)) return String(v);
+
+      let formatted =
+        totalDec > 0 ? Number(n).toFixed(totalDec) : String(Math.round(n));
+
+      if (totalDec > 0) {
+        let [i, d] = formatted.split(".");
+        i = String(i).padStart(totalInt, "0");
+        d = String(d || "").padEnd(totalDec, "0");
+        formatted = `${i}.${d}`;
+      } else {
+        formatted = String(formatted).padStart(totalInt, "0");
+      }
+
+      return formatted;
+    }
+
+    const v = props.value ?? tank?.value ?? 0;
     if (v === null || v === undefined || v === "") return "--";
     if (typeof v === "string") return v;
 
@@ -375,8 +554,9 @@ export default function DraggableDisplayBox({
 
     return formatted;
   }, [
-    isOffline,
     hasBinding,
+    isOffline,
+    safeLive,
     outputValue,
     props.value,
     tank?.value,
@@ -384,7 +564,6 @@ export default function DraggableDisplayBox({
     totalInt,
   ]);
 
-  // ✅ style like your screenshot: NOT BOLD for title/label, tighter spacing
   const titleFontW = 500;
   const labelFontW = 500;
 
@@ -448,7 +627,9 @@ export default function DraggableDisplayBox({
           opacity: isOffline ? 0.92 : 1,
         }}
         title={
-          isOffline
+          !hasBinding
+            ? "No binding saved on this widget"
+            : isOffline
             ? "Offline"
             : typeof outputValue === "string"
             ? outputValue
@@ -456,13 +637,15 @@ export default function DraggableDisplayBox({
             ? `OUT=${String(outputValue)}  LIVE=${
                 Number.isFinite(safeLive) ? safeLive : "--"
               }`
-            : ""
+            : row
+            ? "No bound value found in telemetryMap row"
+            : "No telemetry row found in telemetryMap"
         }
       >
         {displayText}
       </div>
 
-      {isOffline && (
+      {hasBinding && isOffline ? (
         <div
           style={{
             marginTop: 6,
@@ -476,7 +659,7 @@ export default function DraggableDisplayBox({
         >
           Offline
         </div>
-      )}
+      ) : null}
     </div>
   );
 }
