@@ -118,6 +118,22 @@ function normalizeZhc1921Row(r) {
   };
 }
 
+/**
+ * ✅ MAC helpers
+ * keep lowercase as system standard
+ */
+function normalizeMac(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/-/g, ":")
+    .replace(/\s+/g, "");
+}
+
+function isValidMac(value) {
+  return /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/.test(normalizeMac(value));
+}
+
 export default function DeviceManagerZhc1921Section({
   ownerEmail,
   onBack, // parent provides the "Back" handler
@@ -128,6 +144,7 @@ export default function DeviceManagerZhc1921Section({
   setZhc1921Rows,
 }) {
   const [newDeviceId, setNewDeviceId] = React.useState("");
+  const [newDeviceMac, setNewDeviceMac] = React.useState("");
   const [err, setErr] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
@@ -179,19 +196,38 @@ export default function DeviceManagerZhc1921Section({
 
   async function addZhc1921Device() {
     const id = String(newDeviceId || "").trim();
+    const mac = normalizeMac(newDeviceMac);
+
     if (!id) return setErr("Please enter a DEVICE ID.");
     if (!/^\d+$/.test(id))
       return setErr("DEVICE ID must be numeric (digits only).");
 
+    if (!mac) return setErr("Please enter a MAC address.");
+    if (!isValidMac(mac))
+      return setErr("MAC address must be in format aa:bb:cc:dd:ee:ff.");
+
     setLoading(true);
     setErr("");
     try {
+      // ✅ KEEP EXISTING PROCESS EXACTLY AS-IS
       await apiFetch("/zhc1921/devices", {
         method: "POST",
         body: JSON.stringify({ device_id: id }),
       });
 
+      // ✅ ADD NEW STEP (do not modify old route)
+      await apiFetch("/device-registry", {
+        method: "POST",
+        body: JSON.stringify({
+          device_id: id,
+          device_model: "zhc1921",
+          device_mac: mac,
+          is_claimed: true,
+        }),
+      });
+
       setNewDeviceId("");
+      setNewDeviceMac("");
       await loadZhc1921({ silent: false });
     } catch (e) {
       setErr(e.message || "Failed to add device.");
@@ -287,11 +323,9 @@ export default function DeviceManagerZhc1921Section({
               <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[44px]">
                 DI-4
               </th>
-              {/* ✅ NEW */}
               <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[44px]">
                 DI-5
               </th>
-              {/* ✅ NEW */}
               <th className="text-center font-bold text-slate-900 px-1 py-1 border-b border-blue-300 w-[44px]">
                 DI-6
               </th>
@@ -348,11 +382,9 @@ export default function DeviceManagerZhc1921Section({
               <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
                 0/1
               </th>
-              {/* ✅ NEW */}
               <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
                 0/1
               </th>
-              {/* ✅ NEW */}
               <th className="px-1 py-1 text-center text-slate-700 border-b border-slate-200">
                 0/1
               </th>
@@ -460,11 +492,9 @@ export default function DeviceManagerZhc1921Section({
                     <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center">
                       {String(r?.in4 ?? "")}
                     </td>
-                    {/* ✅ NEW */}
                     <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center">
                       {String(r?.in5 ?? "")}
                     </td>
-                    {/* ✅ NEW */}
                     <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center">
                       {String(r?.in6 ?? "")}
                     </td>
@@ -527,6 +557,7 @@ export default function DeviceManagerZhc1921Section({
           <button
             onClick={() => {
               setNewDeviceId("");
+              setNewDeviceMac("");
               setErr("");
               onBack?.();
             }}
@@ -558,14 +589,24 @@ export default function DeviceManagerZhc1921Section({
       <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 w-full max-w-full">
         <div className="mb-4">
           <div className="text-sm font-semibold text-slate-900 mb-2">
-            Add Device ID (authorized backend device)
+            Add Device ID and MAC address
           </div>
 
-          <div className="flex flex-col md:flex-row gap-3">
+          <div className="flex flex-col gap-3">
             <input
               value={newDeviceId}
               onChange={(e) => setNewDeviceId(e.target.value)}
               placeholder="Enter DEVICE ID (example: 1921251024070670)"
+              className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300"
+              onKeyDown={(e) => {
+                if (e.key === "Enter" && !loading) addZhc1921Device();
+              }}
+            />
+
+            <input
+              value={newDeviceMac}
+              onChange={(e) => setNewDeviceMac(normalizeMac(e.target.value))}
+              placeholder="Enter MAC address (example: 00:ee:11:07:06:70)"
               className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300"
               onKeyDown={(e) => {
                 if (e.key === "Enter" && !loading) addZhc1921Device();
@@ -584,7 +625,8 @@ export default function DeviceManagerZhc1921Section({
           {err && <div className="mt-2 text-xs text-red-600">{err}</div>}
 
           <div className="mt-2 text-xs text-slate-500">
-            Owner only. This will create a new row in the backend table.
+            Owner only. This keeps the existing device add flow and also saves the
+            MAC address in the device registry.
           </div>
 
           {!!ownerEmail && (
