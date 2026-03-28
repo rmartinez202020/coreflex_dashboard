@@ -242,7 +242,7 @@ export default function DeviceManagerZhc1921Section({
     if (!id) return;
 
     const ok = window.confirm(
-      `Delete device ${id} from backend list?\n\nThis will remove the device row.`
+      `Delete device ${id} from backend list?\n\nThis will remove the device row and its device registry record.`
     );
     if (!ok) return;
 
@@ -250,9 +250,20 @@ export default function DeviceManagerZhc1921Section({
     setErr("");
 
     try {
+      // ✅ KEEP EXISTING DELETE
       await apiFetch(`/zhc1921/devices/${encodeURIComponent(id)}`, {
         method: "DELETE",
       });
+
+      // ✅ ADD registry delete
+      await apiFetch(
+        `/device-registry/by-device-id/${encodeURIComponent(
+          id
+        )}?device_model=zhc1921`,
+        {
+          method: "DELETE",
+        }
+      );
 
       await loadZhc1921({ silent: false });
     } catch (e) {
