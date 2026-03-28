@@ -413,6 +413,23 @@ export default function ToggleSwitchControl({
     fetchRemote();
   }, [play, hasBinding, secureReadReady, fetchRemote]);
 
+  // ✅ PC-190: startup secure retry burst (ADD THIS RIGHT BELOW)
+React.useEffect(() => {
+  if (!play) return;
+  if (!hasBinding) return;
+  if (!secureReadReady) return;
+
+  const tries = [800, 1800, 3200, 5000];
+
+  const timers = tries.map((ms) =>
+    setTimeout(() => {
+      fetchRemote();
+    }, ms)
+  );
+
+  return () => timers.forEach(clearTimeout);
+}, [play, hasBinding, secureReadReady, fetchRemote]);
+
   // ✅ If secure context becomes ready a little later in Launch,
   // fetch immediately again instead of waiting for next poll
   React.useEffect(() => {
