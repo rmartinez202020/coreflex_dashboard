@@ -169,13 +169,13 @@ export default function ToggleSwitchControl({
   onSaveProject = null,
   onWrite = null,
   lockMs = 12000, // used as manual cooldown too
-  pollMs = 12000, // ✅ Continuous sync interval (10s)
+  pollMs = 12000, // ✅ Continuous sync interval
   statusVerifyMs = 10000, // kept for compatibility (no longer used for polling)
 
   // ✅ match backend hold time for occupied state (your backend = 10s)
   actuationHoldMs = 10000,
 
-  // ✅ NEW: tenant/public launch context
+  // ✅ tenant/public launch context
   tenantEmail = "",
   tenantAccessLevel = "",
 }) {
@@ -220,8 +220,7 @@ export default function ToggleSwitchControl({
         resolvedDashboardNameForWidget || base?.dashboardName || "",
       properties: {
         ...props,
-        dashboardId:
-          resolvedDashboardIdForWidget || props?.dashboardId || "",
+        dashboardId: resolvedDashboardIdForWidget || props?.dashboardId || "",
         dashboardName:
           resolvedDashboardNameForWidget || props?.dashboardName || "",
       },
@@ -241,6 +240,12 @@ export default function ToggleSwitchControl({
 
   // ✅ NEW: Optional Title (from modal)
   const title = String(p.title || "").trim();
+
+  // ✅ Secure read readiness
+  const token = String(getToken() || "").trim();
+  const tenantEmailSafe = String(tenantEmail || "").trim().toLowerCase();
+  const tenantAccessSafe = String(tenantAccessLevel || "").trim();
+  const secureReadReady = !!token || !!tenantEmailSafe;
 
   // =========================
   // ✅ Mapping:
@@ -332,20 +337,14 @@ export default function ToggleSwitchControl({
   const isManualCooldown = play && nowTick < cooldownUntil;
 
   // =========================
-  // ✅ Fetch DO + status
+  // ✅ Fetch DO + status (secure path)
   // =========================
   const fetchRemote = React.useCallback(async () => {
     if (!play) return;
     if (!hasBinding) return;
+    if (!secureReadReady) return;
 
     try {
-      const token = String(getToken() || "").trim();
-      const tenantEmailSafe = String(tenantEmail || "").trim().toLowerCase();
-      const tenantAccessSafe = String(tenantAccessLevel || "").trim();
-
-      // ✅ private flow uses token, public flow uses tenant headers
-      if (!token && !tenantEmailSafe) return;
-
       const res = await fetch(`${API_URL}/zhc1921/my-devices`, {
         method: "GET",
         headers: {
@@ -356,7 +355,10 @@ export default function ToggleSwitchControl({
           Pragma: "no-cache",
         },
       });
-      if (!res.ok) return;
+
+      if (!res.ok) {
+        return;
+      }
 
       const data = await res.json();
       const list = Array.isArray(data) ? data : [];
@@ -365,7 +367,7 @@ export default function ToggleSwitchControl({
           (r) => String(r.deviceId ?? r.device_id ?? "").trim() === bindDeviceId
         ) || null;
 
-      // If device not returned, treat as offline
+      // ✅ If device not returned, treat as offline
       if (!row) {
         setDeviceStatus("offline");
         return;
@@ -381,7 +383,7 @@ export default function ToggleSwitchControl({
       const do01 = to01(raw);
       if (do01 === null) return;
 
-      // ✅ Confirm pending write by telemetry value match
+      // ✅ Confirm pending write by backend read value match
       if (pendingWriteRef.current !== null && do01 === pendingWriteRef.current) {
         pendingWriteRef.current = null;
         showBanner("success", "Successful", 4000);
@@ -392,21 +394,42 @@ export default function ToggleSwitchControl({
     } catch {
       // ignore
     }
-  }, [play, hasBinding, bindDeviceId, bindField, tenantEmail, tenantAccessLevel]);
+  }, [
+    play,
+    hasBinding,
+    secureReadReady,
+    tenantEmailSafe,
+    tenantAccessSafe,
+    bindDeviceId,
+    bindField,
+  ]);
 
-  // Fetch once when play starts
+  // ✅ Fetch once when play starts AND secure context is ready
   React.useEffect(() => {
     if (!play) return;
     if (!hasBinding) return;
+    if (!secureReadReady) return;
+
     fetchRemote();
-  }, [play, hasBinding, fetchRemote]);
+  }, [play, hasBinding, secureReadReady, fetchRemote]);
 
-  // ✅ Continuous sync poll (pollMs)
+  // ✅ If secure context becomes ready a little later in Launch,
+  // fetch immediately again instead of waiting for next poll
   React.useEffect(() => {
     if (!play) return;
     if (!hasBinding) return;
+    if (!secureReadReady) return;
 
-    const ms = Math.max(500, Number(pollMs) || 2000);
+    fetchRemote();
+  }, [secureReadReady, play, hasBinding, fetchRemote]);
+
+  // ✅ Continuous secure sync poll
+  React.useEffect(() => {
+    if (!play) return;
+    if (!hasBinding) return;
+    if (!secureReadReady) return;
+
+    const ms = Math.max(500, Number(pollMs) || 12000);
 
     const t = setInterval(() => {
       if (document.hidden) return;
@@ -414,14 +437,19 @@ export default function ToggleSwitchControl({
     }, ms);
 
     return () => clearInterval(t);
-  }, [play, hasBinding, fetchRemote, pollMs]);
+  }, [play, hasBinding, secureReadReady, fetchRemote, pollMs]);
 
   // =========================
   // ✅ Manual toggle in PLAY:
   // Blocked when offline/startup/cooldown
   // =========================
   const canInteractInPlay =
-    play && hasBinding && !isOffline && !isStartupLocked && !isManualCooldown;
+    play &&
+    hasBinding &&
+    secureReadReady &&
+    !isOffline &&
+    !isStartupLocked &&
+    !isManualCooldown;
 
   const handleToggle = async (e) => {
     e?.preventDefault?.();
@@ -443,7 +471,7 @@ export default function ToggleSwitchControl({
     // UI OFF => DO 1
     const nextDo01 = nextUi ? 0 : 1;
 
-    // mark pending until telemetry confirms (or until we clear on error)
+    // mark pending until backend confirms
     pendingWriteRef.current = nextDo01;
 
     try {
@@ -513,7 +541,7 @@ export default function ToggleSwitchControl({
       }
 
       // ✅ NO PENDING: either show success (if confirmed by backend) or show nothing.
-      // Telemetry poll will confirm and show success when DO matches expected.
+      // Secure poll will confirm and show success when DO matches expected.
       if (nodeRedOk) {
         showBanner("success", "Successful", 4000);
       } else {
@@ -569,6 +597,8 @@ export default function ToggleSwitchControl({
 
   const hoverCursor = canEdit
     ? "move"
+    : !secureReadReady && play && hasBinding
+    ? "not-allowed"
     : isOffline
     ? "not-allowed"
     : canInteractInPlay
@@ -580,10 +610,12 @@ export default function ToggleSwitchControl({
   const allowPointerEvents = (visualOnly ? false : true) || (play && hasBinding);
 
   const showOverlay =
-    play && hasBinding && (isOffline || isStartupLocked || isManualCooldown);
+    play &&
+    hasBinding &&
+    (!secureReadReady || isOffline || isStartupLocked || isManualCooldown);
 
   // ✅ ONLY show status banners in PLAY / LAUNCH, never in EDIT
-  const showOfflineText = play && isOffline;
+  const showOfflineText = play && secureReadReady && isOffline;
   const showOccupiedText = play && !isOffline && banner.kind === "occupied";
   const showSuccessText = play && !isOffline && banner.kind === "success";
   const showErrorText = play && !isOffline && banner.kind === "error";
@@ -618,6 +650,8 @@ export default function ToggleSwitchControl({
           title={
             !hasBinding
               ? "Bind this toggle to a DO"
+              : !secureReadReady && play
+              ? "Waiting for secure launch context"
               : isOffline
               ? "Device Offline"
               : uiIsOn
