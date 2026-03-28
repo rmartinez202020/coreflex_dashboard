@@ -8,10 +8,12 @@ import { getToken } from "../../utils/authToken";
  * 1) Palette mode (Sidebar)
  * 2) Canvas mode (Dashboard)
  *
- * ✅ PC-189 OFFLINE FIX:
+ * ✅ PC-189 / PC-190:
  * - Edit mode: NEVER shows Offline
- * - Launch / public link / play: shows Offline when device is offline
- * - If widget is bound and telemetry row is missing in runtime, it treats that as Offline
+ * - Runtime: supports BOTH private token auth and public tenant headers
+ * - Prefers telemetryMap when available
+ * - Falls back to secure backend fetch when needed
+ * - If widget is bound and runtime has no row, it treats that as Offline
  * - Keeps OFF/ON behavior only when device is online
  */
 
@@ -86,6 +88,7 @@ function normalizeDeviceStatus(row) {
     row?.connectionStatus ??
     row?.state ??
     row?.online ??
+    row?.is_online ??
     "";
 
   if (typeof raw === "boolean") return raw ? "online" : "offline";
@@ -119,12 +122,70 @@ function normalizeDeviceStatus(row) {
   return "offline";
 }
 
+function getTelemetryRow(telemetryMap, model, deviceId) {
+  if (!deviceId) return null;
+
+  const id = String(deviceId || "").trim();
+  const m = String(model || "").trim();
+  if (!id) return null;
+
+  if (m && telemetryMap?.[m]?.[id]) return telemetryMap[m][id];
+  if (telemetryMap?.[id]) return telemetryMap[id];
+
+  for (const mk of Object.keys(telemetryMap || {})) {
+    if (telemetryMap?.[mk]?.[id]) return telemetryMap[mk][id];
+  }
+
+  return null;
+}
+
+function getTenantHeaders({
+  tenantEmail = "",
+  tenantAccessLevel = "",
+}) {
+  const emailFromProp = String(tenantEmail || "").trim().toLowerCase();
+  const accessFromProp = String(tenantAccessLevel || "").trim();
+
+  // ✅ Fallbacks for public launch pages if parent did not pass props
+  const emailFromWindow = String(
+    window?.__COREFLEX_TENANT_EMAIL__ ||
+      window?.tenantEmail ||
+      sessionStorage.getItem("tenantEmail") ||
+      localStorage.getItem("tenantEmail") ||
+      ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const accessFromWindow = String(
+    window?.__COREFLEX_TENANT_ACCESS__ ||
+      window?.tenantAccessLevel ||
+      sessionStorage.getItem("tenantAccessLevel") ||
+      localStorage.getItem("tenantAccessLevel") ||
+      ""
+  ).trim();
+
+  const finalEmail = emailFromProp || emailFromWindow;
+  const finalAccess = accessFromProp || accessFromWindow;
+
+  return {
+    tenantEmailSafe: finalEmail,
+    tenantAccessSafe: finalAccess,
+  };
+}
+
 export default function DraggableStatusTextBox({
   // Canvas mode
   tank,
 
   // ✅ mode from dashboard (edit/play/launch/launched)
   dashboardMode = "edit",
+
+  // ✅ optional runtime data passed by parent
+  telemetryMap = {},
+  sensorsData = null,
+  tenantEmail = "",
+  tenantAccessLevel = "",
 
   // Palette mode
   label = "Status Text Box",
@@ -170,7 +231,7 @@ export default function DraggableStatusTextBox({
       String(tank.properties?.tag?.model || "zhc1921").trim() || "zhc1921";
     const tagModel = MODEL_META[tagModelRaw] ? tagModelRaw : "zhc1921";
     const deviceId = String(tank.properties?.tag?.deviceId || "").trim();
-    const field = String(tank.properties?.tag?.field || "").trim();
+    const field = String(tank.properties?.tag?.field || "").trim().toLowerCase();
     const hasBinding = !!deviceId && !!field;
 
     // Styles from settings modal
@@ -189,12 +250,22 @@ export default function DraggableStatusTextBox({
     // IMPORTANT:
     // - runtime: poll every 3s
     // - edit: do NOT fetch, so Offline never appears there
-    const [telemetryRow, setTelemetryRow] = React.useState(null);
+    const [fetchedTelemetryRow, setFetchedTelemetryRow] = React.useState(null);
     const telemetryRef = React.useRef({ loading: false });
+
+    // ✅ Prefer dashboard telemetry when available
+    const runtimeTelemetryRow = React.useMemo(() => {
+      if (!hasBinding || !isRuntime) return null;
+      return (
+        getTelemetryRow(telemetryMap, tagModel, deviceId) ||
+        getTelemetryRow(sensorsData, tagModel, deviceId) ||
+        null
+      );
+    }, [telemetryMap, sensorsData, tagModel, deviceId, hasBinding, isRuntime]);
 
     const fetchTelemetryRow = React.useCallback(async () => {
       if (!deviceId) {
-        setTelemetryRow(null);
+        setFetchedTelemetryRow(null);
         return;
       }
 
@@ -204,17 +275,33 @@ export default function DraggableStatusTextBox({
       telemetryRef.current.loading = true;
       try {
         const token = String(getToken() || "").trim();
-        if (!token) {
-          setTelemetryRow(null);
+        const { tenantEmailSafe, tenantAccessSafe } = getTenantHeaders({
+          tenantEmail,
+          tenantAccessLevel,
+        });
+
+        // ✅ Support BOTH private token auth and public tenant headers
+        if (!token && !tenantEmailSafe) {
+          setFetchedTelemetryRow(null);
           return;
         }
 
         const res = await fetch(`${API_URL}/${base}/my-devices`, {
-          headers: getAuthHeaders(),
+          headers: {
+            ...(token ? { Authorization: `Bearer ${token}` } : {}),
+            ...(tenantEmailSafe
+              ? { "X-Tenant-Email": tenantEmailSafe }
+              : {}),
+            ...(tenantAccessSafe
+              ? { "X-Tenant-Access": tenantAccessSafe }
+              : {}),
+            "Cache-Control": "no-cache",
+            Pragma: "no-cache",
+          },
         });
 
         if (!res.ok) {
-          setTelemetryRow(null);
+          setFetchedTelemetryRow(null);
           return;
         }
 
@@ -225,27 +312,28 @@ export default function DraggableStatusTextBox({
             (r) => String(r.deviceId ?? r.device_id ?? "").trim() === deviceId
           ) || null;
 
-        setTelemetryRow(row);
+        setFetchedTelemetryRow(row);
       } catch {
-        setTelemetryRow(null);
+        setFetchedTelemetryRow(null);
       } finally {
         telemetryRef.current.loading = false;
       }
-    }, [deviceId, tagModel]);
+    }, [deviceId, tagModel, tenantEmail, tenantAccessLevel]);
 
     React.useEffect(() => {
       if (!hasBinding) {
-        setTelemetryRow(null);
+        setFetchedTelemetryRow(null);
         return;
       }
 
       // ✅ EDIT MODE: never show Offline
       if (!isRuntime) {
-        setTelemetryRow(null);
+        setFetchedTelemetryRow(null);
         return;
       }
 
-      // ✅ PLAY / LAUNCH / PUBLIC LINK
+      // ✅ If parent telemetry already has the row, no need to force Offline.
+      // Still keep secure polling as fallback / consistency check.
       fetchTelemetryRow();
 
       const t = setInterval(() => {
@@ -256,20 +344,22 @@ export default function DraggableStatusTextBox({
       return () => clearInterval(t);
     }, [fetchTelemetryRow, isRuntime, hasBinding]);
 
+    const effectiveTelemetryRow =
+      runtimeTelemetryRow || fetchedTelemetryRow || null;
+
     const normalizedStatus = React.useMemo(() => {
       return hasBinding && isRuntime
-        ? normalizeDeviceStatus(telemetryRow)
+        ? normalizeDeviceStatus(effectiveTelemetryRow)
         : "unbound";
-    }, [telemetryRow, hasBinding, isRuntime]);
+    }, [effectiveTelemetryRow, hasBinding, isRuntime]);
 
-    const deviceIsOnline = hasBinding && isRuntime && normalizedStatus === "online";
     const deviceIsOffline =
       hasBinding && isRuntime && normalizedStatus === "offline";
 
     const backendTagValue = React.useMemo(() => {
-      if (!telemetryRow || !field) return undefined;
-      return readTagFromRow(telemetryRow, field);
-    }, [telemetryRow, field]);
+      if (!effectiveTelemetryRow || !field) return undefined;
+      return readTagFromRow(effectiveTelemetryRow, field);
+    }, [effectiveTelemetryRow, field]);
 
     const tag01 = React.useMemo(() => to01(backendTagValue), [backendTagValue]);
 
