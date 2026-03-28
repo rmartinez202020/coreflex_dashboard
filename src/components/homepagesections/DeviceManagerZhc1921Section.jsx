@@ -111,10 +111,11 @@ function normalizeZhc1921Row(r) {
     do3: pick("do3", "do_3") ?? 0,
     do4: pick("do4", "do_4") ?? 0,
 
-    ai1: pick("ai1", "ai_1") ?? "",
-    ai2: pick("ai2", "ai_2") ?? "",
-    ai3: pick("ai3", "ai_3") ?? "",
-    ai4: pick("ai4", "ai_4") ?? "",
+    // ✅ show 0 even when backend sends nothing yet
+    ai1: pick("ai1", "ai_1") ?? 0,
+    ai2: pick("ai2", "ai_2") ?? 0,
+    ai3: pick("ai3", "ai_3") ?? 0,
+    ai4: pick("ai4", "ai_4") ?? 0,
   };
 }
 
