@@ -1,5 +1,5 @@
 // src/components/DashboardAdminPage.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 
@@ -24,6 +24,11 @@ export default function DashboardAdminPage({
   // ✅ Delete modal state
   const [deleteTarget, setDeleteTarget] = useState(null); // dashboard row
   const [isDeleting, setIsDeleting] = useState(false);
+
+  // ✅ Center loading overlay
+  const [showLoadingOverlay, setShowLoadingOverlay] = useState(false);
+  const loadingCounterRef = useRef(0);
+  const MIN_LOADING_MS = 3000;
 
   // Used only to trigger initial load when token changes (login/logout)
   const token = useMemo(() => getToken(), []);
@@ -97,6 +102,36 @@ export default function DashboardAdminPage({
     window.open(url, "_blank", "noopener,noreferrer");
   };
 
+  const beginLoadingOverlay = () => {
+    loadingCounterRef.current += 1;
+    setShowLoadingOverlay(true);
+  };
+
+  const endLoadingOverlay = () => {
+    loadingCounterRef.current = Math.max(0, loadingCounterRef.current - 1);
+    if (loadingCounterRef.current === 0) {
+      setShowLoadingOverlay(false);
+    }
+  };
+
+  const runWithLoadingOverlay = async (task, minMs = MIN_LOADING_MS) => {
+    beginLoadingOverlay();
+    const startedAt = Date.now();
+
+    try {
+      return await task();
+    } finally {
+      const elapsed = Date.now() - startedAt;
+      const remaining = Math.max(0, minMs - elapsed);
+
+      if (remaining > 0) {
+        await new Promise((resolve) => setTimeout(resolve, remaining));
+      }
+
+      endLoadingOverlay();
+    }
+  };
+
   // -----------------------------
   // ✅ Fetch Customers (unique list)
   // -----------------------------
@@ -151,90 +186,114 @@ export default function DashboardAdminPage({
   // ✅ Initial Load
   // -----------------------------
   useEffect(() => {
+    let cancelled = false;
+
     (async () => {
-      try {
-        setLoading(true);
-        setMsg("");
-        await fetchCustomers();
-        await fetchDashboards(""); // show all dashboards immediately
-      } catch (e) {
-        console.error(e);
-        setMsg(String(e?.message || e));
-      } finally {
-        setLoading(false);
-      }
+      await runWithLoadingOverlay(async () => {
+        try {
+          if (cancelled) return;
+          setLoading(true);
+          setMsg("");
+          await fetchCustomers();
+          if (cancelled) return;
+          await fetchDashboards(""); // show all dashboards immediately
+        } catch (e) {
+          console.error(e);
+          if (!cancelled) setMsg(String(e?.message || e));
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+      });
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [token]);
 
   // -----------------------------
   // ✅ When customer changes, refetch
   // -----------------------------
   useEffect(() => {
+    let cancelled = false;
+
     (async () => {
-      try {
-        setMsg("");
-        await fetchDashboards(selectedCustomer || "");
-      } catch (e) {
-        console.error(e);
-        setMsg(String(e?.message || e));
-      }
+      await runWithLoadingOverlay(async () => {
+        try {
+          if (cancelled) return;
+          setLoading(true);
+          setMsg("");
+          await fetchDashboards(selectedCustomer || "");
+        } catch (e) {
+          console.error(e);
+          if (!cancelled) setMsg(String(e?.message || e));
+        } finally {
+          if (!cancelled) setLoading(false);
+        }
+      });
     })();
+
+    return () => {
+      cancelled = true;
+    };
   }, [selectedCustomer]);
 
   // -----------------------------
   // ✅ Create Dashboard
   // -----------------------------
   const handleCreate = async () => {
-    try {
-      setMsg("");
+    await runWithLoadingOverlay(async () => {
+      try {
+        setMsg("");
 
-      const t = getToken();
-      if (!t) {
-        setMsg("Not logged in.");
-        return;
+        const t = getToken();
+        if (!t) {
+          setMsg("Not logged in.");
+          return;
+        }
+
+        const customer = (selectedCustomer || "").trim();
+        const name = (newDashboardName || "").trim();
+
+        if (!customer) {
+          setMsg("Pick a customer first.");
+          return;
+        }
+        if (!name) {
+          setMsg("Enter a dashboard name.");
+          return;
+        }
+
+        setLoading(true);
+
+        const res = await fetch(`${API_URL}/customers-dashboards`, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            Authorization: `Bearer ${t}`,
+          },
+          body: JSON.stringify({
+            customer_name: customer,
+            dashboard_name: name,
+          }),
+        });
+
+        if (!res.ok) {
+          const text = await res.text();
+          throw new Error(text || "Create failed");
+        }
+
+        setNewDashboardName("");
+
+        await fetchDashboards(customer);
+        setMsg("✅ Dashboard created");
+      } catch (e) {
+        console.error(e);
+        setMsg(`❌ ${String(e?.message || e)}`);
+      } finally {
+        setLoading(false);
       }
-
-      const customer = (selectedCustomer || "").trim();
-      const name = (newDashboardName || "").trim();
-
-      if (!customer) {
-        setMsg("Pick a customer first.");
-        return;
-      }
-      if (!name) {
-        setMsg("Enter a dashboard name.");
-        return;
-      }
-
-      setLoading(true);
-
-      const res = await fetch(`${API_URL}/customers-dashboards`, {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          Authorization: `Bearer ${t}`,
-        },
-        body: JSON.stringify({
-          customer_name: customer,
-          dashboard_name: name,
-        }),
-      });
-
-      if (!res.ok) {
-        const text = await res.text();
-        throw new Error(text || "Create failed");
-      }
-
-      setNewDashboardName("");
-
-      await fetchDashboards(customer);
-      setMsg("✅ Dashboard created");
-    } catch (e) {
-      console.error(e);
-      setMsg(`❌ ${String(e?.message || e)}`);
-    } finally {
-      setLoading(false);
-    }
+    });
   };
 
   // -----------------------------
@@ -249,108 +308,112 @@ export default function DashboardAdminPage({
   const confirmDelete = async () => {
     if (!deleteTarget?.id) return;
 
-    try {
-      setIsDeleting(true);
-      setMsg("");
+    await runWithLoadingOverlay(async () => {
+      try {
+        setIsDeleting(true);
+        setLoading(true);
+        setMsg("");
 
-      const t = getToken();
-      if (!t) {
-        setMsg("Not logged in.");
-        return;
-      }
-
-      const dashId = String(deleteTarget.id || "").trim();
-      if (!dashId) {
-        throw new Error("Missing dashboard id");
-      }
-
-      // 1) Load full dashboard so we can inspect saved layout
-      const resDash = await fetch(
-        `${API_URL}/customers-dashboards/${encodeURIComponent(dashId)}`,
-        {
-          headers: { Authorization: `Bearer ${t}` },
+        const t = getToken();
+        if (!t) {
+          setMsg("Not logged in.");
+          return;
         }
-      );
 
-      if (!resDash.ok) {
-        const text = await resDash.text().catch(() => "");
-        throw new Error(text || "Failed to load dashboard before delete");
-      }
+        const dashId = String(deleteTarget.id || "").trim();
+        if (!dashId) {
+          throw new Error("Missing dashboard id");
+        }
 
-      const dashData = await resDash.json().catch(() => ({}));
+        // 1) Load full dashboard so we can inspect saved layout
+        const resDash = await fetch(
+          `${API_URL}/customers-dashboards/${encodeURIComponent(dashId)}`,
+          {
+            headers: { Authorization: `Bearer ${t}` },
+          }
+        );
 
-      // layout.canvas.objects is the saved widget list
-      const objects = Array.isArray(dashData?.layout?.canvas?.objects)
-        ? dashData.layout.canvas.objects
-        : [];
+        if (!resDash.ok) {
+          const text = await resDash.text().catch(() => "");
+          throw new Error(text || "Failed to load dashboard before delete");
+        }
 
-      const CONTROL_SHAPES = new Set([
-        "toggleSwitch",
-        "toggleControl",
-        "pushButtonNO",
-        "pushButtonNC",
-      ]);
+        const dashData = await resDash.json().catch(() => ({}));
 
-      const controlWidgetIds = objects
-        .filter((obj) => CONTROL_SHAPES.has(String(obj?.shape || "").trim()))
-        .map((obj) => String(obj?.id || "").trim())
-        .filter(Boolean);
+        // layout.canvas.objects is the saved widget list
+        const objects = Array.isArray(dashData?.layout?.canvas?.objects)
+          ? dashData.layout.canvas.objects
+          : [];
 
-      // 2) Delete each control binding tied to this dashboard
-      for (const wid of controlWidgetIds) {
-        try {
-          const resBinding = await fetch(
-            `${API_URL}/control-bindings/?widgetId=${encodeURIComponent(
-              wid
-            )}&dashboardId=${encodeURIComponent(dashId)}`,
-            {
-              method: "DELETE",
-              headers: { Authorization: `Bearer ${t}` },
+        const CONTROL_SHAPES = new Set([
+          "toggleSwitch",
+          "toggleControl",
+          "pushButtonNO",
+          "pushButtonNC",
+        ]);
+
+        const controlWidgetIds = objects
+          .filter((obj) => CONTROL_SHAPES.has(String(obj?.shape || "").trim()))
+          .map((obj) => String(obj?.id || "").trim())
+          .filter(Boolean);
+
+        // 2) Delete each control binding tied to this dashboard
+        for (const wid of controlWidgetIds) {
+          try {
+            const resBinding = await fetch(
+              `${API_URL}/control-bindings/?widgetId=${encodeURIComponent(
+                wid
+              )}&dashboardId=${encodeURIComponent(dashId)}`,
+              {
+                method: "DELETE",
+                headers: { Authorization: `Bearer ${t}` },
+              }
+            );
+
+            if (!resBinding.ok) {
+              const text = await resBinding.text().catch(() => "");
+              console.error(
+                "❌ Failed to delete control binding during dashboard delete:",
+                { dashboardId: dashId, widgetId: wid, detail: text }
+              );
             }
-          );
-
-          if (!resBinding.ok) {
-            const text = await resBinding.text().catch(() => "");
+          } catch (err) {
             console.error(
               "❌ Failed to delete control binding during dashboard delete:",
-              { dashboardId: dashId, widgetId: wid, detail: text }
+              wid,
+              err
             );
           }
-        } catch (err) {
-          console.error(
-            "❌ Failed to delete control binding during dashboard delete:",
-            wid,
-            err
-          );
         }
-      }
 
-      // 3) Now delete the dashboard row itself
-      const res = await fetch(
-        `${API_URL}/customers-dashboards/${encodeURIComponent(dashId)}`,
-        {
-          method: "DELETE",
-          headers: { Authorization: `Bearer ${t}` },
+        // 3) Now delete the dashboard row itself
+        const res = await fetch(
+          `${API_URL}/customers-dashboards/${encodeURIComponent(dashId)}`,
+          {
+            method: "DELETE",
+            headers: { Authorization: `Bearer ${t}` },
+          }
+        );
+
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(text || "Delete failed");
         }
-      );
 
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || "Delete failed");
+        // close modal
+        setDeleteTarget(null);
+
+        // refresh list (keep current filter)
+        await fetchDashboards(selectedCustomer || "");
+        setMsg(`✅ Deleted: ${deleteTarget.dashboard_name}`);
+      } catch (e) {
+        console.error(e);
+        setMsg(`❌ ${String(e?.message || e)}`);
+      } finally {
+        setIsDeleting(false);
+        setLoading(false);
       }
-
-      // close modal
-      setDeleteTarget(null);
-
-      // refresh list (keep current filter)
-      await fetchDashboards(selectedCustomer || "");
-      setMsg(`✅ Deleted: ${deleteTarget.dashboard_name}`);
-    } catch (e) {
-      console.error(e);
-      setMsg(`❌ ${String(e?.message || e)}`);
-    } finally {
-      setIsDeleting(false);
-    }
+    });
   };
 
   // -----------------------------
@@ -487,6 +550,44 @@ export default function DashboardAdminPage({
 
   return (
     <div className="w-full h-full border rounded-lg bg-white p-6 relative">
+      {/* ✅ Center loading overlay */}
+      {showLoadingOverlay ? (
+        <div className="absolute inset-0 z-[9999] flex items-center justify-center bg-white/70 backdrop-blur-[1px]">
+          <div className="w-[92%] max-w-[520px] rounded-2xl border border-gray-200 bg-white shadow-2xl px-6 py-5">
+            <div className="text-center text-sm font-semibold text-gray-800 mb-3">
+              Loading dashboards...
+            </div>
+
+            <div className="h-4 w-full overflow-hidden rounded-full bg-gray-200 border border-gray-300">
+              <div
+                className="h-full rounded-full"
+                style={{
+                  width: "42%",
+                  background:
+                    "linear-gradient(90deg, #2563eb 0%, #60a5fa 50%, #2563eb 100%)",
+                  animation: "dashboardAdminLoadingBar 1.1s ease-in-out infinite",
+                }}
+              />
+            </div>
+
+            <div className="mt-3 text-center text-xs text-gray-500">
+              Please wait while all customer dashboards are loaded.
+            </div>
+          </div>
+
+          <style>{`
+            @keyframes dashboardAdminLoadingBar {
+              0% {
+                transform: translateX(-120%);
+              }
+              100% {
+                transform: translateX(260%);
+              }
+            }
+          `}</style>
+        </div>
+      ) : null}
+
       {/* ✅ HEADER STYLE */}
       <div className="mb-6 rounded-lg bg-[#374151] text-white px-5 py-4 flex items-start gap-4">
         <button
@@ -596,12 +697,18 @@ export default function DashboardAdminPage({
               : "bg-white hover:bg-gray-100"
           }`}
           onClick={() => {
-            fetchDashboards(selectedCustomer || "")
-              .then(() => setMsg(""))
-              .catch((err) => {
+            runWithLoadingOverlay(async () => {
+              try {
+                setLoading(true);
+                await fetchDashboards(selectedCustomer || "");
+                setMsg("");
+              } catch (err) {
                 console.error(err);
                 setMsg(String(err?.message || err));
-              });
+              } finally {
+                setLoading(false);
+              }
+            });
           }}
           title="Refresh dashboards"
         >
