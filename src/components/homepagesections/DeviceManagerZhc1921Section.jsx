@@ -72,6 +72,16 @@ function formatDateTime(value) {
 }
 
 /**
+ * ✅ Analog fallback helper
+ * Converts null / undefined / "" / "   " to 0
+ */
+function normalizeAnalogValue(value) {
+  if (value === null || value === undefined) return 0;
+  if (typeof value === "string" && !value.trim()) return 0;
+  return value;
+}
+
+/**
  * ✅ Normalize backend row keys -> UI keys (ZHC1921)
  * NOTE: DO fields can arrive as do1..do4 OR do_1..do_4 (backend variations)
  */
@@ -111,11 +121,11 @@ function normalizeZhc1921Row(r) {
     do3: pick("do3", "do_3") ?? 0,
     do4: pick("do4", "do_4") ?? 0,
 
-    // ✅ show 0 even when backend sends nothing yet
-    ai1: pick("ai1", "ai_1") ?? 0,
-    ai2: pick("ai2", "ai_2") ?? 0,
-    ai3: pick("ai3", "ai_3") ?? 0,
-    ai4: pick("ai4", "ai_4") ?? 0,
+    // ✅ show 0 even when backend sends null / undefined / ""
+    ai1: normalizeAnalogValue(pick("ai1", "ai_1")),
+    ai2: normalizeAnalogValue(pick("ai2", "ai_2")),
+    ai3: normalizeAnalogValue(pick("ai3", "ai_3")),
+    ai4: normalizeAnalogValue(pick("ai4", "ai_4")),
   };
 }
 
@@ -525,16 +535,16 @@ export default function DeviceManagerZhc1921Section({
                     </td>
 
                     <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center truncate">
-                      {r?.ai1 ?? ""}
+                      {String(r?.ai1 ?? 0)}
                     </td>
                     <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center truncate">
-                      {r?.ai2 ?? ""}
+                      {String(r?.ai2 ?? 0)}
                     </td>
                     <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center truncate">
-                      {r?.ai3 ?? ""}
+                      {String(r?.ai3 ?? 0)}
                     </td>
                     <td className="px-1 py-1 border-b border-slate-100 text-slate-800 text-center truncate">
-                      {r?.ai4 ?? ""}
+                      {String(r?.ai4 ?? 0)}
                     </td>
 
                     <td className="px-1.5 py-1 border-b border-slate-100 text-center">
