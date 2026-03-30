@@ -20,10 +20,11 @@ function qs(params = {}) {
 
 // ===============================
 // 📡 Get Used DOs
-// ✅ GLOBAL per device across ALL dashboards
 // ===============================
 export async function fetchUsedDOs({ deviceId, signal } = {}) {
   const q = qs({ deviceId });
+
+  console.log("📡 fetchUsedDOs →", { deviceId, url: `${API_URL}/control-bindings/used?${q}` });
 
   const res = await fetch(`${API_URL}/control-bindings/used?${q}`, {
     method: "GET",
@@ -35,28 +36,22 @@ export async function fetchUsedDOs({ deviceId, signal } = {}) {
     signal,
   });
 
+  console.log("📡 fetchUsedDOs ← status:", res.status);
+
   if (!res.ok) {
     const txt = await res.text().catch(() => "");
+    console.error("❌ fetchUsedDOs ERROR:", txt);
     throw new Error(txt || `Failed to load used DOs (${res.status})`);
   }
 
-  return res.json();
-  // returns:
-  // [
-  //   {
-  //     field: "do1",
-  //     widgetId: "...",
-  //     title: "...",
-  //     widgetType: "toggle",
-  //     dashboardId: "main",
-  //     dashboardName: "Main Dashboard"
-  //   }
-  // ]
+  const data = await res.json();
+  console.log("📡 fetchUsedDOs ← data:", data);
+
+  return data;
 }
 
 // ===============================
-// 🔒 Bind DO to Control
-// ✅ now also sends dashboardName
+// 🔒 Bind DO
 // ===============================
 export async function bindControlDO({
   dashboardId,
@@ -68,6 +63,19 @@ export async function bindControlDO({
   field,
   signal,
 } = {}) {
+
+  const body = {
+    dashboardId,
+    dashboardName,
+    widgetId,
+    widgetType,
+    title,
+    deviceId,
+    field,
+  };
+
+  console.log("🔒 bindControlDO →", body);
+
   const res = await fetch(`${API_URL}/control-bindings/bind`, {
     method: "POST",
     headers: {
@@ -76,21 +84,17 @@ export async function bindControlDO({
       "Cache-Control": "no-cache",
       Pragma: "no-cache",
     },
-    body: JSON.stringify({
-      dashboardId,
-      dashboardName,
-      widgetId,
-      widgetType,
-      title,
-      deviceId,
-      field,
-    }),
+    body: JSON.stringify(body),
     signal,
   });
 
+  console.log("🔒 bindControlDO ← status:", res.status);
+
   if (res.ok) {
     try {
-      return await res.json();
+      const data = await res.json();
+      console.log("🔒 bindControlDO ← data:", data);
+      return data;
     } catch {
       return { ok: true };
     }
@@ -100,6 +104,8 @@ export async function bindControlDO({
   try {
     payload = await res.json();
   } catch {}
+
+  console.error("❌ bindControlDO ERROR:", payload);
 
   if (res.status === 409) {
     const detail = payload?.detail || payload || {};
@@ -122,7 +128,7 @@ export async function bindControlDO({
 }
 
 // ===============================
-// 🗑️ Delete Binding (release DO)
+// 🗑️ Delete Binding
 // ===============================
 export async function deleteControlBinding({
   dashboardId,
@@ -131,7 +137,8 @@ export async function deleteControlBinding({
 } = {}) {
   const q = qs({ dashboardId, widgetId });
 
-  // ✅ IMPORTANT: use trailing slash so it matches @router.delete("/")
+  console.log("🗑️ deleteControlBinding →", { dashboardId, widgetId });
+
   const res = await fetch(`${API_URL}/control-bindings/?${q}`, {
     method: "DELETE",
     headers: {
@@ -142,9 +149,13 @@ export async function deleteControlBinding({
     signal,
   });
 
+  console.log("🗑️ deleteControlBinding ← status:", res.status);
+
   if (res.ok) {
     try {
-      return await res.json();
+      const data = await res.json();
+      console.log("🗑️ deleteControlBinding ← data:", data);
+      return data;
     } catch {
       return { ok: true };
     }
@@ -154,6 +165,8 @@ export async function deleteControlBinding({
   try {
     payload = await res.json();
   } catch {}
+
+  console.error("❌ deleteControlBinding ERROR:", payload);
 
   const msg =
     payload?.detail ||
@@ -167,9 +180,7 @@ export async function deleteControlBinding({
 }
 
 // ===============================
-// 🕹️ Write DO (PLAY MODE)
-// Frontend sends: dashboardId, widgetId, value01 (0/1)
-// Backend resolves binding -> forwards to Node-RED
+// 🕹️ Write DO (IMPORTANT)
 // ===============================
 export async function writeControlDO({
   dashboardId,
@@ -177,6 +188,16 @@ export async function writeControlDO({
   value01,
   signal,
 } = {}) {
+
+  const body = {
+    dashboardId,
+    widgetId,
+    value01: Number(value01) === 1 ? 1 : 0,
+  };
+
+  console.log("🕹️ writeControlDO →", body);
+  console.log("🕹️ URL →", `${API_URL}/control-bindings/write`);
+
   const res = await fetch(`${API_URL}/control-bindings/write`, {
     method: "POST",
     headers: {
@@ -185,17 +206,17 @@ export async function writeControlDO({
       "Cache-Control": "no-cache",
       Pragma: "no-cache",
     },
-    body: JSON.stringify({
-      dashboardId,
-      widgetId,
-      value01: Number(value01) === 1 ? 1 : 0,
-    }),
+    body: JSON.stringify(body),
     signal,
   });
 
+  console.log("🕹️ writeControlDO ← status:", res.status);
+
   if (res.ok) {
     try {
-      return await res.json();
+      const data = await res.json();
+      console.log("🕹️ writeControlDO ← data:", data);
+      return data;
     } catch {
       return { ok: true };
     }
@@ -205,6 +226,11 @@ export async function writeControlDO({
   try {
     payload = await res.json();
   } catch {}
+
+  console.error("❌ writeControlDO ERROR:", {
+    status: res.status,
+    payload,
+  });
 
   const msg = payload?.detail || `Write failed (${res.status})`;
   const err = new Error(msg);
