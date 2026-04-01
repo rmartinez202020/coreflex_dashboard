@@ -361,9 +361,14 @@ export default function HomePage({
           </div>
         </div>
 
-        <div className="rounded-xl bg-emerald-500 text-white p-4 md:p-5 flex flex-col justify-between">
-          <h2 className="text-lg font-semibold mb-2">Billing & Payments</h2>
-          <p className="text-sm text-emerald-100">Manage subscriptions.</p>
+        <div className="rounded-xl bg-emerald-500 text-white p-4 md:p-5 flex flex-col justify-between cursor-pointer hover:bg-emerald-600 transition">
+          <div className="flex items-center gap-2 mb-2">
+            <span className="text-2xl">💳</span>
+            <h2 className="text-lg font-semibold">My Subscription</h2>
+          </div>
+          <p className="text-sm text-emerald-100">
+            Manage your subscription, billing details, and payment methods.
+          </p>
         </div>
 
         <div className="rounded-xl bg-gray-800 text-white p-4 md:p-5 flex flex-col justify-between">
