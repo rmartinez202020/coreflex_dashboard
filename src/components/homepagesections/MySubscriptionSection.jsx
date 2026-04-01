@@ -64,92 +64,6 @@ const CURRENT_PLAN_STATUS = "Active";
 const CURRENT_PLAN_RENEWAL = "Apr 30, 2026";
 const CURRENT_PLAN_DEVICES_USED = "12 / 50";
 
-function PlanCard({ plan, isCurrent }) {
-  return (
-    <div
-      className={`rounded-xl border bg-white shadow-sm overflow-hidden transition ${
-        isCurrent
-          ? "border-emerald-500 ring-2 ring-emerald-200"
-          : "border-slate-200"
-      }`}
-    >
-      <div
-        className={`px-4 py-3 ${
-          isCurrent ? "bg-emerald-700 text-white" : "bg-emerald-600 text-white"
-        }`}
-      >
-        <div className="flex items-center justify-between gap-3">
-          <div className="flex items-center gap-2">
-            <span className="text-xl">💳</span>
-            <div>
-              <div className="text-lg font-semibold">{plan.name}</div>
-              <div className="text-xs text-emerald-100">
-                Subscription plan details
-              </div>
-            </div>
-          </div>
-
-          {isCurrent && (
-            <span className="rounded-full bg-white/15 border border-white/20 px-3 py-1 text-xs font-semibold text-white">
-              Current Plan
-            </span>
-          )}
-        </div>
-      </div>
-
-      <div className="p-4 grid grid-cols-1 md:grid-cols-2 gap-3 text-sm text-slate-800">
-        <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
-          <div className="text-xs text-slate-500">Monthly Price</div>
-          <div className="font-semibold">{plan.monthlyPrice}</div>
-        </div>
-
-        <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
-          <div className="text-xs text-slate-500">One-Time License</div>
-          <div className="font-semibold">{plan.oneTimeLicense}</div>
-        </div>
-
-        <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
-          <div className="text-xs text-slate-500">Device Limit</div>
-          <div className="font-semibold">{plan.deviceLimit}</div>
-        </div>
-
-        <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
-          <div className="text-xs text-slate-500">Dashboards</div>
-          <div className="font-semibold">{plan.dashboards}</div>
-        </div>
-
-        <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
-          <div className="text-xs text-slate-500">Data History</div>
-          <div className="font-semibold">{plan.dataHistory}</div>
-        </div>
-
-        <div className="rounded-lg bg-slate-50 border border-slate-200 px-3 py-2">
-          <div className="text-xs text-slate-500">Annual Updates & Support</div>
-          <div className="font-semibold">{plan.annualSupport}</div>
-        </div>
-
-        <div className="md:col-span-2 rounded-lg bg-slate-50 border border-slate-200 px-3 py-3">
-          <div className="text-xs text-slate-500 mb-1">Features</div>
-          <div className="font-medium">{plan.features}</div>
-        </div>
-
-        <div className="md:col-span-2 pt-1">
-          <button
-            className={`w-full rounded-lg px-4 py-2.5 text-sm font-semibold transition ${
-              isCurrent
-                ? "bg-emerald-100 text-emerald-800 border border-emerald-300 cursor-default"
-                : "bg-slate-900 text-white hover:opacity-90"
-            }`}
-            disabled={isCurrent}
-          >
-            {isCurrent ? "Current Plan" : "Choose Plan"}
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-}
-
 function AvailablePlanCard({ plan, isCurrent }) {
   return (
     <div
@@ -225,28 +139,70 @@ export default function MySubscriptionSection({ onBack }) {
       </div>
 
       <div className="p-5">
+        {/* ✅ SUBSCRIPTION DETAILS */}
         <div className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4">
           <div className="text-sm font-semibold text-emerald-900">
             Subscription Details
           </div>
           <div className="mt-1 text-sm text-emerald-800">
-            Review available CoreFlex subscription plans below. Users can view
-            their current plan, choose a different plan, manage payment methods,
-            or cancel at any time.
+            View CoreFlex subscription plans, billing structure, device limits,
+            dashboard limits, data history, features, and annual updates &
+            support.
           </div>
         </div>
 
-        <div className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-          {PLANS.map((plan) => (
-            <PlanCard
-              key={plan.key}
-              plan={plan}
-              isCurrent={plan.key === CURRENT_PLAN_KEY}
-            />
-          ))}
+        {/* ✅ TABLE */}
+        <div className="overflow-x-auto rounded-xl border border-slate-200">
+          <table className="min-w-full bg-white text-sm">
+            <thead className="bg-slate-100 text-slate-800">
+              <tr>
+                <th className="px-4 py-3 text-left font-semibold">Plan</th>
+                <th className="px-4 py-3 text-left font-semibold">
+                  Monthly Price
+                </th>
+                <th className="px-4 py-3 text-left font-semibold">
+                  One-Time License
+                </th>
+                <th className="px-4 py-3 text-left font-semibold">
+                  Device Limit
+                </th>
+                <th className="px-4 py-3 text-left font-semibold">
+                  Dashboards
+                </th>
+                <th className="px-4 py-3 text-left font-semibold">
+                  Data History
+                </th>
+                <th className="px-4 py-3 text-left font-semibold">Features</th>
+                <th className="px-4 py-3 text-left font-semibold">
+                  Annual Updates & Support
+                </th>
+              </tr>
+            </thead>
+            <tbody>
+              {PLANS.map((plan, idx) => (
+                <tr
+                  key={plan.key}
+                  className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}
+                >
+                  <td className="px-4 py-4 align-top font-semibold text-slate-900">
+                    {plan.name}
+                  </td>
+                  <td className="px-4 py-4 align-top">{plan.monthlyPrice}</td>
+                  <td className="px-4 py-4 align-top">{plan.oneTimeLicense}</td>
+                  <td className="px-4 py-4 align-top font-semibold">
+                    {plan.deviceLimit}
+                  </td>
+                  <td className="px-4 py-4 align-top">{plan.dashboards}</td>
+                  <td className="px-4 py-4 align-top">{plan.dataHistory}</td>
+                  <td className="px-4 py-4 align-top">{plan.features}</td>
+                  <td className="px-4 py-4 align-top">{plan.annualSupport}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         </div>
 
-        {/* ✅ CURRENT SUBSCRIPTION */}
+        {/* ✅ YOUR CURRENT SUBSCRIPTION */}
         <div className="mt-8 rounded-xl border border-emerald-200 bg-emerald-50 overflow-hidden">
           <div className="bg-emerald-700 text-white px-4 py-3">
             <div className="text-lg font-semibold">Your Current Subscription</div>
@@ -316,7 +272,7 @@ export default function MySubscriptionSection({ onBack }) {
           <div className="p-4 md:p-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
             {PLANS.map((plan) => (
               <AvailablePlanCard
-                key={`available-${plan.key}`}
+                key={plan.key}
                 plan={plan}
                 isCurrent={plan.key === CURRENT_PLAN_KEY}
               />
