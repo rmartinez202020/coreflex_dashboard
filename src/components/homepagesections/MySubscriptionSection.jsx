@@ -139,18 +139,6 @@ export default function MySubscriptionSection({ onBack }) {
       </div>
 
       <div className="p-5">
-        {/* ✅ SUBSCRIPTION DETAILS */}
-        <div className="mb-5 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-4">
-          <div className="text-sm font-semibold text-emerald-900">
-            Subscription Details
-          </div>
-          <div className="mt-1 text-sm text-emerald-800">
-            View CoreFlex subscription plans, billing structure, device limits,
-            dashboard limits, data history, features, and annual updates &
-            support.
-          </div>
-        </div>
-
         {/* ✅ TABLE */}
         <div className="overflow-x-auto rounded-xl border border-slate-200">
           <table className="min-w-full bg-white text-sm">
