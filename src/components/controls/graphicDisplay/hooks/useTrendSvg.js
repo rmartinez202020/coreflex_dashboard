@@ -90,13 +90,45 @@ export default function useTrendSvg({
 
     const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
 
+    // ✅ NEW:
+    // Break line if there is a suspiciously large time jump,
+    // even if upstream forgot to insert an explicit gap marker.
+    //
+    // Strategy:
+    // - Look at positive dt values between drawable neighbors
+    // - Estimate a "normal" step from the median dt
+    // - Break when dt is much larger than normal
+    //
+    // This is defensive and helps with offline/reconnect cases.
+    const positiveDts = [];
+    for (let i = 1; i < drawable.length; i += 1) {
+      const dt = drawable[i].t - drawable[i - 1].t;
+      if (Number.isFinite(dt) && dt > 0) positiveDts.push(dt);
+    }
+
+    const sortedDts = [...positiveDts].sort((a, b) => a - b);
+    const medianDt = sortedDts.length
+      ? sortedDts[Math.floor(sortedDts.length / 2)]
+      : 0;
+
+    // ✅ Conservative threshold:
+    // - 5x median step, minimum 15 seconds
+    // This avoids reconnecting across offline gaps while keeping normal lines intact.
+    const inferredGapMs = Math.max(15000, medianDt > 0 ? medianDt * 5 : 15000);
+
     const segs = [];
     let current = [];
+    let prevDrawableT = null;
+    let breaksByExplicitGap = 0;
+    let breaksByInvalidY = 0;
+    let breaksByLargeTimeJump = 0;
 
     for (const p of arr) {
       if (p.gap) {
         if (current.length >= 2) segs.push(current);
         current = [];
+        prevDrawableT = null;
+        breaksByExplicitGap += 1;
         continue;
       }
 
@@ -104,7 +136,19 @@ export default function useTrendSvg({
       if (!Number.isFinite(yyNum)) {
         if (current.length >= 2) segs.push(current);
         current = [];
+        prevDrawableT = null;
+        breaksByInvalidY += 1;
         continue;
+      }
+
+      if (
+        prevDrawableT !== null &&
+        Number.isFinite(prevDrawableT) &&
+        p.t - prevDrawableT > inferredGapMs
+      ) {
+        if (current.length >= 2) segs.push(current);
+        current = [];
+        breaksByLargeTimeJump += 1;
       }
 
       const x = PAD_LEFT + ((p.t - tMin) / tSpan) * INNER_W;
@@ -112,6 +156,7 @@ export default function useTrendSvg({
       const y = H - ((yy - minY) / ySpan) * H;
 
       current.push(`${x.toFixed(2)},${y.toFixed(2)}`);
+      prevDrawableT = p.t;
     }
 
     if (current.length >= 2) segs.push(current);
@@ -125,6 +170,11 @@ export default function useTrendSvg({
       tSpan,
       padLeft: PAD_LEFT,
       padRight: PAD_RIGHT,
+      medianDt,
+      inferredGapMs,
+      breaksByExplicitGap,
+      breaksByInvalidY,
+      breaksByLargeTimeJump,
       firstDrawableT: drawable[0]?.t ?? null,
       lastDrawableT: drawable[drawable.length - 1]?.t ?? null,
       firstX:
