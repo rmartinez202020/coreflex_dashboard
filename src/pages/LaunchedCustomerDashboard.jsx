@@ -5,7 +5,6 @@ import DashboardCanvas from "../components/DashboardCanvas";
 import PortalTopBar from "./PortalTopBar.jsx";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
-import useLaunchedCustomerDashboardTenantAuth from "./useLaunchedCustomerDashboardTenantAuth";
 
 function looksLikeAlarmLogObject(obj) {
   if (!obj || typeof obj !== "object") return false;
@@ -126,36 +125,21 @@ export default function LaunchedCustomerDashboard() {
   const [resolvedDashboardId, setResolvedDashboardId] = useState("");
   const [dashboardTitle, setDashboardTitle] = useState("Dashboard");
 
-  const {
-    isTenantAuthenticated,
-    tenantName,
-    tenantAccessLevel,
+  // ✅ Public portal gate/auth states
+  const [isTenantAuthenticated, setIsTenantAuthenticated] = useState(false);
+  const [tenantName, setTenantName] = useState("Portal User");
+  const [tenantAccessLevel, setTenantAccessLevel] = useState("read_only");
 
-    tenantEmail,
-    setTenantEmail,
-    tenantPassword,
-    setTenantPassword,
-    tenantAuthLoading,
-    tenantAuthError,
+  const [tenantEmail, setTenantEmail] = useState("");
+  const [tenantPassword, setTenantPassword] = useState("");
+  const [tenantAuthLoading, setTenantAuthLoading] = useState(false);
+  const [tenantAuthError, setTenantAuthError] = useState("");
 
-    requiresPasswordChange,
-    setRequiresPasswordChange,
-    newPassword,
-    setNewPassword,
-    confirmNewPassword,
-    setConfirmNewPassword,
-    passwordChangeLoading,
-    passwordChangeError,
-    setPasswordChangeError,
-
-    resetTenantAuthState,
-    handleTenantLogin,
-    handleTenantSetPassword,
-  } = useLaunchedCustomerDashboardTenantAuth({
-    publicDashSlug,
-    publicDashLaunchId,
-    onResetSensors: () => setSensorsData([]),
-  });
+  const [requiresPasswordChange, setRequiresPasswordChange] = useState(false);
+  const [newPassword, setNewPassword] = useState("");
+  const [confirmNewPassword, setConfirmNewPassword] = useState("");
+  const [passwordChangeLoading, setPasswordChangeLoading] = useState(false);
+  const [passwordChangeError, setPasswordChangeError] = useState("");
 
   const injectDashboardIdIntoObjects = (objects, dash, allowInject = true) => {
     if (!Array.isArray(objects)) return [];
@@ -184,6 +168,19 @@ export default function LaunchedCustomerDashboard() {
         },
       };
     });
+  };
+
+  const resetTenantAuthState = () => {
+    setIsTenantAuthenticated(false);
+    setTenantName("Portal User");
+    setTenantAccessLevel("read_only");
+    setTenantAuthError("");
+    setRequiresPasswordChange(false);
+    setNewPassword("");
+    setConfirmNewPassword("");
+    setPasswordChangeError("");
+    setTenantPassword("");
+    setSensorsData([]);
   };
 
   useEffect(() => {
@@ -297,13 +294,7 @@ export default function LaunchedCustomerDashboard() {
     };
 
     loadLayout();
-  }, [
-    privateDashId,
-    publicDashSlug,
-    publicDashLaunchId,
-    isPublicLaunch,
-    resetTenantAuthState,
-  ]);
+  }, [privateDashId, publicDashSlug, publicDashLaunchId, isPublicLaunch]);
 
   useEffect(() => {
     if (isPublicLaunch && !isTenantAuthenticated) {
@@ -412,8 +403,8 @@ export default function LaunchedCustomerDashboard() {
   }, [droppedTanks]);
 
   const handleOpenAlarmLog = () => {
-    const dashboardIdSafe =
-      String(resolvedDashboardId || privateDashId || "main").trim() || "main";
+    const dashboardIdSafe = String(resolvedDashboardId || privateDashId || "main")
+      .trim() || "main";
 
     const url = buildAlarmLogLaunchUrl({
       dashboardId: dashboardIdSafe,
@@ -424,6 +415,145 @@ export default function LaunchedCustomerDashboard() {
     });
 
     window.open(url, "_blank", "noopener,noreferrer");
+  };
+
+  const handleTenantLogin = async () => {
+    const email = String(tenantEmail || "").trim().toLowerCase();
+    const password = String(tenantPassword || "").trim();
+
+    if (!email || !password) {
+      setTenantAuthError("Please enter your email and password.");
+      return;
+    }
+
+    setTenantAuthLoading(true);
+    setTenantAuthError("");
+    setPasswordChangeError("");
+
+    try {
+      const res = await fetch(
+        `${API_URL}/customers-dashboards/tenant-access/login`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            dashboard_slug: publicDashSlug,
+            public_launch_id: publicDashLaunchId,
+            email,
+            password,
+          }),
+        }
+      );
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(
+          String(
+            data?.detail ||
+              data?.error ||
+              "Tenant login failed. Please verify your credentials."
+          )
+        );
+      }
+
+      const mustChange = Boolean(data?.must_change_password);
+
+      setTenantName(
+        String(data?.tenant_name || data?.full_name || email || "Portal User")
+      );
+      setTenantAccessLevel(
+        String(data?.access_level || "read_only").trim() || "read_only"
+      );
+
+      if (mustChange) {
+        setRequiresPasswordChange(true);
+        setIsTenantAuthenticated(false);
+        return;
+      }
+
+      setRequiresPasswordChange(false);
+      setIsTenantAuthenticated(true);
+    } catch (err) {
+      console.error("❌ Tenant login failed:", err);
+      setTenantAuthError(String(err?.message || err));
+    } finally {
+      setTenantAuthLoading(false);
+    }
+  };
+
+  const handleTenantSetPassword = async () => {
+    const email = String(tenantEmail || "").trim().toLowerCase();
+    const currentPassword = String(tenantPassword || "").trim();
+    const nextPassword = String(newPassword || "").trim();
+    const confirmPassword = String(confirmNewPassword || "").trim();
+
+    if (!nextPassword || !confirmPassword) {
+      setPasswordChangeError("Please enter and confirm the new password.");
+      return;
+    }
+
+    if (nextPassword.length < 8) {
+      setPasswordChangeError("New password must be at least 8 characters.");
+      return;
+    }
+
+    if (nextPassword !== confirmPassword) {
+      setPasswordChangeError("New password and confirmation do not match.");
+      return;
+    }
+
+    setPasswordChangeLoading(true);
+    setPasswordChangeError("");
+    setTenantAuthError("");
+
+    try {
+      const res = await fetch(
+        `${API_URL}/customers-dashboards/tenant-access/set-password`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            dashboard_slug: publicDashSlug,
+            public_launch_id: publicDashLaunchId,
+            email,
+            temporary_password: currentPassword,
+            new_password: nextPassword,
+          }),
+        }
+      );
+
+      const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(
+          String(
+            data?.detail || data?.error || "Failed to set the new password."
+          )
+        );
+      }
+
+      setTenantPassword(nextPassword);
+      setNewPassword("");
+      setConfirmNewPassword("");
+      setRequiresPasswordChange(false);
+      setTenantName(
+        String(data?.tenant_name || data?.full_name || email || "Portal User")
+      );
+      setTenantAccessLevel(
+        String(data?.access_level || "read_only").trim() || "read_only"
+      );
+      setIsTenantAuthenticated(true);
+    } catch (err) {
+      console.error("❌ Tenant password change failed:", err);
+      setPasswordChangeError(String(err?.message || err));
+    } finally {
+      setPasswordChangeLoading(false);
+    }
   };
 
   if (loading) {
@@ -581,6 +711,7 @@ export default function LaunchedCustomerDashboard() {
                       value={tenantEmail}
                       onChange={(e) => {
                         setTenantEmail(e.target.value);
+                        setTenantAuthError("");
                       }}
                       placeholder="Enter your tenant email"
                       style={{
@@ -614,6 +745,7 @@ export default function LaunchedCustomerDashboard() {
                       value={tenantPassword}
                       onChange={(e) => {
                         setTenantPassword(e.target.value);
+                        setTenantAuthError("");
                       }}
                       placeholder="Enter your password"
                       style={{
