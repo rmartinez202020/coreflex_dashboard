@@ -46,6 +46,9 @@ export default function App() {
   // 2) new public route: /launchDashboard/:dashboardSlug/:publicLaunchId
   const isLaunchCustomerDashboard = pathname.startsWith("/launchDashboard/");
 
+  const isAnyLaunchPage =
+  isLaunchPage || isLaunchAlarmLog || isLaunchCustomerDashboard;
+
   // ✅ NAVIGATION (persist on refresh)
   const {
     activePage,
@@ -127,12 +130,16 @@ export default function App() {
   };
 
   const { currentUserKey, handleLogout } = useAuthController({
-    onNoAuthReset: resetToGuestState,
-    onUserChangedReset: resetForUserChange,
-    onLogoutReset: resetToGuestState,
-    navigate,
-    logoutRoute: "/",
-  });
+  onNoAuthReset: resetToGuestState,
+  onUserChangedReset: resetForUserChange,
+  onLogoutReset: resetToGuestState,
+  navigate,
+  logoutRoute: "/",
+  
+  skipAuthRedirect: isAnyLaunchPage, // ✅ NEW
+
+});
+
 
   // ✅ always keep the latest canvas in a ref (prevents stale Ctrl+Z / Ctrl+Y)
   const droppedRef = useRef([]);

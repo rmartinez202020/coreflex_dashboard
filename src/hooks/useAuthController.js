@@ -14,6 +14,7 @@ export default function useAuthController({
   onLogoutReset,
   navigate,
   logoutRoute = "/",
+  skipAuthRedirect = false, // ✅ NEW
 } = {}) {
   const [currentUserKey, setCurrentUserKey] = useState(() =>
     getUserKeyFromToken()
@@ -33,8 +34,15 @@ export default function useAuthController({
     if (!token || !newUserKey) {
       if (currentUserKeyRef.current !== null) {
         setCurrentUserKey(null);
+      }
+
+      // ✅ IMPORTANT:
+      // On public launch pages, do not reset/redirect app state just because
+      // there is no owner JWT token.
+      if (!skipAuthRedirect) {
         onNoAuthReset?.();
       }
+
       return;
     }
 
@@ -44,7 +52,7 @@ export default function useAuthController({
       setCurrentUserKey(newUserKey);
       onUserChangedReset?.(newUserKey, old);
     }
-  }, [onNoAuthReset, onUserChangedReset]);
+  }, [onNoAuthReset, onUserChangedReset, skipAuthRedirect]);
 
   useEffect(() => {
     // Initial sync
