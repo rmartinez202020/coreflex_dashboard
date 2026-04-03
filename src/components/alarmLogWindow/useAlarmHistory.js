@@ -11,6 +11,12 @@ import {
 export default function useAlarmHistory({
   resolvedAlarmLogKey,
   applyDisabledMap,
+
+  // ✅ NEW: public tenant context
+  isPublic = false,
+  dashboardSlug = "",
+  publicLaunchId = "",
+  tenantEmail = "",
 }) {
   const [alarms, setAlarms] = React.useState([]);
   const [rawHistoryRows, setRawHistoryRows] = React.useState([]);
@@ -24,12 +30,19 @@ export default function useAlarmHistory({
       setHistoryError("");
 
       try {
+        const authHeaders = getAuthHeaders({
+          isPublic,
+          dashboardSlug,
+          publicLaunchId,
+          tenantEmail,
+        });
+
         const [historyRes, definitionsRes] = await Promise.all([
           fetch(`${API_URL}/alarm-history/read`, {
             method: "POST",
             headers: {
               "Content-Type": "application/json",
-              ...getAuthHeaders(),
+              ...authHeaders,
             },
             body: JSON.stringify({
               alarm_log_key: resolvedAlarmLogKey,
@@ -39,7 +52,7 @@ export default function useAlarmHistory({
             method: "GET",
             headers: {
               "Content-Type": "application/json",
-              ...getAuthHeaders(),
+              ...authHeaders,
             },
           }),
         ]);
@@ -112,7 +125,14 @@ export default function useAlarmHistory({
         if (!silent) setIsLoadingHistory(false);
       }
     },
-    [resolvedAlarmLogKey, applyDisabledMap]
+    [
+      resolvedAlarmLogKey,
+      applyDisabledMap,
+      isPublic,
+      dashboardSlug,
+      publicLaunchId,
+      tenantEmail,
+    ]
   );
 
   React.useEffect(() => {

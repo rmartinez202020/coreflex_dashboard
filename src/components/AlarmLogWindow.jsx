@@ -41,7 +41,26 @@ import {
   dangerBtn,
 } from "./alarmLogWindow/alarmLogWindowStyles";
 
-function getAuthHeaders() {
+function getAuthHeaders({
+  isPublic = false,
+  dashboardSlug = "",
+  publicLaunchId = "",
+  tenantEmail = "",
+} = {}) {
+  if (isPublic) {
+    const email = String(tenantEmail || "").trim();
+    const slug = String(dashboardSlug || "").trim();
+    const launchId = String(publicLaunchId || "").trim();
+
+    const headers = {};
+
+    if (email) headers["x-tenant-email"] = email;
+    if (slug) headers["x-dashboard-slug"] = slug;
+    if (launchId) headers["x-public-launch-id"] = launchId;
+
+    return headers;
+  }
+
   const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
@@ -254,6 +273,12 @@ export default function AlarmLogWindow({
   dashboardId = "main",
   windowKey = "alarmLog",
   isPage = false,
+
+  // ✅ NEW: public tenant context
+  isPublic = false,
+  dashboardSlug = "",
+  publicLaunchId = "",
+  tenantEmail = "",
 }) {
   const resolvedDashboardId = String(dashboardId || "").trim() || "main";
   const resolvedAlarmLogKey = `${resolvedDashboardId}__alarmLog`;
@@ -486,7 +511,12 @@ export default function AlarmLogWindow({
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          ...getAuthHeaders(),
+          ...getAuthHeaders({
+            isPublic,
+            dashboardSlug,
+            publicLaunchId,
+            tenantEmail,
+          }),
         },
         body: JSON.stringify({
           dashboard_id: resolvedDashboardId,

@@ -442,6 +442,16 @@ export default function LaunchedCustomerDashboard() {
   url.searchParams.set("dashboardName", dashboardNameSafe);
   url.searchParams.set("windowKey", "alarmLog");
 
+  if (isPublicLaunch) {
+    url.searchParams.set("isPublic", "1");
+    url.searchParams.set("dashboardSlug", String(publicDashSlug || "").trim());
+    url.searchParams.set(
+      "publicLaunchId",
+      String(publicDashLaunchId || "").trim()
+    );
+    url.searchParams.set("tenantEmail", String(tenantEmail || "").trim());
+  }
+
   window.open(url.toString(), "_blank", "noopener,noreferrer");
   
 };

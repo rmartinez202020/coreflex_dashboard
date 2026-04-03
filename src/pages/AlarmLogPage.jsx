@@ -16,6 +16,19 @@ export default function AlarmLogPage() {
   const windowKey =
     String(searchParams.get("windowKey") || "").trim() || "alarmLog";
 
+  // ✅ NEW: public tenant launch context
+  const isPublic =
+    String(searchParams.get("isPublic") || "").trim() === "1";
+
+  const dashboardSlug =
+    String(searchParams.get("dashboardSlug") || "").trim() || "";
+
+  const publicLaunchId =
+    String(searchParams.get("publicLaunchId") || "").trim() || "";
+
+  const tenantEmail =
+    String(searchParams.get("tenantEmail") || "").trim() || "";
+
   return (
     <div style={pageWrap}>
       <div style={pageInner}>
@@ -24,6 +37,13 @@ export default function AlarmLogPage() {
           dashboardId={dashboardId}
           dashboardName={dashboardName}
           windowKey={windowKey}
+
+          // ✅ PASS PUBLIC CONTEXT
+          isPublic={isPublic}
+          dashboardSlug={dashboardSlug}
+          publicLaunchId={publicLaunchId}
+          tenantEmail={tenantEmail}
+
           onClose={() => navigate(-1)}
         />
       </div>
