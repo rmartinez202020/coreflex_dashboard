@@ -6,33 +6,19 @@ import PortalTopBar from "./PortalTopBar.jsx";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 
-function buildAlarmLogLaunchUrl({
+function buildDirectAlarmLogPageUrl({
   dashboardId,
   dashboardName,
-  isPublicLaunch,
-  publicDashSlug,
-  publicDashLaunchId,
+  windowKey = "alarmLog",
 }) {
   const dash = String(dashboardId || "").trim() || "main";
-  const title = String(dashboardName || "Alarms Log (DI-AI)").trim();
+  const dashName = String(dashboardName || "").trim() || "Dashboard";
+  const key = String(windowKey || "alarmLog").trim() || "alarmLog";
 
-  let basePath = `/launchDashboard/${encodeURIComponent(dash)}`;
-
-  if (isPublicLaunch) {
-    const slug = String(publicDashSlug || "").trim();
-    const launchId = String(publicDashLaunchId || "").trim();
-    if (slug && launchId) {
-      basePath = `/launchDashboard/${encodeURIComponent(
-        slug
-      )}/${encodeURIComponent(launchId)}`;
-    }
-  }
-
-  const url = new URL(basePath, window.location.origin);
-  url.searchParams.set("openAlarmLog", "1");
-  url.searchParams.set("windowKey", "alarmLog");
-  url.searchParams.set("title", title);
+  const url = new URL("/launchAlarmLog", window.location.origin);
   url.searchParams.set("dashboardId", dash);
+  url.searchParams.set("dashboardName", dashName);
+  url.searchParams.set("windowKey", key);
 
   return url.toString();
 }
@@ -444,19 +430,20 @@ export default function LaunchedCustomerDashboard() {
   ]);
 
   const handleOpenAlarmLog = () => {
-    const dashboardIdSafe =
-      String(resolvedDashboardId || privateDashId || "main").trim() || "main";
+  const dashboardIdSafe =
+    String(resolvedDashboardId || privateDashId || "main").trim() || "main";
 
-    const url = buildAlarmLogLaunchUrl({
-      dashboardId: dashboardIdSafe,
-      dashboardName: "Alarms Log (DI-AI)",
-      isPublicLaunch,
-      publicDashSlug,
-      publicDashLaunchId,
-    });
+  const dashboardNameSafe =
+    String(dashboardTitle || "Dashboard").trim() || "Dashboard";
 
-    window.open(url, "_blank", "noopener,noreferrer");
-  };
+  const url = buildDirectAlarmLogPageUrl({
+    dashboardId: dashboardIdSafe,
+    dashboardName: dashboardNameSafe,
+    windowKey: "alarmLog",
+  });
+
+  window.open(url, "_blank", "noopener,noreferrer");
+};
 
   const handleTenantLogin = async () => {
     const email = String(tenantEmail || "").trim().toLowerCase();
