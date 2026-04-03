@@ -4,7 +4,26 @@ import { getToken } from "../../utils/authToken";
 // =========================
 // AUTH
 // =========================
-export function getAuthHeaders() {
+export function getAuthHeaders({
+  isPublic = false,
+  dashboardSlug = "",
+  publicLaunchId = "",
+  tenantEmail = "",
+} = {}) {
+  if (isPublic) {
+    const headers = {};
+
+    const email = String(tenantEmail || "").trim();
+    const slug = String(dashboardSlug || "").trim();
+    const launchId = String(publicLaunchId || "").trim();
+
+    if (email) headers["x-tenant-email"] = email;
+    if (slug) headers["x-dashboard-slug"] = slug;
+    if (launchId) headers["x-public-launch-id"] = launchId;
+
+    return headers;
+  }
+
   const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
