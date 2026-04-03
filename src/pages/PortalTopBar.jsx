@@ -70,7 +70,7 @@ export default function PortalTopBar({
       <div className="w-full px-4 md:px-6 py-2">
         <div className="flex items-center justify-between gap-4">
           {/* LEFT */}
-          <div className="flex items-center gap-3 min-w-0">
+          <div className="flex items-center gap-3 min-w-0 shrink-0">
             <img
               src={logoWhite}
               alt="CoreFlex Logo"
@@ -80,27 +80,20 @@ export default function PortalTopBar({
               }}
             />
 
-            <div className="flex flex-col leading-tight">
+            <div className="flex flex-col leading-tight shrink-0">
               <span className="text-xl font-bold text-white">CoreFlex</span>
               <span className="text-[10px] uppercase tracking-[0.18em] text-slate-300">
                 IIoTs Platform
               </span>
             </div>
-          </div>
 
-          {/* CENTER */}
-          <div className="flex-1 min-w-0 flex flex-col items-center justify-center">
-            <div className="text-sm md:text-base font-semibold text-white truncate text-center w-full">
-              Customer Dashboard — {dashboardName}
-            </div>
-
-            {/* ✅ NEW: public alarm button */}
+            {/* ✅ MOVED: desktop alarm button now right of CoreFlex */}
             {hasAlarmLog ? (
-              <div className="mt-2 hidden md:flex items-center justify-center">
+              <div className="hidden md:flex items-center ml-3">
                 <button
                   type="button"
                   onClick={() => onOpenAlarmLog?.()}
-                  className="inline-flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-900 shadow-sm hover:bg-amber-100"
+                  className="inline-flex items-center gap-2 rounded-md border border-amber-300 bg-amber-50 px-3 py-1.5 text-sm font-semibold text-amber-900 shadow-sm hover:bg-amber-100 whitespace-nowrap"
                   title="Open Alarm Log in a new tab"
                 >
                   <span aria-hidden="true">⚠️</span>
@@ -108,6 +101,13 @@ export default function PortalTopBar({
                 </button>
               </div>
             ) : null}
+          </div>
+
+          {/* CENTER */}
+          <div className="flex-1 min-w-0 flex items-center justify-center px-2">
+            <div className="text-sm md:text-base font-semibold text-white truncate text-center w-full">
+              Customer Dashboard — {dashboardName}
+            </div>
           </div>
 
           {/* RIGHT */}
@@ -148,7 +148,7 @@ export default function PortalTopBar({
           </div>
         </div>
 
-        {/* ✅ NEW: mobile alarm row */}
+        {/* ✅ mobile alarm row */}
         {hasAlarmLog ? (
           <div className="mt-2 flex md:hidden justify-center">
             <button
