@@ -64,14 +64,10 @@ createRoot(document.getElementById("root")).render(
       />
 
       {/* 🚀 LAUNCH ALARM LOG (protected) */}
-      <Route
-        path="/launchAlarmLog"
-        element={
-          <RequireAuth>
-            <AlarmLogPage />
-          </RequireAuth>
-        }
-      />
+
+      <Route path="/launchAlarmLog" element={<AlarmLogPage />} />
+
+
     </Routes>
   </BrowserRouter>
 );

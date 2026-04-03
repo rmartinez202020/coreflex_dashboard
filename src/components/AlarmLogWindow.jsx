@@ -319,7 +319,6 @@ export default function AlarmLogWindow({
   tenantEmail,
 });
 
-
   const visibleAlarms = React.useMemo(() => {
     const source = Array.isArray(alarms) ? alarms : [];
 
