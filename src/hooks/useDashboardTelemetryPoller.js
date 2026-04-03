@@ -4,9 +4,11 @@ import React from "react";
 /**
  * useDashboardTelemetryPoller
  * - ONE poller per DashboardCanvas (Play/Launch only)
- * - Polls every pollMs (default 3000ms)
+ * - Widget telemetry poll cadence stays at pollMs (default 3000ms)
  * - Private mode: fetches /{base}/my-devices at most once per model per tick
- * - Public tenant mode: fetches /tenant-access/devices once per tick
+ * - Public tenant mode:
+ *    • fetches /tenant-access/devices on a SLOWER cadence
+ *    • reuses the last public device snapshot between refreshes
  * - Builds telemetryMap[model][deviceId] = row
  *
  * Supports bindings stored as:
@@ -32,6 +34,11 @@ export default function useDashboardTelemetryPoller({
   isTenantAuthenticated = false,
 
   pollMs = 3000,
+
+  // ✅ NEW:
+  // public discovery/device snapshot should be much slower than live widget poll
+  publicDevicesPollMs = 15000,
+
   modelMeta = {
     zhc1921: { base: "zhc1921" },
     zhc1661: { base: "zhc1661" },
@@ -45,6 +52,14 @@ export default function useDashboardTelemetryPoller({
   });
 
   const loadingRef = React.useRef(false);
+
+  // ✅ cache last public device snapshot so we do NOT hit
+  // /tenant-access/devices every widget poll tick
+  const publicRowsCacheRef = React.useRef([]);
+  const publicRowsFetchedAtRef = React.useRef(0);
+
+  // ✅ keep latest fetchOnce without recreating interval
+  const fetchOnceRef = React.useRef(null);
 
   // ===============================
   // ✅ DEBUG (NO CONSOLE TYPING)
@@ -201,6 +216,124 @@ export default function useDashboardTelemetryPoller({
     });
   }, [modelMeta]);
 
+  const buildTelemetryMapFromRows = React.useCallback(
+    (rows, wanted) => {
+      const next = {};
+      for (const k of Object.keys(modelMeta || {})) next[k] = {};
+
+      // ✅ First load rows that actually came back from backend
+      for (const row of rows || []) {
+        const id = String(readDeviceId(row) || "").trim();
+        let modelKey = readModelKey(row);
+
+        if (!id) continue;
+
+        // ✅ If public payload does not include model,
+        // infer it from the wanted bindings by matching device id
+        if (!modelKey) {
+          for (const mk of Object.keys(wanted || {})) {
+            if (wanted?.[mk]?.has(id)) {
+              modelKey = mk;
+              break;
+            }
+          }
+        }
+
+        if (!modelKey) continue;
+        if (!wanted?.[modelKey]?.has(id)) continue;
+
+        if (!next[modelKey]) next[modelKey] = {};
+        next[modelKey][id] = row;
+      }
+
+      // ✅ FORCE MISSING DEVICES AS OFFLINE
+      for (const modelKey of Object.keys(wanted || {})) {
+        const wantedSet = wanted?.[modelKey];
+        if (!wantedSet) continue;
+
+        for (const id of wantedSet) {
+          if (!id) continue;
+
+          if (!next[modelKey]) next[modelKey] = {};
+
+          if (!next[modelKey][id]) {
+            next[modelKey][id] = {
+              deviceId: id,
+              device_id: id,
+              model: modelKey,
+              status: "offline",
+              online: false,
+              onlineStatus: "offline",
+              connectionStatus: "offline",
+            };
+          }
+        }
+      }
+
+      return next;
+    },
+    [modelMeta]
+  );
+
+  const fetchPublicRows = React.useCallback(async () => {
+    const email = String(tenantEmail || "")
+      .trim()
+      .toLowerCase();
+    const slug = String(publicDashSlug || "").trim();
+    const publicId = String(publicDashLaunchId || "").trim();
+
+    if (!isTenantAuthenticated || !email || !slug || !publicId) {
+      dbg("public mode skip", {
+        isTenantAuthenticated,
+        hasEmail: !!email,
+        hasSlug: !!slug,
+        hasPublicId: !!publicId,
+      });
+      publicRowsCacheRef.current = [];
+      publicRowsFetchedAtRef.current = 0;
+      return [];
+    }
+
+    const qs = new URLSearchParams({
+      dashboard_slug: slug,
+      public_launch_id: publicId,
+      tenant_email: email,
+    });
+
+    const url = `${API_URL}/tenant-access/devices?${qs.toString()}`;
+    dbg("public fetch", { url });
+
+    const res = await fetch(url);
+    if (!res.ok) {
+      dbgErr("public fetch failed", { status: res.status, url });
+      throw new Error(`Public device fetch failed (${res.status})`);
+    }
+
+    const data = await res.json().catch(() => []);
+    const rows = normalizeArray(data);
+
+    publicRowsCacheRef.current = rows;
+    publicRowsFetchedAtRef.current = Date.now();
+
+    dbg("public fetch ok", {
+      rows: rows.length,
+      sample: rows.slice(0, 6).map((r) => ({
+        model: readModelKey(r),
+        id: String(readDeviceId(r) || "").trim(),
+      })),
+    });
+
+    return rows;
+  }, [
+    API_URL,
+    isTenantAuthenticated,
+    tenantEmail,
+    publicDashSlug,
+    publicDashLaunchId,
+    dbg,
+    dbgErr,
+  ]);
+
   const fetchOnce = React.useCallback(async () => {
     if (!isPlay) return;
 
@@ -237,105 +370,34 @@ export default function useDashboardTelemetryPoller({
 
       // ==========================================
       // ✅ PUBLIC TENANT MODE
-      // fetch once from /tenant-access/devices
-      // build telemetryMap same way as private mode
+      // SLOWER discovery/device snapshot refresh
+      // Reuse cached rows between publicDevicesPollMs windows
       // ==========================================
       if (isPublicLaunch) {
-        const email = String(tenantEmail || "")
-          .trim()
-          .toLowerCase();
-        const slug = String(publicDashSlug || "").trim();
-        const publicId = String(publicDashLaunchId || "").trim();
+        const slowMs = Math.max(
+          3000,
+          Number(publicDevicesPollMs) || 15000
+        );
+        const ageMs = Date.now() - Number(publicRowsFetchedAtRef.current || 0);
 
-        if (!isTenantAuthenticated || !email || !slug || !publicId) {
-          dbg("public mode skip", {
-            isTenantAuthenticated,
-            hasEmail: !!email,
-            hasSlug: !!slug,
-            hasPublicId: !!publicId,
+        let rows = publicRowsCacheRef.current || [];
+
+        const shouldRefreshPublicRows =
+          !Array.isArray(rows) ||
+          rows.length === 0 ||
+          ageMs >= slowMs;
+
+        if (shouldRefreshPublicRows) {
+          rows = await fetchPublicRows();
+        } else {
+          dbg("public fetch skipped (using cache)", {
+            cachedRows: rows.length,
+            ageMs,
+            refreshEveryMs: slowMs,
           });
-          clearTelemetryMap();
-          return;
         }
 
-        const qs = new URLSearchParams({
-          dashboard_slug: slug,
-          public_launch_id: publicId,
-          tenant_email: email,
-        });
-
-        const url = `${API_URL}/tenant-access/devices?${qs.toString()}`;
-        dbg("public fetch", { url });
-
-        const res = await fetch(url);
-        if (!res.ok) {
-          dbgErr("public fetch failed", { status: res.status, url });
-          clearTelemetryMap();
-          return;
-        }
-
-        const data = await res.json().catch(() => []);
-        const rows = normalizeArray(data);
-
-        dbg("public fetch ok", {
-          rows: rows.length,
-          sample: rows.slice(0, 6).map((r) => ({
-            model: readModelKey(r),
-            id: String(readDeviceId(r) || "").trim(),
-          })),
-        });
-
-        const next = {};
-        for (const k of Object.keys(modelMeta || {})) next[k] = {};
-
-        // ✅ First load rows that actually came back from backend
-        for (const row of rows || []) {
-          const id = String(readDeviceId(row) || "").trim();
-          let modelKey = readModelKey(row);
-
-          if (!id) continue;
-
-          // ✅ If public payload does not include model,
-          // infer it from the wanted bindings by matching device id
-          if (!modelKey) {
-            for (const mk of Object.keys(wanted || {})) {
-              if (wanted?.[mk]?.has(id)) {
-                modelKey = mk;
-                break;
-              }
-            }
-          }
-
-          if (!modelKey) continue;
-          if (!wanted?.[modelKey]?.has(id)) continue;
-
-          if (!next[modelKey]) next[modelKey] = {};
-          next[modelKey][id] = row;
-        }
-
-        // ✅ FORCE MISSING DEVICES AS OFFLINE
-        for (const modelKey of Object.keys(wanted || {})) {
-          const wantedSet = wanted?.[modelKey];
-          if (!wantedSet) continue;
-
-          for (const id of wantedSet) {
-            if (!id) continue;
-
-            if (!next[modelKey]) next[modelKey] = {};
-
-            if (!next[modelKey][id]) {
-              next[modelKey][id] = {
-                deviceId: id,
-                device_id: id,
-                model: modelKey,
-                status: "offline",
-                online: false,
-                onlineStatus: "offline",
-                connectionStatus: "offline",
-              };
-            }
-          }
-        }
+        const next = buildTelemetryMapFromRows(rows, wanted);
 
         dbg(
           "public telemetryMap built",
@@ -447,28 +509,42 @@ export default function useDashboardTelemetryPoller({
     collectWanted,
     modelMeta,
     isPublicLaunch,
-    publicDashSlug,
-    publicDashLaunchId,
-    tenantEmail,
-    isTenantAuthenticated,
     clearTelemetryMap,
     dbg,
     dbgErr,
+    publicDevicesPollMs,
+    fetchPublicRows,
+    buildTelemetryMapFromRows,
   ]);
 
+  // ✅ Keep latest callback without recreating interval
+  React.useEffect(() => {
+    fetchOnceRef.current = fetchOnce;
+  }, [fetchOnce]);
+
+  // ✅ Stable interval:
+  // - created only from isPlay + pollMs
+  // - always calls latest fetchOnce
   React.useEffect(() => {
     if (!isPlay) return;
 
-    fetchOnce();
+    fetchOnceRef.current?.();
+
     const ms = Math.max(500, Number(pollMs) || 3000);
 
     const t = setInterval(() => {
       if (document.hidden) return;
-      fetchOnce();
+      fetchOnceRef.current?.();
     }, ms);
 
     return () => clearInterval(t);
-  }, [isPlay, fetchOnce, pollMs]);
+  }, [isPlay, pollMs]);
+
+  // ✅ Reset public cache when public identity changes
+  React.useEffect(() => {
+    publicRowsCacheRef.current = [];
+    publicRowsFetchedAtRef.current = 0;
+  }, [isPublicLaunch, publicDashSlug, publicDashLaunchId, tenantEmail]);
 
   return { telemetryMap, fetchTelemetryOnce: fetchOnce };
 }
