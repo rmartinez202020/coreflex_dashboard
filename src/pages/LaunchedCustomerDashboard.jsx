@@ -436,13 +436,14 @@ export default function LaunchedCustomerDashboard() {
   const dashboardNameSafe =
     String(dashboardTitle || "Dashboard").trim() || "Dashboard";
 
-  const url = buildDirectAlarmLogPageUrl({
-    dashboardId: dashboardIdSafe,
-    dashboardName: dashboardNameSafe,
-    windowKey: "alarmLog",
-  });
+  const url = new URL("/launchAlarmLog", window.location.origin);
 
-  window.open(url, "_blank", "noopener,noreferrer");
+  url.searchParams.set("dashboardId", dashboardIdSafe);
+  url.searchParams.set("dashboardName", dashboardNameSafe);
+  url.searchParams.set("windowKey", "alarmLog");
+
+  window.open(url.toString(), "_blank", "noopener,noreferrer");
+  
 };
 
   const handleTenantLogin = async () => {
