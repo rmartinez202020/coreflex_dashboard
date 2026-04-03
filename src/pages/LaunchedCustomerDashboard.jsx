@@ -6,40 +6,6 @@ import PortalTopBar from "./PortalTopBar.jsx";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 
-function looksLikeAlarmLogObject(obj) {
-  if (!obj || typeof obj !== "object") return false;
-
-  const props =
-    obj.properties && typeof obj.properties === "object" ? obj.properties : {};
-
-  const typeCandidates = [
-    obj.type,
-    obj.widgetType,
-    obj.componentType,
-    props.type,
-    props.widgetType,
-    props.componentType,
-    props.windowType,
-    props.kind,
-    props.name,
-    props.title,
-    props.windowKey,
-    props.key,
-  ]
-    .map((v) => String(v || "").trim().toLowerCase())
-    .filter(Boolean);
-
-  const joined = typeCandidates.join(" | ");
-
-  return (
-    joined.includes("alarmlog") ||
-    joined.includes("alarm log") ||
-    joined.includes("alarms log") ||
-    joined.includes("alarm-log") ||
-    joined.includes("alarm_log")
-  );
-}
-
 function buildAlarmLogLaunchUrl({
   dashboardId,
   dashboardName,
@@ -124,6 +90,7 @@ export default function LaunchedCustomerDashboard() {
   const [fatalError, setFatalError] = useState("");
   const [resolvedDashboardId, setResolvedDashboardId] = useState("");
   const [dashboardTitle, setDashboardTitle] = useState("Dashboard");
+  const [hasAlarmLog, setHasAlarmLog] = useState(false);
 
   // ✅ Public portal gate/auth states
   const [isTenantAuthenticated, setIsTenantAuthenticated] = useState(false);
@@ -191,6 +158,7 @@ export default function LaunchedCustomerDashboard() {
         setDroppedTanks([]);
         setResolvedDashboardId("");
         setDashboardTitle("Dashboard");
+        setHasAlarmLog(false);
         resetTenantAuthState();
 
         let res;
@@ -289,12 +257,70 @@ export default function LaunchedCustomerDashboard() {
         setDroppedTanks([]);
         setResolvedDashboardId("");
         setDashboardTitle("Dashboard");
+        setHasAlarmLog(false);
         setLoading(false);
       }
     };
 
     loadLayout();
   }, [privateDashId, publicDashSlug, publicDashLaunchId, isPublicLaunch]);
+
+  useEffect(() => {
+    const dashboardId = String(resolvedDashboardId || "").trim();
+
+    if (!dashboardId) {
+      setHasAlarmLog(false);
+      return;
+    }
+
+    let alive = true;
+    const controller = new AbortController();
+
+    const checkAlarmLogAvailability = async () => {
+      try {
+        const qs = new URLSearchParams({
+          dashboard_id: dashboardId,
+          window_key: "alarmLog",
+        });
+
+        const token = String(getToken() || "").trim();
+        const headers = {};
+
+        if (!isPublicLaunch && token) {
+          headers.Authorization = `Bearer ${token}`;
+        }
+
+        const res = await fetch(
+          `${API_URL}/alarm-log-windows/by-dashboard?${qs.toString()}`,
+          {
+            headers,
+            signal: controller.signal,
+          }
+        );
+
+        if (!res.ok) {
+          if (alive) setHasAlarmLog(false);
+          return;
+        }
+
+        const data = await res.json().catch(() => ({}));
+        if (!alive) return;
+
+        setHasAlarmLog(Boolean(data?.found));
+      } catch (err) {
+        if (err?.name === "AbortError") return;
+        console.error("❌ Alarm log availability check failed:", err);
+        if (alive) setHasAlarmLog(false);
+      }
+    };
+
+    checkAlarmLogAvailability();
+
+    return () => {
+      alive = false;
+      controller.abort();
+    };
+  }, [resolvedDashboardId, isPublicLaunch]);
 
   useEffect(() => {
     if (isPublicLaunch && !isTenantAuthenticated) {
@@ -396,15 +422,9 @@ export default function LaunchedCustomerDashboard() {
     publicDashLaunchId,
   ]);
 
-  const hasAlarmLog = useMemo(() => {
-    return Array.isArray(droppedTanks)
-      ? droppedTanks.some((obj) => looksLikeAlarmLogObject(obj))
-      : false;
-  }, [droppedTanks]);
-
   const handleOpenAlarmLog = () => {
-    const dashboardIdSafe = String(resolvedDashboardId || privateDashId || "main")
-      .trim() || "main";
+    const dashboardIdSafe =
+      String(resolvedDashboardId || privateDashId || "main").trim() || "main";
 
     const url = buildAlarmLogLaunchUrl({
       dashboardId: dashboardIdSafe,
