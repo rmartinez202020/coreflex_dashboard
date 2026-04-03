@@ -266,61 +266,82 @@ export default function LaunchedCustomerDashboard() {
   }, [privateDashId, publicDashSlug, publicDashLaunchId, isPublicLaunch]);
 
   useEffect(() => {
-    const dashboardId = String(resolvedDashboardId || "").trim();
+  const dashboardId = String(resolvedDashboardId || "").trim();
+  const tenantEmailSafe = String(tenantEmail || "").trim().toLowerCase();
 
-    if (!dashboardId) {
-      setHasAlarmLog(false);
-      return;
-    }
+  if (!dashboardId) {
+    setHasAlarmLog(false);
+    return;
+  }
 
-    let alive = true;
-    const controller = new AbortController();
+  if (isPublicLaunch && (!isTenantAuthenticated || !tenantEmailSafe)) {
+    setHasAlarmLog(false);
+    return;
+  }
 
-    const checkAlarmLogAvailability = async () => {
-      try {
+  let alive = true;
+  const controller = new AbortController();
+
+  const checkAlarmLogAvailability = async () => {
+    try {
+      let url = "";
+      let headers = {};
+
+      if (isPublicLaunch) {
+        const qs = new URLSearchParams({
+          dashboard_slug: publicDashSlug,
+          public_launch_id: publicDashLaunchId,
+          tenant_email: tenantEmailSafe,
+          window_key: "alarmLog",
+        });
+
+        url = `${API_URL}/alarm-log-windows/public/by-dashboard?${qs.toString()}`;
+      } else {
         const qs = new URLSearchParams({
           dashboard_id: dashboardId,
           window_key: "alarmLog",
         });
 
         const token = String(getToken() || "").trim();
-        const headers = {};
-
-        if (!isPublicLaunch && token) {
-          headers.Authorization = `Bearer ${token}`;
-        }
-
-        const res = await fetch(
-          `${API_URL}/alarm-log-windows/by-dashboard?${qs.toString()}`,
-          {
-            headers,
-            signal: controller.signal,
-          }
-        );
-
-        if (!res.ok) {
-          if (alive) setHasAlarmLog(false);
-          return;
-        }
-
-        const data = await res.json().catch(() => ({}));
-        if (!alive) return;
-
-        setHasAlarmLog(Boolean(data?.found));
-      } catch (err) {
-        if (err?.name === "AbortError") return;
-        console.error("❌ Alarm log availability check failed:", err);
-        if (alive) setHasAlarmLog(false);
+        headers = token ? { Authorization: `Bearer ${token}` } : {};
+        url = `${API_URL}/alarm-log-windows/by-dashboard?${qs.toString()}`;
       }
-    };
 
-    checkAlarmLogAvailability();
+      const res = await fetch(url, {
+        headers,
+        signal: controller.signal,
+      });
 
-    return () => {
-      alive = false;
-      controller.abort();
-    };
-  }, [resolvedDashboardId, isPublicLaunch]);
+      if (!res.ok) {
+        if (alive) setHasAlarmLog(false);
+        return;
+      }
+
+      const data = await res.json().catch(() => ({}));
+      if (!alive) return;
+
+      setHasAlarmLog(Boolean(data?.found));
+    } catch (err) {
+      if (err?.name === "AbortError") return;
+      console.error("❌ Alarm log availability check failed:", err);
+      if (alive) setHasAlarmLog(false);
+    }
+  };
+
+  checkAlarmLogAvailability();
+
+  return () => {
+    alive = false;
+    controller.abort();
+  };
+}, [
+  resolvedDashboardId,
+  isPublicLaunch,
+  isTenantAuthenticated,
+  tenantEmail,
+  publicDashSlug,
+  publicDashLaunchId,
+]);
 
   useEffect(() => {
     if (isPublicLaunch && !isTenantAuthenticated) {
