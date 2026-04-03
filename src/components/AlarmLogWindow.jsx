@@ -301,19 +301,24 @@ export default function AlarmLogWindow({
   const applyDisabledMap = React.useCallback((rows) => rows, []);
 
   const {
-    alarms,
-    setAlarms,
-    rawHistoryRows,
-    setRawHistoryRows,
-    expandedHistoryMap,
-    setExpandedHistoryMap,
-    isLoadingHistory,
-    historyError,
-    loadAlarmHistory,
-  } = useAlarmHistory({
-    resolvedAlarmLogKey,
-    applyDisabledMap,
-  });
+  alarms,
+  setAlarms,
+  rawHistoryRows,
+  setRawHistoryRows,
+  expandedHistoryMap,
+  setExpandedHistoryMap,
+  isLoadingHistory,
+  historyError,
+  loadAlarmHistory,
+} = useAlarmHistory({
+  resolvedAlarmLogKey,
+  applyDisabledMap,
+  isPublic,
+  dashboardSlug,
+  publicLaunchId,
+  tenantEmail,
+});
+
 
   const visibleAlarms = React.useMemo(() => {
     const source = Array.isArray(alarms) ? alarms : [];
