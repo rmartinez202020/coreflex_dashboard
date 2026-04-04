@@ -31,6 +31,9 @@ export default function useTrendSvg({
     const PAD_RIGHT = 6;
     const INNER_W = Math.max(1, W - PAD_LEFT - PAD_RIGHT);
 
+    // ✅ break line if time between valid readings is more than 1 hour
+    const MAX_POINT_GAP_MS = 60 * 60 * 1000;
+
     const minY = Number(yMin);
     const maxY = Number(yMax);
     const ySpan = maxY - minY;
@@ -92,11 +95,13 @@ export default function useTrendSvg({
 
     const segs = [];
     let current = [];
+    let prevValidT = null;
 
     for (const p of arr) {
       if (p.gap) {
         if (current.length >= 2) segs.push(current);
         current = [];
+        prevValidT = null;
         continue;
       }
 
@@ -104,7 +109,18 @@ export default function useTrendSvg({
       if (!Number.isFinite(yyNum)) {
         if (current.length >= 2) segs.push(current);
         current = [];
+        prevValidT = null;
         continue;
+      }
+
+      // ✅ break segment when gap between consecutive valid points > 1 hour
+      if (
+        Number.isFinite(prevValidT) &&
+        Number.isFinite(p.t) &&
+        p.t - prevValidT > MAX_POINT_GAP_MS
+      ) {
+        if (current.length >= 2) segs.push(current);
+        current = [];
       }
 
       const x = PAD_LEFT + ((p.t - tMin) / tSpan) * INNER_W;
@@ -112,6 +128,7 @@ export default function useTrendSvg({
       const y = H - ((yy - minY) / ySpan) * H;
 
       current.push(`${x.toFixed(2)},${y.toFixed(2)}`);
+      prevValidT = p.t;
     }
 
     if (current.length >= 2) segs.push(current);
@@ -125,6 +142,7 @@ export default function useTrendSvg({
       tSpan,
       padLeft: PAD_LEFT,
       padRight: PAD_RIGHT,
+      maxPointGapMs: MAX_POINT_GAP_MS,
       firstDrawableT: drawable[0]?.t ?? null,
       lastDrawableT: drawable[drawable.length - 1]?.t ?? null,
       firstX:
