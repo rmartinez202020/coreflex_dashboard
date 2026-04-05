@@ -373,11 +373,13 @@ function SetButton({ isPlay, onSet, disabled }) {
 // ✅ DISPLAY OUTPUT (textbox style)
 // - If bound (bindDeviceId + bindField): show live MATH output from telemetryMap ✅
 // - If not bound: keep old behavior (editable in PLAY + SET button) ✅
+
 export default function DisplayOutputTextBoxStyle({
   tank,
   isPlay,
   onUpdate,
   telemetryMap = null,
+  onDoubleClick,
 }) {
   const w = tank.w ?? tank.width ?? 160;
   const h = tank.h ?? tank.height ?? 60;
@@ -503,7 +505,15 @@ export default function DisplayOutputTextBoxStyle({
   const setBtnH = 26;
 
   return (
-    <div style={{ width: w, userSelect: "none" }}>
+    <div
+  style={{ width: w, userSelect: "none" }}
+  onDoubleClick={(e) => {
+    e.stopPropagation();
+    console.log("🔥 DISPLAY OUTPUT DOUBLE CLICK");
+    onDoubleClick?.();
+  }}
+>
+
       {label ? (
         <div
           style={{

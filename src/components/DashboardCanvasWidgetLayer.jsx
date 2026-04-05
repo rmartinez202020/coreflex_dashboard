@@ -495,6 +495,9 @@ export default function DashboardCanvasWidgetLayer({
           isPlay={isPlay}
           onUpdate={commonProps.onUpdate}
           telemetryMap={telemetryMap}
+          onDoubleClick={() => {
+            if (!isPlay) onOpenDisplayOutputSettings?.(tank);
+          }}
         />
       )}
     </DraggableDroppedTank>
