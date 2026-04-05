@@ -1,12 +1,10 @@
 // src/components/DisplayOutputSettingModal.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 
-
 import {
   useDisplaySettingDevices,
   useDisplaySettingLiveValue,
 } from "../DisplaysettingsmodalTelemetry";
-import DisplaySettingsmodalOptions from "../DisplaySettingsmodalOptions";
 
 const FIXED_MODEL = "zhc1661"; // CF-1600
 
@@ -77,14 +75,9 @@ export default function DisplayOutputSettingModal({
 
   const [title, setTitle] = useState(props.title ?? props.displayTitle ?? "");
   const [formula, setFormula] = useState(props.formula ?? "");
-  const [bindModel, setBindModel] = useState(
-    props.bindModel || FIXED_MODEL
-  );
+  const [bindModel, setBindModel] = useState(props.bindModel || FIXED_MODEL);
   const [bindDeviceId, setBindDeviceId] = useState(props.bindDeviceId || "");
   const [bindField, setBindField] = useState(props.bindField || "ao1");
-  const [displayStyle, setDisplayStyle] = useState(
-    props.displayStyle || "classic"
-  );
 
   useEffect(() => {
     if (!tank) return;
@@ -93,10 +86,7 @@ export default function DisplayOutputSettingModal({
     setFormula(p.formula ?? "");
     setBindModel(FIXED_MODEL);
     setBindDeviceId(p.bindDeviceId ?? "");
-    setBindField(
-      p.bindField === "ao2" ? "ao2" : "ao1"
-    );
-    setDisplayStyle(p.displayStyle ?? "classic");
+    setBindField(p.bindField === "ao2" ? "ao2" : "ao1");
   }, [tank]);
 
   useEffect(() => {
@@ -134,7 +124,7 @@ export default function DisplayOutputSettingModal({
 
   const liveErr = pollError;
 
-  const PANEL_W = 1240;
+  const PANEL_W = 920;
   const dragRef = useRef({
     dragging: false,
     startX: 0,
@@ -314,26 +304,11 @@ export default function DisplayOutputSettingModal({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "320px 1fr 1fr",
+              gridTemplateColumns: "1fr 1fr",
               gap: 16,
               alignItems: "start",
             }}
           >
-            <DisplaySettingsmodalOptions
-              value={displayStyle}
-              onChange={setDisplayStyle}
-              previewLabel={tank?.properties?.label || "Output"}
-              previewValue={
-                !selectedDeviceIsOnline
-                  ? "--"
-                  : typeof effectiveOutputValue === "string"
-                  ? effectiveOutputValue || "--"
-                  : Number.isFinite(Number(effectiveOutputValue))
-                  ? String(Math.round(Number(effectiveOutputValue)))
-                  : "--"
-              }
-            />
-
             <div
               style={{
                 background: "#ffffff",
@@ -678,7 +653,6 @@ export default function DisplayOutputSettingModal({
                       bindDeviceId,
                       bindField,
                       formula,
-                      displayStyle,
                     };
 
                     const nextTank = {
@@ -688,7 +662,6 @@ export default function DisplayOutputSettingModal({
                       bindDeviceId,
                       bindField,
                       formula,
-                      displayStyle,
                       properties: nextProps,
                     };
 
