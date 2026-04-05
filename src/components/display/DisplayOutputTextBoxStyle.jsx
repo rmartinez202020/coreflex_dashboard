@@ -25,7 +25,7 @@ function padToFormat(rawDigits, numberFormat) {
 }
 
 // ===============================
-// ✅ helpers for telemetryMap BINDING MODE (AI + MATH)
+// ✅ helpers for telemetryMap BINDING MODE (AI + AO + MATH)
 // ===============================
 function normalizeField(field) {
   return String(field || "").trim().toLowerCase();
@@ -97,6 +97,48 @@ function getTelemetryStatus(row) {
   return s || "offline";
 }
 
+function getFieldAliases(f) {
+  if (/^ai\d+$/.test(f)) {
+    const n = f.replace("ai", "");
+    return [
+      `a${n}`,
+      `A${n}`,
+      `analog${n}`,
+      `ANALOG${n}`,
+      `ai_${n}`,
+      `AI_${n}`,
+      `ai-${n}`,
+      `AI-${n}`,
+      `analog_${n}`,
+      `ANALOG_${n}`,
+      `analog-${n}`,
+      `ANALOG-${n}`,
+    ];
+  }
+
+  if (/^ao\d+$/.test(f)) {
+    const n = f.replace("ao", "");
+    return [
+      `ao_${n}`,
+      `AO_${n}`,
+      `ao-${n}`,
+      `AO-${n}`,
+      `analogout${n}`,
+      `ANALOGOUT${n}`,
+      `analog_out_${n}`,
+      `ANALOG_OUT_${n}`,
+      `analog-out-${n}`,
+      `ANALOG-OUT-${n}`,
+      `output${n}`,
+      `OUTPUT${n}`,
+      `ao${n}`,
+      `AO${n}`,
+    ];
+  }
+
+  return [];
+}
+
 function getTelemetryValue(row, field) {
   if (!row || !field) return null;
 
@@ -115,25 +157,9 @@ function getTelemetryValue(row, field) {
     if (row[key] !== undefined) return row[key];
   }
 
-  if (/^ai\d+$/.test(f)) {
-    const n = f.replace("ai", "");
-    const extra = [
-      `a${n}`,
-      `A${n}`,
-      `analog${n}`,
-      `ANALOG${n}`,
-      `ai_${n}`,
-      `AI_${n}`,
-      `ai-${n}`,
-      `AI-${n}`,
-      `analog_${n}`,
-      `ANALOG_${n}`,
-      `analog-${n}`,
-      `ANALOG-${n}`,
-    ];
-    for (const key of extra) {
-      if (row[key] !== undefined) return row[key];
-    }
+  const extra = getFieldAliases(f);
+  for (const key of extra) {
+    if (row[key] !== undefined) return row[key];
   }
 
   const nestedContainers = [
@@ -153,29 +179,15 @@ function getTelemetryValue(row, field) {
       if (obj?.[key] !== undefined) return obj[key];
     }
 
-    if (/^ai\d+$/.test(f)) {
-      const n = f.replace("ai", "");
-      const extra = [
-        `a${n}`,
-        `A${n}`,
-        `analog${n}`,
-        `ANALOG${n}`,
-        `ai_${n}`,
-        `AI_${n}`,
-        `ai-${n}`,
-        `AI-${n}`,
-        `analog_${n}`,
-        `ANALOG_${n}`,
-        `analog-${n}`,
-        `ANALOG-${n}`,
-      ];
-      for (const key of extra) {
-        if (obj?.[key] !== undefined) return obj[key];
-      }
+    const nestedExtra = getFieldAliases(f);
+    for (const key of nestedExtra) {
+      if (obj?.[key] !== undefined) return obj[key];
     }
   }
 
-  const tagArrays = [row.tags, row.points, row.values, row.readings].filter(Array.isArray);
+  const tagArrays = [row.tags, row.points, row.values, row.readings].filter(
+    Array.isArray
+  );
 
   for (const arr of tagArrays) {
     const hit = arr.find((item) => {
@@ -184,10 +196,16 @@ function getTelemetryValue(row, field) {
       )
         .trim()
         .toLowerCase();
+
+      const alt1 = f.replace(/(\D+)(\d+)/, "$1_$2");
+      const alt2 = f.replace(/(\D+)(\d+)/, "$1-$2");
+      const extraNames = getFieldAliases(f).map((x) => String(x).toLowerCase());
+
       return (
         name === f ||
-        name === f.replace(/(\D+)(\d+)/, "$1_$2") ||
-        name === f.replace(/(\D+)(\d+)/, "$1-$2")
+        name === alt1 ||
+        name === alt2 ||
+        extraNames.includes(name)
       );
     });
 
@@ -263,7 +281,8 @@ function formatByPattern(raw, numberFormat) {
   const totalDec = decPart ? decPart.length : 0;
 
   // string output (CONCAT) -> return as-is
-  if (typeof raw === "string" && raw.trim() !== "" && isNaN(Number(raw))) return raw;
+  if (typeof raw === "string" && raw.trim() !== "" && isNaN(Number(raw)))
+    return raw;
 
   const num = typeof raw === "number" ? raw : Number(raw);
   if (!Number.isFinite(num)) return "--";
@@ -367,7 +386,7 @@ export default function DisplayOutputTextBoxStyle({
   const numberFormat = tank?.properties?.numberFormat || "00000";
   const { maxDigits } = getFormatSpec(numberFormat);
 
-  // ✅ Binding props saved by DisplaySettingModal
+  // ✅ Binding props saved by DisplaySettingModal / DisplayOutputSettingModal
   const bindModel = String(
     tank?.properties?.bindModel ?? tank?.bindModel ?? "zhc1921"
   )
