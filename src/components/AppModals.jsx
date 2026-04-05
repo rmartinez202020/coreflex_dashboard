@@ -120,7 +120,7 @@ const displayInputTarget = useMemo(() => {
 
 // ✅ Display OUTPUT (AO)
 const displayOutputTarget = useMemo(() => {
-  if (displaySettingsId == null) return null;
+  if (displayOutputSettingsId == null) return null;
   return droppedTanks.find(
     (t) =>
       isSameId(t.id, displaySettingsId) &&
