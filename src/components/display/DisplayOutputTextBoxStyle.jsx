@@ -389,7 +389,6 @@ export default function DisplayOutputTextBoxStyle({
   const numberFormat = tank?.properties?.numberFormat || "00000";
   const { maxDigits } = getFormatSpec(numberFormat);
 
-  // ✅ Binding props saved by DisplaySettingModal / DisplayOutputSettingModal
   const bindModel = String(
     tank?.properties?.bindModel ?? tank?.bindModel ?? "zhc1921"
   )
@@ -405,9 +404,6 @@ export default function DisplayOutputTextBoxStyle({
 
   const hasBinding = !!bindDeviceId && !!bindField;
 
-  // -------------------------
-  // ✅ telemetryMap mode (binding mode)
-  // -------------------------
   const row = React.useMemo(() => {
     if (!hasBinding) return null;
     return getTelemetryRow(telemetryMap, bindModel, bindDeviceId);
@@ -447,9 +443,6 @@ export default function DisplayOutputTextBoxStyle({
       backendStatus === "down" ||
       backendStatus === "disconnected");
 
-  // -------------------------
-  // ✅ SETPOINT MODE (legacy)
-  // -------------------------
   const rawSetpoint =
     tank.value !== undefined && tank.value !== null ? String(tank.value) : "";
 
@@ -492,9 +485,6 @@ export default function DisplayOutputTextBoxStyle({
     );
   };
 
-  // -------------------------
-  // ✅ DISPLAY PICKER
-  // -------------------------
   const displayText = hasBinding
     ? isOffline
       ? "--"
@@ -508,10 +498,10 @@ export default function DisplayOutputTextBoxStyle({
       ? formatByPattern(liveValue, numberFormat)
       : "--";
 
+  const actualRowH = 26;
   const actualValueH = 28;
-  const actualLabelH = 18;
   const setBtnH = 26;
-  const totalBoxH = actualValueH + actualLabelH + h + setBtnH;
+  const totalBoxH = actualRowH + actualValueH + h + setBtnH;
 
   return (
     <div
@@ -532,7 +522,6 @@ export default function DisplayOutputTextBoxStyle({
           boxSizing: "border-box",
         }}
       >
-        {/* ✅ ACTUAL VALUE */}
         <div
           style={{
             position: "absolute",
@@ -571,14 +560,13 @@ export default function DisplayOutputTextBoxStyle({
           </div>
         </div>
 
-        {/* ✅ ACTUAL LABEL */}
         <div
           style={{
             position: "absolute",
             left: 0,
             right: 0,
             top: actualValueH,
-            height: actualLabelH,
+            height: actualRowH,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -595,13 +583,12 @@ export default function DisplayOutputTextBoxStyle({
           Actual
         </div>
 
-        {/* ✅ MAIN DISPLAY / SETPOINT */}
         <div
           style={{
             position: "absolute",
             left: 0,
             right: 0,
-            top: actualValueH + actualLabelH,
+            top: actualValueH + actualRowH,
             height: h,
             display: "flex",
             alignItems: "center",
@@ -691,7 +678,6 @@ export default function DisplayOutputTextBoxStyle({
           )}
         </div>
 
-        {/* ✅ SET BUTTON */}
         <div
           style={{
             position: "absolute",
