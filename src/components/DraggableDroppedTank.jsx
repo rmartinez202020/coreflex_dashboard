@@ -257,15 +257,15 @@ export default function DraggableDroppedTank({
   const isCounterInput = tank.shape === "counterInput";
 
   const contentStyle = {
-    display: "inline-block",
-    pointerEvents: isPlay
-      ? isToggle || isPushButton || isDisplayOutput || isCounterInput
-        ? "auto"
-        : "none"
-      : isGraphicDisplay
+  display: "inline-block",
+  pointerEvents: isPlay
+    ? isToggle || isPushButton || isDisplayOutput || isCounterInput
       ? "auto"
-      : "none",
-  };
+      : "none"
+    : isGraphicDisplay || isDisplayOutput   // ✅ ADD THIS
+    ? "auto"
+    : "none",
+};
 
   const handleMouseDown = (e) => {
     if (!isPlay) return;
