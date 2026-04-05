@@ -371,8 +371,9 @@ function SetButton({ isPlay, onSet, disabled }) {
 }
 
 // ✅ DISPLAY OUTPUT (textbox style)
-// - If bound (bindDeviceId + bindField): show live MATH output from telemetryMap ✅
-// - If not bound: keep old behavior (editable in PLAY + SET button) ✅
+// - top box = ACTUAL live value from selected AO/AI field
+// - middle box = main display / setpoint
+// - bottom box = SET button
 
 export default function DisplayOutputTextBoxStyle({
   tank,
@@ -502,7 +503,15 @@ export default function DisplayOutputTextBoxStyle({
       : formatByPattern(outValue, numberFormat)
     : displayedSetpoint;
 
+  const actualText =
+    hasBinding && !isOffline && liveValue !== null && liveValue !== undefined
+      ? formatByPattern(liveValue, numberFormat)
+      : "--";
+
+  const actualValueH = 28;
+  const actualLabelH = 18;
   const setBtnH = 26;
+  const totalBoxH = actualValueH + actualLabelH + h + setBtnH;
 
   return (
     <div
@@ -515,7 +524,7 @@ export default function DisplayOutputTextBoxStyle({
       <div
         style={{
           width: w,
-          height: h,
+          height: totalBoxH,
           background: "white",
           border: "2px solid black",
           borderRadius: 0,
@@ -523,20 +532,84 @@ export default function DisplayOutputTextBoxStyle({
           boxSizing: "border-box",
         }}
       >
+        {/* ✅ ACTUAL VALUE */}
         <div
           style={{
             position: "absolute",
             left: 0,
-            top: 0,
             right: 0,
-            bottom: setBtnH,
+            top: 0,
+            height: actualValueH,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
             boxSizing: "border-box",
+            borderBottom: "2px solid black",
+            background: "#ffffff",
+          }}
+          title={
+            hasBinding
+              ? isOffline
+                ? "Offline"
+                : Number.isFinite(liveValue)
+                ? `ACTUAL VALUE: ${liveValue}`
+                : "No live value"
+              : "Bind an AO/AI field in the modal to show ACTUAL"
+          }
+        >
+          <div
+            style={{
+              fontFamily: "monospace",
+              fontWeight: 900,
+              fontSize: 18,
+              color: isOffline ? "#dc2626" : "#111",
+              letterSpacing: 1.2,
+              lineHeight: "18px",
+            }}
+          >
+            {actualText}
+          </div>
+        </div>
+
+        {/* ✅ ACTUAL LABEL */}
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: actualValueH,
+            height: actualLabelH,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxSizing: "border-box",
+            borderBottom: "2px solid black",
+            background: "#e5e7eb",
+            fontSize: 12,
+            fontWeight: 900,
+            color: "#111",
+            letterSpacing: 0.8,
+            textTransform: "uppercase",
           }}
         >
-          {/* ✅ BINDING MODE: READ-ONLY SHOW OUTPUT FROM telemetryMap */}
+          Actual
+        </div>
+
+        {/* ✅ MAIN DISPLAY / SETPOINT */}
+        <div
+          style={{
+            position: "absolute",
+            left: 0,
+            right: 0,
+            top: actualValueH + actualLabelH,
+            height: h,
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            boxSizing: "border-box",
+            background: "#ffffff",
+          }}
+        >
           {hasBinding ? (
             <div
               style={{
@@ -560,7 +633,6 @@ export default function DisplayOutputTextBoxStyle({
               {displayText}
             </div>
           ) : isPlay ? (
-            // ✅ SETPOINT MODE: editable in PLAY
             <input
               value={displayText}
               inputMode="numeric"
@@ -604,7 +676,6 @@ export default function DisplayOutputTextBoxStyle({
               }}
             />
           ) : (
-            // ✅ SETPOINT MODE: read-only in edit mode
             <div
               style={{
                 fontFamily: "monospace",
@@ -620,6 +691,7 @@ export default function DisplayOutputTextBoxStyle({
           )}
         </div>
 
+        {/* ✅ SET BUTTON */}
         <div
           style={{
             position: "absolute",
@@ -632,7 +704,6 @@ export default function DisplayOutputTextBoxStyle({
           onMouseDown={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
         >
-          {/* ✅ If bound, keep the button but disabled (so layout stays same) */}
           <SetButton isPlay={isPlay} onSet={handleSet} disabled={hasBinding} />
         </div>
       </div>
