@@ -1,10 +1,12 @@
 // src/components/DisplayOutputSettingModal.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
+
+
 import {
   useDisplaySettingDevices,
   useDisplaySettingLiveValue,
-} from "./DisplaysettingsmodalTelemetry";
-import DisplaySettingsmodalOptions from "./DisplaySettingsmodalOptions";
+} from "../DisplaysettingsmodalTelemetry";
+import DisplaySettingsmodalOptions from "../DisplaySettingsmodalOptions";
 
 const FIXED_MODEL = "zhc1661"; // CF-1600
 
