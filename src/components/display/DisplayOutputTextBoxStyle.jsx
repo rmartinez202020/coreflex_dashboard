@@ -273,14 +273,12 @@ function computeMathOutput(liveValue, formula) {
   }
 }
 
-// ✅ pattern formatting like "000.00", "00000", etc.
 function formatByPattern(raw, numberFormat) {
   const fmt = String(numberFormat || "00000");
   const [intPart, decPart] = fmt.split(".");
   const totalInt = (intPart || "0").length;
   const totalDec = decPart ? decPart.length : 0;
 
-  // string output (CONCAT) -> return as-is
   if (typeof raw === "string" && raw.trim() !== "" && isNaN(Number(raw)))
     return raw;
 
@@ -302,7 +300,6 @@ function formatByPattern(raw, numberFormat) {
   return formatted;
 }
 
-// ✅ Green "PushButton NO" style SET button (always visible)
 function SetButton({ isPlay, onSet, disabled }) {
   const [pressed, setPressed] = React.useState(false);
 
@@ -369,11 +366,6 @@ function SetButton({ isPlay, onSet, disabled }) {
     </button>
   );
 }
-
-// ✅ DISPLAY OUTPUT (textbox style)
-// - top box = ACTUAL live value from selected AO/AI field
-// - middle box = main display / setpoint
-// - bottom box = SET button
 
 export default function DisplayOutputTextBoxStyle({
   tank,
@@ -500,8 +492,9 @@ export default function DisplayOutputTextBoxStyle({
 
   const actualRowH = 26;
   const actualValueH = 28;
+  const mainDisplayH = 38; // ✅ reduced height for the 100 row
   const setBtnH = 26;
-  const totalBoxH = actualRowH + actualValueH + h + setBtnH;
+  const totalBoxH = actualRowH + actualValueH + mainDisplayH + setBtnH;
 
   return (
     <div
@@ -536,15 +529,6 @@ export default function DisplayOutputTextBoxStyle({
             borderBottom: "2px solid black",
             background: "#ffffff",
           }}
-          title={
-            hasBinding
-              ? isOffline
-                ? "Offline"
-                : Number.isFinite(liveValue)
-                ? `ACTUAL VALUE: ${liveValue}`
-                : "No live value"
-              : "Bind an AO/AI field in the modal to show ACTUAL"
-          }
         >
           <div
             style={{
@@ -589,7 +573,7 @@ export default function DisplayOutputTextBoxStyle({
             left: 0,
             right: 0,
             top: actualValueH + actualRowH,
-            height: h,
+            height: mainDisplayH,
             display: "flex",
             alignItems: "center",
             justifyContent: "center",
@@ -607,15 +591,6 @@ export default function DisplayOutputTextBoxStyle({
                 letterSpacing: 1.5,
                 lineHeight: "22px",
               }}
-              title={
-                isOffline
-                  ? "Offline"
-                  : Number.isFinite(liveValue)
-                  ? `LIVE VALUE: ${liveValue}`
-                  : row
-                  ? "No live value in telemetryMap"
-                  : "No telemetry row found in telemetryMap"
-              }
             >
               {displayText}
             </div>
