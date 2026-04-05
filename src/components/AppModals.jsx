@@ -16,7 +16,7 @@ import PushButtonNOPropertiesModal from "./controls/PushButtonNOPropertiesModal"
 import PushButtonNCPropertiesModal from "./controls/PushButtonNCPropertiesModal";
 import AlarmLogWindow from "./AlarmLogWindow";
 import GaugeDisplaySettingsModal from "./gauge/GaugeDisplaySettingsModal";
-import DisplayOutputSettingModal from "./DisplayOutputSettingModal";
+import DisplayOutputSettingModal from "./display/DisplayOutputSettingModal";
 
 export default function AppModals({
   dashboardId = null,
