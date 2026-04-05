@@ -30,6 +30,8 @@ export default function AppModals({
   handleUploadProject,
   displaySettingsId,
   closeDisplaySettings,
+  displayOutputSettingsId,
+  closeDisplayOutputSettings,
   graphicSettingsId,
   closeGraphicDisplaySettings,
   showSiloProps,
