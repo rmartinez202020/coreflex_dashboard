@@ -309,7 +309,7 @@ export default function DisplaySettingModal({
           }}
           title="Drag to move"
         >
-          <div>Display Output</div>
+          <div>Display Input</div>
           <button
             data-no-drag="true"
             onClick={onClose}
