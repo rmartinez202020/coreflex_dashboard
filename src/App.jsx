@@ -745,6 +745,8 @@ const closeDisplayOutputSettings = () => {
           handleUploadProject={handleUploadProject}
           displaySettingsId={displaySettingsId}
           closeDisplaySettings={closeDisplaySettings}
+          displayOutputSettingsId={displayOutputSettingsId}
+          closeDisplayOutputSettings={closeDisplayOutputSettings}
           graphicSettingsId={graphicSettingsId}
           closeGraphicDisplaySettings={closeGraphicDisplaySettings}
           gaugeSettingsId={gaugeSettingsId}
@@ -786,7 +788,7 @@ const closeDisplayOutputSettings = () => {
           onSaveProject={handleSaveProject}
           telemetryMap={telemetryMap}
           sensorsData={sensorsData}
-          onOpenDisplayOutputSettings={openDisplayOutputSettings}
+          
         />
       </main>
 
