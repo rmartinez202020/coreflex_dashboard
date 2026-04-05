@@ -498,7 +498,6 @@ export default function DashboardCanvasWidgetLayer({
   onUpdate={commonProps.onUpdate}
   telemetryMap={telemetryMap}
   onDoubleClick={(tankArg) => {
-    console.log("✅ LAYER OPEN DISPLAY OUTPUT", tankArg || tank);
     if (!isPlay) onOpenDisplayOutputSettings?.(tankArg || tank);
   }}
 />

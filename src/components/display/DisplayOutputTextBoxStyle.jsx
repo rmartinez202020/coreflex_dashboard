@@ -510,7 +510,6 @@ export default function DisplayOutputTextBoxStyle({
   style={{ width: w, userSelect: "none" }}
   onDoubleClickCapture={(e) => {
     e.stopPropagation();
-    console.log("🔥 DISPLAY OUTPUT DOUBLE CLICK CAPTURE");
     onDoubleClick?.(tank);
   }}
 >
