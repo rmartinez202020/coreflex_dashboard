@@ -505,30 +505,13 @@ export default function DisplayOutputTextBoxStyle({
   const setBtnH = 26;
 
   return (
-
-   <div
-  style={{ width: w, userSelect: "none" }}
-  onDoubleClickCapture={(e) => {
-    e.stopPropagation();
-    onDoubleClick?.(tank);
-  }}
->
-
-      {label ? (
-        <div
-          style={{
-            marginBottom: 6,
-            fontSize: 18,
-            fontWeight: 900,
-            color: "#111",
-            textAlign: "center",
-            letterSpacing: 0.5,
-          }}
-        >
-          {label}
-        </div>
-      ) : null}
-
+    <div
+      style={{ width: w, userSelect: "none" }}
+      onDoubleClickCapture={(e) => {
+        e.stopPropagation();
+        onDoubleClick?.(tank);
+      }}
+    >
       <div
         style={{
           width: w,
@@ -653,6 +636,21 @@ export default function DisplayOutputTextBoxStyle({
           <SetButton isPlay={isPlay} onSet={handleSet} disabled={hasBinding} />
         </div>
       </div>
+
+      {label ? (
+        <div
+          style={{
+            marginTop: 6,
+            fontSize: 18,
+            fontWeight: 900,
+            color: "#111",
+            textAlign: "center",
+            letterSpacing: 0.5,
+          }}
+        >
+          {label}
+        </div>
+      ) : null}
 
       {hasBinding && isOffline ? (
         <div
