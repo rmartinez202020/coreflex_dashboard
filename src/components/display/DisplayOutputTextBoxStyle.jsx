@@ -505,11 +505,12 @@ export default function DisplayOutputTextBoxStyle({
   const setBtnH = 26;
 
   return (
-    <div
+
+   <div
   style={{ width: w, userSelect: "none" }}
-  onDoubleClick={(e) => {
+  onDoubleClickCapture={(e) => {
     e.stopPropagation();
-    console.log("🔥 DISPLAY OUTPUT DOUBLE CLICK");
+    console.log("🔥 DISPLAY OUTPUT DOUBLE CLICK CAPTURE");
     onDoubleClick?.();
   }}
 >
