@@ -125,11 +125,10 @@ const displayOutputTarget = useMemo(() => {
   if (displayOutputSettingsId == null) return null;
   return droppedTanks.find(
     (t) =>
-      isSameId(t.id, displaySettingsId) &&
+      isSameId(t.id, displayOutputSettingsId) &&   // ✅ FIXED
       t.shape === "displayOutput"
   );
-}, [droppedTanks, displaySettingsId]);
-
+}, [droppedTanks, displayOutputSettingsId]);
 
 
   const gaugeTarget = useMemo(() => {
@@ -403,7 +402,7 @@ const displayOutputTarget = useMemo(() => {
   <DisplayOutputSettingModal
     open={true}
     tank={displayOutputTarget}
-    onClose={closeDisplaySettings}
+    onClose={closeDisplayOutputSettings}   
     onSave={(updatedTank) => {
       setDroppedTanks((prev) =>
         prev.map((t) =>
