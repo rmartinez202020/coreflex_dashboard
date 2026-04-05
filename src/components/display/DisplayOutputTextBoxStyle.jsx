@@ -511,7 +511,7 @@ export default function DisplayOutputTextBoxStyle({
   onDoubleClickCapture={(e) => {
     e.stopPropagation();
     console.log("🔥 DISPLAY OUTPUT DOUBLE CLICK CAPTURE");
-    onDoubleClick?.();
+    onDoubleClick?.(tank);
   }}
 >
 

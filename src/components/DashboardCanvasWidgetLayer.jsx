@@ -490,15 +490,21 @@ export default function DashboardCanvasWidgetLayer({
     >
       {wrapWithOverlay(
         tank,
+
+
         <DisplayOutputTextBoxStyle
-          tank={tank}
-          isPlay={isPlay}
-          onUpdate={commonProps.onUpdate}
-          telemetryMap={telemetryMap}
-          onDoubleClick={() => {
-            if (!isPlay) onOpenDisplayOutputSettings?.(tank);
-          }}
-        />
+  tank={tank}
+  isPlay={isPlay}
+  onUpdate={commonProps.onUpdate}
+  telemetryMap={telemetryMap}
+  onDoubleClick={(tankArg) => {
+    console.log("✅ LAYER OPEN DISPLAY OUTPUT", tankArg || tank);
+    if (!isPlay) onOpenDisplayOutputSettings?.(tankArg || tank);
+  }}
+/>
+
+
+
       )}
     </DraggableDroppedTank>
   );
