@@ -320,6 +320,17 @@ export default function App() {
     closeGraphicDisplaySettings,
   } = useDashboardModalsController({ droppedTanks });
 
+  // ✅ Display OUTPUT Settings
+const [displayOutputSettingsId, setDisplayOutputSettingsId] = useState(null);
+
+const openDisplayOutputSettings = (tank) => {
+  setDisplayOutputSettingsId(tank?.id ?? null);
+};
+
+const closeDisplayOutputSettings = () => {
+  setDisplayOutputSettingsId(null);
+};
+
   // ✅ Gauge Display Settings
   const [gaugeSettingsId, setGaugeSettingsId] = useState(null);
 
@@ -709,6 +720,7 @@ export default function App() {
             telemetryMap={telemetryMap}
             sensorsData={sensorsData}
             showDashboardIdsDetails={showDashboardIdsDetailsForActiveCanvas}
+            onOpenDisplayOutputSettings={openDisplayOutputSettings}
           />
         ) : activePage === "deviceControls" ? (
           <div className="w-full h-full border rounded-lg bg-white p-6">
@@ -774,6 +786,7 @@ export default function App() {
           onSaveProject={handleSaveProject}
           telemetryMap={telemetryMap}
           sensorsData={sensorsData}
+          onOpenDisplayOutputSettings={openDisplayOutputSettings}
         />
       </main>
 
