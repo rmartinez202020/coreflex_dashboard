@@ -16,6 +16,7 @@ import PushButtonNOPropertiesModal from "./controls/PushButtonNOPropertiesModal"
 import PushButtonNCPropertiesModal from "./controls/PushButtonNCPropertiesModal";
 import AlarmLogWindow from "./AlarmLogWindow";
 import GaugeDisplaySettingsModal from "./gauge/GaugeDisplaySettingsModal";
+import DisplayOutputSettingModal from "./DisplayOutputSettingModal";
 
 export default function AppModals({
   dashboardId = null,
@@ -105,14 +106,29 @@ export default function AppModals({
       window.removeEventListener("coreflex-alarm-log-open-at", onOpenAt);
   }, []);
 
-  const displayTarget = useMemo(() => {
-    if (displaySettingsId == null) return null;
-    return droppedTanks.find(
-      (t) =>
-        isSameId(t.id, displaySettingsId) &&
-        (t.shape === "displayBox" || t.shape === "displayOutput")
-    );
-  }, [droppedTanks, displaySettingsId]);
+
+
+  // ✅ Display INPUT (AI)
+const displayInputTarget = useMemo(() => {
+  if (displaySettingsId == null) return null;
+  return droppedTanks.find(
+    (t) =>
+      isSameId(t.id, displaySettingsId) &&
+      t.shape === "displayBox"
+  );
+}, [droppedTanks, displaySettingsId]);
+
+// ✅ Display OUTPUT (AO)
+const displayOutputTarget = useMemo(() => {
+  if (displaySettingsId == null) return null;
+  return droppedTanks.find(
+    (t) =>
+      isSameId(t.id, displaySettingsId) &&
+      t.shape === "displayOutput"
+  );
+}, [droppedTanks, displaySettingsId]);
+
+
 
   const gaugeTarget = useMemo(() => {
     if (gaugeSettingsId == null) return null;
@@ -362,24 +378,41 @@ export default function AppModals({
         />
       )}
 
-      {displayTarget && (
-        <DisplaySettingsModal
-          tank={displayTarget}
-          onClose={closeDisplaySettings}
-          onSave={(updatedProps) => {
-            setDroppedTanks((prev) =>
-              prev.map((t) =>
-                isSameId(t.id, displayTarget.id)
-                  ? {
-                      ...t,
-                      properties: { ...(t.properties || {}), ...updatedProps },
-                    }
-                  : t
-              )
-            );
-          }}
-        />
-      )}
+      {displayInputTarget && (
+  <DisplaySettingsModal
+    tank={displayInputTarget}
+    onClose={closeDisplaySettings}
+    onSave={(updatedProps) => {
+      setDroppedTanks((prev) =>
+        prev.map((t) =>
+          isSameId(t.id, displayInputTarget.id)
+            ? {
+                ...t,
+                properties: { ...(t.properties || {}), ...updatedProps },
+              }
+            : t
+        )
+      );
+    }}
+  />
+)}
+
+{displayOutputTarget && (
+  <DisplayOutputSettingModal
+    open={true}
+    tank={displayOutputTarget}
+    onClose={closeDisplaySettings}
+    onSave={(updatedTank) => {
+      setDroppedTanks((prev) =>
+        prev.map((t) =>
+          isSameId(t.id, displayOutputTarget.id)
+            ? updatedTank
+            : t
+        )
+      );
+    }}
+  />
+)}
 
             {gaugeTarget && (
         <GaugeDisplaySettingsModal

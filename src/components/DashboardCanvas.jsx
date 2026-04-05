@@ -116,6 +116,7 @@ export default function DashboardCanvas({
   hideContextMenu,
   guides,
   onOpenDisplaySettings,
+  onOpenDisplayOutputSettings, // ✅ NEW
   onOpenGaugeDisplaySettings,
   onOpenGraphicDisplaySettings,
   onOpenAlarmLog,
@@ -504,6 +505,7 @@ export default function DashboardCanvas({
           handleRightClick={handleRightClick}
           handleObjectSelect={handleObjectSelect}
           onOpenDisplaySettings={onOpenDisplaySettings}
+          onOpenDisplayOutputSettings={onOpenDisplayOutputSettings} // ✅ NEW
           onOpenGaugeDisplaySettings={onOpenGaugeDisplaySettings}
           onOpenGraphicDisplaySettings={onOpenGraphicDisplaySettings}
           onOpenAlarmLog={onOpenAlarmLog}
@@ -537,7 +539,6 @@ export default function DashboardCanvas({
           isTenantAuthenticated={isTenantAuthenticated}
           tenantEmail={tenantEmail}
           tenantAccessLevel={tenantAccessLevel}
-
         />
 
         {!isPlay && selectionBox && (

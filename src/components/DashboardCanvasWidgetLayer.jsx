@@ -324,6 +324,7 @@ export default function DashboardCanvasWidgetLayer({
   handleRightClick,
   handleObjectSelect,
   onOpenDisplaySettings,
+  onOpenDisplayOutputSettings,
   onOpenGaugeDisplaySettings,
   onOpenGraphicDisplaySettings,
   onOpenAlarmLog,
@@ -480,25 +481,27 @@ export default function DashboardCanvasWidgetLayer({
       }
 
       if (tank.shape === "displayOutput") {
-        return (
-          <DraggableDroppedTank
-            {...commonProps}
-            onDoubleClick={() => {
-              if (!isPlay) onOpenDisplaySettings?.(tank);
-            }}
-          >
-            {wrapWithOverlay(
-              tank,
-              <DisplayOutputTextBoxStyle
-                tank={tank}
-                isPlay={isPlay}
-                onUpdate={commonProps.onUpdate}
-                telemetryMap={telemetryMap}
-              />
-            )}
-          </DraggableDroppedTank>
-        );
-      }
+  return (
+    <DraggableDroppedTank
+      {...commonProps}
+      onDoubleClick={() => {
+        if (!isPlay) onOpenDisplayOutputSettings?.(tank);
+      }}
+    >
+      {wrapWithOverlay(
+        tank,
+        <DisplayOutputTextBoxStyle
+          tank={tank}
+          isPlay={isPlay}
+          onUpdate={commonProps.onUpdate}
+          telemetryMap={telemetryMap}
+        />
+      )}
+    </DraggableDroppedTank>
+  );
+}
+
+
 
       if (tank.shape === "gaugeDisplay") {
         const w = tank.w ?? tank.width ?? 220;
