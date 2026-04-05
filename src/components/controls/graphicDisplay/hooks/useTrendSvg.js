@@ -13,6 +13,12 @@ import { useMemo } from "react";
  *
  * Output:
  * - { svg } where svg = { segs: string[][], W: number, H: number }
+ *
+ * IMPORTANT BEHAVIOR:
+ * - A visual gap is created ONLY when the time difference between two
+ *   consecutive valid history readings is more than 1 hour.
+ * - We do NOT compare the last reading time to "now".
+ * - We do NOT let null/gap placeholder samples define the X domain.
  */
 export default function useTrendSvg({
   points,
@@ -31,7 +37,8 @@ export default function useTrendSvg({
     const PAD_RIGHT = 6;
     const INNER_W = Math.max(1, W - PAD_LEFT - PAD_RIGHT);
 
-    // ✅ break line if time between valid readings is more than 1 hour
+    // ✅ create a break ONLY when two consecutive valid history readings
+    // are more than 1 hour apart
     const MAX_POINT_GAP_MS = 60 * 60 * 1000;
 
     const minY = Number(yMin);
@@ -75,9 +82,8 @@ export default function useTrendSvg({
       return { svg: { segs: [], W, H } };
     }
 
-    // ✅ IMPORTANT:
-    // Use only drawable (non-gap, numeric) points to define the X domain.
-    // Otherwise an early gap/null sample creates a blank space before the line.
+    // ✅ Use only real drawable points to define X domain.
+    // This prevents placeholder gap/null samples from creating fake blank space.
     const drawable = arr.filter(
       (p) => !p.gap && Number.isFinite(Number(p.y))
     );
@@ -95,32 +101,37 @@ export default function useTrendSvg({
 
     const segs = [];
     let current = [];
+
+    // ✅ track previous VALID HISTORY reading only
+    // null/gap placeholders do not become the comparison baseline
     let prevValidT = null;
 
+    const flushCurrent = () => {
+      if (current.length > 0) segs.push(current);
+      current = [];
+    };
+
     for (const p of arr) {
+      // Ignore placeholder gap points for drawing.
+      // They should not compare against "now" or create fake trailing gaps.
       if (p.gap) {
-        if (current.length >= 2) segs.push(current);
-        current = [];
-        prevValidT = null;
+        flushCurrent();
         continue;
       }
 
       const yyNum = Number(p.y);
       if (!Number.isFinite(yyNum)) {
-        if (current.length >= 2) segs.push(current);
-        current = [];
-        prevValidT = null;
+        flushCurrent();
         continue;
       }
 
-      // ✅ break segment when gap between consecutive valid points > 1 hour
+      // ✅ Only compare current valid history reading vs previous valid history reading
       if (
         Number.isFinite(prevValidT) &&
         Number.isFinite(p.t) &&
         p.t - prevValidT > MAX_POINT_GAP_MS
       ) {
-        if (current.length >= 2) segs.push(current);
-        current = [];
+        flushCurrent();
       }
 
       const x = PAD_LEFT + ((p.t - tMin) / tSpan) * INNER_W;
@@ -131,7 +142,7 @@ export default function useTrendSvg({
       prevValidT = p.t;
     }
 
-    if (current.length >= 2) segs.push(current);
+    flushCurrent();
 
     log("SVG: segs computed", {
       segsCount: segs.length,
@@ -145,6 +156,8 @@ export default function useTrendSvg({
       maxPointGapMs: MAX_POINT_GAP_MS,
       firstDrawableT: drawable[0]?.t ?? null,
       lastDrawableT: drawable[drawable.length - 1]?.t ?? null,
+      firstSegPoints: segs[0]?.length ?? 0,
+      lastSegPoints: segs[segs.length - 1]?.length ?? 0,
       firstX:
         segs.length && segs[0]?.length
           ? String(segs[0][0] || "").split(",")[0]
