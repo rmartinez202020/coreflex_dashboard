@@ -24,6 +24,14 @@ export function isSupportedControlField(field) {
   return /^(do[1-4]|ao[1-2])$/.test(f);
 }
 
+export function isAOField(field) {
+  return /^ao[1-2]$/.test(String(field || "").trim().toLowerCase());
+}
+
+export function isDOField(field) {
+  return /^do[1-4]$/.test(String(field || "").trim().toLowerCase());
+}
+
 // ===============================
 // 📡 Get Used Control Fields
 // ===============================
@@ -225,7 +233,7 @@ export async function writeControlValue({
     dashboardId,
     widgetId,
     field: safeField,
-    ...(safeField.startsWith("do")
+    ...(isDOField(safeField)
       ? { value01: Number(value01) === 1 ? 1 : 0 }
       : { value: Number(value) }),
   };
@@ -272,6 +280,42 @@ export async function writeControlValue({
   err.code = res.status;
   err.detail = payload;
   throw err;
+}
+
+// ✅ generic AO writer
+export async function writeControlAO({
+  dashboardId,
+  widgetId,
+  field = "ao1",
+  value,
+  signal,
+} = {}) {
+  const safeField = String(field || "").trim().toLowerCase();
+
+  if (!isAOField(safeField)) {
+    throw new Error(`Unsupported AO field: ${safeField || "(empty)"}`);
+  }
+
+  const numericValue = Number(value);
+
+  if (!Number.isFinite(numericValue)) {
+    throw new Error(`Invalid AO value: ${value}`);
+  }
+
+  console.log("🎛️ writeControlAO →", {
+    dashboardId,
+    widgetId,
+    field: safeField,
+    value: numericValue,
+  });
+
+  return writeControlValue({
+    dashboardId,
+    widgetId,
+    field: safeField,
+    value: numericValue,
+    signal,
+  });
 }
 
 // ✅ keep old name so toggle/push button stay working
