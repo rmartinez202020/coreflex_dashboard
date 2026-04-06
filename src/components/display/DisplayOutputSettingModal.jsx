@@ -5,6 +5,10 @@ import {
   useDisplaySettingDevices,
   useDisplaySettingLiveValue,
 } from "../DisplaysettingsmodalTelemetry";
+import {
+  bindControlDO,
+  deleteControlBinding,
+} from "../controls/controlBindings";
 
 const FIXED_MODEL = "zhc1661"; // CF-1600
 
@@ -78,6 +82,7 @@ export default function DisplayOutputSettingModal({
   const [bindModel, setBindModel] = useState(props.bindModel || FIXED_MODEL);
   const [bindDeviceId, setBindDeviceId] = useState(props.bindDeviceId || "");
   const [bindField, setBindField] = useState(props.bindField || "ao1");
+  const [isApplying, setIsApplying] = useState(false);
 
   useEffect(() => {
     if (!tank) return;
@@ -237,6 +242,107 @@ export default function DisplayOutputSettingModal({
 
   const previewTitleStyle = { fontWeight: 600, marginBottom: 8, fontSize: 13 };
   const previewTextStyle = { fontSize: 12, fontWeight: 400, color: "#111827" };
+
+  async function handleApply() {
+    if (!canApply || isApplying) return;
+
+    const cleanTitle = String(title || "").trim();
+
+    const nextProps = {
+      ...(tank?.properties || {}),
+      title: cleanTitle,
+      bindModel: FIXED_MODEL,
+      bindDeviceId,
+      bindField,
+      formula,
+    };
+
+    const nextTank = {
+      ...tank,
+      title: cleanTitle,
+      bindModel: FIXED_MODEL,
+      bindDeviceId,
+      bindField,
+      formula,
+      properties: nextProps,
+    };
+
+    try {
+      setIsApplying(true);
+
+      const dashboardId = String(
+        tank?.dashboardId ||
+          tank?.dashboard_id ||
+          tank?.properties?.dashboardId ||
+          tank?.properties?.dashboard_id ||
+          ""
+      ).trim();
+
+      const dashboardName = String(
+        tank?.dashboardName ||
+          tank?.dashboard_name ||
+          tank?.properties?.dashboardName ||
+          tank?.properties?.dashboard_name ||
+          ""
+      ).trim();
+
+      const widgetId = String(
+        tank?.id || tank?.widgetId || tank?.widget_id || ""
+      ).trim();
+
+      const deviceId = String(bindDeviceId || "").trim();
+      const field = String(bindField || "").trim().toLowerCase();
+
+      if (dashboardId && widgetId && deviceId && /^ao[1-2]$/.test(field)) {
+        console.log("🔗 Display Output bindControlDO →", {
+          dashboardId,
+          dashboardName,
+          widgetId,
+          widgetType: "display_output",
+          title: cleanTitle || "Display Output",
+          deviceId,
+          field,
+        });
+
+        await bindControlDO({
+          dashboardId,
+          dashboardName,
+          widgetId,
+          widgetType: "display_output",
+          title: cleanTitle || "Display Output",
+          deviceId,
+          field,
+        });
+      } else if (dashboardId && widgetId) {
+        console.log("🧹 Display Output deleteControlBinding →", {
+          dashboardId,
+          widgetId,
+        });
+
+        await deleteControlBinding({
+          dashboardId,
+          widgetId,
+        });
+      } else {
+        console.warn(
+          "⚠️ Display Output binding skipped: missing dashboardId or widgetId",
+          {
+            dashboardId,
+            widgetId,
+            deviceId,
+            field,
+          }
+        );
+      }
+
+      onSave?.(nextTank);
+      onClose?.();
+    } catch (err) {
+      console.error("❌ Display Output apply/bind error:", err);
+    } finally {
+      setIsApplying(false);
+    }
+  }
 
   return (
     <div
@@ -642,45 +748,23 @@ export default function DisplayOutputSettingModal({
                 </button>
 
                 <button
-                  disabled={!canApply}
-                  onClick={() => {
-                    const cleanTitle = String(title || "").trim();
-
-                    const nextProps = {
-                      ...(tank?.properties || {}),
-                      title: cleanTitle,
-                      bindModel: FIXED_MODEL,
-                      bindDeviceId,
-                      bindField,
-                      formula,
-                    };
-
-                    const nextTank = {
-                      ...tank,
-                      title: cleanTitle,
-                      bindModel: FIXED_MODEL,
-                      bindDeviceId,
-                      bindField,
-                      formula,
-                      properties: nextProps,
-                    };
-
-                    onSave?.(nextTank);
-                    onClose?.();
-                  }}
+                  disabled={!canApply || isApplying}
+                  onClick={handleApply}
                   style={{
                     padding: "10px 14px",
                     borderRadius: 10,
                     border: "1px solid #bfe6c8",
-                    background: canApply
-                      ? "linear-gradient(180deg,#bff2c7,#6fdc89)"
-                      : "#e5e7eb",
+                    background:
+                      canApply && !isApplying
+                        ? "linear-gradient(180deg,#bff2c7,#6fdc89)"
+                        : "#e5e7eb",
                     color: "#0b3b18",
                     fontWeight: 700,
-                    cursor: canApply ? "pointer" : "not-allowed",
+                    cursor:
+                      canApply && !isApplying ? "pointer" : "not-allowed",
                   }}
                 >
-                  Apply
+                  {isApplying ? "Applying..." : "Apply"}
                 </button>
               </div>
             </div>
