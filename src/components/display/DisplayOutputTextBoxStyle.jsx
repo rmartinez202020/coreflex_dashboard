@@ -1,5 +1,6 @@
 // src/components/display/DisplayOutputTextBoxStyle.jsx
 import React from "react";
+import { writeControlAO } from "../controls/controlBindings";
 
 // ===============================
 // ✅ helpers for Display Output input formatting (SETPOINT MODE)
@@ -300,13 +301,13 @@ function formatByPattern(raw, numberFormat) {
   return formatted;
 }
 
-function SetButton({ isPlay, onSet, disabled }) {
+function SetButton({ isPlay, onSet, disabled, busy }) {
   const [pressed, setPressed] = React.useState(false);
 
   const baseBg = "#22c55e";
   const darkBg = "#16a34a";
 
-  const canPress = isPlay && !disabled;
+  const canPress = isPlay && !disabled && !busy;
 
   return (
     <button
@@ -356,13 +357,15 @@ function SetButton({ isPlay, onSet, disabled }) {
       }}
       title={
         disabled
-          ? "SET disabled (this widget is bound to AI + Math)"
+          ? "SET disabled"
+          : busy
+          ? "Writing..."
           : canPress
           ? "Send/commit this setpoint"
           : "SET works in Play mode"
       }
     >
-      SET
+      {busy ? "..." : "SET"}
     </button>
   );
 }
@@ -440,6 +443,8 @@ export default function DisplayOutputTextBoxStyle({
 
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(onlyDigits(rawSetpoint));
+  const [isWriting, setIsWriting] = React.useState(false);
+  const [writeError, setWriteError] = React.useState("");
 
   React.useEffect(() => {
     if (!editing) setDraft(onlyDigits(rawSetpoint));
@@ -457,37 +462,88 @@ export default function DisplayOutputTextBoxStyle({
     return formatted;
   };
 
-  const handleSet = () => {
-    if (!isPlay) return;
+  const handleSet = async () => {
+    if (!isPlay || isWriting) return;
 
     const formatted = commitFormattedValue();
     const now = new Date().toISOString();
 
-    onUpdate?.({
+    const nextTank = {
       ...tank,
       value: formatted,
       lastSetValue: formatted,
       lastSetAt: now,
-    });
+    };
 
-    window.dispatchEvent(
-      new CustomEvent("coreflex-displayOutput-set", {
-        detail: { id: tank.id, value: formatted, label, numberFormat, at: now },
-      })
-    );
+    onUpdate?.(nextTank);
+    setWriteError("");
+
+    try {
+      if (hasBinding) {
+        const dashboardId = String(
+          tank?.dashboardId ||
+            tank?.dashboard_id ||
+            tank?.properties?.dashboardId ||
+            tank?.properties?.dashboard_id ||
+            ""
+        ).trim();
+
+        const widgetId = String(
+          tank?.id || tank?.widgetId || tank?.widget_id || ""
+        ).trim();
+
+        const field = String(bindField || "").trim().toLowerCase();
+        const numericValue = Number(formatted);
+
+        if (!dashboardId || !widgetId) {
+          throw new Error("Missing dashboardId or widgetId for AO write");
+        }
+
+        if (!Number.isFinite(numericValue)) {
+          throw new Error("Invalid setpoint value");
+        }
+
+        setIsWriting(true);
+
+        await writeControlAO({
+          dashboardId,
+          widgetId,
+          field,
+          value: numericValue,
+        });
+      }
+
+      window.dispatchEvent(
+        new CustomEvent("coreflex-displayOutput-set", {
+          detail: {
+            id: tank.id,
+            value: formatted,
+            label,
+            numberFormat,
+            at: now,
+            bindField,
+            bindDeviceId,
+          },
+        })
+      );
+    } catch (err) {
+      const msg =
+        String(err?.message || "").trim() || "Failed to write AO value";
+      console.error("❌ DisplayOutput AO write failed:", err);
+      setWriteError(msg);
+    } finally {
+      setIsWriting(false);
+    }
   };
 
-  const displayText = hasBinding
-    ? isOffline
-      ? "--"
-      : liveValue === null || liveValue === undefined
-      ? "--"
-      : formatByPattern(outValue, numberFormat)
-    : displayedSetpoint;
+  const displayText = displayedSetpoint;
 
   const actualText =
     hasBinding && !isOffline && liveValue !== null && liveValue !== undefined
-      ? formatByPattern(liveValue, numberFormat)
+      ? formatByPattern(
+          outValue !== null && outValue !== undefined ? outValue : liveValue,
+          numberFormat
+        )
       : "--";
 
   const actualRowH = 26;
@@ -581,20 +637,7 @@ export default function DisplayOutputTextBoxStyle({
             background: "#ffffff",
           }}
         >
-          {hasBinding ? (
-            <div
-              style={{
-                fontFamily: "monospace",
-                fontWeight: 900,
-                fontSize: 22,
-                color: isOffline ? "#dc2626" : "#111",
-                letterSpacing: 1.5,
-                lineHeight: "22px",
-              }}
-            >
-              {displayText}
-            </div>
-          ) : isPlay ? (
+          {isPlay ? (
             <input
               value={displayText}
               inputMode="numeric"
@@ -665,7 +708,12 @@ export default function DisplayOutputTextBoxStyle({
           onMouseDown={(e) => e.stopPropagation()}
           onPointerDown={(e) => e.stopPropagation()}
         >
-          <SetButton isPlay={isPlay} onSet={handleSet} disabled={hasBinding} />
+          <SetButton
+            isPlay={isPlay}
+            onSet={handleSet}
+            disabled={hasBinding && isOffline}
+            busy={isWriting}
+          />
         </div>
       </div>
 
@@ -697,6 +745,22 @@ export default function DisplayOutputTextBoxStyle({
           }}
         >
           Offline
+        </div>
+      ) : null}
+
+      {writeError ? (
+        <div
+          style={{
+            marginTop: 6,
+            fontSize: 12,
+            fontWeight: 700,
+            color: "#dc2626",
+            textAlign: "center",
+            lineHeight: 1.2,
+            wordBreak: "break-word",
+          }}
+        >
+          {writeError}
         </div>
       ) : null}
     </div>
