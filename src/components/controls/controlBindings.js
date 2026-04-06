@@ -18,13 +18,22 @@ function qs(params = {}) {
   return u.toString();
 }
 
+// ✅ now supports DO + AO
+export function isSupportedControlField(field) {
+  const f = String(field || "").trim().toLowerCase();
+  return /^(do[1-4]|ao[1-2])$/.test(f);
+}
+
 // ===============================
-// 📡 Get Used DOs
+// 📡 Get Used Control Fields
 // ===============================
-export async function fetchUsedDOs({ deviceId, signal } = {}) {
+export async function fetchUsedControlFields({ deviceId, signal } = {}) {
   const q = qs({ deviceId });
 
-  console.log("📡 fetchUsedDOs →", { deviceId, url: `${API_URL}/control-bindings/used?${q}` });
+  console.log("📡 fetchUsedControlFields →", {
+    deviceId,
+    url: `${API_URL}/control-bindings/used?${q}`,
+  });
 
   const res = await fetch(`${API_URL}/control-bindings/used?${q}`, {
     method: "GET",
@@ -36,24 +45,28 @@ export async function fetchUsedDOs({ deviceId, signal } = {}) {
     signal,
   });
 
-  console.log("📡 fetchUsedDOs ← status:", res.status);
+  console.log("📡 fetchUsedControlFields ← status:", res.status);
 
   if (!res.ok) {
     const txt = await res.text().catch(() => "");
-    console.error("❌ fetchUsedDOs ERROR:", txt);
-    throw new Error(txt || `Failed to load used DOs (${res.status})`);
+    console.error("❌ fetchUsedControlFields ERROR:", txt);
+    throw new Error(txt || `Failed to load used control fields (${res.status})`);
   }
 
   const data = await res.json();
-  console.log("📡 fetchUsedDOs ← data:", data);
-
+  console.log("📡 fetchUsedControlFields ← data:", data);
   return data;
 }
 
+// ✅ keep old name so existing toggle/push button code does not break
+export async function fetchUsedDOs(args = {}) {
+  return fetchUsedControlFields(args);
+}
+
 // ===============================
-// 🔒 Bind DO
+// 🔒 Bind Control Field (DO or AO)
 // ===============================
-export async function bindControlDO({
+export async function bindControlField({
   dashboardId,
   dashboardName,
   widgetId,
@@ -63,6 +76,11 @@ export async function bindControlDO({
   field,
   signal,
 } = {}) {
+  const safeField = String(field || "").trim().toLowerCase();
+
+  if (!isSupportedControlField(safeField)) {
+    throw new Error(`Unsupported control field: ${safeField || "(empty)"}`);
+  }
 
   const body = {
     dashboardId,
@@ -71,10 +89,10 @@ export async function bindControlDO({
     widgetType,
     title,
     deviceId,
-    field,
+    field: safeField,
   };
 
-  console.log("🔒 bindControlDO →", body);
+  console.log("🔒 bindControlField →", body);
 
   const res = await fetch(`${API_URL}/control-bindings/bind`, {
     method: "POST",
@@ -88,12 +106,12 @@ export async function bindControlDO({
     signal,
   });
 
-  console.log("🔒 bindControlDO ← status:", res.status);
+  console.log("🔒 bindControlField ← status:", res.status);
 
   if (res.ok) {
     try {
       const data = await res.json();
-      console.log("🔒 bindControlDO ← data:", data);
+      console.log("🔒 bindControlField ← data:", data);
       return data;
     } catch {
       return { ok: true };
@@ -105,11 +123,11 @@ export async function bindControlDO({
     payload = await res.json();
   } catch {}
 
-  console.error("❌ bindControlDO ERROR:", payload);
+  console.error("❌ bindControlField ERROR:", payload);
 
   if (res.status === 409) {
     const detail = payload?.detail || payload || {};
-    const err = new Error(detail?.error || "DO already used");
+    const err = new Error(detail?.error || "Control field already used");
     err.code = 409;
     err.detail = detail;
     throw err;
@@ -125,6 +143,11 @@ export async function bindControlDO({
   err.code = res.status;
   err.detail = payload;
   throw err;
+}
+
+// ✅ keep old name so existing toggle/push button code does not break
+export async function bindControlDO(args = {}) {
+  return bindControlField(args);
 }
 
 // ===============================
@@ -180,22 +203,34 @@ export async function deleteControlBinding({
 }
 
 // ===============================
-// 🕹️ Write DO (IMPORTANT)
+// 🕹️ Write Control Value
+// ✅ DO => value01
+// ✅ AO => value
 // ===============================
-export async function writeControlDO({
+export async function writeControlValue({
   dashboardId,
   widgetId,
+  field,
+  value,
   value01,
   signal,
 } = {}) {
+  const safeField = String(field || "").trim().toLowerCase();
+
+  if (!isSupportedControlField(safeField)) {
+    throw new Error(`Unsupported control field: ${safeField || "(empty)"}`);
+  }
 
   const body = {
     dashboardId,
     widgetId,
-    value01: Number(value01) === 1 ? 1 : 0,
+    field: safeField,
+    ...(safeField.startsWith("do")
+      ? { value01: Number(value01) === 1 ? 1 : 0 }
+      : { value: Number(value) }),
   };
 
-  console.log("🕹️ writeControlDO →", body);
+  console.log("🕹️ writeControlValue →", body);
   console.log("🕹️ URL →", `${API_URL}/control-bindings/write`);
 
   const res = await fetch(`${API_URL}/control-bindings/write`, {
@@ -210,12 +245,12 @@ export async function writeControlDO({
     signal,
   });
 
-  console.log("🕹️ writeControlDO ← status:", res.status);
+  console.log("🕹️ writeControlValue ← status:", res.status);
 
   if (res.ok) {
     try {
       const data = await res.json();
-      console.log("🕹️ writeControlDO ← data:", data);
+      console.log("🕹️ writeControlValue ← data:", data);
       return data;
     } catch {
       return { ok: true };
@@ -227,7 +262,7 @@ export async function writeControlDO({
     payload = await res.json();
   } catch {}
 
-  console.error("❌ writeControlDO ERROR:", {
+  console.error("❌ writeControlValue ERROR:", {
     status: res.status,
     payload,
   });
@@ -237,4 +272,20 @@ export async function writeControlDO({
   err.code = res.status;
   err.detail = payload;
   throw err;
+}
+
+// ✅ keep old name so toggle/push button stay working
+export async function writeControlDO({
+  dashboardId,
+  widgetId,
+  value01,
+  signal,
+} = {}) {
+  return writeControlValue({
+    dashboardId,
+    widgetId,
+    field: "do1", // not used by old backend if widget binding resolves server-side
+    value01,
+    signal,
+  });
 }
