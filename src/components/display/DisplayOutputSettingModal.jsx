@@ -1,4 +1,4 @@
-// src/components/DisplayOutputSettingModal.jsx  //
+// src/components/DisplayOutputSettingModal.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
