@@ -1,7 +1,7 @@
-// src/components/DisplayOutputSettingModal.jsx
+// src/components/display/DisplayOutputSettingModal.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-import { API_URL } from "../config/api";
-import { getToken } from "../utils/authToken";
+import { API_URL } from "../../config/api";
+import { getToken } from "../../utils/authToken";
 import {
   bindControlDO,
   deleteControlBinding,
@@ -87,7 +87,6 @@ export default function DisplayOutputSettingModal({
   const [bindField, setBindField] = useState(props.bindField || "ao1");
   const [isApplying, setIsApplying] = useState(false);
 
-  // ✅ direct backend state
   const [devices, setDevices] = useState([]);
   const [devicesLoading, setDevicesLoading] = useState(false);
   const [pollError, setPollError] = useState("");
@@ -106,7 +105,6 @@ export default function DisplayOutputSettingModal({
     setBindModel(FIXED_MODEL);
   }, []);
 
-  // ✅ direct poll to backend
   useEffect(() => {
     if (!open) return;
 
