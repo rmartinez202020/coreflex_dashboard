@@ -1,16 +1,19 @@
 // src/components/DisplayOutputSettingModal.jsx
 import React, { useEffect, useMemo, useRef, useState } from "react";
-
-import {
-  useDisplaySettingDevices,
-  useDisplaySettingLiveValue,
-} from "../DisplaysettingsmodalTelemetry";
+import { API_URL } from "../config/api";
+import { getToken } from "../utils/authToken";
 import {
   bindControlDO,
   deleteControlBinding,
 } from "../controls/controlBindings";
 
 const FIXED_MODEL = "zhc1661"; // CF-1600
+const POLL_MS = 2000;
+
+function getAuthHeaders() {
+  const token = String(getToken() || "").trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 function computeMathOutput(liveValue, formula) {
   const f = String(formula || "").trim();
@@ -84,6 +87,11 @@ export default function DisplayOutputSettingModal({
   const [bindField, setBindField] = useState(props.bindField || "ao1");
   const [isApplying, setIsApplying] = useState(false);
 
+  // ✅ direct backend state
+  const [devices, setDevices] = useState([]);
+  const [devicesLoading, setDevicesLoading] = useState(false);
+  const [pollError, setPollError] = useState("");
+
   useEffect(() => {
     if (!tank) return;
     const p = tank?.properties || {};
@@ -98,34 +106,96 @@ export default function DisplayOutputSettingModal({
     setBindModel(FIXED_MODEL);
   }, []);
 
-  const { devices, selectedDevice } = useDisplaySettingDevices({
-    open,
-    bindModel: FIXED_MODEL,
-    bindDeviceId,
-    setBindDeviceId,
-  });
+  // ✅ direct poll to backend
+  useEffect(() => {
+    if (!open) return;
 
-  const { liveValue, pollError } = useDisplaySettingLiveValue({
-    open,
-    bindModel: FIXED_MODEL,
-    bindDeviceId,
-    bindField,
-  });
+    let cancelled = false;
+    let timer = null;
+
+    async function loadDevices(isFirst = false) {
+      try {
+        if (isFirst) setDevicesLoading(true);
+
+        const res = await fetch(`${API_URL}/zhc1661/my-devices`, {
+          method: "GET",
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+          },
+        });
+
+        let data = null;
+        try {
+          data = await res.json();
+        } catch {
+          data = null;
+        }
+
+        if (!res.ok) {
+          throw new Error(
+            data?.detail || `Failed to load CF-1600 devices (${res.status})`
+          );
+        }
+
+        const rows = Array.isArray(data) ? data : [];
+
+        if (!cancelled) {
+          setDevices(rows);
+          setPollError("");
+        }
+      } catch (err) {
+        if (!cancelled) {
+          console.error("❌ Display Output modal device poll error:", err);
+          setPollError(err?.message || "Failed to load device data");
+        }
+      } finally {
+        if (!cancelled) setDevicesLoading(false);
+      }
+    }
+
+    loadDevices(true);
+    timer = window.setInterval(() => loadDevices(false), POLL_MS);
+
+    return () => {
+      cancelled = true;
+      if (timer) window.clearInterval(timer);
+    };
+  }, [open]);
+
+  const selectedDevice = useMemo(() => {
+    const wanted = String(bindDeviceId || "").trim();
+    if (!wanted) return null;
+    return (
+      devices.find((d) => String(d?.deviceId || "").trim() === wanted) || null
+    );
+  }, [devices, bindDeviceId]);
 
   const hasSelectedDevice = !!String(bindDeviceId || "").trim();
-  const selectedDeviceStatus = String(selectedDevice?.status || "")
+
+  const selectedDeviceStatus = String(
+    selectedDevice?.status ||
+      (selectedDevice?.online === true ? "online" : "offline") ||
+      ""
+  )
     .trim()
     .toLowerCase();
 
   const selectedDeviceIsOnline =
     hasSelectedDevice && selectedDeviceStatus === "online";
 
-  const effectiveLiveValue = selectedDeviceIsOnline ? liveValue : null;
+  const rawLiveValue = useMemo(() => {
+    if (!selectedDevice || !bindField) return null;
+    const v = selectedDevice?.[bindField];
+    return Number.isFinite(Number(v)) ? Number(v) : null;
+  }, [selectedDevice, bindField]);
+
+  const effectiveLiveValue = selectedDeviceIsOnline ? rawLiveValue : null;
 
   const effectiveOutputValue = useMemo(() => {
     if (!selectedDeviceIsOnline) return null;
-    return computeMathOutput(liveValue, formula);
-  }, [selectedDeviceIsOnline, liveValue, formula]);
+    return computeMathOutput(rawLiveValue, formula);
+  }, [selectedDeviceIsOnline, rawLiveValue, formula]);
 
   const liveErr = pollError;
 
@@ -646,7 +716,9 @@ export default function DisplayOutputSettingModal({
                   onChange={(e) => setBindDeviceId(e.target.value)}
                   style={fieldSelectStyle}
                 >
-                  <option value="">Select device...</option>
+                  <option value="">
+                    {devicesLoading ? "Loading devices..." : "Select device..."}
+                  </option>
                   {devices.map((d) => (
                     <option key={d.deviceId} value={d.deviceId}>
                       {d.deviceId}
@@ -686,11 +758,21 @@ export default function DisplayOutputSettingModal({
                   ·{" "}
                   {!bindDeviceId ? (
                     <span style={{ color: "#64748b" }}>--</span>
-                  ) : selectedDevice?.status === "online" ? (
+                  ) : selectedDeviceIsOnline ? (
                     <span style={{ color: "#16a34a" }}>ONLINE</span>
                   ) : (
                     <span style={{ color: "#dc2626" }}>OFFLINE</span>
                   )}
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 6,
+                    fontSize: 11,
+                    color: "#64748b",
+                  }}
+                >
+                  Last Seen: {selectedDevice?.lastSeen || "—"}
                 </div>
 
                 <div
