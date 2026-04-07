@@ -15,6 +15,108 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function resolveWidgetId(widget) {
+  return String(
+    widget?.id ??
+      widget?.widgetId ??
+      widget?.widget_id ??
+      widget?._id ??
+      widget?.uuid ??
+      widget?.properties?.widgetId ??
+      widget?.properties?.widget_id ??
+      ""
+  ).trim();
+}
+
+function resolveDashboardId({ dashboardId, widget }) {
+  return String(
+    dashboardId ??
+      widget?.dashboardId ??
+      widget?.dashboard_id ??
+      widget?.properties?.dashboardId ??
+      widget?.properties?.dashboard_id ??
+      ""
+  ).trim();
+}
+
+function resolveDashboardName({ dashboardName, widget }) {
+  return String(
+    dashboardName ??
+      widget?.dashboardName ??
+      widget?.dashboard_name ??
+      widget?.properties?.dashboardName ??
+      widget?.properties?.dashboard_name ??
+      ""
+  ).trim();
+}
+
+function resolveDeviceId(row) {
+  return String(row?.deviceId ?? row?.device_id ?? "").trim();
+}
+
+function readRowStatus(row) {
+  const raw = String(
+    row?.status ??
+      row?.Status ??
+      row?.connection_status ??
+      row?.connectionStatus ??
+      row?.onlineStatus ??
+      (row?.online === true ||
+      row?.online === 1 ||
+      String(row?.online ?? "")
+        .trim()
+        .toLowerCase() === "true"
+        ? "online"
+        : "")
+  )
+    .trim()
+    .toLowerCase();
+
+  return raw;
+}
+
+function isRowOnline(row) {
+  const s = readRowStatus(row);
+  return ["online", "connected", "active"].includes(s);
+}
+
+function getLastSeen(row) {
+  return (
+    row?.lastSeen ??
+    row?.last_seen ??
+    row?.updated_at ??
+    row?.updatedAt ??
+    row?.created_at ??
+    row?.createdAt ??
+    "—"
+  );
+}
+
+function readAOValue(row, field) {
+  const f = String(field || "")
+    .trim()
+    .toLowerCase();
+
+  if (!row || !/^ao[1-2]$/.test(f)) return null;
+
+  const altUpper = f.toUpperCase();
+  const n = f.replace("ao", "");
+  const altA = `analog_output_${n}`;
+  const altB = `analogOutput${n}`;
+  const altC = `out${n}`;
+  const altD = `ao_${n}`;
+
+  const raw =
+    row?.[f] ??
+    row?.[altUpper] ??
+    row?.[altA] ??
+    row?.[altB] ??
+    row?.[altC] ??
+    row?.[altD];
+
+  return Number.isFinite(Number(raw)) ? Number(raw) : null;
+}
+
 function computeMathOutput(liveValue, formula) {
   const f = String(formula || "").trim();
   if (!f) return liveValue;
@@ -164,28 +266,16 @@ export default function DisplayOutputSettingModal({
   const selectedDevice = useMemo(() => {
     const wanted = String(bindDeviceId || "").trim();
     if (!wanted) return null;
-    return (
-      devices.find((d) => String(d?.deviceId || "").trim() === wanted) || null
-    );
+    return devices.find((d) => resolveDeviceId(d) === wanted) || null;
   }, [devices, bindDeviceId]);
 
   const hasSelectedDevice = !!String(bindDeviceId || "").trim();
-
-  const selectedDeviceStatus = String(
-    selectedDevice?.status ||
-      (selectedDevice?.online === true ? "online" : "offline") ||
-      ""
-  )
-    .trim()
-    .toLowerCase();
-
+  const selectedDeviceStatus = readRowStatus(selectedDevice);
   const selectedDeviceIsOnline =
-    hasSelectedDevice && selectedDeviceStatus === "online";
+    hasSelectedDevice && isRowOnline(selectedDevice);
 
   const rawLiveValue = useMemo(() => {
-    if (!selectedDevice || !bindField) return null;
-    const v = selectedDevice?.[bindField];
-    return Number.isFinite(Number(v)) ? Number(v) : null;
+    return readAOValue(selectedDevice, bindField);
   }, [selectedDevice, bindField]);
 
   const effectiveLiveValue = selectedDeviceIsOnline ? rawLiveValue : null;
@@ -338,28 +428,36 @@ export default function DisplayOutputSettingModal({
     try {
       setIsApplying(true);
 
-      const dashboardId = String(
-        tank?.dashboardId ||
-          tank?.dashboard_id ||
-          tank?.properties?.dashboardId ||
-          tank?.properties?.dashboard_id ||
-          ""
-      ).trim();
-
-      const dashboardName = String(
-        tank?.dashboardName ||
-          tank?.dashboard_name ||
-          tank?.properties?.dashboardName ||
-          tank?.properties?.dashboard_name ||
-          ""
-      ).trim();
-
-      const widgetId = String(
-        tank?.id || tank?.widgetId || tank?.widget_id || ""
-      ).trim();
+      const dashboardId = resolveDashboardId({ widget: tank });
+      const dashboardName = resolveDashboardName({ widget: tank });
+      const widgetId = resolveWidgetId(tank);
 
       const deviceId = String(bindDeviceId || "").trim();
       const field = String(bindField || "").trim().toLowerCase();
+
+      console.log("🔎 Display Output apply debug →", {
+        dashboardId,
+        dashboardName,
+        widgetId,
+        widgetIdRaw: {
+          id: tank?.id,
+          widgetId: tank?.widgetId,
+          widget_id: tank?.widget_id,
+          _id: tank?._id,
+          uuid: tank?.uuid,
+          propertiesWidgetId: tank?.properties?.widgetId,
+          propertiesWidget_id: tank?.properties?.widget_id,
+        },
+        dashboardIdRaw: {
+          dashboardId: tank?.dashboardId,
+          dashboard_id: tank?.dashboard_id,
+          propertiesDashboardId: tank?.properties?.dashboardId,
+          propertiesDashboard_id: tank?.properties?.dashboard_id,
+        },
+        deviceId,
+        field,
+        tank,
+      });
 
       if (dashboardId && widgetId && deviceId && /^ao[1-2]$/.test(field)) {
         console.log("🔗 Display Output bindControlDO →", {
@@ -717,11 +815,14 @@ export default function DisplayOutputSettingModal({
                   <option value="">
                     {devicesLoading ? "Loading devices..." : "Select device..."}
                   </option>
-                  {devices.map((d) => (
-                    <option key={d.deviceId} value={d.deviceId}>
-                      {d.deviceId}
-                    </option>
-                  ))}
+                  {devices.map((d) => {
+                    const deviceId = resolveDeviceId(d);
+                    return (
+                      <option key={deviceId} value={deviceId}>
+                        {deviceId}
+                      </option>
+                    );
+                  })}
                 </select>
               </div>
 
@@ -770,7 +871,7 @@ export default function DisplayOutputSettingModal({
                     color: "#64748b",
                   }}
                 >
-                  Last Seen: {selectedDevice?.lastSeen || "—"}
+                  Last Seen: {getLastSeen(selectedDevice)}
                 </div>
 
                 <div
