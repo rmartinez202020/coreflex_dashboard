@@ -466,50 +466,88 @@ export default function DashboardCanvasWidgetLayer({
               if (!isPlay) onOpenDisplaySettings?.(tank);
             }}
           >
-           {wrapWithOverlay(
-  tank,
-  <DraggableDisplayBox
-    tank={tank}
-    telemetryMap={telemetryMap}
-    isPlay={isPlay}
-  />
-)}
-
-
+            {wrapWithOverlay(
+              tank,
+              <DraggableDisplayBox
+                tank={tank}
+                telemetryMap={telemetryMap}
+                isPlay={isPlay}
+              />
+            )}
           </DraggableDroppedTank>
         );
       }
 
       if (tank.shape === "displayOutput") {
-  return (
-    <DraggableDroppedTank
-      {...commonProps}
-      onDoubleClick={() => {
-        if (!isPlay) onOpenDisplayOutputSettings?.(tank);
-      }}
-    >
-      {wrapWithOverlay(
-        tank,
+        const resolvedDash = resolveDashboardId({
+          activeDashboardId,
+          dashboardId,
+          selectedTank,
+          droppedTanks,
+        });
 
+        const displayOutputTankForModal = {
+          ...tank,
+          dashboardId: resolvedDash || tank?.dashboardId || "",
+          dashboard_id: resolvedDash || tank?.dashboard_id || "",
+          dashboardName: resolvedDashboardName || tank?.dashboardName || "",
+          dashboard_name:
+            resolvedDashboardName || tank?.dashboard_name || "",
+          properties: {
+            ...(tank?.properties || {}),
+            dashboardId:
+              resolvedDash ||
+              tank?.properties?.dashboardId ||
+              tank?.properties?.dashboard_id ||
+              "",
+            dashboard_id:
+              resolvedDash ||
+              tank?.properties?.dashboard_id ||
+              tank?.properties?.dashboardId ||
+              "",
+            dashboardName:
+              resolvedDashboardName ||
+              tank?.properties?.dashboardName ||
+              tank?.properties?.dashboard_name ||
+              "",
+            dashboard_name:
+              resolvedDashboardName ||
+              tank?.properties?.dashboard_name ||
+              tank?.properties?.dashboardName ||
+              "",
+          },
+        };
 
-        <DisplayOutputTextBoxStyle
-  tank={tank}
-  isPlay={isPlay}
-  onUpdate={commonProps.onUpdate}
-  telemetryMap={telemetryMap}
-  onDoubleClick={(tankArg) => {
-    if (!isPlay) onOpenDisplayOutputSettings?.(tankArg || tank);
-  }}
-/>
-
-
-
-      )}
-    </DraggableDroppedTank>
-  );
-}
-
-
+        return (
+          <DraggableDroppedTank
+            {...commonProps}
+            onDoubleClick={() => {
+              if (!isPlay) {
+                onOpenDisplayOutputSettings?.(displayOutputTankForModal);
+              }
+            }}
+          >
+            {wrapWithOverlay(
+              tank,
+              <DisplayOutputTextBoxStyle
+                tank={displayOutputTankForModal}
+                isPlay={isPlay}
+                onUpdate={commonProps.onUpdate}
+                telemetryMap={telemetryMap}
+                dashboardId={resolvedDash}
+                dashboardName={resolvedDashboardName}
+                onDoubleClick={(tankArg) => {
+                  if (!isPlay) {
+                    onOpenDisplayOutputSettings?.(
+                      tankArg || displayOutputTankForModal
+                    );
+                  }
+                }}
+              />
+            )}
+          </DraggableDroppedTank>
+        );
+      }
 
       if (tank.shape === "gaugeDisplay") {
         const w = tank.w ?? tank.width ?? 220;
