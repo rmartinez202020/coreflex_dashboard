@@ -26,6 +26,44 @@ function padToFormat(rawDigits, numberFormat) {
 }
 
 // ===============================
+// ✅ shared widget/dashboard resolvers
+// ===============================
+function resolveWidgetId(widget) {
+  return String(
+    widget?.id ??
+      widget?.widgetId ??
+      widget?.widget_id ??
+      widget?._id ??
+      widget?.uuid ??
+      widget?.properties?.widgetId ??
+      widget?.properties?.widget_id ??
+      ""
+  ).trim();
+}
+
+function resolveDashboardId({ dashboardId, widget }) {
+  return String(
+    dashboardId ??
+      widget?.dashboardId ??
+      widget?.dashboard_id ??
+      widget?.properties?.dashboardId ??
+      widget?.properties?.dashboard_id ??
+      ""
+  ).trim();
+}
+
+function resolveDashboardName({ dashboardName, widget }) {
+  return String(
+    dashboardName ??
+      widget?.dashboardName ??
+      widget?.dashboard_name ??
+      widget?.properties?.dashboardName ??
+      widget?.properties?.dashboard_name ??
+      ""
+  ).trim();
+}
+
+// ===============================
 // ✅ helpers for telemetryMap BINDING MODE (AI + AO + MATH)
 // ===============================
 function normalizeField(field) {
@@ -376,6 +414,8 @@ export default function DisplayOutputTextBoxStyle({
   onUpdate,
   telemetryMap = null,
   onDoubleClick,
+  dashboardId = "",
+  dashboardName = "",
 }) {
   const w = tank.w ?? tank.width ?? 160;
   const h = tank.h ?? tank.height ?? 60;
@@ -398,6 +438,18 @@ export default function DisplayOutputTextBoxStyle({
   const formula = tank?.properties?.formula ?? tank?.formula ?? "";
 
   const hasBinding = !!bindDeviceId && !!bindField;
+
+  const resolvedDashboardId = React.useMemo(() => {
+    return resolveDashboardId({ dashboardId, widget: tank });
+  }, [dashboardId, tank]);
+
+  const resolvedDashboardName = React.useMemo(() => {
+    return resolveDashboardName({ dashboardName, widget: tank });
+  }, [dashboardName, tank]);
+
+  const resolvedWidgetId = React.useMemo(() => {
+    return resolveWidgetId(tank);
+  }, [tank]);
 
   const row = React.useMemo(() => {
     if (!hasBinding) return null;
@@ -473,6 +525,33 @@ export default function DisplayOutputTextBoxStyle({
       value: formatted,
       lastSetValue: formatted,
       lastSetAt: now,
+      dashboardId: resolvedDashboardId || tank?.dashboardId || "",
+      dashboard_id: resolvedDashboardId || tank?.dashboard_id || "",
+      dashboardName: resolvedDashboardName || tank?.dashboardName || "",
+      dashboard_name: resolvedDashboardName || tank?.dashboard_name || "",
+      properties: {
+        ...(tank?.properties || {}),
+        dashboardId:
+          resolvedDashboardId ||
+          tank?.properties?.dashboardId ||
+          tank?.properties?.dashboard_id ||
+          "",
+        dashboard_id:
+          resolvedDashboardId ||
+          tank?.properties?.dashboard_id ||
+          tank?.properties?.dashboardId ||
+          "",
+        dashboardName:
+          resolvedDashboardName ||
+          tank?.properties?.dashboardName ||
+          tank?.properties?.dashboard_name ||
+          "",
+        dashboard_name:
+          resolvedDashboardName ||
+          tank?.properties?.dashboard_name ||
+          tank?.properties?.dashboardName ||
+          "",
+      },
     };
 
     onUpdate?.(nextTank);
@@ -480,22 +559,10 @@ export default function DisplayOutputTextBoxStyle({
 
     try {
       if (hasBinding) {
-        const dashboardId = String(
-          tank?.dashboardId ||
-            tank?.dashboard_id ||
-            tank?.properties?.dashboardId ||
-            tank?.properties?.dashboard_id ||
-            ""
-        ).trim();
-
-        const widgetId = String(
-          tank?.id || tank?.widgetId || tank?.widget_id || ""
-        ).trim();
-
         const field = String(bindField || "").trim().toLowerCase();
         const numericValue = Number(formatted);
 
-        if (!dashboardId || !widgetId) {
+        if (!resolvedDashboardId || !resolvedWidgetId) {
           throw new Error("Missing dashboardId or widgetId for AO write");
         }
 
@@ -506,8 +573,8 @@ export default function DisplayOutputTextBoxStyle({
         setIsWriting(true);
 
         await writeControlAO({
-          dashboardId,
-          widgetId,
+          dashboardId: resolvedDashboardId,
+          widgetId: resolvedWidgetId,
           field,
           value: numericValue,
         });
@@ -516,13 +583,15 @@ export default function DisplayOutputTextBoxStyle({
       window.dispatchEvent(
         new CustomEvent("coreflex-displayOutput-set", {
           detail: {
-            id: tank.id,
+            id: resolvedWidgetId || tank.id,
             value: formatted,
             label,
             numberFormat,
             at: now,
             bindField,
             bindDeviceId,
+            dashboardId: resolvedDashboardId,
+            dashboardName: resolvedDashboardName,
           },
         })
       );
@@ -552,12 +621,45 @@ export default function DisplayOutputTextBoxStyle({
   const setBtnH = 26;
   const totalBoxH = actualRowH + actualValueH + mainDisplayH + setBtnH;
 
+  const enrichedTankForModal = React.useMemo(() => {
+    return {
+      ...tank,
+      dashboardId: resolvedDashboardId || tank?.dashboardId || "",
+      dashboard_id: resolvedDashboardId || tank?.dashboard_id || "",
+      dashboardName: resolvedDashboardName || tank?.dashboardName || "",
+      dashboard_name: resolvedDashboardName || tank?.dashboard_name || "",
+      properties: {
+        ...(tank?.properties || {}),
+        dashboardId:
+          resolvedDashboardId ||
+          tank?.properties?.dashboardId ||
+          tank?.properties?.dashboard_id ||
+          "",
+        dashboard_id:
+          resolvedDashboardId ||
+          tank?.properties?.dashboard_id ||
+          tank?.properties?.dashboardId ||
+          "",
+        dashboardName:
+          resolvedDashboardName ||
+          tank?.properties?.dashboardName ||
+          tank?.properties?.dashboard_name ||
+          "",
+        dashboard_name:
+          resolvedDashboardName ||
+          tank?.properties?.dashboard_name ||
+          tank?.properties?.dashboardName ||
+          "",
+      },
+    };
+  }, [tank, resolvedDashboardId, resolvedDashboardName]);
+
   return (
     <div
       style={{ width: w, userSelect: "none" }}
       onDoubleClickCapture={(e) => {
         e.stopPropagation();
-        onDoubleClick?.(tank);
+        onDoubleClick?.(enrichedTankForModal);
       }}
     >
       <div
