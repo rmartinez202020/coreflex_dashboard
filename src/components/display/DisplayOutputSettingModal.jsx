@@ -201,6 +201,16 @@ export default function DisplayOutputSettingModal({
     setBindModel(FIXED_MODEL);
     setBindDeviceId(p.bindDeviceId ?? "");
     setBindField(p.bindField === "ao2" ? "ao2" : "ao1");
+
+    console.log("🟦 Display Output modal tank sync →", {
+      tank,
+      properties: p,
+      title: p.title ?? p.displayTitle ?? "",
+      formula: p.formula ?? "",
+      bindModel: FIXED_MODEL,
+      bindDeviceId: p.bindDeviceId ?? "",
+      bindField: p.bindField === "ao2" ? "ao2" : "ao1",
+    });
   }, [tank]);
 
   useEffect(() => {
@@ -210,12 +220,19 @@ export default function DisplayOutputSettingModal({
   useEffect(() => {
     if (!open) return;
 
+    console.log("🟦 Display Output modal opened");
+
     let cancelled = false;
     let timer = null;
 
     async function loadDevices(isFirst = false) {
       try {
         if (isFirst) setDevicesLoading(true);
+
+        console.log("📡 Display Output loadDevices →", {
+          isFirst,
+          url: `${API_URL}/zhc1661/my-devices`,
+        });
 
         const res = await fetch(`${API_URL}/zhc1661/my-devices`, {
           method: "GET",
@@ -231,6 +248,12 @@ export default function DisplayOutputSettingModal({
         } catch {
           data = null;
         }
+
+        console.log("📡 Display Output loadDevices ←", {
+          status: res.status,
+          ok: res.ok,
+          data,
+        });
 
         if (!res.ok) {
           throw new Error(
@@ -260,6 +283,7 @@ export default function DisplayOutputSettingModal({
     return () => {
       cancelled = true;
       if (timer) window.clearInterval(timer);
+      console.log("🟦 Display Output modal cleanup");
     };
   }, [open]);
 
@@ -284,6 +308,30 @@ export default function DisplayOutputSettingModal({
     if (!selectedDeviceIsOnline) return null;
     return computeMathOutput(rawLiveValue, formula);
   }, [selectedDeviceIsOnline, rawLiveValue, formula]);
+
+  useEffect(() => {
+    console.log("🟦 Display Output selected device state →", {
+      bindDeviceId,
+      bindField,
+      devicesCount: Array.isArray(devices) ? devices.length : 0,
+      selectedDevice,
+      selectedDeviceStatus,
+      selectedDeviceIsOnline,
+      rawLiveValue,
+      effectiveLiveValue,
+      effectiveOutputValue,
+    });
+  }, [
+    bindDeviceId,
+    bindField,
+    devices,
+    selectedDevice,
+    selectedDeviceStatus,
+    selectedDeviceIsOnline,
+    rawLiveValue,
+    effectiveLiveValue,
+    effectiveOutputValue,
+  ]);
 
   const liveErr = pollError;
 
@@ -320,6 +368,15 @@ export default function DisplayOutputSettingModal({
 
     setPos({ left, top });
     setDidInitPos(true);
+
+    console.log("🟦 Display Output modal initial position →", {
+      left,
+      top,
+      width,
+      estHeight,
+      viewportW: w,
+      viewportH: h,
+    });
   }, [open, didInitPos]);
 
   const onDragMove = (e) => {
@@ -386,6 +443,15 @@ export default function DisplayOutputSettingModal({
     return !!bindDeviceId && (bindField === "ao1" || bindField === "ao2");
   }, [bindDeviceId, bindField]);
 
+  useEffect(() => {
+    console.log("🟦 Display Output canApply state →", {
+      bindDeviceId,
+      bindField,
+      canApply,
+      isApplying,
+    });
+  }, [bindDeviceId, bindField, canApply, isApplying]);
+
   const labelStyle = { fontSize: 12, fontWeight: 500, color: "#111827" };
   const sectionTitleStyle = { fontWeight: 600, fontSize: 16 };
   const fieldSelectStyle = {
@@ -402,7 +468,21 @@ export default function DisplayOutputSettingModal({
   const previewTextStyle = { fontSize: 12, fontWeight: 400, color: "#111827" };
 
   async function handleApply() {
-    if (!canApply || isApplying) return;
+    console.log("✅ Display Output APPLY CLICKED →", {
+      canApply,
+      isApplying,
+      bindDeviceId,
+      bindField,
+      tank,
+    });
+
+    if (!canApply || isApplying) {
+      console.warn("⛔ Display Output apply blocked at top →", {
+        canApply,
+        isApplying,
+      });
+      return;
+    }
 
     const cleanTitle = String(title || "").trim();
 
@@ -427,6 +507,7 @@ export default function DisplayOutputSettingModal({
 
     try {
       setIsApplying(true);
+      console.log("✅ Display Output entered try block");
 
       const dashboardId = resolveDashboardId({ widget: tank });
       const dashboardName = resolveDashboardName({ widget: tank });
@@ -456,11 +537,14 @@ export default function DisplayOutputSettingModal({
         },
         deviceId,
         field,
+        cleanTitle,
+        nextProps,
+        nextTank,
         tank,
       });
 
       if (dashboardId && widgetId && deviceId && /^ao[1-2]$/.test(field)) {
-        console.log("🔗 Display Output bindControlDO →", {
+        console.log("🚀 Display Output ABOUT TO CALL bindControlDO →", {
           dashboardId,
           dashboardName,
           widgetId,
@@ -470,7 +554,7 @@ export default function DisplayOutputSettingModal({
           field,
         });
 
-        await bindControlDO({
+        const bindResp = await bindControlDO({
           dashboardId,
           dashboardName,
           widgetId,
@@ -479,16 +563,23 @@ export default function DisplayOutputSettingModal({
           deviceId,
           field,
         });
+
+        console.log("✅ Display Output bindControlDO SUCCESS ←", bindResp);
       } else if (dashboardId && widgetId) {
-        console.log("🧹 Display Output deleteControlBinding →", {
+        console.log("🧹 Display Output ABOUT TO CALL deleteControlBinding →", {
           dashboardId,
           widgetId,
         });
 
-        await deleteControlBinding({
+        const deleteResp = await deleteControlBinding({
           dashboardId,
           widgetId,
         });
+
+        console.log(
+          "✅ Display Output deleteControlBinding SUCCESS ←",
+          deleteResp
+        );
       } else {
         console.warn(
           "⚠️ Display Output binding skipped: missing dashboardId or widgetId",
@@ -499,14 +590,21 @@ export default function DisplayOutputSettingModal({
             field,
           }
         );
+        alert("Missing dashboardId or widgetId for Display Output binding");
+        return;
       }
 
+      console.log("✅ Display Output ABOUT TO CALL onSave");
       onSave?.(nextTank);
+
+      console.log("✅ Display Output ABOUT TO CALL onClose");
       onClose?.();
     } catch (err) {
       console.error("❌ Display Output apply/bind error:", err);
+      alert(err?.message || "Display Output apply failed");
     } finally {
       setIsApplying(false);
+      console.log("✅ Display Output handleApply finished");
     }
   }
 
@@ -597,7 +695,10 @@ export default function DisplayOutputSettingModal({
                 <div style={labelStyle}>Title (Top of Display)</div>
                 <input
                   value={title}
-                  onChange={(e) => setTitle(e.target.value)}
+                  onChange={(e) => {
+                    console.log("📝 Display Output title changed →", e.target.value);
+                    setTitle(e.target.value);
+                  }}
                   placeholder="Example: Output Channel #1"
                   style={{
                     height: 38,
@@ -703,7 +804,10 @@ export default function DisplayOutputSettingModal({
                 </div>
                 <textarea
                   value={formula}
-                  onChange={(e) => setFormula(e.target.value)}
+                  onChange={(e) => {
+                    console.log("📝 Display Output formula changed →", e.target.value);
+                    setFormula(e.target.value);
+                  }}
                   rows={4}
                   style={{
                     marginTop: 6,
@@ -809,7 +913,10 @@ export default function DisplayOutputSettingModal({
                 <div style={labelStyle}>Device</div>
                 <select
                   value={bindDeviceId}
-                  onChange={(e) => setBindDeviceId(e.target.value)}
+                  onChange={(e) => {
+                    console.log("📝 Display Output device changed →", e.target.value);
+                    setBindDeviceId(e.target.value);
+                  }}
                   style={fieldSelectStyle}
                 >
                   <option value="">
@@ -830,7 +937,10 @@ export default function DisplayOutputSettingModal({
                 <div style={labelStyle}>Analog Output (AO)</div>
                 <select
                   value={bindField}
-                  onChange={(e) => setBindField(e.target.value)}
+                  onChange={(e) => {
+                    console.log("📝 Display Output bindField changed →", e.target.value);
+                    setBindField(e.target.value);
+                  }}
                   style={fieldSelectStyle}
                 >
                   <option value="ao1">AO-1</option>
@@ -915,7 +1025,10 @@ export default function DisplayOutputSettingModal({
                 }}
               >
                 <button
-                  onClick={onClose}
+                  onClick={() => {
+                    console.log("🟨 Display Output Cancel clicked");
+                    onClose?.();
+                  }}
                   style={{
                     padding: "10px 14px",
                     borderRadius: 10,
@@ -930,7 +1043,10 @@ export default function DisplayOutputSettingModal({
 
                 <button
                   disabled={!canApply || isApplying}
-                  onClick={handleApply}
+                  onClick={() => {
+                    console.log("🟩 Display Output Apply button onClick fired");
+                    handleApply();
+                  }}
                   style={{
                     padding: "10px 14px",
                     borderRadius: 10,
