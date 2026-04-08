@@ -593,10 +593,8 @@ export default function DisplayOutputTextBoxStyle({
     }
   }, [rawSetpoint, editing, numberFormat]);
 
-  const displayedSetpoint = isPlay
-    ? editing
-      ? draft
-      : padToFormat(rawSetpoint, numberFormat)
+  const displayedSetpoint = editing
+    ? draft
     : padToFormat(rawSetpoint, numberFormat);
 
   const commitFormattedValue = (rawOverride = null) => {
@@ -614,7 +612,8 @@ export default function DisplayOutputTextBoxStyle({
   const handleSet = async () => {
     if (!isPlay || isWriting) return;
 
-    const formatted = commitFormattedValue(inputRef.current?.value ?? draft);
+    const source = inputRef.current?.value ?? draft;
+    const formatted = commitFormattedValue(source);
     const now = new Date().toISOString();
 
     const nextTank = {
@@ -702,8 +701,6 @@ export default function DisplayOutputTextBoxStyle({
       setEditing(false);
     }
   };
-
-  const displayText = displayedSetpoint;
 
   const actualText =
     hasBinding && !isOffline && liveValue !== null && liveValue !== undefined
@@ -839,7 +836,7 @@ export default function DisplayOutputTextBoxStyle({
           {isPlay ? (
             <input
               ref={inputRef}
-              value={displayText}
+              value={editing ? draft : displayedSetpoint}
               inputMode="numeric"
               autoComplete="off"
               spellCheck={false}
@@ -867,7 +864,8 @@ export default function DisplayOutputTextBoxStyle({
                     ? String(liveValue)
                     : rawSetpoint;
 
-                setDraft(normalizeRawSetpoint(baseValue, numberFormat));
+                const nextDraft = normalizeRawSetpoint(baseValue, numberFormat);
+                setDraft(nextDraft);
                 setEditing(true);
 
                 requestAnimationFrame(() => {
@@ -917,7 +915,7 @@ export default function DisplayOutputTextBoxStyle({
                 lineHeight: "22px",
               }}
             >
-              {displayText}
+              {displayedSetpoint}
             </div>
           )}
         </div>
