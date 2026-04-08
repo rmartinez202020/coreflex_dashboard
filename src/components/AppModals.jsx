@@ -406,16 +406,44 @@ const displayOutputTarget = useMemo(() => {
     dashboardId={safeDashboardId}
     dashboardName={safeDashboardName}
     onSaveProject={onSaveProject} 
-    onClose={closeDisplayOutputSettings}   
+    onClose={closeDisplayOutputSettings}  
+
     onSave={(updatedTank) => {
-      setDroppedTanks((prev) =>
-        prev.map((t) =>
-          isSameId(t.id, displayOutputTarget.id)
-            ? updatedTank
-            : t
-        )
-      );
-    }}
+  setDroppedTanks((prev) =>
+    prev.map((t) => {
+      if (!isSameId(t.id, displayOutputTarget.id)) return t;
+
+      return {
+        ...t,
+        ...updatedTank,
+        properties: {
+          ...(t.properties || {}),
+          ...(updatedTank?.properties || {}),
+        },
+        title:
+          updatedTank?.title ??
+          updatedTank?.properties?.title ??
+          t.title,
+        bindModel:
+          updatedTank?.bindModel ??
+          updatedTank?.properties?.bindModel ??
+          t.bindModel,
+        bindDeviceId:
+          updatedTank?.bindDeviceId ??
+          updatedTank?.properties?.bindDeviceId ??
+          t.bindDeviceId,
+        bindField:
+          updatedTank?.bindField ??
+          updatedTank?.properties?.bindField ??
+          t.bindField,
+        formula:
+          updatedTank?.formula ??
+          updatedTank?.properties?.formula ??
+          t.formula,
+      };
+    })
+  );
+}}
   />
 )}
 
