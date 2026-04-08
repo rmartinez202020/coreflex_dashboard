@@ -204,15 +204,6 @@ export default function DisplayOutputSettingModal({
     setBindDeviceId(p.bindDeviceId ?? "");
     setBindField(p.bindField === "ao2" ? "ao2" : "ao1");
 
-    console.log("🟦 Display Output modal tank sync →", {
-      tank,
-      properties: p,
-      title: p.title ?? p.displayTitle ?? "",
-      formula: p.formula ?? "",
-      bindModel: FIXED_MODEL,
-      bindDeviceId: p.bindDeviceId ?? "",
-      bindField: p.bindField === "ao2" ? "ao2" : "ao1",
-    });
   }, [tank]);
 
   useEffect(() => {
@@ -222,19 +213,12 @@ export default function DisplayOutputSettingModal({
   useEffect(() => {
     if (!open) return;
 
-    console.log("🟦 Display Output modal opened");
-
     let cancelled = false;
     let timer = null;
 
     async function loadDevices(isFirst = false) {
       try {
         if (isFirst) setDevicesLoading(true);
-
-        console.log("📡 Display Output loadDevices →", {
-          isFirst,
-          url: `${API_URL}/zhc1661/my-devices`,
-        });
 
         const res = await fetch(`${API_URL}/zhc1661/my-devices`, {
           method: "GET",
@@ -251,12 +235,7 @@ export default function DisplayOutputSettingModal({
           data = null;
         }
 
-        console.log("📡 Display Output loadDevices ←", {
-          status: res.status,
-          ok: res.ok,
-          data,
-        });
-
+  
         if (!res.ok) {
           throw new Error(
             data?.detail || `Failed to load CF-1600 devices (${res.status})`
@@ -271,7 +250,6 @@ export default function DisplayOutputSettingModal({
         }
       } catch (err) {
         if (!cancelled) {
-          console.error("❌ Display Output modal device poll error:", err);
           setPollError(err?.message || "Failed to load device data");
         }
       } finally {
@@ -285,7 +263,6 @@ export default function DisplayOutputSettingModal({
     return () => {
       cancelled = true;
       if (timer) window.clearInterval(timer);
-      console.log("🟦 Display Output modal cleanup");
     };
   }, [open]);
 
@@ -312,17 +289,7 @@ export default function DisplayOutputSettingModal({
   }, [selectedDeviceIsOnline, rawLiveValue, formula]);
 
   useEffect(() => {
-    console.log("🟦 Display Output selected device state →", {
-      bindDeviceId,
-      bindField,
-      devicesCount: Array.isArray(devices) ? devices.length : 0,
-      selectedDevice,
-      selectedDeviceStatus,
-      selectedDeviceIsOnline,
-      rawLiveValue,
-      effectiveLiveValue,
-      effectiveOutputValue,
-    });
+
   }, [
     bindDeviceId,
     bindField,
@@ -371,14 +338,6 @@ export default function DisplayOutputSettingModal({
     setPos({ left, top });
     setDidInitPos(true);
 
-    console.log("🟦 Display Output modal initial position →", {
-      left,
-      top,
-      width,
-      estHeight,
-      viewportW: w,
-      viewportH: h,
-    });
   }, [open, didInitPos]);
 
   const onDragMove = (e) => {
@@ -446,12 +405,7 @@ export default function DisplayOutputSettingModal({
   }, [bindDeviceId, bindField]);
 
   useEffect(() => {
-    console.log("🟦 Display Output canApply state →", {
-      bindDeviceId,
-      bindField,
-      canApply,
-      isApplying,
-    });
+  
   }, [bindDeviceId, bindField, canApply, isApplying]);
 
   const labelStyle = { fontSize: 12, fontWeight: 500, color: "#111827" };
@@ -470,19 +424,8 @@ export default function DisplayOutputSettingModal({
   const previewTextStyle = { fontSize: 12, fontWeight: 400, color: "#111827" };
 
   async function handleApply() {
-    console.log("✅ Display Output APPLY CLICKED →", {
-      canApply,
-      isApplying,
-      bindDeviceId,
-      bindField,
-      tank,
-    });
 
     if (!canApply || isApplying) {
-      console.warn("⛔ Display Output apply blocked at top →", {
-        canApply,
-        isApplying,
-      });
       return;
     }
 
@@ -509,7 +452,6 @@ export default function DisplayOutputSettingModal({
 
     try {
       setIsApplying(true);
-      console.log("✅ Display Output entered try block");
 
       const resolvedDashboardId = resolveDashboardId({
   dashboardId,
@@ -525,43 +467,8 @@ const resolvedDashboardName = resolveDashboardName({
       const deviceId = String(bindDeviceId || "").trim();
       const field = String(bindField || "").trim().toLowerCase();
 
-      console.log("🔎 Display Output apply debug →", {
-        dashboardId,
-        dashboardName,
-        widgetId,
-        widgetIdRaw: {
-          id: tank?.id,
-          widgetId: tank?.widgetId,
-          widget_id: tank?.widget_id,
-          _id: tank?._id,
-          uuid: tank?.uuid,
-          propertiesWidgetId: tank?.properties?.widgetId,
-          propertiesWidget_id: tank?.properties?.widget_id,
-        },
-        dashboardIdRaw: {
-          dashboardId: tank?.dashboardId,
-          dashboard_id: tank?.dashboard_id,
-          propertiesDashboardId: tank?.properties?.dashboardId,
-          propertiesDashboard_id: tank?.properties?.dashboard_id,
-        },
-        deviceId,
-        field,
-        cleanTitle,
-        nextProps,
-        nextTank,
-        tank,
-      });
 
     if (resolvedDashboardId && widgetId && deviceId && /^ao[1-2]$/.test(field)) {
-        console.log("🚀 Display Output ABOUT TO CALL bindControlDO →", {
-          dashboardId: resolvedDashboardId,
-          dashboardName: resolvedDashboardName,
-          widgetId,
-          widgetType: "display_output",
-          title: cleanTitle || "Display Output",
-          deviceId,
-          field,
-        });
 
         const bindResp = await bindControlDO({
           dashboardId,
@@ -573,47 +480,26 @@ const resolvedDashboardName = resolveDashboardName({
           field,
         });
 
-        console.log("✅ Display Output bindControlDO SUCCESS ←", bindResp);
       } else if (dashboardId && widgetId) {
-        console.log("🧹 Display Output ABOUT TO CALL deleteControlBinding →", {
-          dashboardId,
-          widgetId,
-        });
-
         const deleteResp = await deleteControlBinding({
           dashboardId,
           widgetId,
         });
 
-        console.log(
-          "✅ Display Output deleteControlBinding SUCCESS ←",
-          deleteResp
-        );
       } else {
-        console.warn(
-          "⚠️ Display Output binding skipped: missing dashboardId or widgetId",
-          {
-            dashboardId,
-            widgetId,
-            deviceId,
-            field,
-          }
-        );
+
         alert("Missing dashboardId or widgetId for Display Output binding");
         return;
       }
 
-      console.log("✅ Display Output ABOUT TO CALL onSave");
       onSave?.(nextTank);
-
-      console.log("✅ Display Output ABOUT TO CALL onClose");
       onClose?.();
     } catch (err) {
-      console.error("❌ Display Output apply/bind error:", err);
+    
       alert(err?.message || "Display Output apply failed");
     } finally {
       setIsApplying(false);
-      console.log("✅ Display Output handleApply finished");
+      
     }
   }
 
@@ -705,7 +591,6 @@ const resolvedDashboardName = resolveDashboardName({
                 <input
                   value={title}
                   onChange={(e) => {
-                    console.log("📝 Display Output title changed →", e.target.value);
                     setTitle(e.target.value);
                   }}
                   placeholder="Example: Output Channel #1"
@@ -814,7 +699,6 @@ const resolvedDashboardName = resolveDashboardName({
                 <textarea
                   value={formula}
                   onChange={(e) => {
-                    console.log("📝 Display Output formula changed →", e.target.value);
                     setFormula(e.target.value);
                   }}
                   rows={4}
@@ -923,7 +807,6 @@ const resolvedDashboardName = resolveDashboardName({
                 <select
                   value={bindDeviceId}
                   onChange={(e) => {
-                    console.log("📝 Display Output device changed →", e.target.value);
                     setBindDeviceId(e.target.value);
                   }}
                   style={fieldSelectStyle}
@@ -947,7 +830,6 @@ const resolvedDashboardName = resolveDashboardName({
                 <select
                   value={bindField}
                   onChange={(e) => {
-                    console.log("📝 Display Output bindField changed →", e.target.value);
                     setBindField(e.target.value);
                   }}
                   style={fieldSelectStyle}
@@ -1035,7 +917,6 @@ const resolvedDashboardName = resolveDashboardName({
               >
                 <button
                   onClick={() => {
-                    console.log("🟨 Display Output Cancel clicked");
                     onClose?.();
                   }}
                   style={{
@@ -1053,7 +934,6 @@ const resolvedDashboardName = resolveDashboardName({
                 <button
                   disabled={!canApply || isApplying}
                   onClick={() => {
-                    console.log("🟩 Display Output Apply button onClick fired");
                     handleApply();
                   }}
                   style={{
