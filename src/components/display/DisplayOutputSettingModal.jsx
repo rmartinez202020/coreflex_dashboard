@@ -171,6 +171,7 @@ function computeMathOutput(liveValue, formula) {
     return liveValue;
   }
 }
+
 export default function DisplayOutputSettingModal({
   open = true,
   tank,
@@ -178,6 +179,7 @@ export default function DisplayOutputSettingModal({
   dashboardName,
   onClose,
   onSave,
+  onSaveProject = null,
 }) {
 
   if (!open) return null;
@@ -493,7 +495,13 @@ const resolvedDashboardName = resolveDashboardName({
       }
 
       onSave?.(nextTank);
-      onClose?.();
+
+if (typeof onSaveProject === "function") {
+  await onSaveProject();
+}
+
+onClose?.();
+
     } catch (err) {
     
       alert(err?.message || "Display Output apply failed");
