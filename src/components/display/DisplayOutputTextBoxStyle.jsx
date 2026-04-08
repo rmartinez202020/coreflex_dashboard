@@ -414,11 +414,13 @@ function SetButton({ isPlay, onSet, disabled, busy }) {
     <button
       type="button"
       onMouseDown={(e) => {
+        e.preventDefault();
         e.stopPropagation();
         if (!canPress) return;
         setPressed(true);
       }}
       onMouseUp={(e) => {
+        e.preventDefault();
         e.stopPropagation();
         if (!canPress) return;
         setPressed(false);
@@ -429,6 +431,7 @@ function SetButton({ isPlay, onSet, disabled, busy }) {
         setPressed(false);
       }}
       onClick={(e) => {
+        e.preventDefault();
         e.stopPropagation();
         if (!canPress) return;
         onSet?.();
@@ -928,8 +931,14 @@ export default function DisplayOutputTextBoxStyle({
             height: setBtnH,
             borderTop: "2px solid black",
           }}
-          onMouseDown={(e) => e.stopPropagation()}
-          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
         >
           <SetButton
             isPlay={isPlay}
