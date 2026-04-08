@@ -387,7 +387,7 @@ function computeMathOutput(liveValue, formula) {
   }
 }
 
-function formatByPattern(raw, numberFormat) {
+function formatByPattern(raw) {
   if (typeof raw === "string" && raw.trim() !== "" && isNaN(Number(raw))) {
     return raw;
   }
@@ -482,9 +482,10 @@ export default function DisplayOutputTextBoxStyle({
 }) {
   const w = tank.w ?? tank.width ?? 160;
   const h = tank.h ?? tank.height ?? 60;
+  const inputRef = React.useRef(null);
 
   const label = tank?.properties?.label || "";
-  const numberFormat = "000000.000000";
+  const numberFormat = "000000";
 
   const bindModel = String(
     tank?.properties?.bindModel ?? tank?.bindModel ?? "zhc1921"
@@ -595,8 +596,14 @@ export default function DisplayOutputTextBoxStyle({
       : padToFormat(rawSetpoint, numberFormat)
     : padToFormat(rawSetpoint, numberFormat);
 
-  const commitFormattedValue = () => {
-    const formatted = padToFormat(draft, numberFormat);
+  const commitFormattedValue = (rawOverride = null) => {
+    const source =
+      rawOverride !== null && rawOverride !== undefined
+        ? rawOverride
+        : inputRef.current?.value ?? draft;
+
+    const formatted = padToFormat(source, numberFormat);
+    setDraft(normalizeRawSetpoint(formatted, numberFormat));
     onUpdate?.({ ...tank, value: formatted });
     return formatted;
   };
@@ -604,7 +611,7 @@ export default function DisplayOutputTextBoxStyle({
   const handleSet = async () => {
     if (!isPlay || isWriting) return;
 
-    const formatted = commitFormattedValue();
+    const formatted = commitFormattedValue(inputRef.current?.value ?? draft);
     const now = new Date().toISOString();
 
     const nextTank = {
@@ -698,8 +705,7 @@ export default function DisplayOutputTextBoxStyle({
   const actualText =
     hasBinding && !isOffline && liveValue !== null && liveValue !== undefined
       ? formatByPattern(
-          outValue !== null && outValue !== undefined ? outValue : liveValue,
-          numberFormat
+          outValue !== null && outValue !== undefined ? outValue : liveValue
         )
       : "--";
 
@@ -829,8 +835,9 @@ export default function DisplayOutputTextBoxStyle({
         >
           {isPlay ? (
             <input
+              ref={inputRef}
               value={displayText}
-              inputMode="decimal"
+              inputMode="numeric"
               autoComplete="off"
               spellCheck={false}
               onMouseDown={(e) => e.stopPropagation()}
