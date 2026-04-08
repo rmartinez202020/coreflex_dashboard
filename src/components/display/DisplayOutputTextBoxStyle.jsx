@@ -553,6 +553,11 @@ export default function DisplayOutputTextBoxStyle({
       backendStatus === "disconnected");
 
   const rawSetpoint = React.useMemo(() => {
+    const saved =
+      tank.value !== undefined && tank.value !== null
+        ? String(tank.value).trim()
+        : "";
+
     const current =
       hasBinding &&
       !isOffline &&
@@ -568,12 +573,7 @@ export default function DisplayOutputTextBoxStyle({
         ? String(liveValue)
         : "";
 
-    const saved =
-      tank.value !== undefined && tank.value !== null
-        ? String(tank.value).trim()
-        : "";
-
-    return current || saved || "";
+    return saved || current || "";
   }, [tank.value, hasBinding, isOffline, outValue, liveValue]);
 
   const [editing, setEditing] = React.useState(false);
@@ -689,6 +689,7 @@ export default function DisplayOutputTextBoxStyle({
       setWriteError(msg);
     } finally {
       setIsWriting(false);
+      setEditing(false);
     }
   };
 
@@ -838,11 +839,15 @@ export default function DisplayOutputTextBoxStyle({
                 e.stopPropagation();
 
                 const baseValue =
-                  hasBinding &&
-                  !isOffline &&
-                  outValue !== null &&
-                  outValue !== undefined &&
-                  Number.isFinite(Number(outValue))
+                  tank.value !== undefined &&
+                  tank.value !== null &&
+                  String(tank.value).trim() !== ""
+                    ? String(tank.value).trim()
+                    : hasBinding &&
+                      !isOffline &&
+                      outValue !== null &&
+                      outValue !== undefined &&
+                      Number.isFinite(Number(outValue))
                     ? String(outValue)
                     : hasBinding &&
                       !isOffline &&
@@ -869,11 +874,13 @@ export default function DisplayOutputTextBoxStyle({
                 setDraft(next);
               }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") e.currentTarget.blur();
+                if (e.key === "Enter") {
+                  e.preventDefault();
+                  handleSet();
+                }
               }}
               onBlur={() => {
                 setEditing(false);
-                commitFormattedValue();
               }}
               style={{
                 width: "100%",
