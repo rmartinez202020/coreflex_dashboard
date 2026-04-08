@@ -25,11 +25,8 @@ function getFormatSpec(numberFormat) {
 }
 
 function sanitizeNumericInput(str, numberFormat) {
-  const {
-    allowDecimal,
-    maxWholeDigits,
-    maxDecimalDigits,
-  } = getFormatSpec(numberFormat);
+  const { allowDecimal, maxWholeDigits, maxDecimalDigits } =
+    getFormatSpec(numberFormat);
 
   let s = String(str || "").replace(/[^\d.]/g, "");
 
@@ -39,12 +36,15 @@ function sanitizeNumericInput(str, numberFormat) {
 
   const firstDot = s.indexOf(".");
   if (firstDot >= 0) {
-    const whole = s.slice(0, firstDot).replace(/\./g, "").slice(0, maxWholeDigits);
+    const whole = s
+      .slice(0, firstDot)
+      .replace(/\./g, "")
+      .slice(0, maxWholeDigits);
     const dec = s
       .slice(firstDot + 1)
       .replace(/\./g, "")
       .slice(0, maxDecimalDigits);
-    return `${whole}${dec.length > 0 || s.includes(".") ? "." : ""}${dec}`;
+    return `${whole}${s.includes(".") ? "." : ""}${dec}`;
   }
 
   return s.replace(/\./g, "").slice(0, maxWholeDigits);
@@ -52,6 +52,11 @@ function sanitizeNumericInput(str, numberFormat) {
 
 function onlyDigits(str) {
   return String(str || "").replace(/\D/g, "");
+}
+
+function trimLeadingZerosKeepOne(s) {
+  const v = String(s || "");
+  return v.replace(/^0+(?=\d)/, "");
 }
 
 function normalizeRawSetpoint(str, numberFormat) {
@@ -68,21 +73,16 @@ function normalizeRawSetpoint(str, numberFormat) {
 }
 
 function padToFormat(rawValue, numberFormat) {
-  const {
-    intDigits,
-    decDigits,
-    allowDecimal,
-    maxWholeDigits,
-    maxDecimalDigits,
-  } = getFormatSpec(numberFormat);
+  const { allowDecimal, maxWholeDigits, maxDecimalDigits } =
+    getFormatSpec(numberFormat);
 
   const s = sanitizeNumericInput(rawValue, numberFormat);
 
-  // ✅ if nothing typed, show blank (not zeros)
   if (!s) return "";
 
   if (!allowDecimal) {
-    return s.padStart(intDigits, "0");
+    const clean = trimLeadingZerosKeepOne(s);
+    return clean || "0";
   }
 
   const hasDot = s.includes(".");
@@ -90,13 +90,14 @@ function padToFormat(rawValue, numberFormat) {
   whole = String(whole || "").slice(0, maxWholeDigits);
   dec = String(dec || "").slice(0, maxDecimalDigits);
 
-  const paddedWhole = whole ? whole.padStart(intDigits, "0") : "".padStart(intDigits, "0");
+  whole = trimLeadingZerosKeepOne(whole || "0");
+  dec = dec.replace(/0+$/, "");
 
-  if (hasDot) {
-    return `${paddedWhole}.${dec}`;
+  if (hasDot && dec) {
+    return `${whole || "0"}.${dec}`;
   }
 
-  return paddedWhole;
+  return whole || "0";
 }
 
 // ===============================
@@ -387,30 +388,18 @@ function computeMathOutput(liveValue, formula) {
 }
 
 function formatByPattern(raw, numberFormat) {
-  const fmt = String(numberFormat || "00000");
-  const [intPart, decPart] = fmt.split(".");
-  const totalInt = (intPart || "0").length;
-  const totalDec = decPart ? decPart.length : 0;
-
-  if (typeof raw === "string" && raw.trim() !== "" && isNaN(Number(raw)))
+  if (typeof raw === "string" && raw.trim() !== "" && isNaN(Number(raw))) {
     return raw;
+  }
 
   const num = typeof raw === "number" ? raw : Number(raw);
   if (!Number.isFinite(num)) return "--";
 
-  let formatted =
-    totalDec > 0 ? Number(num).toFixed(totalDec) : String(Math.round(num));
-
-  if (totalDec > 0) {
-    let [i, d] = formatted.split(".");
-    i = String(i).padStart(totalInt, "0");
-    d = String(d || "").padEnd(totalDec, "0");
-    formatted = `${i}.${d}`;
-  } else {
-    formatted = String(formatted).padStart(totalInt, "0");
+  if (Number.isInteger(num)) {
+    return String(num);
   }
 
-  return formatted;
+  return String(parseFloat(num.toFixed(6)));
 }
 
 function SetButton({ isPlay, onSet, disabled, busy }) {
@@ -496,7 +485,6 @@ export default function DisplayOutputTextBoxStyle({
 
   const label = tank?.properties?.label || "";
   const numberFormat = "000000.000000";
-  const { maxDigits } = getFormatSpec(numberFormat);
 
   const bindModel = String(
     tank?.properties?.bindModel ?? tank?.bindModel ?? "zhc1921"
@@ -564,8 +552,29 @@ export default function DisplayOutputTextBoxStyle({
       backendStatus === "down" ||
       backendStatus === "disconnected");
 
-  const rawSetpoint =
-    tank.value !== undefined && tank.value !== null ? String(tank.value) : "";
+  const rawSetpoint = React.useMemo(() => {
+    const current =
+      hasBinding &&
+      !isOffline &&
+      outValue !== null &&
+      outValue !== undefined &&
+      Number.isFinite(Number(outValue))
+        ? String(outValue)
+        : hasBinding &&
+          !isOffline &&
+          liveValue !== null &&
+          liveValue !== undefined &&
+          Number.isFinite(Number(liveValue))
+        ? String(liveValue)
+        : "";
+
+    const saved =
+      tank.value !== undefined && tank.value !== null
+        ? String(tank.value).trim()
+        : "";
+
+    return current || saved || "";
+  }, [tank.value, hasBinding, isOffline, outValue, liveValue]);
 
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(
@@ -827,7 +836,25 @@ export default function DisplayOutputTextBoxStyle({
               onPointerDown={(e) => e.stopPropagation()}
               onFocus={(e) => {
                 e.stopPropagation();
+
+                const baseValue =
+                  hasBinding &&
+                  !isOffline &&
+                  outValue !== null &&
+                  outValue !== undefined &&
+                  Number.isFinite(Number(outValue))
+                    ? String(outValue)
+                    : hasBinding &&
+                      !isOffline &&
+                      liveValue !== null &&
+                      liveValue !== undefined &&
+                      Number.isFinite(Number(liveValue))
+                    ? String(liveValue)
+                    : rawSetpoint;
+
+                setDraft(normalizeRawSetpoint(baseValue, numberFormat));
                 setEditing(true);
+
                 requestAnimationFrame(() => {
                   try {
                     const len = e.target.value.length;
@@ -836,7 +863,10 @@ export default function DisplayOutputTextBoxStyle({
                 });
               }}
               onChange={(e) => {
-                const next = sanitizeNumericInput(e.target.value, numberFormat);
+                const next = sanitizeNumericInput(
+                  e.target.value,
+                  numberFormat
+                );
                 setDraft(next);
               }}
               onKeyDown={(e) => {
