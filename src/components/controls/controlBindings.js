@@ -38,11 +38,6 @@ export function isDOField(field) {
 export async function fetchUsedControlFields({ deviceId, signal } = {}) {
   const q = qs({ deviceId });
 
-  console.log("📡 fetchUsedControlFields →", {
-    deviceId,
-    url: `${API_URL}/control-bindings/used?${q}`,
-  });
-
   const res = await fetch(`${API_URL}/control-bindings/used?${q}`, {
     method: "GET",
     headers: {
@@ -53,16 +48,12 @@ export async function fetchUsedControlFields({ deviceId, signal } = {}) {
     signal,
   });
 
-  console.log("📡 fetchUsedControlFields ← status:", res.status);
-
   if (!res.ok) {
     const txt = await res.text().catch(() => "");
-    console.error("❌ fetchUsedControlFields ERROR:", txt);
     throw new Error(txt || `Failed to load used control fields (${res.status})`);
   }
 
   const data = await res.json();
-  console.log("📡 fetchUsedControlFields ← data:", data);
   return data;
 }
 
@@ -100,8 +91,6 @@ export async function bindControlField({
     field: safeField,
   };
 
-  console.log("🔒 bindControlField →", body);
-
   const res = await fetch(`${API_URL}/control-bindings/bind`, {
     method: "POST",
     headers: {
@@ -114,12 +103,9 @@ export async function bindControlField({
     signal,
   });
 
-  console.log("🔒 bindControlField ← status:", res.status);
-
   if (res.ok) {
     try {
       const data = await res.json();
-      console.log("🔒 bindControlField ← data:", data);
       return data;
     } catch {
       return { ok: true };
@@ -130,8 +116,6 @@ export async function bindControlField({
   try {
     payload = await res.json();
   } catch {}
-
-  console.error("❌ bindControlField ERROR:", payload);
 
   if (res.status === 409) {
     const detail = payload?.detail || payload || {};
@@ -168,8 +152,6 @@ export async function deleteControlBinding({
 } = {}) {
   const q = qs({ dashboardId, widgetId });
 
-  console.log("🗑️ deleteControlBinding →", { dashboardId, widgetId });
-
   const res = await fetch(`${API_URL}/control-bindings/?${q}`, {
     method: "DELETE",
     headers: {
@@ -180,12 +162,9 @@ export async function deleteControlBinding({
     signal,
   });
 
-  console.log("🗑️ deleteControlBinding ← status:", res.status);
-
   if (res.ok) {
     try {
       const data = await res.json();
-      console.log("🗑️ deleteControlBinding ← data:", data);
       return data;
     } catch {
       return { ok: true };
@@ -196,8 +175,6 @@ export async function deleteControlBinding({
   try {
     payload = await res.json();
   } catch {}
-
-  console.error("❌ deleteControlBinding ERROR:", payload);
 
   const msg =
     payload?.detail ||
@@ -238,9 +215,6 @@ export async function writeControlValue({
       : { value: Number(value) }),
   };
 
-  console.log("🕹️ writeControlValue →", body);
-  console.log("🕹️ URL →", `${API_URL}/control-bindings/write`);
-
   const res = await fetch(`${API_URL}/control-bindings/write`, {
     method: "POST",
     headers: {
@@ -252,8 +226,6 @@ export async function writeControlValue({
     body: JSON.stringify(body),
     signal,
   });
-
-  console.log("🕹️ writeControlValue ← status:", res.status);
 
   if (res.ok) {
     try {
@@ -269,11 +241,6 @@ export async function writeControlValue({
   try {
     payload = await res.json();
   } catch {}
-
-  console.error("❌ writeControlValue ERROR:", {
-    status: res.status,
-    payload,
-  });
 
   const msg = payload?.detail || `Write failed (${res.status})`;
   const err = new Error(msg);
@@ -301,13 +268,6 @@ export async function writeControlAO({
   if (!Number.isFinite(numericValue)) {
     throw new Error(`Invalid AO value: ${value}`);
   }
-
-  console.log("🎛️ writeControlAO →", {
-    dashboardId,
-    widgetId,
-    field: safeField,
-    value: numericValue,
-  });
 
   return writeControlValue({
     dashboardId,
