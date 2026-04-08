@@ -857,8 +857,7 @@ export default function DisplayOutputTextBoxStyle({
 
                 requestAnimationFrame(() => {
                   try {
-                    const len = e.target.value.length;
-                    e.target.setSelectionRange(len, len);
+                    e.target.select();
                   } catch {}
                 });
               }}
