@@ -6,9 +6,15 @@ import { writeControlAO } from "../controls/controlBindings";
 // ✅ helpers for Display Output input formatting (SETPOINT MODE)
 // ===============================
 function getFormatSpec(numberFormat) {
-  const fmt = String(numberFormat || "00000");
-  const digits = (fmt.match(/0/g) || []).length;
-  return { maxDigits: Math.max(1, digits), fmt };
+  const fmt = String(numberFormat || "00000").trim();
+  const [intPartRaw] = fmt.split(".");
+  const formatDigits = (String(intPartRaw || "").match(/0/g) || []).length;
+
+  // ✅ IMPORTANT:
+  // Allow at least 4 digits so user can type 1000 even if modal format is 000
+  const maxDigits = Math.max(4, formatDigits || 0, 1);
+
+  return { maxDigits, fmt };
 }
 
 function onlyDigits(str) {
@@ -617,7 +623,7 @@ export default function DisplayOutputTextBoxStyle({
 
   const actualRowH = 26;
   const actualValueH = 28;
-  const mainDisplayH = 38; // ✅ reduced height for the 100 row
+  const mainDisplayH = 38;
   const setBtnH = 26;
   const totalBoxH = actualRowH + actualValueH + mainDisplayH + setBtnH;
 
