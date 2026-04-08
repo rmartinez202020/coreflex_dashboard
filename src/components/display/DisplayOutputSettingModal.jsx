@@ -171,13 +171,15 @@ function computeMathOutput(liveValue, formula) {
     return liveValue;
   }
 }
-
 export default function DisplayOutputSettingModal({
   open = true,
   tank,
+  dashboardId,
+  dashboardName,
   onClose,
   onSave,
 }) {
+
   if (!open) return null;
 
   const props = tank?.properties || {};
@@ -509,8 +511,15 @@ export default function DisplayOutputSettingModal({
       setIsApplying(true);
       console.log("✅ Display Output entered try block");
 
-      const dashboardId = resolveDashboardId({ widget: tank });
-      const dashboardName = resolveDashboardName({ widget: tank });
+      const resolvedDashboardId = resolveDashboardId({
+  dashboardId,
+  widget: tank,
+});
+
+const resolvedDashboardName = resolveDashboardName({
+  dashboardName,
+  widget: tank,
+});
       const widgetId = resolveWidgetId(tank);
 
       const deviceId = String(bindDeviceId || "").trim();
@@ -543,10 +552,10 @@ export default function DisplayOutputSettingModal({
         tank,
       });
 
-      if (dashboardId && widgetId && deviceId && /^ao[1-2]$/.test(field)) {
+    if (resolvedDashboardId && widgetId && deviceId && /^ao[1-2]$/.test(field)) {
         console.log("🚀 Display Output ABOUT TO CALL bindControlDO →", {
-          dashboardId,
-          dashboardName,
+          dashboardId: resolvedDashboardId,
+          dashboardName: resolvedDashboardName,
           widgetId,
           widgetType: "display_output",
           title: cleanTitle || "Display Output",
