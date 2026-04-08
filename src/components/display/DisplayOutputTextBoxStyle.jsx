@@ -495,7 +495,7 @@ export default function DisplayOutputTextBoxStyle({
   const h = tank.h ?? tank.height ?? 60;
 
   const label = tank?.properties?.label || "";
-  const numberFormat = tank?.properties?.numberFormat || "000000.000000";
+  const numberFormat = "000000.000000";
   const { maxDigits } = getFormatSpec(numberFormat);
 
   const bindModel = String(
