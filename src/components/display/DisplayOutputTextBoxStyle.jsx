@@ -12,7 +12,7 @@ function getFormatSpec(numberFormat) {
 
   // ✅ IMPORTANT:
   // Allow at least 4 digits so user can type 1000 even if modal format is 000
-  const maxDigits = Math.max(4, formatDigits || 0, 1);
+  const maxDigits = Math.max(5, formatDigits || 0, 1);
 
   return { maxDigits, fmt };
 }
