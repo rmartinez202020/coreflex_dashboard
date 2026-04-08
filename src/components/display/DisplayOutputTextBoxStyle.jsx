@@ -7,97 +7,22 @@ import { writeControlAO } from "../controls/controlBindings";
 // ===============================
 function getFormatSpec(numberFormat) {
   const fmt = String(numberFormat || "00000");
-  const [intPartRaw, decPartRaw] = fmt.split(".");
-  const intPart = String(intPartRaw || "0");
-  const decPart = String(decPartRaw || "");
-  const intDigits = (intPart.match(/0/g) || []).length || 1;
-  const decDigits = (decPart.match(/0/g) || []).length;
-
-  return {
-    fmt,
-    intDigits,
-    decDigits,
-    maxDigits: intDigits,
-    allowDecimal: decDigits > 0,
-    maxWholeDigits: intDigits,
-    maxDecimalDigits: decDigits,
-  };
-}
-
-function sanitizeNumericInput(str, numberFormat) {
-  const { allowDecimal, maxWholeDigits, maxDecimalDigits } =
-    getFormatSpec(numberFormat);
-
-  let s = String(str || "").replace(/[^\d.]/g, "");
-
-  if (!allowDecimal) {
-    return s.replace(/\./g, "").slice(0, maxWholeDigits);
-  }
-
-  const firstDot = s.indexOf(".");
-  if (firstDot >= 0) {
-    const whole = s
-      .slice(0, firstDot)
-      .replace(/\./g, "")
-      .slice(0, maxWholeDigits);
-    const dec = s
-      .slice(firstDot + 1)
-      .replace(/\./g, "")
-      .slice(0, maxDecimalDigits);
-    return `${whole}${s.includes(".") ? "." : ""}${dec}`;
-  }
-
-  return s.replace(/\./g, "").slice(0, maxWholeDigits);
+  const digits = (fmt.match(/0/g) || []).length;
+  return { maxDigits: Math.max(1, digits), fmt };
 }
 
 function onlyDigits(str) {
   return String(str || "").replace(/\D/g, "");
 }
 
-function trimLeadingZerosKeepOne(s) {
-  const v = String(s || "");
-  return v.replace(/^0+(?=\d)/, "");
-}
+function padToFormat(rawDigits, numberFormat) {
+  const { maxDigits } = getFormatSpec(numberFormat);
+  const d = onlyDigits(rawDigits).slice(0, maxDigits);
 
-function normalizeRawSetpoint(str, numberFormat) {
-  const { allowDecimal } = getFormatSpec(numberFormat);
-  const s = String(str || "").trim();
+  // ✅ if nothing typed, show blank (not zeros)
+  if (!d) return "";
 
-  if (!s) return "";
-
-  if (!allowDecimal) {
-    return onlyDigits(s);
-  }
-
-  return sanitizeNumericInput(s, numberFormat);
-}
-
-function padToFormat(rawValue, numberFormat) {
-  const { allowDecimal, maxWholeDigits, maxDecimalDigits } =
-    getFormatSpec(numberFormat);
-
-  const s = sanitizeNumericInput(rawValue, numberFormat);
-
-  if (!s) return "";
-
-  if (!allowDecimal) {
-    const clean = trimLeadingZerosKeepOne(s);
-    return clean || "0";
-  }
-
-  const hasDot = s.includes(".");
-  let [whole, dec = ""] = s.split(".");
-  whole = String(whole || "").slice(0, maxWholeDigits);
-  dec = String(dec || "").slice(0, maxDecimalDigits);
-
-  whole = trimLeadingZerosKeepOne(whole || "0");
-  dec = dec.replace(/0+$/, "");
-
-  if (hasDot && dec) {
-    return `${whole || "0"}.${dec}`;
-  }
-
-  return whole || "0";
+  return d.padStart(maxDigits, "0");
 }
 
 // ===============================
@@ -387,19 +312,31 @@ function computeMathOutput(liveValue, formula) {
   }
 }
 
-function formatByPattern(raw) {
-  if (typeof raw === "string" && raw.trim() !== "" && isNaN(Number(raw))) {
+function formatByPattern(raw, numberFormat) {
+  const fmt = String(numberFormat || "00000");
+  const [intPart, decPart] = fmt.split(".");
+  const totalInt = (intPart || "0").length;
+  const totalDec = decPart ? decPart.length : 0;
+
+  if (typeof raw === "string" && raw.trim() !== "" && isNaN(Number(raw)))
     return raw;
-  }
 
   const num = typeof raw === "number" ? raw : Number(raw);
   if (!Number.isFinite(num)) return "--";
 
-  if (Number.isInteger(num)) {
-    return String(num);
+  let formatted =
+    totalDec > 0 ? Number(num).toFixed(totalDec) : String(Math.round(num));
+
+  if (totalDec > 0) {
+    let [i, d] = formatted.split(".");
+    i = String(i).padStart(totalInt, "0");
+    d = String(d || "").padEnd(totalDec, "0");
+    formatted = `${i}.${d}`;
+  } else {
+    formatted = String(formatted).padStart(totalInt, "0");
   }
 
-  return String(parseFloat(num.toFixed(6)));
+  return formatted;
 }
 
 function SetButton({ isPlay, onSet, disabled, busy }) {
@@ -414,13 +351,11 @@ function SetButton({ isPlay, onSet, disabled, busy }) {
     <button
       type="button"
       onMouseDown={(e) => {
-        e.preventDefault();
         e.stopPropagation();
         if (!canPress) return;
         setPressed(true);
       }}
       onMouseUp={(e) => {
-        e.preventDefault();
         e.stopPropagation();
         if (!canPress) return;
         setPressed(false);
@@ -431,7 +366,6 @@ function SetButton({ isPlay, onSet, disabled, busy }) {
         setPressed(false);
       }}
       onClick={(e) => {
-        e.preventDefault();
         e.stopPropagation();
         if (!canPress) return;
         onSet?.();
@@ -485,10 +419,10 @@ export default function DisplayOutputTextBoxStyle({
 }) {
   const w = tank.w ?? tank.width ?? 160;
   const h = tank.h ?? tank.height ?? 60;
-  const inputRef = React.useRef(null);
 
   const label = tank?.properties?.label || "";
-  const numberFormat = "000000";
+  const numberFormat = tank?.properties?.numberFormat || "00000";
+  const { maxDigits } = getFormatSpec(numberFormat);
 
   const bindModel = String(
     tank?.properties?.bindModel ?? tank?.bindModel ?? "zhc1921"
@@ -556,55 +490,26 @@ export default function DisplayOutputTextBoxStyle({
       backendStatus === "down" ||
       backendStatus === "disconnected");
 
-  const rawSetpoint = React.useMemo(() => {
-    const saved =
-      tank.value !== undefined && tank.value !== null
-        ? String(tank.value).trim()
-        : "";
-
-    const current =
-      hasBinding &&
-      !isOffline &&
-      outValue !== null &&
-      outValue !== undefined &&
-      Number.isFinite(Number(outValue))
-        ? String(outValue)
-        : hasBinding &&
-          !isOffline &&
-          liveValue !== null &&
-          liveValue !== undefined &&
-          Number.isFinite(Number(liveValue))
-        ? String(liveValue)
-        : "";
-
-    return saved || current || "";
-  }, [tank.value, hasBinding, isOffline, outValue, liveValue]);
+  const rawSetpoint =
+    tank.value !== undefined && tank.value !== null ? String(tank.value) : "";
 
   const [editing, setEditing] = React.useState(false);
-  const [draft, setDraft] = React.useState(
-    normalizeRawSetpoint(rawSetpoint, numberFormat)
-  );
+  const [draft, setDraft] = React.useState(onlyDigits(rawSetpoint));
   const [isWriting, setIsWriting] = React.useState(false);
   const [writeError, setWriteError] = React.useState("");
 
   React.useEffect(() => {
-    if (!editing) {
-      setDraft(normalizeRawSetpoint(rawSetpoint, numberFormat));
-    }
-  }, [rawSetpoint, editing, numberFormat]);
+    if (!editing) setDraft(onlyDigits(rawSetpoint));
+  }, [rawSetpoint, editing]);
 
-  const displayedSetpoint = editing
-    ? draft
+  const displayedSetpoint = isPlay
+    ? editing
+      ? draft
+      : padToFormat(rawSetpoint, numberFormat)
     : padToFormat(rawSetpoint, numberFormat);
 
-  const commitFormattedValue = (rawOverride = null) => {
-    const source =
-      rawOverride !== null && rawOverride !== undefined
-        ? rawOverride
-        : inputRef.current?.value ?? draft;
-
-    const formatted = padToFormat(source, numberFormat);
-    setDraft(normalizeRawSetpoint(formatted, numberFormat));
+  const commitFormattedValue = () => {
+    const formatted = padToFormat(draft, numberFormat);
     onUpdate?.({ ...tank, value: formatted });
     return formatted;
   };
@@ -612,8 +517,7 @@ export default function DisplayOutputTextBoxStyle({
   const handleSet = async () => {
     if (!isPlay || isWriting) return;
 
-    const source = inputRef.current?.value ?? draft;
-    const formatted = commitFormattedValue(source);
+    const formatted = commitFormattedValue();
     const now = new Date().toISOString();
 
     const nextTank = {
@@ -698,20 +602,22 @@ export default function DisplayOutputTextBoxStyle({
       setWriteError(msg);
     } finally {
       setIsWriting(false);
-      setEditing(false);
     }
   };
+
+  const displayText = displayedSetpoint;
 
   const actualText =
     hasBinding && !isOffline && liveValue !== null && liveValue !== undefined
       ? formatByPattern(
-          outValue !== null && outValue !== undefined ? outValue : liveValue
+          outValue !== null && outValue !== undefined ? outValue : liveValue,
+          numberFormat
         )
       : "--";
 
   const actualRowH = 26;
   const actualValueH = 28;
-  const mainDisplayH = 38;
+  const mainDisplayH = 38; // ✅ reduced height for the 100 row
   const setBtnH = 26;
   const totalBoxH = actualRowH + actualValueH + mainDisplayH + setBtnH;
 
@@ -835,8 +741,7 @@ export default function DisplayOutputTextBoxStyle({
         >
           {isPlay ? (
             <input
-              ref={inputRef}
-              value={editing ? draft : displayedSetpoint}
+              value={displayText}
               inputMode="numeric"
               autoComplete="off"
               spellCheck={false}
@@ -844,51 +749,24 @@ export default function DisplayOutputTextBoxStyle({
               onPointerDown={(e) => e.stopPropagation()}
               onFocus={(e) => {
                 e.stopPropagation();
-
-                const baseValue =
-                  tank.value !== undefined &&
-                  tank.value !== null &&
-                  String(tank.value).trim() !== ""
-                    ? String(tank.value).trim()
-                    : hasBinding &&
-                      !isOffline &&
-                      outValue !== null &&
-                      outValue !== undefined &&
-                      Number.isFinite(Number(outValue))
-                    ? String(outValue)
-                    : hasBinding &&
-                      !isOffline &&
-                      liveValue !== null &&
-                      liveValue !== undefined &&
-                      Number.isFinite(Number(liveValue))
-                    ? String(liveValue)
-                    : rawSetpoint;
-
-                const nextDraft = normalizeRawSetpoint(baseValue, numberFormat);
-                setDraft(nextDraft);
                 setEditing(true);
-
                 requestAnimationFrame(() => {
                   try {
-                    e.target.select();
+                    const len = e.target.value.length;
+                    e.target.setSelectionRange(len, len);
                   } catch {}
                 });
               }}
               onChange={(e) => {
-                const next = sanitizeNumericInput(
-                  e.target.value,
-                  numberFormat
-                );
+                const next = onlyDigits(e.target.value).slice(0, maxDigits);
                 setDraft(next);
               }}
               onKeyDown={(e) => {
-                if (e.key === "Enter") {
-                  e.preventDefault();
-                  handleSet();
-                }
+                if (e.key === "Enter") e.currentTarget.blur();
               }}
               onBlur={() => {
                 setEditing(false);
+                commitFormattedValue();
               }}
               style={{
                 width: "100%",
@@ -915,7 +793,7 @@ export default function DisplayOutputTextBoxStyle({
                 lineHeight: "22px",
               }}
             >
-              {displayedSetpoint}
+              {displayText}
             </div>
           )}
         </div>
@@ -929,14 +807,8 @@ export default function DisplayOutputTextBoxStyle({
             height: setBtnH,
             borderTop: "2px solid black",
           }}
-          onMouseDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
-          onPointerDown={(e) => {
-            e.preventDefault();
-            e.stopPropagation();
-          }}
+          onMouseDown={(e) => e.stopPropagation()}
+          onPointerDown={(e) => e.stopPropagation()}
         >
           <SetButton
             isPlay={isPlay}
