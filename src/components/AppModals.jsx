@@ -399,9 +399,13 @@ const displayOutputTarget = useMemo(() => {
 )}
 
 {displayOutputTarget && (
+
   <DisplayOutputSettingModal
     open={true}
     tank={displayOutputTarget}
+    dashboardId={safeDashboardId}
+    dashboardName={safeDashboardName}
+    onSaveProject={onSaveProject} 
     onClose={closeDisplayOutputSettings}   
     onSave={(updatedTank) => {
       setDroppedTanks((prev) =>
