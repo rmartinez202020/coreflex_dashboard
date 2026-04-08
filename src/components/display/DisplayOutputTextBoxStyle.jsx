@@ -7,22 +7,96 @@ import { writeControlAO } from "../controls/controlBindings";
 // ===============================
 function getFormatSpec(numberFormat) {
   const fmt = String(numberFormat || "00000");
-  const digits = (fmt.match(/0/g) || []).length;
-  return { maxDigits: Math.max(1, digits), fmt };
+  const [intPartRaw, decPartRaw] = fmt.split(".");
+  const intPart = String(intPartRaw || "0");
+  const decPart = String(decPartRaw || "");
+  const intDigits = (intPart.match(/0/g) || []).length || 1;
+  const decDigits = (decPart.match(/0/g) || []).length;
+
+  return {
+    fmt,
+    intDigits,
+    decDigits,
+    maxDigits: intDigits,
+    allowDecimal: decDigits > 0,
+    maxWholeDigits: intDigits,
+    maxDecimalDigits: decDigits,
+  };
+}
+
+function sanitizeNumericInput(str, numberFormat) {
+  const {
+    allowDecimal,
+    maxWholeDigits,
+    maxDecimalDigits,
+  } = getFormatSpec(numberFormat);
+
+  let s = String(str || "").replace(/[^\d.]/g, "");
+
+  if (!allowDecimal) {
+    return s.replace(/\./g, "").slice(0, maxWholeDigits);
+  }
+
+  const firstDot = s.indexOf(".");
+  if (firstDot >= 0) {
+    const whole = s.slice(0, firstDot).replace(/\./g, "").slice(0, maxWholeDigits);
+    const dec = s
+      .slice(firstDot + 1)
+      .replace(/\./g, "")
+      .slice(0, maxDecimalDigits);
+    return `${whole}${dec.length > 0 || s.includes(".") ? "." : ""}${dec}`;
+  }
+
+  return s.replace(/\./g, "").slice(0, maxWholeDigits);
 }
 
 function onlyDigits(str) {
   return String(str || "").replace(/\D/g, "");
 }
 
-function padToFormat(rawDigits, numberFormat) {
-  const { maxDigits } = getFormatSpec(numberFormat);
-  const d = onlyDigits(rawDigits).slice(0, maxDigits);
+function normalizeRawSetpoint(str, numberFormat) {
+  const { allowDecimal } = getFormatSpec(numberFormat);
+  const s = String(str || "").trim();
+
+  if (!s) return "";
+
+  if (!allowDecimal) {
+    return onlyDigits(s);
+  }
+
+  return sanitizeNumericInput(s, numberFormat);
+}
+
+function padToFormat(rawValue, numberFormat) {
+  const {
+    intDigits,
+    decDigits,
+    allowDecimal,
+    maxWholeDigits,
+    maxDecimalDigits,
+  } = getFormatSpec(numberFormat);
+
+  const s = sanitizeNumericInput(rawValue, numberFormat);
 
   // ✅ if nothing typed, show blank (not zeros)
-  if (!d) return "";
+  if (!s) return "";
 
-  return d.padStart(maxDigits, "0");
+  if (!allowDecimal) {
+    return s.padStart(intDigits, "0");
+  }
+
+  const hasDot = s.includes(".");
+  let [whole, dec = ""] = s.split(".");
+  whole = String(whole || "").slice(0, maxWholeDigits);
+  dec = String(dec || "").slice(0, maxDecimalDigits);
+
+  const paddedWhole = whole ? whole.padStart(intDigits, "0") : "".padStart(intDigits, "0");
+
+  if (hasDot) {
+    return `${paddedWhole}.${dec}`;
+  }
+
+  return paddedWhole;
 }
 
 // ===============================
@@ -421,7 +495,7 @@ export default function DisplayOutputTextBoxStyle({
   const h = tank.h ?? tank.height ?? 60;
 
   const label = tank?.properties?.label || "";
-  const numberFormat = tank?.properties?.numberFormat || "00000";
+  const numberFormat = tank?.properties?.numberFormat || "000000.000000";
   const { maxDigits } = getFormatSpec(numberFormat);
 
   const bindModel = String(
@@ -494,13 +568,17 @@ export default function DisplayOutputTextBoxStyle({
     tank.value !== undefined && tank.value !== null ? String(tank.value) : "";
 
   const [editing, setEditing] = React.useState(false);
-  const [draft, setDraft] = React.useState(onlyDigits(rawSetpoint));
+  const [draft, setDraft] = React.useState(
+    normalizeRawSetpoint(rawSetpoint, numberFormat)
+  );
   const [isWriting, setIsWriting] = React.useState(false);
   const [writeError, setWriteError] = React.useState("");
 
   React.useEffect(() => {
-    if (!editing) setDraft(onlyDigits(rawSetpoint));
-  }, [rawSetpoint, editing]);
+    if (!editing) {
+      setDraft(normalizeRawSetpoint(rawSetpoint, numberFormat));
+    }
+  }, [rawSetpoint, editing, numberFormat]);
 
   const displayedSetpoint = isPlay
     ? editing
@@ -617,7 +695,7 @@ export default function DisplayOutputTextBoxStyle({
 
   const actualRowH = 26;
   const actualValueH = 28;
-  const mainDisplayH = 38; // ✅ reduced height for the 100 row
+  const mainDisplayH = 38;
   const setBtnH = 26;
   const totalBoxH = actualRowH + actualValueH + mainDisplayH + setBtnH;
 
@@ -742,7 +820,7 @@ export default function DisplayOutputTextBoxStyle({
           {isPlay ? (
             <input
               value={displayText}
-              inputMode="numeric"
+              inputMode="decimal"
               autoComplete="off"
               spellCheck={false}
               onMouseDown={(e) => e.stopPropagation()}
@@ -758,7 +836,7 @@ export default function DisplayOutputTextBoxStyle({
                 });
               }}
               onChange={(e) => {
-                const next = onlyDigits(e.target.value).slice(0, maxDigits);
+                const next = sanitizeNumericInput(e.target.value, numberFormat);
                 setDraft(next);
               }}
               onKeyDown={(e) => {
