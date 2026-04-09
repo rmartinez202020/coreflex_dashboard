@@ -193,6 +193,27 @@ export default function MySubscriptionSection({ onBack }) {
           </table>
         </div>
 
+        {/* ✅ AVAILABLE PLANS */}
+        <div className="mt-8 rounded-xl border border-slate-200 bg-white overflow-hidden">
+          <div className="bg-slate-900 text-white px-4 py-3">
+            <div className="text-lg font-semibold">Available Plans</div>
+            <div className="text-xs text-slate-300 mt-1">
+              Choose the plan that best fits your device count, dashboards, and
+              support needs.
+            </div>
+          </div>
+
+          <div className="p-4 md:p-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+            {PLANS.map((plan) => (
+              <AvailablePlanCard
+                key={plan.key}
+                plan={plan}
+                isCurrent={plan.key === CURRENT_PLAN_KEY}
+              />
+            ))}
+          </div>
+        </div>
+
         {/* ✅ YOUR CURRENT SUBSCRIPTION */}
         <div className="mt-8 rounded-xl border border-emerald-200 bg-emerald-50 overflow-hidden">
           <div className="bg-emerald-700 text-white px-4 py-3">
@@ -243,27 +264,6 @@ export default function MySubscriptionSection({ onBack }) {
                 Manage Payment
               </button>
             </div>
-          </div>
-        </div>
-
-        {/* ✅ AVAILABLE PLANS */}
-        <div className="mt-8 rounded-xl border border-slate-200 bg-white overflow-hidden">
-          <div className="bg-slate-900 text-white px-4 py-3">
-            <div className="text-lg font-semibold">Available Plans</div>
-            <div className="text-xs text-slate-300 mt-1">
-              Choose the plan that best fits your device count, dashboards, and
-              support needs.
-            </div>
-          </div>
-
-          <div className="p-4 md:p-5 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
-            {PLANS.map((plan) => (
-              <AvailablePlanCard
-                key={plan.key}
-                plan={plan}
-                isCurrent={plan.key === CURRENT_PLAN_KEY}
-              />
-            ))}
           </div>
         </div>
       </div>
