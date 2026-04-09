@@ -142,16 +142,8 @@ export default function MySubscriptionSection({ onBack }) {
       </div>
 
       <div className="p-5">
-        {/* ✅ YOUR CURRENT SUBSCRIPTION */}
+        {/* ✅ CURRENT SUBSCRIPTION (NO TITLE) */}
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 overflow-hidden">
-          <div className="bg-emerald-700 text-white px-4 py-3">
-            <div className="text-lg font-semibold">Your Current Subscription</div>
-            <div className="text-xs text-emerald-100 mt-1">
-              Manage your active plan, renewal date, device usage, and billing
-              actions.
-            </div>
-          </div>
-
           <div className="p-4 md:p-5">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
               <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
@@ -201,45 +193,26 @@ export default function MySubscriptionSection({ onBack }) {
             <thead className="bg-slate-100 text-slate-800">
               <tr>
                 <th className="px-4 py-3 text-left font-semibold">Plan</th>
-                <th className="px-4 py-3 text-left font-semibold">
-                  Monthly Price
-                </th>
-                <th className="px-4 py-3 text-left font-semibold">
-                  One-Time License
-                </th>
-                <th className="px-4 py-3 text-left font-semibold">
-                  Device Limit
-                </th>
-                <th className="px-4 py-3 text-left font-semibold">
-                  Dashboards
-                </th>
-                <th className="px-4 py-3 text-left font-semibold">
-                  Data History
-                </th>
+                <th className="px-4 py-3 text-left font-semibold">Monthly Price</th>
+                <th className="px-4 py-3 text-left font-semibold">One-Time License</th>
+                <th className="px-4 py-3 text-left font-semibold">Device Limit</th>
+                <th className="px-4 py-3 text-left font-semibold">Dashboards</th>
+                <th className="px-4 py-3 text-left font-semibold">Data History</th>
                 <th className="px-4 py-3 text-left font-semibold">Features</th>
-                <th className="px-4 py-3 text-left font-semibold">
-                  Annual Updates & Support
-                </th>
+                <th className="px-4 py-3 text-left font-semibold">Annual Updates & Support</th>
               </tr>
             </thead>
             <tbody>
               {PLANS.map((plan, idx) => (
-                <tr
-                  key={plan.key}
-                  className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}
-                >
-                  <td className="px-4 py-4 align-top font-semibold text-slate-900">
-                    {plan.name}
-                  </td>
-                  <td className="px-4 py-4 align-top">{plan.monthlyPrice}</td>
-                  <td className="px-4 py-4 align-top">{plan.oneTimeLicense}</td>
-                  <td className="px-4 py-4 align-top font-semibold">
-                    {plan.deviceLimit}
-                  </td>
-                  <td className="px-4 py-4 align-top">{plan.dashboards}</td>
-                  <td className="px-4 py-4 align-top">{plan.dataHistory}</td>
-                  <td className="px-4 py-4 align-top">{plan.features}</td>
-                  <td className="px-4 py-4 align-top">{plan.annualSupport}</td>
+                <tr key={plan.key} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}>
+                  <td className="px-4 py-4 font-semibold text-slate-900">{plan.name}</td>
+                  <td className="px-4 py-4">{plan.monthlyPrice}</td>
+                  <td className="px-4 py-4">{plan.oneTimeLicense}</td>
+                  <td className="px-4 py-4 font-semibold">{plan.deviceLimit}</td>
+                  <td className="px-4 py-4">{plan.dashboards}</td>
+                  <td className="px-4 py-4">{plan.dataHistory}</td>
+                  <td className="px-4 py-4">{plan.features}</td>
+                  <td className="px-4 py-4">{plan.annualSupport}</td>
                 </tr>
               ))}
             </tbody>
@@ -251,8 +224,7 @@ export default function MySubscriptionSection({ onBack }) {
           <div className="bg-slate-900 text-white px-4 py-3">
             <div className="text-lg font-semibold">Available Plans</div>
             <div className="text-xs text-slate-300 mt-1">
-              Choose the plan that best fits your device count, dashboards, and
-              support needs.
+              Choose the plan that best fits your device count, dashboards, and support needs.
             </div>
           </div>
 
