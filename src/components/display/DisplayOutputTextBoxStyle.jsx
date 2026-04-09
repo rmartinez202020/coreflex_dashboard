@@ -928,7 +928,8 @@ export default function DisplayOutputTextBoxStyle({
             fontSize: 18,
             fontWeight: 900,
             color: "#d97706",
-            textAlign: "center",
+            textAlign: "left",
+            paddingLeft: 10,
             lineHeight: 1,
             whiteSpace: "nowrap",
           }}
@@ -936,6 +937,7 @@ export default function DisplayOutputTextBoxStyle({
           Control Action in Progress
         </div>
       ) : null}
+
 
       {writeError ? (
         <div
@@ -945,6 +947,8 @@ export default function DisplayOutputTextBoxStyle({
             fontWeight: 700,
             color: "#dc2626",
             textAlign: "center",
+
+            
             lineHeight: 1.2,
             wordBreak: "break-word",
           }}
