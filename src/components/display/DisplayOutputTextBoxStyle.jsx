@@ -345,7 +345,30 @@ function formatByPattern(raw, numberFormat) {
   return formatted;
 }
 
-function SetButton({ isPlay, onSet, disabled, busy }) {
+function getActuationHoldMsFromError(err) {
+  const detail = err?.detail;
+  if (detail && typeof detail === "object") {
+    const ms = Number(detail.actuationHoldMs);
+    if (Number.isFinite(ms) && ms > 0) return ms;
+  }
+
+  const ms = Number(err?.actuationHoldMs);
+  if (Number.isFinite(ms) && ms > 0) return ms;
+
+  return 10000;
+}
+
+function isControlActionInProgressError(err) {
+  const msg = String(err?.message || "").toLowerCase();
+  const detailError = String(err?.detail?.error || "").toLowerCase();
+
+  return (
+    msg.includes("control action in progress") ||
+    detailError.includes("control action in progress")
+  );
+}
+
+function SetButton({ isPlay, onSet, disabled, busy, holdActive }) {
   const [pressed, setPressed] = React.useState(false);
 
   const baseBg = "#22c55e";
@@ -403,7 +426,9 @@ function SetButton({ isPlay, onSet, disabled, busy }) {
         disabled
           ? "SET disabled"
           : busy
-          ? "Writing..."
+          ? holdActive
+            ? "Control Action in Progress"
+            : "Writing..."
           : canPress
           ? "Send/commit this setpoint"
           : "SET works in Play mode"
@@ -504,6 +529,36 @@ export default function DisplayOutputTextBoxStyle({
   const [isWriting, setIsWriting] = React.useState(false);
   const [writeError, setWriteError] = React.useState("");
 
+  // ✅ same behavior style as push button:
+  // local UI stays blocked during backend actuation hold window
+  const [holdActive, setHoldActive] = React.useState(false);
+  const holdTimerRef = React.useRef(null);
+
+  const startHoldWindow = React.useCallback((ms) => {
+    const holdMs = Math.max(250, Number(ms) || 10000);
+
+    if (holdTimerRef.current) {
+      clearTimeout(holdTimerRef.current);
+      holdTimerRef.current = null;
+    }
+
+    setHoldActive(true);
+
+    holdTimerRef.current = setTimeout(() => {
+      setHoldActive(false);
+      holdTimerRef.current = null;
+    }, holdMs);
+  }, []);
+
+  React.useEffect(() => {
+    return () => {
+      if (holdTimerRef.current) {
+        clearTimeout(holdTimerRef.current);
+        holdTimerRef.current = null;
+      }
+    };
+  }, []);
+
   React.useEffect(() => {
     if (!editing) setDraft(onlyDigits(rawSetpoint));
   }, [rawSetpoint, editing]);
@@ -521,7 +576,7 @@ export default function DisplayOutputTextBoxStyle({
   };
 
   const handleSet = async () => {
-    if (!isPlay || isWriting) return;
+    if (!isPlay || isWriting || holdActive) return;
 
     const formatted = commitFormattedValue();
     const now = new Date().toISOString();
@@ -578,12 +633,15 @@ export default function DisplayOutputTextBoxStyle({
 
         setIsWriting(true);
 
-        await writeControlAO({
+        const res = await writeControlAO({
           dashboardId: resolvedDashboardId,
           widgetId: resolvedWidgetId,
           field,
           value: numericValue,
         });
+
+        const holdMs = Number(res?.actuationHoldMs);
+        startHoldWindow(Number.isFinite(holdMs) && holdMs > 0 ? holdMs : 10000);
       }
 
       window.dispatchEvent(
@@ -602,10 +660,16 @@ export default function DisplayOutputTextBoxStyle({
         })
       );
     } catch (err) {
-      const msg =
-        String(err?.message || "").trim() || "Failed to write AO value";
-      console.error("❌ DisplayOutput AO write failed:", err);
-      setWriteError(msg);
+      if (isControlActionInProgressError(err)) {
+        const holdMs = getActuationHoldMsFromError(err);
+        startHoldWindow(holdMs);
+        setWriteError("Control Action in Progress");
+      } else {
+        const msg =
+          String(err?.message || "").trim() || "Failed to write AO value";
+        console.error("❌ DisplayOutput AO write failed:", err);
+        setWriteError(msg);
+      }
     } finally {
       setIsWriting(false);
     }
@@ -819,8 +883,9 @@ export default function DisplayOutputTextBoxStyle({
           <SetButton
             isPlay={isPlay}
             onSet={handleSet}
-            disabled={hasBinding && isOffline}
-            busy={isWriting}
+            disabled={(hasBinding && isOffline) || holdActive}
+            busy={isWriting || holdActive}
+            holdActive={holdActive}
           />
         </div>
       </div>
@@ -853,6 +918,22 @@ export default function DisplayOutputTextBoxStyle({
           }}
         >
           Offline
+        </div>
+      ) : null}
+
+      {!isOffline && holdActive ? (
+        <div
+          style={{
+            marginTop: 6,
+            fontSize: 18,
+            fontWeight: 900,
+            color: "#d97706",
+            textAlign: "center",
+            lineHeight: 1,
+            whiteSpace: "nowrap",
+          }}
+        >
+          Control Action in Progress
         </div>
       ) : null}
 
