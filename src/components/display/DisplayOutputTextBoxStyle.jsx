@@ -352,18 +352,6 @@ function getActuationHoldMsFromError(err) {
     if (Number.isFinite(ms) && ms > 0) return ms;
   }
 
-  const responseDetail = err?.response?.data?.detail;
-  if (responseDetail && typeof responseDetail === "object") {
-    const ms = Number(responseDetail.actuationHoldMs);
-    if (Number.isFinite(ms) && ms > 0) return ms;
-  }
-
-  const dataDetail = err?.data?.detail;
-  if (dataDetail && typeof dataDetail === "object") {
-    const ms = Number(dataDetail.actuationHoldMs);
-    if (Number.isFinite(ms) && ms > 0) return ms;
-  }
-
   const ms = Number(err?.actuationHoldMs);
   if (Number.isFinite(ms) && ms > 0) return ms;
 
@@ -376,36 +364,11 @@ function isControlActionInProgressError(err) {
   const detailText = String(err?.detail || "").toLowerCase();
   const errorText = String(err?.error || "").toLowerCase();
 
-  const responseDetailError = String(
-    err?.response?.data?.detail?.error || ""
-  ).toLowerCase();
-
-  const responseDetailText = String(
-    err?.response?.data?.detail || ""
-  ).toLowerCase();
-
-  const dataDetailError = String(
-    err?.data?.detail?.error || ""
-  ).toLowerCase();
-
-  const dataDetailText = String(
-    err?.data?.detail || ""
-  ).toLowerCase();
-
-  const status = Number(
-    err?.status ?? err?.response?.status ?? err?.data?.status ?? 0
-  );
-
   return (
     msg.includes("control action in progress") ||
     detailError.includes("control action in progress") ||
     detailText.includes("control action in progress") ||
-    errorText.includes("control action in progress") ||
-    responseDetailError.includes("control action in progress") ||
-    responseDetailText.includes("control action in progress") ||
-    dataDetailError.includes("control action in progress") ||
-    dataDetailText.includes("control action in progress") ||
-    status === 409
+    errorText.includes("control action in progress")
   );
 }
 
@@ -588,7 +551,6 @@ export default function DisplayOutputTextBoxStyle({
     holdTimerRef.current = setTimeout(() => {
       setHoldActive(false);
       holdTimerRef.current = null;
-      setWriteError("");
     }, holdMs);
   }, []);
 
@@ -702,11 +664,14 @@ export default function DisplayOutputTextBoxStyle({
         })
       );
     } catch (err) {
-      console.error("❌ DisplayOutput AO write failed:", err);
-
-      const holdMs = getActuationHoldMsFromError(err);
-      startHoldWindow(holdMs);
-      setWriteError("Control Action in Progress");
+      if (isControlActionInProgressError(err)) {
+        const holdMs = getActuationHoldMsFromError(err);
+        startHoldWindow(holdMs);
+        setWriteError("Control Action in Progress");
+      } else {
+        console.error("❌ DisplayOutput AO write failed:", err);
+        setWriteError("Failed to write AO value");
+      }
     } finally {
       setIsWriting(false);
     }
