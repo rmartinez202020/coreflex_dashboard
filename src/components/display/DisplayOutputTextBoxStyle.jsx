@@ -361,14 +361,10 @@ function getActuationHoldMsFromError(err) {
 function isControlActionInProgressError(err) {
   const msg = String(err?.message || "").toLowerCase();
   const detailError = String(err?.detail?.error || "").toLowerCase();
-  const detailText = String(err?.detail || "").toLowerCase();
-  const errorText = String(err?.error || "").toLowerCase();
 
   return (
     msg.includes("control action in progress") ||
-    detailError.includes("control action in progress") ||
-    detailText.includes("control action in progress") ||
-    errorText.includes("control action in progress")
+    detailError.includes("control action in progress")
   );
 }
 
@@ -669,8 +665,10 @@ export default function DisplayOutputTextBoxStyle({
         startHoldWindow(holdMs);
         setWriteError("Control Action in Progress");
       } else {
+        const msg =
+          String(err?.message || "").trim() || "Failed to write AO value";
         console.error("❌ DisplayOutput AO write failed:", err);
-        setWriteError("Failed to write AO value");
+        setWriteError(msg);
       }
     } finally {
       setIsWriting(false);
