@@ -932,7 +932,7 @@ export default function DisplayOutputTextBoxStyle({
       lineHeight: 1,
       whiteSpace: "nowrap",
       position: "relative",
-      left: -16,
+      left: -20,
     }}
   >
     Control Action in Progress
