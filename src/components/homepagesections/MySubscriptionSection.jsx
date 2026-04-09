@@ -142,8 +142,61 @@ export default function MySubscriptionSection({ onBack }) {
       </div>
 
       <div className="p-5">
+        {/* ✅ YOUR CURRENT SUBSCRIPTION */}
+        <div className="rounded-xl border border-emerald-200 bg-emerald-50 overflow-hidden">
+          <div className="bg-emerald-700 text-white px-4 py-3">
+            <div className="text-lg font-semibold">Your Current Subscription</div>
+            <div className="text-xs text-emerald-100 mt-1">
+              Manage your active plan, renewal date, device usage, and billing
+              actions.
+            </div>
+          </div>
+
+          <div className="p-4 md:p-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+              <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
+                <div className="text-xs text-slate-500">Plan</div>
+                <div className="mt-1 font-semibold text-slate-900">
+                  {currentPlan.name}
+                </div>
+              </div>
+
+              <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
+                <div className="text-xs text-slate-500">Status</div>
+                <div className="mt-1 font-semibold text-emerald-700">
+                  {CURRENT_PLAN_STATUS}
+                </div>
+              </div>
+
+              <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
+                <div className="text-xs text-slate-500">Renewal</div>
+                <div className="mt-1 font-semibold text-slate-900">
+                  {CURRENT_PLAN_RENEWAL}
+                </div>
+              </div>
+
+              <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
+                <div className="text-xs text-slate-500">Devices Used</div>
+                <div className="mt-1 font-semibold text-slate-900">
+                  {CURRENT_PLAN_DEVICES_USED}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 flex flex-col md:flex-row gap-3">
+              <button className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 text-sm font-semibold transition">
+                Change Plan
+              </button>
+
+              <button className="rounded-lg bg-slate-900 hover:opacity-90 text-white px-4 py-2.5 text-sm font-semibold transition">
+                Manage Payment
+              </button>
+            </div>
+          </div>
+        </div>
+
         {/* ✅ TABLE */}
-        <div className="overflow-x-auto rounded-xl border border-slate-200">
+        <div className="mt-8 overflow-x-auto rounded-xl border border-slate-200">
           <table className="min-w-full bg-white text-sm">
             <thead className="bg-slate-100 text-slate-800">
               <tr>
@@ -211,59 +264,6 @@ export default function MySubscriptionSection({ onBack }) {
                 isCurrent={plan.key === CURRENT_PLAN_KEY}
               />
             ))}
-          </div>
-        </div>
-
-        {/* ✅ YOUR CURRENT SUBSCRIPTION */}
-        <div className="mt-8 rounded-xl border border-emerald-200 bg-emerald-50 overflow-hidden">
-          <div className="bg-emerald-700 text-white px-4 py-3">
-            <div className="text-lg font-semibold">Your Current Subscription</div>
-            <div className="text-xs text-emerald-100 mt-1">
-              Manage your active plan, renewal date, device usage, and billing
-              actions.
-            </div>
-          </div>
-
-          <div className="p-4 md:p-5">
-            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
-              <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
-                <div className="text-xs text-slate-500">Plan</div>
-                <div className="mt-1 font-semibold text-slate-900">
-                  {currentPlan.name}
-                </div>
-              </div>
-
-              <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
-                <div className="text-xs text-slate-500">Status</div>
-                <div className="mt-1 font-semibold text-emerald-700">
-                  {CURRENT_PLAN_STATUS}
-                </div>
-              </div>
-
-              <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
-                <div className="text-xs text-slate-500">Renewal</div>
-                <div className="mt-1 font-semibold text-slate-900">
-                  {CURRENT_PLAN_RENEWAL}
-                </div>
-              </div>
-
-              <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
-                <div className="text-xs text-slate-500">Devices Used</div>
-                <div className="mt-1 font-semibold text-slate-900">
-                  {CURRENT_PLAN_DEVICES_USED}
-                </div>
-              </div>
-            </div>
-
-            <div className="mt-4 flex flex-col md:flex-row gap-3">
-              <button className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2.5 text-sm font-semibold transition">
-                Change Plan
-              </button>
-
-              <button className="rounded-lg bg-slate-900 hover:opacity-90 text-white px-4 py-2.5 text-sm font-semibold transition">
-                Manage Payment
-              </button>
-            </div>
           </div>
         </div>
       </div>
