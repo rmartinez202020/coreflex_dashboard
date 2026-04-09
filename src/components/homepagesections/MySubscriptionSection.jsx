@@ -15,8 +15,8 @@ const PLANS = [
   {
     key: "starter",
     name: "Starter",
-    monthlyPrice: "$20 / month",
-    oneTimeLicense: "$399",
+    monthlyPrice: "$30 / month",
+    oneTimeLicense: "$1,200",
     deviceLimit: "5 devices",
     dashboards: "Unlimited",
     dataHistory: "30 days",
@@ -26,8 +26,8 @@ const PLANS = [
   {
     key: "professional",
     name: "Professional",
-    monthlyPrice: "$80 / month",
-    oneTimeLicense: "$1,200",
+    monthlyPrice: "N/A",
+    oneTimeLicense: "$3,500",
     deviceLimit: "50 devices",
     dashboards: "Unlimited",
     dataHistory: "1 year",
@@ -37,8 +37,8 @@ const PLANS = [
   {
     key: "industrial",
     name: "Industrial",
-    monthlyPrice: "$350 / month",
-    oneTimeLicense: "$3,500",
+    monthlyPrice: "N/A",
+    oneTimeLicense: "$5,200",
     deviceLimit: "200 devices",
     dashboards: "Unlimited",
     dataHistory: "Unlimited*",
@@ -95,6 +95,9 @@ function AvailablePlanCard({ plan, isCurrent }) {
         </div>
         <div>
           <span className="text-slate-500">History:</span> {plan.dataHistory}
+        </div>
+        <div>
+          <span className="text-slate-500">License:</span> {plan.oneTimeLicense}
         </div>
       </div>
 
