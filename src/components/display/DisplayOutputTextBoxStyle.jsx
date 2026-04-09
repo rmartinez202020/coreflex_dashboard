@@ -922,21 +922,22 @@ export default function DisplayOutputTextBoxStyle({
       ) : null}
 
       {!isOffline && holdActive ? (
-        <div
-          style={{
-            marginTop: 6,
-            fontSize: 18,
-            fontWeight: 900,
-            color: "#d97706",
-            textAlign: "left",
-            paddingLeft: 10,
-            lineHeight: 1,
-            whiteSpace: "nowrap",
-          }}
-        >
-          Control Action in Progress
-        </div>
-      ) : null}
+  <div
+    style={{
+      marginTop: 6,
+      fontSize: 18,
+      fontWeight: 900,
+      color: "#d97706",
+      textAlign: "center",
+      lineHeight: 1,
+      whiteSpace: "nowrap",
+      position: "relative",
+      left: -12,
+    }}
+  >
+    Control Action in Progress
+  </div>
+) : null}
 
 
       {writeError ? (
