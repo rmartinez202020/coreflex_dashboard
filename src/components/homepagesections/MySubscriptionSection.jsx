@@ -26,8 +26,8 @@ const PLANS = [
   {
     key: "professional",
     name: "Professional",
-    monthlyPrice: "N/A",
-    oneTimeLicense: "$3,500",
+    monthlyPrice: "$240 / month",
+    oneTimeLicense: "$4,500",
     deviceLimit: "50 devices",
     dashboards: "Unlimited",
     dataHistory: "1 year",
@@ -37,7 +37,7 @@ const PLANS = [
   {
     key: "industrial",
     name: "Industrial",
-    monthlyPrice: "N/A",
+    monthlyPrice: "$400 / month",
     oneTimeLicense: "$5,200",
     deviceLimit: "200 devices",
     dashboards: "Unlimited",
