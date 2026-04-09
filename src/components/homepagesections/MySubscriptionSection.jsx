@@ -66,7 +66,7 @@ const CURRENT_PLAN_DEVICES_USED = "12 / 50";
 function AvailablePlanCard({ plan, isCurrent }) {
   return (
     <div
-      className={`rounded-xl border px-4 py-4 shadow-sm bg-white transition ${
+      className={`rounded-xl border px-4 py-4 shadow-sm bg-white transition flex flex-col justify-between min-h-[150px] ${
         isCurrent
           ? "border-emerald-500 ring-2 ring-emerald-200"
           : "border-slate-200 hover:border-slate-300"
@@ -74,8 +74,7 @@ function AvailablePlanCard({ plan, isCurrent }) {
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-lg font-semibold text-slate-900">{plan.name}</div>
-          <div className="mt-1 text-sm text-slate-600">{plan.monthlyPrice}</div>
+          <div className="text-xl font-semibold text-slate-900">{plan.name}</div>
         </div>
 
         {isCurrent && (
@@ -85,14 +84,7 @@ function AvailablePlanCard({ plan, isCurrent }) {
         )}
       </div>
 
-      <div className="mt-3 text-sm text-slate-700 space-y-1">
-        <div><span className="text-slate-500">Devices:</span> {plan.deviceLimit}</div>
-        <div><span className="text-slate-500">Dashboards:</span> {plan.dashboards}</div>
-        <div><span className="text-slate-500">History:</span> {plan.dataHistory}</div>
-        <div><span className="text-slate-500">License:</span> {plan.oneTimeLicense}</div>
-      </div>
-
-      <div className="mt-4">
+      <div className="mt-6">
         <button
           className={`w-full rounded-lg px-4 py-2 text-sm font-semibold transition ${
             isCurrent
@@ -113,10 +105,10 @@ export default function MySubscriptionSection({ onBack }) {
     PLANS.find((plan) => plan.key === CURRENT_PLAN_KEY) || PLANS[0];
 
   return (
-    // ❌ removed mt-6
-    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-
-      {/* HEADER */}
+    <div
+      className="rounded-xl border border-slate-200 bg-white overflow-hidden"
+      style={{ marginTop: "-22px" }}
+    >
       <div className="bg-emerald-700 text-white px-4 py-4 flex items-center justify-between">
         <div className="flex items-center gap-3">
           <button
@@ -135,30 +127,36 @@ export default function MySubscriptionSection({ onBack }) {
         </div>
       </div>
 
-      {/* 🔥 reduced top padding */}
-      <div className="px-5 pb-5 pt-2">
-
+      <div className="px-5 pb-5 pt-1">
         {/* CURRENT */}
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 md:p-5">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
             <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
               <div className="text-xs text-slate-500">Plan</div>
-              <div className="mt-1 font-semibold text-slate-900">{currentPlan.name}</div>
+              <div className="mt-1 font-semibold text-slate-900">
+                {currentPlan.name}
+              </div>
             </div>
 
             <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
               <div className="text-xs text-slate-500">Status</div>
-              <div className="mt-1 font-semibold text-emerald-700">{CURRENT_PLAN_STATUS}</div>
+              <div className="mt-1 font-semibold text-emerald-700">
+                {CURRENT_PLAN_STATUS}
+              </div>
             </div>
 
             <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
               <div className="text-xs text-slate-500">Renewal</div>
-              <div className="mt-1 font-semibold text-slate-900">{CURRENT_PLAN_RENEWAL}</div>
+              <div className="mt-1 font-semibold text-slate-900">
+                {CURRENT_PLAN_RENEWAL}
+              </div>
             </div>
 
             <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
               <div className="text-xs text-slate-500">Devices Used</div>
-              <div className="mt-1 font-semibold text-slate-900">{CURRENT_PLAN_DEVICES_USED}</div>
+              <div className="mt-1 font-semibold text-slate-900">
+                {CURRENT_PLAN_DEVICES_USED}
+              </div>
             </div>
           </div>
 
@@ -176,7 +174,9 @@ export default function MySubscriptionSection({ onBack }) {
         <div className="mt-6 rounded-xl border border-slate-200 bg-white overflow-hidden">
           <div className="bg-slate-900 text-white px-4 py-2">
             <div className="text-base font-semibold">Available Plans</div>
-            <div className="text-xs text-slate-300">Choose the plan that fits your needs.</div>
+            <div className="text-xs text-slate-300">
+              Choose the plan that fits your needs.
+            </div>
           </div>
 
           <div className="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
@@ -202,12 +202,17 @@ export default function MySubscriptionSection({ onBack }) {
                 <th className="px-4 py-3 text-left font-semibold">Dashboards</th>
                 <th className="px-4 py-3 text-left font-semibold">Data History</th>
                 <th className="px-4 py-3 text-left font-semibold">Features</th>
-                <th className="px-4 py-3 text-left font-semibold">Annual Updates & Support</th>
+                <th className="px-4 py-3 text-left font-semibold">
+                  Annual Updates & Support
+                </th>
               </tr>
             </thead>
             <tbody>
               {PLANS.map((plan, idx) => (
-                <tr key={plan.key} className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}>
+                <tr
+                  key={plan.key}
+                  className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}
+                >
                   <td className="px-4 py-4 font-semibold">{plan.name}</td>
                   <td className="px-4 py-4">{plan.monthlyPrice}</td>
                   <td className="px-4 py-4">{plan.oneTimeLicense}</td>
@@ -221,7 +226,6 @@ export default function MySubscriptionSection({ onBack }) {
             </tbody>
           </table>
         </div>
-
       </div>
     </div>
   );
