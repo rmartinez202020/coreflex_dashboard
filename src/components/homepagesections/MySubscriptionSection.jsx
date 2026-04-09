@@ -74,12 +74,8 @@ function AvailablePlanCard({ plan, isCurrent }) {
     >
       <div className="flex items-start justify-between gap-3">
         <div>
-          <div className="text-lg font-semibold text-slate-900">
-            {plan.name}
-          </div>
-          <div className="mt-1 text-sm text-slate-600">
-            {plan.monthlyPrice}
-          </div>
+          <div className="text-lg font-semibold text-slate-900">{plan.name}</div>
+          <div className="mt-1 text-sm text-slate-600">{plan.monthlyPrice}</div>
         </div>
 
         {isCurrent && (
@@ -117,7 +113,8 @@ export default function MySubscriptionSection({ onBack }) {
     PLANS.find((plan) => plan.key === CURRENT_PLAN_KEY) || PLANS[0];
 
   return (
-    <div className="mt-6 rounded-xl border border-slate-200 bg-white overflow-hidden">
+    // ❌ removed mt-6
+    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
 
       {/* HEADER */}
       <div className="bg-emerald-700 text-white px-4 py-4 flex items-center justify-between">
@@ -138,37 +135,30 @@ export default function MySubscriptionSection({ onBack }) {
         </div>
       </div>
 
-      <div className="p-5">
+      {/* 🔥 reduced top padding */}
+      <div className="px-5 pb-5 pt-2">
 
-        {/* ✅ CURRENT SUBSCRIPTION (FIRST) */}
+        {/* CURRENT */}
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 md:p-5">
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
             <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
               <div className="text-xs text-slate-500">Plan</div>
-              <div className="mt-1 font-semibold text-slate-900">
-                {currentPlan.name}
-              </div>
+              <div className="mt-1 font-semibold text-slate-900">{currentPlan.name}</div>
             </div>
 
             <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
               <div className="text-xs text-slate-500">Status</div>
-              <div className="mt-1 font-semibold text-emerald-700">
-                {CURRENT_PLAN_STATUS}
-              </div>
+              <div className="mt-1 font-semibold text-emerald-700">{CURRENT_PLAN_STATUS}</div>
             </div>
 
             <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
               <div className="text-xs text-slate-500">Renewal</div>
-              <div className="mt-1 font-semibold text-slate-900">
-                {CURRENT_PLAN_RENEWAL}
-              </div>
+              <div className="mt-1 font-semibold text-slate-900">{CURRENT_PLAN_RENEWAL}</div>
             </div>
 
             <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
               <div className="text-xs text-slate-500">Devices Used</div>
-              <div className="mt-1 font-semibold text-slate-900">
-                {CURRENT_PLAN_DEVICES_USED}
-              </div>
+              <div className="mt-1 font-semibold text-slate-900">{CURRENT_PLAN_DEVICES_USED}</div>
             </div>
           </div>
 
@@ -182,13 +172,11 @@ export default function MySubscriptionSection({ onBack }) {
           </div>
         </div>
 
-        {/* ✅ AVAILABLE PLANS (SECOND + SHORT HEADER) */}
+        {/* AVAILABLE */}
         <div className="mt-6 rounded-xl border border-slate-200 bg-white overflow-hidden">
           <div className="bg-slate-900 text-white px-4 py-2">
             <div className="text-base font-semibold">Available Plans</div>
-            <div className="text-xs text-slate-300">
-              Choose the plan that fits your needs.
-            </div>
+            <div className="text-xs text-slate-300">Choose the plan that fits your needs.</div>
           </div>
 
           <div className="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
@@ -202,7 +190,7 @@ export default function MySubscriptionSection({ onBack }) {
           </div>
         </div>
 
-        {/* ✅ TABLE (THIRD) */}
+        {/* TABLE */}
         <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200">
           <table className="min-w-full bg-white text-sm">
             <thead className="bg-slate-100">
