@@ -619,12 +619,102 @@ export default function DisplayOutputSettingModal({
 
               <div
                 style={{
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 12,
+                  padding: 12,
+                  background: "#ffffff",
                   display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
                   gap: 10,
-                  alignItems: "start",
                 }}
               >
+                <div
+                  style={{
+                    fontSize: 14,
+                    fontWeight: 800,
+                    color: "#0f172a",
+                    letterSpacing: 0.2,
+                  }}
+                >
+                  Actual Value Math
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 10,
+                    alignItems: "start",
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "#111827",
+                      }}
+                    >
+                      Live VALUE
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 6,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minWidth: 120,
+                        height: 34,
+                        padding: "0 14px",
+                        borderRadius: 999,
+                        background: "rgba(187,247,208,0.55)",
+                        border: "1px solid rgba(22,163,74,0.25)",
+                        fontFamily: "monospace",
+                        fontWeight: 700,
+                        color: "#0b3b18",
+                      }}
+                    >
+                      {Number.isFinite(effectiveLiveValue)
+                        ? effectiveLiveValue.toFixed(2)
+                        : "--"}
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: "right" }}>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 600,
+                        color: "#111827",
+                      }}
+                    >
+                      Output
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 6,
+                        display: "inline-flex",
+                        alignItems: "center",
+                        justifyContent: "center",
+                        minWidth: 120,
+                        height: 34,
+                        padding: "0 14px",
+                        borderRadius: 999,
+                        background: "#f3f4f6",
+                        border: "1px solid #d1d5db",
+                        fontFamily: "monospace",
+                        fontWeight: 700,
+                        color: "#111827",
+                      }}
+                    >
+                      {typeof effectiveOutputValue === "string"
+                        ? effectiveOutputValue || "--"
+                        : Number.isFinite(Number(effectiveOutputValue))
+                        ? Number(effectiveOutputValue).toFixed(2)
+                        : "--"}
+                    </div>
+                  </div>
+                </div>
+
                 <div>
                   <div
                     style={{
@@ -633,96 +723,28 @@ export default function DisplayOutputSettingModal({
                       color: "#111827",
                     }}
                   >
-                    Live VALUE
+                    Formula
                   </div>
-                  <div
+                  <textarea
+                    value={formula}
+                    onChange={(e) => {
+                      setFormula(e.target.value);
+                    }}
+                    rows={4}
                     style={{
                       marginTop: 6,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      minWidth: 120,
-                      height: 34,
-                      padding: "0 14px",
-                      borderRadius: 999,
-                      background: "rgba(187,247,208,0.55)",
-                      border: "1px solid rgba(22,163,74,0.25)",
-                      fontFamily: "monospace",
-                      fontWeight: 700,
-                      color: "#0b3b18",
-                    }}
-                  >
-                    {Number.isFinite(effectiveLiveValue)
-                      ? effectiveLiveValue.toFixed(2)
-                      : "--"}
-                  </div>
-                </div>
-
-                <div style={{ textAlign: "right" }}>
-                  <div
-                    style={{
-                      fontSize: 12,
-                      fontWeight: 600,
-                      color: "#111827",
-                    }}
-                  >
-                    Output
-                  </div>
-                  <div
-                    style={{
-                      marginTop: 6,
-                      display: "inline-flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      minWidth: 120,
-                      height: 34,
-                      padding: "0 14px",
-                      borderRadius: 999,
-                      background: "#f3f4f6",
+                      width: "100%",
+                      borderRadius: 10,
                       border: "1px solid #d1d5db",
+                      padding: 10,
                       fontFamily: "monospace",
-                      fontWeight: 700,
-                      color: "#111827",
+                      fontSize: 12,
+                      outline: "none",
+                      background: "#fff",
                     }}
-                  >
-                    {typeof effectiveOutputValue === "string"
-                      ? effectiveOutputValue || "--"
-                      : Number.isFinite(Number(effectiveOutputValue))
-                      ? Number(effectiveOutputValue).toFixed(2)
-                      : "--"}
-                  </div>
+                    placeholder='Example: VALUE*1.5  or  CONCAT("AO=", VALUE)'
+                  />
                 </div>
-              </div>
-
-              <div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    fontWeight: 600,
-                    color: "#111827",
-                  }}
-                >
-                  Formula
-                </div>
-                <textarea
-                  value={formula}
-                  onChange={(e) => {
-                    setFormula(e.target.value);
-                  }}
-                  rows={4}
-                  style={{
-                    marginTop: 6,
-                    width: "100%",
-                    borderRadius: 10,
-                    border: "1px solid #d1d5db",
-                    padding: 10,
-                    fontFamily: "monospace",
-                    fontSize: 12,
-                    outline: "none",
-                    background: "#fff",
-                  }}
-                  placeholder='Example: VALUE*1.5  or  CONCAT("AO=", VALUE)'
-                />
               </div>
 
               {liveErr ? (
