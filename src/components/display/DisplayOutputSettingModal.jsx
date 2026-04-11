@@ -64,6 +64,35 @@ function parseMaybeNumber(v, fallback = "") {
   return Number.isFinite(n) ? n : fallback;
 }
 
+function sanitizeDecimalInput(v) {
+  const s = String(v ?? "");
+  let out = "";
+  let seenDot = false;
+  let seenMinus = false;
+
+  for (let i = 0; i < s.length; i += 1) {
+    const ch = s[i];
+
+    if (ch >= "0" && ch <= "9") {
+      out += ch;
+      continue;
+    }
+
+    if (ch === "." && !seenDot) {
+      out += ch;
+      seenDot = true;
+      continue;
+    }
+
+    if (ch === "-" && i === 0 && !seenMinus) {
+      out += ch;
+      seenMinus = true;
+    }
+  }
+
+  return out;
+}
+
 export default function DisplayOutputSettingModal({
   open = true,
   tank,
@@ -84,12 +113,20 @@ export default function DisplayOutputSettingModal({
   const [bindField, setBindField] = useState(props.bindField || "ao1");
   const [isApplying, setIsApplying] = useState(false);
 
-  // ✅ NEW SCALE FEATURE
+  // ✅ scaling reference values
   const [scaleMin, setScaleMin] = useState(
-    props.scaleMin ?? props.aoScaleMin ?? 0
+    props.scaleMin ??
+      props.aoScaleMin ??
+      props.setValue4000 ??
+      props.value4000 ??
+      0
   );
   const [scaleMax, setScaleMax] = useState(
-    props.scaleMax ?? props.aoScaleMax ?? 100
+    props.scaleMax ??
+      props.aoScaleMax ??
+      props.setValue20000 ??
+      props.value20000 ??
+      100
   );
 
   const [devices, setDevices] = useState([]);
@@ -105,9 +142,13 @@ export default function DisplayOutputSettingModal({
     setBindDeviceId(p.bindDeviceId ?? "");
     setBindField(p.bindField === "ao2" ? "ao2" : "ao1");
 
-    // ✅ NEW SCALE FEATURE
-    setScaleMin(p.scaleMin ?? p.aoScaleMin ?? 0);
-    setScaleMax(p.scaleMax ?? p.aoScaleMax ?? 100);
+    // ✅ scaling reference values
+    setScaleMin(
+      p.scaleMin ?? p.aoScaleMin ?? p.setValue4000 ?? p.value4000 ?? 0
+    );
+    setScaleMax(
+      p.scaleMax ?? p.aoScaleMax ?? p.setValue20000 ?? p.value20000 ?? 100
+    );
   }, [tank]);
 
   useEffect(() => {
@@ -186,7 +227,6 @@ export default function DisplayOutputSettingModal({
 
   const effectiveLiveValue = selectedDeviceIsOnline ? rawLiveValue : null;
 
-  // ✅ NEW SCALE FEATURE
   const numericScaleMin = useMemo(
     () => parseMaybeNumber(scaleMin, ""),
     [scaleMin]
@@ -231,24 +271,8 @@ export default function DisplayOutputSettingModal({
     numericScaleMax,
   ]);
 
-  useEffect(() => {}, [
-    bindDeviceId,
-    bindField,
-    devices,
-    selectedDevice,
-    selectedDeviceStatus,
-    selectedDeviceIsOnline,
-    rawLiveValue,
-    effectiveLiveValue,
-    effectiveOutputValue,
-    numericScaleMin,
-    numericScaleMax,
-    scaleError,
-  ]);
-
   const liveErr = pollError;
 
-  // ✅ widened so both scaling cards fully fit
   const PANEL_W = 1040;
   const dragRef = useRef({
     dragging: false,
@@ -352,14 +376,6 @@ export default function DisplayOutputSettingModal({
     );
   }, [bindDeviceId, bindField, scaleError]);
 
-  useEffect(() => {}, [
-    bindDeviceId,
-    bindField,
-    canApply,
-    isApplying,
-    scaleError,
-  ]);
-
   const labelStyle = { fontSize: 12, fontWeight: 500, color: "#111827" };
   const sectionTitleStyle = { fontWeight: 600, fontSize: 16 };
   const fieldSelectStyle = {
@@ -381,6 +397,9 @@ export default function DisplayOutputSettingModal({
     }
 
     const cleanLabel = String(label || "").trim();
+    const cleanFormula = String(formula || "").trim();
+    const resolvedScaleMin = Number(numericScaleMin);
+    const resolvedScaleMax = Number(numericScaleMax);
 
     const nextProps = {
       ...(tank?.properties || {}),
@@ -388,13 +407,25 @@ export default function DisplayOutputSettingModal({
       bindModel: FIXED_MODEL,
       bindDeviceId,
       bindField,
-      formula,
+      formula: cleanFormula,
 
-      // ✅ NEW SCALE FEATURE
-      scaleMin: Number(numericScaleMin),
-      scaleMax: Number(numericScaleMax),
-      aoScaleMin: Number(numericScaleMin),
-      aoScaleMax: Number(numericScaleMax),
+      // ✅ primary saved names
+      scaleMin: resolvedScaleMin,
+      scaleMax: resolvedScaleMax,
+      aoScaleMin: resolvedScaleMin,
+      aoScaleMax: resolvedScaleMax,
+
+      // ✅ extra aliases so widget side can always resolve them
+      setValue4000: resolvedScaleMin,
+      setValue20000: resolvedScaleMax,
+      value4000: resolvedScaleMin,
+      value20000: resolvedScaleMax,
+
+      // ✅ explicit flags / metadata
+      scalingEnabled: true,
+      scalingMode: "ao_reference",
+      scalingReferenceMinMilliAmp: 4000,
+      scalingReferenceMaxMilliAmp: 20000,
     };
 
     delete nextProps.title;
@@ -406,12 +437,11 @@ export default function DisplayOutputSettingModal({
       bindModel: FIXED_MODEL,
       bindDeviceId,
       bindField,
-      formula,
-
-      // ✅ NEW SCALE FEATURE
-      scaleMin: Number(numericScaleMin),
-      scaleMax: Number(numericScaleMax),
-
+      formula: cleanFormula,
+      scaleMin: resolvedScaleMin,
+      scaleMax: resolvedScaleMax,
+      aoScaleMin: resolvedScaleMin,
+      aoScaleMax: resolvedScaleMax,
       properties: nextProps,
     };
 
@@ -432,7 +462,6 @@ export default function DisplayOutputSettingModal({
       });
 
       const widgetId = resolveWidgetId(tank);
-
       const deviceId = String(bindDeviceId || "").trim();
       const field = String(bindField || "").trim().toLowerCase();
 
@@ -443,17 +472,17 @@ export default function DisplayOutputSettingModal({
         /^ao[1-2]$/.test(field)
       ) {
         await bindControlDO({
-          dashboardId,
-          dashboardName,
+          dashboardId: resolvedDashboardId,
+          dashboardName: resolvedDashboardName,
           widgetId,
           widgetType: "display_output",
           title: "Display Output",
           deviceId,
           field,
         });
-      } else if (dashboardId && widgetId) {
+      } else if (resolvedDashboardId && widgetId) {
         await deleteControlBinding({
-          dashboardId,
+          dashboardId: resolvedDashboardId,
           widgetId,
         });
       } else {
@@ -669,7 +698,7 @@ export default function DisplayOutputSettingModal({
                     <input
                       value={scaleMin}
                       onChange={(e) => {
-                        setScaleMin(e.target.value);
+                        setScaleMin(sanitizeDecimalInput(e.target.value));
                       }}
                       inputMode="decimal"
                       placeholder="0"
@@ -741,7 +770,7 @@ export default function DisplayOutputSettingModal({
                     <input
                       value={scaleMax}
                       onChange={(e) => {
-                        setScaleMax(e.target.value);
+                        setScaleMax(sanitizeDecimalInput(e.target.value));
                       }}
                       inputMode="decimal"
                       placeholder="100"
