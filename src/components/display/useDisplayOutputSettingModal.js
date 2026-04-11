@@ -94,6 +94,12 @@ function sanitizeDecimalInput(v) {
   return out;
 }
 
+function waitForReactFlush() {
+  return new Promise((resolve) => {
+    window.setTimeout(resolve, 0);
+  });
+}
+
 export default function useDisplayOutputSettingModal({
   open = true,
   tank,
@@ -117,6 +123,10 @@ export default function useDisplayOutputSettingModal({
       props.aoScaleMin ??
       props.setValue4000 ??
       props.value4000 ??
+      tank?.scaleMin ??
+      tank?.aoScaleMin ??
+      tank?.setValue4000 ??
+      tank?.value4000 ??
       0
   );
   const [scaleMax, setScaleMax] = useState(
@@ -124,6 +134,10 @@ export default function useDisplayOutputSettingModal({
       props.aoScaleMax ??
       props.setValue20000 ??
       props.value20000 ??
+      tank?.scaleMax ??
+      tank?.aoScaleMax ??
+      tank?.setValue20000 ??
+      tank?.value20000 ??
       100
   );
 
@@ -135,17 +149,35 @@ export default function useDisplayOutputSettingModal({
     if (!tank) return;
     const p = tank?.properties || {};
 
-    setLabel(p.label ?? "");
-    setFormula(p.formula ?? "");
+    setLabel(p.label ?? tank?.label ?? "");
+    setFormula(p.formula ?? tank?.formula ?? "");
     setBindModel(FIXED_MODEL);
-    setBindDeviceId(p.bindDeviceId ?? "");
-    setBindField(p.bindField === "ao2" ? "ao2" : "ao1");
+    setBindDeviceId(p.bindDeviceId ?? tank?.bindDeviceId ?? "");
+    setBindField(
+      (p.bindField ?? tank?.bindField) === "ao2" ? "ao2" : "ao1"
+    );
 
     setScaleMin(
-      p.scaleMin ?? p.aoScaleMin ?? p.setValue4000 ?? p.value4000 ?? 0
+      p.scaleMin ??
+        p.aoScaleMin ??
+        p.setValue4000 ??
+        p.value4000 ??
+        tank?.scaleMin ??
+        tank?.aoScaleMin ??
+        tank?.setValue4000 ??
+        tank?.value4000 ??
+        0
     );
     setScaleMax(
-      p.scaleMax ?? p.aoScaleMax ?? p.setValue20000 ?? p.value20000 ?? 100
+      p.scaleMax ??
+        p.aoScaleMax ??
+        p.setValue20000 ??
+        p.value20000 ??
+        tank?.scaleMax ??
+        tank?.aoScaleMax ??
+        tank?.setValue20000 ??
+        tank?.value20000 ??
+        100
     );
   }, [tank]);
 
@@ -417,10 +449,22 @@ export default function useDisplayOutputSettingModal({
       bindDeviceId,
       bindField,
       formula: cleanFormula,
+
       scaleMin: resolvedScaleMin,
       scaleMax: resolvedScaleMax,
       aoScaleMin: resolvedScaleMin,
       aoScaleMax: resolvedScaleMax,
+
+      setValue4000: resolvedScaleMin,
+      setValue20000: resolvedScaleMax,
+      value4000: resolvedScaleMin,
+      value20000: resolvedScaleMax,
+
+      scalingEnabled: true,
+      scalingMode: "ao_reference",
+      scalingReferenceMinMilliAmp: 4000,
+      scalingReferenceMaxMilliAmp: 20000,
+
       properties: nextProps,
     };
 
@@ -469,9 +513,10 @@ export default function useDisplayOutputSettingModal({
         return;
       }
 
-      onSave?.(nextTank);
+      await Promise.resolve(onSave?.(nextTank));
 
       if (typeof onSaveProject === "function") {
+        await waitForReactFlush();
         await onSaveProject();
       }
 
