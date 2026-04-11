@@ -187,8 +187,14 @@ export default function DisplayOutputSettingModal({
   const effectiveLiveValue = selectedDeviceIsOnline ? rawLiveValue : null;
 
   // ✅ NEW SCALE FEATURE
-  const numericScaleMin = useMemo(() => parseMaybeNumber(scaleMin, ""), [scaleMin]);
-  const numericScaleMax = useMemo(() => parseMaybeNumber(scaleMax, ""), [scaleMax]);
+  const numericScaleMin = useMemo(
+    () => parseMaybeNumber(scaleMin, ""),
+    [scaleMin]
+  );
+  const numericScaleMax = useMemo(
+    () => parseMaybeNumber(scaleMax, ""),
+    [scaleMax]
+  );
 
   const scaleError = useMemo(() => {
     if (numericScaleMin === "" || numericScaleMax === "") {
@@ -242,7 +248,8 @@ export default function DisplayOutputSettingModal({
 
   const liveErr = pollError;
 
-  const PANEL_W = 920;
+  // ✅ widened so both scaling cards fully fit
+  const PANEL_W = 1040;
   const dragRef = useRef({
     dragging: false,
     startX: 0,
@@ -267,7 +274,7 @@ export default function DisplayOutputSettingModal({
     const w = window.innerWidth || 1200;
     const h = window.innerHeight || 800;
 
-    const width = Math.min(PANEL_W, Math.floor(w * 0.96));
+    const width = Math.min(PANEL_W, Math.floor(w * 0.98));
     const estHeight = 640;
 
     const left = Math.max(12, Math.floor((w - width) / 2));
@@ -345,7 +352,13 @@ export default function DisplayOutputSettingModal({
     );
   }, [bindDeviceId, bindField, scaleError]);
 
-  useEffect(() => {}, [bindDeviceId, bindField, canApply, isApplying, scaleError]);
+  useEffect(() => {}, [
+    bindDeviceId,
+    bindField,
+    canApply,
+    isApplying,
+    scaleError,
+  ]);
 
   const labelStyle = { fontSize: 12, fontWeight: 500, color: "#111827" };
   const sectionTitleStyle = { fontWeight: 600, fontSize: 16 };
@@ -478,7 +491,7 @@ export default function DisplayOutputSettingModal({
           left: pos.left,
           top: pos.top,
           width: PANEL_W,
-          maxWidth: "96vw",
+          maxWidth: "98vw",
           borderRadius: 12,
           background: "#fff",
           boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
@@ -528,7 +541,7 @@ export default function DisplayOutputSettingModal({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "1fr 1fr",
+              gridTemplateColumns: "minmax(520px, 1fr) minmax(360px, 1fr)",
               gap: 16,
               alignItems: "start",
             }}
@@ -541,6 +554,7 @@ export default function DisplayOutputSettingModal({
                 padding: 14,
                 display: "grid",
                 gap: 12,
+                minWidth: 0,
               }}
             >
               <div
@@ -585,6 +599,8 @@ export default function DisplayOutputSettingModal({
                       border: "1px solid #dbe3ee",
                       borderRadius: 999,
                       padding: "4px 10px",
+                      whiteSpace: "nowrap",
+                      flexShrink: 0,
                     }}
                   >
                     Scaling Reference
@@ -594,7 +610,7 @@ export default function DisplayOutputSettingModal({
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
+                    gridTemplateColumns: "repeat(2, minmax(210px, 1fr))",
                     padding: 14,
                     gap: 12,
                     background: "transparent",
@@ -609,6 +625,7 @@ export default function DisplayOutputSettingModal({
                       display: "grid",
                       gap: 8,
                       textAlign: "center",
+                      minWidth: 0,
                     }}
                   >
                     <div
@@ -618,6 +635,7 @@ export default function DisplayOutputSettingModal({
                         color: "#475569",
                         letterSpacing: 0.2,
                         textTransform: "uppercase",
+                        whiteSpace: "nowrap",
                       }}
                     >
                       4000m Amp
@@ -629,6 +647,7 @@ export default function DisplayOutputSettingModal({
                         fontWeight: 900,
                         color: "#0f172a",
                         lineHeight: 1,
+                        whiteSpace: "nowrap",
                       }}
                     >
                       {numericScaleMin === "" ? "--" : numericScaleMin}
@@ -641,6 +660,7 @@ export default function DisplayOutputSettingModal({
                         color: "#64748b",
                         letterSpacing: 0.2,
                         textTransform: "uppercase",
+                        whiteSpace: "nowrap",
                       }}
                     >
                       Set Value
@@ -662,6 +682,8 @@ export default function DisplayOutputSettingModal({
                         textAlign: "center",
                         background: "#fff",
                         outline: "none",
+                        minWidth: 0,
+                        width: "100%",
                       }}
                     />
                   </div>
@@ -675,6 +697,7 @@ export default function DisplayOutputSettingModal({
                       display: "grid",
                       gap: 8,
                       textAlign: "center",
+                      minWidth: 0,
                     }}
                   >
                     <div
@@ -684,6 +707,7 @@ export default function DisplayOutputSettingModal({
                         color: "#475569",
                         letterSpacing: 0.2,
                         textTransform: "uppercase",
+                        whiteSpace: "nowrap",
                       }}
                     >
                       20000m Amp
@@ -695,6 +719,7 @@ export default function DisplayOutputSettingModal({
                         fontWeight: 900,
                         color: "#0f172a",
                         lineHeight: 1,
+                        whiteSpace: "nowrap",
                       }}
                     >
                       {numericScaleMax === "" ? "--" : numericScaleMax}
@@ -707,6 +732,7 @@ export default function DisplayOutputSettingModal({
                         color: "#64748b",
                         letterSpacing: 0.2,
                         textTransform: "uppercase",
+                        whiteSpace: "nowrap",
                       }}
                     >
                       Set Value
@@ -728,6 +754,8 @@ export default function DisplayOutputSettingModal({
                         textAlign: "center",
                         background: "#fff",
                         outline: "none",
+                        minWidth: 0,
+                        width: "100%",
                       }}
                     />
                   </div>
@@ -928,6 +956,7 @@ export default function DisplayOutputSettingModal({
                 padding: 14,
                 display: "grid",
                 gap: 12,
+                minWidth: 0,
               }}
             >
               <div style={sectionTitleStyle}>Tag that drives the Output (AO)</div>
