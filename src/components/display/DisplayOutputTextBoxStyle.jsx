@@ -369,12 +369,12 @@ export default function DisplayOutputTextBoxStyle({
 
   const formula = tank?.properties?.formula ?? tank?.formula ?? "";
 
-  const scaleMin = parseFiniteNumber(
-    tank?.properties?.scaleMin ?? tank?.properties?.aoScaleMin
-  );
-  const scaleMax = parseFiniteNumber(
-    tank?.properties?.scaleMax ?? tank?.properties?.aoScaleMax
-  );
+  // ✅ IMPORTANT:
+  // Read ONLY the unified scale keys saved by the modal.
+  // Do NOT fall back to legacy aoScaleMin/aoScaleMax, because old legacy values
+  // can make the modal appear to "reset" back to 0 / 100.
+  const scaleMin = parseFiniteNumber(tank?.properties?.scaleMin);
+  const scaleMax = parseFiniteNumber(tank?.properties?.scaleMax);
 
   const hasScaleReference = hasUsableScale(scaleMin, scaleMax);
   const hasBinding = !!bindDeviceId && !!bindField;
@@ -452,7 +452,14 @@ export default function DisplayOutputTextBoxStyle({
     }
 
     return padToFormat(rawSetpoint, numberFormat);
-  }, [hasScaleReference, rawSetpointNumber, scaleMin, scaleMax, rawSetpoint, numberFormat]);
+  }, [
+    hasScaleReference,
+    rawSetpointNumber,
+    scaleMin,
+    scaleMax,
+    rawSetpoint,
+    numberFormat,
+  ]);
 
   const [editing, setEditing] = React.useState(false);
   const [draft, setDraft] = React.useState(computedDisplaySetpoint);
@@ -508,7 +515,11 @@ export default function DisplayOutputTextBoxStyle({
         return { storedValue: "", displayValue: "" };
       }
 
-      const clampedDisplay = clamp(Number(typed), Number(scaleMin), Number(scaleMax));
+      const clampedDisplay = clamp(
+        Number(typed),
+        Number(scaleMin),
+        Number(scaleMax)
+      );
       const rawAO = computeMilliAmpsFromScaledValue(
         clampedDisplay,
         scaleMin,
@@ -601,7 +612,9 @@ export default function DisplayOutputTextBoxStyle({
         });
 
         const holdMs = Number(res?.actuationHoldMs);
-        startHoldWindow(Number.isFinite(holdMs) && holdMs > 0 ? holdMs : 10000);
+        startHoldWindow(
+          Number.isFinite(holdMs) && holdMs > 0 ? holdMs : 10000
+        );
       }
 
       window.dispatchEvent(
@@ -789,7 +802,10 @@ export default function DisplayOutputTextBoxStyle({
               }}
               onChange={(e) => {
                 if (hasScaleReference) {
-                  const next = sanitizeNumericInput(e.target.value).slice(0, 10);
+                  const next = sanitizeNumericInput(e.target.value).slice(
+                    0,
+                    10
+                  );
                   setDraft(next);
                 } else {
                   const next = onlyDigits(e.target.value).slice(0, maxDigits);
