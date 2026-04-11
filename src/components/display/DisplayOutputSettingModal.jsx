@@ -71,7 +71,6 @@ export default function DisplayOutputSettingModal({
 
   const props = tank?.properties || {};
 
-  const [title, setTitle] = useState(props.title ?? props.displayTitle ?? "");
   const [label, setLabel] = useState(props.label ?? "");
   const [formula, setFormula] = useState(props.formula ?? "");
   const [bindModel, setBindModel] = useState(props.bindModel || FIXED_MODEL);
@@ -86,7 +85,6 @@ export default function DisplayOutputSettingModal({
   useEffect(() => {
     if (!tank) return;
     const p = tank?.properties || {};
-    setTitle(p.title ?? p.displayTitle ?? "");
     setLabel(p.label ?? "");
     setFormula(p.formula ?? "");
     setBindModel(FIXED_MODEL);
@@ -310,12 +308,10 @@ export default function DisplayOutputSettingModal({
       return;
     }
 
-    const cleanTitle = String(title || "").trim();
     const cleanLabel = String(label || "").trim();
 
     const nextProps = {
       ...(tank?.properties || {}),
-      title: cleanTitle,
       label: cleanLabel,
       bindModel: FIXED_MODEL,
       bindDeviceId,
@@ -323,9 +319,11 @@ export default function DisplayOutputSettingModal({
       formula,
     };
 
+    delete nextProps.title;
+    delete nextProps.displayTitle;
+
     const nextTank = {
       ...tank,
-      title: cleanTitle,
       label: cleanLabel,
       bindModel: FIXED_MODEL,
       bindDeviceId,
@@ -333,6 +331,9 @@ export default function DisplayOutputSettingModal({
       formula,
       properties: nextProps,
     };
+
+    delete nextTank.title;
+    delete nextTank.displayTitle;
 
     try {
       setIsApplying(true);
@@ -363,7 +364,7 @@ export default function DisplayOutputSettingModal({
           dashboardName,
           widgetId,
           widgetType: "display_output",
-          title: cleanTitle || "Display Output",
+          title: "Display Output",
           deviceId,
           field,
         });
@@ -596,29 +597,6 @@ export default function DisplayOutputSettingModal({
                       100
                     </div>
                   </div>
-                </div>
-              </div>
-
-              <div style={{ display: "grid", gap: 6 }}>
-                <div style={labelStyle}>Title (Top of Display)</div>
-                <input
-                  value={title}
-                  onChange={(e) => {
-                    setTitle(e.target.value);
-                  }}
-                  placeholder="Example: Output Channel #1"
-                  style={{
-                    height: 38,
-                    borderRadius: 10,
-                    border: "1px solid #d1d5db",
-                    padding: "0 10px",
-                    fontWeight: 500,
-                    background: "#fff",
-                    outline: "none",
-                  }}
-                />
-                <div style={{ fontSize: 11, color: "#64748b" }}>
-                  This shows above the label on the widget.
                 </div>
               </div>
 
