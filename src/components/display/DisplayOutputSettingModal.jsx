@@ -58,6 +58,12 @@ function resolveDashboardName({ dashboardName, widget }) {
   ).trim();
 }
 
+function parseMaybeNumber(v, fallback = "") {
+  if (v === null || v === undefined || v === "") return fallback;
+  const n = Number(v);
+  return Number.isFinite(n) ? n : fallback;
+}
+
 export default function DisplayOutputSettingModal({
   open = true,
   tank,
@@ -78,6 +84,14 @@ export default function DisplayOutputSettingModal({
   const [bindField, setBindField] = useState(props.bindField || "ao1");
   const [isApplying, setIsApplying] = useState(false);
 
+  // ✅ NEW SCALE FEATURE
+  const [scaleMin, setScaleMin] = useState(
+    props.scaleMin ?? props.aoScaleMin ?? 0
+  );
+  const [scaleMax, setScaleMax] = useState(
+    props.scaleMax ?? props.aoScaleMax ?? 100
+  );
+
   const [devices, setDevices] = useState([]);
   const [devicesLoading, setDevicesLoading] = useState(false);
   const [pollError, setPollError] = useState("");
@@ -90,6 +104,10 @@ export default function DisplayOutputSettingModal({
     setBindModel(FIXED_MODEL);
     setBindDeviceId(p.bindDeviceId ?? "");
     setBindField(p.bindField === "ao2" ? "ao2" : "ao1");
+
+    // ✅ NEW SCALE FEATURE
+    setScaleMin(p.scaleMin ?? p.aoScaleMin ?? 0);
+    setScaleMax(p.scaleMax ?? p.aoScaleMax ?? 100);
   }, [tank]);
 
   useEffect(() => {
@@ -168,10 +186,44 @@ export default function DisplayOutputSettingModal({
 
   const effectiveLiveValue = selectedDeviceIsOnline ? rawLiveValue : null;
 
+  // ✅ NEW SCALE FEATURE
+  const numericScaleMin = useMemo(() => parseMaybeNumber(scaleMin, ""), [scaleMin]);
+  const numericScaleMax = useMemo(() => parseMaybeNumber(scaleMax, ""), [scaleMax]);
+
+  const scaleError = useMemo(() => {
+    if (numericScaleMin === "" || numericScaleMax === "") {
+      return "Both set values are required.";
+    }
+
+    if (
+      !Number.isFinite(Number(numericScaleMin)) ||
+      !Number.isFinite(Number(numericScaleMax))
+    ) {
+      return "Set values must be valid numbers.";
+    }
+
+    if (Number(numericScaleMin) >= Number(numericScaleMax)) {
+      return "Set 0 must be lower than Set 100.";
+    }
+
+    return "";
+  }, [numericScaleMin, numericScaleMax]);
+
   const effectiveOutputValue = useMemo(() => {
     if (!selectedDeviceIsOnline) return null;
-    return computeMathOutput(rawLiveValue, formula);
-  }, [selectedDeviceIsOnline, rawLiveValue, formula]);
+    return computeMathOutput(
+      rawLiveValue,
+      formula,
+      Number(numericScaleMin),
+      Number(numericScaleMax)
+    );
+  }, [
+    selectedDeviceIsOnline,
+    rawLiveValue,
+    formula,
+    numericScaleMin,
+    numericScaleMax,
+  ]);
 
   useEffect(() => {}, [
     bindDeviceId,
@@ -183,6 +235,9 @@ export default function DisplayOutputSettingModal({
     rawLiveValue,
     effectiveLiveValue,
     effectiveOutputValue,
+    numericScaleMin,
+    numericScaleMax,
+    scaleError,
   ]);
 
   const liveErr = pollError;
@@ -283,10 +338,14 @@ export default function DisplayOutputSettingModal({
   }, []);
 
   const canApply = useMemo(() => {
-    return !!bindDeviceId && (bindField === "ao1" || bindField === "ao2");
-  }, [bindDeviceId, bindField]);
+    return (
+      !!bindDeviceId &&
+      (bindField === "ao1" || bindField === "ao2") &&
+      !scaleError
+    );
+  }, [bindDeviceId, bindField, scaleError]);
 
-  useEffect(() => {}, [bindDeviceId, bindField, canApply, isApplying]);
+  useEffect(() => {}, [bindDeviceId, bindField, canApply, isApplying, scaleError]);
 
   const labelStyle = { fontSize: 12, fontWeight: 500, color: "#111827" };
   const sectionTitleStyle = { fontWeight: 600, fontSize: 16 };
@@ -317,6 +376,12 @@ export default function DisplayOutputSettingModal({
       bindDeviceId,
       bindField,
       formula,
+
+      // ✅ NEW SCALE FEATURE
+      scaleMin: Number(numericScaleMin),
+      scaleMax: Number(numericScaleMax),
+      aoScaleMin: Number(numericScaleMin),
+      aoScaleMax: Number(numericScaleMax),
     };
 
     delete nextProps.title;
@@ -329,6 +394,11 @@ export default function DisplayOutputSettingModal({
       bindDeviceId,
       bindField,
       formula,
+
+      // ✅ NEW SCALE FEATURE
+      scaleMin: Number(numericScaleMin),
+      scaleMax: Number(numericScaleMax),
+
       properties: nextProps,
     };
 
@@ -552,6 +622,7 @@ export default function DisplayOutputSettingModal({
                     >
                       4000m Amp
                     </div>
+
                     <div
                       style={{
                         fontSize: 24,
@@ -560,8 +631,39 @@ export default function DisplayOutputSettingModal({
                         lineHeight: 1,
                       }}
                     >
-                      0
+                      {numericScaleMin === "" ? "--" : numericScaleMin}
                     </div>
+
+                    <div
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: "#64748b",
+                        letterSpacing: 0.2,
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Set Value
+                    </div>
+
+                    <input
+                      value={scaleMin}
+                      onChange={(e) => {
+                        setScaleMin(e.target.value);
+                      }}
+                      inputMode="decimal"
+                      placeholder="0"
+                      style={{
+                        height: 34,
+                        borderRadius: 10,
+                        border: "1px solid #d1d5db",
+                        padding: "0 10px",
+                        fontWeight: 700,
+                        textAlign: "center",
+                        background: "#fff",
+                        outline: "none",
+                      }}
+                    />
                   </div>
 
                   <div
@@ -586,6 +688,7 @@ export default function DisplayOutputSettingModal({
                     >
                       20000m Amp
                     </div>
+
                     <div
                       style={{
                         fontSize: 24,
@@ -594,11 +697,58 @@ export default function DisplayOutputSettingModal({
                         lineHeight: 1,
                       }}
                     >
-                      100
+                      {numericScaleMax === "" ? "--" : numericScaleMax}
                     </div>
+
+                    <div
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 700,
+                        color: "#64748b",
+                        letterSpacing: 0.2,
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      Set Value
+                    </div>
+
+                    <input
+                      value={scaleMax}
+                      onChange={(e) => {
+                        setScaleMax(e.target.value);
+                      }}
+                      inputMode="decimal"
+                      placeholder="100"
+                      style={{
+                        height: 34,
+                        borderRadius: 10,
+                        border: "1px solid #d1d5db",
+                        padding: "0 10px",
+                        fontWeight: 700,
+                        textAlign: "center",
+                        background: "#fff",
+                        outline: "none",
+                      }}
+                    />
                   </div>
                 </div>
               </div>
+
+              {scaleError ? (
+                <div
+                  style={{
+                    border: "1px solid #fecaca",
+                    background: "#fff1f2",
+                    color: "#991b1b",
+                    borderRadius: 10,
+                    padding: 10,
+                    fontSize: 12,
+                    fontWeight: 700,
+                  }}
+                >
+                  {scaleError}
+                </div>
+              ) : null}
 
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Bottom Label</div>
