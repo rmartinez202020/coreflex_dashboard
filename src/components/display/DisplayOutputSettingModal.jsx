@@ -72,6 +72,7 @@ export default function DisplayOutputSettingModal({
   const props = tank?.properties || {};
 
   const [title, setTitle] = useState(props.title ?? props.displayTitle ?? "");
+  const [label, setLabel] = useState(props.label ?? "");
   const [formula, setFormula] = useState(props.formula ?? "");
   const [bindModel, setBindModel] = useState(props.bindModel || FIXED_MODEL);
   const [bindDeviceId, setBindDeviceId] = useState(props.bindDeviceId || "");
@@ -86,6 +87,7 @@ export default function DisplayOutputSettingModal({
     if (!tank) return;
     const p = tank?.properties || {};
     setTitle(p.title ?? p.displayTitle ?? "");
+    setLabel(p.label ?? "");
     setFormula(p.formula ?? "");
     setBindModel(FIXED_MODEL);
     setBindDeviceId(p.bindDeviceId ?? "");
@@ -309,10 +311,12 @@ export default function DisplayOutputSettingModal({
     }
 
     const cleanTitle = String(title || "").trim();
+    const cleanLabel = String(label || "").trim();
 
     const nextProps = {
       ...(tank?.properties || {}),
       title: cleanTitle,
+      label: cleanLabel,
       bindModel: FIXED_MODEL,
       bindDeviceId,
       bindField,
@@ -322,6 +326,7 @@ export default function DisplayOutputSettingModal({
     const nextTank = {
       ...tank,
       title: cleanTitle,
+      label: cleanLabel,
       bindModel: FIXED_MODEL,
       bindDeviceId,
       bindField,
@@ -614,6 +619,29 @@ export default function DisplayOutputSettingModal({
                 />
                 <div style={{ fontSize: 11, color: "#64748b" }}>
                   This shows above the label on the widget.
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gap: 6 }}>
+                <div style={labelStyle}>Bottom Label</div>
+                <input
+                  value={label}
+                  onChange={(e) => {
+                    setLabel(e.target.value);
+                  }}
+                  placeholder="Example: SETPOINT"
+                  style={{
+                    height: 38,
+                    borderRadius: 10,
+                    border: "1px solid #d1d5db",
+                    padding: "0 10px",
+                    fontWeight: 600,
+                    background: "#fff",
+                    outline: "none",
+                  }}
+                />
+                <div style={{ fontSize: 11, color: "#64748b" }}>
+                  This shows below the widget, like SETPOINT.
                 </div>
               </div>
 

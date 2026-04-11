@@ -262,7 +262,7 @@ export default function DisplayOutputTextBoxStyle({
   const w = tank.w ?? tank.width ?? 160;
   const h = tank.h ?? tank.height ?? 60;
 
-  const label = tank?.properties?.label || "";
+  const label = String(tank?.properties?.label ?? tank?.label ?? "").trim();
   const numberFormat = tank?.properties?.numberFormat || "00000";
   const { maxDigits } = getFormatSpec(numberFormat);
 
