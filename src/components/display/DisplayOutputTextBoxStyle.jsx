@@ -522,12 +522,12 @@ export default function DisplayOutputTextBoxStyle({
 
   const displayText = displayedSetpoint;
 
+  // ✅ IMPORTANT:
+  // Actual now shows ONLY the modal math/scaled output result.
+  // No fallback to raw liveValue anymore.
   const actualText =
-    hasBinding && !isOffline && liveValue !== null && liveValue !== undefined
-      ? formatByPattern(
-          outValue !== null && outValue !== undefined ? outValue : liveValue,
-          numberFormat
-        )
+    hasBinding && !isOffline && outValue !== null && outValue !== undefined
+      ? formatByPattern(outValue, numberFormat)
       : "--";
 
   const actualRowH = 26;
