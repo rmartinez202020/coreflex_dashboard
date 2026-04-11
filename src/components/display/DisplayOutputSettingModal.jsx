@@ -368,13 +368,10 @@ export default function DisplayOutputSettingModal({
               {scaleError ? (
                 <div
                   style={{
-                    border: "1px solid #fecaca",
-                    background: "#fff1f2",
-                    color: "#991b1b",
-                    borderRadius: 10,
-                    padding: 10,
+                    color: "#dc2626",
                     fontSize: 12,
                     fontWeight: 700,
+                    padding: "0 2px",
                   }}
                 >
                   {scaleError}
