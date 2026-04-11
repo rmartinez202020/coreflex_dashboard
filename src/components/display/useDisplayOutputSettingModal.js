@@ -516,9 +516,10 @@ export default function useDisplayOutputSettingModal({
       await Promise.resolve(onSave?.(nextTank));
 
       if (typeof onSaveProject === "function") {
-        await waitForReactFlush();
         await onSaveProject();
       }
+
+      await waitForReactFlush();
 
       onClose?.();
     } catch (err) {
