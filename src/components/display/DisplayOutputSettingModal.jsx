@@ -78,6 +78,20 @@ export default function DisplayOutputSettingModal({
   const previewTitleStyle = { fontWeight: 600, marginBottom: 8, fontSize: 13 };
   const previewTextStyle = { fontSize: 12, fontWeight: 400, color: "#111827" };
 
+  async function handleApplyClick() {
+    try {
+      if (
+        document.activeElement &&
+        typeof document.activeElement.blur === "function"
+      ) {
+        document.activeElement.blur();
+      }
+    } catch {}
+
+    await Promise.resolve();
+    await handleApply();
+  }
+
   return (
     <div
       onMouseDown={(e) => e.stopPropagation()}
@@ -708,9 +722,7 @@ export default function DisplayOutputSettingModal({
 
                 <button
                   disabled={!canApply || isApplying}
-                  onClick={() => {
-                    handleApply();
-                  }}
+                  onClick={handleApplyClick}
                   style={{
                     padding: "10px 14px",
                     borderRadius: 10,
