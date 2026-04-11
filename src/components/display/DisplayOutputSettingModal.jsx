@@ -461,7 +461,12 @@ export default function DisplayOutputSettingModal({
       const deviceId = String(bindDeviceId || "").trim();
       const field = String(bindField || "").trim().toLowerCase();
 
-      if (resolvedDashboardId && widgetId && deviceId && /^ao[1-2]$/.test(field)) {
+      if (
+        resolvedDashboardId &&
+        widgetId &&
+        deviceId &&
+        /^ao[1-2]$/.test(field)
+      ) {
         await bindControlDO({
           dashboardId,
           dashboardName,
@@ -578,96 +583,127 @@ export default function DisplayOutputSettingModal({
             >
               <div
                 style={{
-                  border: "1px solid #111827",
-                  background: "#ffffff",
-                  borderRadius: 0,
+                  border: "1px solid #d7dee8",
+                  background:
+                    "linear-gradient(180deg, #ffffff 0%, #f8fbff 100%)",
+                  borderRadius: 14,
                   overflow: "hidden",
+                  boxShadow:
+                    "0 6px 18px rgba(15, 23, 42, 0.06), inset 0 1px 0 rgba(255,255,255,0.8)",
                 }}
               >
                 <div
                   style={{
-                    height: 40,
+                    padding: "12px 16px",
                     display: "flex",
                     alignItems: "center",
-                    justifyContent: "center",
-                    borderBottom: "1px solid #111827",
-                    fontWeight: 800,
-                    fontSize: 16,
-                    color: "#111827",
-                    background: "#ffffff",
+                    justifyContent: "space-between",
+                    borderBottom: "1px solid #e5e7eb",
+                    background:
+                      "linear-gradient(180deg, #f8fafc 0%, #eef4fb 100%)",
                   }}
                 >
-                  Analog Output Setup
+                  <div
+                    style={{
+                      fontWeight: 800,
+                      fontSize: 15,
+                      color: "#0f172a",
+                      letterSpacing: 0.2,
+                    }}
+                  >
+                    Analog Output Setup
+                  </div>
+
+                  <div
+                    style={{
+                      fontSize: 11,
+                      fontWeight: 700,
+                      color: "#475569",
+                      background: "#ffffff",
+                      border: "1px solid #dbe3ee",
+                      borderRadius: 999,
+                      padding: "4px 10px",
+                    }}
+                  >
+                    Scaling Reference
+                  </div>
                 </div>
 
                 <div
                   style={{
                     display: "grid",
                     gridTemplateColumns: "1fr 1fr",
+                    padding: 14,
+                    gap: 12,
+                    background: "transparent",
                   }}
                 >
                   <div
                     style={{
-                      minHeight: 42,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      borderRight: "1px solid #111827",
-                      borderBottom: "1px solid #111827",
-                      fontSize: 13,
-                      fontWeight: 500,
-                      color: "#111827",
-                      background: "#f8fafc",
-                    }}
-                  >
-                    4000m Amp
-                  </div>
-
-                  <div
-                    style={{
-                      minHeight: 42,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      borderBottom: "1px solid #111827",
-                      fontSize: 13,
-                      fontWeight: 500,
-                      color: "#111827",
-                      background: "#f8fafc",
-                    }}
-                  >
-                    20000m Amp
-                  </div>
-
-                  <div
-                    style={{
-                      minHeight: 42,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      borderRight: "1px solid #111827",
-                      fontSize: 14,
-                      fontWeight: 500,
-                      color: "#111827",
+                      border: "1px solid #dbe3ee",
+                      borderRadius: 12,
                       background: "#ffffff",
+                      padding: "12px 10px",
+                      display: "grid",
+                      gap: 8,
+                      textAlign: "center",
                     }}
                   >
-                    0
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: "#475569",
+                        letterSpacing: 0.2,
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      4000m Amp
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 24,
+                        fontWeight: 900,
+                        color: "#0f172a",
+                        lineHeight: 1,
+                      }}
+                    >
+                      0
+                    </div>
                   </div>
 
                   <div
                     style={{
-                      minHeight: 42,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: "center",
-                      fontSize: 14,
-                      fontWeight: 500,
-                      color: "#111827",
+                      border: "1px solid #dbe3ee",
+                      borderRadius: 12,
                       background: "#ffffff",
+                      padding: "12px 10px",
+                      display: "grid",
+                      gap: 8,
+                      textAlign: "center",
                     }}
                   >
-                    100
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 700,
+                        color: "#475569",
+                        letterSpacing: 0.2,
+                        textTransform: "uppercase",
+                      }}
+                    >
+                      20000m Amp
+                    </div>
+                    <div
+                      style={{
+                        fontSize: 24,
+                        fontWeight: 900,
+                        color: "#0f172a",
+                        lineHeight: 1,
+                      }}
+                    >
+                      100
+                    </div>
                   </div>
                 </div>
               </div>
@@ -801,46 +837,6 @@ export default function DisplayOutputSettingModal({
                   }}
                   placeholder='Example: VALUE*1.5  or  CONCAT("AO=", VALUE)'
                 />
-              </div>
-
-              <div
-                style={{
-                  background: "#f1f5f9",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 10,
-                  padding: 12,
-                  fontSize: 11,
-                  color: "#1e293b",
-                  lineHeight: 1.35,
-                }}
-              >
-                <div style={{ fontWeight: 600, marginBottom: 8 }}>
-                  Supported Operators
-                </div>
-                <div style={{ display: "grid", gap: 4 }}>
-                  <div>VALUE + 10 → add</div>
-                  <div>VALUE - 3 → subtract</div>
-                  <div>VALUE * 2 → multiply</div>
-                  <div>VALUE / 5 → divide</div>
-                  <div>VALUE % 60 → modulo</div>
-                </div>
-
-                <div style={{ fontWeight: 600, margin: "10px 0 6px" }}>
-                  Combined Examples
-                </div>
-                <div style={{ display: "grid", gap: 4 }}>
-                  <div>(VALUE * 1.5) + 5 → scale &amp; offset</div>
-                  <div>(VALUE / 4095) * 20 - 4 → ADC → 4–20 mA</div>
-                </div>
-
-                <div style={{ fontWeight: 600, margin: "10px 0 6px" }}>
-                  String Output Examples
-                </div>
-                <div style={{ display: "grid", gap: 4 }}>
-                  <div>CONCAT("AO=", VALUE)</div>
-                  <div>CONCAT("Out=", VALUE, " %")</div>
-                  <div>CONCAT("Cmd=", VALUE * 2)</div>
-                </div>
               </div>
 
               {liveErr ? (
