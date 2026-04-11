@@ -26,14 +26,58 @@ function onlyDigits(str) {
   return String(str || "").replace(/\D/g, "");
 }
 
+function sanitizeNumericInput(str) {
+  const s = String(str || "");
+  let out = "";
+  let seenDot = false;
+
+  for (const ch of s) {
+    if (/\d/.test(ch)) {
+      out += ch;
+      continue;
+    }
+    if (ch === "." && !seenDot) {
+      out += ch;
+      seenDot = true;
+    }
+  }
+
+  return out;
+}
+
 function padToFormat(rawDigits, numberFormat) {
   const { maxDigits } = getFormatSpec(numberFormat);
   const d = onlyDigits(rawDigits).slice(0, maxDigits);
 
-  // ✅ if nothing typed, show blank (not zeros)
   if (!d) return "";
-
   return d.padStart(maxDigits, "0");
+}
+
+function parseFiniteNumber(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function clamp(value, min, max) {
+  return Math.min(Math.max(value, min), max);
+}
+
+function roundTo(num, decimals = 2) {
+  const p = 10 ** decimals;
+  return Math.round(num * p) / p;
+}
+
+function formatScaledDisplayValue(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "";
+
+  const rounded = roundTo(n, 2);
+  if (Math.abs(rounded - Math.round(rounded)) < 0.000001) {
+    return String(Math.round(rounded));
+  }
+
+  return String(rounded);
 }
 
 // ===============================
@@ -74,32 +118,48 @@ function resolveDashboardName({ dashboardName, widget }) {
   ).trim();
 }
 
-// ✅ keep helper for future use if needed, but DO NOT auto-apply it
-function parseFiniteNumber(value) {
-  if (value === null || value === undefined || value === "") return null;
-  const n = Number(value);
-  return Number.isFinite(n) ? n : null;
+// ===============================
+// ✅ scale helpers
+// ===============================
+function hasUsableScale(scaleMin, scaleMax) {
+  return (
+    Number.isFinite(Number(scaleMin)) &&
+    Number.isFinite(Number(scaleMax)) &&
+    Number(scaleMax) > Number(scaleMin)
+  );
 }
 
-// ✅ available for future use only
-function computeScaledValueFromMilliAmps(liveValue, scaleMin, scaleMax) {
-  const value = Number(liveValue);
+// Raw AO (4000..20000) -> engineering units (scaleMin..scaleMax)
+function computeScaledValueFromMilliAmps(rawValue, scaleMin, scaleMax) {
+  const value = Number(rawValue);
   const min = Number(scaleMin);
   const max = Number(scaleMax);
 
   if (!Number.isFinite(value)) return null;
-  if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
-  if (min >= max) return null;
+  if (!hasUsableScale(min, max)) return null;
 
-  // 4000 mAmp -> min
-  // 20000 mAmp -> max
   return min + ((value - 4000) / (20000 - 4000)) * (max - min);
 }
 
-// ✅ IMPORTANT FIX:
-// Math Output must match modal Output.
-// Do NOT auto-apply scaling reference first.
-// If no formula exists, return liveValue directly.
+// Engineering units (scaleMin..scaleMax) -> raw AO (4000..20000)
+function computeMilliAmpsFromScaledValue(displayValue, scaleMin, scaleMax) {
+  const value = Number(displayValue);
+  const min = Number(scaleMin);
+  const max = Number(scaleMax);
+
+  if (!Number.isFinite(value)) return null;
+  if (!hasUsableScale(min, max)) return null;
+
+  const clamped = clamp(value, min, max);
+  return 4000 + ((clamped - min) / (max - min)) * (20000 - 4000);
+}
+
+// ===============================
+// ✅ actual output logic
+// IMPORTANT:
+// The TOP ACTUAL must follow the modal Output.
+// So we do NOT auto-apply scaling here.
+// ===============================
 function computeMathOutput(liveValue, formula) {
   const f = String(formula || "").trim();
   if (!f) return liveValue;
@@ -161,8 +221,9 @@ function formatByPattern(raw, numberFormat) {
   const totalInt = (intPart || "0").length;
   const totalDec = decPart ? decPart.length : 0;
 
-  if (typeof raw === "string" && raw.trim() !== "" && isNaN(Number(raw)))
+  if (typeof raw === "string" && raw.trim() !== "" && isNaN(Number(raw))) {
     return raw;
+  }
 
   const num = typeof raw === "number" ? raw : Number(raw);
   if (!Number.isFinite(num)) return "--";
@@ -297,15 +358,17 @@ export default function DisplayOutputTextBoxStyle({
   )
     .trim()
     .toLowerCase();
+
   const bindDeviceId = String(
     tank?.properties?.bindDeviceId ?? tank?.bindDeviceId ?? ""
   ).trim();
+
   const bindField = String(
     tank?.properties?.bindField ?? tank?.bindField ?? ""
   ).trim();
+
   const formula = tank?.properties?.formula ?? tank?.formula ?? "";
 
-  // ✅ kept only for compatibility/future use
   const scaleMin = parseFiniteNumber(
     tank?.properties?.scaleMin ?? tank?.properties?.aoScaleMin
   );
@@ -313,6 +376,7 @@ export default function DisplayOutputTextBoxStyle({
     tank?.properties?.scaleMax ?? tank?.properties?.aoScaleMax
   );
 
+  const hasScaleReference = hasUsableScale(scaleMin, scaleMax);
   const hasBinding = !!bindDeviceId && !!bindField;
 
   const resolvedDashboardId = React.useMemo(() => {
@@ -352,11 +416,11 @@ export default function DisplayOutputTextBoxStyle({
     return Number.isFinite(parsed) ? parsed : null;
   }, [rawValue]);
 
-  // ✅ MUST match modal Output
+  // ✅ TOP ACTUAL = modal Output
   const outValue = React.useMemo(() => {
     if (!hasBinding) return null;
-    return computeMathOutput(liveValue, formula, scaleMin, scaleMax);
-  }, [hasBinding, liveValue, formula, scaleMin, scaleMax]);
+    return computeMathOutput(liveValue, formula);
+  }, [hasBinding, liveValue, formula]);
 
   const isOffline =
     hasBinding &&
@@ -367,11 +431,31 @@ export default function DisplayOutputTextBoxStyle({
       backendStatus === "down" ||
       backendStatus === "disconnected");
 
+  // Raw stored AO setpoint
   const rawSetpoint =
     tank.value !== undefined && tank.value !== null ? String(tank.value) : "";
 
+  const rawSetpointNumber = React.useMemo(() => {
+    const n = Number(rawSetpoint);
+    return Number.isFinite(n) ? n : null;
+  }, [rawSetpoint]);
+
+  // Displayed SET value shown to user
+  const computedDisplaySetpoint = React.useMemo(() => {
+    if (hasScaleReference && rawSetpointNumber !== null) {
+      const scaled = computeScaledValueFromMilliAmps(
+        rawSetpointNumber,
+        scaleMin,
+        scaleMax
+      );
+      return scaled !== null ? formatScaledDisplayValue(scaled) : "";
+    }
+
+    return padToFormat(rawSetpoint, numberFormat);
+  }, [hasScaleReference, rawSetpointNumber, scaleMin, scaleMax, rawSetpoint, numberFormat]);
+
   const [editing, setEditing] = React.useState(false);
-  const [draft, setDraft] = React.useState(onlyDigits(rawSetpoint));
+  const [draft, setDraft] = React.useState(computedDisplaySetpoint);
   const [isWriting, setIsWriting] = React.useState(false);
   const [writeError, setWriteError] = React.useState("");
 
@@ -404,31 +488,63 @@ export default function DisplayOutputTextBoxStyle({
   }, []);
 
   React.useEffect(() => {
-    if (!editing) setDraft(onlyDigits(rawSetpoint));
-  }, [rawSetpoint, editing]);
+    if (!editing) {
+      setDraft(computedDisplaySetpoint);
+    }
+  }, [computedDisplaySetpoint, editing]);
 
   const displayedSetpoint = isPlay
     ? editing
       ? draft
-      : padToFormat(rawSetpoint, numberFormat)
-    : padToFormat(rawSetpoint, numberFormat);
+      : computedDisplaySetpoint
+    : computedDisplaySetpoint;
 
   const commitFormattedValue = () => {
-    const formatted = padToFormat(draft, numberFormat);
-    onUpdate?.({ ...tank, value: formatted });
-    return formatted;
+    // ✅ scaled set mode: user types engineering units, backend stores raw AO
+    if (hasScaleReference) {
+      const typed = parseFiniteNumber(draft);
+      if (typed === null) {
+        onUpdate?.({ ...tank, value: "" });
+        return { storedValue: "", displayValue: "" };
+      }
+
+      const clampedDisplay = clamp(Number(typed), Number(scaleMin), Number(scaleMax));
+      const rawAO = computeMilliAmpsFromScaledValue(
+        clampedDisplay,
+        scaleMin,
+        scaleMax
+      );
+
+      const storedValue =
+        rawAO !== null && Number.isFinite(rawAO)
+          ? String(Math.round(rawAO))
+          : "";
+
+      const displayValue = formatScaledDisplayValue(clampedDisplay);
+
+      onUpdate?.({ ...tank, value: storedValue });
+      setDraft(displayValue);
+
+      return { storedValue, displayValue };
+    }
+
+    // ✅ legacy raw mode
+    const storedValue = padToFormat(draft, numberFormat);
+    onUpdate?.({ ...tank, value: storedValue });
+    return { storedValue, displayValue: storedValue };
   };
 
   const handleSet = async () => {
     if (!isPlay || isWriting || holdActive) return;
 
-    const formatted = commitFormattedValue();
+    const committed = commitFormattedValue();
+    const storedValue = committed?.storedValue ?? "";
     const now = new Date().toISOString();
 
     const nextTank = {
       ...tank,
-      value: formatted,
-      lastSetValue: formatted,
+      value: storedValue,
+      lastSetValue: storedValue,
       lastSetAt: now,
       dashboardId: resolvedDashboardId || tank?.dashboardId || "",
       dashboard_id: resolvedDashboardId || tank?.dashboard_id || "",
@@ -465,7 +581,7 @@ export default function DisplayOutputTextBoxStyle({
     try {
       if (hasBinding) {
         const field = String(bindField || "").trim().toLowerCase();
-        const numericValue = Number(formatted);
+        const numericValue = Number(storedValue);
 
         if (!resolvedDashboardId || !resolvedWidgetId) {
           throw new Error("Missing dashboardId or widgetId for AO write");
@@ -492,7 +608,8 @@ export default function DisplayOutputTextBoxStyle({
         new CustomEvent("coreflex-displayOutput-set", {
           detail: {
             id: resolvedWidgetId || tank.id,
-            value: formatted,
+            value: storedValue,
+            displayValue: committed?.displayValue ?? displayedSetpoint,
             label,
             numberFormat,
             at: now,
@@ -521,8 +638,6 @@ export default function DisplayOutputTextBoxStyle({
 
   const displayText = displayedSetpoint;
 
-  // ✅ THIS IS THE TOP VALUE
-  // ✅ MUST MATCH THE MODAL OUTPUT VALUE
   const actualText =
     hasBinding && !isOffline && outValue !== null && outValue !== undefined
       ? formatByPattern(outValue, numberFormat)
@@ -586,6 +701,7 @@ export default function DisplayOutputTextBoxStyle({
           boxSizing: "border-box",
         }}
       >
+        {/* TOP VALUE = modal Output */}
         <div
           style={{
             position: "absolute",
@@ -638,6 +754,7 @@ export default function DisplayOutputTextBoxStyle({
           Actual
         </div>
 
+        {/* SET DISPLAY = scaled engineering units when scale reference exists */}
         <div
           style={{
             position: "absolute",
@@ -655,7 +772,7 @@ export default function DisplayOutputTextBoxStyle({
           {isPlay ? (
             <input
               value={displayText}
-              inputMode="numeric"
+              inputMode="decimal"
               autoComplete="off"
               spellCheck={false}
               onMouseDown={(e) => e.stopPropagation()}
@@ -671,8 +788,13 @@ export default function DisplayOutputTextBoxStyle({
                 });
               }}
               onChange={(e) => {
-                const next = onlyDigits(e.target.value).slice(0, maxDigits);
-                setDraft(next);
+                if (hasScaleReference) {
+                  const next = sanitizeNumericInput(e.target.value).slice(0, 10);
+                  setDraft(next);
+                } else {
+                  const next = onlyDigits(e.target.value).slice(0, maxDigits);
+                  setDraft(next);
+                }
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") e.currentTarget.blur();
