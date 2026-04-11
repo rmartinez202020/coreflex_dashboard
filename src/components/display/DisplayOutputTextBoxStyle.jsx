@@ -74,14 +74,14 @@ function resolveDashboardName({ dashboardName, widget }) {
   ).trim();
 }
 
-// ✅ NEW SCALE FEATURE
+// ✅ keep helper for future use if needed, but DO NOT auto-apply it
 function parseFiniteNumber(value) {
   if (value === null || value === undefined || value === "") return null;
   const n = Number(value);
   return Number.isFinite(n) ? n : null;
 }
 
-// ✅ NEW SCALE FEATURE
+// ✅ available for future use only
 function computeScaledValueFromMilliAmps(liveValue, scaleMin, scaleMax) {
   const value = Number(liveValue);
   const min = Number(scaleMin);
@@ -96,11 +96,11 @@ function computeScaledValueFromMilliAmps(liveValue, scaleMin, scaleMax) {
   return min + ((value - 4000) / (20000 - 4000)) * (max - min);
 }
 
-function computeMathOutput(liveValue, formula, scaleMin, scaleMax) {
-  // ✅ NEW SCALE FEATURE
-  const scaled = computeScaledValueFromMilliAmps(liveValue, scaleMin, scaleMax);
-  if (scaled !== null) return scaled;
-
+// ✅ IMPORTANT FIX:
+// Math Output must match modal Output.
+// Do NOT auto-apply scaling reference first.
+// If no formula exists, return liveValue directly.
+function computeMathOutput(liveValue, formula) {
   const f = String(formula || "").trim();
   if (!f) return liveValue;
 
@@ -305,7 +305,7 @@ export default function DisplayOutputTextBoxStyle({
   ).trim();
   const formula = tank?.properties?.formula ?? tank?.formula ?? "";
 
-  // ✅ NEW SCALE FEATURE
+  // ✅ kept only for compatibility/future use
   const scaleMin = parseFiniteNumber(
     tank?.properties?.scaleMin ?? tank?.properties?.aoScaleMin
   );
@@ -352,6 +352,7 @@ export default function DisplayOutputTextBoxStyle({
     return Number.isFinite(parsed) ? parsed : null;
   }, [rawValue]);
 
+  // ✅ MUST match modal Output
   const outValue = React.useMemo(() => {
     if (!hasBinding) return null;
     return computeMathOutput(liveValue, formula, scaleMin, scaleMax);
@@ -374,8 +375,6 @@ export default function DisplayOutputTextBoxStyle({
   const [isWriting, setIsWriting] = React.useState(false);
   const [writeError, setWriteError] = React.useState("");
 
-  // ✅ same behavior style as push button:
-  // local UI stays blocked during backend actuation hold window
   const [holdActive, setHoldActive] = React.useState(false);
   const holdTimerRef = React.useRef(null);
 
@@ -522,7 +521,8 @@ export default function DisplayOutputTextBoxStyle({
 
   const displayText = displayedSetpoint;
 
-  // ✅ TOP VALUE ONLY SHOWS THE MODAL MATH/SCALED OUTPUT
+  // ✅ THIS IS THE TOP VALUE
+  // ✅ MUST MATCH THE MODAL OUTPUT VALUE
   const actualText =
     hasBinding && !isOffline && outValue !== null && outValue !== undefined
       ? formatByPattern(outValue, numberFormat)
