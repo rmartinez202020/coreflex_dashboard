@@ -74,7 +74,33 @@ function resolveDashboardName({ dashboardName, widget }) {
   ).trim();
 }
 
-function computeMathOutput(liveValue, formula) {
+// ✅ NEW SCALE FEATURE
+function parseFiniteNumber(value) {
+  if (value === null || value === undefined || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+// ✅ NEW SCALE FEATURE
+function computeScaledValueFromMilliAmps(liveValue, scaleMin, scaleMax) {
+  const value = Number(liveValue);
+  const min = Number(scaleMin);
+  const max = Number(scaleMax);
+
+  if (!Number.isFinite(value)) return null;
+  if (!Number.isFinite(min) || !Number.isFinite(max)) return null;
+  if (min >= max) return null;
+
+  // 4000 mAmp -> min
+  // 20000 mAmp -> max
+  return min + ((value - 4000) / (20000 - 4000)) * (max - min);
+}
+
+function computeMathOutput(liveValue, formula, scaleMin, scaleMax) {
+  // ✅ NEW SCALE FEATURE
+  const scaled = computeScaledValueFromMilliAmps(liveValue, scaleMin, scaleMax);
+  if (scaled !== null) return scaled;
+
   const f = String(formula || "").trim();
   if (!f) return liveValue;
 
@@ -279,6 +305,14 @@ export default function DisplayOutputTextBoxStyle({
   ).trim();
   const formula = tank?.properties?.formula ?? tank?.formula ?? "";
 
+  // ✅ NEW SCALE FEATURE
+  const scaleMin = parseFiniteNumber(
+    tank?.properties?.scaleMin ?? tank?.properties?.aoScaleMin
+  );
+  const scaleMax = parseFiniteNumber(
+    tank?.properties?.scaleMax ?? tank?.properties?.aoScaleMax
+  );
+
   const hasBinding = !!bindDeviceId && !!bindField;
 
   const resolvedDashboardId = React.useMemo(() => {
@@ -320,8 +354,8 @@ export default function DisplayOutputTextBoxStyle({
 
   const outValue = React.useMemo(() => {
     if (!hasBinding) return null;
-    return computeMathOutput(liveValue, formula);
-  }, [hasBinding, liveValue, formula]);
+    return computeMathOutput(liveValue, formula, scaleMin, scaleMax);
+  }, [hasBinding, liveValue, formula, scaleMin, scaleMax]);
 
   const isOffline =
     hasBinding &&
