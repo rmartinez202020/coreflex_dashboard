@@ -181,7 +181,6 @@ export default function DisplayOutputSettingModal({
   onSave,
   onSaveProject = null,
 }) {
-
   if (!open) return null;
 
   const props = tank?.properties || {};
@@ -205,7 +204,6 @@ export default function DisplayOutputSettingModal({
     setBindModel(FIXED_MODEL);
     setBindDeviceId(p.bindDeviceId ?? "");
     setBindField(p.bindField === "ao2" ? "ao2" : "ao1");
-
   }, [tank]);
 
   useEffect(() => {
@@ -237,7 +235,6 @@ export default function DisplayOutputSettingModal({
           data = null;
         }
 
-  
         if (!res.ok) {
           throw new Error(
             data?.detail || `Failed to load CF-1600 devices (${res.status})`
@@ -290,9 +287,7 @@ export default function DisplayOutputSettingModal({
     return computeMathOutput(rawLiveValue, formula);
   }, [selectedDeviceIsOnline, rawLiveValue, formula]);
 
-  useEffect(() => {
-
-  }, [
+  useEffect(() => {}, [
     bindDeviceId,
     bindField,
     devices,
@@ -339,7 +334,6 @@ export default function DisplayOutputSettingModal({
 
     setPos({ left, top });
     setDidInitPos(true);
-
   }, [open, didInitPos]);
 
   const onDragMove = (e) => {
@@ -406,9 +400,7 @@ export default function DisplayOutputSettingModal({
     return !!bindDeviceId && (bindField === "ao1" || bindField === "ao2");
   }, [bindDeviceId, bindField]);
 
-  useEffect(() => {
-  
-  }, [bindDeviceId, bindField, canApply, isApplying]);
+  useEffect(() => {}, [bindDeviceId, bindField, canApply, isApplying]);
 
   const labelStyle = { fontSize: 12, fontWeight: 500, color: "#111827" };
   const sectionTitleStyle = { fontWeight: 600, fontSize: 16 };
@@ -426,7 +418,6 @@ export default function DisplayOutputSettingModal({
   const previewTextStyle = { fontSize: 12, fontWeight: 400, color: "#111827" };
 
   async function handleApply() {
-
     if (!canApply || isApplying) {
       return;
     }
@@ -456,23 +447,22 @@ export default function DisplayOutputSettingModal({
       setIsApplying(true);
 
       const resolvedDashboardId = resolveDashboardId({
-  dashboardId,
-  widget: tank,
-});
+        dashboardId,
+        widget: tank,
+      });
 
-const resolvedDashboardName = resolveDashboardName({
-  dashboardName,
-  widget: tank,
-});
+      const resolvedDashboardName = resolveDashboardName({
+        dashboardName,
+        widget: tank,
+      });
+
       const widgetId = resolveWidgetId(tank);
 
       const deviceId = String(bindDeviceId || "").trim();
       const field = String(bindField || "").trim().toLowerCase();
 
-
-    if (resolvedDashboardId && widgetId && deviceId && /^ao[1-2]$/.test(field)) {
-
-        const bindResp = await bindControlDO({
+      if (resolvedDashboardId && widgetId && deviceId && /^ao[1-2]$/.test(field)) {
+        await bindControlDO({
           dashboardId,
           dashboardName,
           widgetId,
@@ -481,33 +471,27 @@ const resolvedDashboardName = resolveDashboardName({
           deviceId,
           field,
         });
-
       } else if (dashboardId && widgetId) {
-        const deleteResp = await deleteControlBinding({
+        await deleteControlBinding({
           dashboardId,
           widgetId,
         });
-
       } else {
-
         alert("Missing dashboardId or widgetId for Display Output binding");
         return;
       }
 
       onSave?.(nextTank);
 
-if (typeof onSaveProject === "function") {
-  await onSaveProject();
-}
+      if (typeof onSaveProject === "function") {
+        await onSaveProject();
+      }
 
-onClose?.();
-
+      onClose?.();
     } catch (err) {
-    
       alert(err?.message || "Display Output apply failed");
     } finally {
       setIsApplying(false);
-      
     }
   }
 
@@ -592,7 +576,101 @@ onClose?.();
                 gap: 12,
               }}
             >
-              <div style={sectionTitleStyle}>Math</div>
+              <div
+                style={{
+                  border: "1px solid #111827",
+                  background: "#ffffff",
+                  borderRadius: 0,
+                  overflow: "hidden",
+                }}
+              >
+                <div
+                  style={{
+                    height: 40,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    borderBottom: "1px solid #111827",
+                    fontWeight: 800,
+                    fontSize: 16,
+                    color: "#111827",
+                    background: "#ffffff",
+                  }}
+                >
+                  Analog Output Setup
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                  }}
+                >
+                  <div
+                    style={{
+                      minHeight: 42,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderRight: "1px solid #111827",
+                      borderBottom: "1px solid #111827",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: "#111827",
+                      background: "#f8fafc",
+                    }}
+                  >
+                    4000m Amp
+                  </div>
+
+                  <div
+                    style={{
+                      minHeight: 42,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderBottom: "1px solid #111827",
+                      fontSize: 13,
+                      fontWeight: 500,
+                      color: "#111827",
+                      background: "#f8fafc",
+                    }}
+                  >
+                    20000m Amp
+                  </div>
+
+                  <div
+                    style={{
+                      minHeight: 42,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      borderRight: "1px solid #111827",
+                      fontSize: 14,
+                      fontWeight: 500,
+                      color: "#111827",
+                      background: "#ffffff",
+                    }}
+                  >
+                    0
+                  </div>
+
+                  <div
+                    style={{
+                      minHeight: 42,
+                      display: "flex",
+                      alignItems: "center",
+                      justifyContent: "center",
+                      fontSize: 14,
+                      fontWeight: 500,
+                      color: "#111827",
+                      background: "#ffffff",
+                    }}
+                  >
+                    100
+                  </div>
+                </div>
+              </div>
 
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Title (Top of Display)</div>
