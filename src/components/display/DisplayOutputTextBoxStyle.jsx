@@ -522,9 +522,7 @@ export default function DisplayOutputTextBoxStyle({
 
   const displayText = displayedSetpoint;
 
-  // ✅ IMPORTANT:
-  // Actual now shows ONLY the modal math/scaled output result.
-  // No fallback to raw liveValue anymore.
+  // ✅ TOP VALUE ONLY SHOWS THE MODAL MATH/SCALED OUTPUT
   const actualText =
     hasBinding && !isOffline && outValue !== null && outValue !== undefined
       ? formatByPattern(outValue, numberFormat)
