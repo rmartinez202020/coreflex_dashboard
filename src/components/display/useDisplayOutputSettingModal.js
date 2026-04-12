@@ -588,12 +588,7 @@ export default function useDisplayOutputSettingModal({
         return;
       }
 
-      const savedResult = await Promise.resolve(onSave?.(nextTank));
-
-      if (typeof onSaveProject === "function") {
-        await onSaveProject(nextTank, savedResult);
-      }
-
+      await Promise.resolve(onSave?.(nextTank));
       onClose?.();
     } catch (err) {
       alert(err?.message || "Display Output apply failed");
