@@ -207,7 +207,7 @@ export default function useDisplayOutputSettingModal({
         tank?.scaleMin ??
         tank?.setValue4000 ??
         tank?.value4000 ??
-        4
+        4000
     );
 
     setAoScaleMax(
@@ -219,7 +219,7 @@ export default function useDisplayOutputSettingModal({
         tank?.scaleMax ??
         tank?.setValue20000 ??
         tank?.value20000 ??
-        20
+        20000
     );
   }, [tank]);
 
