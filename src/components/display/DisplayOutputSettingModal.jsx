@@ -98,26 +98,32 @@ export default function DisplayOutputSettingModal({
     await handleApply();
   }
 
-  function renderScaleCard(title, displayValue, inputValue, setInputValue, placeholder) {
+  function renderScaleCard(
+    title,
+    displayValue,
+    inputValue,
+    setInputValue,
+    placeholder
+  ) {
     return (
       <div
         style={{
           border: "1px solid #dbe3ee",
           borderRadius: 12,
           background: "#ffffff",
-          padding: "12px 10px",
+          padding: "10px 10px",
           display: "grid",
-          gap: 8,
+          gap: 5,
           textAlign: "center",
           minWidth: 0,
         }}
       >
         <div
           style={{
-            fontSize: 12,
+            fontSize: 11,
             fontWeight: 700,
             color: "#475569",
-            letterSpacing: 0.2,
+            letterSpacing: 0.15,
             textTransform: "uppercase",
             whiteSpace: "nowrap",
           }}
@@ -127,7 +133,7 @@ export default function DisplayOutputSettingModal({
 
         <div
           style={{
-            fontSize: 24,
+            fontSize: 18,
             fontWeight: 900,
             color: "#0f172a",
             lineHeight: 1,
@@ -139,10 +145,10 @@ export default function DisplayOutputSettingModal({
 
         <div
           style={{
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: 700,
             color: "#64748b",
-            letterSpacing: 0.2,
+            letterSpacing: 0.15,
             textTransform: "uppercase",
             whiteSpace: "nowrap",
           }}
@@ -158,7 +164,7 @@ export default function DisplayOutputSettingModal({
           inputMode="decimal"
           placeholder={placeholder}
           style={{
-            height: 34,
+            height: 30,
             borderRadius: 10,
             border: "1px solid #d1d5db",
             padding: "0 10px",
@@ -252,7 +258,7 @@ export default function DisplayOutputSettingModal({
                 borderRadius: 12,
                 padding: 14,
                 display: "grid",
-                gap: 12,
+                gap: 10,
                 minWidth: 0,
               }}
             >
@@ -269,7 +275,7 @@ export default function DisplayOutputSettingModal({
               >
                 <div
                   style={{
-                    padding: "12px 16px",
+                    padding: "10px 14px",
                     display: "flex",
                     alignItems: "center",
                     justifyContent: "space-between",
@@ -310,8 +316,8 @@ export default function DisplayOutputSettingModal({
                   style={{
                     display: "grid",
                     gridTemplateColumns: "repeat(2, minmax(210px, 1fr))",
-                    padding: 14,
-                    gap: 12,
+                    padding: 12,
+                    gap: 10,
                     background: "transparent",
                   }}
                 >
