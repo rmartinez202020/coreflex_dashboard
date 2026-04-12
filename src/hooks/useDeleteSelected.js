@@ -93,7 +93,9 @@ async function openNcOutputBeforeDelete({ widgetId, dashboardId }) {
 
   const j = await res.json().catch(() => ({}));
   if (!res.ok) {
-    throw new Error(j?.detail || j?.error || `Open NC output failed (${res.status})`);
+    throw new Error(
+      j?.detail || j?.error || `Open NC output failed (${res.status})`
+    );
   }
 
   return j;
@@ -110,7 +112,7 @@ async function openNcOutputBeforeDelete({ widgetId, dashboardId }) {
  *
  * NEW:
  * - If the deleted widget is a Counter Input (DI), also delete its backend row
- * - If the deleted widget is a Control (Toggle/Push), also delete its control binding (release DO)
+ * - If the deleted widget is a Control (Toggle/Push/Display Output), also delete its control binding
  * - ✅ If the deleted widget is a Graphic Display, also soft-delete its backend binding row
  * - ✅ If the deleted widget is PushButtonNC, OPEN the DO first, then delete the binding
  *
@@ -165,7 +167,8 @@ export default function useDeleteSelected({
       .filter(Boolean);
 
     // -------------------------
-    // ✅ Controls (release DO binding)
+    // ✅ Controls + Display Output
+    // ✅ delete control binding row
     // -------------------------
     const controlWidgetIds = selectedObjs
       .filter((obj) => {
@@ -174,7 +177,8 @@ export default function useDeleteSelected({
           s === "toggleSwitch" ||
           s === "toggleControl" ||
           s === "pushButtonNO" ||
-          s === "pushButtonNC"
+          s === "pushButtonNC" ||
+          s === "displayOutput"
         );
       })
       .map((obj) => String(obj.id || "").trim())
@@ -233,7 +237,7 @@ export default function useDeleteSelected({
       }
     }
 
-    // ✅ delete control bindings for deleted control widgets (release DO)
+    // ✅ delete control bindings for deleted control widgets + display output
     for (const wid of controlWidgetIds) {
       try {
         await deleteControlBinding({
@@ -262,7 +266,8 @@ export default function useDeleteSelected({
       // ⛔ Don't delete while typing
       const el = document.activeElement;
       const tag = (el?.tagName || "").toLowerCase();
-      if (tag === "input" || tag === "textarea" || el?.isContentEditable) return;
+      if (tag === "input" || tag === "textarea" || el?.isContentEditable)
+        return;
 
       if (e.key === "Delete" || e.key === "Backspace") {
         e.preventDefault();
