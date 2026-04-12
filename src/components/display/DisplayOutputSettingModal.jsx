@@ -98,13 +98,30 @@ export default function DisplayOutputSettingModal({
     await handleApply();
   }
 
+  function clampInputValue(rawValue, minValue, maxValue) {
+    const s = String(rawValue ?? "").trim();
+    if (!s) return "";
+
+    const n = Number(s);
+    if (!Number.isFinite(n)) return s;
+
+    let next = n;
+    if (Number.isFinite(minValue)) next = Math.max(minValue, next);
+    if (Number.isFinite(maxValue)) next = Math.min(maxValue, next);
+
+    return String(next);
+  }
+
   function renderScaleCard(
     title,
     displayValue,
     inputValue,
     setInputValue,
-    placeholder
+    placeholder,
+    options = {}
   ) {
+    const { minValue, maxValue } = options;
+
     return (
       <div
         style={{
@@ -159,10 +176,17 @@ export default function DisplayOutputSettingModal({
         <input
           value={inputValue}
           onChange={(e) => {
-            setInputValue(sanitizeDecimalInput(e.target.value));
+            const sanitized = sanitizeDecimalInput(e.target.value);
+            setInputValue(sanitized);
+          }}
+          onBlur={(e) => {
+            const clamped = clampInputValue(e.target.value, minValue, maxValue);
+            setInputValue(clamped);
           }}
           inputMode="decimal"
           placeholder={placeholder}
+          min={Number.isFinite(minValue) ? minValue : undefined}
+          max={Number.isFinite(maxValue) ? maxValue : undefined}
           style={{
             height: 30,
             borderRadius: 10,
@@ -342,7 +366,8 @@ export default function DisplayOutputSettingModal({
                     numericAoScaleMin,
                     aoScaleMin,
                     setAoScaleMin,
-                    "4000"
+                    "4000",
+                    { minValue: 4000, maxValue: 20000 }
                   )}
 
                   {renderScaleCard(
@@ -350,7 +375,8 @@ export default function DisplayOutputSettingModal({
                     numericAoScaleMax,
                     aoScaleMax,
                     setAoScaleMax,
-                    "20000"
+                    "20000",
+                    { minValue: 4000, maxValue: 20000 }
                   )}
                 </div>
               </div>
