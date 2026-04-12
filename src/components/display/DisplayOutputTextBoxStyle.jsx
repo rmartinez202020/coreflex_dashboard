@@ -121,37 +121,62 @@ function resolveDashboardName({ dashboardName, widget }) {
 // ===============================
 // ✅ scale helpers
 // ===============================
-function hasUsableScale(scaleMin, scaleMax) {
+function hasUsableRange(minValue, maxValue) {
   return (
-    Number.isFinite(Number(scaleMin)) &&
-    Number.isFinite(Number(scaleMax)) &&
-    Number(scaleMax) > Number(scaleMin)
+    Number.isFinite(Number(minValue)) &&
+    Number.isFinite(Number(maxValue)) &&
+    Number(maxValue) > Number(minValue)
   );
 }
 
-// Raw AO (4000..20000) -> engineering units (scaleMin..scaleMax)
-function computeScaledValueFromMilliAmps(rawValue, scaleMin, scaleMax) {
-  const value = Number(rawValue);
-  const min = Number(scaleMin);
-  const max = Number(scaleMax);
-
-  if (!Number.isFinite(value)) return null;
-  if (!hasUsableScale(min, max)) return null;
-
-  return min + ((value - 4000) / (20000 - 4000)) * (max - min);
+function hasUsableScaling(scaleMin, scaleMax, aoScaleMin, aoScaleMax) {
+  return (
+    hasUsableRange(scaleMin, scaleMax) &&
+    hasUsableRange(aoScaleMin, aoScaleMax)
+  );
 }
 
-// Engineering units (scaleMin..scaleMax) -> raw AO (4000..20000)
-function computeMilliAmpsFromScaledValue(displayValue, scaleMin, scaleMax) {
-  const value = Number(displayValue);
-  const min = Number(scaleMin);
-  const max = Number(scaleMax);
+// Raw AO (aoScaleMin..aoScaleMax) -> engineering units (scaleMin..scaleMax)
+function computeScaledValueFromAO(
+  rawValue,
+  scaleMin,
+  scaleMax,
+  aoScaleMin,
+  aoScaleMax
+) {
+  const value = Number(rawValue);
+  const engMin = Number(scaleMin);
+  const engMax = Number(scaleMax);
+  const aoMin = Number(aoScaleMin);
+  const aoMax = Number(aoScaleMax);
 
   if (!Number.isFinite(value)) return null;
-  if (!hasUsableScale(min, max)) return null;
+  if (!hasUsableScaling(engMin, engMax, aoMin, aoMax)) return null;
 
-  const clamped = clamp(value, min, max);
-  return 4000 + ((clamped - min) / (max - min)) * (20000 - 4000);
+  return (
+    engMin + ((value - aoMin) / (aoMax - aoMin)) * (engMax - engMin)
+  );
+}
+
+// Engineering units (scaleMin..scaleMax) -> raw AO (aoScaleMin..aoScaleMax)
+function computeAOValueFromScaled(
+  displayValue,
+  scaleMin,
+  scaleMax,
+  aoScaleMin,
+  aoScaleMax
+) {
+  const value = Number(displayValue);
+  const engMin = Number(scaleMin);
+  const engMax = Number(scaleMax);
+  const aoMin = Number(aoScaleMin);
+  const aoMax = Number(aoScaleMax);
+
+  if (!Number.isFinite(value)) return null;
+  if (!hasUsableScaling(engMin, engMax, aoMin, aoMax)) return null;
+
+  const clamped = clamp(value, engMin, engMax);
+  return aoMin + ((clamped - engMin) / (engMax - engMin)) * (aoMax - aoMin);
 }
 
 // ===============================
@@ -369,14 +394,21 @@ export default function DisplayOutputTextBoxStyle({
 
   const formula = tank?.properties?.formula ?? tank?.formula ?? "";
 
-  // ✅ IMPORTANT:
-  // Read ONLY the unified scale keys saved by the modal.
-  // Do NOT fall back to legacy aoScaleMin/aoScaleMax, because old legacy values
-  // can make the modal appear to "reset" back to 0 / 100.
+  // ✅ Engineering display range
   const scaleMin = parseFiniteNumber(tank?.properties?.scaleMin);
   const scaleMax = parseFiniteNumber(tank?.properties?.scaleMax);
 
-  const hasScaleReference = hasUsableScale(scaleMin, scaleMax);
+  // ✅ Raw AO output range
+  const aoScaleMin = parseFiniteNumber(tank?.properties?.aoScaleMin);
+  const aoScaleMax = parseFiniteNumber(tank?.properties?.aoScaleMax);
+
+  const hasScaleReference = hasUsableScaling(
+    scaleMin,
+    scaleMax,
+    aoScaleMin,
+    aoScaleMax
+  );
+
   const hasBinding = !!bindDeviceId && !!bindField;
 
   const resolvedDashboardId = React.useMemo(() => {
@@ -443,10 +475,12 @@ export default function DisplayOutputTextBoxStyle({
   // Displayed SET value shown to user
   const computedDisplaySetpoint = React.useMemo(() => {
     if (hasScaleReference && rawSetpointNumber !== null) {
-      const scaled = computeScaledValueFromMilliAmps(
+      const scaled = computeScaledValueFromAO(
         rawSetpointNumber,
         scaleMin,
-        scaleMax
+        scaleMax,
+        aoScaleMin,
+        aoScaleMax
       );
       return scaled !== null ? formatScaledDisplayValue(scaled) : "";
     }
@@ -457,6 +491,8 @@ export default function DisplayOutputTextBoxStyle({
     rawSetpointNumber,
     scaleMin,
     scaleMax,
+    aoScaleMin,
+    aoScaleMax,
     rawSetpoint,
     numberFormat,
   ]);
@@ -520,15 +556,18 @@ export default function DisplayOutputTextBoxStyle({
         Number(scaleMin),
         Number(scaleMax)
       );
-      const rawAO = computeMilliAmpsFromScaledValue(
+
+      const rawAO = computeAOValueFromScaled(
         clampedDisplay,
         scaleMin,
-        scaleMax
+        scaleMax,
+        aoScaleMin,
+        aoScaleMax
       );
 
       const storedValue =
         rawAO !== null && Number.isFinite(rawAO)
-          ? String(Math.round(rawAO))
+          ? String(roundTo(rawAO, 3))
           : "";
 
       const displayValue = formatScaledDisplayValue(clampedDisplay);
@@ -630,6 +669,10 @@ export default function DisplayOutputTextBoxStyle({
             bindDeviceId,
             dashboardId: resolvedDashboardId,
             dashboardName: resolvedDashboardName,
+            scaleMin,
+            scaleMax,
+            aoScaleMin,
+            aoScaleMax,
           },
         })
       );

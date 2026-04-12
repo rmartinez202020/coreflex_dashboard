@@ -120,25 +120,46 @@ export default function useDisplayOutputSettingModal({
 
   const [scaleMin, setScaleMin] = useState(
     props.scaleMin ??
-      props.aoScaleMin ??
       props.setValue4000 ??
       props.value4000 ??
       tank?.scaleMin ??
-      tank?.aoScaleMin ??
       tank?.setValue4000 ??
       tank?.value4000 ??
       0
   );
+
   const [scaleMax, setScaleMax] = useState(
     props.scaleMax ??
-      props.aoScaleMax ??
       props.setValue20000 ??
       props.value20000 ??
       tank?.scaleMax ??
-      tank?.aoScaleMax ??
       tank?.setValue20000 ??
       tank?.value20000 ??
       100
+  );
+
+  const [aoScaleMin, setAoScaleMin] = useState(
+    props.aoScaleMin ??
+      props.scaleMin ??
+      props.setValue4000 ??
+      props.value4000 ??
+      tank?.aoScaleMin ??
+      tank?.scaleMin ??
+      tank?.setValue4000 ??
+      tank?.value4000 ??
+      4
+  );
+
+  const [aoScaleMax, setAoScaleMax] = useState(
+    props.aoScaleMax ??
+      props.scaleMax ??
+      props.setValue20000 ??
+      props.value20000 ??
+      tank?.aoScaleMax ??
+      tank?.scaleMax ??
+      tank?.setValue20000 ??
+      tank?.value20000 ??
+      20
   );
 
   const [devices, setDevices] = useState([]);
@@ -159,25 +180,46 @@ export default function useDisplayOutputSettingModal({
 
     setScaleMin(
       p.scaleMin ??
-        p.aoScaleMin ??
         p.setValue4000 ??
         p.value4000 ??
         tank?.scaleMin ??
-        tank?.aoScaleMin ??
         tank?.setValue4000 ??
         tank?.value4000 ??
         0
     );
+
     setScaleMax(
       p.scaleMax ??
-        p.aoScaleMax ??
         p.setValue20000 ??
         p.value20000 ??
         tank?.scaleMax ??
-        tank?.aoScaleMax ??
         tank?.setValue20000 ??
         tank?.value20000 ??
         100
+    );
+
+    setAoScaleMin(
+      p.aoScaleMin ??
+        p.scaleMin ??
+        p.setValue4000 ??
+        p.value4000 ??
+        tank?.aoScaleMin ??
+        tank?.scaleMin ??
+        tank?.setValue4000 ??
+        tank?.value4000 ??
+        4
+    );
+
+    setAoScaleMax(
+      p.aoScaleMax ??
+        p.scaleMax ??
+        p.setValue20000 ??
+        p.value20000 ??
+        tank?.aoScaleMax ??
+        tank?.scaleMax ??
+        tank?.setValue20000 ??
+        tank?.value20000 ??
+        20
     );
   }, [tank]);
 
@@ -267,24 +309,50 @@ export default function useDisplayOutputSettingModal({
     [scaleMax]
   );
 
+  const numericAoScaleMin = useMemo(
+    () => parseMaybeNumber(aoScaleMin, ""),
+    [aoScaleMin]
+  );
+
+  const numericAoScaleMax = useMemo(
+    () => parseMaybeNumber(aoScaleMax, ""),
+    [aoScaleMax]
+  );
+
   const scaleError = useMemo(() => {
-    if (numericScaleMin === "" || numericScaleMax === "") {
-      return "Both set values are required.";
+    if (
+      numericScaleMin === "" ||
+      numericScaleMax === "" ||
+      numericAoScaleMin === "" ||
+      numericAoScaleMax === ""
+    ) {
+      return "All scaling values are required.";
     }
 
     if (
       !Number.isFinite(Number(numericScaleMin)) ||
-      !Number.isFinite(Number(numericScaleMax))
+      !Number.isFinite(Number(numericScaleMax)) ||
+      !Number.isFinite(Number(numericAoScaleMin)) ||
+      !Number.isFinite(Number(numericAoScaleMax))
     ) {
-      return "Set values must be valid numbers.";
+      return "Scaling values must be valid numbers.";
     }
 
     if (Number(numericScaleMin) >= Number(numericScaleMax)) {
-      return "Set 0 must be lower than Set 100.";
+      return "Scale Min must be lower than Scale Max.";
+    }
+
+    if (Number(numericAoScaleMin) >= Number(numericAoScaleMax)) {
+      return "AO Scale Min must be lower than AO Scale Max.";
     }
 
     return "";
-  }, [numericScaleMin, numericScaleMax]);
+  }, [
+    numericScaleMin,
+    numericScaleMax,
+    numericAoScaleMin,
+    numericAoScaleMax,
+  ]);
 
   const effectiveOutputValue = useMemo(() => {
     if (!selectedDeviceIsOnline) return null;
@@ -412,8 +480,11 @@ export default function useDisplayOutputSettingModal({
 
     const cleanLabel = String(label || "").trim();
     const cleanFormula = String(formula || "").trim();
+
     const resolvedScaleMin = Number(numericScaleMin);
     const resolvedScaleMax = Number(numericScaleMax);
+    const resolvedAoScaleMin = Number(numericAoScaleMin);
+    const resolvedAoScaleMax = Number(numericAoScaleMax);
 
     const nextProps = {
       ...(tank?.properties || {}),
@@ -425,8 +496,8 @@ export default function useDisplayOutputSettingModal({
 
       scaleMin: resolvedScaleMin,
       scaleMax: resolvedScaleMax,
-      aoScaleMin: resolvedScaleMin,
-      aoScaleMax: resolvedScaleMax,
+      aoScaleMin: resolvedAoScaleMin,
+      aoScaleMax: resolvedAoScaleMax,
 
       setValue4000: resolvedScaleMin,
       setValue20000: resolvedScaleMax,
@@ -435,8 +506,8 @@ export default function useDisplayOutputSettingModal({
 
       scalingEnabled: true,
       scalingMode: "ao_reference",
-      scalingReferenceMinMilliAmp: 4000,
-      scalingReferenceMaxMilliAmp: 20000,
+      scalingReferenceMinMilliAmp: resolvedAoScaleMin * 1000,
+      scalingReferenceMaxMilliAmp: resolvedAoScaleMax * 1000,
     };
 
     delete nextProps.title;
@@ -452,8 +523,8 @@ export default function useDisplayOutputSettingModal({
 
       scaleMin: resolvedScaleMin,
       scaleMax: resolvedScaleMax,
-      aoScaleMin: resolvedScaleMin,
-      aoScaleMax: resolvedScaleMax,
+      aoScaleMin: resolvedAoScaleMin,
+      aoScaleMax: resolvedAoScaleMax,
 
       setValue4000: resolvedScaleMin,
       setValue20000: resolvedScaleMax,
@@ -462,8 +533,8 @@ export default function useDisplayOutputSettingModal({
 
       scalingEnabled: true,
       scalingMode: "ao_reference",
-      scalingReferenceMinMilliAmp: 4000,
-      scalingReferenceMaxMilliAmp: 20000,
+      scalingReferenceMinMilliAmp: resolvedAoScaleMin * 1000,
+      scalingReferenceMaxMilliAmp: resolvedAoScaleMax * 1000,
 
       properties: nextProps,
     };
@@ -502,6 +573,10 @@ export default function useDisplayOutputSettingModal({
           title: "Display Output",
           deviceId,
           field,
+          scaleMin: resolvedScaleMin,
+          scaleMax: resolvedScaleMax,
+          aoScaleMin: resolvedAoScaleMin,
+          aoScaleMax: resolvedAoScaleMax,
         });
       } else if (resolvedDashboardId && widgetId) {
         await deleteControlBinding({
@@ -549,6 +624,10 @@ export default function useDisplayOutputSettingModal({
     setScaleMin,
     scaleMax,
     setScaleMax,
+    aoScaleMin,
+    setAoScaleMin,
+    aoScaleMax,
+    setAoScaleMax,
 
     devices,
     devicesLoading,
@@ -563,6 +642,8 @@ export default function useDisplayOutputSettingModal({
 
     numericScaleMin,
     numericScaleMax,
+    numericAoScaleMin,
+    numericAoScaleMax,
     scaleError,
     effectiveOutputValue,
     liveErr,

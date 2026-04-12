@@ -31,6 +31,10 @@ export default function DisplayOutputSettingModal({
     setScaleMin,
     scaleMax,
     setScaleMax,
+    aoScaleMin,
+    setAoScaleMin,
+    aoScaleMax,
+    setAoScaleMax,
 
     devices,
     devicesLoading,
@@ -39,6 +43,8 @@ export default function DisplayOutputSettingModal({
 
     numericScaleMin,
     numericScaleMax,
+    numericAoScaleMin,
+    numericAoScaleMax,
     scaleError,
     effectiveOutputValue,
     liveErr,
@@ -90,6 +96,82 @@ export default function DisplayOutputSettingModal({
 
     await Promise.resolve();
     await handleApply();
+  }
+
+  function renderScaleCard(title, displayValue, inputValue, setInputValue, placeholder) {
+    return (
+      <div
+        style={{
+          border: "1px solid #dbe3ee",
+          borderRadius: 12,
+          background: "#ffffff",
+          padding: "12px 10px",
+          display: "grid",
+          gap: 8,
+          textAlign: "center",
+          minWidth: 0,
+        }}
+      >
+        <div
+          style={{
+            fontSize: 12,
+            fontWeight: 700,
+            color: "#475569",
+            letterSpacing: 0.2,
+            textTransform: "uppercase",
+            whiteSpace: "nowrap",
+          }}
+        >
+          {title}
+        </div>
+
+        <div
+          style={{
+            fontSize: 24,
+            fontWeight: 900,
+            color: "#0f172a",
+            lineHeight: 1,
+            whiteSpace: "nowrap",
+          }}
+        >
+          {displayValue === "" ? "--" : displayValue}
+        </div>
+
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 700,
+            color: "#64748b",
+            letterSpacing: 0.2,
+            textTransform: "uppercase",
+            whiteSpace: "nowrap",
+          }}
+        >
+          Set Value
+        </div>
+
+        <input
+          value={inputValue}
+          onChange={(e) => {
+            setInputValue(sanitizeDecimalInput(e.target.value));
+          }}
+          inputMode="decimal"
+          placeholder={placeholder}
+          style={{
+            height: 34,
+            borderRadius: 10,
+            border: "1px solid #d1d5db",
+            padding: "0 10px",
+            fontWeight: 700,
+            textAlign: "center",
+            background: "#fff",
+            outline: "none",
+            minWidth: 0,
+            width: "100%",
+          }}
+        />
+      </div>
+    );
   }
 
   return (
@@ -233,149 +315,37 @@ export default function DisplayOutputSettingModal({
                     background: "transparent",
                   }}
                 >
-                  <div
-                    style={{
-                      border: "1px solid #dbe3ee",
-                      borderRadius: 12,
-                      background: "#ffffff",
-                      padding: "12px 10px",
-                      display: "grid",
-                      gap: 8,
-                      textAlign: "center",
-                      minWidth: 0,
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: "#475569",
-                        letterSpacing: 0.2,
-                        textTransform: "uppercase",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      4000m Amp
-                    </div>
+                  {renderScaleCard(
+                    "Scale Min",
+                    numericScaleMin,
+                    scaleMin,
+                    setScaleMin,
+                    "0"
+                  )}
 
-                    <div
-                      style={{
-                        fontSize: 24,
-                        fontWeight: 900,
-                        color: "#0f172a",
-                        lineHeight: 1,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {numericScaleMin === "" ? "--" : numericScaleMin}
-                    </div>
+                  {renderScaleCard(
+                    "Scale Max",
+                    numericScaleMax,
+                    scaleMax,
+                    setScaleMax,
+                    "100"
+                  )}
 
-                    <div
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: "#64748b",
-                        letterSpacing: 0.2,
-                        textTransform: "uppercase",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      Set Value
-                    </div>
+                  {renderScaleCard(
+                    "AO Scale Min",
+                    numericAoScaleMin,
+                    aoScaleMin,
+                    setAoScaleMin,
+                    "4"
+                  )}
 
-                    <input
-                      value={scaleMin}
-                      onChange={(e) => {
-                        setScaleMin(sanitizeDecimalInput(e.target.value));
-                      }}
-                      inputMode="decimal"
-                      placeholder="0"
-                      style={{
-                        height: 34,
-                        borderRadius: 10,
-                        border: "1px solid #d1d5db",
-                        padding: "0 10px",
-                        fontWeight: 700,
-                        textAlign: "center",
-                        background: "#fff",
-                        outline: "none",
-                        minWidth: 0,
-                        width: "100%",
-                      }}
-                    />
-                  </div>
-
-                  <div
-                    style={{
-                      border: "1px solid #dbe3ee",
-                      borderRadius: 12,
-                      background: "#ffffff",
-                      padding: "12px 10px",
-                      display: "grid",
-                      gap: 8,
-                      textAlign: "center",
-                      minWidth: 0,
-                    }}
-                  >
-                    <div
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 700,
-                        color: "#475569",
-                        letterSpacing: 0.2,
-                        textTransform: "uppercase",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      20000m Amp
-                    </div>
-
-                    <div
-                      style={{
-                        fontSize: 24,
-                        fontWeight: 900,
-                        color: "#0f172a",
-                        lineHeight: 1,
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      {numericScaleMax === "" ? "--" : numericScaleMax}
-                    </div>
-
-                    <div
-                      style={{
-                        fontSize: 11,
-                        fontWeight: 700,
-                        color: "#64748b",
-                        letterSpacing: 0.2,
-                        textTransform: "uppercase",
-                        whiteSpace: "nowrap",
-                      }}
-                    >
-                      Set Value
-                    </div>
-
-                    <input
-                      value={scaleMax}
-                      onChange={(e) => {
-                        setScaleMax(sanitizeDecimalInput(e.target.value));
-                      }}
-                      inputMode="decimal"
-                      placeholder="100"
-                      style={{
-                        height: 34,
-                        borderRadius: 10,
-                        border: "1px solid #d1d5db",
-                        padding: "0 10px",
-                        fontWeight: 700,
-                        textAlign: "center",
-                        background: "#fff",
-                        outline: "none",
-                        minWidth: 0,
-                        width: "100%",
-                      }}
-                    />
-                  </div>
+                  {renderScaleCard(
+                    "AO Scale Max",
+                    numericAoScaleMax,
+                    aoScaleMax,
+                    setAoScaleMax,
+                    "20"
+                  )}
                 </div>
               </div>
 

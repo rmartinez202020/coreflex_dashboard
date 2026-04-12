@@ -73,6 +73,10 @@ export async function bindControlField({
   title,
   deviceId,
   field,
+  scaleMin,
+  scaleMax,
+  aoScaleMin,
+  aoScaleMax,
   signal,
 } = {}) {
   const safeField = String(field || "").trim().toLowerCase();
@@ -89,6 +93,10 @@ export async function bindControlField({
     title,
     deviceId,
     field: safeField,
+    ...(scaleMin !== undefined ? { scaleMin: Number(scaleMin) } : {}),
+    ...(scaleMax !== undefined ? { scaleMax: Number(scaleMax) } : {}),
+    ...(aoScaleMin !== undefined ? { aoScaleMin: Number(aoScaleMin) } : {}),
+    ...(aoScaleMax !== undefined ? { aoScaleMax: Number(aoScaleMax) } : {}),
   };
 
   const res = await fetch(`${API_URL}/control-bindings/bind`, {
