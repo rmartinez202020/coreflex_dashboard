@@ -9,6 +9,7 @@ export default function DisplayOutputSettingModal({
   dashboardName,
   onClose,
   onSave,
+  onSaveProject = null,
 }) {
   if (!open) return null;
 
@@ -66,10 +67,7 @@ export default function DisplayOutputSettingModal({
     dashboardName,
     onClose,
     onSave,
-    // ✅ IMPORTANT:
-    // Do NOT pass onSaveProject from here.
-    // The modal should save only the widget state (nextTank).
-    // The parent should persist the full dashboard snapshot.
+    onSaveProject,
   });
 
   const labelStyle = { fontSize: 12, fontWeight: 500, color: "#111827" };
