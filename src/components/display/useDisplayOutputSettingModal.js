@@ -500,6 +500,10 @@ export default function useDisplayOutputSettingModal({
       scalingMode: "ao_reference",
       scalingReferenceMinMilliAmp: resolvedAoScaleMin * 1000,
       scalingReferenceMaxMilliAmp: resolvedAoScaleMax * 1000,
+
+      // ✅ clear persisted setpoint so widget comes back blank after refresh
+      value: "",
+      lastSetValue: "",
     };
 
     delete nextProps.title;
@@ -507,6 +511,10 @@ export default function useDisplayOutputSettingModal({
 
     const nextTank = {
       ...tank,
+      // ✅ clear persisted setpoint so widget comes back blank after refresh
+      value: "",
+      lastSetValue: "",
+
       label: cleanLabel,
       bindModel: FIXED_MODEL,
       bindDeviceId,
