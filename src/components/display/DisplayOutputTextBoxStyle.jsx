@@ -463,7 +463,7 @@ export default function DisplayOutputTextBoxStyle({
       backendStatus === "down" ||
       backendStatus === "disconnected");
 
-  // Raw stored AO setpoint
+  // ✅ Raw stored AO setpoint
   const rawSetpoint =
     tank.value !== undefined && tank.value !== null ? String(tank.value) : "";
 
@@ -472,7 +472,7 @@ export default function DisplayOutputTextBoxStyle({
     return Number.isFinite(n) ? n : null;
   }, [rawSetpoint]);
 
-  // Displayed SET value shown to user
+  // ✅ Displayed SET value shown to user
   const computedDisplaySetpoint = React.useMemo(() => {
     if (hasScaleReference && rawSetpointNumber !== null) {
       const scaled = computeScaledValueFromAO(
@@ -547,7 +547,6 @@ export default function DisplayOutputTextBoxStyle({
     if (hasScaleReference) {
       const typed = parseFiniteNumber(draft);
       if (typed === null) {
-        onUpdate?.({ ...tank, value: "" });
         return { storedValue: "", displayValue: "" };
       }
 
@@ -572,7 +571,6 @@ export default function DisplayOutputTextBoxStyle({
 
       const displayValue = formatScaledDisplayValue(clampedDisplay);
 
-      onUpdate?.({ ...tank, value: storedValue });
       setDraft(displayValue);
 
       return { storedValue, displayValue };
@@ -580,7 +578,6 @@ export default function DisplayOutputTextBoxStyle({
 
     // ✅ legacy raw mode
     const storedValue = padToFormat(draft, numberFormat);
-    onUpdate?.({ ...tank, value: storedValue });
     return { storedValue, displayValue: storedValue };
   };
 
@@ -860,7 +857,6 @@ export default function DisplayOutputTextBoxStyle({
               }}
               onBlur={() => {
                 setEditing(false);
-                commitFormattedValue();
               }}
               style={{
                 width: "100%",
