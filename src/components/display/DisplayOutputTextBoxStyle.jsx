@@ -454,14 +454,17 @@ export default function DisplayOutputTextBoxStyle({
     return computeMathOutput(liveValue, formula);
   }, [hasBinding, liveValue, formula]);
 
-  const isOffline =
-    hasBinding &&
-    (!row ||
-      backendStatus === "offline" ||
-      backendStatus === "false" ||
-      backendStatus === "0" ||
-      backendStatus === "down" ||
-      backendStatus === "disconnected");
+  const backendOffline =
+  hasBinding &&
+  (!row ||
+    backendStatus === "offline" ||
+    backendStatus === "false" ||
+    backendStatus === "0" ||
+    backendStatus === "down" ||
+    backendStatus === "disconnected");
+
+// ✅ Never show offline in edit mode
+const isOffline = isPlay && backendOffline;
 
   // Raw stored AO setpoint
   const rawSetpoint =
