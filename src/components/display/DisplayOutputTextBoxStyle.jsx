@@ -153,9 +153,7 @@ function computeScaledValueFromAO(
   if (!Number.isFinite(value)) return null;
   if (!hasUsableScaling(engMin, engMax, aoMin, aoMax)) return null;
 
-  return (
-    engMin + ((value - aoMin) / (aoMax - aoMin)) * (engMax - engMin)
-  );
+  return engMin + ((value - aoMin) / (aoMax - aoMin)) * (engMax - engMin);
 }
 
 // Engineering units (scaleMin..scaleMax) -> raw AO (aoScaleMin..aoScaleMax)
@@ -455,28 +453,42 @@ export default function DisplayOutputTextBoxStyle({
   }, [hasBinding, liveValue, formula]);
 
   const backendOffline =
-  hasBinding &&
-  (!row ||
-    backendStatus === "offline" ||
-    backendStatus === "false" ||
-    backendStatus === "0" ||
-    backendStatus === "down" ||
-    backendStatus === "disconnected");
+    hasBinding &&
+    (!row ||
+      backendStatus === "offline" ||
+      backendStatus === "false" ||
+      backendStatus === "0" ||
+      backendStatus === "down" ||
+      backendStatus === "disconnected");
 
-// ✅ Never show offline in edit mode
-const isOffline = isPlay && backendOffline;
+  // ✅ Never show offline in edit mode
+  const isOffline = isPlay && backendOffline;
 
   // Raw stored AO setpoint
   const rawSetpoint =
     tank.value !== undefined && tank.value !== null ? String(tank.value) : "";
 
+  // ✅ treat initial/reset/apply value as blank placeholder
+  const isInitialSetpoint =
+    rawSetpoint.trim() === "" ||
+    rawSetpoint === "--" ||
+    (hasScaleReference &&
+      Number.isFinite(Number(rawSetpoint)) &&
+      Number(rawSetpoint) < Number(aoScaleMin));
+
   const rawSetpointNumber = React.useMemo(() => {
+    if (isInitialSetpoint) return null;
     const n = Number(rawSetpoint);
     return Number.isFinite(n) ? n : null;
-  }, [rawSetpoint]);
+  }, [rawSetpoint, isInitialSetpoint]);
 
   // Displayed SET value shown to user
   const computedDisplaySetpoint = React.useMemo(() => {
+    // ✅ show placeholder at initial/reset/apply state
+    if (isInitialSetpoint) {
+      return "--";
+    }
+
     if (hasScaleReference && rawSetpointNumber !== null) {
       const scaled = computeScaledValueFromAO(
         rawSetpointNumber,
@@ -485,11 +497,13 @@ const isOffline = isPlay && backendOffline;
         aoScaleMin,
         aoScaleMax
       );
-      return scaled !== null ? formatScaledDisplayValue(scaled) : "";
+      return scaled !== null ? formatScaledDisplayValue(scaled) : "--";
     }
 
-    return padToFormat(rawSetpoint, numberFormat);
+    const padded = padToFormat(rawSetpoint, numberFormat);
+    return padded || "--";
   }, [
+    isInitialSetpoint,
     hasScaleReference,
     rawSetpointNumber,
     scaleMin,
@@ -548,10 +562,14 @@ const isOffline = isPlay && backendOffline;
   const commitFormattedValue = () => {
     // ✅ scaled set mode: user types engineering units, backend stores raw AO
     if (hasScaleReference) {
-      const typed = parseFiniteNumber(draft);
+      const cleanedDraft =
+        String(draft || "").trim() === "--" ? "" : String(draft || "").trim();
+
+      const typed = parseFiniteNumber(cleanedDraft);
       if (typed === null) {
         onUpdate?.({ ...tank, value: "" });
-        return { storedValue: "", displayValue: "" };
+        setDraft("--");
+        return { storedValue: "", displayValue: "--" };
       }
 
       const clampedDisplay = clamp(
@@ -582,9 +600,16 @@ const isOffline = isPlay && backendOffline;
     }
 
     // ✅ legacy raw mode
-    const storedValue = padToFormat(draft, numberFormat);
+    const cleanedDraft =
+      String(draft || "").trim() === "--" ? "" : String(draft || "").trim();
+
+    const storedValue = padToFormat(cleanedDraft, numberFormat);
+    const displayValue = storedValue || "--";
+
     onUpdate?.({ ...tank, value: storedValue });
-    return { storedValue, displayValue: storedValue };
+    setDraft(displayValue);
+
+    return { storedValue, displayValue };
   };
 
   const handleSet = async () => {
@@ -839,6 +864,11 @@ const isOffline = isPlay && backendOffline;
               onFocus={(e) => {
                 e.stopPropagation();
                 setEditing(true);
+
+                if (String(displayText).trim() === "--") {
+                  setDraft("");
+                }
+
                 requestAnimationFrame(() => {
                   try {
                     const len = e.target.value.length;
@@ -875,7 +905,7 @@ const isOffline = isPlay && backendOffline;
                 fontFamily: "monospace",
                 fontWeight: 900,
                 fontSize: 22,
-                color: "#111",
+                color: displayText === "--" ? "#6b7280" : "#111",
                 letterSpacing: 1.5,
               }}
             />
@@ -885,7 +915,7 @@ const isOffline = isPlay && backendOffline;
                 fontFamily: "monospace",
                 fontWeight: 900,
                 fontSize: 22,
-                color: "#111",
+                color: displayText === "--" ? "#6b7280" : "#111",
                 letterSpacing: 1.5,
                 lineHeight: "22px",
               }}
