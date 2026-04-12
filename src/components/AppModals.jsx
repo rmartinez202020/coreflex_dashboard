@@ -108,28 +108,22 @@ export default function AppModals({
       window.removeEventListener("coreflex-alarm-log-open-at", onOpenAt);
   }, []);
 
-
-
   // ✅ Display INPUT (AI)
-const displayInputTarget = useMemo(() => {
-  if (displaySettingsId == null) return null;
-  return droppedTanks.find(
-    (t) =>
-      isSameId(t.id, displaySettingsId) &&
-      t.shape === "displayBox"
-  );
-}, [droppedTanks, displaySettingsId]);
+  const displayInputTarget = useMemo(() => {
+    if (displaySettingsId == null) return null;
+    return droppedTanks.find(
+      (t) => isSameId(t.id, displaySettingsId) && t.shape === "displayBox"
+    );
+  }, [droppedTanks, displaySettingsId]);
 
-// ✅ Display OUTPUT (AO)
-const displayOutputTarget = useMemo(() => {
-  if (displayOutputSettingsId == null) return null;
-  return droppedTanks.find(
-    (t) =>
-      isSameId(t.id, displayOutputSettingsId) &&   // ✅ FIXED
-      t.shape === "displayOutput"
-  );
-}, [droppedTanks, displayOutputSettingsId]);
-
+  // ✅ Display OUTPUT (AO)
+  const displayOutputTarget = useMemo(() => {
+    if (displayOutputSettingsId == null) return null;
+    return droppedTanks.find(
+      (t) =>
+        isSameId(t.id, displayOutputSettingsId) && t.shape === "displayOutput"
+    );
+  }, [droppedTanks, displayOutputSettingsId]);
 
   const gaugeTarget = useMemo(() => {
     if (gaugeSettingsId == null) return null;
@@ -236,8 +230,9 @@ const displayOutputTarget = useMemo(() => {
 
   const normalizeUpdated = (updated) => {
     if (!updated || typeof updated !== "object") return { properties: {} };
-    if (updated.properties && typeof updated.properties === "object")
+    if (updated.properties && typeof updated.properties === "object") {
       return updated;
+    }
 
     const { id, shape, x, y, w, h, width, height, ...rest } = updated;
     return { properties: rest };
@@ -380,74 +375,102 @@ const displayOutputTarget = useMemo(() => {
       )}
 
       {displayInputTarget && (
-  <DisplaySettingsModal
-    tank={displayInputTarget}
-    onClose={closeDisplaySettings}
-    onSave={(updatedProps) => {
-      setDroppedTanks((prev) =>
-        prev.map((t) =>
-          isSameId(t.id, displayInputTarget.id)
-            ? {
+        <DisplaySettingsModal
+          tank={displayInputTarget}
+          onClose={closeDisplaySettings}
+          onSave={(updatedProps) => {
+            setDroppedTanks((prev) =>
+              prev.map((t) =>
+                isSameId(t.id, displayInputTarget.id)
+                  ? {
+                      ...t,
+                      properties: { ...(t.properties || {}), ...updatedProps },
+                    }
+                  : t
+              )
+            );
+          }}
+        />
+      )}
+
+      {displayOutputTarget && (
+        <DisplayOutputSettingModal
+          open={true}
+          tank={displayOutputTarget}
+          dashboardId={safeDashboardId}
+          dashboardName={safeDashboardName}
+          onSaveProject={onSaveProject}
+          onClose={closeDisplayOutputSettings}
+          onSave={async (updatedTank) => {
+            const base = droppedTanksRef.current || [];
+
+            const next = base.map((t) => {
+              if (!isSameId(t.id, displayOutputTarget.id)) return t;
+
+              return {
                 ...t,
-                properties: { ...(t.properties || {}), ...updatedProps },
+                ...updatedTank,
+                properties: {
+                  ...(t.properties || {}),
+                  ...(updatedTank?.properties || {}),
+                },
+                title:
+                  updatedTank?.title ??
+                  updatedTank?.properties?.title ??
+                  t.title,
+                bindModel:
+                  updatedTank?.bindModel ??
+                  updatedTank?.properties?.bindModel ??
+                  t.bindModel,
+                bindDeviceId:
+                  updatedTank?.bindDeviceId ??
+                  updatedTank?.properties?.bindDeviceId ??
+                  t.bindDeviceId,
+                bindField:
+                  updatedTank?.bindField ??
+                  updatedTank?.properties?.bindField ??
+                  t.bindField,
+                formula:
+                  updatedTank?.formula ??
+                  updatedTank?.properties?.formula ??
+                  t.formula,
+                value:
+                  updatedTank?.value ??
+                  updatedTank?.properties?.value ??
+                  t.value,
+                lastSetValue:
+                  updatedTank?.lastSetValue ??
+                  updatedTank?.properties?.lastSetValue ??
+                  t.lastSetValue,
+              };
+            });
+
+            setDroppedTanks(next);
+
+            if (typeof onSaveProject === "function") {
+              try {
+                console.warn(
+                  "💾 [AppModals] calling onSaveProject(next) for Display Output..."
+                );
+                await onSaveProject(next);
+                console.warn(
+                  "✅ [AppModals] onSaveProject(next) FINISHED for Display Output"
+                );
+              } catch (e) {
+                alert(e?.message || "Save failed");
+                throw e;
               }
-            : t
-        )
-      );
-    }}
-  />
-)}
+            } else {
+              alert("onSaveProject is missing (not a function).");
+              throw new Error("onSaveProject is missing");
+            }
 
-{displayOutputTarget && (
+            return next;
+          }}
+        />
+      )}
 
-  <DisplayOutputSettingModal
-    open={true}
-    tank={displayOutputTarget}
-    dashboardId={safeDashboardId}
-    dashboardName={safeDashboardName}
-    onSaveProject={onSaveProject} 
-    onClose={closeDisplayOutputSettings}  
-
-    onSave={(updatedTank) => {
-  setDroppedTanks((prev) =>
-    prev.map((t) => {
-      if (!isSameId(t.id, displayOutputTarget.id)) return t;
-
-      return {
-        ...t,
-        ...updatedTank,
-        properties: {
-          ...(t.properties || {}),
-          ...(updatedTank?.properties || {}),
-        },
-        title:
-          updatedTank?.title ??
-          updatedTank?.properties?.title ??
-          t.title,
-        bindModel:
-          updatedTank?.bindModel ??
-          updatedTank?.properties?.bindModel ??
-          t.bindModel,
-        bindDeviceId:
-          updatedTank?.bindDeviceId ??
-          updatedTank?.properties?.bindDeviceId ??
-          t.bindDeviceId,
-        bindField:
-          updatedTank?.bindField ??
-          updatedTank?.properties?.bindField ??
-          t.bindField,
-        formula:
-          updatedTank?.formula ??
-          updatedTank?.properties?.formula ??
-          t.formula,
-      };
-    })
-  );
-}}
-  />
-)}
-
-            {gaugeTarget && (
+      {gaugeTarget && (
         <GaugeDisplaySettingsModal
           open={true}
           widget={gaugeTarget}
@@ -589,20 +612,20 @@ const displayOutputTarget = useMemo(() => {
           }}
         >
           <AlarmLogWindow
-  onClose={closeAlarmLog}
-  onLaunch={() =>
-    onLaunchAlarmLog?.({
-      dashboardId: safeDashboardId || "main",
-      dashboardName: safeDashboardName,
-      windowKey: "alarmLog",
-    })
-  }
-  onMinimize={onMinimizeAlarmLog}
-  onStartDragWindow={alarmLogWindowProps?.onStartDragWindow}
-  dashboardId={safeDashboardId || "main"}
-  dashboardName={safeDashboardName}
-  windowKey="alarmLog"
-/>
+            onClose={closeAlarmLog}
+            onLaunch={() =>
+              onLaunchAlarmLog?.({
+                dashboardId: safeDashboardId || "main",
+                dashboardName: safeDashboardName,
+                windowKey: "alarmLog",
+              })
+            }
+            onMinimize={onMinimizeAlarmLog}
+            onStartDragWindow={alarmLogWindowProps?.onStartDragWindow}
+            dashboardId={safeDashboardId || "main"}
+            dashboardName={safeDashboardName}
+            windowKey="alarmLog"
+          />
 
           {/* ✅ Right edge resize */}
           <div
