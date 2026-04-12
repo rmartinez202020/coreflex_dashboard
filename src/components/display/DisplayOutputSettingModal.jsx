@@ -718,10 +718,6 @@ export default function DisplayOutputSettingModal({
               </div>
             </div>
           </div>
-
-          <div style={{ marginTop: 10, fontSize: 11, color: "#64748b" }}>
-            Fixed to CF-1600 devices and AO-1 / AO-2 only.
-          </div>
         </div>
       </div>
     </div>
