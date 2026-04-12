@@ -94,12 +94,6 @@ function sanitizeDecimalInput(v) {
   return out;
 }
 
-function waitForReactFlush() {
-  return new Promise((resolve) => {
-    window.setTimeout(resolve, 0);
-  });
-}
-
 export default function useDisplayOutputSettingModal({
   open = true,
   tank,
@@ -586,12 +580,10 @@ export default function useDisplayOutputSettingModal({
         return;
       }
 
-      await Promise.resolve(onSave?.(nextTank));
-
-      await waitForReactFlush();
+      const savedResult = await Promise.resolve(onSave?.(nextTank));
 
       if (typeof onSaveProject === "function") {
-        await onSaveProject();
+        await onSaveProject(nextTank, savedResult);
       }
 
       onClose?.();
