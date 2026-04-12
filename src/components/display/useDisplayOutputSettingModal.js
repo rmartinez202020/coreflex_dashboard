@@ -174,9 +174,7 @@ export default function useDisplayOutputSettingModal({
     setFormula(p.formula ?? tank?.formula ?? "");
     setBindModel(FIXED_MODEL);
     setBindDeviceId(p.bindDeviceId ?? tank?.bindDeviceId ?? "");
-    setBindField(
-      (p.bindField ?? tank?.bindField) === "ao2" ? "ao2" : "ao1"
-    );
+    setBindField((p.bindField ?? tank?.bindField) === "ao2" ? "ao2" : "ao1");
 
     setScaleMin(
       p.scaleMin ??
@@ -590,11 +588,11 @@ export default function useDisplayOutputSettingModal({
 
       await Promise.resolve(onSave?.(nextTank));
 
+      await waitForReactFlush();
+
       if (typeof onSaveProject === "function") {
         await onSaveProject();
       }
-
-      await waitForReactFlush();
 
       onClose?.();
     } catch (err) {
