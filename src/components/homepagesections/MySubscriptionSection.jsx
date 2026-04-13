@@ -1,4 +1,4 @@
-import React from "react";
+import React, { useMemo, useState } from "react";
 
 const PLANS = [
   {
@@ -100,107 +100,31 @@ function AvailablePlanCard({ plan, isCurrent }) {
   );
 }
 
-export default function MySubscriptionSection({ onBack }) {
-  const currentPlan =
-    PLANS.find((plan) => plan.key === CURRENT_PLAN_KEY) || PLANS[0];
+function ComparePlansModal({ open, onClose }) {
+  if (!open) return null;
 
   return (
-    <div
-      className="rounded-xl border border-slate-200 bg-white overflow-hidden"
-      style={{ marginTop: "-22px" }}
-    >
-      <div className="bg-emerald-700 text-white px-4 py-4 flex items-center justify-between">
-        <div className="flex items-center gap-3">
-          <button
-            onClick={onBack}
-            className="rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-2 text-sm"
-          >
-            ← Back
-          </button>
-
+    <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-slate-900/55 px-4">
+      <div className="w-full max-w-7xl rounded-2xl bg-white shadow-2xl border border-slate-200 overflow-hidden">
+        <div className="flex items-center justify-between px-5 py-4 bg-slate-900 text-white">
           <div>
-            <div className="text-lg font-semibold">My Subscription</div>
-            <div className="text-xs text-emerald-100">
-              View subscription plans, billing details, and platform limits.
-            </div>
-          </div>
-        </div>
-      </div>
-
-      <div className="px-5 pb-5 pt-1">
-        {/* CURRENT */}
-        <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 md:p-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
-            <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
-              <div className="text-xs text-slate-500">Plan</div>
-              <div className="mt-1 font-semibold text-slate-900">
-                {currentPlan.name}
-              </div>
-            </div>
-
-            <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
-              <div className="text-xs text-slate-500">Status</div>
-              <div className="mt-1 font-semibold text-emerald-700">
-                {CURRENT_PLAN_STATUS}
-              </div>
-            </div>
-
-            <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
-              <div className="text-xs text-slate-500">Renewal</div>
-              <div className="mt-1 font-semibold text-slate-900">
-                {CURRENT_PLAN_RENEWAL}
-              </div>
-            </div>
-
-            <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
-              <div className="text-xs text-slate-500">Devices Used</div>
-              <div className="mt-1 font-semibold text-slate-900">
-                {CURRENT_PLAN_DEVICES_USED}
-              </div>
-            </div>
-
-            <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
-              <div className="text-xs text-slate-500">Tenants-Users</div>
-              <div className="mt-1 font-semibold text-slate-900">
-                {currentPlan.tenantsUsers}
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 flex gap-3">
-            <button className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-sm font-semibold">
-              Change Plan
-            </button>
-            <button className="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm font-semibold">
-              Manage Payment
-            </button>
-          </div>
-        </div>
-
-        {/* AVAILABLE */}
-        <div className="mt-6 rounded-xl border border-slate-200 bg-white overflow-hidden">
-          <div className="bg-slate-900 text-white px-4 py-2">
-            <div className="text-base font-semibold">Available Plans</div>
+            <div className="text-lg font-semibold">Compare Plans</div>
             <div className="text-xs text-slate-300">
-              Choose the plan that fits your needs.
+              Review plan limits, pricing, and support details.
             </div>
           </div>
 
-          <div className="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
-            {PLANS.map((plan) => (
-              <AvailablePlanCard
-                key={plan.key}
-                plan={plan}
-                isCurrent={plan.key === CURRENT_PLAN_KEY}
-              />
-            ))}
-          </div>
+          <button
+            onClick={onClose}
+            className="rounded-lg border border-slate-600 px-3 py-1.5 text-sm font-semibold hover:bg-slate-800"
+          >
+            Close
+          </button>
         </div>
 
-        {/* TABLE */}
-        <div className="mt-6 overflow-x-auto rounded-xl border border-slate-200">
+        <div className="max-h-[75vh] overflow-auto">
           <table className="min-w-full bg-white text-sm">
-            <thead className="bg-slate-100">
+            <thead className="bg-slate-100 sticky top-0 z-10">
               <tr>
                 <th className="px-4 py-3 text-left font-semibold">Plan</th>
                 <th className="px-4 py-3 text-left font-semibold">Monthly Price</th>
@@ -210,7 +134,7 @@ export default function MySubscriptionSection({ onBack }) {
                 <th className="px-4 py-3 text-left font-semibold">Data History</th>
                 <th className="px-4 py-3 text-left font-semibold">Features</th>
                 <th className="px-4 py-3 text-left font-semibold">
-                  Annual Updates & Support
+                  Annual Updates &amp; Support
                 </th>
               </tr>
             </thead>
@@ -235,5 +159,126 @@ export default function MySubscriptionSection({ onBack }) {
         </div>
       </div>
     </div>
+  );
+}
+
+export default function MySubscriptionSection({ onBack }) {
+  const [showComparePlans, setShowComparePlans] = useState(false);
+
+  const currentPlan = useMemo(
+    () => PLANS.find((plan) => plan.key === CURRENT_PLAN_KEY) || PLANS[0],
+    []
+  );
+
+  return (
+    <>
+      <div
+        className="rounded-xl border border-slate-200 bg-white overflow-hidden"
+        style={{ marginTop: "-22px" }}
+      >
+        <div className="bg-emerald-700 text-white px-4 py-4 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onBack}
+              className="rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-2 text-sm"
+            >
+              ← Back
+            </button>
+
+            <div>
+              <div className="text-lg font-semibold">My Subscription</div>
+              <div className="text-xs text-emerald-100">
+                View subscription plans, billing details, and platform limits.
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <div className="px-5 pb-5 pt-1">
+          {/* CURRENT */}
+          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 md:p-5">
+            <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+              <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
+                <div className="text-xs text-slate-500">Plan</div>
+                <div className="mt-1 font-semibold text-slate-900">
+                  {currentPlan.name}
+                </div>
+              </div>
+
+              <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
+                <div className="text-xs text-slate-500">Status</div>
+                <div className="mt-1 font-semibold text-emerald-700">
+                  {CURRENT_PLAN_STATUS}
+                </div>
+              </div>
+
+              <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
+                <div className="text-xs text-slate-500">Renewal</div>
+                <div className="mt-1 font-semibold text-slate-900">
+                  {CURRENT_PLAN_RENEWAL}
+                </div>
+              </div>
+
+              <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
+                <div className="text-xs text-slate-500">Devices Used</div>
+                <div className="mt-1 font-semibold text-slate-900">
+                  {CURRENT_PLAN_DEVICES_USED}
+                </div>
+              </div>
+
+              <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
+                <div className="text-xs text-slate-500">Tenants-Users</div>
+                <div className="mt-1 font-semibold text-slate-900">
+                  {currentPlan.tenantsUsers}
+                </div>
+              </div>
+            </div>
+
+            <div className="mt-4 flex gap-3">
+              <button className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-sm font-semibold">
+                Change Plan
+              </button>
+              <button className="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm font-semibold">
+                Manage Payment
+              </button>
+            </div>
+          </div>
+
+          {/* AVAILABLE */}
+          <div className="mt-6 rounded-xl border border-slate-200 bg-white overflow-hidden">
+            <div className="bg-slate-900 text-white px-4 py-2">
+              <div className="text-base font-semibold">Available Plans</div>
+              <div className="text-xs text-slate-300">
+                Choose the plan that fits your needs.
+              </div>
+            </div>
+
+            <div className="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+              {PLANS.map((plan) => (
+                <AvailablePlanCard
+                  key={plan.key}
+                  plan={plan}
+                  isCurrent={plan.key === CURRENT_PLAN_KEY}
+                />
+              ))}
+            </div>
+
+            <div className="px-4 pb-4 pt-1 flex justify-center">
+              <button
+                onClick={() => setShowComparePlans(true)}
+                className="rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-900 px-5 py-2 text-sm font-semibold shadow-sm"
+              >
+                Compare Plans
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <ComparePlansModal
+        open={showComparePlans}
+        onClose={() => setShowComparePlans(false)}
+      />
+    </>
   );
 }
