@@ -18,6 +18,40 @@ const MONTH_LABELS = [
 
 const DEFAULT_BAR_COLOR = "#facc15";
 
+function rateUnitToTimeBase(rateUnit) {
+  const u = String(rateUnit || "").trim();
+
+  if (
+    ["GPM", "CFM", "SCFM", "ACFM", "LPM", "m³/min", "kg/min", "lb/min"].includes(
+      u
+    )
+  ) {
+    return "minute";
+  }
+
+  if (
+    [
+      "GPH",
+      "BBL/h",
+      "LPH",
+      "m³/h",
+      "kg/h",
+      "lb/h",
+      "ton/h",
+      "kW",
+      "BTU/h",
+      "MBTU/h",
+    ].includes(u)
+  ) {
+    return "hour";
+  }
+
+  if (["kg/s", "W"].includes(u)) return "second";
+  if (["BPD"].includes(u)) return "day";
+
+  return "";
+}
+
 function toNumber(v) {
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
@@ -34,6 +68,84 @@ function normalizePoints(points) {
     .sort((a, b) => a.t - b.t);
 }
 
+function lerpValueAtTime(p1, p2, targetT) {
+  const t1 = Number(p1?.t);
+  const t2 = Number(p2?.t);
+  const y1 = Number(p1?.y);
+  const y2 = Number(p2?.y);
+
+  if (
+    !Number.isFinite(t1) ||
+    !Number.isFinite(t2) ||
+    !Number.isFinite(y1) ||
+    !Number.isFinite(y2)
+  ) {
+    return null;
+  }
+
+  if (t2 <= t1) return y1;
+  if (targetT <= t1) return y1;
+  if (targetT >= t2) return y2;
+
+  const ratio = (targetT - t1) / (t2 - t1);
+  return y1 + (y2 - y1) * ratio;
+}
+
+function integrateSegment(y1, y2, dtMs, base) {
+  if (!Number.isFinite(y1) || !Number.isFinite(y2) || !Number.isFinite(dtMs)) {
+    return 0;
+  }
+  if (dtMs <= 0) return 0;
+
+  let dtBase = 0;
+  if (base === "minute") dtBase = dtMs / 60000;
+  else if (base === "hour") dtBase = dtMs / 3600000;
+  else if (base === "second") dtBase = dtMs / 1000;
+  else if (base === "day") dtBase = dtMs / 86400000;
+  else return 0;
+
+  if (!Number.isFinite(dtBase) || dtBase <= 0) return 0;
+
+  const avgRate = (y1 + y2) / 2;
+
+  // ✅ same behavior as your live totalizer: do not accumulate if avg <= 0
+  if (!Number.isFinite(avgRate) || avgRate <= 0) return 0;
+
+  return avgRate * dtBase;
+}
+
+function integrateWithinRange(points, startT, endT, base) {
+  if (!Array.isArray(points) || points.length < 2) return 0;
+  if (!Number.isFinite(startT) || !Number.isFinite(endT) || endT <= startT) {
+    return 0;
+  }
+  if (!base) return 0;
+
+  let total = 0;
+
+  for (let i = 1; i < points.length; i++) {
+    const p1 = points[i - 1];
+    const p2 = points[i];
+
+    const t1 = Number(p1.t);
+    const t2 = Number(p2.t);
+    if (!Number.isFinite(t1) || !Number.isFinite(t2) || t2 <= t1) continue;
+
+    const segStart = Math.max(startT, t1);
+    const segEnd = Math.min(endT, t2);
+    if (segEnd <= segStart) continue;
+
+    const yStart =
+      segStart === t1 ? p1.y : lerpValueAtTime(p1, p2, segStart);
+    const yEnd =
+      segEnd === t2 ? p2.y : lerpValueAtTime(p1, p2, segEnd);
+
+    total += integrateSegment(yStart, yEnd, segEnd - segStart, base);
+  }
+
+  return total;
+}
+
 function collectAvailableYears(points) {
   const years = new Set();
   for (const p of points) {
@@ -44,42 +156,31 @@ function collectAvailableYears(points) {
   return [...years].sort((a, b) => a - b);
 }
 
-// ✅ Monthly total = last totalizer value in month - first totalizer value in month
-function buildMonthlyTotals(points, year) {
+function buildMonthlyTotals(points, year, rateUnit) {
+  const base = rateUnitToTimeBase(rateUnit);
+  if (!base) {
+    return MONTH_LABELS.map((label, idx) => ({
+      monthIndex: idx,
+      label,
+      total: 0,
+      start: new Date(year, idx, 1).getTime(),
+      end: new Date(year, idx + 1, 1).getTime(),
+    }));
+  }
+
   return MONTH_LABELS.map((label, idx) => {
     const start = new Date(year, idx, 1, 0, 0, 0, 0).getTime();
     const end = new Date(year, idx + 1, 1, 0, 0, 0, 0).getTime();
 
-    const monthPoints = (Array.isArray(points) ? points : []).filter((p) => {
-      const t = Number(p?.t);
-      const y = Number(p?.y);
-      return Number.isFinite(t) && Number.isFinite(y) && t >= start && t < end;
-    });
-
-    const firstPoint = monthPoints.length > 0 ? monthPoints[0] : null;
-    const lastPoint =
-      monthPoints.length > 0 ? monthPoints[monthPoints.length - 1] : null;
-
-    const firstValue = Number(firstPoint?.y);
-    const lastValue = Number(lastPoint?.y);
-
-    let total = 0;
-
-    if (Number.isFinite(firstValue) && Number.isFinite(lastValue)) {
-      total = lastValue - firstValue;
-
-      // ✅ protect against resets / bad data
-      if (!Number.isFinite(total) || total < 0) total = 0;
-    }
+    // ✅ each month starts from zero independently
+    const total = integrateWithinRange(points, start, end, base);
 
     return {
       monthIndex: idx,
       label,
-      total,
+      total: Number.isFinite(total) ? total : 0,
       start,
       end,
-      firstValue: Number.isFinite(firstValue) ? firstValue : null,
-      lastValue: Number.isFinite(lastValue) ? lastValue : null,
     };
   });
 }
@@ -96,7 +197,7 @@ function normalizeHexColor(v, fallback = DEFAULT_BAR_COLOR) {
   return fallback;
 }
 
-// ✅ stable storage key per widget/modal title + units
+// ✅ NEW: stable storage key per widget/modal title + units
 function buildBarColorStorageKey(title, totalizerRateUnit, totalizerTotalUnit) {
   const safeTitle = String(title || "Graphic Display").trim().toLowerCase();
   const safeRate = String(totalizerRateUnit || "").trim().toLowerCase();
@@ -128,11 +229,7 @@ export default function GraphicDisplayTimeseriesBarModal({
   }, [availableYears]);
 
   const storageKey = useMemo(() => {
-    return buildBarColorStorageKey(
-      title,
-      totalizerRateUnit,
-      totalizerTotalUnit
-    );
+    return buildBarColorStorageKey(title, totalizerRateUnit, totalizerTotalUnit);
   }, [title, totalizerRateUnit, totalizerTotalUnit]);
 
   const [selectedYear, setSelectedYear] = useState(defaultYear);
@@ -142,6 +239,7 @@ export default function GraphicDisplayTimeseriesBarModal({
     setSelectedYear(defaultYear);
   }, [defaultYear, open]);
 
+  // ✅ NEW: restore saved bar color
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -157,6 +255,7 @@ export default function GraphicDisplayTimeseriesBarModal({
     }
   }, [storageKey, open]);
 
+  // ✅ NEW: save bar color whenever it changes
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -183,8 +282,8 @@ export default function GraphicDisplayTimeseriesBarModal({
   );
 
   const monthlyTotals = useMemo(() => {
-    return buildMonthlyTotals(cleanPoints, selectedYear);
-  }, [cleanPoints, selectedYear]);
+    return buildMonthlyTotals(cleanPoints, selectedYear, totalizerRateUnit);
+  }, [cleanPoints, selectedYear, totalizerRateUnit]);
 
   const maxValue = useMemo(() => {
     const vals = monthlyTotals.map((m) => Number(m.total) || 0);
@@ -358,6 +457,7 @@ export default function GraphicDisplayTimeseriesBarModal({
               flexWrap: "wrap",
             }}
           >
+            {/* ✅ Bar Color control with persistence */}
             <div
               style={{
                 display: "flex",
@@ -445,13 +545,11 @@ export default function GraphicDisplayTimeseriesBarModal({
                   fontWeight: 800,
                 }}
               >
-                {(availableYears.length ? availableYears : [defaultYear]).map(
-                  (yr) => (
-                    <option key={yr} value={yr}>
-                      {yr}
-                    </option>
-                  )
-                )}
+                {(availableYears.length ? availableYears : [defaultYear]).map((yr) => (
+                  <option key={yr} value={yr}>
+                    {yr}
+                  </option>
+                ))}
               </select>
             </div>
           </div>
@@ -503,9 +601,7 @@ export default function GraphicDisplayTimeseriesBarModal({
 
               {monthlyTotals.map((m) => {
                 const h =
-                  maxValue > 0
-                    ? Math.max(6, (Number(m.total) / maxValue) * 100)
-                    : 0;
+                  maxValue > 0 ? Math.max(6, (Number(m.total) / maxValue) * 100) : 0;
 
                 return (
                   <div
@@ -523,6 +619,7 @@ export default function GraphicDisplayTimeseriesBarModal({
                       totalizerTotalUnit || ""
                     }`}
                   >
+                    {/* ✅ value label stays in fixed row, no longer rides with bar height */}
                     <div
                       style={{
                         fontSize: 12,
@@ -540,6 +637,7 @@ export default function GraphicDisplayTimeseriesBarModal({
                       {fmtNum(m.total)}
                     </div>
 
+                    {/* ✅ bar gets its own flex area */}
                     <div
                       style={{
                         width: "100%",
@@ -590,8 +688,9 @@ export default function GraphicDisplayTimeseriesBarModal({
                 fontWeight: 700,
               }}
             >
-              Each bar shows: last totalizer value reported in the month minus
-              first totalizer value reported in the same month.
+              Each bar is the monthly totalizer amount for that month only.
+              January starts at zero, February starts again at zero, then March,
+              April, and so on.
             </div>
           </div>
 
@@ -646,13 +745,7 @@ export default function GraphicDisplayTimeseriesBarModal({
                 >
                   <div style={{ padding: 12, fontWeight: 900 }}>{m.label}</div>
                   <div style={{ padding: 12 }}>{rangeText}</div>
-                  <div
-                    style={{
-                      padding: 12,
-                      fontWeight: 900,
-                      color: "#0b3b18",
-                    }}
-                  >
+                  <div style={{ padding: 12, fontWeight: 900, color: "#0b3b18" }}>
                     {fmtNum(m.total)} {totalizerTotalUnit || ""}
                   </div>
                 </div>
