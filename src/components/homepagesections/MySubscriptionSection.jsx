@@ -277,7 +277,7 @@ export default function MySubscriptionSection({ onBack }) {
 
         <div className="px-5 pb-5 pt-1">
           {/* CURRENT */}
-          <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 md:p-5">
+          <div className="rounded-xl border border-emerald-200 bg-white p-4 md:p-5">
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
               <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
                 <div className="text-xs text-slate-500">Plan</div>
