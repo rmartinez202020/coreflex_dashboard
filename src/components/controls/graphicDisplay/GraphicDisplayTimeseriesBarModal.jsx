@@ -607,18 +607,19 @@ export default function GraphicDisplayTimeseriesBarModal({
                   <div
                     key={m.monthIndex}
                     style={{
-                      display: "flex",
-                      flexDirection: "column",
-                      alignItems: "center",
-                      justifyContent: "end",
+                      display: "grid",
+                      gridTemplateRows: "32px 1fr 22px",
+                      alignItems: "end",
+                      justifyItems: "center",
                       minWidth: 0,
-                      gap: 10,
                       height: "100%",
+                      gap: 10,
                     }}
                     title={`${m.label} ${selectedYear}: ${fmtNum(m.total)} ${
                       totalizerTotalUnit || ""
                     }`}
                   >
+                    {/* ✅ value label stays in fixed row, no longer rides with bar height */}
                     <div
                       style={{
                         fontSize: 12,
@@ -626,24 +627,39 @@ export default function GraphicDisplayTimeseriesBarModal({
                         color: "#0f172a",
                         textAlign: "center",
                         lineHeight: 1.15,
-                        minHeight: 32,
+                        height: 32,
+                        display: "flex",
+                        alignItems: "flex-end",
+                        justifyContent: "center",
+                        width: "100%",
                       }}
                     >
                       {fmtNum(m.total)}
                     </div>
 
+                    {/* ✅ bar gets its own flex area */}
                     <div
                       style={{
                         width: "100%",
-                        maxWidth: 74,
-                        height: `${h}%`,
-                        minHeight: maxValue > 0 ? 12 : 2,
-                        borderRadius: "12px 12px 0 0",
-                        border: `1px solid ${safeBarColor}`,
-                        background: `linear-gradient(180deg, ${safeBarColor}, ${safeBarColor})`,
-                        boxShadow: "0 6px 16px rgba(0,0,0,0.12)",
+                        height: "100%",
+                        display: "flex",
+                        alignItems: "flex-end",
+                        justifyContent: "center",
                       }}
-                    />
+                    >
+                      <div
+                        style={{
+                          width: "100%",
+                          maxWidth: 74,
+                          height: `${h}%`,
+                          minHeight: maxValue > 0 ? 12 : 2,
+                          borderRadius: "12px 12px 0 0",
+                          border: `1px solid ${safeBarColor}`,
+                          background: `linear-gradient(180deg, ${safeBarColor}, ${safeBarColor})`,
+                          boxShadow: "0 6px 16px rgba(0,0,0,0.12)",
+                        }}
+                      />
+                    </div>
 
                     <div
                       style={{
@@ -651,6 +667,10 @@ export default function GraphicDisplayTimeseriesBarModal({
                         fontWeight: 900,
                         color: "#334155",
                         textAlign: "center",
+                        height: 22,
+                        display: "flex",
+                        alignItems: "center",
+                        justifyContent: "center",
                       }}
                     >
                       {m.label}
