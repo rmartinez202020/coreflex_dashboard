@@ -7,7 +7,7 @@ const PLANS = [
     monthlyPrice: "$0",
     oneTimeLicense: "N/A",
     deviceLimit: "1 device",
-    dashboards: "5",
+    tenantsUsers: "1",
     dataHistory: "7 days",
     features: "Basic telemetry, basic widgets, device testing",
     annualSupport: "N/A",
@@ -18,7 +18,7 @@ const PLANS = [
     monthlyPrice: "$30 / month",
     oneTimeLicense: "$1,200",
     deviceLimit: "5 devices",
-    dashboards: "20",
+    tenantsUsers: "2",
     dataHistory: "30 days",
     features: "Alarms, dashboards, telemetry monitoring",
     annualSupport: "$79 / year",
@@ -29,7 +29,7 @@ const PLANS = [
     monthlyPrice: "$240 / month",
     oneTimeLicense: "$4,500",
     deviceLimit: "50 devices",
-    dashboards: "Unlimited",
+    tenantsUsers: "3",
     dataHistory: "1 year",
     features: "Automation rules, data export, advanced dashboards",
     annualSupport: "$199 / year",
@@ -40,7 +40,7 @@ const PLANS = [
     monthlyPrice: "$400 / month",
     oneTimeLicense: "$5,200",
     deviceLimit: "200 devices",
-    dashboards: "Unlimited",
+    tenantsUsers: "4",
     dataHistory: "Unlimited*",
     features: "Multi-site dashboards, analytics, advanced monitoring",
     annualSupport: "$599 / year",
@@ -51,7 +51,7 @@ const PLANS = [
     monthlyPrice: "$900+ / month",
     oneTimeLicense: "$8,000+",
     deviceLimit: "Unlimited devices",
-    dashboards: "Unlimited",
+    tenantsUsers: "5",
     dataHistory: "Unlimited",
     features: "Custom integrations, dedicated server, priority support",
     annualSupport: "$1,500 / year",
@@ -199,7 +199,7 @@ export default function MySubscriptionSection({ onBack }) {
                 <th className="px-4 py-3 text-left font-semibold">Monthly Price</th>
                 <th className="px-4 py-3 text-left font-semibold">One-Time License</th>
                 <th className="px-4 py-3 text-left font-semibold">Device Limit</th>
-                <th className="px-4 py-3 text-left font-semibold">Dashboards</th>
+                <th className="px-4 py-3 text-left font-semibold">Tenants-Users</th>
                 <th className="px-4 py-3 text-left font-semibold">Data History</th>
                 <th className="px-4 py-3 text-left font-semibold">Features</th>
                 <th className="px-4 py-3 text-left font-semibold">
@@ -217,7 +217,7 @@ export default function MySubscriptionSection({ onBack }) {
                   <td className="px-4 py-4">{plan.monthlyPrice}</td>
                   <td className="px-4 py-4">{plan.oneTimeLicense}</td>
                   <td className="px-4 py-4 font-semibold">{plan.deviceLimit}</td>
-                  <td className="px-4 py-4">{plan.dashboards}</td>
+                  <td className="px-4 py-4">{plan.tenantsUsers}</td>
                   <td className="px-4 py-4">{plan.dataHistory}</td>
                   <td className="px-4 py-4">{plan.features}</td>
                   <td className="px-4 py-4">{plan.annualSupport}</td>
