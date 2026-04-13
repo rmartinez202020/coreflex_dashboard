@@ -45,12 +45,16 @@ function sanitizeNumericInput(str) {
   return out;
 }
 
-function padToFormat(rawDigits, numberFormat) {
+function compactDigits(rawDigits, numberFormat) {
   const { maxDigits } = getFormatSpec(numberFormat);
   const d = onlyDigits(rawDigits).slice(0, maxDigits);
 
   if (!d) return "";
-  return d.padStart(maxDigits, "0");
+
+  const asNumber = Number(d);
+  if (Number.isFinite(asNumber)) return String(asNumber);
+
+  return d.replace(/^0+(?=\d)/, "");
 }
 
 function parseFiniteNumber(value) {
@@ -240,8 +244,7 @@ function computeMathOutput(liveValue, formula) {
 
 function formatByPattern(raw, numberFormat) {
   const fmt = String(numberFormat || "00000");
-  const [intPart, decPart] = fmt.split(".");
-  const totalInt = (intPart || "0").length;
+  const [, decPart] = fmt.split(".");
   const totalDec = decPart ? decPart.length : 0;
 
   if (typeof raw === "string" && raw.trim() !== "" && isNaN(Number(raw))) {
@@ -251,19 +254,11 @@ function formatByPattern(raw, numberFormat) {
   const num = typeof raw === "number" ? raw : Number(raw);
   if (!Number.isFinite(num)) return "--";
 
-  let formatted =
-    totalDec > 0 ? Number(num).toFixed(totalDec) : String(Math.round(num));
-
   if (totalDec > 0) {
-    let [i, d] = formatted.split(".");
-    i = String(i).padStart(totalInt, "0");
-    d = String(d || "").padEnd(totalDec, "0");
-    formatted = `${i}.${d}`;
-  } else {
-    formatted = String(formatted).padStart(totalInt, "0");
+    return Number(num).toFixed(totalDec);
   }
 
-  return formatted;
+  return String(Math.round(num));
 }
 
 function getActuationHoldMsFromError(err) {
@@ -484,7 +479,6 @@ export default function DisplayOutputTextBoxStyle({
 
   // Displayed SET value shown to user
   const computedDisplaySetpoint = React.useMemo(() => {
-    // ✅ show placeholder at initial/reset/apply state
     if (isInitialSetpoint) {
       return "--";
     }
@@ -500,8 +494,8 @@ export default function DisplayOutputTextBoxStyle({
       return scaled !== null ? formatScaledDisplayValue(scaled) : "--";
     }
 
-    const padded = padToFormat(rawSetpoint, numberFormat);
-    return padded || "--";
+    const compact = compactDigits(rawSetpoint, numberFormat);
+    return compact || "--";
   }, [
     isInitialSetpoint,
     hasScaleReference,
@@ -599,11 +593,11 @@ export default function DisplayOutputTextBoxStyle({
       return { storedValue, displayValue };
     }
 
-    // ✅ legacy raw mode
+    // ✅ legacy raw mode, no left zero padding
     const cleanedDraft =
       String(draft || "").trim() === "--" ? "" : String(draft || "").trim();
 
-    const storedValue = padToFormat(cleanedDraft, numberFormat);
+    const storedValue = compactDigits(cleanedDraft, numberFormat);
     const displayValue = storedValue || "--";
 
     onUpdate?.({ ...tank, value: storedValue });
@@ -885,7 +879,7 @@ export default function DisplayOutputTextBoxStyle({
                   setDraft(next);
                 } else {
                   const next = onlyDigits(e.target.value).slice(0, maxDigits);
-                  setDraft(next);
+                  setDraft(compactDigits(next, numberFormat));
                 }
               }}
               onKeyDown={(e) => {
