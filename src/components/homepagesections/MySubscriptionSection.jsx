@@ -130,7 +130,7 @@ export default function MySubscriptionSection({ onBack }) {
       <div className="px-5 pb-5 pt-1">
         {/* CURRENT */}
         <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4 md:p-5">
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
             <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
               <div className="text-xs text-slate-500">Plan</div>
               <div className="mt-1 font-semibold text-slate-900">
@@ -156,6 +156,13 @@ export default function MySubscriptionSection({ onBack }) {
               <div className="text-xs text-slate-500">Devices Used</div>
               <div className="mt-1 font-semibold text-slate-900">
                 {CURRENT_PLAN_DEVICES_USED}
+              </div>
+            </div>
+
+            <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
+              <div className="text-xs text-slate-500">Tenants-Users</div>
+              <div className="mt-1 font-semibold text-slate-900">
+                {currentPlan.tenantsUsers}
               </div>
             </div>
           </div>
