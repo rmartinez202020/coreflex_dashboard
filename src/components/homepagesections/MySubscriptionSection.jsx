@@ -327,22 +327,24 @@ export default function MySubscriptionSection({ onBack }) {
 
           {/* ACTION SECTION */}
           <div className="mt-6 rounded-xl border border-slate-200 bg-white overflow-hidden">
-            <div className="bg-slate-900 text-white px-4 py-3">
+            <div className="bg-slate-900 px-4 py-3">
               <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
                 <div>
-                  <div className="text-base font-semibold">Choose a Plan</div>
+                  <div className="text-base font-semibold text-white">
+                    Choose a Plan
+                  </div>
                   <div className="text-xs text-slate-300">
                     Select a plan and billing type to continue to payment.
                   </div>
                 </div>
 
-                <div className="inline-flex rounded-lg border border-slate-700 bg-slate-800 p-1 self-start">
+                <div className="inline-flex rounded-lg border border-slate-300 bg-white p-1 self-start">
                   <button
                     onClick={() => setBillingMode("monthly")}
                     className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
                       billingMode === "monthly"
                         ? "bg-emerald-600 text-white"
-                        : "text-slate-300 hover:text-white"
+                        : "text-slate-900 hover:bg-slate-100"
                     }`}
                   >
                     Monthly
@@ -352,7 +354,7 @@ export default function MySubscriptionSection({ onBack }) {
                     className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
                       billingMode === "onetime"
                         ? "bg-emerald-600 text-white"
-                        : "text-slate-300 hover:text-white"
+                        : "text-slate-900 hover:bg-slate-100"
                     }`}
                   >
                     One-Time License
