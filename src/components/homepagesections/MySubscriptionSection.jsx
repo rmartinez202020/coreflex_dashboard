@@ -314,15 +314,6 @@ export default function MySubscriptionSection({ onBack }) {
                 </div>
               </div>
             </div>
-
-            <div className="mt-4 flex gap-3">
-              <button className="rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-900 px-4 py-2 text-sm font-semibold">
-                Change Plan
-              </button>
-              <button className="rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-900 px-4 py-2 text-sm font-semibold">
-                Manage Payment
-              </button>
-            </div>
           </div>
 
           {/* ACTION SECTION */}
