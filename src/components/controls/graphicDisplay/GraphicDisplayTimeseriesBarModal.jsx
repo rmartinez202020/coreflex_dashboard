@@ -1,5 +1,7 @@
 import React, { useMemo, useState, useEffect } from "react";
 import { createPortal } from "react-dom";
+import { API_URL } from "../../../config/api";
+import { getToken } from "../../../utils/authToken";
 
 const MONTH_LABELS = [
   "Jan",
@@ -18,175 +20,40 @@ const MONTH_LABELS = [
 
 const DEFAULT_BAR_COLOR = "#facc15";
 
-function rateUnitToTimeBase(rateUnit) {
-  const u = String(rateUnit || "").trim();
-
-  if (
-    ["GPM", "CFM", "SCFM", "ACFM", "LPM", "m³/min", "kg/min", "lb/min"].includes(
-      u
-    )
-  ) {
-    return "minute";
-  }
-
-  if (
-    [
-      "GPH",
-      "BBL/h",
-      "LPH",
-      "m³/h",
-      "kg/h",
-      "lb/h",
-      "ton/h",
-      "kW",
-      "BTU/h",
-      "MBTU/h",
-    ].includes(u)
-  ) {
-    return "hour";
-  }
-
-  if (["kg/s", "W"].includes(u)) return "second";
-  if (["BPD"].includes(u)) return "day";
-
-  return "";
-}
-
 function toNumber(v) {
   const n = Number(v);
   return Number.isFinite(n) ? n : null;
 }
 
-function normalizePoints(points) {
-  return (Array.isArray(points) ? points : [])
-    .filter((p) => !p?.gap)
-    .map((p) => ({
-      t: toNumber(p?.t),
-      y: toNumber(p?.y),
-    }))
-    .filter((p) => Number.isFinite(p.t) && Number.isFinite(p.y))
-    .sort((a, b) => a.t - b.t);
-}
+function parseHistorianTs(ts) {
+  if (typeof ts !== "string") return null;
 
-function lerpValueAtTime(p1, p2, targetT) {
-  const t1 = Number(p1?.t);
-  const t2 = Number(p2?.t);
-  const y1 = Number(p1?.y);
-  const y2 = Number(p2?.y);
+  const s = ts.trim();
+  if (!s) return null;
 
-  if (
-    !Number.isFinite(t1) ||
-    !Number.isFinite(t2) ||
-    !Number.isFinite(y1) ||
-    !Number.isFinite(y2)
-  ) {
-    return null;
-  }
+  const direct = new Date(s).getTime();
+  if (Number.isFinite(direct)) return direct;
 
-  if (t2 <= t1) return y1;
-  if (targetT <= t1) return y1;
-  if (targetT >= t2) return y2;
+  const m = s.match(
+    /^(\d{1,2})\/(\d{1,2})\/(\d{4})\s+(\d{1,2}):(\d{2}):(\d{2})\s*(AM|PM)$/i
+  );
 
-  const ratio = (targetT - t1) / (t2 - t1);
-  return y1 + (y2 - y1) * ratio;
-}
+  if (!m) return null;
 
-function integrateSegment(y1, y2, dtMs, base) {
-  if (!Number.isFinite(y1) || !Number.isFinite(y2) || !Number.isFinite(dtMs)) {
-    return 0;
-  }
-  if (dtMs <= 0) return 0;
+  let [, mm, dd, yyyy, hh, min, sec, ap] = m;
+  let hour = Number(hh);
+  const month = Number(mm) - 1;
+  const day = Number(dd);
+  const year = Number(yyyy);
+  const minute = Number(min);
+  const second = Number(sec);
+  const ampm = String(ap || "").toUpperCase();
 
-  let dtBase = 0;
-  if (base === "minute") dtBase = dtMs / 60000;
-  else if (base === "hour") dtBase = dtMs / 3600000;
-  else if (base === "second") dtBase = dtMs / 1000;
-  else if (base === "day") dtBase = dtMs / 86400000;
-  else return 0;
+  if (ampm === "PM" && hour < 12) hour += 12;
+  if (ampm === "AM" && hour === 12) hour = 0;
 
-  if (!Number.isFinite(dtBase) || dtBase <= 0) return 0;
-
-  const avgRate = (y1 + y2) / 2;
-
-  // ✅ same behavior as your live totalizer: do not accumulate if avg <= 0
-  if (!Number.isFinite(avgRate) || avgRate <= 0) return 0;
-
-  return avgRate * dtBase;
-}
-
-function integrateWithinRange(points, startT, endT, base) {
-  if (!Array.isArray(points) || points.length < 2) return 0;
-  if (!Number.isFinite(startT) || !Number.isFinite(endT) || endT <= startT) {
-    return 0;
-  }
-  if (!base) return 0;
-
-  let total = 0;
-
-  for (let i = 1; i < points.length; i++) {
-    const p1 = points[i - 1];
-    const p2 = points[i];
-
-    const t1 = Number(p1.t);
-    const t2 = Number(p2.t);
-    if (!Number.isFinite(t1) || !Number.isFinite(t2) || t2 <= t1) continue;
-
-    const segStart = Math.max(startT, t1);
-    const segEnd = Math.min(endT, t2);
-    if (segEnd <= segStart) continue;
-
-    const yStart =
-      segStart === t1 ? p1.y : lerpValueAtTime(p1, p2, segStart);
-    const yEnd =
-      segEnd === t2 ? p2.y : lerpValueAtTime(p1, p2, segEnd);
-
-    total += integrateSegment(yStart, yEnd, segEnd - segStart, base);
-  }
-
-  return total;
-}
-
-function collectAvailableYears(points) {
-  const years = new Set();
-  for (const p of points) {
-    const t = Number(p?.t);
-    if (!Number.isFinite(t)) continue;
-    years.add(new Date(t).getFullYear());
-  }
-  return [...years].sort((a, b) => a - b);
-}
-
-function buildMonthlyTotals(points, year, rateUnit) {
-  const base = rateUnitToTimeBase(rateUnit);
-  if (!base) {
-    return MONTH_LABELS.map((label, idx) => ({
-      monthIndex: idx,
-      label,
-      total: 0,
-      start: new Date(year, idx, 1).getTime(),
-      end: new Date(year, idx + 1, 1).getTime(),
-    }));
-  }
-
-  return MONTH_LABELS.map((label, idx) => {
-    const start = new Date(year, idx, 1, 0, 0, 0, 0).getTime();
-    const end = new Date(year, idx + 1, 1, 0, 0, 0, 0).getTime();
-
-    // ✅ each month starts from zero independently
-    const total = integrateWithinRange(points, start, end, base);
-
-    return {
-      monthIndex: idx,
-      label,
-      total: Number.isFinite(total) ? total : 0,
-      start,
-      end,
-    };
-  });
-}
-
-function fmtNum(v) {
-  return Number.isFinite(v) ? Number(v).toFixed(2) : "0.00";
+  const t = new Date(year, month, day, hour, minute, second, 0).getTime();
+  return Number.isFinite(t) ? t : null;
 }
 
 function normalizeHexColor(v, fallback = DEFAULT_BAR_COLOR) {
@@ -197,13 +64,89 @@ function normalizeHexColor(v, fallback = DEFAULT_BAR_COLOR) {
   return fallback;
 }
 
-// ✅ NEW: stable storage key per widget/modal title + units
 function buildBarColorStorageKey(title, totalizerRateUnit, totalizerTotalUnit) {
   const safeTitle = String(title || "Graphic Display").trim().toLowerCase();
   const safeRate = String(totalizerRateUnit || "").trim().toLowerCase();
   const safeTotal = String(totalizerTotalUnit || "").trim().toLowerCase();
 
   return `coreflex:graphic-display:timeseries-bar-color:${safeTitle}:${safeRate}:${safeTotal}`;
+}
+
+function fmtNum(v) {
+  return Number.isFinite(v) ? Number(v).toFixed(2) : "0.00";
+}
+
+function collectAvailableYears(points) {
+  const years = new Set();
+
+  for (const p of points) {
+    const t = Number(p?.t);
+    if (!Number.isFinite(t)) continue;
+    years.add(new Date(t).getFullYear());
+  }
+
+  return [...years].sort((a, b) => a - b);
+}
+
+function normalizeTotalizerHistorianRows(rows) {
+  return (Array.isArray(rows) ? rows : [])
+    .map((row) => {
+      const t =
+        toNumber(row?.t) ??
+        parseHistorianTs(row?.ts) ??
+        toNumber(row?.timestamp) ??
+        toNumber(row?.time);
+
+      const y =
+        toNumber(row?.totalizer) ??
+        toNumber(row?.yTotalizer) ??
+        toNumber(row?.totalizerValue);
+
+      return {
+        t,
+        y,
+        status: String(row?.status || "").trim().toLowerCase(),
+      };
+    })
+    .filter((p) => Number.isFinite(p.t) && Number.isFinite(p.y))
+    .sort((a, b) => a.t - b.t);
+}
+
+function buildMonthlyTotalsFromTotalizer(points, year) {
+  const src = (Array.isArray(points) ? points : [])
+    .filter((p) => {
+      const t = Number(p?.t);
+      const y = Number(p?.y);
+      return Number.isFinite(t) && Number.isFinite(y);
+    })
+    .sort((a, b) => Number(a.t) - Number(b.t));
+
+  return MONTH_LABELS.map((label, idx) => {
+    const start = new Date(year, idx, 1, 0, 0, 0, 0).getTime();
+    const end = new Date(year, idx + 1, 1, 0, 0, 0, 0).getTime();
+
+    const monthPoints = src.filter((p) => {
+      const t = Number(p.t);
+      return t >= start && t < end;
+    });
+
+    let total = 0;
+
+    if (monthPoints.length >= 2) {
+      const firstValue = Number(monthPoints[0].y);
+      const lastValue = Number(monthPoints[monthPoints.length - 1].y);
+      const diff = lastValue - firstValue;
+      total = Number.isFinite(diff) && diff > 0 ? diff : 0;
+    }
+
+    return {
+      monthIndex: idx,
+      label,
+      total,
+      start,
+      end,
+    };
+  });
 }
 
 export default function GraphicDisplayTimeseriesBarModal({
@@ -213,33 +156,22 @@ export default function GraphicDisplayTimeseriesBarModal({
   points = [],
   totalizerRateUnit = "",
   totalizerTotalUnit = "",
+  widgetId = "",
+  dashboardId = "",
 }) {
   const portalTarget = typeof document !== "undefined" ? document.body : null;
-
-  const cleanPoints = useMemo(() => normalizePoints(points), [points]);
-
-  const availableYears = useMemo(
-    () => collectAvailableYears(cleanPoints),
-    [cleanPoints]
-  );
-
-  const defaultYear = useMemo(() => {
-    if (availableYears.length) return availableYears[availableYears.length - 1];
-    return new Date().getFullYear();
-  }, [availableYears]);
 
   const storageKey = useMemo(() => {
     return buildBarColorStorageKey(title, totalizerRateUnit, totalizerTotalUnit);
   }, [title, totalizerRateUnit, totalizerTotalUnit]);
 
-  const [selectedYear, setSelectedYear] = useState(defaultYear);
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
   const [barColor, setBarColor] = useState(DEFAULT_BAR_COLOR);
 
-  useEffect(() => {
-    setSelectedYear(defaultYear);
-  }, [defaultYear, open]);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyError, setHistoryError] = useState("");
+  const [totalizerPoints, setTotalizerPoints] = useState([]);
 
-  // ✅ NEW: restore saved bar color
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -255,7 +187,6 @@ export default function GraphicDisplayTimeseriesBarModal({
     }
   }, [storageKey, open]);
 
-  // ✅ NEW: save bar color whenever it changes
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -263,7 +194,7 @@ export default function GraphicDisplayTimeseriesBarModal({
       const safe = normalizeHexColor(barColor, DEFAULT_BAR_COLOR);
       window.localStorage.setItem(storageKey, safe);
     } catch {
-      // ignore localStorage errors
+      // ignore
     }
   }, [barColor, storageKey]);
 
@@ -276,14 +207,94 @@ export default function GraphicDisplayTimeseriesBarModal({
     };
   }, [open]);
 
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadTotalizerHistory() {
+      if (!open) return;
+
+      const safeWidgetId = String(widgetId || "").trim();
+      const safeDashboardId = String(dashboardId || "").trim();
+
+      if (!safeWidgetId || !safeDashboardId) {
+        setTotalizerPoints([]);
+        setHistoryError("Missing widget or dashboard id.");
+        return;
+      }
+
+      const token = String(getToken() || "").trim();
+      if (!token) {
+        setTotalizerPoints([]);
+        setHistoryError("Missing auth token.");
+        return;
+      }
+
+      setHistoryLoading(true);
+      setHistoryError("");
+
+      try {
+        const url = new URL(`${API_URL}/graphic-display-bindings/history`);
+        url.searchParams.set("dashboard_id", safeDashboardId);
+        url.searchParams.set("widget_id", safeWidgetId);
+
+        const res = await fetch(url.toString(), {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(`History request failed (${res.status}): ${text}`);
+        }
+
+        const data = await res.json();
+        const normalized = normalizeTotalizerHistorianRows(data?.points || []);
+
+        if (cancelled) return;
+
+        setTotalizerPoints(normalized);
+
+        const years = collectAvailableYears(normalized);
+        if (years.length > 0) {
+          setSelectedYear(years[years.length - 1]);
+        } else {
+          setSelectedYear(new Date().getFullYear());
+        }
+      } catch (e) {
+        if (cancelled) return;
+        setTotalizerPoints([]);
+        setHistoryError(
+          e?.message || "Failed to load totalizer history."
+        );
+      } finally {
+        if (!cancelled) {
+          setHistoryLoading(false);
+        }
+      }
+    }
+
+    loadTotalizerHistory();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [open, widgetId, dashboardId]);
+
   const safeBarColor = useMemo(
     () => normalizeHexColor(barColor, DEFAULT_BAR_COLOR),
     [barColor]
   );
 
+  const availableYears = useMemo(
+    () => collectAvailableYears(totalizerPoints),
+    [totalizerPoints]
+  );
+
   const monthlyTotals = useMemo(() => {
-    return buildMonthlyTotals(cleanPoints, selectedYear, totalizerRateUnit);
-  }, [cleanPoints, selectedYear, totalizerRateUnit]);
+    return buildMonthlyTotalsFromTotalizer(totalizerPoints, selectedYear);
+  }, [totalizerPoints, selectedYear]);
 
   const maxValue = useMemo(() => {
     const vals = monthlyTotals.map((m) => Number(m.total) || 0);
@@ -324,7 +335,6 @@ export default function GraphicDisplayTimeseriesBarModal({
           flexDirection: "column",
         }}
       >
-        {/* HEADER */}
         <div
           style={{
             padding: "14px 16px",
@@ -382,7 +392,6 @@ export default function GraphicDisplayTimeseriesBarModal({
           </button>
         </div>
 
-        {/* TOP INFO */}
         <div
           style={{
             padding: 14,
@@ -457,7 +466,6 @@ export default function GraphicDisplayTimeseriesBarModal({
               flexWrap: "wrap",
             }}
           >
-            {/* ✅ Bar Color control with persistence */}
             <div
               style={{
                 display: "flex",
@@ -545,7 +553,7 @@ export default function GraphicDisplayTimeseriesBarModal({
                   fontWeight: 800,
                 }}
               >
-                {(availableYears.length ? availableYears : [defaultYear]).map((yr) => (
+                {(availableYears.length ? availableYears : [selectedYear]).map((yr) => (
                   <option key={yr} value={yr}>
                     {yr}
                   </option>
@@ -555,7 +563,6 @@ export default function GraphicDisplayTimeseriesBarModal({
           </div>
         </div>
 
-        {/* CONTENT */}
         <div
           style={{
             padding: 14,
@@ -564,194 +571,232 @@ export default function GraphicDisplayTimeseriesBarModal({
             flex: "1 1 auto",
           }}
         >
-          <div
-            style={{
-              border: "1px solid #e5e7eb",
-              borderRadius: 14,
-              background:
-                "linear-gradient(180deg, rgba(248,250,252,0.95), rgba(255,255,255,1))",
-              padding: 16,
-            }}
-          >
+          {historyLoading ? (
             <div
               style={{
-                height: 430,
-                display: "grid",
-                gridTemplateColumns: "repeat(12, minmax(74px, 1fr))",
-                alignItems: "end",
-                gap: 18,
-                padding: "14px 8px 0 8px",
-                borderBottom: "1px solid #d1d5db",
-                position: "relative",
-              }}
-            >
-              {[0, 1, 2, 3, 4].map((n) => (
-                <div
-                  key={n}
-                  style={{
-                    position: "absolute",
-                    left: 0,
-                    right: 0,
-                    bottom: `${(n / 4) * 100}%`,
-                    borderTop: "1px dashed rgba(148,163,184,0.35)",
-                    pointerEvents: "none",
-                  }}
-                />
-              ))}
-
-              {monthlyTotals.map((m) => {
-                const h =
-                  maxValue > 0 ? Math.max(6, (Number(m.total) / maxValue) * 100) : 0;
-
-                return (
-                  <div
-                    key={m.monthIndex}
-                    style={{
-                      display: "grid",
-                      gridTemplateRows: "32px 1fr 22px",
-                      alignItems: "end",
-                      justifyItems: "center",
-                      minWidth: 0,
-                      height: "100%",
-                      gap: 10,
-                    }}
-                    title={`${m.label} ${selectedYear}: ${fmtNum(m.total)} ${
-                      totalizerTotalUnit || ""
-                    }`}
-                  >
-                    {/* ✅ value label stays in fixed row, no longer rides with bar height */}
-                    <div
-                      style={{
-                        fontSize: 12,
-                        fontWeight: 900,
-                        color: "#0f172a",
-                        textAlign: "center",
-                        lineHeight: 1.15,
-                        height: 32,
-                        display: "flex",
-                        alignItems: "flex-end",
-                        justifyContent: "center",
-                        width: "100%",
-                      }}
-                    >
-                      {fmtNum(m.total)}
-                    </div>
-
-                    {/* ✅ bar gets its own flex area */}
-                    <div
-                      style={{
-                        width: "100%",
-                        height: "100%",
-                        display: "flex",
-                        alignItems: "flex-end",
-                        justifyContent: "center",
-                      }}
-                    >
-                      <div
-                        style={{
-                          width: "100%",
-                          maxWidth: 74,
-                          height: `${h}%`,
-                          minHeight: maxValue > 0 ? 12 : 2,
-                          borderRadius: "12px 12px 0 0",
-                          border: `1px solid ${safeBarColor}`,
-                          background: `linear-gradient(180deg, ${safeBarColor}, ${safeBarColor})`,
-                          boxShadow: "0 6px 16px rgba(0,0,0,0.12)",
-                        }}
-                      />
-                    </div>
-
-                    <div
-                      style={{
-                        fontSize: 13,
-                        fontWeight: 900,
-                        color: "#334155",
-                        textAlign: "center",
-                        height: 22,
-                        display: "flex",
-                        alignItems: "center",
-                        justifyContent: "center",
-                      }}
-                    >
-                      {m.label}
-                    </div>
-                  </div>
-                );
-              })}
-            </div>
-
-            <div
-              style={{
-                marginTop: 12,
-                fontSize: 12,
-                color: "#475569",
-                fontWeight: 700,
-              }}
-            >
-              Each bar is the monthly totalizer amount for that month only.
-              January starts at zero, February starts again at zero, then March,
-              April, and so on.
-            </div>
-          </div>
-
-          {/* TABLE */}
-          <div
-            style={{
-              marginTop: 14,
-              border: "1px solid #e5e7eb",
-              borderRadius: 14,
-              overflow: "hidden",
-              background: "#fff",
-            }}
-          >
-            <div
-              style={{
-                display: "grid",
-                gridTemplateColumns: "140px 1fr 1fr",
-                gap: 0,
+                padding: 18,
+                border: "1px solid #e5e7eb",
+                borderRadius: 14,
                 background: "#f8fafc",
-                borderBottom: "1px solid #e5e7eb",
-                fontSize: 12,
-                fontWeight: 900,
-                color: "#0f172a",
+                fontSize: 14,
+                fontWeight: 800,
+                color: "#334155",
               }}
             >
-              <div style={{ padding: 12 }}>Month</div>
-              <div style={{ padding: 12 }}>Range</div>
-              <div style={{ padding: 12 }}>Monthly Total</div>
+              Loading totalizer history...
             </div>
-
-            {monthlyTotals.map((m) => {
-              const startD = new Date(m.start);
-              const endD = new Date(m.end - 1);
-
-              const rangeText = `${
-                MONTH_LABELS[startD.getMonth()]
-              } ${startD.getDate()} - ${
-                MONTH_LABELS[endD.getMonth()]
-              } ${endD.getDate()}`;
-
-              return (
+          ) : historyError ? (
+            <div
+              style={{
+                padding: 18,
+                border: "1px solid #fecaca",
+                borderRadius: 14,
+                background: "#fff1f2",
+                fontSize: 14,
+                fontWeight: 800,
+                color: "#b91c1c",
+              }}
+            >
+              {historyError}
+            </div>
+          ) : (
+            <>
+              <div
+                style={{
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 14,
+                  background:
+                    "linear-gradient(180deg, rgba(248,250,252,0.95), rgba(255,255,255,1))",
+                  padding: 16,
+                }}
+              >
                 <div
-                  key={`row-${m.monthIndex}`}
+                  style={{
+                    height: 430,
+                    display: "grid",
+                    gridTemplateColumns: "repeat(12, minmax(74px, 1fr))",
+                    alignItems: "end",
+                    gap: 18,
+                    padding: "14px 8px 0 8px",
+                    borderBottom: "1px solid #d1d5db",
+                    position: "relative",
+                  }}
+                >
+                  {[0, 1, 2, 3, 4].map((n) => (
+                    <div
+                      key={n}
+                      style={{
+                        position: "absolute",
+                        left: 0,
+                        right: 0,
+                        bottom: `${(n / 4) * 100}%`,
+                        borderTop: "1px dashed rgba(148,163,184,0.35)",
+                        pointerEvents: "none",
+                      }}
+                    />
+                  ))}
+
+                  {monthlyTotals.map((m) => {
+                    const h =
+                      maxValue > 0
+                        ? Math.max(6, (Number(m.total) / maxValue) * 100)
+                        : 0;
+
+                    return (
+                      <div
+                        key={m.monthIndex}
+                        style={{
+                          display: "grid",
+                          gridTemplateRows: "32px 1fr 22px",
+                          alignItems: "end",
+                          justifyItems: "center",
+                          minWidth: 0,
+                          height: "100%",
+                          gap: 10,
+                        }}
+                        title={`${m.label} ${selectedYear}: ${fmtNum(m.total)} ${
+                          totalizerTotalUnit || ""
+                        }`}
+                      >
+                        <div
+                          style={{
+                            fontSize: 12,
+                            fontWeight: 900,
+                            color: "#0f172a",
+                            textAlign: "center",
+                            lineHeight: 1.15,
+                            height: 32,
+                            display: "flex",
+                            alignItems: "flex-end",
+                            justifyContent: "center",
+                            width: "100%",
+                          }}
+                        >
+                          {fmtNum(m.total)}
+                        </div>
+
+                        <div
+                          style={{
+                            width: "100%",
+                            height: "100%",
+                            display: "flex",
+                            alignItems: "flex-end",
+                            justifyContent: "center",
+                          }}
+                        >
+                          <div
+                            style={{
+                              width: "100%",
+                              maxWidth: 74,
+                              height: `${h}%`,
+                              minHeight: maxValue > 0 ? 12 : 2,
+                              borderRadius: "12px 12px 0 0",
+                              border: `1px solid ${safeBarColor}`,
+                              background: `linear-gradient(180deg, ${safeBarColor}, ${safeBarColor})`,
+                              boxShadow: "0 6px 16px rgba(0,0,0,0.12)",
+                            }}
+                          />
+                        </div>
+
+                        <div
+                          style={{
+                            fontSize: 13,
+                            fontWeight: 900,
+                            color: "#334155",
+                            textAlign: "center",
+                            height: 22,
+                            display: "flex",
+                            alignItems: "center",
+                            justifyContent: "center",
+                          }}
+                        >
+                          {m.label}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 12,
+                    fontSize: 12,
+                    color: "#475569",
+                    fontWeight: 700,
+                  }}
+                >
+                  Each bar is calculated as the last totalizer value of the month
+                  minus the first totalizer value of the month.
+                </div>
+              </div>
+
+              <div
+                style={{
+                  marginTop: 14,
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 14,
+                  overflow: "hidden",
+                  background: "#fff",
+                }}
+              >
+                <div
                   style={{
                     display: "grid",
                     gridTemplateColumns: "140px 1fr 1fr",
                     gap: 0,
-                    borderBottom: "1px solid #f1f5f9",
+                    background: "#f8fafc",
+                    borderBottom: "1px solid #e5e7eb",
                     fontSize: 12,
-                    color: "#111827",
+                    fontWeight: 900,
+                    color: "#0f172a",
                   }}
                 >
-                  <div style={{ padding: 12, fontWeight: 900 }}>{m.label}</div>
-                  <div style={{ padding: 12 }}>{rangeText}</div>
-                  <div style={{ padding: 12, fontWeight: 900, color: "#0b3b18" }}>
-                    {fmtNum(m.total)} {totalizerTotalUnit || ""}
-                  </div>
+                  <div style={{ padding: 12 }}>Month</div>
+                  <div style={{ padding: 12 }}>Range</div>
+                  <div style={{ padding: 12 }}>Monthly Total</div>
                 </div>
-              );
-            })}
-          </div>
+
+                {monthlyTotals.map((m) => {
+                  const startD = new Date(m.start);
+                  const endD = new Date(m.end - 1);
+
+                  const rangeText = `${
+                    MONTH_LABELS[startD.getMonth()]
+                  } ${startD.getDate()} - ${
+                    MONTH_LABELS[endD.getMonth()]
+                  } ${endD.getDate()}`;
+
+                  return (
+                    <div
+                      key={`row-${m.monthIndex}`}
+                      style={{
+                        display: "grid",
+                        gridTemplateColumns: "140px 1fr 1fr",
+                        gap: 0,
+                        borderBottom: "1px solid #f1f5f9",
+                        fontSize: 12,
+                        color: "#111827",
+                      }}
+                    >
+                      <div style={{ padding: 12, fontWeight: 900 }}>
+                        {m.label}
+                      </div>
+                      <div style={{ padding: 12 }}>{rangeText}</div>
+                      <div
+                        style={{
+                          padding: 12,
+                          fontWeight: 900,
+                          color: "#0b3b18",
+                        }}
+                      >
+                        {fmtNum(m.total)} {totalizerTotalUnit || ""}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </>
+          )}
         </div>
       </div>
     </div>,

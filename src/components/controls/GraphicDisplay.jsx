@@ -980,6 +980,8 @@ export default function GraphicDisplay({
         points={activePoints}
         totalizerRateUnit={totalizerRateUnit}
         totalizerTotalUnit={totalizerTotalUnit}
+        widgetId={widgetId}
+        dashboardId={resolvedDashboardId}
       />
 
       <GraphicDisplayExplorePortal
