@@ -69,7 +69,6 @@ const CURRENT_PLAN_KEY = "professional";
 const CURRENT_PLAN_STATUS = "Active";
 const CURRENT_PLAN_RENEWAL = "Apr 30, 2026";
 const CURRENT_PLAN_DEVICES_USED = "12 / 50";
-const ADD_USER_TENANT_PRICE = 310;
 
 function getPlanActionLabel(planKey, currentPlanKey) {
   if (planKey === currentPlanKey) return "Current Plan";
@@ -236,7 +235,6 @@ export default function MySubscriptionSection({ onBack }) {
   const [showComparePlans, setShowComparePlans] = useState(false);
   const [billingMode, setBillingMode] = useState("monthly");
   const [selectedPlanKey, setSelectedPlanKey] = useState(null);
-  const [addUserTenant, setAddUserTenant] = useState(false);
 
   const currentPlan = useMemo(
     () => PLANS.find((plan) => plan.key === CURRENT_PLAN_KEY) || PLANS[0],
@@ -252,28 +250,6 @@ export default function MySubscriptionSection({ onBack }) {
       ? selectedPlan.monthlyPrice
       : selectedPlan.oneTimeLicense
     : null;
-
-  const totalDisplay = useMemo(() => {
-    if (!selectedPlan) return null;
-
-    const extras = addUserTenant ? ADD_USER_TENANT_PRICE : 0;
-
-    if (billingMode === "monthly") {
-      const base = parseFloat(
-        String(selectedPlan.monthlyPrice || "").replace(/[^0-9.]/g, "")
-      );
-
-      if (Number.isNaN(base)) return selectedPrice;
-      return `$${(base + extras).toLocaleString()} / month`;
-    }
-
-    const base = parseFloat(
-      String(selectedPlan.oneTimeLicense || "").replace(/[^0-9.]/g, "")
-    );
-
-    if (Number.isNaN(base)) return selectedPrice;
-    return `$${(base + extras).toLocaleString()}`;
-  }, [selectedPlan, billingMode, addUserTenant, selectedPrice]);
 
   return (
     <>
@@ -300,6 +276,7 @@ export default function MySubscriptionSection({ onBack }) {
         </div>
 
         <div className="px-5 pb-5 pt-1">
+          {/* CURRENT */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
             <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
               <div className="text-xs text-slate-500">Plan</div>
@@ -337,6 +314,7 @@ export default function MySubscriptionSection({ onBack }) {
             </div>
           </div>
 
+          {/* ACTION SECTION */}
           <div className="mt-6 rounded-xl border border-slate-200 bg-white overflow-hidden">
             <div className="bg-slate-900 px-4 py-3">
               <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
@@ -381,121 +359,77 @@ export default function MySubscriptionSection({ onBack }) {
                   plan={plan}
                   isCurrent={plan.key === CURRENT_PLAN_KEY}
                   billingMode={billingMode}
-                  onSelect={(pickedPlan) => {
-                    setSelectedPlanKey(pickedPlan.key);
-                    setAddUserTenant(false);
-                  }}
+                  onSelect={(pickedPlan) => setSelectedPlanKey(pickedPlan.key)}
                   isSelected={selectedPlanKey === plan.key}
                   currentPlanKey={CURRENT_PLAN_KEY}
                 />
               ))}
             </div>
 
+            {/* CHECKOUT SUMMARY */}
             <div className="border-t border-slate-200 bg-slate-50 px-4 py-4">
               {selectedPlan ? (
-                <div className="space-y-4">
-                  <div className="rounded-xl border border-emerald-200 bg-white p-4">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                      <div>
-                        <div className="text-sm font-semibold text-slate-900">
-                          Selected Plan
-                        </div>
-                        <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-6 gap-3 text-sm">
-                          <div>
-                            <div className="text-slate-500">Plan</div>
-                            <div className="font-semibold text-slate-900">
-                              {selectedPlan.name}
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="text-slate-500">Billing</div>
-                            <div className="font-semibold text-slate-900">
-                              {billingMode === "monthly"
-                                ? "Monthly"
-                                : "One-Time License"}
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="text-slate-500">Base Price</div>
-                            <div className="font-semibold text-slate-900">
-                              {selectedPrice}
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="text-slate-500">Devices</div>
-                            <div className="font-semibold text-slate-900">
-                              {selectedPlan.deviceLimit}
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="text-slate-500">Tenants-Users</div>
-                            <div className="font-semibold text-slate-900">
-                              {selectedPlan.tenantsUsers}
-                            </div>
-                          </div>
-
-                          <div>
-                            <div className="text-slate-500">Total</div>
-                            <div className="font-semibold text-emerald-700">
-                              {totalDisplay}
-                            </div>
-                          </div>
-                        </div>
+                <div className="rounded-xl border border-emerald-200 bg-white p-4">
+                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+                    <div>
+                      <div className="text-sm font-semibold text-slate-900">
+                        Selected Plan
                       </div>
+                      <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 text-sm">
+                        <div>
+                          <div className="text-slate-500">Plan</div>
+                          <div className="font-semibold text-slate-900">
+                            {selectedPlan.name}
+                          </div>
+                        </div>
 
-                      <div className="flex flex-wrap gap-3">
-                        <button
-                          className="rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-900 px-4 py-2 text-sm font-semibold"
-                          onClick={() => {
-                            setSelectedPlanKey(null);
-                            setAddUserTenant(false);
-                          }}
-                        >
-                          Cancel
-                        </button>
+                        <div>
+                          <div className="text-slate-500">Billing</div>
+                          <div className="font-semibold text-slate-900">
+                            {billingMode === "monthly"
+                              ? "Monthly"
+                              : "One-Time License"}
+                          </div>
+                        </div>
 
-                        <button
-                          className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-sm font-semibold"
-                        >
-                          {selectedPlan.key === "enterprise"
-                            ? "Request Quote"
-                            : "Proceed to Payment"}
-                        </button>
+                        <div>
+                          <div className="text-slate-500">Price</div>
+                          <div className="font-semibold text-slate-900">
+                            {selectedPrice}
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="text-slate-500">Devices</div>
+                          <div className="font-semibold text-slate-900">
+                            {selectedPlan.deviceLimit}
+                          </div>
+                        </div>
+
+                        <div>
+                          <div className="text-slate-500">Tenants-Users</div>
+                          <div className="font-semibold text-slate-900">
+                            {selectedPlan.tenantsUsers}
+                          </div>
+                        </div>
                       </div>
                     </div>
-                  </div>
 
-                  <div className="rounded-xl border border-slate-200 bg-white p-4">
-                    <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                      <div>
-                        <div className="text-sm font-semibold text-slate-900">
-                          Optional Add-On
-                        </div>
-                        <div className="mt-1 text-sm text-slate-500">
-                          Add extra tenant-user access to this subscription.
-                        </div>
-                      </div>
+                    <div className="flex flex-wrap gap-3">
+                      <button
+                        className="rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-900 px-4 py-2 text-sm font-semibold"
+                        onClick={() => setSelectedPlanKey(null)}
+                      >
+                        Cancel
+                      </button>
 
-                      <label className="flex items-center gap-3 rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3 cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={addUserTenant}
-                          onChange={(e) => setAddUserTenant(e.target.checked)}
-                          className="h-4 w-4 accent-emerald-600"
-                        />
-                        <div>
-                          <div className="text-sm font-semibold text-slate-900">
-                            Add User Tenants
-                          </div>
-                          <div className="text-sm text-emerald-700 font-semibold">
-                            Cost: $310
-                          </div>
-                        </div>
-                      </label>
+                      <button
+                        className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-sm font-semibold"
+                      >
+                        {selectedPlan.key === "enterprise"
+                          ? "Request Quote"
+                          : "Proceed to Payment"}
+                      </button>
                     </div>
                   </div>
                 </div>
