@@ -233,7 +233,13 @@ export default function GraphicDisplay({
   const [mathOutput, setMathOutput] = useState(null);
   const [err, setErr] = useState("");
   const [deviceOnline, setDeviceOnline] = useState(null);
+
+  // ✅ rolling window points for the trend chart only
   const [points, setPoints] = useState([]);
+
+  // ✅ full historian + live append for Timeseries Bar only
+  const [barPoints, setBarPoints] = useState([]);
+
   const [historyLoading, setHistoryLoading] = useState(false);
   const [historyLoaded, setHistoryLoaded] = useState(false);
 
@@ -285,6 +291,7 @@ export default function GraphicDisplay({
     async function loadHistory() {
       if (!widgetId) {
         setPoints([]);
+        setBarPoints([]);
         setHistoryLoaded(true);
         return;
       }
@@ -295,6 +302,8 @@ export default function GraphicDisplay({
 
       // ✅ allow private JWT flow OR public tenant flow
       if (!token && !tenantEmailSafe) {
+        setPoints([]);
+        setBarPoints([]);
         setHistoryLoaded(true);
         return;
       }
@@ -302,6 +311,7 @@ export default function GraphicDisplay({
       // ✅ first-time widget: no device/signal assigned yet
       if (!bindDeviceId || !bindField) {
         setPoints([]);
+        setBarPoints([]);
         setErr("");
         setHistoryLoaded(true);
         return;
@@ -364,9 +374,15 @@ export default function GraphicDisplay({
           clippedCount: clipped.length,
           lastPoint:
             clipped.length > 0 ? clipped[clipped.length - 1] : null,
+          lastBarPoint:
+            normalized.length > 0 ? normalized[normalized.length - 1] : null,
         });
 
+        // ✅ chart gets rolling window only
         setPoints(clipped);
+
+        // ✅ timeseries bar gets full historian and stays fixed for past months
+        setBarPoints(normalized);
 
         if (
           !singleUnitsEnabled &&
@@ -423,6 +439,7 @@ export default function GraphicDisplay({
         dbgErr("LOAD HISTORY: failed", e);
         setErr("Failed to load saved history.");
         setPoints([]);
+        setBarPoints([]);
       } finally {
         if (!cancelled) {
           setHistoryLoading(false);
@@ -457,11 +474,19 @@ export default function GraphicDisplay({
     if (!bindDeviceId || !bindField) return;
 
     if (!isPlaying) {
+      const t = Date.now();
+
       setPoints((prev) => {
-        const t = Date.now();
         const last = prev.length ? prev[prev.length - 1] : null;
         if (last?.gap) return prev;
-        dbg("PAUSE: inserting GAP point", { t });
+        dbg("PAUSE: inserting GAP point (chart)", { t });
+        return [...prev, { t, y: null, gap: true }];
+      });
+
+      setBarPoints((prev) => {
+        const last = prev.length ? prev[prev.length - 1] : null;
+        if (last?.gap) return prev;
+        dbg("PAUSE: inserting GAP point (timeseries bar)", { t });
         return [...prev, { t, y: null, gap: true }];
       });
     }
@@ -480,6 +505,7 @@ export default function GraphicDisplay({
       setMathOutput(null);
       setErr("");
       setPoints([]);
+      setBarPoints([]);
       setDeviceOnline(null);
       totalizerLastPointRef.current = null;
       lastOnlineRef.current = null;
@@ -545,7 +571,15 @@ export default function GraphicDisplay({
           const lastPoint = prev.length ? prev[prev.length - 1] : null;
           if (lastPoint?.gap) return prev;
 
-          dbg("OFFLINE: inserting GAP point", { now });
+          dbg("OFFLINE: inserting GAP point (chart)", { now });
+          return [...prev, { t: now, y: null, gap: true }];
+        });
+
+        setBarPoints((prev) => {
+          const lastPoint = prev.length ? prev[prev.length - 1] : null;
+          if (lastPoint?.gap) return prev;
+
+          dbg("OFFLINE: inserting GAP point (timeseries bar)", { now });
           return [...prev, { t: now, y: null, gap: true }];
         });
 
@@ -568,7 +602,15 @@ export default function GraphicDisplay({
             const t = now;
             const lastPoint = prev.length ? prev[prev.length - 1] : null;
             if (lastPoint?.gap) return prev;
-            dbg("ONLINE RESUME: inserting GAP point", { t });
+            dbg("ONLINE RESUME: inserting GAP point (chart)", { t });
+            return [...prev, { t, y: null, gap: true }];
+          });
+
+          setBarPoints((prev) => {
+            const t = now;
+            const lastPoint = prev.length ? prev[prev.length - 1] : null;
+            if (lastPoint?.gap) return prev;
+            dbg("ONLINE RESUME: inserting GAP point (timeseries bar)", { t });
             return [...prev, { t, y: null, gap: true }];
           });
         }
@@ -624,6 +666,7 @@ export default function GraphicDisplay({
           totalizerLastPointRef.current = null;
         }
 
+        // ✅ rolling trend chart points
         setPoints((prev) => {
           const lastPoint = prev.length ? prev[prev.length - 1] : null;
 
@@ -649,6 +692,22 @@ export default function GraphicDisplay({
           }
 
           return next;
+        });
+
+        // ✅ full historian for Timeseries Bar
+        setBarPoints((prev) => {
+          const lastPoint = prev.length ? prev[prev.length - 1] : null;
+
+          if (
+            lastPoint &&
+            !lastPoint.gap &&
+            Number(lastPoint.t) === now &&
+            Number(lastPoint.y) === Number(out)
+          ) {
+            return prev;
+          }
+
+          return [...prev, { t: now, y: out }];
         });
       } else {
         totalizerLastPointRef.current = null;
@@ -977,7 +1036,7 @@ export default function GraphicDisplay({
         open={timeseriesBarOpen}
         onClose={() => setTimeseriesBarOpen(false)}
         title={title}
-        points={activePoints}
+        points={barPoints}
         totalizerRateUnit={totalizerRateUnit}
         totalizerTotalUnit={totalizerTotalUnit}
         widgetId={widgetId}

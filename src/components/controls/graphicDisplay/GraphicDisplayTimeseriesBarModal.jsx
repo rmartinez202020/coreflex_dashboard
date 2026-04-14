@@ -87,7 +87,7 @@ function accumulateStepSegment(y, dtMs, base) {
   const dtBase = dtMsToBaseUnits(dtMs, base);
   if (!Number.isFinite(dtBase) || dtBase <= 0) return 0;
 
-  // keep same behavior as live totalizer: non-positive rates do not accumulate
+  // ✅ keep same behavior as live totalizer: non-positive rates do not accumulate
   if (y <= 0) return 0;
 
   return y * dtBase;
@@ -598,8 +598,11 @@ export default function GraphicDisplayTimeseriesBarModal({
               ))}
 
               {monthlyTotals.map((m) => {
+                const totalValue = Number(m.total) || 0;
                 const h =
-                  maxValue > 0 ? Math.max(6, (Number(m.total) / maxValue) * 100) : 0;
+                  maxValue > 0 && totalValue > 0
+                    ? Math.max(6, (totalValue / maxValue) * 100)
+                    : 0;
 
                 return (
                   <div
@@ -648,11 +651,20 @@ export default function GraphicDisplayTimeseriesBarModal({
                           width: "100%",
                           maxWidth: 74,
                           height: `${h}%`,
-                          minHeight: maxValue > 0 ? 12 : 2,
-                          borderRadius: "12px 12px 0 0",
-                          border: `1px solid ${safeBarColor}`,
-                          background: `linear-gradient(180deg, ${safeBarColor}, ${safeBarColor})`,
-                          boxShadow: "0 6px 16px rgba(0,0,0,0.12)",
+                          minHeight: totalValue > 0 ? 12 : 0,
+                          borderRadius: totalValue > 0 ? "12px 12px 0 0" : "0",
+                          border:
+                            totalValue > 0
+                              ? `1px solid ${safeBarColor}`
+                              : "none",
+                          background:
+                            totalValue > 0
+                              ? `linear-gradient(180deg, ${safeBarColor}, ${safeBarColor})`
+                              : "transparent",
+                          boxShadow:
+                            totalValue > 0
+                              ? "0 6px 16px rgba(0,0,0,0.12)"
+                              : "none",
                         }}
                       />
                     </div>
@@ -685,8 +697,10 @@ export default function GraphicDisplayTimeseriesBarModal({
               }}
             >
               Each bar is the monthly totalizer amount for that month only.
-              The calculation is unit-aware, uses time spacing between points,
-              and does not bridge gaps larger than 1 hour.
+              Past months stay fixed from historian data, while the current month
+              keeps growing as new live points arrive. The calculation is
+              unit-aware, uses time spacing between points, and does not bridge
+              gaps larger than 1 hour.
             </div>
           </div>
 
