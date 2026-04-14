@@ -69,7 +69,6 @@ const CURRENT_PLAN_KEY = "professional";
 const CURRENT_PLAN_STATUS = "Active";
 const CURRENT_PLAN_RENEWAL = "Apr 30, 2026";
 const CURRENT_PLAN_DEVICES_USED = "12 / 50";
-const ADD_USER_TENANTS_PRICE = "$310";
 
 function getPlanActionLabel(planKey, currentPlanKey) {
   if (planKey === currentPlanKey) return "Current Plan";
@@ -444,23 +443,6 @@ export default function MySubscriptionSection({ onBack }) {
                   </div>
                 </div>
               )}
-
-              <div className="mt-4 rounded-xl border border-emerald-200 bg-white px-4 py-3">
-                <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
-                  <div>
-                    <div className="text-sm font-semibold text-slate-900">
-                      Add User-Tenants
-                    </div>
-                    <div className="mt-1 text-sm text-slate-500">
-                      Add extra tenant-user access to your subscription.
-                    </div>
-                  </div>
-
-                  <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2 text-sm font-semibold text-emerald-700">
-                    Cost {ADD_USER_TENANTS_PRICE}
-                  </div>
-                </div>
-              </div>
 
               <div className="mt-4 flex justify-center">
                 <button
