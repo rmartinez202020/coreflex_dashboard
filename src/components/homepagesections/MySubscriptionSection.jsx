@@ -328,27 +328,41 @@ export default function MySubscriptionSection({ onBack }) {
                   </div>
                 </div>
 
-                <div className="inline-flex rounded-md border border-slate-300 bg-white p-[2px] self-start">
+                <div className="flex items-center gap-2 self-start">
                   <button
-                    onClick={() => setBillingMode("monthly")}
-                    className={`rounded-sm px-2.5 py-1 text-[11px] font-semibold leading-none transition ${
-                      billingMode === "monthly"
-                        ? "bg-emerald-600 text-white"
-                        : "text-slate-900 hover:bg-slate-100"
-                    }`}
+                    type="button"
+                    className="rounded-md border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 px-3 py-1 text-left transition"
                   >
-                    Monthly
+                    <div className="text-[10px] font-semibold leading-none text-emerald-700">
+                      Add Tenant-Users
+                    </div>
+                    <div className="mt-1 text-[11px] font-semibold leading-none text-slate-900">
+                      Cost {ADD_TENANT_USERS_PRICE}
+                    </div>
                   </button>
-                  <button
-                    onClick={() => setBillingMode("onetime")}
-                    className={`rounded-sm px-2.5 py-1 text-[11px] font-semibold leading-none transition ${
-                      billingMode === "onetime"
-                        ? "bg-emerald-600 text-white"
-                        : "text-slate-900 hover:bg-slate-100"
-                    }`}
-                  >
-                    One-Time License
-                  </button>
+
+                  <div className="inline-flex rounded-md border border-slate-300 bg-white p-[2px]">
+                    <button
+                      onClick={() => setBillingMode("monthly")}
+                      className={`rounded-sm px-2.5 py-1 text-[11px] font-semibold leading-none transition ${
+                        billingMode === "monthly"
+                          ? "bg-emerald-600 text-white"
+                          : "text-slate-900 hover:bg-slate-100"
+                      }`}
+                    >
+                      Monthly
+                    </button>
+                    <button
+                      onClick={() => setBillingMode("onetime")}
+                      className={`rounded-sm px-2.5 py-1 text-[11px] font-semibold leading-none transition ${
+                        billingMode === "onetime"
+                          ? "bg-emerald-600 text-white"
+                          : "text-slate-900 hover:bg-slate-100"
+                      }`}
+                    >
+                      One-Time License
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -365,20 +379,6 @@ export default function MySubscriptionSection({ onBack }) {
                   currentPlanKey={CURRENT_PLAN_KEY}
                 />
               ))}
-            </div>
-
-            <div className="px-4 pb-4 flex justify-end">
-              <button
-                type="button"
-                className="w-full md:w-[280px] rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 px-4 py-3 text-left transition"
-              >
-                <div className="text-xs font-semibold text-emerald-700">
-                  Add Tenant-Users
-                </div>
-                <div className="mt-1 text-base font-semibold text-slate-900">
-                  Cost {ADD_TENANT_USERS_PRICE}
-                </div>
-              </button>
             </div>
 
             {/* CHECKOUT SUMMARY */}
