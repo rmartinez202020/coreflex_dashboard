@@ -315,22 +315,22 @@ export default function MySubscriptionSection({ onBack }) {
           </div>
 
           {/* ACTION SECTION */}
-          <div className="mt-6 rounded-xl border border-slate-200 bg-white overflow-hidden">
-            <div className="bg-slate-900 px-4 py-3">
-              <div className="flex flex-col gap-3 xl:flex-row xl:items-center xl:justify-between">
+          <div className="mt-5 rounded-xl border border-slate-200 bg-white overflow-hidden">
+            <div className="bg-slate-900 px-4 py-2.5">
+              <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
                 <div>
-                  <div className="text-base font-semibold text-white">
+                  <div className="text-[15px] font-semibold leading-tight text-white">
                     Choose a Plan
                   </div>
-                  <div className="text-xs text-slate-300">
+                  <div className="mt-0.5 text-[11px] leading-tight text-slate-300">
                     Select a plan and billing type to continue to payment.
                   </div>
                 </div>
 
-                <div className="inline-flex rounded-lg border border-slate-300 bg-white p-1 self-start">
+                <div className="inline-flex rounded-md border border-slate-300 bg-white p-0.5 self-start">
                   <button
                     onClick={() => setBillingMode("monthly")}
-                    className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold leading-none transition ${
                       billingMode === "monthly"
                         ? "bg-emerald-600 text-white"
                         : "text-slate-900 hover:bg-slate-100"
@@ -340,7 +340,7 @@ export default function MySubscriptionSection({ onBack }) {
                   </button>
                   <button
                     onClick={() => setBillingMode("onetime")}
-                    className={`rounded-md px-4 py-2 text-sm font-semibold transition ${
+                    className={`rounded-md px-3 py-1.5 text-xs font-semibold leading-none transition ${
                       billingMode === "onetime"
                         ? "bg-emerald-600 text-white"
                         : "text-slate-900 hover:bg-slate-100"
