@@ -8,6 +8,10 @@ const ACCESS_OPTIONS = [
   { value: "read_control", label: "Read + Control" },
 ];
 
+// ✅ tenant-user subscription summary
+const TOTAL_TENANT_USER_SLOTS = 3;
+const ADD_TENANT_USER_COST = "$310";
+
 function normalizeAccess(value) {
   const v = String(value || "").toLowerCase().trim();
   if (v === "read_control" || v === "read-and-control") return "read_control";
@@ -276,6 +280,13 @@ export default function TenantUsersPage({
     });
   }, [users, searchCustomer, searchEmail]);
 
+  // ✅ subscription counters for top section
+  const usedTenantUsers = users.length;
+  const availableTenantUsers = Math.max(
+    0,
+    TOTAL_TENANT_USER_SLOTS - usedTenantUsers
+  );
+
   const resetForm = () => {
     setForm({
       name: "",
@@ -535,6 +546,39 @@ export default function TenantUsersPage({
           Failed to load tenant users from backend: {usersError}
         </div>
       ) : null}
+
+      {/* TENANT USER SUMMARY */}
+      <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+        <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+          <div className="text-xs font-medium text-gray-600">
+            Available Tenant-Users
+          </div>
+          <div className="mt-1 text-xl font-semibold text-gray-900">
+            {availableTenantUsers}
+          </div>
+        </div>
+
+        <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
+          <div className="text-xs font-medium text-gray-600">
+            Used Tenant-Users
+          </div>
+          <div className="mt-1 text-xl font-semibold text-gray-900">
+            {usedTenantUsers} / {TOTAL_TENANT_USER_SLOTS}
+          </div>
+        </div>
+
+        <button
+          type="button"
+          className="rounded-lg border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 px-4 py-3 text-left transition"
+        >
+          <div className="text-xs font-semibold text-emerald-700">
+            Add a Tenant-User
+          </div>
+          <div className="mt-1 text-xl font-semibold text-gray-900">
+            Cost {ADD_TENANT_USER_COST}
+          </div>
+        </button>
+      </div>
 
       {/* SEARCH BAR */}
       <div className="mb-4 rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">

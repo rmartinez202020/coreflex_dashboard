@@ -69,7 +69,6 @@ const CURRENT_PLAN_KEY = "professional";
 const CURRENT_PLAN_STATUS = "Active";
 const CURRENT_PLAN_RENEWAL = "Apr 30, 2026";
 const CURRENT_PLAN_DEVICES_USED = "12 / 50";
-const ADD_TENANT_USERS_PRICE = "$310";
 
 function getPlanActionLabel(planKey, currentPlanKey) {
   if (planKey === currentPlanKey) return "Current Plan";
@@ -328,41 +327,27 @@ export default function MySubscriptionSection({ onBack }) {
                   </div>
                 </div>
 
-                <div className="flex items-center gap-2 self-start">
+                <div className="inline-flex rounded-md border border-slate-300 bg-white p-[2px] self-start">
                   <button
-                    type="button"
-                    className="rounded-md border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 px-3 py-1 text-left transition"
+                    onClick={() => setBillingMode("monthly")}
+                    className={`rounded-sm px-2.5 py-1 text-[11px] font-semibold leading-none transition ${
+                      billingMode === "monthly"
+                        ? "bg-emerald-600 text-white"
+                        : "text-slate-900 hover:bg-slate-100"
+                    }`}
                   >
-                    <div className="text-[10px] font-semibold leading-none text-emerald-700">
-                      Add Tenant-Users
-                    </div>
-                    <div className="mt-1 text-[11px] font-semibold leading-none text-slate-900">
-                      Cost {ADD_TENANT_USERS_PRICE}
-                    </div>
+                    Monthly
                   </button>
-
-                  <div className="inline-flex rounded-md border border-slate-300 bg-white p-[2px]">
-                    <button
-                      onClick={() => setBillingMode("monthly")}
-                      className={`rounded-sm px-2.5 py-1 text-[11px] font-semibold leading-none transition ${
-                        billingMode === "monthly"
-                          ? "bg-emerald-600 text-white"
-                          : "text-slate-900 hover:bg-slate-100"
-                      }`}
-                    >
-                      Monthly
-                    </button>
-                    <button
-                      onClick={() => setBillingMode("onetime")}
-                      className={`rounded-sm px-2.5 py-1 text-[11px] font-semibold leading-none transition ${
-                        billingMode === "onetime"
-                          ? "bg-emerald-600 text-white"
-                          : "text-slate-900 hover:bg-slate-100"
-                      }`}
-                    >
-                      One-Time License
-                    </button>
-                  </div>
+                  <button
+                    onClick={() => setBillingMode("onetime")}
+                    className={`rounded-sm px-2.5 py-1 text-[11px] font-semibold leading-none transition ${
+                      billingMode === "onetime"
+                        ? "bg-emerald-600 text-white"
+                        : "text-slate-900 hover:bg-slate-100"
+                    }`}
+                  >
+                    One-Time License
+                  </button>
                 </div>
               </div>
             </div>
