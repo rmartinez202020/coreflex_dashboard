@@ -316,8 +316,8 @@ export default function MySubscriptionSection({ onBack }) {
 
           {/* ACTION SECTION */}
           <div className="mt-5 rounded-xl border border-slate-200 bg-white overflow-hidden">
-            <div className="bg-slate-900 px-4 py-2.5">
-              <div className="flex flex-col gap-2 xl:flex-row xl:items-center xl:justify-between">
+            <div className="bg-slate-900 px-4 py-2">
+              <div className="flex flex-col gap-1.5 xl:flex-row xl:items-center xl:justify-between">
                 <div>
                   <div className="text-[15px] font-semibold leading-tight text-white">
                     Choose a Plan
@@ -327,10 +327,10 @@ export default function MySubscriptionSection({ onBack }) {
                   </div>
                 </div>
 
-                <div className="inline-flex rounded-md border border-slate-300 bg-white p-0.5 self-start">
+                <div className="inline-flex rounded-md border border-slate-300 bg-white p-[2px] self-start">
                   <button
                     onClick={() => setBillingMode("monthly")}
-                    className={`rounded-md px-3 py-1.5 text-xs font-semibold leading-none transition ${
+                    className={`rounded-sm px-2.5 py-1 text-[11px] font-semibold leading-none transition ${
                       billingMode === "monthly"
                         ? "bg-emerald-600 text-white"
                         : "text-slate-900 hover:bg-slate-100"
@@ -340,7 +340,7 @@ export default function MySubscriptionSection({ onBack }) {
                   </button>
                   <button
                     onClick={() => setBillingMode("onetime")}
-                    className={`rounded-md px-3 py-1.5 text-xs font-semibold leading-none transition ${
+                    className={`rounded-sm px-2.5 py-1 text-[11px] font-semibold leading-none transition ${
                       billingMode === "onetime"
                         ? "bg-emerald-600 text-white"
                         : "text-slate-900 hover:bg-slate-100"
