@@ -69,6 +69,7 @@ const CURRENT_PLAN_KEY = "professional";
 const CURRENT_PLAN_STATUS = "Active";
 const CURRENT_PLAN_RENEWAL = "Apr 30, 2026";
 const CURRENT_PLAN_DEVICES_USED = "12 / 50";
+const ADD_TENANT_USERS_PRICE = "$310";
 
 function getPlanActionLabel(planKey, currentPlanKey) {
   if (planKey === currentPlanKey) return "Current Plan";
@@ -275,47 +276,59 @@ export default function MySubscriptionSection({ onBack }) {
           </div>
         </div>
 
-        <div className="px-5 pb-5 pt-1">
+        <div className="px-4 pb-5 pt-1">
           {/* CURRENT */}
-          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
-            <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
-              <div className="text-xs text-slate-500">Plan</div>
-              <div className="mt-1 font-semibold text-slate-900">
+          <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-2">
+            <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
+              <div className="text-[11px] text-slate-500">Plan</div>
+              <div className="mt-1 text-sm font-semibold text-slate-900">
                 {currentPlan.name}
               </div>
             </div>
 
-            <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
-              <div className="text-xs text-slate-500">Status</div>
-              <div className="mt-1 font-semibold text-emerald-700">
+            <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
+              <div className="text-[11px] text-slate-500">Status</div>
+              <div className="mt-1 text-sm font-semibold text-emerald-700">
                 {CURRENT_PLAN_STATUS}
               </div>
             </div>
 
-            <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
-              <div className="text-xs text-slate-500">Renewal</div>
-              <div className="mt-1 font-semibold text-slate-900">
+            <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
+              <div className="text-[11px] text-slate-500">Renewal</div>
+              <div className="mt-1 text-sm font-semibold text-slate-900">
                 {CURRENT_PLAN_RENEWAL}
               </div>
             </div>
 
-            <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
-              <div className="text-xs text-slate-500">Devices Used</div>
-              <div className="mt-1 font-semibold text-slate-900">
+            <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
+              <div className="text-[11px] text-slate-500">Devices Used</div>
+              <div className="mt-1 text-sm font-semibold text-slate-900">
                 {CURRENT_PLAN_DEVICES_USED}
               </div>
             </div>
 
-            <div className="rounded-lg bg-white border border-emerald-200 px-4 py-3">
-              <div className="text-xs text-slate-500">Tenants-Users</div>
-              <div className="mt-1 font-semibold text-slate-900">
+            <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
+              <div className="text-[11px] text-slate-500">Tenants-Users</div>
+              <div className="mt-1 text-sm font-semibold text-slate-900">
                 {currentPlan.tenantsUsers}
               </div>
             </div>
+
+            <button
+              type="button"
+              className="rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 px-3 py-2 text-left transition"
+            >
+              <div className="text-[11px] text-emerald-700 font-semibold">
+                Add Tenant-Users
+              </div>
+              <div className="mt-1 text-sm font-semibold text-slate-900">
+                Cost {ADD_TENANT_USERS_PRICE}
+              </div>
+            </button>
           </div>
 
           {/* ACTION SECTION */}
-          <div className="mt-5 rounded-xl border border-slate-200 bg-white overflow-hidden">
+          <div className="mt-4 rounded-xl border border-slate-200 bg-white overflow-hidden">
             <div className="bg-slate-900 px-4 py-2">
               <div className="flex flex-col gap-1.5 xl:flex-row xl:items-center xl:justify-between">
                 <div>
