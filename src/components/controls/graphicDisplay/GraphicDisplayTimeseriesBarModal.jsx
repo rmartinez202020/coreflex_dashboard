@@ -17,6 +17,7 @@ const MONTH_LABELS = [
 ];
 
 const DEFAULT_BAR_COLOR = "#facc15";
+const MAX_CONTINUOUS_GAP_MS = 60 * 60 * 1000; // 1 hour
 
 function rateUnitToTimeBase(rateUnit) {
   const u = String(rateUnit || "").trim();
@@ -68,79 +69,74 @@ function normalizePoints(points) {
     .sort((a, b) => a.t - b.t);
 }
 
-function lerpValueAtTime(p1, p2, targetT) {
-  const t1 = Number(p1?.t);
-  const t2 = Number(p2?.t);
-  const y1 = Number(p1?.y);
-  const y2 = Number(p2?.y);
+function dtMsToBaseUnits(dtMs, base) {
+  if (!Number.isFinite(dtMs) || dtMs <= 0) return 0;
 
-  if (
-    !Number.isFinite(t1) ||
-    !Number.isFinite(t2) ||
-    !Number.isFinite(y1) ||
-    !Number.isFinite(y2)
-  ) {
-    return null;
-  }
+  if (base === "minute") return dtMs / 60000;
+  if (base === "hour") return dtMs / 3600000;
+  if (base === "second") return dtMs / 1000;
+  if (base === "day") return dtMs / 86400000;
 
-  if (t2 <= t1) return y1;
-  if (targetT <= t1) return y1;
-  if (targetT >= t2) return y2;
-
-  const ratio = (targetT - t1) / (t2 - t1);
-  return y1 + (y2 - y1) * ratio;
+  return 0;
 }
 
-function integrateSegment(y1, y2, dtMs, base) {
-  if (!Number.isFinite(y1) || !Number.isFinite(y2) || !Number.isFinite(dtMs)) {
-    return 0;
-  }
-  if (dtMs <= 0) return 0;
+function accumulateStepSegment(y, dtMs, base) {
+  if (!Number.isFinite(y) || !Number.isFinite(dtMs) || dtMs <= 0) return 0;
+  if (!base) return 0;
 
-  let dtBase = 0;
-  if (base === "minute") dtBase = dtMs / 60000;
-  else if (base === "hour") dtBase = dtMs / 3600000;
-  else if (base === "second") dtBase = dtMs / 1000;
-  else if (base === "day") dtBase = dtMs / 86400000;
-  else return 0;
-
+  const dtBase = dtMsToBaseUnits(dtMs, base);
   if (!Number.isFinite(dtBase) || dtBase <= 0) return 0;
 
-  const avgRate = (y1 + y2) / 2;
+  // keep same behavior as live totalizer: non-positive rates do not accumulate
+  if (y <= 0) return 0;
 
-  // ✅ same behavior as your live totalizer: do not accumulate if avg <= 0
-  if (!Number.isFinite(avgRate) || avgRate <= 0) return 0;
-
-  return avgRate * dtBase;
+  return y * dtBase;
 }
 
-function integrateWithinRange(points, startT, endT, base) {
+function accumulateWithinMonth(points, startT, endT, rateUnit) {
   if (!Array.isArray(points) || points.length < 2) return 0;
   if (!Number.isFinite(startT) || !Number.isFinite(endT) || endT <= startT) {
     return 0;
   }
+
+  const base = rateUnitToTimeBase(rateUnit);
   if (!base) return 0;
 
   let total = 0;
 
-  for (let i = 1; i < points.length; i++) {
-    const p1 = points[i - 1];
-    const p2 = points[i];
+  for (let i = 0; i < points.length - 1; i++) {
+    const p1 = points[i];
+    const p2 = points[i + 1];
 
-    const t1 = Number(p1.t);
-    const t2 = Number(p2.t);
-    if (!Number.isFinite(t1) || !Number.isFinite(t2) || t2 <= t1) continue;
+    const t1 = Number(p1?.t);
+    const t2 = Number(p2?.t);
+    const y1 = Number(p1?.y);
 
+    if (
+      !Number.isFinite(t1) ||
+      !Number.isFinite(t2) ||
+      !Number.isFinite(y1) ||
+      t2 <= t1
+    ) {
+      continue;
+    }
+
+    const rawGapMs = t2 - t1;
+
+    // ✅ if gap between consecutive points is more than 1 hour,
+    // do not treat it as continuous data
+    if (rawGapMs > MAX_CONTINUOUS_GAP_MS) {
+      continue;
+    }
+
+    // ✅ simple month clipping without interpolation:
+    // hold p1.y constant until p2, but only for the interval that lies in this month
     const segStart = Math.max(startT, t1);
     const segEnd = Math.min(endT, t2);
+
     if (segEnd <= segStart) continue;
 
-    const yStart =
-      segStart === t1 ? p1.y : lerpValueAtTime(p1, p2, segStart);
-    const yEnd =
-      segEnd === t2 ? p2.y : lerpValueAtTime(p1, p2, segEnd);
-
-    total += integrateSegment(yStart, yEnd, segEnd - segStart, base);
+    total += accumulateStepSegment(y1, segEnd - segStart, base);
   }
 
   return total;
@@ -158,6 +154,7 @@ function collectAvailableYears(points) {
 
 function buildMonthlyTotals(points, year, rateUnit) {
   const base = rateUnitToTimeBase(rateUnit);
+
   if (!base) {
     return MONTH_LABELS.map((label, idx) => ({
       monthIndex: idx,
@@ -172,8 +169,12 @@ function buildMonthlyTotals(points, year, rateUnit) {
     const start = new Date(year, idx, 1, 0, 0, 0, 0).getTime();
     const end = new Date(year, idx + 1, 1, 0, 0, 0, 0).getTime();
 
-    // ✅ each month starts from zero independently
-    const total = integrateWithinRange(points, start, end, base);
+    // ✅ monthly total uses:
+    // - all available points
+    // - unit-aware step totalization
+    // - no interpolation
+    // - no continuity across >1h gaps
+    const total = accumulateWithinMonth(points, start, end, rateUnit);
 
     return {
       monthIndex: idx,
@@ -197,7 +198,7 @@ function normalizeHexColor(v, fallback = DEFAULT_BAR_COLOR) {
   return fallback;
 }
 
-// ✅ NEW: stable storage key per widget/modal title + units
+// ✅ stable storage key per widget/modal title + units
 function buildBarColorStorageKey(title, totalizerRateUnit, totalizerTotalUnit) {
   const safeTitle = String(title || "Graphic Display").trim().toLowerCase();
   const safeRate = String(totalizerRateUnit || "").trim().toLowerCase();
@@ -239,7 +240,6 @@ export default function GraphicDisplayTimeseriesBarModal({
     setSelectedYear(defaultYear);
   }, [defaultYear, open]);
 
-  // ✅ NEW: restore saved bar color
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -255,7 +255,6 @@ export default function GraphicDisplayTimeseriesBarModal({
     }
   }, [storageKey, open]);
 
-  // ✅ NEW: save bar color whenever it changes
   useEffect(() => {
     if (typeof window === "undefined") return;
 
@@ -457,7 +456,6 @@ export default function GraphicDisplayTimeseriesBarModal({
               flexWrap: "wrap",
             }}
           >
-            {/* ✅ Bar Color control with persistence */}
             <div
               style={{
                 display: "flex",
@@ -619,7 +617,6 @@ export default function GraphicDisplayTimeseriesBarModal({
                       totalizerTotalUnit || ""
                     }`}
                   >
-                    {/* ✅ value label stays in fixed row, no longer rides with bar height */}
                     <div
                       style={{
                         fontSize: 12,
@@ -637,7 +634,6 @@ export default function GraphicDisplayTimeseriesBarModal({
                       {fmtNum(m.total)}
                     </div>
 
-                    {/* ✅ bar gets its own flex area */}
                     <div
                       style={{
                         width: "100%",
@@ -689,8 +685,8 @@ export default function GraphicDisplayTimeseriesBarModal({
               }}
             >
               Each bar is the monthly totalizer amount for that month only.
-              January starts at zero, February starts again at zero, then March,
-              April, and so on.
+              The calculation is unit-aware, uses time spacing between points,
+              and does not bridge gaps larger than 1 hour.
             </div>
           </div>
 
