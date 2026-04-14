@@ -278,7 +278,7 @@ export default function MySubscriptionSection({ onBack }) {
 
         <div className="px-4 pb-5 pt-1">
           {/* CURRENT */}
-          <div className="grid grid-cols-1 md:grid-cols-3 xl:grid-cols-6 gap-2">
+          <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-2">
             <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
               <div className="text-[11px] text-slate-500">Plan</div>
               <div className="mt-1 text-sm font-semibold text-slate-900">
@@ -313,18 +313,6 @@ export default function MySubscriptionSection({ onBack }) {
                 {currentPlan.tenantsUsers}
               </div>
             </div>
-
-            <button
-              type="button"
-              className="rounded-lg border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 px-3 py-2 text-left transition"
-            >
-              <div className="text-[11px] text-emerald-700 font-semibold">
-                Add Tenant-Users
-              </div>
-              <div className="mt-1 text-sm font-semibold text-slate-900">
-                Cost {ADD_TENANT_USERS_PRICE}
-              </div>
-            </button>
           </div>
 
           {/* ACTION SECTION */}
@@ -377,6 +365,20 @@ export default function MySubscriptionSection({ onBack }) {
                   currentPlanKey={CURRENT_PLAN_KEY}
                 />
               ))}
+            </div>
+
+            <div className="px-4 pb-4 flex justify-end">
+              <button
+                type="button"
+                className="w-full md:w-[280px] rounded-xl border border-emerald-300 bg-emerald-50 hover:bg-emerald-100 px-4 py-3 text-left transition"
+              >
+                <div className="text-xs font-semibold text-emerald-700">
+                  Add Tenant-Users
+                </div>
+                <div className="mt-1 text-base font-semibold text-slate-900">
+                  Cost {ADD_TENANT_USERS_PRICE}
+                </div>
+              </button>
             </div>
 
             {/* CHECKOUT SUMMARY */}
