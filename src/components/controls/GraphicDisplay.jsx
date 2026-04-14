@@ -19,10 +19,161 @@ import {
   normalizeLineColor,
   normalizeOnlineStatusFromRow,
   RATE_TO_TOTAL_UNIT,
-  rateUnitToTimeBase,
 } from "./graphicDisplay/runtimeHelpers";
 import { API_URL } from "../../config/api";
 import { getToken } from "../../utils/authToken";
+
+const MAX_CONTINUOUS_GAP_MS = 60 * 60 * 1000; // 1 hour
+
+function toNumber(v) {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : null;
+}
+
+function normalizeBarMathPoints(points) {
+  return (Array.isArray(points) ? points : [])
+    .filter((p) => !p?.gap)
+    .map((p) => ({
+      t: toNumber(p?.t),
+      y: toNumber(p?.y),
+    }))
+    .filter((p) => Number.isFinite(p.t) && Number.isFinite(p.y))
+    .sort((a, b) => a.t - b.t);
+}
+
+function rateUnitToTimeBase(rateUnit) {
+  const u = String(rateUnit || "").trim();
+
+  if (
+    ["GPM", "CFM", "SCFM", "ACFM", "LPM", "m³/min", "kg/min", "lb/min"].includes(
+      u
+    )
+  ) {
+    return "minute";
+  }
+
+  if (
+    [
+      "GPH",
+      "BBL/h",
+      "LPH",
+      "m³/h",
+      "kg/h",
+      "lb/h",
+      "ton/h",
+      "kW",
+      "BTU/h",
+      "MBTU/h",
+    ].includes(u)
+  ) {
+    return "hour";
+  }
+
+  if (["kg/s", "W"].includes(u)) return "second";
+  if (["BPD"].includes(u)) return "day";
+
+  return "";
+}
+
+function dtMsToBaseUnits(dtMs, base) {
+  if (!Number.isFinite(dtMs) || dtMs <= 0) return 0;
+
+  if (base === "minute") return dtMs / 60000;
+  if (base === "hour") return dtMs / 3600000;
+  if (base === "second") return dtMs / 1000;
+  if (base === "day") return dtMs / 86400000;
+
+  return 0;
+}
+
+function accumulateStepSegment(y, dtMs, base) {
+  if (!Number.isFinite(y) || !Number.isFinite(dtMs) || dtMs <= 0) return 0;
+  if (!base) return 0;
+
+  const dtBase = dtMsToBaseUnits(dtMs, base);
+  if (!Number.isFinite(dtBase) || dtBase <= 0) return 0;
+
+  if (y <= 0) return 0;
+
+  return y * dtBase;
+}
+
+function accumulateWithinMonth(points, startT, endT, rateUnit) {
+  if (!Array.isArray(points) || points.length < 2) return 0;
+  if (!Number.isFinite(startT) || !Number.isFinite(endT) || endT <= startT) {
+    return 0;
+  }
+
+  const base = rateUnitToTimeBase(rateUnit);
+  if (!base) return 0;
+
+  let total = 0;
+
+  for (let i = 0; i < points.length - 1; i++) {
+    const p1 = points[i];
+    const p2 = points[i + 1];
+
+    const t1 = Number(p1?.t);
+    const t2 = Number(p2?.t);
+    const y1 = Number(p1?.y);
+
+    if (
+      !Number.isFinite(t1) ||
+      !Number.isFinite(t2) ||
+      !Number.isFinite(y1) ||
+      t2 <= t1
+    ) {
+      continue;
+    }
+
+    const rawGapMs = t2 - t1;
+    if (rawGapMs > MAX_CONTINUOUS_GAP_MS) continue;
+
+    const segStart = Math.max(startT, t1);
+    const segEnd = Math.min(endT, t2);
+
+    if (segEnd <= segStart) continue;
+
+    total += accumulateStepSegment(y1, segEnd - segStart, base);
+  }
+
+  return total;
+}
+
+function collectAvailableYears(points) {
+  const years = new Set();
+  for (const p of points) {
+    const t = Number(p?.t);
+    if (!Number.isFinite(t)) continue;
+    years.add(new Date(t).getFullYear());
+  }
+  return [...years].sort((a, b) => a - b);
+}
+
+function buildMonthlyTotals(points, year, rateUnit) {
+  const base = rateUnitToTimeBase(rateUnit);
+
+  if (!base) {
+    return Array.from({ length: 12 }, (_, idx) => ({
+      monthIndex: idx,
+      total: 0,
+      start: new Date(year, idx, 1).getTime(),
+      end: new Date(year, idx + 1, 1).getTime(),
+    }));
+  }
+
+  return Array.from({ length: 12 }, (_, idx) => {
+    const start = new Date(year, idx, 1, 0, 0, 0, 0).getTime();
+    const end = new Date(year, idx + 1, 1, 0, 0, 0, 0).getTime();
+
+    return {
+      monthIndex: idx,
+      total: accumulateWithinMonth(points, start, end, rateUnit),
+      start,
+      end,
+    };
+  });
+}
 
 export default function GraphicDisplay({
   tank,
@@ -58,7 +209,6 @@ export default function GraphicDisplay({
     return unitMs * windowSize;
   }, [timeUnit, windowSize]);
 
-  // ✅ FIX: default to 3000ms to match modal/common poller
   const sampleMs = Number(T?.sampleMs ?? 3000);
 
   const yMin = Number.isFinite(T?.yMin) ? T.yMin : 0;
@@ -72,11 +222,6 @@ export default function GraphicDisplay({
   const mathFormula = T?.mathFormula ?? "";
   const lineColor = normalizeLineColor(T?.lineColor);
 
-  // ✅ IMPORTANT:
-  // Prefer the widget's own saved/internal dashboard id first.
-  // Public launch injects properties.dashboardId with the customer dashboard id,
-  // but the GraphicDisplay binding/history may still be stored under the
-  // original internal widget dashboard id (often "main").
   const resolvedDashboardId = useMemo(() => {
     const bindingDash = String(
       T?.bindingDashboardId ||
@@ -121,14 +266,11 @@ export default function GraphicDisplay({
   const totalizerLastPointRef = useRef(null);
   const lastOnlineRef = useRef(null);
 
-  // ✅ NEW: runtime Timeseries Bar modal state
   const [timeseriesBarOpen, setTimeseriesBarOpen] = useState(false);
 
-  // ✅ NEW: force historian refresh every time user enters Play / Launch
   const [historyReloadSeq, setHistoryReloadSeq] = useState(0);
   const prevRunModeRef = useRef(isRunMode);
 
-  // ✅ NEW: avoid inserting a fake visual gap right after a fresh history reload
   const suppressNextResumeGapRef = useRef(false);
 
   useEffect(() => {
@@ -234,10 +376,7 @@ export default function GraphicDisplay({
   const [err, setErr] = useState("");
   const [deviceOnline, setDeviceOnline] = useState(null);
 
-  // ✅ rolling window points for the trend chart only
   const [points, setPoints] = useState([]);
-
-  // ✅ full historian + live append for Timeseries Bar only
   const [barPoints, setBarPoints] = useState([]);
 
   const [historyLoading, setHistoryLoading] = useState(false);
@@ -283,8 +422,6 @@ export default function GraphicDisplay({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // ✅ load full historian from backend
-  // ✅ refresh again every time user enters Play / Launch
   useEffect(() => {
     let cancelled = false;
 
@@ -300,7 +437,6 @@ export default function GraphicDisplay({
       const tenantEmailSafe = String(tenantEmail || "").trim().toLowerCase();
       const tenantAccessSafe = String(tenantAccessLevel || "").trim();
 
-      // ✅ allow private JWT flow OR public tenant flow
       if (!token && !tenantEmailSafe) {
         setPoints([]);
         setBarPoints([]);
@@ -308,7 +444,6 @@ export default function GraphicDisplay({
         return;
       }
 
-      // ✅ first-time widget: no device/signal assigned yet
       if (!bindDeviceId || !bindField) {
         setPoints([]);
         setBarPoints([]);
@@ -378,41 +513,24 @@ export default function GraphicDisplay({
             normalized.length > 0 ? normalized[normalized.length - 1] : null,
         });
 
-        // ✅ chart gets rolling window only
         setPoints(clipped);
-
-        // ✅ timeseries bar gets full historian and stays fixed for past months
         setBarPoints(normalized);
 
-        if (
-          !singleUnitsEnabled &&
-          tankTotEnabled &&
-          totalizerRateUnit &&
-          totalizerTotalUnit
-        ) {
-          const seededTotal = integrateRateToTotal(clipped, totalizerRateUnit);
-          const safeSeed = Number.isFinite(seededTotal) ? seededTotal : 0;
+        setRunningTotalizer(0);
+        totalizerAccumRef.current = 0;
 
-          setRunningTotalizer(safeSeed);
-          totalizerAccumRef.current = safeSeed;
+        const lastHistPoint = [...clipped]
+          .reverse()
+          .find(
+            (p) =>
+              !p?.gap &&
+              Number.isFinite(Number(p?.t)) &&
+              Number.isFinite(Number(p?.y))
+          );
 
-          const lastHistPoint = [...clipped]
-            .reverse()
-            .find(
-              (p) =>
-                !p?.gap &&
-                Number.isFinite(Number(p?.t)) &&
-                Number.isFinite(Number(p?.y))
-            );
-
-          totalizerLastPointRef.current = lastHistPoint
-            ? { t: Number(lastHistPoint.t), y: Number(lastHistPoint.y) }
-            : null;
-        } else {
-          setRunningTotalizer(0);
-          totalizerAccumRef.current = 0;
-          totalizerLastPointRef.current = null;
-        }
+        totalizerLastPointRef.current = lastHistPoint
+          ? { t: Number(lastHistPoint.t), y: Number(lastHistPoint.y) }
+          : null;
 
         const lastHistOnlinePoint = [...clipped]
           .reverse()
@@ -457,10 +575,6 @@ export default function GraphicDisplay({
     widgetId,
     resolvedDashboardId,
     windowMs,
-    singleUnitsEnabled,
-    tankTotEnabled,
-    totalizerRateUnit,
-    totalizerTotalUnit,
     tenantEmail,
     tenantAccessLevel,
     isRunMode,
@@ -469,7 +583,6 @@ export default function GraphicDisplay({
     bindField,
   ]);
 
-  // ✅ if user pauses, insert a gap marker
   useEffect(() => {
     if (!bindDeviceId || !bindField) return;
 
@@ -494,7 +607,6 @@ export default function GraphicDisplay({
 
   const lastSampleAtRef = useRef(0);
 
-  // ✅ MAIN LIVE APPEND (common poller)
   useEffect(() => {
     if (!isRunMode) return;
     if (!isPlaying) return;
@@ -621,52 +733,8 @@ export default function GraphicDisplay({
       lastOnlineRef.current = true;
 
       if (Number.isFinite(out)) {
-        if (
-          isOnlineNow &&
-          !singleUnitsEnabled &&
-          totEnabled &&
-          totalizerRateUnit &&
-          totalizerTotalUnit
-        ) {
-          const prevPoint = totalizerLastPointRef.current;
-          const currPoint = { t: now, y: Number(out) };
+        totalizerLastPointRef.current = { t: now, y: Number(out) };
 
-          if (
-            prevPoint &&
-            Number.isFinite(prevPoint.t) &&
-            Number.isFinite(prevPoint.y) &&
-            Number.isFinite(currPoint.t) &&
-            Number.isFinite(currPoint.y) &&
-            currPoint.t > prevPoint.t
-          ) {
-            const base = rateUnitToTimeBase(totalizerRateUnit);
-            const dtMs = currPoint.t - prevPoint.t;
-
-            let dtBase = 0;
-            if (base === "minute") dtBase = dtMs / 60000;
-            else if (base === "hour") dtBase = dtMs / 3600000;
-            else if (base === "second") dtBase = dtMs / 1000;
-            else if (base === "day") dtBase = dtMs / 86400000;
-
-            const avgRate = (prevPoint.y + currPoint.y) / 2;
-
-            if (
-              Number.isFinite(dtBase) &&
-              dtBase > 0 &&
-              Number.isFinite(avgRate) &&
-              avgRate > 0
-            ) {
-              totalizerAccumRef.current += avgRate * dtBase;
-              setRunningTotalizer(totalizerAccumRef.current);
-            }
-          }
-
-          totalizerLastPointRef.current = currPoint;
-        } else {
-          totalizerLastPointRef.current = null;
-        }
-
-        // ✅ rolling trend chart points
         setPoints((prev) => {
           const lastPoint = prev.length ? prev[prev.length - 1] : null;
 
@@ -694,7 +762,6 @@ export default function GraphicDisplay({
           return next;
         });
 
-        // ✅ full historian for Timeseries Bar
         setBarPoints((prev) => {
           const lastPoint = prev.length ? prev[prev.length - 1] : null;
 
@@ -742,10 +809,6 @@ export default function GraphicDisplay({
     mathFormula,
     err,
     windowMs,
-    singleUnitsEnabled,
-    totEnabled,
-    totalizerRateUnit,
-    totalizerTotalUnit,
   ]);
 
   const exploreFilteredPoints = useMemo(() => {
@@ -758,8 +821,9 @@ export default function GraphicDisplay({
       const t = Number(p?.t);
 
       if (!Number.isFinite(t)) return false;
-      if (startMs !== null && Number.isFinite(startMs) && t < startMs)
+      if (startMs !== null && Number.isFinite(startMs) && t < startMs) {
         return false;
+      }
       if (endMs !== null && Number.isFinite(endMs) && t > endMs) return false;
 
       return true;
@@ -795,19 +859,36 @@ export default function GraphicDisplay({
     dbgWarn,
   });
 
+  const normalizedBarPoints = useMemo(() => {
+    return normalizeBarMathPoints(barPoints);
+  }, [barPoints]);
+
+  const totalizerDisplayYear = useMemo(() => {
+    const years = collectAvailableYears(normalizedBarPoints);
+    if (years.length) return years[years.length - 1];
+    return new Date().getFullYear();
+  }, [normalizedBarPoints]);
+
   const totalizerValue = useMemo(() => {
     if (singleUnitsEnabled) return null;
     if (!totEnabled) return null;
     if (!totalizerRateUnit) return null;
     if (!totalizerTotalUnit) return null;
 
-    return Number.isFinite(runningTotalizer) ? runningTotalizer : 0;
+    const monthlyTotals = buildMonthlyTotals(
+      normalizedBarPoints,
+      totalizerDisplayYear,
+      totalizerRateUnit
+    );
+
+    return monthlyTotals.reduce((acc, m) => acc + (Number(m.total) || 0), 0);
   }, [
     singleUnitsEnabled,
     totEnabled,
     totalizerRateUnit,
     totalizerTotalUnit,
-    runningTotalizer,
+    normalizedBarPoints,
+    totalizerDisplayYear,
   ]);
 
   const hoverTotalizerValue = useMemo(() => {
