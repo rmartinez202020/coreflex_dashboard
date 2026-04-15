@@ -9,6 +9,8 @@ import ForgotPasswordModal from "../components/ForgotPasswordModal";
 import { setToken, clearAuth } from "../utils/authToken";
 
 const MIN_LOADING_TIME = 2000;
+const BROWSER_DEVICE_KEY_STORAGE = "coreflex_browser_device_key";
+const SESSION_TOKEN_STORAGE = "coreflex_session_token";
 
 // ✅ Detect PHONES only (allow iPads + desktops)
 function isPhoneDevice() {
@@ -24,6 +26,48 @@ function isPhoneDevice() {
   if (isAndroid && isMobileKeyword && !isIPad) return true;
 
   return false;
+}
+
+function generateBrowserDeviceKey() {
+  try {
+    if (window.crypto?.randomUUID) {
+      return `cfx-${window.crypto.randomUUID()}`;
+    }
+  } catch {
+    // ignore
+  }
+
+  const rand = Math.random().toString(36).slice(2);
+  const time = Date.now().toString(36);
+  return `cfx-${time}-${rand}`;
+}
+
+function getOrCreateBrowserDeviceKey() {
+  try {
+    const existing = String(
+      localStorage.getItem(BROWSER_DEVICE_KEY_STORAGE) || ""
+    ).trim();
+
+    if (existing) return existing;
+
+    const created = generateBrowserDeviceKey();
+    localStorage.setItem(BROWSER_DEVICE_KEY_STORAGE, created);
+    return created;
+  } catch {
+    return generateBrowserDeviceKey();
+  }
+}
+
+function saveSessionToken(sessionToken) {
+  try {
+    if (sessionToken) {
+      localStorage.setItem(SESSION_TOKEN_STORAGE, String(sessionToken));
+    } else {
+      localStorage.removeItem(SESSION_TOKEN_STORAGE);
+    }
+  } catch {
+    // ignore
+  }
 }
 
 export default function LoginPage() {
@@ -68,13 +112,19 @@ export default function LoginPage() {
 
     try {
       clearAuth();
+      saveSessionToken("");
 
       const emailClean = String(email || "").trim();
+      const browserDeviceKey = getOrCreateBrowserDeviceKey();
 
       const res = await fetch(`${API_URL}/auth/login`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: emailClean, password }),
+        body: JSON.stringify({
+          email: emailClean,
+          password,
+          browser_device_key: browserDeviceKey,
+        }),
       });
 
       let data = {};
@@ -86,21 +136,38 @@ export default function LoginPage() {
 
       if (!res.ok) {
         await waitRemaining(startTime);
+
+        if (res.status === 409) {
+          throw new Error(
+            data?.detail ||
+              "Account already active. This account is currently signed in from another browser or device. Please sign out from that session and try again."
+          );
+        }
+
         throw new Error(data?.detail || data?.error || "Invalid email or password");
       }
 
       const token = String(data?.access_token || data?.token || "").trim();
+      const sessionToken = String(data?.session_token || "").trim();
+
       if (!token) {
         await waitRemaining(startTime);
         throw new Error("Login failed: missing access_token");
       }
 
+      if (!sessionToken) {
+        await waitRemaining(startTime);
+        throw new Error("Login failed: missing session token");
+      }
+
       await waitRemaining(startTime);
 
       setToken(token);
+      saveSessionToken(sessionToken);
 
       try {
         sessionStorage.setItem("coreflex_logged_in", "yes");
+        sessionStorage.setItem("coreflex_browser_device_key", browserDeviceKey);
       } catch {
         // ignore
       }
