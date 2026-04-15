@@ -1,4 +1,6 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
+import { API_URL } from "../../config/api";
+import { getToken } from "../../utils/authToken";
 
 const PLANS = [
   {
@@ -65,22 +67,61 @@ const PLANS = [
   },
 ];
 
-const CURRENT_PLAN_KEY = "professional";
-const CURRENT_PLAN_STATUS = "Active";
-const CURRENT_PLAN_RENEWAL = "Apr 30, 2026";
-const CURRENT_PLAN_DEVICES_USED = "12 / 50";
+const PLAN_ORDER = ["free", "starter", "professional", "industrial", "enterprise"];
 
 function getPlanActionLabel(planKey, currentPlanKey) {
   if (planKey === currentPlanKey) return "Current Plan";
   if (planKey === "enterprise") return "Contact Sales";
 
-  const order = ["free", "starter", "professional", "industrial", "enterprise"];
-  const currentIndex = order.indexOf(currentPlanKey);
-  const targetIndex = order.indexOf(planKey);
+  const currentIndex = PLAN_ORDER.indexOf(currentPlanKey);
+  const targetIndex = PLAN_ORDER.indexOf(planKey);
 
   if (targetIndex > currentIndex) return "Upgrade";
   if (targetIndex < currentIndex) return "Downgrade";
   return "Choose Plan";
+}
+
+function formatRenewalDate(value) {
+  if (!value) return "—";
+
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "—";
+
+  return date.toLocaleDateString("en-US", {
+    month: "short",
+    day: "numeric",
+    year: "numeric",
+  });
+}
+
+function buildDevicesUsedText(used, limit) {
+  const safeUsed = Number.isFinite(Number(used)) ? Number(used) : 0;
+
+  if (
+    limit === null ||
+    limit === undefined ||
+    String(limit).trim() === "" ||
+    Number(limit) <= 0
+  ) {
+    return `${safeUsed}`;
+  }
+
+  return `${safeUsed} / ${Number(limit)}`;
+}
+
+function buildTenantUsersUsedText(used, limit) {
+  const safeUsed = Number.isFinite(Number(used)) ? Number(used) : 0;
+
+  if (
+    limit === null ||
+    limit === undefined ||
+    String(limit).trim() === "" ||
+    Number(limit) <= 0
+  ) {
+    return `${safeUsed}`;
+  }
+
+  return `${safeUsed} / ${Number(limit)}`;
 }
 
 function ActionPlanCard({
@@ -236,10 +277,65 @@ export default function MySubscriptionSection({ onBack }) {
   const [billingMode, setBillingMode] = useState("monthly");
   const [selectedPlanKey, setSelectedPlanKey] = useState(null);
 
-  const currentPlan = useMemo(
-    () => PLANS.find((plan) => plan.key === CURRENT_PLAN_KEY) || PLANS[0],
-    []
-  );
+  const [subscription, setSubscription] = useState(null);
+  const [loadingSubscription, setLoadingSubscription] = useState(true);
+  const [subscriptionError, setSubscriptionError] = useState("");
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadSubscription() {
+      setLoadingSubscription(true);
+      setSubscriptionError("");
+
+      try {
+        const token = String(getToken() || "").trim();
+
+        if (!token) {
+          throw new Error("Missing authentication token.");
+        }
+
+        const response = await fetch(`${API_URL}/subscription/me`, {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(data.detail || "Failed to load subscription.");
+        }
+
+        if (!isMounted) return;
+        setSubscription(data);
+      } catch (err) {
+        if (!isMounted) return;
+        console.error("Failed to load subscription:", err);
+        setSubscriptionError(
+          err?.message || "Unable to load subscription information."
+        );
+      } finally {
+        if (isMounted) {
+          setLoadingSubscription(false);
+        }
+      }
+    }
+
+    loadSubscription();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const currentPlanKey = String(subscription?.plan_key || "free").toLowerCase();
+
+  const currentPlan = useMemo(() => {
+    return PLANS.find((plan) => plan.key === currentPlanKey) || PLANS[0];
+  }, [currentPlanKey]);
 
   const selectedPlan = useMemo(() => {
     return PLANS.find((plan) => plan.key === selectedPlanKey) || null;
@@ -250,6 +346,17 @@ export default function MySubscriptionSection({ onBack }) {
       ? selectedPlan.monthlyPrice
       : selectedPlan.oneTimeLicense
     : null;
+
+  const currentPlanStatus = subscription?.status || "Active";
+  const currentPlanRenewal = formatRenewalDate(subscription?.renewal_date);
+  const currentPlanDevicesUsed = buildDevicesUsedText(
+    subscription?.devices_used,
+    subscription?.device_limit
+  );
+  const currentPlanTenantUsersUsed = buildTenantUsersUsedText(
+    subscription?.tenant_users_used,
+    subscription?.tenants_users_limit
+  );
 
   return (
     <>
@@ -276,40 +383,46 @@ export default function MySubscriptionSection({ onBack }) {
         </div>
 
         <div className="px-4 pb-5 pt-1">
+          {subscriptionError && (
+            <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              {subscriptionError}
+            </div>
+          )}
+
           {/* CURRENT */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-2">
             <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
               <div className="text-[11px] text-slate-500">Plan</div>
               <div className="mt-1 text-sm font-semibold text-slate-900">
-                {currentPlan.name}
+                {loadingSubscription ? "Loading..." : currentPlan.name}
               </div>
             </div>
 
             <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
               <div className="text-[11px] text-slate-500">Status</div>
               <div className="mt-1 text-sm font-semibold text-emerald-700">
-                {CURRENT_PLAN_STATUS}
+                {loadingSubscription ? "Loading..." : currentPlanStatus}
               </div>
             </div>
 
             <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
               <div className="text-[11px] text-slate-500">Renewal</div>
               <div className="mt-1 text-sm font-semibold text-slate-900">
-                {CURRENT_PLAN_RENEWAL}
+                {loadingSubscription ? "Loading..." : currentPlanRenewal}
               </div>
             </div>
 
             <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
               <div className="text-[11px] text-slate-500">Devices Used</div>
               <div className="mt-1 text-sm font-semibold text-slate-900">
-                {CURRENT_PLAN_DEVICES_USED}
+                {loadingSubscription ? "Loading..." : currentPlanDevicesUsed}
               </div>
             </div>
 
             <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
               <div className="text-[11px] text-slate-500">Tenants-Users</div>
               <div className="mt-1 text-sm font-semibold text-slate-900">
-                {currentPlan.tenantsUsers}
+                {loadingSubscription ? "Loading..." : currentPlanTenantUsersUsed}
               </div>
             </div>
           </div>
@@ -357,11 +470,11 @@ export default function MySubscriptionSection({ onBack }) {
                 <ActionPlanCard
                   key={plan.key}
                   plan={plan}
-                  isCurrent={plan.key === CURRENT_PLAN_KEY}
+                  isCurrent={plan.key === currentPlanKey}
                   billingMode={billingMode}
                   onSelect={(pickedPlan) => setSelectedPlanKey(pickedPlan.key)}
                   isSelected={selectedPlanKey === plan.key}
-                  currentPlanKey={CURRENT_PLAN_KEY}
+                  currentPlanKey={currentPlanKey}
                 />
               ))}
             </div>
@@ -423,9 +536,7 @@ export default function MySubscriptionSection({ onBack }) {
                         Cancel
                       </button>
 
-                      <button
-                        className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-sm font-semibold"
-                      >
+                      <button className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-sm font-semibold">
                         {selectedPlan.key === "enterprise"
                           ? "Request Quote"
                           : "Proceed to Payment"}
