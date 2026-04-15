@@ -8,8 +8,6 @@ const ACCESS_OPTIONS = [
   { value: "read_control", label: "Read + Control" },
 ];
 
-// ✅ tenant-user subscription summary
-const TOTAL_TENANT_USER_SLOTS = 3;
 const ADD_TENANT_USER_COST = "$310";
 
 function normalizeAccess(value) {
@@ -56,6 +54,14 @@ function normalizeUserFromBackend(row) {
   };
 }
 
+function normalizeSubscriptionFromBackend(row) {
+  return {
+    planKey: String(row?.plan_key || "free").trim().toLowerCase(),
+    tenantUsersLimit: Number(row?.tenants_users_limit ?? 0) || 0,
+    tenantUsersUsed: Number(row?.tenant_users_used ?? 0) || 0,
+  };
+}
+
 export default function TenantUsersPage({
   onGoBack,
   currentAdminEmail = "roquemartinezpolanco@gmail.com",
@@ -63,6 +69,10 @@ export default function TenantUsersPage({
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [usersError, setUsersError] = useState("");
+
+  const [subscription, setSubscription] = useState(null);
+  const [loadingSubscription, setLoadingSubscription] = useState(false);
+  const [subscriptionError, setSubscriptionError] = useState("");
 
   const [showModal, setShowModal] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
@@ -128,6 +138,34 @@ export default function TenantUsersPage({
       setUsersError(String(err?.message || err));
     } finally {
       setLoadingUsers(false);
+    }
+  }, []);
+
+  const fetchSubscriptionFromBackend = useCallback(async () => {
+    try {
+      setLoadingSubscription(true);
+      setSubscriptionError("");
+
+      const res = await fetch(`${API_URL}/subscription/me`, {
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+      });
+
+      if (!res.ok) {
+        const text = await res.text().catch(() => "");
+        throw new Error(text || "Failed to load subscription.");
+      }
+
+      const row = await res.json().catch(() => ({}));
+      setSubscription(normalizeSubscriptionFromBackend(row));
+    } catch (err) {
+      console.error("❌ Failed to load subscription:", err);
+      setSubscription(null);
+      setSubscriptionError(String(err?.message || err));
+    } finally {
+      setLoadingSubscription(false);
     }
   }, []);
 
@@ -230,7 +268,12 @@ export default function TenantUsersPage({
   useEffect(() => {
     fetchTenantUsersFromBackend();
     fetchCustomersFromBackend();
-  }, [fetchTenantUsersFromBackend, fetchCustomersFromBackend]);
+    fetchSubscriptionFromBackend();
+  }, [
+    fetchTenantUsersFromBackend,
+    fetchCustomersFromBackend,
+    fetchSubscriptionFromBackend,
+  ]);
 
   useEffect(() => {
     fetchDashboardsForCustomer(form.customerName);
@@ -281,10 +324,19 @@ export default function TenantUsersPage({
   }, [users, searchCustomer, searchEmail]);
 
   // ✅ subscription counters for top section
-  const usedTenantUsers = users.length;
+  const totalTenantUserSlots =
+    Number(subscription?.tenantUsersLimit ?? 0) > 0
+      ? Number(subscription.tenantUsersLimit)
+      : 0;
+
+  const usedTenantUsers =
+    Number(subscription?.tenantUsersUsed ?? users.length) >= 0
+      ? Number(subscription?.tenantUsersUsed ?? users.length)
+      : users.length;
+
   const availableTenantUsers = Math.max(
     0,
-    TOTAL_TENANT_USER_SLOTS - usedTenantUsers
+    totalTenantUserSlots - usedTenantUsers
   );
 
   const resetForm = () => {
@@ -320,6 +372,11 @@ export default function TenantUsersPage({
     if (!Array.isArray(form.dashboards) || form.dashboards.length === 0) {
       return "Select at least one dashboard.";
     }
+
+    if (!editingUserId && totalTenantUserSlots > 0 && usedTenantUsers >= totalTenantUserSlots) {
+      return "Tenant user limit reached for your current subscription.";
+    }
+
     return "";
   };
 
@@ -400,7 +457,10 @@ export default function TenantUsersPage({
 
       resetForm();
       setShowModal(false);
-      await fetchTenantUsersFromBackend();
+      await Promise.all([
+        fetchTenantUsersFromBackend(),
+        fetchSubscriptionFromBackend(),
+      ]);
     } catch (err) {
       console.error("❌ Failed to save tenant user:", err);
       setFormError(String(err?.message || err));
@@ -444,7 +504,10 @@ export default function TenantUsersPage({
       setPageMsg("✅ Tenant user deleted.");
       resetForm();
       setShowModal(false);
-      await fetchTenantUsersFromBackend();
+      await Promise.all([
+        fetchTenantUsersFromBackend(),
+        fetchSubscriptionFromBackend(),
+      ]);
     } catch (err) {
       console.error("❌ Failed to delete tenant user:", err);
       setFormError(String(err?.message || err));
@@ -547,6 +610,12 @@ export default function TenantUsersPage({
         </div>
       ) : null}
 
+      {subscriptionError ? (
+        <div className="mb-4 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+          Failed to load subscription from backend: {subscriptionError}
+        </div>
+      ) : null}
+
       {/* TENANT USER SUMMARY */}
       <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
@@ -554,7 +623,7 @@ export default function TenantUsersPage({
             Available Tenant-Users
           </div>
           <div className="mt-1 text-xl font-semibold text-gray-900">
-            {availableTenantUsers}
+            {loadingSubscription ? "..." : availableTenantUsers}
           </div>
         </div>
 
@@ -563,7 +632,7 @@ export default function TenantUsersPage({
             Used Tenant-Users
           </div>
           <div className="mt-1 text-xl font-semibold text-gray-900">
-            {usedTenantUsers} / {TOTAL_TENANT_USER_SLOTS}
+            {loadingSubscription ? "..." : `${usedTenantUsers} / ${totalTenantUserSlots}`}
           </div>
         </div>
       </div>
@@ -645,11 +714,16 @@ export default function TenantUsersPage({
             </button>
 
             <button
-              onClick={fetchTenantUsersFromBackend}
+              onClick={async () => {
+                await Promise.all([
+                  fetchTenantUsersFromBackend(),
+                  fetchSubscriptionFromBackend(),
+                ]);
+              }}
               className="px-3 py-2 border rounded-md bg-white hover:bg-gray-50 text-sm"
-              disabled={loadingUsers}
+              disabled={loadingUsers || loadingSubscription}
             >
-              {loadingUsers ? "Refreshing..." : "Refresh"}
+              {loadingUsers || loadingSubscription ? "Refreshing..." : "Refresh"}
             </button>
           </div>
         </div>
@@ -664,7 +738,11 @@ export default function TenantUsersPage({
         <div className="flex items-center gap-2">
           <button
             onClick={openCreateModal}
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm"
+            disabled={
+              loadingSubscription ||
+              (totalTenantUserSlots > 0 && usedTenantUsers >= totalTenantUserSlots)
+            }
+            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
           >
             + Add User
           </button>
@@ -917,7 +995,10 @@ export default function TenantUsersPage({
                     loadingCustomers ||
                     loadingDashboards ||
                     isSubmitting ||
-                    isDeleting
+                    isDeleting ||
+                    (!editingUserId &&
+                      totalTenantUserSlots > 0 &&
+                      usedTenantUsers >= totalTenantUserSlots)
                   }
                 >
                   {isSubmitting
