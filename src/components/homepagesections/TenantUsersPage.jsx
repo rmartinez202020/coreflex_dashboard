@@ -548,7 +548,7 @@ export default function TenantUsersPage({
       ) : null}
 
       {/* TENANT USER SUMMARY */}
-      <div className="mb-4 grid grid-cols-1 md:grid-cols-3 gap-3">
+      <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-3">
         <div className="rounded-lg border border-gray-200 bg-gray-50 px-4 py-3">
           <div className="text-xs font-medium text-gray-600">
             Available Tenant-Users
@@ -566,18 +566,40 @@ export default function TenantUsersPage({
             {usedTenantUsers} / {TOTAL_TENANT_USER_SLOTS}
           </div>
         </div>
+      </div>
 
-        <button
-          type="button"
-          className="rounded-lg border border-emerald-200 bg-emerald-50 hover:bg-emerald-100 px-4 py-3 text-left transition"
-        >
-          <div className="text-xs font-semibold text-emerald-700">
-            Add a Tenant-User
+      {/* PURCHASE STRIP */}
+      <div className="mb-4 rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-white px-5 py-4">
+        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
+          <div className="min-w-0">
+            <div className="text-sm font-semibold text-emerald-800">
+              Purchase Additional Tenant-User
+            </div>
+            <div className="mt-1 text-sm text-gray-600">
+              Expand your tenant-user capacity for this account and create access
+              for more users under your current subscription.
+            </div>
           </div>
-          <div className="mt-1 text-xl font-semibold text-gray-900">
-            Cost {ADD_TENANT_USER_COST}
+
+          <div className="flex flex-col gap-3 sm:flex-row sm:items-center lg:shrink-0">
+            <div className="rounded-lg border border-emerald-200 bg-white px-4 py-3 text-center">
+              <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
+                Price
+              </div>
+              <div className="mt-1 text-2xl font-bold text-gray-900">
+                {ADD_TENANT_USER_COST}
+              </div>
+              <div className="text-xs text-gray-500">per user</div>
+            </div>
+
+            <button
+              type="button"
+              className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 text-sm font-semibold shadow-sm transition"
+            >
+              Purchase Tenant-User
+            </button>
           </div>
-        </button>
+        </div>
       </div>
 
       {/* SEARCH BAR */}
