@@ -258,6 +258,15 @@ export default function GraphicDisplayPanel({
     return singleUnitsEnabled && su ? su : "";
   }, [singleUnitsEnabled, singleUnit]);
 
+  const currentOutputText = useMemo(() => {
+    return Number.isFinite(mathOutput) ? Number(mathOutput).toFixed(2) : "--";
+  }, [mathOutput]);
+
+  const currentOutputTitle = useMemo(() => {
+    const unit = String(outputUnitText || "").trim();
+    return unit ? `Current output (${unit})` : "Current output";
+  }, [outputUnitText]);
+
   // ✅ Settings button:
   // - Show ONLY in normal panel (not Explore)
   // - Hide in Play + Launch (Run mode)
@@ -424,6 +433,32 @@ export default function GraphicDisplayPanel({
             }}
           />
 
+          {/* ✅ current output moved to top-right graphic corner */}
+          <div
+            style={{
+              position: "absolute",
+              top: 8,
+              right: 10,
+              zIndex: 3,
+              fontFamily: "monospace",
+              fontSize: 12,
+              color: "#0b3b18",
+              background: "rgba(255,255,255,0.92)",
+              padding: "5px 10px",
+              borderRadius: 8,
+              border: "1px solid rgba(0,0,0,0.08)",
+              pointerEvents: "none",
+              fontWeight: 400,
+              lineHeight: 1.1,
+            }}
+            title={currentOutputTitle}
+          >
+            {currentOutputText}
+            {outputUnitText ? (
+              <span style={{ color: "#475569" }}> {outputUnitText}</span>
+            ) : null}
+          </div>
+
           {/* ✅ Y AXIS labels: smaller, no pills */}
           {yTickItems.length > 0 && (
             <div
@@ -473,7 +508,7 @@ export default function GraphicDisplayPanel({
               position: "absolute",
               left: 48,
               right: 10,
-              top: 10,
+              top: 28,
               bottom: 36,
               cursor: showVectors && sel ? "crosshair" : "default",
               touchAction: "none",
@@ -590,48 +625,26 @@ export default function GraphicDisplayPanel({
               </>
             ) : null}
 
-            <div
-              style={{
-                position: "absolute",
-                right: 10,
-                top: 10,
-                fontFamily: "monospace",
-                fontSize: 12,
-                color: "#0b3b18",
-                background: "rgba(255,255,255,0.85)",
-                padding: "6px 10px",
-                borderRadius: 10,
-                border: "1px solid rgba(0,0,0,0.08)",
-                pointerEvents: "none",
-                fontWeight: 400,
-              }}
-              title="Current math output"
-            >
-              {Number.isFinite(mathOutput) ? Number(mathOutput).toFixed(2) : "--"}
-            </div>
-
             {err ? (
-  <div
-    style={{
-      position: "absolute",
-      left: 10,
-      bottom: 10,
-      fontSize: 12,
-      color: "#111827",              // ✅ black text
-      background: "#FEF9C3",         // ✅ light yellow
-      border: "1px solid #FDE68A",   // ✅ soft yellow border
-      padding: "6px 10px",
-      borderRadius: 10,
-      pointerEvents: "none",
-      fontWeight: 400,               // ✅ NOT bold
-      boxShadow: "0 2px 6px rgba(0,0,0,0.05)", // optional nice touch
-    }}
-  >
-    {err}
-  </div>
-) : null}
-
-
+              <div
+                style={{
+                  position: "absolute",
+                  left: 10,
+                  bottom: 10,
+                  fontSize: 12,
+                  color: "#111827",
+                  background: "#FEF9C3",
+                  border: "1px solid #FDE68A",
+                  padding: "6px 10px",
+                  borderRadius: 10,
+                  pointerEvents: "none",
+                  fontWeight: 400,
+                  boxShadow: "0 2px 6px rgba(0,0,0,0.05)",
+                }}
+              >
+                {err}
+              </div>
+            ) : null}
           </div>
 
           <div
