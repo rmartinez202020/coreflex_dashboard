@@ -70,6 +70,31 @@ function saveSessionToken(sessionToken) {
   }
 }
 
+function extractErrorMessage(payload, fallback = "Login failed") {
+  const detail = payload?.detail;
+  const error = payload?.error;
+
+  if (typeof detail === "string" && detail.trim()) {
+    return detail.trim();
+  }
+
+  if (typeof error === "string" && error.trim()) {
+    return error.trim();
+  }
+
+  if (detail && typeof detail === "object") {
+    if (typeof detail.message === "string" && detail.message.trim()) {
+      return detail.message.trim();
+    }
+
+    if (typeof detail.detail === "string" && detail.detail.trim()) {
+      return detail.detail.trim();
+    }
+  }
+
+  return fallback;
+}
+
 export default function LoginPage() {
   const formRef = useRef(null);
 
@@ -139,12 +164,16 @@ export default function LoginPage() {
 
         if (res.status === 409) {
           throw new Error(
-            data?.detail ||
+            extractErrorMessage(
+              data,
               "Account already active. This account is currently signed in from another browser or device. Please sign out from that session and try again."
+            )
           );
         }
 
-        throw new Error(data?.detail || data?.error || "Invalid email or password");
+        throw new Error(
+          extractErrorMessage(data, "Invalid email or password")
+        );
       }
 
       const token = String(data?.access_token || data?.token || "").trim();
@@ -152,12 +181,12 @@ export default function LoginPage() {
 
       if (!token) {
         await waitRemaining(startTime);
-        throw new Error("Login failed: missing access_token");
+        throw new Error("Login failed: missing access token.");
       }
 
       if (!sessionToken) {
         await waitRemaining(startTime);
-        throw new Error("Login failed: missing session token");
+        throw new Error("Login failed: missing session token.");
       }
 
       await waitRemaining(startTime);
@@ -182,7 +211,11 @@ export default function LoginPage() {
       window.location.assign("/app");
     } catch (err) {
       await waitRemaining(startTime);
-      setError(err?.message || "Login failed");
+      setError(
+        typeof err?.message === "string" && err.message.trim()
+          ? err.message
+          : "Login failed"
+      );
       setLoading(false);
     }
   };
@@ -199,10 +232,7 @@ export default function LoginPage() {
 
   useEffect(() => {
     const onKeyDown = (e) => {
-      // ✅ IMPORTANT: while forgot-password modal is open,
-      // never let Enter submit the login form behind it
       if (showForgotModal) return;
-
       if (e.key !== "Enter") return;
       if (loading) return;
       if (e.isComposing) return;
@@ -232,10 +262,8 @@ export default function LoginPage() {
         backgroundRepeat: "no-repeat",
       }}
     >
-      {/* ✅ darker overlay so background does not fight with text */}
       <div className="absolute inset-0 bg-black opacity-55"></div>
 
-      {/* ✅ more animated digital falling data */}
       <div className="absolute inset-0 z-[1] pointer-events-none overflow-hidden">
         <div className="data-stream stream-1"></div>
         <div className="data-stream stream-2"></div>
@@ -255,7 +283,6 @@ export default function LoginPage() {
         <div className="data-stream stream-16"></div>
       </div>
 
-      {/* ✅ soft glow behind card area */}
       <div
         className="absolute z-[2] pointer-events-none"
         style={{
@@ -269,7 +296,6 @@ export default function LoginPage() {
       />
 
       <div className="relative z-10 flex flex-col items-center px-4">
-        {/* ✅ Bigger logo */}
         <img
           src={logoWhite}
           alt="CoreFlex Logo"
@@ -282,7 +308,6 @@ export default function LoginPage() {
           }}
         />
 
-        {/* ✅ Smaller login card + stronger visibility */}
         <div className="relative w-full max-w-[460px] rounded-[22px] border border-white/30 bg-white/30 backdrop-blur-xl shadow-2xl px-8 py-9">
           <h1 className="text-[2.15rem] font-extrabold text-center text-slate-950 mb-3 tracking-tight">
             CoreFlex IIoTs Platform
