@@ -400,6 +400,38 @@ export default function GraphicDisplayPanel({
         </div>
       ) : null}
 
+      {/* ✅ output strip above the graph, below totalizer section */}
+      <div
+        style={{
+          padding: "4px 12px 0 12px",
+          display: "flex",
+          justifyContent: "flex-end",
+          alignItems: "center",
+          minHeight: 24,
+          pointerEvents: "none",
+        }}
+      >
+        <div
+          style={{
+            fontFamily: "monospace",
+            fontSize: 12,
+            color: "#0b3b18",
+            background: "rgba(255,255,255,0.92)",
+            padding: "5px 10px",
+            borderRadius: 8,
+            border: "1px solid rgba(0,0,0,0.08)",
+            fontWeight: 400,
+            lineHeight: 1.1,
+          }}
+          title={currentOutputTitle}
+        >
+          {currentOutputText}
+          {outputUnitText ? (
+            <span style={{ color: "#475569" }}> {outputUnitText}</span>
+          ) : null}
+        </div>
+      </div>
+
       {/* BODY */}
       <div
         style={{
@@ -408,6 +440,7 @@ export default function GraphicDisplayPanel({
           minWidth: 0,
           padding: 12,
           display: "flex",
+          paddingTop: 6,
         }}
       >
         <div
@@ -432,32 +465,6 @@ export default function GraphicDisplayPanel({
               pointerEvents: "none",
             }}
           />
-
-          {/* ✅ current output moved to top-right graphic corner */}
-          <div
-            style={{
-              position: "absolute",
-              top: 8,
-              right: 10,
-              zIndex: 3,
-              fontFamily: "monospace",
-              fontSize: 12,
-              color: "#0b3b18",
-              background: "rgba(255,255,255,0.92)",
-              padding: "5px 10px",
-              borderRadius: 8,
-              border: "1px solid rgba(0,0,0,0.08)",
-              pointerEvents: "none",
-              fontWeight: 400,
-              lineHeight: 1.1,
-            }}
-            title={currentOutputTitle}
-          >
-            {currentOutputText}
-            {outputUnitText ? (
-              <span style={{ color: "#475569" }}> {outputUnitText}</span>
-            ) : null}
-          </div>
 
           {/* ✅ Y AXIS labels: smaller, no pills */}
           {yTickItems.length > 0 && (
@@ -508,7 +515,7 @@ export default function GraphicDisplayPanel({
               position: "absolute",
               left: 48,
               right: 10,
-              top: 28,
+              top: 10,
               bottom: 36,
               cursor: showVectors && sel ? "crosshair" : "default",
               touchAction: "none",
