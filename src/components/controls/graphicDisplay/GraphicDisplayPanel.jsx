@@ -258,15 +258,6 @@ export default function GraphicDisplayPanel({
     return singleUnitsEnabled && su ? su : "";
   }, [singleUnitsEnabled, singleUnit]);
 
-  const currentOutputText = useMemo(() => {
-    return Number.isFinite(mathOutput) ? Number(mathOutput).toFixed(2) : "--";
-  }, [mathOutput]);
-
-  const currentOutputTitle = useMemo(() => {
-    const unit = String(outputUnitText || "").trim();
-    return unit ? `Current output (${unit})` : "Current output";
-  }, [outputUnitText]);
-
   // ✅ Settings button:
   // - Show ONLY in normal panel (not Explore)
   // - Hide in Play + Launch (Run mode)
@@ -399,38 +390,6 @@ export default function GraphicDisplayPanel({
           </div>
         </div>
       ) : null}
-
-      {/* ✅ output strip above the graph, below totalizer section */}
-      <div
-        style={{
-          padding: "4px 12px 0 12px",
-          display: "flex",
-          justifyContent: "flex-end",
-          alignItems: "center",
-          minHeight: 24,
-          pointerEvents: "none",
-        }}
-      >
-        <div
-          style={{
-            fontFamily: "monospace",
-            fontSize: 12,
-            color: "#0b3b18",
-            background: "rgba(255,255,255,0.92)",
-            padding: "5px 10px",
-            borderRadius: 8,
-            border: "1px solid rgba(0,0,0,0.08)",
-            fontWeight: 400,
-            lineHeight: 1.1,
-          }}
-          title={currentOutputTitle}
-        >
-          {currentOutputText}
-          {outputUnitText ? (
-            <span style={{ color: "#475569" }}> {outputUnitText}</span>
-          ) : null}
-        </div>
-      </div>
 
       {/* BODY */}
       <div
@@ -710,4 +669,4 @@ export default function GraphicDisplayPanel({
       </div>
     </div>
   );
-}
+}         
