@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../../config/api";
 import { getToken } from "../../utils/authToken";
+import ProceedToPayment from "./ProceedToPayment";
 
 const PLANS = [
   {
@@ -339,6 +340,7 @@ export default function MySubscriptionSection({ onBack }) {
   const [addonTenantUsersQty, setAddonTenantUsersQty] = useState(0);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutMessage, setCheckoutMessage] = useState("");
+  const [showProceedToPayment, setShowProceedToPayment] = useState(false);
 
   const [subscription, setSubscription] = useState(null);
   const [loadingSubscription, setLoadingSubscription] = useState(true);
@@ -423,8 +425,10 @@ export default function MySubscriptionSection({ onBack }) {
 
   const showAddon = true;
 
-  async function handleProceedToPayment() {
+  function openProceedToPayment() {
     if (!effectivePlan) return;
+
+    setCheckoutMessage("");
 
     if (effectivePlan.key === "enterprise") {
       setCheckoutMessage(
@@ -433,6 +437,10 @@ export default function MySubscriptionSection({ onBack }) {
       return;
     }
 
+    setShowProceedToPayment(true);
+  }
+
+  async function handleProceedToPaymentSubmit(payload) {
     try {
       setCheckoutLoading(true);
       setCheckoutMessage("");
@@ -449,9 +457,11 @@ export default function MySubscriptionSection({ onBack }) {
           "Content-Type": "application/json",
         },
         body: JSON.stringify({
-          planKey: effectivePlan.key,
-          billingType: billingMode,
-          extraTenantUsers: addonTenantUsersQty,
+          planKey: payload?.selectedPlan?.key || effectivePlan.key,
+          billingType: payload?.billingMode || billingMode,
+          extraTenantUsers:
+            Number(payload?.addonTenantUsersQty ?? addonTenantUsersQty) || 0,
+          billingDetails: payload?.billingDetails || {},
         }),
       });
 
@@ -477,6 +487,7 @@ export default function MySubscriptionSection({ onBack }) {
       );
     } finally {
       setCheckoutLoading(false);
+      setShowProceedToPayment(false);
     }
   }
 
@@ -757,7 +768,7 @@ export default function MySubscriptionSection({ onBack }) {
                     </button>
 
                     <button
-                      onClick={handleProceedToPayment}
+                      onClick={openProceedToPayment}
                       disabled={checkoutLoading || !effectivePlan}
                       className={`rounded-lg px-3 py-2 text-[12px] font-semibold text-white ${
                         checkoutLoading || !effectivePlan
@@ -775,7 +786,7 @@ export default function MySubscriptionSection({ onBack }) {
                     <div className="text-[10px] leading-snug text-slate-500">
                       {effectivePlan?.key === "enterprise"
                         ? "Enterprise plans should be routed to your custom sales workflow."
-                        : "This button is already prepared for the Stripe checkout session backend route."}
+                        : "Click Proceed to Payment to open the checkout section."}
                     </div>
                   </div>
                 </div>
@@ -797,6 +808,19 @@ export default function MySubscriptionSection({ onBack }) {
       <ComparePlansModal
         open={showComparePlans}
         onClose={() => setShowComparePlans(false)}
+      />
+
+      <ProceedToPayment
+        open={showProceedToPayment}
+        onClose={() => setShowProceedToPayment(false)}
+        selectedPlan={effectivePlan}
+        billingMode={billingMode}
+        addonTenantUsersQty={addonTenantUsersQty}
+        tenantUserAddonPrice={TENANT_USER_ADDON_PRICE}
+        userEmail={subscription?.email || ""}
+        checkoutLoading={checkoutLoading}
+        checkoutError={checkoutMessage}
+        onSubmit={handleProceedToPaymentSubmit}
       />
     </>
   );
