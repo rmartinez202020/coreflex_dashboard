@@ -166,7 +166,7 @@ function ActionPlanCard({
 
   return (
     <div
-      className={`rounded-2xl border bg-white px-4 py-4 shadow-sm transition flex flex-col ${
+      className={`rounded-xl border bg-white px-3 py-3 shadow-sm transition flex flex-col ${
         isSelected
           ? "border-emerald-500 ring-2 ring-emerald-200"
           : isCurrent
@@ -174,60 +174,68 @@ function ActionPlanCard({
           : "border-slate-200 hover:border-slate-300"
       }`}
     >
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <div className="text-xl font-semibold text-slate-900">{plan.name}</div>
-          <div className="mt-1 text-sm text-slate-500">{plan.shortFeature}</div>
+      <div className="flex items-start justify-between gap-2">
+        <div className="min-w-0">
+          <div className="text-[15px] font-semibold leading-tight text-slate-900">
+            {plan.name}
+          </div>
+          <div className="mt-1 text-[11px] leading-snug text-slate-500">
+            {plan.shortFeature}
+          </div>
         </div>
 
-        <div className="flex flex-col items-end gap-2">
+        <div className="flex flex-col items-end gap-1 shrink-0">
           {plan.badge && (
-            <span className="rounded-full bg-amber-100 text-amber-800 px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap">
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap text-amber-800">
               {plan.badge}
             </span>
           )}
 
           {isCurrent && (
-            <span className="rounded-full bg-emerald-100 text-emerald-800 px-2.5 py-1 text-[11px] font-semibold whitespace-nowrap">
+            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap text-emerald-800">
               Current
             </span>
           )}
         </div>
       </div>
 
-      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
-        <div className="text-xs uppercase tracking-wide text-slate-500">
+      <div className="mt-3 rounded-lg border border-slate-200 bg-slate-50 px-3 py-2.5">
+        <div className="text-[10px] uppercase tracking-wide text-slate-500">
           {billingMode === "monthly" ? "Monthly Price" : "One-Time License"}
         </div>
-        <div className="mt-1 text-2xl font-bold text-slate-900">{displayPrice}</div>
+        <div className="mt-1 text-[18px] font-bold leading-tight text-slate-900">
+          {displayPrice}
+        </div>
       </div>
 
-      <div className="mt-4 space-y-2 text-sm">
-        <div className="flex items-center justify-between gap-3">
+      <div className="mt-3 space-y-1.5 text-[12px]">
+        <div className="flex items-center justify-between gap-2">
           <span className="text-slate-500">Device Limit</span>
-          <span className="font-semibold text-slate-900">
+          <span className="font-semibold text-slate-900 text-right">
             {typeof plan.deviceLimit === "number"
               ? `${plan.deviceLimit} ${plan.deviceLimit === 1 ? "device" : "devices"}`
               : plan.deviceLimit}
           </span>
         </div>
 
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-2">
           <span className="text-slate-500">Tenants-Users</span>
           <span className="font-semibold text-slate-900">{plan.tenantsUsers}</span>
         </div>
 
-        <div className="flex items-center justify-between gap-3">
+        <div className="flex items-center justify-between gap-2">
           <span className="text-slate-500">Data History</span>
-          <span className="font-semibold text-slate-900">{plan.dataHistory}</span>
+          <span className="font-semibold text-slate-900 text-right">
+            {plan.dataHistory}
+          </span>
         </div>
       </div>
 
-      <div className="mt-5">
+      <div className="mt-4">
         <button
           onClick={() => onSelect(plan)}
           disabled={isCurrent}
-          className={`w-full rounded-lg px-4 py-2.5 text-sm font-semibold transition ${
+          className={`w-full rounded-lg px-3 py-2 text-[12px] font-semibold transition ${
             isCurrent
               ? "bg-emerald-100 text-emerald-800 border border-emerald-300 cursor-default"
               : isSelected
@@ -478,35 +486,37 @@ export default function MySubscriptionSection({ onBack }) {
     <>
       <div
         className="rounded-xl border border-slate-200 bg-white overflow-hidden"
-        style={{ marginTop: "-22px" }}
+        style={{ marginTop: "-18px" }}
       >
-        <div className="bg-emerald-700 text-white px-4 py-4 flex items-center justify-between">
+        <div className="bg-emerald-700 text-white px-4 py-3 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={onBack}
-              className="rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-2 text-sm"
+              className="rounded-lg bg-emerald-600 hover:bg-emerald-500 px-3 py-1.5 text-[12px]"
             >
               ← Back
             </button>
 
             <div>
-              <div className="text-lg font-semibold">My Subscription</div>
-              <div className="text-xs text-emerald-100">
+              <div className="text-[15px] font-semibold leading-tight">
+                My Subscription
+              </div>
+              <div className="text-[11px] text-emerald-100 leading-tight">
                 View subscription plans, billing details, and platform limits.
               </div>
             </div>
           </div>
         </div>
 
-        <div className="px-4 pb-5 pt-1">
+        <div className="px-3 pb-3 pt-1.5">
           {subscriptionError && (
-            <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+            <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
               {subscriptionError}
             </div>
           )}
 
           {checkoutMessage && (
-            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+            <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
               {checkoutMessage}
             </div>
           )}
@@ -514,50 +524,50 @@ export default function MySubscriptionSection({ onBack }) {
           {/* CURRENT */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-2">
             <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
-              <div className="text-[11px] text-slate-500">Plan</div>
-              <div className="mt-1 text-sm font-semibold text-slate-900">
+              <div className="text-[10px] text-slate-500">Plan</div>
+              <div className="mt-0.5 text-[13px] font-semibold text-slate-900">
                 {loadingSubscription ? "Loading..." : currentPlan.name}
               </div>
             </div>
 
             <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
-              <div className="text-[11px] text-slate-500">Status</div>
-              <div className="mt-1 text-sm font-semibold text-emerald-700">
+              <div className="text-[10px] text-slate-500">Status</div>
+              <div className="mt-0.5 text-[13px] font-semibold text-emerald-700">
                 {loadingSubscription ? "Loading..." : currentPlanStatus}
               </div>
             </div>
 
             <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
-              <div className="text-[11px] text-slate-500">Renewal</div>
-              <div className="mt-1 text-sm font-semibold text-slate-900">
+              <div className="text-[10px] text-slate-500">Renewal</div>
+              <div className="mt-0.5 text-[13px] font-semibold text-slate-900">
                 {loadingSubscription ? "Loading..." : currentPlanRenewal}
               </div>
             </div>
 
             <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
-              <div className="text-[11px] text-slate-500">Devices Used</div>
-              <div className="mt-1 text-sm font-semibold text-slate-900">
+              <div className="text-[10px] text-slate-500">Devices Used</div>
+              <div className="mt-0.5 text-[13px] font-semibold text-slate-900">
                 {loadingSubscription ? "Loading..." : currentPlanDevicesUsed}
               </div>
             </div>
 
             <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
-              <div className="text-[11px] text-slate-500">Tenants-Users</div>
-              <div className="mt-1 text-sm font-semibold text-slate-900">
+              <div className="text-[10px] text-slate-500">Tenants-Users</div>
+              <div className="mt-0.5 text-[13px] font-semibold text-slate-900">
                 {loadingSubscription ? "Loading..." : currentPlanTenantUsersUsed}
               </div>
             </div>
           </div>
 
           {/* ACTION SECTION */}
-          <div className="mt-4 rounded-xl border border-slate-200 bg-white overflow-hidden">
-            <div className="bg-slate-900 px-4 py-2">
+          <div className="mt-3 rounded-xl border border-slate-200 bg-white overflow-hidden">
+            <div className="bg-slate-900 px-3 py-2">
               <div className="flex flex-col gap-1.5 xl:flex-row xl:items-center xl:justify-between">
                 <div>
-                  <div className="text-[15px] font-semibold leading-tight text-white">
+                  <div className="text-[13px] font-semibold leading-tight text-white">
                     Choose a Plan
                   </div>
-                  <div className="mt-0.5 text-[11px] leading-tight text-slate-300">
+                  <div className="mt-0.5 text-[10px] leading-tight text-slate-300">
                     Select a plan and billing type to continue to payment.
                   </div>
                 </div>
@@ -565,7 +575,7 @@ export default function MySubscriptionSection({ onBack }) {
                 <div className="inline-flex rounded-md border border-slate-300 bg-white p-[2px] self-start">
                   <button
                     onClick={() => setBillingMode("monthly")}
-                    className={`rounded-sm px-2.5 py-1 text-[11px] font-semibold leading-none transition ${
+                    className={`rounded-sm px-2 py-1 text-[10px] font-semibold leading-none transition ${
                       billingMode === "monthly"
                         ? "bg-emerald-600 text-white"
                         : "text-slate-900 hover:bg-slate-100"
@@ -575,7 +585,7 @@ export default function MySubscriptionSection({ onBack }) {
                   </button>
                   <button
                     onClick={() => setBillingMode("one_time")}
-                    className={`rounded-sm px-2.5 py-1 text-[11px] font-semibold leading-none transition ${
+                    className={`rounded-sm px-2 py-1 text-[10px] font-semibold leading-none transition ${
                       billingMode === "one_time"
                         ? "bg-emerald-600 text-white"
                         : "text-slate-900 hover:bg-slate-100"
@@ -587,7 +597,7 @@ export default function MySubscriptionSection({ onBack }) {
               </div>
             </div>
 
-            <div className="p-4 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-4">
+            <div className="p-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
               {PLANS.map((plan) => (
                 <ActionPlanCard
                   key={plan.key}
@@ -608,24 +618,24 @@ export default function MySubscriptionSection({ onBack }) {
             </div>
 
             {/* CHECKOUT SUMMARY */}
-            <div className="border-t border-slate-200 bg-slate-50 px-4 py-4">
+            <div className="border-t border-slate-200 bg-slate-50 px-3 py-3">
               {selectedPlan ? (
-                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-                  <div className="xl:col-span-2 rounded-xl border border-emerald-200 bg-white p-4">
-                    <div className="text-sm font-semibold text-slate-900">
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
+                  <div className="xl:col-span-2 rounded-xl border border-emerald-200 bg-white p-3">
+                    <div className="text-[13px] font-semibold text-slate-900">
                       Selected Plan
                     </div>
 
-                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 text-sm">
+                    <div className="mt-2 grid grid-cols-2 lg:grid-cols-5 gap-2 text-[12px]">
                       <div>
-                        <div className="text-slate-500">Plan</div>
+                        <div className="text-slate-500 text-[10px]">Plan</div>
                         <div className="font-semibold text-slate-900">
                           {selectedPlan.name}
                         </div>
                       </div>
 
                       <div>
-                        <div className="text-slate-500">Billing</div>
+                        <div className="text-slate-500 text-[10px]">Billing</div>
                         <div className="font-semibold text-slate-900">
                           {billingMode === "monthly"
                             ? "Monthly"
@@ -634,14 +644,14 @@ export default function MySubscriptionSection({ onBack }) {
                       </div>
 
                       <div>
-                        <div className="text-slate-500">Base Price</div>
+                        <div className="text-slate-500 text-[10px]">Base Price</div>
                         <div className="font-semibold text-slate-900">
                           {getDisplayPrice(selectedPlan, billingMode)}
                         </div>
                       </div>
 
                       <div>
-                        <div className="text-slate-500">Devices</div>
+                        <div className="text-slate-500 text-[10px]">Devices</div>
                         <div className="font-semibold text-slate-900">
                           {typeof selectedPlan.deviceLimit === "number"
                             ? `${selectedPlan.deviceLimit} ${
@@ -654,7 +664,7 @@ export default function MySubscriptionSection({ onBack }) {
                       </div>
 
                       <div>
-                        <div className="text-slate-500">Tenants-Users</div>
+                        <div className="text-slate-500 text-[10px]">Tenants-Users</div>
                         <div className="font-semibold text-slate-900">
                           {selectedPlan.tenantsUsers}
                         </div>
@@ -662,19 +672,19 @@ export default function MySubscriptionSection({ onBack }) {
                     </div>
 
                     {canShowAddon && (
-                      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
-                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                      <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                        <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
                           <div>
-                            <div className="text-sm font-semibold text-slate-900">
+                            <div className="text-[12px] font-semibold text-slate-900">
                               Additional Tenant-User
                             </div>
-                            <div className="mt-1 text-sm text-slate-500">
+                            <div className="mt-0.5 text-[11px] text-slate-500">
                               Add more tenant-user slots for this subscription.
                             </div>
                           </div>
 
-                          <div className="flex items-center gap-3">
-                            <div className="text-sm font-semibold text-slate-900">
+                          <div className="flex items-center gap-2">
+                            <div className="text-[12px] font-semibold text-slate-900">
                               {formatMoney(TENANT_USER_ADDON_PRICE)}
                             </div>
 
@@ -683,7 +693,7 @@ export default function MySubscriptionSection({ onBack }) {
                               onChange={(e) =>
                                 setAddonTenantUsersQty(Number(e.target.value || 0))
                               }
-                              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-500"
+                              className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-[12px] text-slate-900 outline-none focus:border-emerald-500"
                             >
                               {[0, 1, 2, 3, 4, 5].map((qty) => (
                                 <option key={qty} value={qty}>
@@ -697,12 +707,12 @@ export default function MySubscriptionSection({ onBack }) {
                     )}
                   </div>
 
-                  <div className="rounded-xl border border-slate-200 bg-white p-4">
-                    <div className="text-sm font-semibold text-slate-900">
+                  <div className="rounded-xl border border-slate-200 bg-white p-3">
+                    <div className="text-[13px] font-semibold text-slate-900">
                       Order Summary
                     </div>
 
-                    <div className="mt-4 space-y-3 text-sm">
+                    <div className="mt-3 space-y-2 text-[12px]">
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-slate-500">
                           {selectedPlan.name}{" "}
@@ -726,9 +736,9 @@ export default function MySubscriptionSection({ onBack }) {
                         </div>
                       )}
 
-                      <div className="border-t border-slate-200 pt-3 flex items-center justify-between gap-3">
+                      <div className="border-t border-slate-200 pt-2 flex items-center justify-between gap-3">
                         <span className="text-slate-900 font-semibold">Total</span>
-                        <span className="text-lg font-bold text-slate-900">
+                        <span className="text-[16px] font-bold text-slate-900">
                           {selectedPlan.key === "enterprise"
                             ? "Custom Quote"
                             : formatMoney(totalAmount)}
@@ -736,9 +746,9 @@ export default function MySubscriptionSection({ onBack }) {
                       </div>
                     </div>
 
-                    <div className="mt-5 flex flex-col gap-3">
+                    <div className="mt-4 flex flex-col gap-2">
                       <button
-                        className="rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-900 px-4 py-2 text-sm font-semibold"
+                        className="rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-900 px-3 py-2 text-[12px] font-semibold"
                         onClick={() => {
                           setSelectedPlanKey(null);
                           setAddonTenantUsersQty(0);
@@ -751,7 +761,7 @@ export default function MySubscriptionSection({ onBack }) {
                       <button
                         onClick={handleProceedToPayment}
                         disabled={checkoutLoading}
-                        className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${
+                        className={`rounded-lg px-3 py-2 text-[12px] font-semibold text-white ${
                           checkoutLoading
                             ? "bg-emerald-400 cursor-wait"
                             : "bg-emerald-600 hover:bg-emerald-700"
@@ -764,7 +774,7 @@ export default function MySubscriptionSection({ onBack }) {
                           : "Proceed to Payment"}
                       </button>
 
-                      <div className="text-xs text-slate-500">
+                      <div className="text-[10px] leading-snug text-slate-500">
                         {selectedPlan.key === "enterprise"
                           ? "Enterprise plans should be routed to your custom sales workflow."
                           : "This button is already prepared for the Stripe checkout session backend route."}
@@ -773,20 +783,20 @@ export default function MySubscriptionSection({ onBack }) {
                   </div>
                 </div>
               ) : (
-                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white px-4 py-6 text-center">
-                  <div className="text-sm font-semibold text-slate-900">
+                <div className="flex flex-col items-center justify-center rounded-xl border border-dashed border-slate-300 bg-white px-4 py-4 text-center">
+                  <div className="text-[13px] font-semibold text-slate-900">
                     No plan selected yet
                   </div>
-                  <div className="mt-1 text-sm text-slate-500">
+                  <div className="mt-1 text-[12px] text-slate-500">
                     Choose a plan above to review pricing and continue to payment.
                   </div>
                 </div>
               )}
 
-              <div className="mt-4 flex justify-center">
+              <div className="mt-3 flex justify-center">
                 <button
                   onClick={() => setShowComparePlans(true)}
-                  className="rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-900 px-5 py-2 text-sm font-semibold shadow-sm"
+                  className="rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-900 px-4 py-1.5 text-[12px] font-semibold shadow-sm"
                 >
                   Compare Plans
                 </button>
