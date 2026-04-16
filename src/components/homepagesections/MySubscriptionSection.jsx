@@ -6,68 +6,97 @@ const PLANS = [
   {
     key: "free",
     name: "Free",
-    monthlyPrice: "$0",
-    oneTimeLicense: "N/A",
-    deviceLimit: "1 device",
-    tenantsUsers: "1",
+    monthlyPrice: 0,
+    oneTimeLicense: null,
+    deviceLimit: 1,
+    tenantsUsers: 1,
     dataHistory: "7 days",
     features: "Basic telemetry, basic widgets, device testing",
-    annualSupport: "N/A",
+    annualSupport: null,
     shortFeature: "Basic telemetry and device testing",
   },
   {
     key: "starter",
     name: "Starter",
-    monthlyPrice: "$30 / month",
-    oneTimeLicense: "$1,200",
-    deviceLimit: "5 devices",
-    tenantsUsers: "2",
+    monthlyPrice: 30,
+    oneTimeLicense: 1200,
+    deviceLimit: 5,
+    tenantsUsers: 2,
     dataHistory: "30 days",
     features: "Alarms, dashboards, telemetry monitoring",
-    annualSupport: "$79 / year",
+    annualSupport: 79,
     shortFeature: "Alarms and telemetry monitoring",
   },
   {
     key: "professional",
     name: "Professional",
-    monthlyPrice: "$240 / month",
-    oneTimeLicense: "$4,500",
-    deviceLimit: "50 devices",
-    tenantsUsers: "3",
+    monthlyPrice: 240,
+    oneTimeLicense: 4500,
+    deviceLimit: 50,
+    tenantsUsers: 3,
     dataHistory: "1 year",
     features: "Automation rules, data export, advanced dashboards",
-    annualSupport: "$199 / year",
+    annualSupport: 199,
     shortFeature: "Automation, export, advanced dashboards",
     badge: "Most Popular",
   },
   {
     key: "industrial",
     name: "Industrial",
-    monthlyPrice: "$400 / month",
-    oneTimeLicense: "$5,200",
-    deviceLimit: "200 devices",
-    tenantsUsers: "4",
+    monthlyPrice: 400,
+    oneTimeLicense: 9000,
+    deviceLimit: 200,
+    tenantsUsers: 4,
     dataHistory: "Unlimited*",
     features: "Multi-site dashboards, analytics, advanced monitoring",
-    annualSupport: "$599 / year",
+    annualSupport: 599,
     shortFeature: "Multi-site dashboards and analytics",
     badge: "Best for Multi-Site",
   },
   {
     key: "enterprise",
     name: "Enterprise",
-    monthlyPrice: "$900+ / month",
-    oneTimeLicense: "$8,000+",
-    deviceLimit: "Unlimited devices",
-    tenantsUsers: "5",
+    monthlyPrice: null,
+    oneTimeLicense: null,
+    deviceLimit: "Unlimited",
+    tenantsUsers: 5,
     dataHistory: "Unlimited",
     features: "Custom integrations, dedicated server, priority support",
-    annualSupport: "$1,500 / year",
+    annualSupport: 1500,
     shortFeature: "Custom integrations and priority support",
   },
 ];
 
 const PLAN_ORDER = ["free", "starter", "professional", "industrial", "enterprise"];
+const TENANT_USER_ADDON_PRICE = 310;
+
+function formatMoney(value, suffix = "") {
+  if (value === null || value === undefined || value === "") return "Custom";
+  const num = Number(value);
+  if (!Number.isFinite(num)) return "Custom";
+  return `$${num.toLocaleString("en-US")}${suffix}`;
+}
+
+function getDisplayPrice(plan, billingMode) {
+  if (!plan) return "—";
+  if (plan.key === "enterprise") {
+    return billingMode === "monthly" ? "$900+ / month" : "Custom Quote";
+  }
+  if (billingMode === "monthly") {
+    return formatMoney(plan.monthlyPrice, " / month");
+  }
+  if (plan.oneTimeLicense === null) return "N/A";
+  return formatMoney(plan.oneTimeLicense);
+}
+
+function getNumericPlanPrice(plan, billingMode) {
+  if (!plan || plan.key === "enterprise") return null;
+  return billingMode === "monthly"
+    ? Number(plan.monthlyPrice || 0)
+    : plan.oneTimeLicense === null
+    ? null
+    : Number(plan.oneTimeLicense || 0);
+}
 
 function getPlanActionLabel(planKey, currentPlanKey) {
   if (planKey === currentPlanKey) return "Current Plan";
@@ -133,8 +162,7 @@ function ActionPlanCard({
   currentPlanKey,
 }) {
   const actionLabel = getPlanActionLabel(plan.key, currentPlanKey);
-  const displayPrice =
-    billingMode === "monthly" ? plan.monthlyPrice : plan.oneTimeLicense;
+  const displayPrice = getDisplayPrice(plan, billingMode);
 
   return (
     <div
@@ -177,7 +205,11 @@ function ActionPlanCard({
       <div className="mt-4 space-y-2 text-sm">
         <div className="flex items-center justify-between gap-3">
           <span className="text-slate-500">Device Limit</span>
-          <span className="font-semibold text-slate-900">{plan.deviceLimit}</span>
+          <span className="font-semibold text-slate-900">
+            {typeof plan.deviceLimit === "number"
+              ? `${plan.deviceLimit} ${plan.deviceLimit === 1 ? "device" : "devices"}`
+              : plan.deviceLimit}
+          </span>
         </div>
 
         <div className="flex items-center justify-between gap-3">
@@ -255,13 +287,33 @@ function ComparePlansModal({ open, onClose }) {
                   className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}
                 >
                   <td className="px-4 py-4 font-semibold">{plan.name}</td>
-                  <td className="px-4 py-4">{plan.monthlyPrice}</td>
-                  <td className="px-4 py-4">{plan.oneTimeLicense}</td>
-                  <td className="px-4 py-4 font-semibold">{plan.deviceLimit}</td>
+                  <td className="px-4 py-4">
+                    {plan.key === "enterprise"
+                      ? "$900+ / month"
+                      : formatMoney(plan.monthlyPrice, " / month")}
+                  </td>
+                  <td className="px-4 py-4">
+                    {plan.key === "enterprise"
+                      ? "Custom Quote"
+                      : plan.oneTimeLicense === null
+                      ? "N/A"
+                      : formatMoney(plan.oneTimeLicense)}
+                  </td>
+                  <td className="px-4 py-4 font-semibold">
+                    {typeof plan.deviceLimit === "number"
+                      ? `${plan.deviceLimit} ${
+                          plan.deviceLimit === 1 ? "device" : "devices"
+                        }`
+                      : plan.deviceLimit}
+                  </td>
                   <td className="px-4 py-4">{plan.tenantsUsers}</td>
                   <td className="px-4 py-4">{plan.dataHistory}</td>
                   <td className="px-4 py-4">{plan.features}</td>
-                  <td className="px-4 py-4">{plan.annualSupport}</td>
+                  <td className="px-4 py-4">
+                    {plan.annualSupport === null
+                      ? "N/A"
+                      : formatMoney(plan.annualSupport, " / year")}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -276,6 +328,9 @@ export default function MySubscriptionSection({ onBack }) {
   const [showComparePlans, setShowComparePlans] = useState(false);
   const [billingMode, setBillingMode] = useState("monthly");
   const [selectedPlanKey, setSelectedPlanKey] = useState(null);
+  const [addonTenantUsersQty, setAddonTenantUsersQty] = useState(0);
+  const [checkoutLoading, setCheckoutLoading] = useState(false);
+  const [checkoutMessage, setCheckoutMessage] = useState("");
 
   const [subscription, setSubscription] = useState(null);
   const [loadingSubscription, setLoadingSubscription] = useState(true);
@@ -341,11 +396,10 @@ export default function MySubscriptionSection({ onBack }) {
     return PLANS.find((plan) => plan.key === selectedPlanKey) || null;
   }, [selectedPlanKey]);
 
-  const selectedPrice = selectedPlan
-    ? billingMode === "monthly"
-      ? selectedPlan.monthlyPrice
-      : selectedPlan.oneTimeLicense
-    : null;
+  const selectedPlanPrice = getNumericPlanPrice(selectedPlan, billingMode);
+  const addonSubtotal = addonTenantUsersQty * TENANT_USER_ADDON_PRICE;
+  const totalAmount =
+    (Number.isFinite(selectedPlanPrice) ? selectedPlanPrice : 0) + addonSubtotal;
 
   const currentPlanStatus = subscription?.status || "Active";
   const currentPlanRenewal = formatRenewalDate(subscription?.renewal_date);
@@ -357,6 +411,68 @@ export default function MySubscriptionSection({ onBack }) {
     subscription?.tenant_users_used,
     subscription?.tenants_users_limit
   );
+
+  const canShowAddon =
+    selectedPlan &&
+    selectedPlan.key !== "free" &&
+    selectedPlan.key !== "enterprise";
+
+  async function handleProceedToPayment() {
+    if (!selectedPlan) return;
+
+    if (selectedPlan.key === "enterprise") {
+      setCheckoutMessage(
+        "Enterprise plans use a custom quote flow. Connect this button to your sales/contact workflow."
+      );
+      return;
+    }
+
+    try {
+      setCheckoutLoading(true);
+      setCheckoutMessage("");
+
+      const token = String(getToken() || "").trim();
+      if (!token) {
+        throw new Error("Missing authentication token.");
+      }
+
+      const response = await fetch(`${API_URL}/billing/create-checkout-session`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          planKey: selectedPlan.key,
+          billingType: billingMode,
+          extraTenantUsers: addonTenantUsersQty,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          data.detail ||
+            "Checkout route is not ready yet. Build /billing/create-checkout-session next."
+        );
+      }
+
+      if (data?.checkoutUrl) {
+        window.location.href = data.checkoutUrl;
+        return;
+      }
+
+      throw new Error("Checkout URL not returned by backend.");
+    } catch (err) {
+      console.error("Proceed to payment failed:", err);
+      setCheckoutMessage(
+        err?.message || "Unable to continue to payment right now."
+      );
+    } finally {
+      setCheckoutLoading(false);
+    }
+  }
 
   return (
     <>
@@ -386,6 +502,12 @@ export default function MySubscriptionSection({ onBack }) {
           {subscriptionError && (
             <div className="mt-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
               {subscriptionError}
+            </div>
+          )}
+
+          {checkoutMessage && (
+            <div className="mt-3 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-sm text-amber-800">
+              {checkoutMessage}
             </div>
           )}
 
@@ -452,9 +574,9 @@ export default function MySubscriptionSection({ onBack }) {
                     Monthly
                   </button>
                   <button
-                    onClick={() => setBillingMode("onetime")}
+                    onClick={() => setBillingMode("one_time")}
                     className={`rounded-sm px-2.5 py-1 text-[11px] font-semibold leading-none transition ${
-                      billingMode === "onetime"
+                      billingMode === "one_time"
                         ? "bg-emerald-600 text-white"
                         : "text-slate-900 hover:bg-slate-100"
                     }`}
@@ -472,7 +594,13 @@ export default function MySubscriptionSection({ onBack }) {
                   plan={plan}
                   isCurrent={plan.key === currentPlanKey}
                   billingMode={billingMode}
-                  onSelect={(pickedPlan) => setSelectedPlanKey(pickedPlan.key)}
+                  onSelect={(pickedPlan) => {
+                    setSelectedPlanKey(pickedPlan.key);
+                    setCheckoutMessage("");
+                    if (pickedPlan.key === "free" || pickedPlan.key === "enterprise") {
+                      setAddonTenantUsersQty(0);
+                    }
+                  }}
                   isSelected={selectedPlanKey === plan.key}
                   currentPlanKey={currentPlanKey}
                 />
@@ -482,65 +610,165 @@ export default function MySubscriptionSection({ onBack }) {
             {/* CHECKOUT SUMMARY */}
             <div className="border-t border-slate-200 bg-slate-50 px-4 py-4">
               {selectedPlan ? (
-                <div className="rounded-xl border border-emerald-200 bg-white p-4">
-                  <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-                    <div>
-                      <div className="text-sm font-semibold text-slate-900">
-                        Selected Plan
+                <div className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+                  <div className="xl:col-span-2 rounded-xl border border-emerald-200 bg-white p-4">
+                    <div className="text-sm font-semibold text-slate-900">
+                      Selected Plan
+                    </div>
+
+                    <div className="mt-3 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 text-sm">
+                      <div>
+                        <div className="text-slate-500">Plan</div>
+                        <div className="font-semibold text-slate-900">
+                          {selectedPlan.name}
+                        </div>
                       </div>
-                      <div className="mt-2 grid grid-cols-1 sm:grid-cols-2 xl:grid-cols-5 gap-3 text-sm">
-                        <div>
-                          <div className="text-slate-500">Plan</div>
-                          <div className="font-semibold text-slate-900">
-                            {selectedPlan.name}
-                          </div>
-                        </div>
 
-                        <div>
-                          <div className="text-slate-500">Billing</div>
-                          <div className="font-semibold text-slate-900">
-                            {billingMode === "monthly"
-                              ? "Monthly"
-                              : "One-Time License"}
-                          </div>
+                      <div>
+                        <div className="text-slate-500">Billing</div>
+                        <div className="font-semibold text-slate-900">
+                          {billingMode === "monthly"
+                            ? "Monthly"
+                            : "One-Time License"}
                         </div>
+                      </div>
 
-                        <div>
-                          <div className="text-slate-500">Price</div>
-                          <div className="font-semibold text-slate-900">
-                            {selectedPrice}
-                          </div>
+                      <div>
+                        <div className="text-slate-500">Base Price</div>
+                        <div className="font-semibold text-slate-900">
+                          {getDisplayPrice(selectedPlan, billingMode)}
                         </div>
+                      </div>
 
-                        <div>
-                          <div className="text-slate-500">Devices</div>
-                          <div className="font-semibold text-slate-900">
-                            {selectedPlan.deviceLimit}
-                          </div>
+                      <div>
+                        <div className="text-slate-500">Devices</div>
+                        <div className="font-semibold text-slate-900">
+                          {typeof selectedPlan.deviceLimit === "number"
+                            ? `${selectedPlan.deviceLimit} ${
+                                selectedPlan.deviceLimit === 1
+                                  ? "device"
+                                  : "devices"
+                              }`
+                            : selectedPlan.deviceLimit}
                         </div>
+                      </div>
 
-                        <div>
-                          <div className="text-slate-500">Tenants-Users</div>
-                          <div className="font-semibold text-slate-900">
-                            {selectedPlan.tenantsUsers}
-                          </div>
+                      <div>
+                        <div className="text-slate-500">Tenants-Users</div>
+                        <div className="font-semibold text-slate-900">
+                          {selectedPlan.tenantsUsers}
                         </div>
                       </div>
                     </div>
 
-                    <div className="flex flex-wrap gap-3">
+                    {canShowAddon && (
+                      <div className="mt-4 rounded-xl border border-slate-200 bg-slate-50 px-4 py-4">
+                        <div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between">
+                          <div>
+                            <div className="text-sm font-semibold text-slate-900">
+                              Additional Tenant-User
+                            </div>
+                            <div className="mt-1 text-sm text-slate-500">
+                              Add more tenant-user slots for this subscription.
+                            </div>
+                          </div>
+
+                          <div className="flex items-center gap-3">
+                            <div className="text-sm font-semibold text-slate-900">
+                              {formatMoney(TENANT_USER_ADDON_PRICE)}
+                            </div>
+
+                            <select
+                              value={addonTenantUsersQty}
+                              onChange={(e) =>
+                                setAddonTenantUsersQty(Number(e.target.value || 0))
+                              }
+                              className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm text-slate-900 outline-none focus:border-emerald-500"
+                            >
+                              {[0, 1, 2, 3, 4, 5].map((qty) => (
+                                <option key={qty} value={qty}>
+                                  {qty}
+                                </option>
+                              ))}
+                            </select>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="rounded-xl border border-slate-200 bg-white p-4">
+                    <div className="text-sm font-semibold text-slate-900">
+                      Order Summary
+                    </div>
+
+                    <div className="mt-4 space-y-3 text-sm">
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-slate-500">
+                          {selectedPlan.name}{" "}
+                          {billingMode === "monthly" ? "(Monthly)" : "(One-Time)"}
+                        </span>
+                        <span className="font-semibold text-slate-900">
+                          {selectedPlan.key === "enterprise"
+                            ? "Custom"
+                            : formatMoney(selectedPlanPrice || 0)}
+                        </span>
+                      </div>
+
+                      {addonTenantUsersQty > 0 && canShowAddon && (
+                        <div className="flex items-center justify-between gap-3">
+                          <span className="text-slate-500">
+                            Additional Tenant-User × {addonTenantUsersQty}
+                          </span>
+                          <span className="font-semibold text-slate-900">
+                            {formatMoney(addonSubtotal)}
+                          </span>
+                        </div>
+                      )}
+
+                      <div className="border-t border-slate-200 pt-3 flex items-center justify-between gap-3">
+                        <span className="text-slate-900 font-semibold">Total</span>
+                        <span className="text-lg font-bold text-slate-900">
+                          {selectedPlan.key === "enterprise"
+                            ? "Custom Quote"
+                            : formatMoney(totalAmount)}
+                        </span>
+                      </div>
+                    </div>
+
+                    <div className="mt-5 flex flex-col gap-3">
                       <button
                         className="rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-900 px-4 py-2 text-sm font-semibold"
-                        onClick={() => setSelectedPlanKey(null)}
+                        onClick={() => {
+                          setSelectedPlanKey(null);
+                          setAddonTenantUsersQty(0);
+                          setCheckoutMessage("");
+                        }}
                       >
                         Cancel
                       </button>
 
-                      <button className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-4 py-2 text-sm font-semibold">
-                        {selectedPlan.key === "enterprise"
+                      <button
+                        onClick={handleProceedToPayment}
+                        disabled={checkoutLoading}
+                        className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${
+                          checkoutLoading
+                            ? "bg-emerald-400 cursor-wait"
+                            : "bg-emerald-600 hover:bg-emerald-700"
+                        }`}
+                      >
+                        {checkoutLoading
+                          ? "Preparing Checkout..."
+                          : selectedPlan.key === "enterprise"
                           ? "Request Quote"
                           : "Proceed to Payment"}
                       </button>
+
+                      <div className="text-xs text-slate-500">
+                        {selectedPlan.key === "enterprise"
+                          ? "Enterprise plans should be routed to your custom sales workflow."
+                          : "This button is already prepared for the Stripe checkout session backend route."}
+                      </div>
                     </div>
                   </div>
                 </div>
