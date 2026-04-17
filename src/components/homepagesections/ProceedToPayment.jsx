@@ -532,14 +532,17 @@ function ProceedToPaymentStripeInner(props) {
     });
   }, [stripe, elements, props.clientSecret]);
 
-  return (
-    <ProceedToPaymentLayout
-      {...props}
-      stripe={stripe}
-      elements={elements}
-      showPaymentElement={true}
-    />
-  );
+  const isReady = !!stripe && !!elements;
+
+return (
+  <ProceedToPaymentLayout
+    {...props}
+    stripe={stripe}
+    elements={elements}
+    showPaymentElement={isReady}
+  />
+);
+
 }
 
 export default function ProceedToPayment({
