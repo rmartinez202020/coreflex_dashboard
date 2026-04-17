@@ -5,6 +5,7 @@ import BusinessUsersReportSection from "./homepagesections/BusinessUsersReportSe
 import BusinessDashboardsReportSection from "./homepagesections/BusinessDashboardsReportSection";
 import TenantUsersPage from "./homepagesections/TenantUsersPage";
 import MySubscriptionSection from "./homepagesections/MySubscriptionSection";
+import BillingAdminSection from "./homepagesections/BillingAdminSection";
 
 // ✅ IMPORTANT: read token the same way the rest of the app does (sessionStorage per-tab)
 import { getToken, parseJwt } from "../utils/authToken";
@@ -79,89 +80,6 @@ function detectEmailFromAuth(currentUserKey) {
   }
 
   return "";
-}
-
-function BillingAdminPage({ onBack, ownerEmail }) {
-  return (
-    <div className="mt-4 md:mt-6">
-      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-        <div className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <button
-              onClick={onBack}
-              className="rounded-lg bg-slate-800 hover:bg-slate-700 px-3 py-1.5 text-[12px]"
-            >
-              ← Back
-            </button>
-
-            <div>
-              <div className="text-[15px] font-semibold leading-tight">
-                Billing Admin
-              </div>
-              <div className="text-[11px] text-slate-300 leading-tight">
-                Owner-only billing management for plans, add-ons, and Stripe sync.
-              </div>
-            </div>
-          </div>
-
-          <div className="text-[11px] text-slate-300">
-            Owner: {ownerEmail || "unknown"}
-          </div>
-        </div>
-
-        <div className="p-4 md:p-5">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-              <div className="text-[14px] font-semibold text-slate-900">
-                Billing Plans
-              </div>
-              <div className="mt-1 text-[12px] text-slate-600">
-                View and edit pricing, names, limits, and data-history values for
-                each plan.
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-cyan-200 bg-cyan-50 p-4">
-              <div className="text-[14px] font-semibold text-slate-900">
-                Billing Add-ons
-              </div>
-              <div className="mt-1 text-[12px] text-slate-600">
-                Manage additional tenant-user pricing and other future add-ons.
-              </div>
-            </div>
-
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-              <div className="text-[14px] font-semibold text-slate-900">
-                Stripe Sync
-              </div>
-              <div className="mt-1 text-[12px] text-slate-600">
-                Sync plans and add-ons to Stripe after creating or editing billing
-                records.
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
-            <div className="text-[14px] font-semibold text-slate-900">
-              Recommended next step
-            </div>
-            <div className="mt-2 text-[12px] text-slate-600 leading-6">
-              Build a dedicated owner-only billing section here that:
-              <br />• lists all billing plans and add-ons
-              <br />• lets you edit plan price, name, limits, and history
-              <br />• shows Stripe sync status
-              <br />• includes actions like Sync One and Sync All
-            </div>
-
-            <div className="mt-4 rounded-lg border border-dashed border-slate-300 bg-white px-4 py-3 text-[12px] text-slate-500">
-              This page is now wired into Home and ready for the next step:
-              replacing this placeholder with your real Billing Admin section.
-            </div>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
 }
 
 export default function HomePage({
@@ -379,10 +297,12 @@ export default function HomePage({
   // ✅ FULL “BILLING ADMIN PAGE” VIEW (OWNER ONLY)
   if (isPlatformOwner && showBillingAdminPage) {
     return (
-      <BillingAdminPage
-        onBack={() => setShowBillingAdminPage(false)}
-        ownerEmail={detectedEmail || normalizedUser}
-      />
+      <div className="mt-4 md:mt-6">
+        <BillingAdminSection
+          onBack={() => setShowBillingAdminPage(false)}
+          ownerEmail={detectedEmail || normalizedUser}
+        />
+      </div>
     );
   }
 
