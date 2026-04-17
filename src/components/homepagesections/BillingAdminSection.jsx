@@ -60,11 +60,11 @@ function filterByBillingMode(rows, billingMode) {
 
 function BillingModeToggle({ billingMode, onChange }) {
   return (
-    <div className="inline-flex rounded-lg border border-slate-300 bg-white p-[2px]">
+    <div className="inline-flex rounded-md border border-slate-300 bg-white p-[2px]">
       <button
         type="button"
         onClick={() => onChange("monthly")}
-        className={`rounded-md px-3 py-1.5 text-[12px] font-semibold transition ${
+        className={`rounded-md px-2.5 py-1 text-[11px] font-semibold leading-none transition ${
           billingMode === "monthly"
             ? "bg-emerald-600 text-white"
             : "text-slate-700 hover:bg-slate-100"
@@ -76,7 +76,7 @@ function BillingModeToggle({ billingMode, onChange }) {
       <button
         type="button"
         onClick={() => onChange("one_time")}
-        className={`rounded-md px-3 py-1.5 text-[12px] font-semibold transition ${
+        className={`rounded-md px-2.5 py-1 text-[11px] font-semibold leading-none transition ${
           billingMode === "one_time"
             ? "bg-emerald-600 text-white"
             : "text-slate-700 hover:bg-slate-100"
@@ -97,7 +97,7 @@ function BillingPlansTable({
 }) {
   if (loading) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+      <div className="rounded-lg border border-slate-200 bg-white p-3 text-[12px] text-slate-500">
         Loading billing plans...
       </div>
     );
@@ -105,16 +105,16 @@ function BillingPlansTable({
 
   if (!rows.length) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+      <div className="rounded-lg border border-slate-200 bg-white p-3 text-[12px] text-slate-500">
         No billing plans found for this billing type.
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
+    <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
       <div className="overflow-auto">
-        <table className="min-w-full text-sm">
+        <table className="min-w-full text-[12px]">
           <thead className="bg-slate-100">
             <tr>
               <th className="px-3 py-2 text-left font-semibold text-slate-700">
@@ -153,10 +153,10 @@ function BillingPlansTable({
                   className={idx % 2 === 0 ? "bg-white" : "bg-slate-50/60"}
                 >
                   <td className="px-3 py-3 align-top">
-                    <div className="font-semibold text-slate-900">
+                    <div className="font-semibold leading-tight text-slate-900">
                       {safeText(row.plan_name, row.plan_key)}
                     </div>
-                    <div className="text-[11px] text-slate-500">
+                    <div className="mt-0.5 text-[10px] leading-tight text-slate-500">
                       key: {safeText(row.plan_key)}
                     </div>
                   </td>
@@ -183,13 +183,13 @@ function BillingPlansTable({
 
                   <td className="px-3 py-3 align-top">
                     <div
-                      className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${syncBadgeClass(
+                      className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${syncBadgeClass(
                         row
                       )}`}
                     >
                       {syncBadgeText(row)}
                     </div>
-                    <div className="mt-1 text-[10px] leading-5 text-slate-500">
+                    <div className="mt-1 text-[9px] leading-4 text-slate-500">
                       Product: {safeText(row.stripe_product_id)}
                       <br />
                       Price: {safeText(row.stripe_price_id)}
@@ -201,7 +201,7 @@ function BillingPlansTable({
                       type="button"
                       onClick={() => onSyncPlan(row.id)}
                       disabled={syncingAll || isSyncing}
-                      className={`rounded-lg px-3 py-1.5 text-[12px] font-semibold ${
+                      className={`rounded-md px-3 py-1 text-[11px] font-semibold ${
                         syncingAll || isSyncing
                           ? "bg-slate-300 text-slate-600 cursor-not-allowed"
                           : "bg-emerald-600 text-white hover:bg-emerald-700"
@@ -229,7 +229,7 @@ function BillingAddonsTable({
 }) {
   if (loading) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+      <div className="rounded-lg border border-slate-200 bg-white p-3 text-[12px] text-slate-500">
         Loading billing add-ons...
       </div>
     );
@@ -237,25 +237,25 @@ function BillingAddonsTable({
 
   if (!rows.length) {
     return (
-      <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
+      <div className="rounded-lg border border-slate-200 bg-white p-3 text-[12px] text-slate-500">
         No billing add-ons found for this billing type.
       </div>
     );
   }
 
   return (
-    <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-      <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
-        <div className="text-[14px] font-semibold text-slate-900">
+    <div className="rounded-lg border border-slate-200 bg-white overflow-hidden">
+      <div className="border-b border-slate-200 bg-slate-50 px-3 py-2">
+        <div className="text-[13px] font-semibold leading-tight text-slate-900">
           Billing Add-ons
         </div>
-        <div className="text-[12px] text-slate-500">
+        <div className="text-[11px] leading-tight text-slate-500">
           Review additional tenant-user pricing and Stripe sync status.
         </div>
       </div>
 
       <div className="overflow-auto">
-        <table className="min-w-full text-sm">
+        <table className="min-w-full text-[12px]">
           <thead className="bg-slate-100">
             <tr>
               <th className="px-3 py-2 text-left font-semibold text-slate-700">
@@ -285,7 +285,7 @@ function BillingAddonsTable({
                   className={idx % 2 === 0 ? "bg-white" : "bg-slate-50/60"}
                 >
                   <td className="px-3 py-3 align-top">
-                    <div className="font-semibold text-slate-900">
+                    <div className="font-semibold leading-tight text-slate-900">
                       {safeText(row.addon_key)}
                     </div>
                   </td>
@@ -300,13 +300,13 @@ function BillingAddonsTable({
 
                   <td className="px-3 py-3 align-top">
                     <div
-                      className={`inline-flex rounded-full px-2.5 py-1 text-[11px] font-semibold ${syncBadgeClass(
+                      className={`inline-flex rounded-full px-2 py-0.5 text-[10px] font-semibold ${syncBadgeClass(
                         row
                       )}`}
                     >
                       {syncBadgeText(row)}
                     </div>
-                    <div className="mt-1 text-[10px] leading-5 text-slate-500">
+                    <div className="mt-1 text-[9px] leading-4 text-slate-500">
                       Product: {safeText(row.stripe_product_id)}
                       <br />
                       Price: {safeText(row.stripe_price_id)}
@@ -318,7 +318,7 @@ function BillingAddonsTable({
                       type="button"
                       onClick={() => onSyncAddon(row.id)}
                       disabled={syncingAll || isSyncing}
-                      className={`rounded-lg px-3 py-1.5 text-[12px] font-semibold ${
+                      className={`rounded-md px-3 py-1 text-[11px] font-semibold ${
                         syncingAll || isSyncing
                           ? "bg-slate-300 text-slate-600 cursor-not-allowed"
                           : "bg-cyan-600 text-white hover:bg-cyan-700"
@@ -540,36 +540,36 @@ export default function BillingAdminSection({ onBack, ownerEmail = "" }) {
   );
 
   return (
-    <div className="mt-4 md:mt-6">
+    <div className="mt-3 md:mt-4">
       <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
-        <div className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between">
+        <div className="bg-slate-900 text-white px-4 py-2.5 flex items-center justify-between">
           <div className="flex items-center gap-3">
             <button
               onClick={onBack}
-              className="rounded-lg bg-slate-800 hover:bg-slate-700 px-3 py-1.5 text-[12px]"
+              className="rounded-md bg-slate-800 hover:bg-slate-700 px-3 py-1 text-[11px]"
             >
               ← Back
             </button>
 
             <div>
-              <div className="text-[15px] font-semibold leading-tight">
+              <div className="text-[14px] font-semibold leading-tight">
                 Billing Admin
               </div>
-              <div className="text-[11px] text-slate-300 leading-tight">
+              <div className="text-[10px] text-slate-300 leading-tight">
                 Owner-only billing management for plans, add-ons, and Stripe sync.
               </div>
             </div>
           </div>
 
-          <div className="text-[11px] text-slate-300">
+          <div className="text-[10px] text-slate-300">
             Owner: {ownerEmail || "unknown"}
           </div>
         </div>
 
-        <div className="p-4 md:p-5">
+        <div className="p-3 md:p-4">
           {(pageError || pageMessage) && (
             <div
-              className={`mb-4 rounded-lg px-3 py-2 text-[12px] ${
+              className={`mb-3 rounded-md px-3 py-2 text-[11px] ${
                 pageError
                   ? "border border-red-200 bg-red-50 text-red-700"
                   : "border border-emerald-200 bg-emerald-50 text-emerald-700"
@@ -579,42 +579,42 @@ export default function BillingAdminSection({ onBack, ownerEmail = "" }) {
             </div>
           )}
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
-              <div className="text-[11px] text-slate-500">Plans</div>
-              <div className="mt-0.5 text-[18px] font-bold leading-tight text-slate-900">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <div className="rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-2.5">
+              <div className="text-[10px] text-slate-500">Plans</div>
+              <div className="mt-0.5 text-[16px] font-bold leading-tight text-slate-900">
                 {totalPlans}
               </div>
-              <div className="mt-0.5 text-[10px] text-slate-600">
+              <div className="mt-0.5 text-[9px] text-slate-600">
                 {syncedPlansCount} synced to Stripe
               </div>
             </div>
 
-            <div className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3">
-              <div className="text-[11px] text-slate-500">Add-ons</div>
-              <div className="mt-0.5 text-[18px] font-bold leading-tight text-slate-900">
+            <div className="rounded-lg border border-cyan-200 bg-cyan-50 px-4 py-2.5">
+              <div className="text-[10px] text-slate-500">Add-ons</div>
+              <div className="mt-0.5 text-[16px] font-bold leading-tight text-slate-900">
                 {totalAddons}
               </div>
-              <div className="mt-0.5 text-[10px] text-slate-600">
+              <div className="mt-0.5 text-[9px] text-slate-600">
                 {syncedAddonsCount} synced to Stripe
               </div>
             </div>
 
-            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
-              <div className="text-[11px] text-slate-500">Sync Status</div>
-              <div className="mt-0.5 text-[18px] font-bold leading-tight text-slate-900">
+            <div className="rounded-lg border border-amber-200 bg-amber-50 px-4 py-2.5">
+              <div className="text-[10px] text-slate-500">Sync Status</div>
+              <div className="mt-0.5 text-[16px] font-bold leading-tight text-slate-900">
                 {syncedPlansCount + syncedAddonsCount}/
                 {totalPlans + totalAddons}
               </div>
-              <div className="mt-0.5 text-[10px] text-slate-600">
+              <div className="mt-0.5 text-[9px] text-slate-600">
                 total synced billing items
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 flex flex-col justify-between">
+            <div className="rounded-lg border border-slate-200 bg-slate-50 px-4 py-2.5 flex flex-col justify-between">
               <div>
-                <div className="text-[11px] text-slate-500">Stripe Actions</div>
-                <div className="mt-0.5 text-[12px] font-semibold leading-tight text-slate-900">
+                <div className="text-[10px] text-slate-500">Stripe Actions</div>
+                <div className="mt-0.5 text-[11px] font-semibold leading-tight text-slate-900">
                   Sync all active items
                 </div>
               </div>
@@ -623,7 +623,7 @@ export default function BillingAdminSection({ onBack, ownerEmail = "" }) {
                 type="button"
                 onClick={handleSyncAll}
                 disabled={syncingAll}
-                className={`mt-3 rounded-lg px-3 py-1.5 text-[12px] font-semibold ${
+                className={`mt-2 rounded-md px-3 py-1.5 text-[11px] font-semibold ${
                   syncingAll
                     ? "bg-slate-300 text-slate-600 cursor-not-allowed"
                     : "bg-amber-500 text-white hover:bg-amber-600"
@@ -634,13 +634,13 @@ export default function BillingAdminSection({ onBack, ownerEmail = "" }) {
             </div>
           </div>
 
-          <div className="mt-5 rounded-xl border border-slate-200 bg-white overflow-hidden">
-            <div className="border-b border-slate-200 bg-slate-50 px-4 py-2.5 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
+          <div className="mt-4 rounded-lg border border-slate-200 bg-white overflow-hidden">
+            <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 flex flex-col gap-1.5 md:flex-row md:items-center md:justify-between">
               <div>
-                <div className="text-[14px] font-semibold text-slate-900">
+                <div className="text-[13px] font-semibold leading-tight text-slate-900">
                   Billing Type View
                 </div>
-                <div className="text-[12px] text-slate-500">
+                <div className="text-[11px] leading-tight text-slate-500">
                   Switch between monthly and one-time billing records.
                 </div>
               </div>
@@ -652,7 +652,7 @@ export default function BillingAdminSection({ onBack, ownerEmail = "" }) {
             </div>
           </div>
 
-          <div className="mt-5 grid grid-cols-1 gap-5">
+          <div className="mt-4 grid grid-cols-1 gap-4">
             <BillingPlansTable
               rows={filteredPlans}
               loading={loadingPlans}
