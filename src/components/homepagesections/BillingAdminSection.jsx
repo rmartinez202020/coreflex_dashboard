@@ -589,41 +589,41 @@ export default function BillingAdminSection({ onBack, ownerEmail = "" }) {
           )}
 
           <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
-              <div className="text-[12px] text-slate-500">Plans</div>
-              <div className="mt-1 text-[20px] font-bold text-slate-900">
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 px-4 py-3">
+              <div className="text-[11px] text-slate-500">Plans</div>
+              <div className="mt-0.5 text-[18px] font-bold leading-tight text-slate-900">
                 {totalPlans}
               </div>
-              <div className="mt-1 text-[11px] text-slate-600">
+              <div className="mt-0.5 text-[10px] text-slate-600">
                 {syncedPlansCount} synced to Stripe
               </div>
             </div>
 
-            <div className="rounded-xl border border-cyan-200 bg-cyan-50 p-4">
-              <div className="text-[12px] text-slate-500">Add-ons</div>
-              <div className="mt-1 text-[20px] font-bold text-slate-900">
+            <div className="rounded-xl border border-cyan-200 bg-cyan-50 px-4 py-3">
+              <div className="text-[11px] text-slate-500">Add-ons</div>
+              <div className="mt-0.5 text-[18px] font-bold leading-tight text-slate-900">
                 {totalAddons}
               </div>
-              <div className="mt-1 text-[11px] text-slate-600">
+              <div className="mt-0.5 text-[10px] text-slate-600">
                 {syncedAddonsCount} synced to Stripe
               </div>
             </div>
 
-            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-              <div className="text-[12px] text-slate-500">Sync Status</div>
-              <div className="mt-1 text-[20px] font-bold text-slate-900">
+            <div className="rounded-xl border border-amber-200 bg-amber-50 px-4 py-3">
+              <div className="text-[11px] text-slate-500">Sync Status</div>
+              <div className="mt-0.5 text-[18px] font-bold leading-tight text-slate-900">
                 {syncedPlansCount + syncedAddonsCount}/
                 {totalPlans + totalAddons}
               </div>
-              <div className="mt-1 text-[11px] text-slate-600">
+              <div className="mt-0.5 text-[10px] text-slate-600">
                 total synced billing items
               </div>
             </div>
 
-            <div className="rounded-xl border border-slate-200 bg-slate-50 p-4 flex flex-col justify-between">
+            <div className="rounded-xl border border-slate-200 bg-slate-50 px-4 py-3 flex flex-col justify-between">
               <div>
-                <div className="text-[12px] text-slate-500">Stripe Actions</div>
-                <div className="mt-1 text-[13px] font-semibold text-slate-900">
+                <div className="text-[11px] text-slate-500">Stripe Actions</div>
+                <div className="mt-0.5 text-[12px] font-semibold leading-tight text-slate-900">
                   Sync all active items
                 </div>
               </div>
@@ -632,7 +632,7 @@ export default function BillingAdminSection({ onBack, ownerEmail = "" }) {
                 type="button"
                 onClick={handleSyncAll}
                 disabled={syncingAll}
-                className={`mt-4 rounded-lg px-3 py-2 text-[12px] font-semibold ${
+                className={`mt-3 rounded-lg px-3 py-1.5 text-[12px] font-semibold ${
                   syncingAll
                     ? "bg-slate-300 text-slate-600 cursor-not-allowed"
                     : "bg-amber-500 text-white hover:bg-amber-600"
@@ -644,7 +644,7 @@ export default function BillingAdminSection({ onBack, ownerEmail = "" }) {
           </div>
 
           <div className="mt-5 rounded-xl border border-slate-200 bg-white overflow-hidden">
-            <div className="border-b border-slate-200 bg-slate-50 px-4 py-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="border-b border-slate-200 bg-slate-50 px-4 py-2.5 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
                 <div className="text-[14px] font-semibold text-slate-900">
                   Billing Type View
@@ -658,13 +658,6 @@ export default function BillingAdminSection({ onBack, ownerEmail = "" }) {
                 billingMode={billingMode}
                 onChange={setBillingMode}
               />
-            </div>
-
-            <div className="px-4 py-3 text-[12px] text-slate-600 bg-white">
-              Showing:{" "}
-              <span className="font-semibold text-slate-900">
-                {billingMode === "one_time" ? "One-Time License" : "Monthly"}
-              </span>
             </div>
           </div>
 
