@@ -342,6 +342,8 @@ export default function MySubscriptionSection({ onBack }) {
   const [checkoutMessage, setCheckoutMessage] = useState("");
   const [showProceedToPayment, setShowProceedToPayment] = useState(false);
 
+  const [clientSecret, setClientSecret] = useState("");
+
   const [subscription, setSubscription] = useState(null);
   const [loadingSubscription, setLoadingSubscription] = useState(true);
   const [subscriptionError, setSubscriptionError] = useState("");
