@@ -113,15 +113,6 @@ function BillingPlansTable({
 
   return (
     <div className="rounded-xl border border-slate-200 bg-white overflow-hidden">
-      <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
-        <div className="text-[14px] font-semibold text-slate-900">
-          Billing Plans
-        </div>
-        <div className="text-[12px] text-slate-500">
-          Review plan pricing, limits, and Stripe sync status.
-        </div>
-      </div>
-
       <div className="overflow-auto">
         <table className="min-w-full text-sm">
           <thead className="bg-slate-100">
