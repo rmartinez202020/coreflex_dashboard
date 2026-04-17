@@ -81,6 +81,89 @@ function detectEmailFromAuth(currentUserKey) {
   return "";
 }
 
+function BillingAdminPage({ onBack, ownerEmail }) {
+  return (
+    <div className="mt-4 md:mt-6">
+      <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
+        <div className="bg-slate-900 text-white px-4 py-3 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onBack}
+              className="rounded-lg bg-slate-800 hover:bg-slate-700 px-3 py-1.5 text-[12px]"
+            >
+              ← Back
+            </button>
+
+            <div>
+              <div className="text-[15px] font-semibold leading-tight">
+                Billing Admin
+              </div>
+              <div className="text-[11px] text-slate-300 leading-tight">
+                Owner-only billing management for plans, add-ons, and Stripe sync.
+              </div>
+            </div>
+          </div>
+
+          <div className="text-[11px] text-slate-300">
+            Owner: {ownerEmail || "unknown"}
+          </div>
+        </div>
+
+        <div className="p-4 md:p-5">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-4">
+              <div className="text-[14px] font-semibold text-slate-900">
+                Billing Plans
+              </div>
+              <div className="mt-1 text-[12px] text-slate-600">
+                View and edit pricing, names, limits, and data-history values for
+                each plan.
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-cyan-200 bg-cyan-50 p-4">
+              <div className="text-[14px] font-semibold text-slate-900">
+                Billing Add-ons
+              </div>
+              <div className="mt-1 text-[12px] text-slate-600">
+                Manage additional tenant-user pricing and other future add-ons.
+              </div>
+            </div>
+
+            <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+              <div className="text-[14px] font-semibold text-slate-900">
+                Stripe Sync
+              </div>
+              <div className="mt-1 text-[12px] text-slate-600">
+                Sync plans and add-ons to Stripe after creating or editing billing
+                records.
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-5 rounded-xl border border-slate-200 bg-slate-50 p-4">
+            <div className="text-[14px] font-semibold text-slate-900">
+              Recommended next step
+            </div>
+            <div className="mt-2 text-[12px] text-slate-600 leading-6">
+              Build a dedicated owner-only billing section here that:
+              <br />• lists all billing plans and add-ons
+              <br />• lets you edit plan price, name, limits, and history
+              <br />• shows Stripe sync status
+              <br />• includes actions like Sync One and Sync All
+            </div>
+
+            <div className="mt-4 rounded-lg border border-dashed border-slate-300 bg-white px-4 py-3 text-[12px] text-slate-500">
+              This page is now wired into Home and ready for the next step:
+              replacing this placeholder with your real Billing Admin section.
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function HomePage({
   setActiveSubPage,
   setSubPageColor,
@@ -104,6 +187,9 @@ export default function HomePage({
   // ✅ NEW: dedicated My Subscription page state
   const [showMySubscriptionPage, setShowMySubscriptionPage] =
     React.useState(false);
+
+  // ✅ NEW: dedicated Billing Admin page state (OWNER ONLY)
+  const [showBillingAdminPage, setShowBillingAdminPage] = React.useState(false);
 
   // ✅ Placeholder rows (later replace with backend API)
   const [zhc1921Rows, setZhc1921Rows] = React.useState([
@@ -173,6 +259,7 @@ export default function HomePage({
       setActiveModel(null);
       setShowBusinessUsersReportPage(false);
       setShowBusinessDashboardsReportPage(false);
+      setShowBillingAdminPage(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlatformOwner, normalizedUser]);
@@ -209,6 +296,12 @@ export default function HomePage({
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [showMySubscriptionPage]);
+
+  React.useEffect(() => {
+    if (showBillingAdminPage) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [showBillingAdminPage]);
 
   // ✅ Treat “device manager open” like a full-page section
   const isDeviceManagerOpen = isPlatformOwner && !!activeModel;
@@ -280,6 +373,16 @@ export default function HomePage({
           onBack={() => setShowMySubscriptionPage(false)}
         />
       </div>
+    );
+  }
+
+  // ✅ FULL “BILLING ADMIN PAGE” VIEW (OWNER ONLY)
+  if (isPlatformOwner && showBillingAdminPage) {
+    return (
+      <BillingAdminPage
+        onBack={() => setShowBillingAdminPage(false)}
+        ownerEmail={detectedEmail || normalizedUser}
+      />
     );
   }
 
@@ -426,7 +529,7 @@ export default function HomePage({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             <button
               onClick={() => setShowBusinessDashboardsReportPage(true)}
               className="w-full rounded-xl bg-gray-900 text-white px-5 py-4 text-left hover:opacity-90 transition"
@@ -452,6 +555,20 @@ export default function HomePage({
               </div>
               <div className="mt-2 text-xs opacity-90">
                 Click to open users report
+              </div>
+            </button>
+
+            <button
+              onClick={() => setShowBillingAdminPage(true)}
+              className="w-full rounded-xl bg-emerald-700 text-white px-5 py-4 text-left hover:opacity-90 transition"
+            >
+              <div className="text-lg font-semibold">Billing Admin</div>
+              <div className="text-sm opacity-90">
+                Manage plans, add-ons, pricing, and Stripe sync as platform
+                owner.
+              </div>
+              <div className="mt-2 text-xs opacity-90">
+                Click to open billing admin
               </div>
             </button>
           </div>
