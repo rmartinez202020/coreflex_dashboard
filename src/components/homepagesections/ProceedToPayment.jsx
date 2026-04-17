@@ -61,6 +61,38 @@ function ProceedToPaymentLayout({
     setEmail(userEmail || "");
   }, [userEmail]);
 
+  useEffect(() => {
+    console.log("[ProceedToPaymentLayout] state snapshot", {
+      selectedPlanKey: selectedPlan?.key || null,
+      selectedPlanName: selectedPlan?.name || null,
+      billingMode,
+      addonTenantUsersQty,
+      tenantUserAddonPrice,
+      userEmail,
+      checkoutLoading,
+      checkoutError,
+      clientSecretPresent: !!clientSecret,
+      clientSecretPreview: clientSecret
+        ? `${String(clientSecret).slice(0, 20)}...`
+        : "(empty)",
+      stripeReady: !!stripe,
+      elementsReady: !!elements,
+      showPaymentElement,
+    });
+  }, [
+    selectedPlan,
+    billingMode,
+    addonTenantUsersQty,
+    tenantUserAddonPrice,
+    userEmail,
+    checkoutLoading,
+    checkoutError,
+    clientSecret,
+    stripe,
+    elements,
+    showPaymentElement,
+  ]);
+
   const planPrice = useMemo(() => {
     return buildPlanPrice(selectedPlan, billingMode);
   }, [selectedPlan, billingMode]);
@@ -80,52 +112,95 @@ function ProceedToPaymentLayout({
     e.preventDefault();
     setLocalError("");
 
+    console.log("[ProceedToPaymentLayout] submit clicked", {
+      selectedPlanKey: selectedPlan?.key || null,
+      billingMode,
+      addonTenantUsersQty,
+      email,
+      fullName,
+      address1,
+      city,
+      stateRegion,
+      zipCode,
+      clientSecretPresent: !!clientSecret,
+      stripeReady: !!stripe,
+      elementsReady: !!elements,
+    });
+
     if (!selectedPlan) {
       setLocalError("Please select a plan first.");
+      console.warn("[ProceedToPaymentLayout] blocked submit: no selected plan");
       return;
     }
 
     if (!email.trim()) {
       setLocalError("Email is required.");
+      console.warn("[ProceedToPaymentLayout] blocked submit: missing email");
       return;
     }
 
     if (!fullName.trim()) {
       setLocalError("Full name is required.");
+      console.warn("[ProceedToPaymentLayout] blocked submit: missing fullName");
       return;
     }
 
     if (!address1.trim()) {
       setLocalError("Billing address is required.");
+      console.warn("[ProceedToPaymentLayout] blocked submit: missing address1");
       return;
     }
 
     if (!city.trim()) {
       setLocalError("City is required.");
+      console.warn("[ProceedToPaymentLayout] blocked submit: missing city");
       return;
     }
 
     if (!stateRegion.trim()) {
       setLocalError("State / Region is required.");
+      console.warn(
+        "[ProceedToPaymentLayout] blocked submit: missing stateRegion"
+      );
       return;
     }
 
     if (!zipCode.trim()) {
       setLocalError("ZIP / Postal code is required.");
+      console.warn("[ProceedToPaymentLayout] blocked submit: missing zipCode");
       return;
     }
 
     if (!clientSecret) {
       setLocalError("Secure payment form is still loading. Please wait a moment.");
+      console.warn(
+        "[ProceedToPaymentLayout] blocked submit: clientSecret missing"
+      );
       return;
     }
 
     if (!stripe || !elements) {
       setLocalError("Stripe is still loading. Please wait a moment.");
+      console.warn(
+        "[ProceedToPaymentLayout] blocked submit: stripe/elements not ready",
+        {
+          stripeReady: !!stripe,
+          elementsReady: !!elements,
+        }
+      );
       return;
     }
 
     if (typeof onSubmit === "function") {
+      console.log("[ProceedToPaymentLayout] forwarding submit to onSubmit", {
+        selectedPlanKey: selectedPlan?.key || null,
+        billingMode,
+        addonTenantUsersQty,
+        clientSecretPreview: clientSecret
+          ? `${String(clientSecret).slice(0, 20)}...`
+          : "(empty)",
+      });
+
       onSubmit({
         selectedPlan,
         billingMode,
@@ -147,6 +222,9 @@ function ProceedToPaymentLayout({
       return;
     }
 
+    console.error(
+      "[ProceedToPaymentLayout] payment submit handler is not connected"
+    );
     setLocalError("Payment submit handler is not connected yet.");
   };
 
@@ -406,9 +484,19 @@ function ProceedToPaymentLayout({
 
                 <button
                   type="submit"
-                  disabled={checkoutLoading || !selectedPlan || !clientSecret || !stripe || !elements}
+                  disabled={
+                    checkoutLoading ||
+                    !selectedPlan ||
+                    !clientSecret ||
+                    !stripe ||
+                    !elements
+                  }
                   className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${
-                    checkoutLoading || !selectedPlan || !clientSecret || !stripe || !elements
+                    checkoutLoading ||
+                    !selectedPlan ||
+                    !clientSecret ||
+                    !stripe ||
+                    !elements
                       ? "bg-emerald-400 cursor-not-allowed"
                       : "bg-emerald-600 hover:bg-emerald-700"
                   }`}
@@ -433,6 +521,17 @@ function ProceedToPaymentStripeInner(props) {
   const stripe = useStripe();
   const elements = useElements();
 
+  useEffect(() => {
+    console.log("[ProceedToPaymentStripeInner] stripe/elements ready state", {
+      stripeReady: !!stripe,
+      elementsReady: !!elements,
+      clientSecretPresent: !!props.clientSecret,
+      clientSecretPreview: props.clientSecret
+        ? `${String(props.clientSecret).slice(0, 20)}...`
+        : "(empty)",
+    });
+  }, [stripe, elements, props.clientSecret]);
+
   return (
     <ProceedToPaymentLayout
       {...props}
@@ -456,6 +555,34 @@ export default function ProceedToPayment({
   onSubmit,
   clientSecret = "",
 }) {
+  useEffect(() => {
+    console.log("[ProceedToPayment] props snapshot", {
+      open,
+      selectedPlanKey: selectedPlan?.key || null,
+      selectedPlanName: selectedPlan?.name || null,
+      billingMode,
+      addonTenantUsersQty,
+      tenantUserAddonPrice,
+      userEmail,
+      checkoutLoading,
+      checkoutError,
+      clientSecretPresent: !!clientSecret,
+      clientSecretPreview: clientSecret
+        ? `${String(clientSecret).slice(0, 20)}...`
+        : "(empty)",
+    });
+  }, [
+    open,
+    selectedPlan,
+    billingMode,
+    addonTenantUsersQty,
+    tenantUserAddonPrice,
+    userEmail,
+    checkoutLoading,
+    checkoutError,
+    clientSecret,
+  ]);
+
   if (!open) return null;
 
   const stripeOptions = clientSecret
@@ -471,7 +598,20 @@ export default function ProceedToPayment({
       }
     : null;
 
+  console.log("[ProceedToPayment] stripeOptions build", {
+    hasStripeOptions: !!stripeOptions,
+    clientSecretPresent: !!clientSecret,
+    clientSecretPreview: clientSecret
+      ? `${String(clientSecret).slice(0, 20)}...`
+      : "(empty)",
+    stripePromisePresent: !!stripePromise,
+  });
+
   if (!stripeOptions) {
+    console.warn(
+      "[ProceedToPayment] rendering loading state because clientSecret is missing"
+    );
+
     return (
       <ProceedToPaymentLayout
         onClose={onClose}
@@ -490,6 +630,10 @@ export default function ProceedToPayment({
       />
     );
   }
+
+  console.log("[ProceedToPayment] rendering Elements", {
+    clientSecretPreview: `${String(clientSecret).slice(0, 20)}...`,
+  });
 
   return (
     <Elements stripe={stripePromise} options={stripeOptions}>
