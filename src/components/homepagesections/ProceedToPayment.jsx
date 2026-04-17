@@ -1,4 +1,3 @@
-// src/components/homepagesections/ProceedToPayment.jsx
 import React, { useEffect, useMemo, useState } from "react";
 import {
   Elements,
@@ -32,7 +31,7 @@ function buildPlanPrice(selectedPlan, billingMode) {
   return Number(selectedPlan.oneTimeLicense || 0);
 }
 
-function ProceedToPaymentForm({
+function ProceedToPaymentLayout({
   onClose,
   selectedPlan,
   billingMode,
@@ -43,10 +42,10 @@ function ProceedToPaymentForm({
   checkoutError,
   onSubmit,
   clientSecret,
+  stripe,
+  elements,
+  showPaymentElement,
 }) {
-  const stripe = useStripe();
-  const elements = useElements();
-
   const [email, setEmail] = useState(userEmail || "");
   const [fullName, setFullName] = useState("");
   const [company, setCompany] = useState("");
@@ -117,9 +116,7 @@ function ProceedToPaymentForm({
     }
 
     if (!clientSecret) {
-      setLocalError(
-        "Stripe client secret is missing. Create the payment intent first."
-      );
+      setLocalError("Secure payment form is still loading. Please wait a moment.");
       return;
     }
 
@@ -325,17 +322,16 @@ function ProceedToPaymentForm({
                 </div>
 
                 <div className="rounded-lg border border-slate-300 bg-white px-3 py-3">
-                  {clientSecret ? (
+                  {showPaymentElement ? (
                     <PaymentElement />
                   ) : (
                     <>
                       <div className="text-sm text-slate-500">
-                        Stripe payment form will appear here after the payment
-                        intent client secret is loaded.
+                        Secure payment form is loading...
                       </div>
                       <div className="mt-2 text-xs text-slate-400">
-                        Connect your backend create-payment-intent route and pass
-                        the returned clientSecret into this component.
+                        The modal opened correctly. Stripe fields will appear as soon
+                        as the client secret is returned by the backend.
                       </div>
                     </>
                   )}
@@ -410,9 +406,9 @@ function ProceedToPaymentForm({
 
                 <button
                   type="submit"
-                  disabled={checkoutLoading || !selectedPlan || !clientSecret}
+                  disabled={checkoutLoading || !selectedPlan || !clientSecret || !stripe || !elements}
                   className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${
-                    checkoutLoading || !selectedPlan || !clientSecret
+                    checkoutLoading || !selectedPlan || !clientSecret || !stripe || !elements
                       ? "bg-emerald-400 cursor-not-allowed"
                       : "bg-emerald-600 hover:bg-emerald-700"
                   }`}
@@ -430,6 +426,20 @@ function ProceedToPaymentForm({
         </form>
       </div>
     </div>
+  );
+}
+
+function ProceedToPaymentStripeInner(props) {
+  const stripe = useStripe();
+  const elements = useElements();
+
+  return (
+    <ProceedToPaymentLayout
+      {...props}
+      stripe={stripe}
+      elements={elements}
+      showPaymentElement={true}
+    />
   );
 }
 
@@ -463,7 +473,7 @@ export default function ProceedToPayment({
 
   if (!stripeOptions) {
     return (
-      <ProceedToPaymentForm
+      <ProceedToPaymentLayout
         onClose={onClose}
         selectedPlan={selectedPlan}
         billingMode={billingMode}
@@ -474,13 +484,16 @@ export default function ProceedToPayment({
         checkoutError={checkoutError}
         onSubmit={onSubmit}
         clientSecret={clientSecret}
+        stripe={null}
+        elements={null}
+        showPaymentElement={false}
       />
     );
   }
 
   return (
     <Elements stripe={stripePromise} options={stripeOptions}>
-      <ProceedToPaymentForm
+      <ProceedToPaymentStripeInner
         onClose={onClose}
         selectedPlan={selectedPlan}
         billingMode={billingMode}
