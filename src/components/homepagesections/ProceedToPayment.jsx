@@ -1,5 +1,12 @@
 // src/components/homepagesections/ProceedToPayment.jsx
 import React, { useEffect, useMemo, useState } from "react";
+import {
+  Elements,
+  PaymentElement,
+  useElements,
+  useStripe,
+} from "@stripe/react-stripe-js";
+import { stripePromise } from "../../config/stripe";
 
 function formatMoney(value, suffix = "") {
   const num = Number(value || 0);
@@ -25,18 +32,21 @@ function buildPlanPrice(selectedPlan, billingMode) {
   return Number(selectedPlan.oneTimeLicense || 0);
 }
 
-export default function ProceedToPayment({
-  open = false,
+function ProceedToPaymentForm({
   onClose,
-  selectedPlan = null,
-  billingMode = "monthly",
-  addonTenantUsersQty = 0,
-  tenantUserAddonPrice = 310,
-  userEmail = "",
-  checkoutLoading = false,
-  checkoutError = "",
+  selectedPlan,
+  billingMode,
+  addonTenantUsersQty,
+  tenantUserAddonPrice,
+  userEmail,
+  checkoutLoading,
+  checkoutError,
   onSubmit,
+  clientSecret,
 }) {
+  const stripe = useStripe();
+  const elements = useElements();
+
   const [email, setEmail] = useState(userEmail || "");
   const [fullName, setFullName] = useState("");
   const [company, setCompany] = useState("");
@@ -67,9 +77,7 @@ export default function ProceedToPayment({
   const billingLabel =
     billingMode === "monthly" ? "Monthly" : "One-Time License";
 
-  if (!open) return null;
-
-  const handleSubmit = (e) => {
+  const handleSubmit = async (e) => {
     e.preventDefault();
     setLocalError("");
 
@@ -108,6 +116,18 @@ export default function ProceedToPayment({
       return;
     }
 
+    if (!clientSecret) {
+      setLocalError(
+        "Stripe client secret is missing. Create the payment intent first."
+      );
+      return;
+    }
+
+    if (!stripe || !elements) {
+      setLocalError("Stripe is still loading. Please wait a moment.");
+      return;
+    }
+
     if (typeof onSubmit === "function") {
       onSubmit({
         selectedPlan,
@@ -124,8 +144,13 @@ export default function ProceedToPayment({
           stateRegion: stateRegion.trim(),
           zipCode: zipCode.trim(),
         },
+        stripe,
+        elements,
       });
+      return;
     }
+
+    setLocalError("Payment submit handler is not connected yet.");
   };
 
   return (
@@ -300,22 +325,24 @@ export default function ProceedToPayment({
                 </div>
 
                 <div className="rounded-lg border border-slate-300 bg-white px-3 py-3">
-                  <div className="text-sm text-slate-500">
-                    Mount your Stripe card fields here.
-                  </div>
-                  <div className="mt-2 text-xs text-slate-400">
-                    Recommended: Stripe Elements CardElement or PaymentElement.
-                  </div>
-
-                  <div
-                    id="stripe-payment-element"
-                    className="mt-3 min-h-[48px] rounded-md border border-dashed border-slate-300 bg-slate-50"
-                  />
+                  {clientSecret ? (
+                    <PaymentElement />
+                  ) : (
+                    <>
+                      <div className="text-sm text-slate-500">
+                        Stripe payment form will appear here after the payment
+                        intent client secret is loaded.
+                      </div>
+                      <div className="mt-2 text-xs text-slate-400">
+                        Connect your backend create-payment-intent route and pass
+                        the returned clientSecret into this component.
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="mt-3 text-xs text-slate-500">
-                  For PCI compliance, card data should be collected by Stripe,
-                  not by custom raw inputs.
+                  For PCI compliance, card data is collected securely by Stripe.
                 </div>
               </div>
             </div>
@@ -383,9 +410,9 @@ export default function ProceedToPayment({
 
                 <button
                   type="submit"
-                  disabled={checkoutLoading || !selectedPlan}
+                  disabled={checkoutLoading || !selectedPlan || !clientSecret}
                   className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${
-                    checkoutLoading || !selectedPlan
+                    checkoutLoading || !selectedPlan || !clientSecret
                       ? "bg-emerald-400 cursor-not-allowed"
                       : "bg-emerald-600 hover:bg-emerald-700"
                   }`}
@@ -396,12 +423,75 @@ export default function ProceedToPayment({
 
               <div className="mt-4 text-xs leading-snug text-slate-500">
                 Taxes, discounts, and final Stripe confirmation can be applied
-                in the backend checkout/session flow.
+                in the backend payment-intent flow.
               </div>
             </div>
           </div>
         </form>
       </div>
     </div>
+  );
+}
+
+export default function ProceedToPayment({
+  open = false,
+  onClose,
+  selectedPlan = null,
+  billingMode = "monthly",
+  addonTenantUsersQty = 0,
+  tenantUserAddonPrice = 310,
+  userEmail = "",
+  checkoutLoading = false,
+  checkoutError = "",
+  onSubmit,
+  clientSecret = "",
+}) {
+  if (!open) return null;
+
+  const stripeOptions = clientSecret
+    ? {
+        clientSecret,
+        appearance: {
+          theme: "stripe",
+          variables: {
+            colorPrimary: "#059669",
+            borderRadius: "10px",
+          },
+        },
+      }
+    : null;
+
+  if (!stripeOptions) {
+    return (
+      <ProceedToPaymentForm
+        onClose={onClose}
+        selectedPlan={selectedPlan}
+        billingMode={billingMode}
+        addonTenantUsersQty={addonTenantUsersQty}
+        tenantUserAddonPrice={tenantUserAddonPrice}
+        userEmail={userEmail}
+        checkoutLoading={checkoutLoading}
+        checkoutError={checkoutError}
+        onSubmit={onSubmit}
+        clientSecret={clientSecret}
+      />
+    );
+  }
+
+  return (
+    <Elements stripe={stripePromise} options={stripeOptions}>
+      <ProceedToPaymentForm
+        onClose={onClose}
+        selectedPlan={selectedPlan}
+        billingMode={billingMode}
+        addonTenantUsersQty={addonTenantUsersQty}
+        tenantUserAddonPrice={tenantUserAddonPrice}
+        userEmail={userEmail}
+        checkoutLoading={checkoutLoading}
+        checkoutError={checkoutError}
+        onSubmit={onSubmit}
+        clientSecret={clientSecret}
+      />
+    </Elements>
   );
 }
