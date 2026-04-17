@@ -821,6 +821,7 @@ export default function MySubscriptionSection({ onBack }) {
         checkoutLoading={checkoutLoading}
         checkoutError={checkoutMessage}
         onSubmit={handleProceedToPaymentSubmit}
+        clientSecret={clientSecret}
       />
     </>
   );
