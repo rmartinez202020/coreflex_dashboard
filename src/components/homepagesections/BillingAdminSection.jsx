@@ -24,6 +24,14 @@ function formatMoney(value, currency = "usd") {
   }
 }
 
+function parsePriceInput(value) {
+  const cleaned = String(value ?? "")
+    .replace(/[^0-9.-]/g, "")
+    .trim();
+  const num = Number(cleaned);
+  return Number.isFinite(num) ? num : null;
+}
+
 function syncBadgeClass(row) {
   const hasProduct = !!String(row?.stripe_product_id || "").trim();
   const hasPrice = !!String(row?.stripe_price_id || "").trim();
@@ -88,12 +96,58 @@ function BillingModeToggle({ billingMode, onChange }) {
   );
 }
 
+function EditablePriceCell({
+  rowId,
+  value,
+  currency,
+  editMode,
+  saving,
+  onSave,
+}) {
+  const [draft, setDraft] = useState(() => String(value ?? ""));
+
+  useEffect(() => {
+    setDraft(String(value ?? ""));
+  }, [value, rowId, editMode]);
+
+  if (!editMode) {
+    return <span>{formatMoney(value, currency)}</span>;
+  }
+
+  return (
+    <div className="flex flex-col gap-1.5">
+      <input
+        type="text"
+        value={draft}
+        onChange={(e) => setDraft(e.target.value)}
+        className="w-[92px] rounded-md border border-slate-300 px-2 py-1 text-[11px] text-slate-800 outline-none focus:border-emerald-500"
+        placeholder="0.00"
+      />
+      <button
+        type="button"
+        disabled={saving}
+        onClick={() => onSave(draft)}
+        className={`w-fit rounded-md px-2 py-1 text-[10px] font-semibold ${
+          saving
+            ? "bg-slate-300 text-slate-600 cursor-not-allowed"
+            : "bg-blue-600 text-white hover:bg-blue-700"
+        }`}
+      >
+        {saving ? "Saving..." : "Save"}
+      </button>
+    </div>
+  );
+}
+
 function BillingPlansTable({
   rows,
   loading,
   syncingAll,
   syncingPlanIds,
+  savingPlanPriceIds,
+  priceEditMode,
   onSyncPlan,
+  onSavePlanPrice,
 }) {
   if (loading) {
     return (
@@ -147,6 +201,8 @@ function BillingPlansTable({
           <tbody>
             {rows.map((row, idx) => {
               const isSyncing = syncingPlanIds.has(row.id);
+              const isSavingPrice = savingPlanPriceIds.has(row.id);
+
               return (
                 <tr
                   key={`${row.id}-${row.plan_key}-${row.billing_type}`}
@@ -166,7 +222,14 @@ function BillingPlansTable({
                   </td>
 
                   <td className="px-3 py-3 align-top text-slate-700">
-                    {formatMoney(row.price_usd, row.currency)}
+                    <EditablePriceCell
+                      rowId={row.id}
+                      value={row.price_usd}
+                      currency={row.currency}
+                      editMode={priceEditMode}
+                      saving={isSavingPrice}
+                      onSave={(draft) => onSavePlanPrice(row.id, draft)}
+                    />
                   </td>
 
                   <td className="px-3 py-3 align-top text-slate-700">
@@ -225,7 +288,10 @@ function BillingAddonsTable({
   loading,
   syncingAll,
   syncingAddonIds,
+  savingAddonPriceIds,
+  priceEditMode,
   onSyncAddon,
+  onSaveAddonPrice,
 }) {
   if (loading) {
     return (
@@ -279,6 +345,8 @@ function BillingAddonsTable({
           <tbody>
             {rows.map((row, idx) => {
               const isSyncing = syncingAddonIds.has(row.id);
+              const isSavingPrice = savingAddonPriceIds.has(row.id);
+
               return (
                 <tr
                   key={`${row.id}-${row.addon_key}-${row.billing_type}`}
@@ -295,7 +363,14 @@ function BillingAddonsTable({
                   </td>
 
                   <td className="px-3 py-3 align-top text-slate-700">
-                    {formatMoney(row.price_usd, row.currency)}
+                    <EditablePriceCell
+                      rowId={row.id}
+                      value={row.price_usd}
+                      currency={row.currency}
+                      editMode={priceEditMode}
+                      saving={isSavingPrice}
+                      onSave={(draft) => onSaveAddonPrice(row.id, draft)}
+                    />
                   </td>
 
                   <td className="px-3 py-3 align-top">
@@ -347,7 +422,12 @@ export default function BillingAdminSection({ onBack, ownerEmail = "" }) {
   const [syncingAll, setSyncingAll] = useState(false);
   const [syncingPlanIds, setSyncingPlanIds] = useState(() => new Set());
   const [syncingAddonIds, setSyncingAddonIds] = useState(() => new Set());
+  const [savingPlanPriceIds, setSavingPlanPriceIds] = useState(() => new Set());
+  const [savingAddonPriceIds, setSavingAddonPriceIds] = useState(
+    () => new Set()
+  );
   const [billingMode, setBillingMode] = useState("monthly");
+  const [priceEditMode, setPriceEditMode] = useState(false);
 
   const filteredPlans = useMemo(
     () => filterByBillingMode(plans, billingMode),
@@ -539,6 +619,103 @@ export default function BillingAdminSection({ onBack, ownerEmail = "" }) {
     [refreshAll]
   );
 
+  const handleSavePlanPrice = useCallback(
+    async (planId, draftValue) => {
+      const parsed = parsePriceInput(draftValue);
+
+      if (parsed === null || parsed < 0) {
+        setPageError("Enter a valid plan price.");
+        setPageMessage("");
+        return;
+      }
+
+      setPageError("");
+      setPageMessage("");
+      setSavingPlanPriceIds((prev) => new Set(prev).add(planId));
+
+      try {
+        const response = await fetch(`${API_URL}/admin/billing/plans/${planId}`, {
+          method: "PATCH",
+          headers: getAuthHeaders(),
+          body: JSON.stringify({ price_usd: parsed }),
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(data?.detail || "Failed to update plan price.");
+        }
+
+        setPlans((prev) =>
+          prev.map((row) =>
+            row.id === planId ? { ...row, price_usd: parsed } : row
+          )
+        );
+        setPageMessage(data?.message || "Plan price updated successfully.");
+      } catch (err) {
+        console.error("Update plan price failed:", err);
+        setPageError(err?.message || "Unable to update plan price.");
+      } finally {
+        setSavingPlanPriceIds((prev) => {
+          const next = new Set(prev);
+          next.delete(planId);
+          return next;
+        });
+      }
+    },
+    []
+  );
+
+  const handleSaveAddonPrice = useCallback(
+    async (addonId, draftValue) => {
+      const parsed = parsePriceInput(draftValue);
+
+      if (parsed === null || parsed < 0) {
+        setPageError("Enter a valid add-on price.");
+        setPageMessage("");
+        return;
+      }
+
+      setPageError("");
+      setPageMessage("");
+      setSavingAddonPriceIds((prev) => new Set(prev).add(addonId));
+
+      try {
+        const response = await fetch(
+          `${API_URL}/admin/billing/addons/${addonId}`,
+          {
+            method: "PATCH",
+            headers: getAuthHeaders(),
+            body: JSON.stringify({ price_usd: parsed }),
+          }
+        );
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(data?.detail || "Failed to update add-on price.");
+        }
+
+        setAddons((prev) =>
+          prev.map((row) =>
+            row.id === addonId ? { ...row, price_usd: parsed } : row
+          )
+        );
+        setPageMessage(data?.message || "Add-on price updated successfully.");
+      } catch (err) {
+        console.error("Update add-on price failed:", err);
+        setPageError(err?.message || "Unable to update add-on price.");
+      } finally {
+        setSavingAddonPriceIds((prev) => {
+          const next = new Set(prev);
+          next.delete(addonId);
+          return next;
+        });
+      }
+    },
+    []
+  );
+
   return (
     <div className="mt-3 md:mt-4">
       <div className="rounded-xl border border-slate-200 bg-white overflow-hidden shadow-sm">
@@ -635,7 +812,7 @@ export default function BillingAdminSection({ onBack, ownerEmail = "" }) {
           </div>
 
           <div className="mt-4 rounded-lg border border-slate-200 bg-white overflow-hidden">
-            <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 flex flex-col gap-1.5 md:flex-row md:items-center md:justify-between">
+            <div className="border-b border-slate-200 bg-slate-50 px-4 py-2 flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
               <div>
                 <div className="text-[13px] font-semibold leading-tight text-slate-900">
                   Billing Type View
@@ -645,10 +822,24 @@ export default function BillingAdminSection({ onBack, ownerEmail = "" }) {
                 </div>
               </div>
 
-              <BillingModeToggle
-                billingMode={billingMode}
-                onChange={setBillingMode}
-              />
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={() => setPriceEditMode((prev) => !prev)}
+                  className={`rounded-md px-3 py-1 text-[11px] font-semibold transition ${
+                    priceEditMode
+                      ? "bg-blue-600 text-white hover:bg-blue-700"
+                      : "bg-slate-200 text-slate-800 hover:bg-slate-300"
+                  }`}
+                >
+                  {priceEditMode ? "Done Editing" : "Edit Prices"}
+                </button>
+
+                <BillingModeToggle
+                  billingMode={billingMode}
+                  onChange={setBillingMode}
+                />
+              </div>
             </div>
           </div>
 
@@ -658,7 +849,10 @@ export default function BillingAdminSection({ onBack, ownerEmail = "" }) {
               loading={loadingPlans}
               syncingAll={syncingAll}
               syncingPlanIds={syncingPlanIds}
+              savingPlanPriceIds={savingPlanPriceIds}
+              priceEditMode={priceEditMode}
               onSyncPlan={handleSyncPlan}
+              onSavePlanPrice={handleSavePlanPrice}
             />
 
             <BillingAddonsTable
@@ -666,7 +860,10 @@ export default function BillingAdminSection({ onBack, ownerEmail = "" }) {
               loading={loadingAddons}
               syncingAll={syncingAll}
               syncingAddonIds={syncingAddonIds}
+              savingAddonPriceIds={savingAddonPriceIds}
+              priceEditMode={priceEditMode}
               onSyncAddon={handleSyncAddon}
+              onSaveAddonPrice={handleSaveAddonPrice}
             />
           </div>
         </div>
