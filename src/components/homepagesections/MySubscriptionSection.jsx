@@ -426,7 +426,7 @@ export default function MySubscriptionSection({ onBack }) {
 
   const showAddon = true;
 
-  async function openProceedToPayment() {
+  function openProceedToPayment() {
     if (!effectivePlan) return;
 
     setCheckoutMessage("");
@@ -439,46 +439,75 @@ export default function MySubscriptionSection({ onBack }) {
       return;
     }
 
-    try {
-      setCheckoutLoading(true);
-
-      const token = String(getToken() || "").trim();
-      if (!token) {
-        throw new Error("Missing authentication token.");
-      }
-
-      const response = await fetch(`${API_URL}/billing/create-payment-intent`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          planKey: effectivePlan.key,
-          billingType: billingMode,
-          extraTenantUsers: addonTenantUsersQty,
-        }),
-      });
-
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(data.detail || "Failed to initialize payment.");
-      }
-
-      if (!data?.clientSecret) {
-        throw new Error("clientSecret not returned from backend.");
-      }
-
-      setClientSecret(data.clientSecret);
-      setShowProceedToPayment(true);
-    } catch (err) {
-      console.error("Payment init failed:", err);
-      setCheckoutMessage(err?.message || "Unable to start payment.");
-    } finally {
-      setCheckoutLoading(false);
-    }
+    setShowProceedToPayment(true);
   }
+
+  useEffect(() => {
+    let isMounted = true;
+
+    async function initializePaymentIntent() {
+      if (!showProceedToPayment) return;
+      if (!effectivePlan) return;
+      if (effectivePlan.key === "enterprise") return;
+      if (clientSecret) return;
+
+      try {
+        setCheckoutLoading(true);
+        setCheckoutMessage("");
+
+        const token = String(getToken() || "").trim();
+        if (!token) {
+          throw new Error("Missing authentication token.");
+        }
+
+        const response = await fetch(`${API_URL}/billing/create-payment-intent`, {
+          method: "POST",
+          headers: {
+            Authorization: `Bearer ${token}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            planKey: effectivePlan.key,
+            billingType: billingMode,
+            extraTenantUsers: addonTenantUsersQty,
+          }),
+        });
+
+        const data = await response.json().catch(() => ({}));
+
+        if (!response.ok) {
+          throw new Error(data.detail || "Failed to initialize payment.");
+        }
+
+        if (!data?.clientSecret) {
+          throw new Error("clientSecret not returned from backend.");
+        }
+
+        if (!isMounted) return;
+        setClientSecret(data.clientSecret);
+      } catch (err) {
+        if (!isMounted) return;
+        console.error("Payment init failed:", err);
+        setCheckoutMessage(err?.message || "Unable to start payment.");
+      } finally {
+        if (isMounted) {
+          setCheckoutLoading(false);
+        }
+      }
+    }
+
+    initializePaymentIntent();
+
+    return () => {
+      isMounted = false;
+    };
+  }, [
+    showProceedToPayment,
+    clientSecret,
+    effectivePlan,
+    billingMode,
+    addonTenantUsersQty,
+  ]);
 
   async function handleProceedToPaymentSubmit(payload) {
     try {
@@ -530,11 +559,13 @@ export default function MySubscriptionSection({ onBack }) {
       ) {
         setCheckoutMessage("Payment submitted successfully.");
         setShowProceedToPayment(false);
+        setClientSecret("");
         return;
       }
 
       setCheckoutMessage("Payment submitted. Waiting for final confirmation.");
       setShowProceedToPayment(false);
+      setClientSecret("");
     } catch (err) {
       console.error("Proceed to payment failed:", err);
       setCheckoutMessage(
@@ -543,6 +574,12 @@ export default function MySubscriptionSection({ onBack }) {
     } finally {
       setCheckoutLoading(false);
     }
+  }
+
+  function handleCloseProceedToPayment() {
+    setShowProceedToPayment(false);
+    setClientSecret("");
+    setCheckoutLoading(false);
   }
 
   return (
@@ -817,6 +854,7 @@ export default function MySubscriptionSection({ onBack }) {
                         setAddonTenantUsersQty(0);
                         setCheckoutMessage("");
                         setClientSecret("");
+                        setShowProceedToPayment(false);
                       }}
                     >
                       Cancel
@@ -831,9 +869,7 @@ export default function MySubscriptionSection({ onBack }) {
                           : "bg-emerald-600 hover:bg-emerald-700"
                       }`}
                     >
-                      {checkoutLoading
-                        ? "Preparing Checkout..."
-                        : effectivePlan?.key === "enterprise"
+                      {effectivePlan?.key === "enterprise"
                         ? "Request Quote"
                         : "Proceed to Payment"}
                     </button>
@@ -841,7 +877,7 @@ export default function MySubscriptionSection({ onBack }) {
                     <div className="text-[10px] leading-snug text-slate-500">
                       {effectivePlan?.key === "enterprise"
                         ? "Enterprise plans should be routed to your custom sales workflow."
-                        : "Click Proceed to Payment to open the checkout section."}
+                        : "Click Proceed to Payment to open the checkout modal."}
                     </div>
                   </div>
                 </div>
@@ -867,7 +903,7 @@ export default function MySubscriptionSection({ onBack }) {
 
       <ProceedToPayment
         open={showProceedToPayment}
-        onClose={() => setShowProceedToPayment(false)}
+        onClose={handleCloseProceedToPayment}
         selectedPlan={effectivePlan}
         billingMode={billingMode}
         addonTenantUsersQty={addonTenantUsersQty}
