@@ -51,6 +51,43 @@ function getAuthHeaders() {
   };
 }
 
+function filterByBillingMode(rows, billingMode) {
+  const target = billingMode === "one_time" ? "one_time" : "monthly";
+  return (Array.isArray(rows) ? rows : []).filter(
+    (row) => String(row?.billing_type || "").trim().toLowerCase() === target
+  );
+}
+
+function BillingModeToggle({ billingMode, onChange }) {
+  return (
+    <div className="inline-flex rounded-lg border border-slate-300 bg-white p-[2px]">
+      <button
+        type="button"
+        onClick={() => onChange("monthly")}
+        className={`rounded-md px-3 py-1.5 text-[12px] font-semibold transition ${
+          billingMode === "monthly"
+            ? "bg-emerald-600 text-white"
+            : "text-slate-700 hover:bg-slate-100"
+        }`}
+      >
+        Monthly
+      </button>
+
+      <button
+        type="button"
+        onClick={() => onChange("one_time")}
+        className={`rounded-md px-3 py-1.5 text-[12px] font-semibold transition ${
+          billingMode === "one_time"
+            ? "bg-emerald-600 text-white"
+            : "text-slate-700 hover:bg-slate-100"
+        }`}
+      >
+        One-Time
+      </button>
+    </div>
+  );
+}
+
 function BillingPlansTable({
   rows,
   loading,
@@ -69,7 +106,7 @@ function BillingPlansTable({
   if (!rows.length) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
-        No billing plans found.
+        No billing plans found for this billing type.
       </div>
     );
   }
@@ -210,7 +247,7 @@ function BillingAddonsTable({
   if (!rows.length) {
     return (
       <div className="rounded-xl border border-slate-200 bg-white p-4 text-sm text-slate-500">
-        No billing add-ons found.
+        No billing add-ons found for this billing type.
       </div>
     );
   }
@@ -309,10 +346,7 @@ function BillingAddonsTable({
   );
 }
 
-export default function BillingAdminSection({
-  onBack,
-  ownerEmail = "",
-}) {
+export default function BillingAdminSection({ onBack, ownerEmail = "" }) {
   const [plans, setPlans] = useState([]);
   const [addons, setAddons] = useState([]);
   const [loadingPlans, setLoadingPlans] = useState(true);
@@ -322,25 +356,36 @@ export default function BillingAdminSection({
   const [syncingAll, setSyncingAll] = useState(false);
   const [syncingPlanIds, setSyncingPlanIds] = useState(() => new Set());
   const [syncingAddonIds, setSyncingAddonIds] = useState(() => new Set());
+  const [billingMode, setBillingMode] = useState("monthly");
 
-  const totalPlans = plans.length;
-  const totalAddons = addons.length;
+  const filteredPlans = useMemo(
+    () => filterByBillingMode(plans, billingMode),
+    [plans, billingMode]
+  );
+
+  const filteredAddons = useMemo(
+    () => filterByBillingMode(addons, billingMode),
+    [addons, billingMode]
+  );
+
+  const totalPlans = filteredPlans.length;
+  const totalAddons = filteredAddons.length;
 
   const syncedPlansCount = useMemo(() => {
-    return plans.filter(
+    return filteredPlans.filter(
       (row) =>
         String(row?.stripe_product_id || "").trim() &&
         String(row?.stripe_price_id || "").trim()
     ).length;
-  }, [plans]);
+  }, [filteredPlans]);
 
   const syncedAddonsCount = useMemo(() => {
-    return addons.filter(
+    return filteredAddons.filter(
       (row) =>
         String(row?.stripe_product_id || "").trim() &&
         String(row?.stripe_price_id || "").trim()
     ).length;
-  }, [addons]);
+  }, [filteredAddons]);
 
   const loadPlans = useCallback(async () => {
     setLoadingPlans(true);
@@ -598,9 +643,34 @@ export default function BillingAdminSection({
             </div>
           </div>
 
+          <div className="mt-5 rounded-xl border border-slate-200 bg-white overflow-hidden">
+            <div className="border-b border-slate-200 bg-slate-50 px-4 py-3 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+              <div>
+                <div className="text-[14px] font-semibold text-slate-900">
+                  Billing Type View
+                </div>
+                <div className="text-[12px] text-slate-500">
+                  Switch between monthly and one-time billing records.
+                </div>
+              </div>
+
+              <BillingModeToggle
+                billingMode={billingMode}
+                onChange={setBillingMode}
+              />
+            </div>
+
+            <div className="px-4 py-3 text-[12px] text-slate-600 bg-white">
+              Showing:{" "}
+              <span className="font-semibold text-slate-900">
+                {billingMode === "one_time" ? "One-Time License" : "Monthly"}
+              </span>
+            </div>
+          </div>
+
           <div className="mt-5 grid grid-cols-1 gap-5">
             <BillingPlansTable
-              rows={plans}
+              rows={filteredPlans}
               loading={loadingPlans}
               syncingAll={syncingAll}
               syncingPlanIds={syncingPlanIds}
@@ -608,7 +678,7 @@ export default function BillingAdminSection({
             />
 
             <BillingAddonsTable
-              rows={addons}
+              rows={filteredAddons}
               loading={loadingAddons}
               syncingAll={syncingAll}
               syncingAddonIds={syncingAddonIds}
