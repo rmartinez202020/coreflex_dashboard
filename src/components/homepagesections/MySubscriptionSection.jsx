@@ -341,7 +341,6 @@ export default function MySubscriptionSection({ onBack }) {
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutMessage, setCheckoutMessage] = useState("");
   const [showProceedToPayment, setShowProceedToPayment] = useState(false);
-
   const [clientSecret, setClientSecret] = useState("");
 
   const [subscription, setSubscription] = useState(null);
@@ -427,10 +426,11 @@ export default function MySubscriptionSection({ onBack }) {
 
   const showAddon = true;
 
-  function openProceedToPayment() {
+  async function openProceedToPayment() {
     if (!effectivePlan) return;
 
     setCheckoutMessage("");
+    setClientSecret("");
 
     if (effectivePlan.key === "enterprise") {
       setCheckoutMessage(
@@ -439,7 +439,45 @@ export default function MySubscriptionSection({ onBack }) {
       return;
     }
 
-    setShowProceedToPayment(true);
+    try {
+      setCheckoutLoading(true);
+
+      const token = String(getToken() || "").trim();
+      if (!token) {
+        throw new Error("Missing authentication token.");
+      }
+
+      const response = await fetch(`${API_URL}/billing/create-payment-intent`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({
+          planKey: effectivePlan.key,
+          billingType: billingMode,
+          extraTenantUsers: addonTenantUsersQty,
+        }),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Failed to initialize payment.");
+      }
+
+      if (!data?.clientSecret) {
+        throw new Error("clientSecret not returned from backend.");
+      }
+
+      setClientSecret(data.clientSecret);
+      setShowProceedToPayment(true);
+    } catch (err) {
+      console.error("Payment init failed:", err);
+      setCheckoutMessage(err?.message || "Unable to start payment.");
+    } finally {
+      setCheckoutLoading(false);
+    }
   }
 
   async function handleProceedToPaymentSubmit(payload) {
@@ -447,41 +485,56 @@ export default function MySubscriptionSection({ onBack }) {
       setCheckoutLoading(true);
       setCheckoutMessage("");
 
-      const token = String(getToken() || "").trim();
-      if (!token) {
-        throw new Error("Missing authentication token.");
+      const stripe = payload?.stripe;
+      const elements = payload?.elements;
+
+      if (!stripe || !elements) {
+        throw new Error("Stripe payment form is not ready.");
       }
 
-      const response = await fetch(`${API_URL}/billing/create-checkout-session`, {
-        method: "POST",
-        headers: {
-          Authorization: `Bearer ${token}`,
-          "Content-Type": "application/json",
+      const billingDetails = payload?.billingDetails || {};
+
+      const result = await stripe.confirmPayment({
+        elements,
+        confirmParams: {
+          payment_method_data: {
+            billing_details: {
+              name: billingDetails.fullName || "",
+              email: billingDetails.email || "",
+              address: {
+                line1: billingDetails.address1 || "",
+                line2: billingDetails.address2 || "",
+                city: billingDetails.city || "",
+                state: billingDetails.stateRegion || "",
+                postal_code: billingDetails.zipCode || "",
+                country:
+                  String(billingDetails.country || "US")
+                    .trim()
+                    .toUpperCase()
+                    .slice(0, 2) || "US",
+              },
+            },
+          },
         },
-        body: JSON.stringify({
-          planKey: payload?.selectedPlan?.key || effectivePlan.key,
-          billingType: payload?.billingMode || billingMode,
-          extraTenantUsers:
-            Number(payload?.addonTenantUsersQty ?? addonTenantUsersQty) || 0,
-          billingDetails: payload?.billingDetails || {},
-        }),
+        redirect: "if_required",
       });
 
-      const data = await response.json().catch(() => ({}));
-
-      if (!response.ok) {
-        throw new Error(
-          data.detail ||
-            "Checkout route is not ready yet. Build /billing/create-checkout-session next."
-        );
+      if (result?.error) {
+        throw new Error(result.error.message || "Payment confirmation failed.");
       }
 
-      if (data?.checkoutUrl) {
-        window.location.href = data.checkoutUrl;
+      if (
+        result?.paymentIntent?.status === "succeeded" ||
+        result?.paymentIntent?.status === "processing" ||
+        result?.paymentIntent?.status === "requires_capture"
+      ) {
+        setCheckoutMessage("Payment submitted successfully.");
+        setShowProceedToPayment(false);
         return;
       }
 
-      throw new Error("Checkout URL not returned by backend.");
+      setCheckoutMessage("Payment submitted. Waiting for final confirmation.");
+      setShowProceedToPayment(false);
     } catch (err) {
       console.error("Proceed to payment failed:", err);
       setCheckoutMessage(
@@ -489,7 +542,6 @@ export default function MySubscriptionSection({ onBack }) {
       );
     } finally {
       setCheckoutLoading(false);
-      setShowProceedToPayment(false);
     }
   }
 
@@ -764,6 +816,7 @@ export default function MySubscriptionSection({ onBack }) {
                         setSelectedPlanKey(null);
                         setAddonTenantUsersQty(0);
                         setCheckoutMessage("");
+                        setClientSecret("");
                       }}
                     >
                       Cancel
