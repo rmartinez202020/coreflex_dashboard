@@ -8,8 +8,6 @@ const ACCESS_OPTIONS = [
   { value: "read_control", label: "Read + Control" },
 ];
 
-const ADD_TENANT_USER_COST = "$310";
-
 function normalizeAccess(value) {
   const v = String(value || "").toLowerCase().trim();
   if (v === "read_control" || v === "read-and-control") return "read_control";
@@ -373,7 +371,11 @@ export default function TenantUsersPage({
       return "Select at least one dashboard.";
     }
 
-    if (!editingUserId && totalTenantUserSlots > 0 && usedTenantUsers >= totalTenantUserSlots) {
+    if (
+      !editingUserId &&
+      totalTenantUserSlots > 0 &&
+      usedTenantUsers >= totalTenantUserSlots
+    ) {
       return "Tenant user limit reached for your current subscription.";
     }
 
@@ -632,41 +634,9 @@ export default function TenantUsersPage({
             Used Tenant-Users
           </div>
           <div className="mt-1 text-xl font-semibold text-gray-900">
-            {loadingSubscription ? "..." : `${usedTenantUsers} / ${totalTenantUserSlots}`}
-          </div>
-        </div>
-      </div>
-
-      {/* PURCHASE STRIP */}
-      <div className="mb-4 rounded-xl border border-emerald-200 bg-gradient-to-r from-emerald-50 to-white px-5 py-4">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-center lg:justify-between">
-          <div className="min-w-0">
-            <div className="text-sm font-semibold text-emerald-800">
-              Purchase Additional Tenant-User
-            </div>
-            <div className="mt-1 text-sm text-gray-600">
-              Expand your tenant-user capacity for this account and create access
-              for more users under your current subscription.
-            </div>
-          </div>
-
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center lg:shrink-0">
-            <div className="rounded-lg border border-emerald-200 bg-white px-4 py-3 text-center">
-              <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-                Price
-              </div>
-              <div className="mt-1 text-2xl font-bold text-gray-900">
-                {ADD_TENANT_USER_COST}
-              </div>
-              <div className="text-xs text-gray-500">per user</div>
-            </div>
-
-            <button
-              type="button"
-              className="rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white px-5 py-3 text-sm font-semibold shadow-sm transition"
-            >
-              Purchase Tenant-User
-            </button>
+            {loadingSubscription
+              ? "..."
+              : `${usedTenantUsers} / ${totalTenantUserSlots}`}
           </div>
         </div>
       </div>
