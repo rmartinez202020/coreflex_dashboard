@@ -70,7 +70,27 @@ function PaymentMethodSection({
         ) : null}
       </div>
 
-      <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+      <div
+        autoComplete="off"
+        className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3"
+      >
+        <input
+          type="text"
+          name="fake-card-holder"
+          autoComplete="off"
+          tabIndex={-1}
+          className="hidden"
+          aria-hidden="true"
+        />
+        <input
+          type="password"
+          name="fake-card-password"
+          autoComplete="new-password"
+          tabIndex={-1}
+          className="hidden"
+          aria-hidden="true"
+        />
+
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-3">
           <button
             type="button"
@@ -122,11 +142,16 @@ function PaymentMethodSection({
               </div>
             </div>
 
-            <div className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 mb-3">
+            <div
+              autoComplete="off"
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 mb-3"
+            >
               <CardNumberElement
                 options={{
                   ...STRIPE_ELEMENT_STYLE,
                   showIcon: false,
+                  placeholder: "1234 1234 1234 1234",
+                  disabled: false,
                 }}
                 onChange={(event) => {
                   if (event?.error?.message) {
@@ -143,9 +168,15 @@ function PaymentMethodSection({
                 <div className="mb-1.5 text-[12px] font-medium text-slate-700">
                   Expiration
                 </div>
-                <div className="rounded-lg border border-slate-300 bg-white px-3 py-2.5">
+                <div
+                  autoComplete="off"
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2.5"
+                >
                   <CardExpiryElement
-                    options={STRIPE_ELEMENT_STYLE}
+                    options={{
+                      ...STRIPE_ELEMENT_STYLE,
+                      placeholder: "MM / YY",
+                    }}
                     onChange={(event) => {
                       if (event?.error?.message) {
                         setPaymentError(event.error.message);
@@ -161,9 +192,15 @@ function PaymentMethodSection({
                 <div className="mb-1.5 text-[12px] font-medium text-slate-700">
                   CVC
                 </div>
-                <div className="rounded-lg border border-slate-300 bg-white px-3 py-2.5">
+                <div
+                  autoComplete="off"
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2.5"
+                >
                   <CardCvcElement
-                    options={STRIPE_ELEMENT_STYLE}
+                    options={{
+                      ...STRIPE_ELEMENT_STYLE,
+                      placeholder: "CVC",
+                    }}
                     onChange={(event) => {
                       if (event?.error?.message) {
                         setPaymentError(event.error.message);
@@ -374,8 +411,26 @@ function ProceedToPaymentLayout({
 
         <form
           onSubmit={handleSubmit}
+          autoComplete="off"
           className="grid grid-cols-1 xl:grid-cols-3 gap-0"
         >
+          <input
+            type="text"
+            name="fake-username"
+            autoComplete="username"
+            tabIndex={-1}
+            className="hidden"
+            aria-hidden="true"
+          />
+          <input
+            type="password"
+            name="fake-password"
+            autoComplete="new-password"
+            tabIndex={-1}
+            className="hidden"
+            aria-hidden="true"
+          />
+
           <div className="xl:col-span-2 border-r border-slate-200 p-4">
             {(localError || checkoutError) && (
               <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
@@ -394,6 +449,8 @@ function ProceedToPaymentLayout({
                   </label>
                   <input
                     type="email"
+                    name="billing_email"
+                    autoComplete="off"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
@@ -407,6 +464,8 @@ function ProceedToPaymentLayout({
                   </label>
                   <input
                     type="text"
+                    name="billing_full_name"
+                    autoComplete="off"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
@@ -420,6 +479,8 @@ function ProceedToPaymentLayout({
                   </label>
                   <input
                     type="text"
+                    name="billing_company"
+                    autoComplete="off"
                     value={company}
                     onChange={(e) => setCompany(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
@@ -440,6 +501,8 @@ function ProceedToPaymentLayout({
                   </label>
                   <input
                     type="text"
+                    name="billing_address_1"
+                    autoComplete="off"
                     value={address1}
                     onChange={(e) => setAddress1(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
@@ -453,6 +516,8 @@ function ProceedToPaymentLayout({
                   </label>
                   <input
                     type="text"
+                    name="billing_address_2"
+                    autoComplete="off"
                     value={address2}
                     onChange={(e) => setAddress2(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
@@ -466,6 +531,8 @@ function ProceedToPaymentLayout({
                   </label>
                   <input
                     type="text"
+                    name="billing_city"
+                    autoComplete="off"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
@@ -479,6 +546,8 @@ function ProceedToPaymentLayout({
                   </label>
                   <input
                     type="text"
+                    name="billing_state_region"
+                    autoComplete="off"
                     value={stateRegion}
                     onChange={(e) => setStateRegion(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
@@ -492,6 +561,8 @@ function ProceedToPaymentLayout({
                   </label>
                   <input
                     type="text"
+                    name="billing_zip_code"
+                    autoComplete="off"
                     value={zipCode}
                     onChange={(e) => setZipCode(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
@@ -505,6 +576,8 @@ function ProceedToPaymentLayout({
                   </label>
                   <input
                     type="text"
+                    name="billing_country"
+                    autoComplete="off"
                     value={country}
                     onChange={(e) => setCountry(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
