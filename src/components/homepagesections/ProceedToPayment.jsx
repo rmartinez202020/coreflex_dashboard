@@ -1,6 +1,8 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
-  CardElement,
+  CardCvcElement,
+  CardExpiryElement,
+  CardNumberElement,
   Elements,
   useElements,
   useStripe,
@@ -29,6 +31,165 @@ function buildPlanPrice(selectedPlan, billingMode) {
   }
 
   return Number(selectedPlan.oneTimeLicense || 0);
+}
+
+const STRIPE_ELEMENT_STYLE = {
+  style: {
+    base: {
+      fontSize: "16px",
+      color: "#0f172a",
+      fontFamily:
+        'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+      "::placeholder": {
+        color: "#94a3b8",
+      },
+    },
+    invalid: {
+      color: "#dc2626",
+      iconColor: "#dc2626",
+    },
+  },
+};
+
+function PaymentMethodSection({
+  paymentError,
+  setPaymentError,
+  showPaymentElement,
+}) {
+  return (
+    <div>
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <div className="text-sm font-semibold text-slate-900">
+          Payment Method
+        </div>
+
+        {paymentError ? (
+          <div className="text-xs font-medium text-red-600 text-right">
+            {paymentError}
+          </div>
+        ) : null}
+      </div>
+
+      <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+          <button
+            type="button"
+            className="flex items-center gap-3 rounded-xl border-2 border-emerald-600 bg-white px-5 py-4 text-left shadow-sm"
+          >
+            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-xl">
+              💳
+            </div>
+            <div>
+              <div className="text-lg font-semibold text-slate-900">Card</div>
+            </div>
+          </button>
+
+          <button
+            type="button"
+            className="flex items-center gap-3 rounded-xl border border-slate-300 bg-white px-5 py-4 text-left opacity-60"
+          >
+            <div className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-xs font-semibold text-slate-700">
+              G Pay
+            </div>
+            <div>
+              <div className="text-lg font-semibold text-slate-700">
+                Google Pay
+              </div>
+            </div>
+          </button>
+        </div>
+
+        {showPaymentElement ? (
+          <>
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <div className="text-sm font-medium text-slate-700">
+                Card number
+              </div>
+
+              <div className="hidden sm:flex items-center gap-2 text-[11px] font-semibold">
+                <span className="rounded-md border border-slate-300 bg-white px-2 py-1 text-blue-700">
+                  VISA
+                </span>
+                <span className="rounded-md border border-slate-300 bg-white px-2 py-1 text-orange-600">
+                  MC
+                </span>
+                <span className="rounded-md border border-slate-300 bg-white px-2 py-1 text-blue-600">
+                  AMEX
+                </span>
+                <span className="rounded-md border border-slate-300 bg-white px-2 py-1 text-emerald-700">
+                  UnionPay
+                </span>
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-slate-300 bg-white px-4 py-3 mb-4">
+              <CardNumberElement
+                options={STRIPE_ELEMENT_STYLE}
+                onChange={(event) => {
+                  if (event?.error?.message) {
+                    setPaymentError(event.error.message);
+                  } else {
+                    setPaymentError("");
+                  }
+                }}
+              />
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div>
+                <div className="mb-2 text-sm font-medium text-slate-700">
+                  Expiration
+                </div>
+                <div className="rounded-lg border border-slate-300 bg-white px-4 py-3">
+                  <CardExpiryElement
+                    options={STRIPE_ELEMENT_STYLE}
+                    onChange={(event) => {
+                      if (event?.error?.message) {
+                        setPaymentError(event.error.message);
+                      } else {
+                        setPaymentError("");
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+
+              <div>
+                <div className="mb-2 text-sm font-medium text-slate-700">
+                  CVC
+                </div>
+                <div className="rounded-lg border border-slate-300 bg-white px-4 py-3">
+                  <CardCvcElement
+                    options={STRIPE_ELEMENT_STYLE}
+                    onChange={(event) => {
+                      if (event?.error?.message) {
+                        setPaymentError(event.error.message);
+                      } else {
+                        setPaymentError("");
+                      }
+                    }}
+                  />
+                </div>
+              </div>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="text-sm text-slate-500">
+              Secure payment form is loading...
+            </div>
+            <div className="mt-2 text-xs text-slate-400">
+              The card fields will appear as soon as Stripe is ready.
+            </div>
+          </>
+        )}
+
+        <div className="mt-4 text-xs text-slate-500">
+          For PCI compliance, card data is collected securely by Stripe.
+        </div>
+      </div>
+    </div>
+  );
 }
 
 function ProceedToPaymentLayout({
@@ -128,9 +289,9 @@ function ProceedToPaymentLayout({
       return;
     }
 
-    const cardElement = elements.getElement(CardElement);
+    const cardNumberElement = elements.getElement(CardNumberElement);
 
-    if (!cardElement) {
+    if (!cardNumberElement) {
       setLocalError("Card form is not ready yet. Please wait a moment.");
       return;
     }
@@ -153,7 +314,7 @@ function ProceedToPaymentLayout({
         },
         stripe,
         elements,
-        cardElement,
+        cardElement: cardNumberElement,
         setLocalError,
         setPaymentError,
       });
@@ -163,7 +324,7 @@ function ProceedToPaymentLayout({
     try {
       const { error } = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
-          card: cardElement,
+          card: cardNumberElement,
           billing_details: {
             email: email.trim(),
             name: fullName.trim(),
@@ -350,70 +511,11 @@ function ProceedToPaymentLayout({
               </div>
             </div>
 
-            <div>
-              <div className="mb-2 flex items-center justify-between gap-3">
-                <div className="text-sm font-semibold text-slate-900">
-                  Payment Method
-                </div>
-
-                {paymentError ? (
-                  <div className="text-xs font-medium text-red-600 text-right">
-                    {paymentError}
-                  </div>
-                ) : null}
-              </div>
-
-              <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-                <div className="mb-2 text-xs font-medium text-slate-600">
-                  Secure Card Entry
-                </div>
-
-                <div className="rounded-lg border border-slate-300 bg-white px-3 py-4 min-h-[56px]">
-                  {showPaymentElement ? (
-                    <CardElement
-                      options={{
-                        hidePostalCode: true,
-                        style: {
-                          base: {
-                            fontSize: "16px",
-                            color: "#0f172a",
-                            fontFamily:
-                              'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                            "::placeholder": {
-                              color: "#94a3b8",
-                            },
-                          },
-                          invalid: {
-                            color: "#dc2626",
-                            iconColor: "#dc2626",
-                          },
-                        },
-                      }}
-                      onChange={(event) => {
-                        if (event?.error?.message) {
-                          setPaymentError(event.error.message);
-                        } else {
-                          setPaymentError("");
-                        }
-                      }}
-                    />
-                  ) : (
-                    <>
-                      <div className="text-sm text-slate-500">
-                        Secure payment form is loading...
-                      </div>
-                      <div className="mt-2 text-xs text-slate-400">
-                        The card fields will appear as soon as Stripe is ready.
-                      </div>
-                    </>
-                  )}
-                </div>
-
-                <div className="mt-3 text-xs text-slate-500">
-                  For PCI compliance, card data is collected securely by Stripe.
-                </div>
-              </div>
-            </div>
+            <PaymentMethodSection
+              paymentError={paymentError}
+              setPaymentError={setPaymentError}
+              showPaymentElement={showPaymentElement}
+            />
           </div>
 
           <div className="bg-slate-50 p-5">
