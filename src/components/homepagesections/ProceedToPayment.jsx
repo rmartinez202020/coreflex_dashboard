@@ -135,6 +135,13 @@ function PaymentMethodSection({
   paymentError,
   setPaymentError,
   showPaymentElement,
+  cardNumberComplete,
+  setCardNumberComplete,
+  cardExpiryComplete,
+  setCardExpiryComplete,
+  cardCvcComplete,
+  setCardCvcComplete,
+  setCardInputError,
 }) {
   return (
     <div>
@@ -231,10 +238,13 @@ function PaymentMethodSection({
                   disabled: false,
                 }}
                 onChange={(event) => {
+                  setCardNumberComplete(!!event?.complete);
                   if (event?.error?.message) {
                     setPaymentError(event.error.message);
+                    setCardInputError(true);
                   } else {
                     setPaymentError("");
+                    setCardInputError(false);
                   }
                 }}
               />
@@ -255,10 +265,13 @@ function PaymentMethodSection({
                       placeholder: "MM / YY",
                     }}
                     onChange={(event) => {
+                      setCardExpiryComplete(!!event?.complete);
                       if (event?.error?.message) {
                         setPaymentError(event.error.message);
+                        setCardInputError(true);
                       } else {
                         setPaymentError("");
+                        setCardInputError(false);
                       }
                     }}
                   />
@@ -279,10 +292,13 @@ function PaymentMethodSection({
                       placeholder: "CVC",
                     }}
                     onChange={(event) => {
+                      setCardCvcComplete(!!event?.complete);
                       if (event?.error?.message) {
                         setPaymentError(event.error.message);
+                        setCardInputError(true);
                       } else {
                         setPaymentError("");
+                        setCardInputError(false);
                       }
                     }}
                   />
@@ -344,6 +360,10 @@ function ProceedToPaymentLayout({
   const [zipCode, setZipCode] = useState("");
   const [localError, setLocalError] = useState("");
   const [paymentError, setPaymentError] = useState("");
+  const [cardNumberComplete, setCardNumberComplete] = useState(false);
+  const [cardExpiryComplete, setCardExpiryComplete] = useState(false);
+  const [cardCvcComplete, setCardCvcComplete] = useState(false);
+  const [cardInputError, setCardInputError] = useState(false);
   const [touched, setTouched] = useState({
     email: false,
     fullName: false,
@@ -451,6 +471,22 @@ function ProceedToPaymentLayout({
     return Object.values(validationErrors).every((msg) => !msg);
   }, [validationErrors]);
 
+  const isCardValid = useMemo(() => {
+    return (
+      cardNumberComplete &&
+      cardExpiryComplete &&
+      cardCvcComplete &&
+      !cardInputError &&
+      !paymentError
+    );
+  }, [
+    cardNumberComplete,
+    cardExpiryComplete,
+    cardCvcComplete,
+    cardInputError,
+    paymentError,
+  ]);
+
   const isPayNowDisabled =
     checkoutLoading ||
     !selectedPlan ||
@@ -458,7 +494,8 @@ function ProceedToPaymentLayout({
     !clientSecret ||
     !stripe ||
     !elements ||
-    !isContactInfoValid;
+    !isContactInfoValid ||
+    !isCardValid;
 
   const showFieldError = (name) => touched[name] && validationErrors[name];
 
@@ -531,6 +568,11 @@ function ProceedToPaymentLayout({
 
     if (validationErrors.country) {
       setLocalError(validationErrors.country);
+      return;
+    }
+
+    if (!isCardValid) {
+      setLocalError("Enter a valid card number, expiration date, and CVC.");
       return;
     }
 
@@ -850,6 +892,13 @@ function ProceedToPaymentLayout({
               paymentError={paymentError}
               setPaymentError={setPaymentError}
               showPaymentElement={showPaymentElement}
+              cardNumberComplete={cardNumberComplete}
+              setCardNumberComplete={setCardNumberComplete}
+              cardExpiryComplete={cardExpiryComplete}
+              setCardExpiryComplete={setCardExpiryComplete}
+              cardCvcComplete={cardCvcComplete}
+              setCardCvcComplete={setCardCvcComplete}
+              setCardInputError={setCardInputError}
             />
           </div>
 
