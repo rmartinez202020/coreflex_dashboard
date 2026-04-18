@@ -1,7 +1,7 @@
 import React, { useEffect, useMemo, useState } from "react";
 import {
+  CardElement,
   Elements,
-  PaymentElement,
   useElements,
   useStripe,
 } from "@stripe/react-stripe-js";
@@ -49,7 +49,7 @@ function ProceedToPaymentLayout({
   const [email, setEmail] = useState(userEmail || "");
   const [fullName, setFullName] = useState("");
   const [company, setCompany] = useState("");
-  const [country, setCountry] = useState("United States");
+  const [country, setCountry] = useState("US");
   const [address1, setAddress1] = useState("");
   const [address2, setAddress2] = useState("");
   const [city, setCity] = useState("");
@@ -172,7 +172,9 @@ function ProceedToPaymentLayout({
     }
 
     if (!clientSecret) {
-      setLocalError("Secure payment form is still loading. Please wait a moment.");
+      setLocalError(
+        "Secure payment form is still loading. Please wait a moment."
+      );
       console.warn(
         "[ProceedToPaymentLayout] blocked submit: clientSecret missing"
       );
@@ -187,6 +189,16 @@ function ProceedToPaymentLayout({
           stripeReady: !!stripe,
           elementsReady: !!elements,
         }
+      );
+      return;
+    }
+
+    const cardElement = elements.getElement(CardElement);
+
+    if (!cardElement) {
+      setLocalError("Card form is not ready yet. Please wait a moment.");
+      console.warn(
+        "[ProceedToPaymentLayout] blocked submit: CardElement not ready"
       );
       return;
     }
@@ -218,14 +230,44 @@ function ProceedToPaymentLayout({
         },
         stripe,
         elements,
+        cardElement,
+        setLocalError,
       });
       return;
     }
 
-    console.error(
-      "[ProceedToPaymentLayout] payment submit handler is not connected"
-    );
-    setLocalError("Payment submit handler is not connected yet.");
+    try {
+      console.log(
+        "[ProceedToPaymentLayout] onSubmit missing, using direct confirmCardPayment"
+      );
+
+      const { error } = await stripe.confirmCardPayment(clientSecret, {
+        payment_method: {
+          card: cardElement,
+          billing_details: {
+            email: email.trim(),
+            name: fullName.trim(),
+            address: {
+              line1: address1.trim(),
+              line2: address2.trim() || undefined,
+              city: city.trim(),
+              state: stateRegion.trim(),
+              postal_code: zipCode.trim(),
+              country: country.trim() || "US",
+            },
+          },
+        },
+      });
+
+      if (error) {
+        console.error("[ProceedToPaymentLayout] confirmCardPayment failed", error);
+        setLocalError(error.message || "Payment failed.");
+        return;
+      }
+    } catch (err) {
+      console.error("[ProceedToPaymentLayout] direct payment failed", err);
+      setLocalError(String(err?.message || err || "Payment failed."));
+    }
   };
 
   return (
@@ -384,7 +426,7 @@ function ProceedToPaymentLayout({
                     value={country}
                     onChange={(e) => setCountry(e.target.value)}
                     className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                    placeholder="Country"
+                    placeholder="US"
                   />
                 </div>
               </div>
@@ -399,34 +441,54 @@ function ProceedToPaymentLayout({
                   Secure Card Entry
                 </div>
 
-                <div className="rounded-lg border border-slate-300 bg-white px-3 py-3">
-
+                <div className="rounded-lg border border-slate-300 bg-white px-3 py-4 min-h-[56px]">
                   {showPaymentElement ? (
-  <>
-    {console.log("[ProceedToPaymentLayout] rendering PaymentElement", {
-      showPaymentElement,
-      stripeReady: !!stripe,
-      elementsReady: !!elements,
-      clientSecretPresent: !!clientSecret,
-    })}
-    <PaymentElement
-      onReady={() => {
-        console.log("[PaymentElement] ready");
-      }}
-      onChange={(event) => {
-        console.log("[PaymentElement] change", event);
-      }}
-    />
-  </>
-) : (
-
+                    <>
+                      {console.log("[ProceedToPaymentLayout] rendering CardElement", {
+                        showPaymentElement,
+                        stripeReady: !!stripe,
+                        elementsReady: !!elements,
+                        clientSecretPresent: !!clientSecret,
+                      })}
+                      <CardElement
+                        options={{
+                          hidePostalCode: true,
+                          style: {
+                            base: {
+                              fontSize: "16px",
+                              color: "#0f172a",
+                              fontFamily:
+                                'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                              "::placeholder": {
+                                color: "#94a3b8",
+                              },
+                            },
+                            invalid: {
+                              color: "#dc2626",
+                              iconColor: "#dc2626",
+                            },
+                          },
+                        }}
+                        onReady={() => {
+                          console.log("[CardElement] ready");
+                        }}
+                        onChange={(event) => {
+                          console.log("[CardElement] change", event);
+                          if (event?.error?.message) {
+                            setLocalError(event.error.message);
+                          } else {
+                            setLocalError("");
+                          }
+                        }}
+                      />
+                    </>
+                  ) : (
                     <>
                       <div className="text-sm text-slate-500">
                         Secure payment form is loading...
                       </div>
                       <div className="mt-2 text-xs text-slate-400">
-                        The modal opened correctly. Stripe fields will appear as soon
-                        as the client secret is returned by the backend.
+                        The card fields will appear as soon as Stripe is ready.
                       </div>
                     </>
                   )}
@@ -537,6 +599,7 @@ function ProceedToPaymentLayout({
 function ProceedToPaymentStripeInner(props) {
   const stripe = useStripe();
   const elements = useElements();
+  const isReady = !!stripe && !!elements;
 
   useEffect(() => {
     console.log("[ProceedToPaymentStripeInner] stripe/elements ready state", {
@@ -546,20 +609,18 @@ function ProceedToPaymentStripeInner(props) {
       clientSecretPreview: props.clientSecret
         ? `${String(props.clientSecret).slice(0, 20)}...`
         : "(empty)",
+      isReady,
     });
-  }, [stripe, elements, props.clientSecret]);
+  }, [stripe, elements, props.clientSecret, isReady]);
 
-  const isReady = !!stripe && !!elements;
-
-return (
-  <ProceedToPaymentLayout
-    {...props}
-    stripe={stripe}
-    elements={elements}
-    showPaymentElement={isReady}
-  />
-);
-
+  return (
+    <ProceedToPaymentLayout
+      {...props}
+      stripe={stripe}
+      elements={elements}
+      showPaymentElement={isReady}
+    />
+  );
 }
 
 export default function ProceedToPayment({
