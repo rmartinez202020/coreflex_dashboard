@@ -1038,7 +1038,6 @@ export default function ProceedToPayment({
       />
     );
   }
-
   return (
     <Elements stripe={stripePromise} options={stripeOptions}>
       <ProceedToPaymentStripeInner
