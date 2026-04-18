@@ -61,38 +61,6 @@ function ProceedToPaymentLayout({
     setEmail(userEmail || "");
   }, [userEmail]);
 
-  useEffect(() => {
-    console.log("[ProceedToPaymentLayout] state snapshot", {
-      selectedPlanKey: selectedPlan?.key || null,
-      selectedPlanName: selectedPlan?.name || null,
-      billingMode,
-      addonTenantUsersQty,
-      tenantUserAddonPrice,
-      userEmail,
-      checkoutLoading,
-      checkoutError,
-      clientSecretPresent: !!clientSecret,
-      clientSecretPreview: clientSecret
-        ? `${String(clientSecret).slice(0, 20)}...`
-        : "(empty)",
-      stripeReady: !!stripe,
-      elementsReady: !!elements,
-      showPaymentElement,
-    });
-  }, [
-    selectedPlan,
-    billingMode,
-    addonTenantUsersQty,
-    tenantUserAddonPrice,
-    userEmail,
-    checkoutLoading,
-    checkoutError,
-    clientSecret,
-    stripe,
-    elements,
-    showPaymentElement,
-  ]);
-
   const planPrice = useMemo(() => {
     return buildPlanPrice(selectedPlan, billingMode);
   }, [selectedPlan, billingMode]);
@@ -112,62 +80,38 @@ function ProceedToPaymentLayout({
     e.preventDefault();
     setLocalError("");
 
-    console.log("[ProceedToPaymentLayout] submit clicked", {
-      selectedPlanKey: selectedPlan?.key || null,
-      billingMode,
-      addonTenantUsersQty,
-      email,
-      fullName,
-      address1,
-      city,
-      stateRegion,
-      zipCode,
-      clientSecretPresent: !!clientSecret,
-      stripeReady: !!stripe,
-      elementsReady: !!elements,
-    });
-
     if (!selectedPlan) {
       setLocalError("Please select a plan first.");
-      console.warn("[ProceedToPaymentLayout] blocked submit: no selected plan");
       return;
     }
 
     if (!email.trim()) {
       setLocalError("Email is required.");
-      console.warn("[ProceedToPaymentLayout] blocked submit: missing email");
       return;
     }
 
     if (!fullName.trim()) {
       setLocalError("Full name is required.");
-      console.warn("[ProceedToPaymentLayout] blocked submit: missing fullName");
       return;
     }
 
     if (!address1.trim()) {
       setLocalError("Billing address is required.");
-      console.warn("[ProceedToPaymentLayout] blocked submit: missing address1");
       return;
     }
 
     if (!city.trim()) {
       setLocalError("City is required.");
-      console.warn("[ProceedToPaymentLayout] blocked submit: missing city");
       return;
     }
 
     if (!stateRegion.trim()) {
       setLocalError("State / Region is required.");
-      console.warn(
-        "[ProceedToPaymentLayout] blocked submit: missing stateRegion"
-      );
       return;
     }
 
     if (!zipCode.trim()) {
       setLocalError("ZIP / Postal code is required.");
-      console.warn("[ProceedToPaymentLayout] blocked submit: missing zipCode");
       return;
     }
 
@@ -175,21 +119,11 @@ function ProceedToPaymentLayout({
       setLocalError(
         "Secure payment form is still loading. Please wait a moment."
       );
-      console.warn(
-        "[ProceedToPaymentLayout] blocked submit: clientSecret missing"
-      );
       return;
     }
 
     if (!stripe || !elements) {
       setLocalError("Stripe is still loading. Please wait a moment.");
-      console.warn(
-        "[ProceedToPaymentLayout] blocked submit: stripe/elements not ready",
-        {
-          stripeReady: !!stripe,
-          elementsReady: !!elements,
-        }
-      );
       return;
     }
 
@@ -197,22 +131,10 @@ function ProceedToPaymentLayout({
 
     if (!cardElement) {
       setLocalError("Card form is not ready yet. Please wait a moment.");
-      console.warn(
-        "[ProceedToPaymentLayout] blocked submit: CardElement not ready"
-      );
       return;
     }
 
     if (typeof onSubmit === "function") {
-      console.log("[ProceedToPaymentLayout] forwarding submit to onSubmit", {
-        selectedPlanKey: selectedPlan?.key || null,
-        billingMode,
-        addonTenantUsersQty,
-        clientSecretPreview: clientSecret
-          ? `${String(clientSecret).slice(0, 20)}...`
-          : "(empty)",
-      });
-
       onSubmit({
         selectedPlan,
         billingMode,
@@ -237,10 +159,6 @@ function ProceedToPaymentLayout({
     }
 
     try {
-      console.log(
-        "[ProceedToPaymentLayout] onSubmit missing, using direct confirmCardPayment"
-      );
-
       const { error } = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
           card: cardElement,
@@ -260,12 +178,10 @@ function ProceedToPaymentLayout({
       });
 
       if (error) {
-        console.error("[ProceedToPaymentLayout] confirmCardPayment failed", error);
         setLocalError(error.message || "Payment failed.");
         return;
       }
     } catch (err) {
-      console.error("[ProceedToPaymentLayout] direct payment failed", err);
       setLocalError(String(err?.message || err || "Payment failed."));
     }
   };
@@ -443,45 +359,33 @@ function ProceedToPaymentLayout({
 
                 <div className="rounded-lg border border-slate-300 bg-white px-3 py-4 min-h-[56px]">
                   {showPaymentElement ? (
-                    <>
-                      {console.log("[ProceedToPaymentLayout] rendering CardElement", {
-                        showPaymentElement,
-                        stripeReady: !!stripe,
-                        elementsReady: !!elements,
-                        clientSecretPresent: !!clientSecret,
-                      })}
-                      <CardElement
-                        options={{
-                          hidePostalCode: true,
-                          style: {
-                            base: {
-                              fontSize: "16px",
-                              color: "#0f172a",
-                              fontFamily:
-                                'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
-                              "::placeholder": {
-                                color: "#94a3b8",
-                              },
-                            },
-                            invalid: {
-                              color: "#dc2626",
-                              iconColor: "#dc2626",
+                    <CardElement
+                      options={{
+                        hidePostalCode: true,
+                        style: {
+                          base: {
+                            fontSize: "16px",
+                            color: "#0f172a",
+                            fontFamily:
+                              'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
+                            "::placeholder": {
+                              color: "#94a3b8",
                             },
                           },
-                        }}
-                        onReady={() => {
-                          console.log("[CardElement] ready");
-                        }}
-                        onChange={(event) => {
-                          console.log("[CardElement] change", event);
-                          if (event?.error?.message) {
-                            setLocalError(event.error.message);
-                          } else {
-                            setLocalError("");
-                          }
-                        }}
-                      />
-                    </>
+                          invalid: {
+                            color: "#dc2626",
+                            iconColor: "#dc2626",
+                          },
+                        },
+                      }}
+                      onChange={(event) => {
+                        if (event?.error?.message) {
+                          setLocalError(event.error.message);
+                        } else {
+                          setLocalError("");
+                        }
+                      }}
+                    />
                   ) : (
                     <>
                       <div className="text-sm text-slate-500">
@@ -601,18 +505,6 @@ function ProceedToPaymentStripeInner(props) {
   const elements = useElements();
   const isReady = !!stripe && !!elements;
 
-  useEffect(() => {
-    console.log("[ProceedToPaymentStripeInner] stripe/elements ready state", {
-      stripeReady: !!stripe,
-      elementsReady: !!elements,
-      clientSecretPresent: !!props.clientSecret,
-      clientSecretPreview: props.clientSecret
-        ? `${String(props.clientSecret).slice(0, 20)}...`
-        : "(empty)",
-      isReady,
-    });
-  }, [stripe, elements, props.clientSecret, isReady]);
-
   return (
     <ProceedToPaymentLayout
       {...props}
@@ -636,34 +528,6 @@ export default function ProceedToPayment({
   onSubmit,
   clientSecret = "",
 }) {
-  useEffect(() => {
-    console.log("[ProceedToPayment] props snapshot", {
-      open,
-      selectedPlanKey: selectedPlan?.key || null,
-      selectedPlanName: selectedPlan?.name || null,
-      billingMode,
-      addonTenantUsersQty,
-      tenantUserAddonPrice,
-      userEmail,
-      checkoutLoading,
-      checkoutError,
-      clientSecretPresent: !!clientSecret,
-      clientSecretPreview: clientSecret
-        ? `${String(clientSecret).slice(0, 20)}...`
-        : "(empty)",
-    });
-  }, [
-    open,
-    selectedPlan,
-    billingMode,
-    addonTenantUsersQty,
-    tenantUserAddonPrice,
-    userEmail,
-    checkoutLoading,
-    checkoutError,
-    clientSecret,
-  ]);
-
   if (!open) return null;
 
   const stripeOptions = clientSecret
@@ -679,20 +543,7 @@ export default function ProceedToPayment({
       }
     : null;
 
-  console.log("[ProceedToPayment] stripeOptions build", {
-    hasStripeOptions: !!stripeOptions,
-    clientSecretPresent: !!clientSecret,
-    clientSecretPreview: clientSecret
-      ? `${String(clientSecret).slice(0, 20)}...`
-      : "(empty)",
-    stripePromisePresent: !!stripePromise,
-  });
-
   if (!stripeOptions) {
-    console.warn(
-      "[ProceedToPayment] rendering loading state because clientSecret is missing"
-    );
-
     return (
       <ProceedToPaymentLayout
         onClose={onClose}
@@ -711,10 +562,6 @@ export default function ProceedToPayment({
       />
     );
   }
-
-  console.log("[ProceedToPayment] rendering Elements", {
-    clientSecretPreview: `${String(clientSecret).slice(0, 20)}...`,
-  });
 
   return (
     <Elements stripe={stripePromise} options={stripeOptions}>
