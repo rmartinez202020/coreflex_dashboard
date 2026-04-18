@@ -400,9 +400,26 @@ function ProceedToPaymentLayout({
                 </div>
 
                 <div className="rounded-lg border border-slate-300 bg-white px-3 py-3">
+
                   {showPaymentElement ? (
-                    <PaymentElement />
-                  ) : (
+  <>
+    {console.log("[ProceedToPaymentLayout] rendering PaymentElement", {
+      showPaymentElement,
+      stripeReady: !!stripe,
+      elementsReady: !!elements,
+      clientSecretPresent: !!clientSecret,
+    })}
+    <PaymentElement
+      onReady={() => {
+        console.log("[PaymentElement] ready");
+      }}
+      onChange={(event) => {
+        console.log("[PaymentElement] change", event);
+      }}
+    />
+  </>
+) : (
+
                     <>
                       <div className="text-sm text-slate-500">
                         Secure payment form is loading...
