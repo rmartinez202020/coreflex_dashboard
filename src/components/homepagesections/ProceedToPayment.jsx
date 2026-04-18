@@ -321,6 +321,28 @@ function ProceedToPaymentLayout({
     return label;
   }, [paymentTaxLabel, paymentTaxRatePercent, paymentTaxRate]);
 
+  const isFormComplete = useMemo(() => {
+    return (
+      !!email.trim() &&
+      !!fullName.trim() &&
+      !!company.trim() &&
+      !!address1.trim() &&
+      !!city.trim() &&
+      !!stateRegion.trim() &&
+      !!zipCode.trim() &&
+      !!country.trim()
+    );
+  }, [email, fullName, company, address1, city, stateRegion, zipCode, country]);
+
+  const isPayNowDisabled =
+    checkoutLoading ||
+    !selectedPlan ||
+    total <= 0 ||
+    !clientSecret ||
+    !stripe ||
+    !elements ||
+    !isFormComplete;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLocalError("");
@@ -347,6 +369,11 @@ function ProceedToPaymentLayout({
       return;
     }
 
+    if (!company.trim()) {
+      setLocalError("Company is required.");
+      return;
+    }
+
     if (!address1.trim()) {
       setLocalError("Billing address is required.");
       return;
@@ -364,6 +391,11 @@ function ProceedToPaymentLayout({
 
     if (!zipCode.trim()) {
       setLocalError("ZIP / Postal code is required.");
+      return;
+    }
+
+    if (!country.trim()) {
+      setLocalError("Country is required.");
       return;
     }
 
@@ -718,21 +750,9 @@ function ProceedToPaymentLayout({
 
                 <button
                   type="submit"
-                  disabled={
-                    checkoutLoading ||
-                    !selectedPlan ||
-                    total <= 0 ||
-                    !clientSecret ||
-                    !stripe ||
-                    !elements
-                  }
+                  disabled={isPayNowDisabled}
                   className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${
-                    checkoutLoading ||
-                    !selectedPlan ||
-                    total <= 0 ||
-                    !clientSecret ||
-                    !stripe ||
-                    !elements
+                    isPayNowDisabled
                       ? "bg-emerald-400 cursor-not-allowed"
                       : "bg-emerald-600 hover:bg-emerald-700"
                   }`}
