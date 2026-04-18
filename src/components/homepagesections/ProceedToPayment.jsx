@@ -775,16 +775,18 @@ function ProceedToPaymentLayout({
                 </button>
 
                 <button
-                  type="submit"
-                  disabled={isPayNowDisabled}
-                  className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${
-                    isPayNowDisabled
-                      ? "bg-emerald-400 cursor-not-allowed"
-                      : "bg-emerald-600 hover:bg-emerald-700"
-                  }`}
-                >
-                  {checkoutLoading ? "Processing..." : "Pay Now"}
-                </button>
+  type="submit"
+  disabled={isPayNowDisabled}
+  className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${
+    isPayNowDisabled
+      ? "bg-slate-400 text-white cursor-not-allowed"
+      : "bg-emerald-600 hover:bg-emerald-700"
+  }`}
+>
+  {checkoutLoading ? "Processing..." : "Pay Now"}
+</button>
+
+
               </div>
             </div>
           </div>
