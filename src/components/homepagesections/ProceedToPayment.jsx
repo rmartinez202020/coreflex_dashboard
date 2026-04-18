@@ -33,6 +33,88 @@ function buildPlanPrice(selectedPlan, billingMode) {
   return Number(selectedPlan.oneTimeLicense || 0);
 }
 
+function isValidEmail(value) {
+  const v = String(value || "").trim();
+  return /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(v);
+}
+
+function isReasonableText(value, minLength = 2) {
+  const v = String(value || "").trim();
+  if (v.length < minLength) return false;
+  return /[A-Za-z]/.test(v);
+}
+
+function isValidFullName(value) {
+  const v = String(value || "").trim().replace(/\s+/g, " ");
+  if (v.length < 4) return false;
+  const parts = v.split(" ").filter(Boolean);
+  if (parts.length < 2) return false;
+  return parts.every((part) => /[A-Za-z]/.test(part) && part.length >= 2);
+}
+
+function isValidAddressLine1(value) {
+  const v = String(value || "").trim();
+  if (v.length < 5) return false;
+  return /\d/.test(v) && /[A-Za-z]/.test(v);
+}
+
+function isValidZipCode(value) {
+  const v = String(value || "").trim();
+  if (!v) return false;
+  return /^[A-Za-z0-9][A-Za-z0-9\s-]{2,11}$/.test(v);
+}
+
+function getFieldError(field, value) {
+  const v = String(value || "").trim();
+
+  switch (field) {
+    case "email":
+      if (!v) return "Email is required.";
+      if (!isValidEmail(v)) return "Need a valid email address.";
+      return "";
+
+    case "fullName":
+      if (!v) return "Full name is required.";
+      if (!isValidFullName(v))
+        return "Enter first and last name using real letters.";
+      return "";
+
+    case "company":
+      if (!v) return "Company is required.";
+      if (!isReasonableText(v, 2)) return "Enter a valid company name.";
+      return "";
+
+    case "address1":
+      if (!v) return "Billing address is required.";
+      if (!isValidAddressLine1(v))
+        return "Enter a valid street address with number and street name.";
+      return "";
+
+    case "city":
+      if (!v) return "City is required.";
+      if (!isReasonableText(v, 2)) return "Enter a valid city.";
+      return "";
+
+    case "stateRegion":
+      if (!v) return "State / Region is required.";
+      if (!isReasonableText(v, 2)) return "Enter a valid state / region.";
+      return "";
+
+    case "zipCode":
+      if (!v) return "ZIP / Postal code is required.";
+      if (!isValidZipCode(v)) return "Enter a valid ZIP / Postal code.";
+      return "";
+
+    case "country":
+      if (!v) return "Country is required.";
+      if (!isReasonableText(v, 2)) return "Enter a valid country.";
+      return "";
+
+    default:
+      return "";
+  }
+}
+
 const STRIPE_ELEMENT_STYLE = {
   style: {
     base: {
@@ -264,6 +346,16 @@ function ProceedToPaymentLayout({
   const [zipCode, setZipCode] = useState("");
   const [localError, setLocalError] = useState("");
   const [paymentError, setPaymentError] = useState("");
+  const [touched, setTouched] = useState({
+    email: false,
+    fullName: false,
+    company: false,
+    address1: false,
+    city: false,
+    stateRegion: false,
+    zipCode: false,
+    country: false,
+  });
 
   useEffect(() => {
     setEmail(userEmail || "");
@@ -285,17 +377,14 @@ function ProceedToPaymentLayout({
   const summaryPlanAmount = useMemo(() => {
     if (selectedPlan?.key === "enterprise") return 0;
     if (isCurrentPlanSelection) return 0;
-    if (Number(paymentPlanAmount || 0) > 0) return Number(paymentPlanAmount || 0);
+    if (Number(paymentPlanAmount || 0) > 0)
+      return Number(paymentPlanAmount || 0);
     return planPrice;
-  }, [
-    selectedPlan,
-    isCurrentPlanSelection,
-    paymentPlanAmount,
-    planPrice,
-  ]);
+  }, [selectedPlan, isCurrentPlanSelection, paymentPlanAmount, planPrice]);
 
   const summaryAddonAmount = useMemo(() => {
-    if (Number(paymentAddonAmount || 0) > 0) return Number(paymentAddonAmount || 0);
+    if (Number(paymentAddonAmount || 0) > 0)
+      return Number(paymentAddonAmount || 0);
     return addonSubtotal;
   }, [paymentAddonAmount, addonSubtotal]);
 
@@ -347,18 +436,22 @@ function ProceedToPaymentLayout({
     return label;
   }, [paymentTaxLabel, paymentTaxRatePercent, paymentTaxRate]);
 
-  const isFormComplete = useMemo(() => {
-    return (
-      !!email.trim() &&
-      !!fullName.trim() &&
-      !!company.trim() &&
-      !!address1.trim() &&
-      !!city.trim() &&
-      !!stateRegion.trim() &&
-      !!zipCode.trim() &&
-      !!country.trim()
-    );
+  const validationErrors = useMemo(() => {
+    return {
+      email: getFieldError("email", email),
+      fullName: getFieldError("fullName", fullName),
+      company: getFieldError("company", company),
+      address1: getFieldError("address1", address1),
+      city: getFieldError("city", city),
+      stateRegion: getFieldError("stateRegion", stateRegion),
+      zipCode: getFieldError("zipCode", zipCode),
+      country: getFieldError("country", country),
+    };
   }, [email, fullName, company, address1, city, stateRegion, zipCode, country]);
+
+  const isContactInfoValid = useMemo(() => {
+    return Object.values(validationErrors).every((msg) => !msg);
+  }, [validationErrors]);
 
   const isPayNowDisabled =
     checkoutLoading ||
@@ -367,11 +460,34 @@ function ProceedToPaymentLayout({
     !clientSecret ||
     !stripe ||
     !elements ||
-    !isFormComplete;
+    !isContactInfoValid;
+
+  const showFieldError = (name) => touched[name] && validationErrors[name];
+
+  const inputClassName = (name) =>
+    `w-full rounded-lg border px-3 py-2 text-sm outline-none ${
+      showFieldError(name)
+        ? "border-red-400 bg-red-50 focus:border-red-500"
+        : "border-slate-300 focus:border-emerald-500"
+    }`;
+
+  const markTouched = (name) => {
+    setTouched((prev) => ({ ...prev, [name]: true }));
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLocalError("");
+    setTouched({
+      email: true,
+      fullName: true,
+      company: true,
+      address1: true,
+      city: true,
+      stateRegion: true,
+      zipCode: true,
+      country: true,
+    });
 
     if (!selectedPlan) {
       setLocalError("Please select a plan first.");
@@ -385,43 +501,43 @@ function ProceedToPaymentLayout({
       return;
     }
 
-    if (!email.trim()) {
-      setLocalError("Email is required.");
+    if (validationErrors.email) {
+      setLocalError(validationErrors.email);
       return;
     }
 
-    if (!fullName.trim()) {
-      setLocalError("Full name is required.");
+    if (validationErrors.fullName) {
+      setLocalError(validationErrors.fullName);
       return;
     }
 
-    if (!company.trim()) {
-      setLocalError("Company is required.");
+    if (validationErrors.company) {
+      setLocalError(validationErrors.company);
       return;
     }
 
-    if (!address1.trim()) {
-      setLocalError("Billing address is required.");
+    if (validationErrors.address1) {
+      setLocalError(validationErrors.address1);
       return;
     }
 
-    if (!city.trim()) {
-      setLocalError("City is required.");
+    if (validationErrors.city) {
+      setLocalError(validationErrors.city);
       return;
     }
 
-    if (!stateRegion.trim()) {
-      setLocalError("State / Region is required.");
+    if (validationErrors.stateRegion) {
+      setLocalError(validationErrors.stateRegion);
       return;
     }
 
-    if (!zipCode.trim()) {
-      setLocalError("ZIP / Postal code is required.");
+    if (validationErrors.zipCode) {
+      setLocalError(validationErrors.zipCode);
       return;
     }
 
-    if (!country.trim()) {
-      setLocalError("Country is required.");
+    if (validationErrors.country) {
+      setLocalError(validationErrors.country);
       return;
     }
 
@@ -561,9 +677,15 @@ function ProceedToPaymentLayout({
                     autoComplete="off"
                     value={email}
                     onChange={(e) => setEmail(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                    onBlur={() => markTouched("email")}
+                    className={inputClassName("email")}
                     placeholder="you@example.com"
                   />
+                  {showFieldError("email") ? (
+                    <div className="mt-1 text-[11px] font-medium text-red-600">
+                      {validationErrors.email}
+                    </div>
+                  ) : null}
                 </div>
 
                 <div>
@@ -576,9 +698,15 @@ function ProceedToPaymentLayout({
                     autoComplete="off"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                    onBlur={() => markTouched("fullName")}
+                    className={inputClassName("fullName")}
                     placeholder="Full name"
                   />
+                  {showFieldError("fullName") ? (
+                    <div className="mt-1 text-[11px] font-medium text-red-600">
+                      {validationErrors.fullName}
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="md:col-span-2">
@@ -591,9 +719,15 @@ function ProceedToPaymentLayout({
                     autoComplete="off"
                     value={company}
                     onChange={(e) => setCompany(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                    onBlur={() => markTouched("company")}
+                    className={inputClassName("company")}
                     placeholder="Company name"
                   />
+                  {showFieldError("company") ? (
+                    <div className="mt-1 text-[11px] font-medium text-red-600">
+                      {validationErrors.company}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -613,9 +747,15 @@ function ProceedToPaymentLayout({
                     autoComplete="off"
                     value={address1}
                     onChange={(e) => setAddress1(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                    onBlur={() => markTouched("address1")}
+                    className={inputClassName("address1")}
                     placeholder="Street address"
                   />
+                  {showFieldError("address1") ? (
+                    <div className="mt-1 text-[11px] font-medium text-red-600">
+                      {validationErrors.address1}
+                    </div>
+                  ) : null}
                 </div>
 
                 <div className="md:col-span-2">
@@ -643,9 +783,15 @@ function ProceedToPaymentLayout({
                     autoComplete="off"
                     value={city}
                     onChange={(e) => setCity(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                    onBlur={() => markTouched("city")}
+                    className={inputClassName("city")}
                     placeholder="City"
                   />
+                  {showFieldError("city") ? (
+                    <div className="mt-1 text-[11px] font-medium text-red-600">
+                      {validationErrors.city}
+                    </div>
+                  ) : null}
                 </div>
 
                 <div>
@@ -658,9 +804,15 @@ function ProceedToPaymentLayout({
                     autoComplete="off"
                     value={stateRegion}
                     onChange={(e) => setStateRegion(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                    onBlur={() => markTouched("stateRegion")}
+                    className={inputClassName("stateRegion")}
                     placeholder="State / Region"
                   />
+                  {showFieldError("stateRegion") ? (
+                    <div className="mt-1 text-[11px] font-medium text-red-600">
+                      {validationErrors.stateRegion}
+                    </div>
+                  ) : null}
                 </div>
 
                 <div>
@@ -673,9 +825,15 @@ function ProceedToPaymentLayout({
                     autoComplete="off"
                     value={zipCode}
                     onChange={(e) => setZipCode(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                    onBlur={() => markTouched("zipCode")}
+                    className={inputClassName("zipCode")}
                     placeholder="ZIP / Postal code"
                   />
+                  {showFieldError("zipCode") ? (
+                    <div className="mt-1 text-[11px] font-medium text-red-600">
+                      {validationErrors.zipCode}
+                    </div>
+                  ) : null}
                 </div>
 
                 <div>
@@ -688,9 +846,15 @@ function ProceedToPaymentLayout({
                     autoComplete="off"
                     value={country}
                     onChange={(e) => setCountry(e.target.value)}
-                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                    onBlur={() => markTouched("country")}
+                    className={inputClassName("country")}
                     placeholder="US"
                   />
+                  {showFieldError("country") ? (
+                    <div className="mt-1 text-[11px] font-medium text-red-600">
+                      {validationErrors.country}
+                    </div>
+                  ) : null}
                 </div>
               </div>
             </div>
@@ -775,18 +939,16 @@ function ProceedToPaymentLayout({
                 </button>
 
                 <button
-  type="submit"
-  disabled={isPayNowDisabled}
-  className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${
-    isPayNowDisabled
-      ? "bg-slate-400 text-white cursor-not-allowed"
-      : "bg-emerald-600 hover:bg-emerald-700"
-  }`}
->
-  {checkoutLoading ? "Processing..." : "Pay Now"}
-</button>
-
-
+                  type="submit"
+                  disabled={isPayNowDisabled}
+                  className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${
+                    isPayNowDisabled
+                      ? "bg-slate-400 text-white cursor-not-allowed"
+                      : "bg-emerald-600 hover:bg-emerald-700"
+                  }`}
+                >
+                  {checkoutLoading ? "Processing..." : "Pay Now"}
+                </button>
               </div>
             </div>
           </div>
