@@ -243,6 +243,7 @@ function ProceedToPaymentLayout({
   stripe,
   elements,
   showPaymentElement,
+  isCurrentPlanSelection = false,
 }) {
   const [email, setEmail] = useState(userEmail || "");
   const [fullName, setFullName] = useState("");
@@ -260,9 +261,14 @@ function ProceedToPaymentLayout({
     setEmail(userEmail || "");
   }, [userEmail]);
 
-  const planPrice = useMemo(() => {
+  const rawPlanPrice = useMemo(() => {
     return buildPlanPrice(selectedPlan, billingMode);
   }, [selectedPlan, billingMode]);
+
+  const planPrice = useMemo(() => {
+    if (selectedPlan?.key === "enterprise") return 0;
+    return isCurrentPlanSelection ? 0 : rawPlanPrice;
+  }, [selectedPlan, isCurrentPlanSelection, rawPlanPrice]);
 
   const addonSubtotal = useMemo(() => {
     return Number(addonTenantUsersQty || 0) * Number(tenantUserAddonPrice || 0);
@@ -281,6 +287,13 @@ function ProceedToPaymentLayout({
 
     if (!selectedPlan) {
       setLocalError("Please select a plan first.");
+      return;
+    }
+
+    if (selectedPlan.key !== "enterprise" && total <= 0) {
+      setLocalError(
+        "There is no charge to process. Please select a paid upgrade or add-ons."
+      );
       return;
     }
 
@@ -613,7 +626,10 @@ function ProceedToPaymentLayout({
                 </div>
 
                 <div className="flex items-center justify-between gap-3">
-                  <span className="text-slate-500">Plan Price</span>
+                  <span className="text-slate-500">
+                    Plan Price
+                    {isCurrentPlanSelection ? " (Current Plan)" : ""}
+                  </span>
                   <span className="font-semibold text-slate-900">
                     {selectedPlan?.key === "enterprise"
                       ? "Custom"
@@ -656,6 +672,7 @@ function ProceedToPaymentLayout({
                   disabled={
                     checkoutLoading ||
                     !selectedPlan ||
+                    total <= 0 ||
                     !clientSecret ||
                     !stripe ||
                     !elements
@@ -663,6 +680,7 @@ function ProceedToPaymentLayout({
                   className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${
                     checkoutLoading ||
                     !selectedPlan ||
+                    total <= 0 ||
                     !clientSecret ||
                     !stripe ||
                     !elements
@@ -713,6 +731,7 @@ export default function ProceedToPayment({
   checkoutError = "",
   onSubmit,
   clientSecret = "",
+  isCurrentPlanSelection = false,
 }) {
   if (!open) return null;
 
@@ -745,6 +764,7 @@ export default function ProceedToPayment({
         stripe={null}
         elements={null}
         showPaymentElement={false}
+        isCurrentPlanSelection={isCurrentPlanSelection}
       />
     );
   }
@@ -762,6 +782,7 @@ export default function ProceedToPayment({
         checkoutError={checkoutError}
         onSubmit={onSubmit}
         clientSecret={clientSecret}
+        isCurrentPlanSelection={isCurrentPlanSelection}
       />
     </Elements>
   );
