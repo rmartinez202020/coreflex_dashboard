@@ -764,6 +764,7 @@ export default function MySubscriptionSection({ onBack }) {
 
       const stripe = payload?.stripe;
       const elements = payload?.elements;
+      const cardElement = payload?.cardElement;
 
       if (!stripe || !elements) {
         throw new Error("Stripe payment form is not ready.");
@@ -771,30 +772,27 @@ export default function MySubscriptionSection({ onBack }) {
 
       const billingDetails = payload?.billingDetails || {};
 
-      const result = await stripe.confirmPayment({
-        elements,
-        confirmParams: {
-          payment_method_data: {
-            billing_details: {
-              name: billingDetails.fullName || "",
-              email: billingDetails.email || "",
-              address: {
-                line1: billingDetails.address1 || "",
-                line2: billingDetails.address2 || "",
-                city: billingDetails.city || "",
-                state: billingDetails.stateRegion || "",
-                postal_code: billingDetails.zipCode || "",
-                country:
-                  String(billingDetails.country || "US")
-                    .trim()
-                    .toUpperCase()
-                    .slice(0, 2) || "US",
-              },
-            },
-          },
-        },
-        redirect: "if_required",
-      });
+      const result = await stripe.confirmCardPayment(clientSecret, {
+  payment_method: {
+    card: payload.cardElement,
+    billing_details: {
+      name: billingDetails.fullName || "",
+      email: billingDetails.email || "",
+      address: {
+        line1: billingDetails.address1 || "",
+        line2: billingDetails.address2 || "",
+        city: billingDetails.city || "",
+        state: billingDetails.stateRegion || "",
+        postal_code: billingDetails.zipCode || "",
+        country:
+          String(billingDetails.country || "US")
+            .trim()
+            .toUpperCase()
+            .slice(0, 2) || "US",
+      },
+    },
+  },
+});
 
       if (result?.error) {
         throw new Error(result.error.message || "Payment confirmation failed.");
