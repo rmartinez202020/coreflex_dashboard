@@ -1,7 +1,7 @@
 import { loadStripe } from "@stripe/stripe-js";
 
 const STRIPE_PUBLISHABLE_KEY =
-  "pk_test_51TMtQZGtAb4naFW5VCn0KIYu4q3MV5kdydVe509jnrMZOvc1Mu73eMwhgWZKMEMEmD18Ht7KbvTaJ0z106ycvWQ00e1D21A42";
+  "pk_live_51TMtQZGtAb4naFW50LmXRNjofcpK6vuI1VF6ajAsAyrxlv4tohTROPIl3ECQmk7SgonpCrWZZEWTtvEpMQxLHLdh003jX4GxbH";
 
 console.log(
   "[stripe config] publishable key present:",
