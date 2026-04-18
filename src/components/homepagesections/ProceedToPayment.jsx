@@ -9,10 +9,18 @@ import {
 } from "@stripe/react-stripe-js";
 import { stripePromise } from "../../config/stripe";
 
-function formatMoney(value, suffix = "") {
+function roundMoney(value) {
   const num = Number(value || 0);
-  if (!Number.isFinite(num)) return "$0";
-  return `$${num.toLocaleString("en-US")}${suffix}`;
+  if (!Number.isFinite(num)) return 0;
+  return Math.round((num + Number.EPSILON) * 100) / 100;
+}
+
+function formatMoney(value, suffix = "") {
+  const num = roundMoney(value);
+  return `$${num.toLocaleString("en-US", {
+    minimumFractionDigits: 2,
+    maximumFractionDigits: 2,
+  })}${suffix}`;
 }
 
 function buildPlanPrice(selectedPlan, billingMode) {
@@ -20,7 +28,7 @@ function buildPlanPrice(selectedPlan, billingMode) {
   if (selectedPlan.key === "enterprise") return 0;
 
   if (billingMode === "monthly") {
-    return Number(selectedPlan.monthlyPrice || 0);
+    return roundMoney(selectedPlan.monthlyPrice || 0);
   }
 
   if (
@@ -30,7 +38,7 @@ function buildPlanPrice(selectedPlan, billingMode) {
     return 0;
   }
 
-  return Number(selectedPlan.oneTimeLicense || 0);
+  return roundMoney(selectedPlan.oneTimeLicense || 0);
 }
 
 function isValidEmail(value) {
@@ -362,35 +370,39 @@ function ProceedToPaymentLayout({
   }, [userEmail]);
 
   const rawPlanPrice = useMemo(() => {
-    return buildPlanPrice(selectedPlan, billingMode);
+    return roundMoney(buildPlanPrice(selectedPlan, billingMode));
   }, [selectedPlan, billingMode]);
 
   const planPrice = useMemo(() => {
     if (selectedPlan?.key === "enterprise") return 0;
-    return isCurrentPlanSelection ? 0 : rawPlanPrice;
+    return roundMoney(isCurrentPlanSelection ? 0 : rawPlanPrice);
   }, [selectedPlan, isCurrentPlanSelection, rawPlanPrice]);
 
   const addonSubtotal = useMemo(() => {
-    return Number(addonTenantUsersQty || 0) * Number(tenantUserAddonPrice || 0);
+    return roundMoney(
+      Number(addonTenantUsersQty || 0) * Number(tenantUserAddonPrice || 0)
+    );
   }, [addonTenantUsersQty, tenantUserAddonPrice]);
 
   const summaryPlanAmount = useMemo(() => {
     if (selectedPlan?.key === "enterprise") return 0;
     if (isCurrentPlanSelection) return 0;
-    if (Number(paymentPlanAmount || 0) > 0)
-      return Number(paymentPlanAmount || 0);
-    return planPrice;
+    if (Number(paymentPlanAmount || 0) > 0) {
+      return roundMoney(paymentPlanAmount || 0);
+    }
+    return roundMoney(planPrice);
   }, [selectedPlan, isCurrentPlanSelection, paymentPlanAmount, planPrice]);
 
   const summaryAddonAmount = useMemo(() => {
-    if (Number(paymentAddonAmount || 0) > 0)
-      return Number(paymentAddonAmount || 0);
-    return addonSubtotal;
+    if (Number(paymentAddonAmount || 0) > 0) {
+      return roundMoney(paymentAddonAmount || 0);
+    }
+    return roundMoney(addonSubtotal);
   }, [paymentAddonAmount, addonSubtotal]);
 
   const summarySubtotal = useMemo(() => {
     if (selectedPlan?.key === "enterprise") return 0;
-    return summaryPlanAmount + summaryAddonAmount;
+    return roundMoney(summaryPlanAmount + summaryAddonAmount);
   }, [selectedPlan, summaryPlanAmount, summaryAddonAmount]);
 
   const effectiveTaxRate = useMemo(() => {
@@ -415,13 +427,13 @@ function ProceedToPaymentLayout({
   const summaryTax = useMemo(() => {
     if (selectedPlan?.key === "enterprise") return 0;
     if (summarySubtotal <= 0) return 0;
-    if (effectiveTaxRate <= 0) return Number(paymentTax || 0);
-    return summarySubtotal * effectiveTaxRate;
+    if (effectiveTaxRate <= 0) return roundMoney(paymentTax || 0);
+    return roundMoney(summarySubtotal * effectiveTaxRate);
   }, [selectedPlan, summarySubtotal, effectiveTaxRate, paymentTax]);
 
   const total = useMemo(() => {
     if (selectedPlan?.key === "enterprise") return 0;
-    return summarySubtotal + summaryTax;
+    return roundMoney(summarySubtotal + summaryTax);
   }, [selectedPlan, summarySubtotal, summaryTax]);
 
   const billingLabel =
@@ -429,9 +441,13 @@ function ProceedToPaymentLayout({
 
   const taxDisplayLabel = useMemo(() => {
     const label = String(paymentTaxLabel || "").trim() || "Tax";
-    if (paymentTaxRatePercent) return `${label} (${paymentTaxRatePercent}%)`;
+    if (paymentTaxRatePercent) {
+      return `${label} (${roundMoney(paymentTaxRatePercent).toFixed(2)}%)`;
+    }
     if (paymentTaxRate) {
-      return `${label} (${(Number(paymentTaxRate) * 100).toFixed(3)}%)`;
+      return `${label} (${roundMoney(Number(paymentTaxRate) * 100).toFixed(
+        2
+      )}%)`;
     }
     return label;
   }, [paymentTaxLabel, paymentTaxRatePercent, paymentTaxRate]);
