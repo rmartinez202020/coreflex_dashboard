@@ -132,14 +132,10 @@ const STRIPE_ELEMENT_STYLE = {
 };
 
 function PaymentMethodSection({
-  paymentError,
   setPaymentError,
   showPaymentElement,
-  cardNumberComplete,
   setCardNumberComplete,
-  cardExpiryComplete,
   setCardExpiryComplete,
-  cardCvcComplete,
   setCardCvcComplete,
   setCardNumberError,
   setCardExpiryError,
@@ -151,12 +147,6 @@ function PaymentMethodSection({
         <div className="text-[12px] font-semibold text-slate-900">
           Payment Method
         </div>
-
-        {paymentError ? (
-          <div className="text-[10px] font-medium text-red-600 text-right">
-            {paymentError}
-          </div>
-        ) : null}
       </div>
 
       <div
@@ -504,9 +494,12 @@ function ProceedToPaymentLayout({
     setTouched((prev) => ({ ...prev, [name]: true }));
   };
 
+  const displayError = checkoutError || localError || paymentError;
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLocalError("");
+    setPaymentError("");
     setTouched({
       email: true,
       fullName: true,
@@ -634,11 +627,11 @@ function ProceedToPaymentLayout({
       });
 
       if (error) {
-        setLocalError(error.message || "Payment failed.");
+        setPaymentError(error.message || "Payment failed.");
         return;
       }
     } catch (err) {
-      setLocalError(String(err?.message || err || "Payment failed."));
+      setPaymentError(String(err?.message || err || "Payment failed."));
     }
   };
 
@@ -685,12 +678,6 @@ function ProceedToPaymentLayout({
           />
 
           <div className="xl:col-span-2 border-r border-slate-200 p-3">
-            {(localError || checkoutError) && (
-              <div className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700">
-                {localError || checkoutError}
-              </div>
-            )}
-
             <div className="mb-3">
               <div className="text-[12px] font-semibold text-slate-900">
                 Contact Information
@@ -883,10 +870,8 @@ function ProceedToPaymentLayout({
             </div>
 
             <PaymentMethodSection
-              paymentError={paymentError}
               setPaymentError={setPaymentError}
               showPaymentElement={showPaymentElement}
-              cardNumberComplete={cardNumberComplete}
               setCardNumberComplete={setCardNumberComplete}
               cardExpiryComplete={cardExpiryComplete}
               setCardExpiryComplete={setCardExpiryComplete}
@@ -981,6 +966,12 @@ function ProceedToPaymentLayout({
                 >
                   {checkoutLoading ? "Processing..." : "Pay Now"}
                 </button>
+
+                {displayError ? (
+                  <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700">
+                    {displayError}
+                  </div>
+                ) : null}
               </div>
             </div>
           </div>
@@ -1097,4 +1088,3 @@ export default function ProceedToPayment({
     </Elements>
   );
 }
-
