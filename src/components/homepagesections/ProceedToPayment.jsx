@@ -91,30 +91,16 @@ function PaymentMethodSection({
           aria-hidden="true"
         />
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-3">
+        <div className="mb-3">
           <button
             type="button"
-            className="flex items-center gap-2.5 rounded-lg border-2 border-emerald-600 bg-white px-4 py-3 text-left shadow-sm"
+            className="flex w-full items-center gap-2.5 rounded-lg border-2 border-emerald-600 bg-white px-4 py-3 text-left shadow-sm"
           >
             <div className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-sm">
               💳
             </div>
             <div>
               <div className="text-base font-semibold text-slate-900">Card</div>
-            </div>
-          </button>
-
-          <button
-            type="button"
-            className="flex items-center gap-2.5 rounded-lg border border-slate-300 bg-white px-4 py-3 text-left opacity-60"
-          >
-            <div className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-700">
-              G Pay
-            </div>
-            <div>
-              <div className="text-base font-semibold text-slate-700">
-                Google Pay
-              </div>
             </div>
           </button>
         </div>
