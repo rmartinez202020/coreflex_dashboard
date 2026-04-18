@@ -552,12 +552,18 @@ export default function MySubscriptionSection({ onBack }) {
         try {
           catalog = await tryLoadPublicCatalog(token);
         } catch (publicErr) {
-          console.warn("Public billing catalog unavailable, trying admin fallback.", publicErr);
+          console.warn(
+            "Public billing catalog unavailable, trying admin fallback.",
+            publicErr
+          );
 
           try {
             catalog = await tryLoadAdminCatalog(token);
           } catch (adminErr) {
-            console.warn("Admin billing catalog unavailable, using defaults.", adminErr);
+            console.warn(
+              "Admin billing catalog unavailable, using defaults.",
+              adminErr
+            );
             catalog = { plans: [], addons: [] };
           }
         }
@@ -601,9 +607,15 @@ export default function MySubscriptionSection({ onBack }) {
 
   const effectivePlan = selectedPlan || currentPlan;
   const effectivePlanPrice = getNumericPlanPrice(effectivePlan, billingMode);
+
+  const isCurrentPlanSelection =
+    !selectedPlan || selectedPlan.key === currentPlanKey;
+
+  const chargeablePlanPrice = isCurrentPlanSelection ? 0 : effectivePlanPrice;
+
   const addonSubtotal = addonTenantUsersQty * tenantUserAddonPrice;
   const totalAmount =
-    (Number.isFinite(effectivePlanPrice) ? effectivePlanPrice : 0) + addonSubtotal;
+    (Number.isFinite(chargeablePlanPrice) ? chargeablePlanPrice : 0) + addonSubtotal;
 
   const currentPlanStatus = subscription?.status || "Active";
   const currentPlanRenewal = formatRenewalDate(subscription?.renewal_date);
@@ -620,6 +632,11 @@ export default function MySubscriptionSection({ onBack }) {
 
   function openProceedToPayment() {
     if (!effectivePlan) return;
+
+    if (effectivePlan.key !== "enterprise" && totalAmount <= 0) {
+      setCheckoutMessage("Please select a paid upgrade or add-ons before continuing.");
+      return;
+    }
 
     setCheckoutMessage("");
     setClientSecret("");
@@ -929,7 +946,9 @@ export default function MySubscriptionSection({ onBack }) {
                       <div>
                         <div className="text-slate-500 text-[10px]">Base Price</div>
                         <div className="font-semibold text-slate-900">
-                          {getDisplayPrice(effectivePlan, billingMode)}
+                          {isCurrentPlanSelection
+                            ? formatMoney(0, billingMode === "monthly" ? " / month" : "")
+                            : getDisplayPrice(effectivePlan, billingMode)}
                         </div>
                       </div>
 
@@ -1002,11 +1021,12 @@ export default function MySubscriptionSection({ onBack }) {
                         <span className="text-slate-500">
                           {effectivePlan.name}{" "}
                           {billingMode === "monthly" ? "(Monthly)" : "(One-Time)"}
+                          {isCurrentPlanSelection ? " - Current Plan" : ""}
                         </span>
                         <span className="font-semibold text-slate-900">
                           {effectivePlan.key === "enterprise"
                             ? "Custom"
-                            : formatMoney(effectivePlanPrice || 0)}
+                            : formatMoney(chargeablePlanPrice || 0)}
                         </span>
                       </div>
                     ) : null}
