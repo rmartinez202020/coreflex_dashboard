@@ -1120,6 +1120,7 @@ export default function MySubscriptionSection({ onBack }) {
         checkoutError={checkoutMessage}
         onSubmit={handleProceedToPaymentSubmit}
         clientSecret={clientSecret}
+        isCurrentPlanSelection={isCurrentPlanSelection}
       />
     </>
   );
