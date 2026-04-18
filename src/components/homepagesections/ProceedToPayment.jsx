@@ -80,8 +80,6 @@ function getFieldError(field, value) {
       return "";
 
     case "company":
-      if (!v) return "Company is required.";
-      if (!isReasonableText(v, 2)) return "Enter a valid company name.";
       return "";
 
     case "address1":
@@ -118,7 +116,7 @@ function getFieldError(field, value) {
 const STRIPE_ELEMENT_STYLE = {
   style: {
     base: {
-      fontSize: "14px",
+      fontSize: "13px",
       color: "#0f172a",
       fontFamily:
         'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
@@ -140,13 +138,13 @@ function PaymentMethodSection({
 }) {
   return (
     <div>
-      <div className="mb-1.5 flex items-center justify-between gap-3">
-        <div className="text-[13px] font-semibold text-slate-900">
+      <div className="mb-1 flex items-center justify-between gap-3">
+        <div className="text-[12px] font-semibold text-slate-900">
           Payment Method
         </div>
 
         {paymentError ? (
-          <div className="text-[11px] font-medium text-red-600 text-right">
+          <div className="text-[10px] font-medium text-red-600 text-right">
             {paymentError}
           </div>
         ) : null}
@@ -154,7 +152,7 @@ function PaymentMethodSection({
 
       <div
         autoComplete="off"
-        className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3"
+        className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-2.5"
       >
         <input
           type="text"
@@ -173,49 +171,49 @@ function PaymentMethodSection({
           aria-hidden="true"
         />
 
-        <div className="mb-3">
+        <div className="mb-2.5">
           <button
             type="button"
-            className="flex w-full items-center gap-2.5 rounded-lg border-2 border-emerald-600 bg-white px-4 py-3 text-left shadow-sm"
+            className="flex w-full items-center gap-2 rounded-lg border-2 border-emerald-600 bg-white px-3 py-2.5 text-left shadow-sm"
           >
-            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-sm">
+            <div className="flex h-6 w-6 items-center justify-center rounded-md bg-slate-100 text-xs">
               💳
             </div>
             <div>
-              <div className="text-base font-semibold text-slate-900">Card</div>
+              <div className="text-sm font-semibold text-slate-900">Card</div>
             </div>
           </button>
         </div>
 
         {showPaymentElement ? (
           <>
-            <div className="mb-1.5 flex items-center justify-between gap-3">
-              <div className="text-[12px] font-medium text-slate-700">
+            <div className="mb-1 flex items-center justify-between gap-3">
+              <div className="text-[11px] font-medium text-slate-700">
                 Card number
               </div>
 
-              <div className="hidden sm:flex items-center gap-2">
-                <div className="flex h-7 w-11 items-center justify-center rounded-md bg-[#1A1F71] text-[10px] font-bold text-white shadow-sm">
+              <div className="hidden sm:flex items-center gap-1.5">
+                <div className="flex h-6 w-9 items-center justify-center rounded-md bg-[#1A1F71] text-[9px] font-bold text-white shadow-sm">
                   VISA
                 </div>
-                <div className="relative flex h-7 w-11 items-center justify-center rounded-md bg-black shadow-sm">
-                  <span className="absolute left-[10px] h-4 w-4 rounded-full bg-[#EB001B]" />
-                  <span className="absolute left-[18px] h-4 w-4 rounded-full bg-[#F79E1B]" />
+                <div className="relative flex h-6 w-9 items-center justify-center rounded-md bg-black shadow-sm">
+                  <span className="absolute left-[7px] h-3.5 w-3.5 rounded-full bg-[#EB001B]" />
+                  <span className="absolute left-[14px] h-3.5 w-3.5 rounded-full bg-[#F79E1B]" />
                 </div>
-                <div className="flex h-7 w-11 items-center justify-center rounded-md bg-[#2E77BC] text-[8px] font-bold leading-none text-white shadow-sm">
+                <div className="flex h-6 w-10 items-center justify-center rounded-md bg-[#2E77BC] text-[7px] font-bold leading-none text-white shadow-sm">
                   <span className="text-center">
                     AMERICAN
                     <br />
                     EXPRESS
                   </span>
                 </div>
-                <div className="flex h-7 w-11 items-center justify-center rounded-md bg-[#C8102E] text-[10px] font-bold text-white shadow-sm">
+                <div className="flex h-6 w-9 items-center justify-center rounded-md bg-[#C8102E] text-[9px] font-bold text-white shadow-sm">
                   JCB
                 </div>
-                <div className="flex h-7 w-11 items-center justify-center rounded-md bg-[#009FDA] text-[9px] font-bold text-white shadow-sm">
+                <div className="flex h-6 w-9 items-center justify-center rounded-md bg-[#009FDA] text-[8px] font-bold text-white shadow-sm">
                   D-Pay
                 </div>
-                <div className="flex h-7 w-11 items-center justify-center rounded-md bg-[#FF6000] text-[8px] font-bold text-white shadow-sm">
+                <div className="flex h-6 w-9 items-center justify-center rounded-md bg-[#FF6000] text-[7px] font-bold text-white shadow-sm">
                   DISCOVER
                 </div>
               </div>
@@ -223,7 +221,7 @@ function PaymentMethodSection({
 
             <div
               autoComplete="off"
-              className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 mb-3"
+              className="rounded-lg border border-slate-300 bg-white px-3 py-2 mb-2.5"
             >
               <CardNumberElement
                 options={{
@@ -242,14 +240,14 @@ function PaymentMethodSection({
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-2.5">
               <div>
-                <div className="mb-1.5 text-[12px] font-medium text-slate-700">
+                <div className="mb-1 text-[11px] font-medium text-slate-700">
                   Expiration
                 </div>
                 <div
                   autoComplete="off"
-                  className="rounded-lg border border-slate-300 bg-white px-3 py-2.5"
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2"
                 >
                   <CardExpiryElement
                     options={{
@@ -268,12 +266,12 @@ function PaymentMethodSection({
               </div>
 
               <div>
-                <div className="mb-1.5 text-[12px] font-medium text-slate-700">
+                <div className="mb-1 text-[11px] font-medium text-slate-700">
                   CVC
                 </div>
                 <div
                   autoComplete="off"
-                  className="rounded-lg border border-slate-300 bg-white px-3 py-2.5"
+                  className="rounded-lg border border-slate-300 bg-white px-3 py-2"
                 >
                   <CardCvcElement
                     options={{
@@ -297,13 +295,13 @@ function PaymentMethodSection({
             <div className="text-xs text-slate-500">
               Secure payment form is loading...
             </div>
-            <div className="mt-1.5 text-[11px] text-slate-400">
+            <div className="mt-1 text-[10px] text-slate-400">
               The card fields will appear as soon as Stripe is ready.
             </div>
           </>
         )}
 
-        <div className="mt-3 text-[11px] text-slate-500">
+        <div className="mt-2.5 text-[10px] text-slate-500">
           For PCI compliance, card data is collected securely by Stripe.
         </div>
       </div>
@@ -440,14 +438,14 @@ function ProceedToPaymentLayout({
     return {
       email: getFieldError("email", email),
       fullName: getFieldError("fullName", fullName),
-      company: getFieldError("company", company),
+      company: "",
       address1: getFieldError("address1", address1),
       city: getFieldError("city", city),
       stateRegion: getFieldError("stateRegion", stateRegion),
       zipCode: getFieldError("zipCode", zipCode),
       country: getFieldError("country", country),
     };
-  }, [email, fullName, company, address1, city, stateRegion, zipCode, country]);
+  }, [email, fullName, address1, city, stateRegion, zipCode, country]);
 
   const isContactInfoValid = useMemo(() => {
     return Object.values(validationErrors).every((msg) => !msg);
@@ -481,7 +479,7 @@ function ProceedToPaymentLayout({
     setTouched({
       email: true,
       fullName: true,
-      company: true,
+      company: false,
       address1: true,
       city: true,
       stateRegion: true,
@@ -508,11 +506,6 @@ function ProceedToPaymentLayout({
 
     if (validationErrors.fullName) {
       setLocalError(validationErrors.fullName);
-      return;
-    }
-
-    if (validationErrors.company) {
-      setLocalError(validationErrors.company);
       return;
     }
 
@@ -614,12 +607,12 @@ function ProceedToPaymentLayout({
   };
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/55 px-4 py-6">
-      <div className="w-full max-w-[930px] rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between bg-slate-900 px-4 py-3 text-white">
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/55 px-4 py-4">
+      <div className="w-full max-w-[760px] rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between bg-slate-900 px-4 py-2.5 text-white">
           <div>
-            <div className="text-base font-semibold">Proceed to Payment</div>
-            <div className="text-[11px] text-slate-300">
+            <div className="text-sm font-semibold">Proceed to Payment</div>
+            <div className="text-[10px] text-slate-300">
               Secure checkout for your selected CoreFlex plan.
             </div>
           </div>
@@ -627,7 +620,7 @@ function ProceedToPaymentLayout({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-semibold hover:bg-slate-800"
+            className="rounded-lg border border-slate-600 px-3 py-1 text-[11px] font-semibold hover:bg-slate-800"
           >
             Close
           </button>
@@ -655,20 +648,20 @@ function ProceedToPaymentLayout({
             aria-hidden="true"
           />
 
-          <div className="xl:col-span-2 border-r border-slate-200 p-4">
+          <div className="xl:col-span-2 border-r border-slate-200 p-3">
             {(localError || checkoutError) && (
-              <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
+              <div className="mb-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700">
                 {localError || checkoutError}
               </div>
             )}
 
-            <div className="mb-4">
-              <div className="text-[13px] font-semibold text-slate-900">
+            <div className="mb-3">
+              <div className="text-[12px] font-semibold text-slate-900">
                 Contact Information
               </div>
-              <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2.5">
+              <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div>
-                  <label className="mb-1 block text-[11px] font-medium text-slate-600">
+                  <label className="mb-1 block text-[10px] font-medium text-slate-600">
                     Email
                   </label>
                   <input
@@ -682,14 +675,14 @@ function ProceedToPaymentLayout({
                     placeholder="you@example.com"
                   />
                   {showFieldError("email") ? (
-                    <div className="mt-1 text-[11px] font-medium text-red-600">
+                    <div className="mt-1 text-[10px] font-medium text-red-600">
                       {validationErrors.email}
                     </div>
                   ) : null}
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-[11px] font-medium text-slate-600">
+                  <label className="mb-1 block text-[10px] font-medium text-slate-600">
                     Full Name
                   </label>
                   <input
@@ -703,14 +696,14 @@ function ProceedToPaymentLayout({
                     placeholder="Full name"
                   />
                   {showFieldError("fullName") ? (
-                    <div className="mt-1 text-[11px] font-medium text-red-600">
+                    <div className="mt-1 text-[10px] font-medium text-red-600">
                       {validationErrors.fullName}
                     </div>
                   ) : null}
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="mb-1 block text-[11px] font-medium text-slate-600">
+                  <label className="mb-1 block text-[10px] font-medium text-slate-600">
                     Company
                   </label>
                   <input
@@ -719,26 +712,20 @@ function ProceedToPaymentLayout({
                     autoComplete="off"
                     value={company}
                     onChange={(e) => setCompany(e.target.value)}
-                    onBlur={() => markTouched("company")}
-                    className={inputClassName("company")}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
                     placeholder="Company name"
                   />
-                  {showFieldError("company") ? (
-                    <div className="mt-1 text-[11px] font-medium text-red-600">
-                      {validationErrors.company}
-                    </div>
-                  ) : null}
                 </div>
               </div>
             </div>
 
-            <div className="mb-4">
-              <div className="text-[13px] font-semibold text-slate-900">
+            <div className="mb-3">
+              <div className="text-[12px] font-semibold text-slate-900">
                 Billing Address
               </div>
-              <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2.5">
+              <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div className="md:col-span-2">
-                  <label className="mb-1 block text-[11px] font-medium text-slate-600">
+                  <label className="mb-1 block text-[10px] font-medium text-slate-600">
                     Address Line 1
                   </label>
                   <input
@@ -752,14 +739,14 @@ function ProceedToPaymentLayout({
                     placeholder="Street address"
                   />
                   {showFieldError("address1") ? (
-                    <div className="mt-1 text-[11px] font-medium text-red-600">
+                    <div className="mt-1 text-[10px] font-medium text-red-600">
                       {validationErrors.address1}
                     </div>
                   ) : null}
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="mb-1 block text-[11px] font-medium text-slate-600">
+                  <label className="mb-1 block text-[10px] font-medium text-slate-600">
                     Address Line 2
                   </label>
                   <input
@@ -774,7 +761,7 @@ function ProceedToPaymentLayout({
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-[11px] font-medium text-slate-600">
+                  <label className="mb-1 block text-[10px] font-medium text-slate-600">
                     City
                   </label>
                   <input
@@ -788,14 +775,14 @@ function ProceedToPaymentLayout({
                     placeholder="City"
                   />
                   {showFieldError("city") ? (
-                    <div className="mt-1 text-[11px] font-medium text-red-600">
+                    <div className="mt-1 text-[10px] font-medium text-red-600">
                       {validationErrors.city}
                     </div>
                   ) : null}
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-[11px] font-medium text-slate-600">
+                  <label className="mb-1 block text-[10px] font-medium text-slate-600">
                     State / Region
                   </label>
                   <input
@@ -809,14 +796,14 @@ function ProceedToPaymentLayout({
                     placeholder="State / Region"
                   />
                   {showFieldError("stateRegion") ? (
-                    <div className="mt-1 text-[11px] font-medium text-red-600">
+                    <div className="mt-1 text-[10px] font-medium text-red-600">
                       {validationErrors.stateRegion}
                     </div>
                   ) : null}
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-[11px] font-medium text-slate-600">
+                  <label className="mb-1 block text-[10px] font-medium text-slate-600">
                     ZIP / Postal Code
                   </label>
                   <input
@@ -830,14 +817,14 @@ function ProceedToPaymentLayout({
                     placeholder="ZIP / Postal code"
                   />
                   {showFieldError("zipCode") ? (
-                    <div className="mt-1 text-[11px] font-medium text-red-600">
+                    <div className="mt-1 text-[10px] font-medium text-red-600">
                       {validationErrors.zipCode}
                     </div>
                   ) : null}
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-[11px] font-medium text-slate-600">
+                  <label className="mb-1 block text-[10px] font-medium text-slate-600">
                     Country
                   </label>
                   <input
@@ -851,7 +838,7 @@ function ProceedToPaymentLayout({
                     placeholder="US"
                   />
                   {showFieldError("country") ? (
-                    <div className="mt-1 text-[11px] font-medium text-red-600">
+                    <div className="mt-1 text-[10px] font-medium text-red-600">
                       {validationErrors.country}
                     </div>
                   ) : null}
@@ -866,15 +853,15 @@ function ProceedToPaymentLayout({
             />
           </div>
 
-          <div className="bg-slate-50 p-4">
-            <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <div className="text-[13px] font-semibold text-slate-900">
+          <div className="bg-slate-50 p-3">
+            <div className="rounded-xl border border-slate-200 bg-white p-3">
+              <div className="text-[12px] font-semibold text-slate-900">
                 Order Summary
               </div>
 
-              <div className="mt-3 space-y-2.5 text-sm">
+              <div className="mt-2.5 space-y-2 text-sm">
                 <div>
-                  <div className="text-[11px] text-slate-500">Selected Plan</div>
+                  <div className="text-[10px] text-slate-500">Selected Plan</div>
                   <div className="font-semibold text-slate-900">
                     {selectedPlan?.name || "No plan selected"}
                   </div>
@@ -919,7 +906,7 @@ function ProceedToPaymentLayout({
                   </div>
                 )}
 
-                <div className="border-t border-slate-200 pt-3 flex items-center justify-between gap-3">
+                <div className="border-t border-slate-200 pt-2.5 flex items-center justify-between gap-3">
                   <span className="text-slate-900 font-semibold">Total</span>
                   <span className="text-xl font-bold text-slate-900">
                     {selectedPlan?.key === "enterprise"
@@ -929,7 +916,7 @@ function ProceedToPaymentLayout({
                 </div>
               </div>
 
-              <div className="mt-4 flex flex-col gap-2">
+              <div className="mt-3 flex flex-col gap-2">
                 <button
                   type="button"
                   onClick={onClose}
@@ -1038,6 +1025,7 @@ export default function ProceedToPayment({
       />
     );
   }
+
   return (
     <Elements stripe={stripePromise} options={stripeOptions}>
       <ProceedToPaymentStripeInner
