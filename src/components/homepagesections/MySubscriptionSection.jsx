@@ -71,6 +71,19 @@ const DEFAULT_PLANS = [
 const PLAN_ORDER = ["free", "starter", "professional", "industrial", "enterprise"];
 const DEFAULT_TENANT_USER_ADDON_PRICE = 310;
 
+function buildJsonHeaders(token) {
+  const t = String(token || "").trim();
+  const headers = {
+    "Content-Type": "application/json",
+  };
+
+  if (t) {
+    headers.Authorization = `Bearer ${t}`;
+  }
+
+  return headers;
+}
+
 function formatMoney(value, suffix = "") {
   if (value === null || value === undefined || value === "") return "Custom";
   const num = Number(value);
@@ -453,10 +466,7 @@ export default function MySubscriptionSection({ onBack }) {
 
         const response = await fetch(`${API_URL}/subscription/me`, {
           method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+          headers: buildJsonHeaders(token),
         });
 
         const data = await response.json().catch(() => ({}));
@@ -490,43 +500,77 @@ export default function MySubscriptionSection({ onBack }) {
   useEffect(() => {
     let isMounted = true;
 
+    async function tryLoadPublicCatalog(token) {
+      const response = await fetch(`${API_URL}/billing/catalog`, {
+        method: "GET",
+        headers: buildJsonHeaders(token),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data?.detail || "Failed to load public billing catalog.");
+      }
+
+      return {
+        plans: Array.isArray(data?.plans) ? data.plans : [],
+        addons: Array.isArray(data?.addons) ? data.addons : [],
+      };
+    }
+
+    async function tryLoadAdminCatalog(token) {
+      const [plansRes, addonsRes] = await Promise.all([
+        fetch(`${API_URL}/admin/billing/plans`, {
+          method: "GET",
+          headers: buildJsonHeaders(token),
+        }),
+        fetch(`${API_URL}/admin/billing/addons`, {
+          method: "GET",
+          headers: buildJsonHeaders(token),
+        }),
+      ]);
+
+      const plansData = await plansRes.json().catch(() => []);
+      const addonsData = await addonsRes.json().catch(() => []);
+
+      if (!plansRes.ok || !addonsRes.ok) {
+        throw new Error("Admin billing catalog is not available for this user.");
+      }
+
+      return {
+        plans: Array.isArray(plansData) ? plansData : [],
+        addons: Array.isArray(addonsData) ? addonsData : [],
+      };
+    }
+
     async function loadBillingCatalog() {
       try {
         const token = String(getToken() || "").trim();
-        if (!token) return;
 
-        const [plansRes, addonsRes] = await Promise.all([
-          fetch(`${API_URL}/admin/billing/plans`, {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          }),
-          fetch(`${API_URL}/admin/billing/addons`, {
-            method: "GET",
-            headers: {
-              Authorization: `Bearer ${token}`,
-              "Content-Type": "application/json",
-            },
-          }),
-        ]);
+        let catalog = null;
 
-        const plansData = await plansRes.json().catch(() => []);
-        const addonsData = await addonsRes.json().catch(() => []);
+        try {
+          catalog = await tryLoadPublicCatalog(token);
+        } catch (publicErr) {
+          console.warn("Public billing catalog unavailable, trying admin fallback.", publicErr);
+
+          try {
+            catalog = await tryLoadAdminCatalog(token);
+          } catch (adminErr) {
+            console.warn("Admin billing catalog unavailable, using defaults.", adminErr);
+            catalog = { plans: [], addons: [] };
+          }
+        }
 
         if (!isMounted) return;
 
-        if (plansRes.ok && Array.isArray(plansData)) {
-          setDbPlans(plansData);
-        }
-
-        if (addonsRes.ok && Array.isArray(addonsData)) {
-          setDbAddons(addonsData);
-        }
+        setDbPlans(Array.isArray(catalog?.plans) ? catalog.plans : []);
+        setDbAddons(Array.isArray(catalog?.addons) ? catalog.addons : []);
       } catch (err) {
         if (!isMounted) return;
         console.warn("Billing catalog fallback to defaults:", err);
+        setDbPlans([]);
+        setDbAddons([]);
       }
     }
 
@@ -610,10 +654,7 @@ export default function MySubscriptionSection({ onBack }) {
 
         const response = await fetch(`${API_URL}/billing/create-payment-intent`, {
           method: "POST",
-          headers: {
-            Authorization: `Bearer ${token}`,
-            "Content-Type": "application/json",
-          },
+          headers: buildJsonHeaders(token),
           body: JSON.stringify({
             planKey: effectivePlan.key,
             billingType: billingMode,
