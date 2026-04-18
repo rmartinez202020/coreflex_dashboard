@@ -449,6 +449,16 @@ export default function MySubscriptionSection({ onBack }) {
 
   const [dbPlans, setDbPlans] = useState([]);
   const [dbAddons, setDbAddons] = useState([]);
+  const [paymentBreakdown, setPaymentBreakdown] = useState({
+    planAmount: 0,
+    addonAmount: 0,
+    subtotal: 0,
+    tax: 0,
+    taxRate: 0,
+    taxRatePercent: 0,
+    taxLabel: "Tax",
+    total: 0,
+  });
 
   useEffect(() => {
     let isMounted = true;
@@ -614,7 +624,7 @@ export default function MySubscriptionSection({ onBack }) {
   const chargeablePlanPrice = isCurrentPlanSelection ? 0 : effectivePlanPrice;
 
   const addonSubtotal = addonTenantUsersQty * tenantUserAddonPrice;
-  const totalAmount =
+  const subtotalAmount =
     (Number.isFinite(chargeablePlanPrice) ? chargeablePlanPrice : 0) + addonSubtotal;
 
   const currentPlanStatus = subscription?.status || "Active";
@@ -628,18 +638,38 @@ export default function MySubscriptionSection({ onBack }) {
     subscription?.tenants_users_limit
   );
 
+  const displayTax = Number(paymentBreakdown.tax || 0);
+  const displayTotal =
+    Number(paymentBreakdown.total || 0) > 0
+      ? Number(paymentBreakdown.total || 0)
+      : subtotalAmount;
+
   const showAddon = true;
+
+  function resetPaymentIntentState() {
+    setClientSecret("");
+    setPaymentBreakdown({
+      planAmount: 0,
+      addonAmount: 0,
+      subtotal: 0,
+      tax: 0,
+      taxRate: 0,
+      taxRatePercent: 0,
+      taxLabel: "Tax",
+      total: 0,
+    });
+  }
 
   function openProceedToPayment() {
     if (!effectivePlan) return;
 
-    if (effectivePlan.key !== "enterprise" && totalAmount <= 0) {
+    if (effectivePlan.key !== "enterprise" && subtotalAmount <= 0) {
       setCheckoutMessage("Please select a paid upgrade or add-ons before continuing.");
       return;
     }
 
     setCheckoutMessage("");
-    setClientSecret("");
+    resetPaymentIntentState();
 
     if (effectivePlan.key === "enterprise") {
       setCheckoutMessage(
@@ -691,10 +721,21 @@ export default function MySubscriptionSection({ onBack }) {
 
         if (!isMounted) return;
         setClientSecret(data.clientSecret);
+        setPaymentBreakdown({
+          planAmount: Number(data?.planAmount || 0),
+          addonAmount: Number(data?.addonAmount || 0),
+          subtotal: Number(data?.subtotal || 0),
+          tax: Number(data?.tax || 0),
+          taxRate: Number(data?.taxRate || 0),
+          taxRatePercent: Number(data?.taxRatePercent || 0),
+          taxLabel: String(data?.taxLabel || "Tax"),
+          total: Number(data?.total || 0),
+        });
       } catch (err) {
         if (!isMounted) return;
         console.error("Payment init failed:", err);
         setCheckoutMessage(err?.message || "Unable to start payment.");
+        resetPaymentIntentState();
       } finally {
         if (isMounted) {
           setCheckoutLoading(false);
@@ -713,6 +754,7 @@ export default function MySubscriptionSection({ onBack }) {
     effectivePlan,
     billingMode,
     addonTenantUsersQty,
+    subtotalAmount,
   ]);
 
   async function handleProceedToPaymentSubmit(payload) {
@@ -765,13 +807,13 @@ export default function MySubscriptionSection({ onBack }) {
       ) {
         setCheckoutMessage("Payment submitted successfully.");
         setShowProceedToPayment(false);
-        setClientSecret("");
+        resetPaymentIntentState();
         return;
       }
 
       setCheckoutMessage("Payment submitted. Waiting for final confirmation.");
       setShowProceedToPayment(false);
-      setClientSecret("");
+      resetPaymentIntentState();
     } catch (err) {
       console.error("Proceed to payment failed:", err);
       setCheckoutMessage(
@@ -784,7 +826,7 @@ export default function MySubscriptionSection({ onBack }) {
 
   function handleCloseProceedToPayment() {
     setShowProceedToPayment(false);
-    setClientSecret("");
+    resetPaymentIntentState();
     setCheckoutLoading(false);
   }
 
@@ -911,6 +953,7 @@ export default function MySubscriptionSection({ onBack }) {
                   onSelect={(pickedPlan) => {
                     setSelectedPlanKey(pickedPlan.key);
                     setCheckoutMessage("");
+                    resetPaymentIntentState();
                   }}
                   isSelected={selectedPlanKey === plan.key}
                   currentPlanKey={currentPlanKey}
@@ -993,9 +1036,10 @@ export default function MySubscriptionSection({ onBack }) {
 
                           <select
                             value={addonTenantUsersQty}
-                            onChange={(e) =>
-                              setAddonTenantUsersQty(Number(e.target.value || 0))
-                            }
+                            onChange={(e) => {
+                              setAddonTenantUsersQty(Number(e.target.value || 0));
+                              resetPaymentIntentState();
+                            }}
                             className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-[12px] text-slate-900 outline-none focus:border-emerald-500"
                           >
                             {[0, 1, 2, 3, 4, 5].map((qty) => (
@@ -1042,12 +1086,28 @@ export default function MySubscriptionSection({ onBack }) {
                       </div>
                     )}
 
+                    {displayTax > 0 && (
+                      <div className="flex items-center justify-between gap-3">
+                        <span className="text-slate-500">
+                          {paymentBreakdown.taxLabel ||
+                            `Tax${
+                              paymentBreakdown.taxRatePercent
+                                ? ` (${paymentBreakdown.taxRatePercent}%)`
+                                : ""
+                            }`}
+                        </span>
+                        <span className="font-semibold text-slate-900">
+                          {formatMoney(displayTax)}
+                        </span>
+                      </div>
+                    )}
+
                     <div className="border-t border-slate-200 pt-2 flex items-center justify-between gap-3">
                       <span className="text-slate-900 font-semibold">Total</span>
                       <span className="text-[16px] font-bold text-slate-900">
                         {effectivePlan?.key === "enterprise"
                           ? "Custom Quote"
-                          : formatMoney(totalAmount)}
+                          : formatMoney(displayTotal)}
                       </span>
                     </div>
                   </div>
@@ -1059,8 +1119,8 @@ export default function MySubscriptionSection({ onBack }) {
                         setSelectedPlanKey(null);
                         setAddonTenantUsersQty(0);
                         setCheckoutMessage("");
-                        setClientSecret("");
                         setShowProceedToPayment(false);
+                        resetPaymentIntentState();
                       }}
                     >
                       Cancel
@@ -1121,6 +1181,14 @@ export default function MySubscriptionSection({ onBack }) {
         onSubmit={handleProceedToPaymentSubmit}
         clientSecret={clientSecret}
         isCurrentPlanSelection={isCurrentPlanSelection}
+        paymentSubtotal={Number(paymentBreakdown.subtotal || 0)}
+        paymentTax={Number(paymentBreakdown.tax || 0)}
+        paymentTaxRate={Number(paymentBreakdown.taxRate || 0)}
+        paymentTaxRatePercent={Number(paymentBreakdown.taxRatePercent || 0)}
+        paymentTaxLabel={String(paymentBreakdown.taxLabel || "Tax")}
+        paymentTotal={Number(paymentBreakdown.total || 0)}
+        paymentPlanAmount={Number(paymentBreakdown.planAmount || 0)}
+        paymentAddonAmount={Number(paymentBreakdown.addonAmount || 0)}
       />
     </>
   );

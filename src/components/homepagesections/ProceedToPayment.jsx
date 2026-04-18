@@ -244,6 +244,14 @@ function ProceedToPaymentLayout({
   elements,
   showPaymentElement,
   isCurrentPlanSelection = false,
+  paymentSubtotal = 0,
+  paymentTax = 0,
+  paymentTaxRate = 0,
+  paymentTaxRatePercent = 0,
+  paymentTaxLabel = "Tax",
+  paymentTotal = 0,
+  paymentPlanAmount = 0,
+  paymentAddonAmount = 0,
 }) {
   const [email, setEmail] = useState(userEmail || "");
   const [fullName, setFullName] = useState("");
@@ -274,12 +282,44 @@ function ProceedToPaymentLayout({
     return Number(addonTenantUsersQty || 0) * Number(tenantUserAddonPrice || 0);
   }, [addonTenantUsersQty, tenantUserAddonPrice]);
 
-  const total = useMemo(() => {
+  const fallbackSubtotal = useMemo(() => {
     return planPrice + addonSubtotal;
   }, [planPrice, addonSubtotal]);
 
+  const summaryPlanAmount = useMemo(() => {
+    if (selectedPlan?.key === "enterprise") return 0;
+    if (Number(paymentPlanAmount || 0) > 0) return Number(paymentPlanAmount || 0);
+    return planPrice;
+  }, [selectedPlan, paymentPlanAmount, planPrice]);
+
+  const summaryAddonAmount = useMemo(() => {
+    if (Number(paymentAddonAmount || 0) > 0) return Number(paymentAddonAmount || 0);
+    return addonSubtotal;
+  }, [paymentAddonAmount, addonSubtotal]);
+
+  const summarySubtotal = useMemo(() => {
+    if (Number(paymentSubtotal || 0) > 0) return Number(paymentSubtotal || 0);
+    return fallbackSubtotal;
+  }, [paymentSubtotal, fallbackSubtotal]);
+
+  const summaryTax = useMemo(() => {
+    return Number(paymentTax || 0);
+  }, [paymentTax]);
+
+  const total = useMemo(() => {
+    if (Number(paymentTotal || 0) > 0) return Number(paymentTotal || 0);
+    return summarySubtotal + summaryTax;
+  }, [paymentTotal, summarySubtotal, summaryTax]);
+
   const billingLabel =
     billingMode === "monthly" ? "Monthly" : "One-Time License";
+
+  const taxDisplayLabel = useMemo(() => {
+    const label = String(paymentTaxLabel || "").trim() || "Tax";
+    if (paymentTaxRatePercent) return `${label} (${paymentTaxRatePercent}%)`;
+    if (paymentTaxRate) return `${label} (${(Number(paymentTaxRate) * 100).toFixed(3)}%)`;
+    return label;
+  }, [paymentTaxLabel, paymentTaxRatePercent, paymentTaxRate]);
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -633,7 +673,7 @@ function ProceedToPaymentLayout({
                   <span className="font-semibold text-slate-900">
                     {selectedPlan?.key === "enterprise"
                       ? "Custom"
-                      : formatMoney(planPrice)}
+                      : formatMoney(summaryPlanAmount)}
                   </span>
                 </div>
 
@@ -643,7 +683,16 @@ function ProceedToPaymentLayout({
                       Additional Tenant-User × {addonTenantUsersQty}
                     </span>
                     <span className="font-semibold text-slate-900">
-                      {formatMoney(addonSubtotal)}
+                      {formatMoney(summaryAddonAmount)}
+                    </span>
+                  </div>
+                )}
+
+                {summaryTax > 0 && (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-500">{taxDisplayLabel}</span>
+                    <span className="font-semibold text-slate-900">
+                      {formatMoney(summaryTax)}
                     </span>
                   </div>
                 )}
@@ -732,6 +781,14 @@ export default function ProceedToPayment({
   onSubmit,
   clientSecret = "",
   isCurrentPlanSelection = false,
+  paymentSubtotal = 0,
+  paymentTax = 0,
+  paymentTaxRate = 0,
+  paymentTaxRatePercent = 0,
+  paymentTaxLabel = "Tax",
+  paymentTotal = 0,
+  paymentPlanAmount = 0,
+  paymentAddonAmount = 0,
 }) {
   if (!open) return null;
 
@@ -765,6 +822,14 @@ export default function ProceedToPayment({
         elements={null}
         showPaymentElement={false}
         isCurrentPlanSelection={isCurrentPlanSelection}
+        paymentSubtotal={paymentSubtotal}
+        paymentTax={paymentTax}
+        paymentTaxRate={paymentTaxRate}
+        paymentTaxRatePercent={paymentTaxRatePercent}
+        paymentTaxLabel={paymentTaxLabel}
+        paymentTotal={paymentTotal}
+        paymentPlanAmount={paymentPlanAmount}
+        paymentAddonAmount={paymentAddonAmount}
       />
     );
   }
@@ -783,6 +848,14 @@ export default function ProceedToPayment({
         onSubmit={onSubmit}
         clientSecret={clientSecret}
         isCurrentPlanSelection={isCurrentPlanSelection}
+        paymentSubtotal={paymentSubtotal}
+        paymentTax={paymentTax}
+        paymentTaxRate={paymentTaxRate}
+        paymentTaxRatePercent={paymentTaxRatePercent}
+        paymentTaxLabel={paymentTaxLabel}
+        paymentTotal={paymentTotal}
+        paymentPlanAmount={paymentPlanAmount}
+        paymentAddonAmount={paymentAddonAmount}
       />
     </Elements>
   );
