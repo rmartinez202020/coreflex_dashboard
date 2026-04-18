@@ -269,6 +269,7 @@ export function useMySubscriptionSection() {
   const [checkoutMessage, setCheckoutMessage] = useState("");
   const [showProceedToPayment, setShowProceedToPayment] = useState(false);
   const [clientSecret, setClientSecret] = useState("");
+  const [paymentIntentId, setPaymentIntentId] = useState("");
   const [checkoutSessionKey, setCheckoutSessionKey] = useState("");
 
   const [subscription, setSubscription] = useState(null);
@@ -290,6 +291,7 @@ export function useMySubscriptionSection() {
 
   const resetPaymentIntentState = useCallback(() => {
     setClientSecret("");
+    setPaymentIntentId("");
     setCheckoutSessionKey("");
     setPaymentBreakdown({
       planAmount: 0,
@@ -538,7 +540,112 @@ export function useMySubscriptionSection() {
     isCurrentPlanSelection,
   ]);
 
-  const openProceedToPayment = useCallback(() => {
+  const createPaymentIntentForCurrentSelection = useCallback(async () => {
+    if (!effectivePlan) {
+      throw new Error("No plan selected.");
+    }
+
+    if (effectivePlan.key === "enterprise") {
+      throw new Error(
+        "Enterprise plans use a custom quote flow. Connect this button to your sales/contact workflow."
+      );
+    }
+
+    if (subtotalAmount <= 0) {
+      throw new Error("Please select a paid upgrade or add-ons before continuing.");
+    }
+
+    if (
+      clientSecret &&
+      paymentIntentId &&
+      checkoutSessionKey &&
+      checkoutSessionKey === currentCheckoutSessionKey
+    ) {
+      return {
+        clientSecret,
+        paymentIntentId,
+        checkoutSessionKey,
+      };
+    }
+
+    const token = String(getToken() || "").trim();
+    if (!token) {
+      throw new Error("Missing authentication token.");
+    }
+
+    console.log("PAYMENT INIT REQUEST:", {
+      effectivePlanKey: effectivePlan.key,
+      billingMode,
+      addonTenantUsersQty,
+      isCurrentPlanSelection,
+      subtotalAmount,
+      checkoutSessionKey: currentCheckoutSessionKey,
+    });
+
+    const response = await fetch(`${API_URL}/billing/create-payment-intent`, {
+      method: "POST",
+      headers: buildJsonHeaders(token),
+      body: JSON.stringify({
+        planKey: effectivePlan.key,
+        billingType: billingMode,
+        extraTenantUsers: addonTenantUsersQty,
+      }),
+    });
+
+    const data = await response.json().catch(() => ({}));
+
+    if (!response.ok) {
+      throw new Error(data.detail || "Failed to initialize payment.");
+    }
+
+    if (!data?.clientSecret) {
+      throw new Error("clientSecret not returned from backend.");
+    }
+
+    console.log("PAYMENT INIT RESPONSE:", {
+      clientSecret: data.clientSecret,
+      paymentIntentId: data.paymentIntentId,
+      paymentPlanAmount: data?.planAmount,
+      paymentAddonAmount: data?.addonAmount,
+      paymentSubtotal: data?.subtotal,
+      paymentTax: data?.tax,
+      paymentTotal: data?.total,
+      checkoutSessionKey: currentCheckoutSessionKey,
+    });
+
+    setClientSecret(String(data.clientSecret || ""));
+    setPaymentIntentId(String(data.paymentIntentId || ""));
+    setCheckoutSessionKey(currentCheckoutSessionKey);
+    setPaymentBreakdown({
+      planAmount: Number(data?.planAmount || 0),
+      addonAmount: Number(data?.addonAmount || 0),
+      subtotal: Number(data?.subtotal || 0),
+      tax: Number(data?.tax || 0),
+      taxRate: Number(data?.taxRate || 0),
+      taxRatePercent: Number(data?.taxRatePercent || 0),
+      taxLabel: String(data?.taxLabel || "Tax"),
+      total: Number(data?.total || 0),
+    });
+
+    return {
+      clientSecret: String(data.clientSecret || ""),
+      paymentIntentId: String(data.paymentIntentId || ""),
+      checkoutSessionKey: currentCheckoutSessionKey,
+    };
+  }, [
+    effectivePlan,
+    subtotalAmount,
+    clientSecret,
+    paymentIntentId,
+    checkoutSessionKey,
+    currentCheckoutSessionKey,
+    billingMode,
+    addonTenantUsersQty,
+    isCurrentPlanSelection,
+  ]);
+
+  const openProceedToPayment = useCallback(async () => {
+    if (checkoutLoading) return;
     if (!effectivePlan) return;
 
     if (effectivePlan.key !== "enterprise" && subtotalAmount <= 0) {
@@ -549,7 +656,6 @@ export function useMySubscriptionSection() {
     }
 
     setCheckoutMessage("");
-    resetPaymentIntentState();
 
     if (effectivePlan.key === "enterprise") {
       setCheckoutMessage(
@@ -558,119 +664,30 @@ export function useMySubscriptionSection() {
       return;
     }
 
-    setCheckoutSessionKey(currentCheckoutSessionKey);
-    setShowProceedToPayment(true);
-  }, [
-    effectivePlan,
-    subtotalAmount,
-    currentCheckoutSessionKey,
-    resetPaymentIntentState,
-  ]);
-
-  useEffect(() => {
-    let isMounted = true;
-
-    async function initializePaymentIntent() {
-      if (!showProceedToPayment) return;
-      if (!effectivePlan) return;
-      if (effectivePlan.key === "enterprise") return;
-      if (!checkoutSessionKey) return;
-      if (checkoutSessionKey !== currentCheckoutSessionKey) return;
-
-      try {
-        setCheckoutLoading(true);
-        setCheckoutMessage("");
-
-        const token = String(getToken() || "").trim();
-        if (!token) {
-          throw new Error("Missing authentication token.");
-        }
-
-        console.log("PAYMENT INIT REQUEST:", {
-          effectivePlanKey: effectivePlan.key,
-          billingMode,
-          addonTenantUsersQty,
-          isCurrentPlanSelection,
-          subtotalAmount,
-          checkoutSessionKey,
-        });
-
-        const response = await fetch(`${API_URL}/billing/create-payment-intent`, {
-          method: "POST",
-          headers: buildJsonHeaders(token),
-          body: JSON.stringify({
-            planKey: effectivePlan.key,
-            billingType: billingMode,
-            extraTenantUsers: addonTenantUsersQty,
-          }),
-        });
-
-        const data = await response.json().catch(() => ({}));
-
-        if (!response.ok) {
-          throw new Error(data.detail || "Failed to initialize payment.");
-        }
-
-        if (!data?.clientSecret) {
-          throw new Error("clientSecret not returned from backend.");
-        }
-
-        if (!isMounted) return;
-        if (checkoutSessionKey !== currentCheckoutSessionKey) return;
-
-        console.log("PAYMENT INIT RESPONSE:", {
-          clientSecret: data.clientSecret,
-          paymentPlanAmount: data?.planAmount,
-          paymentAddonAmount: data?.addonAmount,
-          paymentSubtotal: data?.subtotal,
-          paymentTax: data?.tax,
-          paymentTotal: data?.total,
-          checkoutSessionKey,
-        });
-
-        setClientSecret(data.clientSecret);
-        setPaymentBreakdown({
-          planAmount: Number(data?.planAmount || 0),
-          addonAmount: Number(data?.addonAmount || 0),
-          subtotal: Number(data?.subtotal || 0),
-          tax: Number(data?.tax || 0),
-          taxRate: Number(data?.taxRate || 0),
-          taxRatePercent: Number(data?.taxRatePercent || 0),
-          taxLabel: String(data?.taxLabel || "Tax"),
-          total: Number(data?.total || 0),
-        });
-      } catch (err) {
-        if (!isMounted) return;
-        console.error("Payment init failed:", err);
-        setCheckoutMessage(err?.message || "Unable to start payment.");
-        resetPaymentIntentState();
-      } finally {
-        if (isMounted) {
-          setCheckoutLoading(false);
-        }
-      }
+    try {
+      setCheckoutLoading(true);
+      await createPaymentIntentForCurrentSelection();
+      setShowProceedToPayment(true);
+    } catch (err) {
+      console.error("Payment init failed:", err);
+      setCheckoutMessage(err?.message || "Unable to start payment.");
+      resetPaymentIntentState();
+    } finally {
+      setCheckoutLoading(false);
     }
-
-    initializePaymentIntent();
-
-    return () => {
-      isMounted = false;
-    };
   }, [
-    showProceedToPayment,
-    checkoutSessionKey,
-    currentCheckoutSessionKey,
+    checkoutLoading,
     effectivePlan,
-    billingMode,
-    addonTenantUsersQty,
     subtotalAmount,
-    isCurrentPlanSelection,
+    createPaymentIntentForCurrentSelection,
     resetPaymentIntentState,
   ]);
 
   const handleProceedToPaymentSubmit = useCallback(
     async (payload) => {
       try {
+        if (checkoutLoading) return;
+
         setCheckoutLoading(true);
         setCheckoutMessage("");
 
@@ -691,6 +708,7 @@ export function useMySubscriptionSection() {
           addonTenantUsersQty,
           paymentBreakdown,
           clientSecret,
+          paymentIntentId,
           checkoutSessionKey,
         });
 
@@ -720,21 +738,34 @@ export function useMySubscriptionSection() {
           throw new Error(result.error.message || "Payment confirmation failed.");
         }
 
-        const paymentIntentId = String(result?.paymentIntent?.id || "").trim();
-        if (!paymentIntentId) {
+        const confirmedPaymentIntentId = String(
+          result?.paymentIntent?.id || ""
+        ).trim();
+        if (!confirmedPaymentIntentId) {
           throw new Error(
             "Payment succeeded but payment intent ID was not returned."
           );
         }
 
         console.log("PAYMENT CONFIRM RESPONSE:", {
-          paymentIntentId,
+          paymentIntentId: confirmedPaymentIntentId,
+          expectedPaymentIntentId: paymentIntentId,
           paymentIntentStatus: result?.paymentIntent?.status,
           checkoutSessionKey,
         });
 
+        if (
+          paymentIntentId &&
+          confirmedPaymentIntentId &&
+          paymentIntentId !== confirmedPaymentIntentId
+        ) {
+          throw new Error(
+            "Confirmed payment intent does not match the initialized checkout session."
+          );
+        }
+
         if (typeof payload?.applyPaymentToSubscription === "function") {
-          await payload.applyPaymentToSubscription(paymentIntentId);
+          await payload.applyPaymentToSubscription(confirmedPaymentIntentId);
         } else {
           throw new Error("Payment apply handler is missing.");
         }
@@ -769,9 +800,11 @@ export function useMySubscriptionSection() {
       }
     },
     [
+      checkoutLoading,
       addonTenantUsersQty,
       paymentBreakdown,
       clientSecret,
+      paymentIntentId,
       checkoutSessionKey,
       loadSubscription,
       resetPaymentIntentState,
@@ -780,9 +813,8 @@ export function useMySubscriptionSection() {
 
   const handleCloseProceedToPayment = useCallback(() => {
     setShowProceedToPayment(false);
-    resetPaymentIntentState();
     setCheckoutLoading(false);
-  }, [resetPaymentIntentState]);
+  }, []);
 
   const handlePaymentApplied = useCallback(async () => {
     try {
@@ -796,6 +828,7 @@ export function useMySubscriptionSection() {
     (pickedPlan) => {
       setSelectedPlanKey(pickedPlan.key);
       setCheckoutMessage("");
+      setShowProceedToPayment(false);
       resetPaymentIntentState();
     },
     [resetPaymentIntentState]
@@ -805,6 +838,7 @@ export function useMySubscriptionSection() {
     (mode) => {
       setBillingMode(mode);
       setCheckoutMessage("");
+      setShowProceedToPayment(false);
       resetPaymentIntentState();
     },
     [resetPaymentIntentState]
@@ -814,6 +848,7 @@ export function useMySubscriptionSection() {
     (qty) => {
       setAddonTenantUsersQty(Number(qty || 0));
       setCheckoutMessage("");
+      setShowProceedToPayment(false);
       resetPaymentIntentState();
     },
     [resetPaymentIntentState]
@@ -837,6 +872,7 @@ export function useMySubscriptionSection() {
     checkoutMessage,
     showProceedToPayment,
     clientSecret,
+    paymentIntentId,
     subscription,
     loadingSubscription,
     subscriptionError,
