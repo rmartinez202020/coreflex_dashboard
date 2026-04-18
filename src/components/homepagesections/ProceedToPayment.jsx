@@ -36,7 +36,7 @@ function buildPlanPrice(selectedPlan, billingMode) {
 const STRIPE_ELEMENT_STYLE = {
   style: {
     base: {
-      fontSize: "16px",
+      fontSize: "14px",
       color: "#0f172a",
       fontFamily:
         'ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif',
@@ -58,41 +58,41 @@ function PaymentMethodSection({
 }) {
   return (
     <div>
-      <div className="mb-2 flex items-center justify-between gap-3">
-        <div className="text-sm font-semibold text-slate-900">
+      <div className="mb-1.5 flex items-center justify-between gap-3">
+        <div className="text-[13px] font-semibold text-slate-900">
           Payment Method
         </div>
 
         {paymentError ? (
-          <div className="text-xs font-medium text-red-600 text-right">
+          <div className="text-[11px] font-medium text-red-600 text-right">
             {paymentError}
           </div>
         ) : null}
       </div>
 
-      <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 mb-4">
+      <div className="mt-2 rounded-lg border border-slate-200 bg-slate-50 p-3">
+        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5 mb-3">
           <button
             type="button"
-            className="flex items-center gap-3 rounded-xl border-2 border-emerald-600 bg-white px-5 py-4 text-left shadow-sm"
+            className="flex items-center gap-2.5 rounded-lg border-2 border-emerald-600 bg-white px-4 py-3 text-left shadow-sm"
           >
-            <div className="flex h-10 w-10 items-center justify-center rounded-lg bg-slate-100 text-xl">
+            <div className="flex h-7 w-7 items-center justify-center rounded-md bg-slate-100 text-sm">
               💳
             </div>
             <div>
-              <div className="text-lg font-semibold text-slate-900">Card</div>
+              <div className="text-base font-semibold text-slate-900">Card</div>
             </div>
           </button>
 
           <button
             type="button"
-            className="flex items-center gap-3 rounded-xl border border-slate-300 bg-white px-5 py-4 text-left opacity-60"
+            className="flex items-center gap-2.5 rounded-lg border border-slate-300 bg-white px-4 py-3 text-left opacity-60"
           >
-            <div className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-xs font-semibold text-slate-700">
+            <div className="rounded-full border border-slate-300 bg-white px-2 py-0.5 text-[10px] font-semibold text-slate-700">
               G Pay
             </div>
             <div>
-              <div className="text-lg font-semibold text-slate-700">
+              <div className="text-base font-semibold text-slate-700">
                 Google Pay
               </div>
             </div>
@@ -101,28 +101,28 @@ function PaymentMethodSection({
 
         {showPaymentElement ? (
           <>
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <div className="text-sm font-medium text-slate-700">
+            <div className="mb-1.5 flex items-center justify-between gap-3">
+              <div className="text-[12px] font-medium text-slate-700">
                 Card number
               </div>
 
-              <div className="hidden sm:flex items-center gap-2 text-[11px] font-semibold">
-                <span className="rounded-md border border-slate-300 bg-white px-2 py-1 text-blue-700">
+              <div className="hidden sm:flex items-center gap-1.5 text-[10px] font-semibold">
+                <span className="rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-blue-700">
                   VISA
                 </span>
-                <span className="rounded-md border border-slate-300 bg-white px-2 py-1 text-orange-600">
+                <span className="rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-orange-600">
                   MC
                 </span>
-                <span className="rounded-md border border-slate-300 bg-white px-2 py-1 text-blue-600">
+                <span className="rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-blue-600">
                   AMEX
                 </span>
-                <span className="rounded-md border border-slate-300 bg-white px-2 py-1 text-emerald-700">
+                <span className="rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-emerald-700">
                   UnionPay
                 </span>
               </div>
             </div>
 
-            <div className="rounded-lg border border-slate-300 bg-white px-4 py-3 mb-4">
+            <div className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 mb-3">
               <CardNumberElement
                 options={STRIPE_ELEMENT_STYLE}
                 onChange={(event) => {
@@ -135,12 +135,12 @@ function PaymentMethodSection({
               />
             </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <div className="mb-2 text-sm font-medium text-slate-700">
+                <div className="mb-1.5 text-[12px] font-medium text-slate-700">
                   Expiration
                 </div>
-                <div className="rounded-lg border border-slate-300 bg-white px-4 py-3">
+                <div className="rounded-lg border border-slate-300 bg-white px-3 py-2.5">
                   <CardExpiryElement
                     options={STRIPE_ELEMENT_STYLE}
                     onChange={(event) => {
@@ -155,10 +155,10 @@ function PaymentMethodSection({
               </div>
 
               <div>
-                <div className="mb-2 text-sm font-medium text-slate-700">
+                <div className="mb-1.5 text-[12px] font-medium text-slate-700">
                   CVC
                 </div>
-                <div className="rounded-lg border border-slate-300 bg-white px-4 py-3">
+                <div className="rounded-lg border border-slate-300 bg-white px-3 py-2.5">
                   <CardCvcElement
                     options={STRIPE_ELEMENT_STYLE}
                     onChange={(event) => {
@@ -175,16 +175,16 @@ function PaymentMethodSection({
           </>
         ) : (
           <>
-            <div className="text-sm text-slate-500">
+            <div className="text-xs text-slate-500">
               Secure payment form is loading...
             </div>
-            <div className="mt-2 text-xs text-slate-400">
+            <div className="mt-1.5 text-[11px] text-slate-400">
               The card fields will appear as soon as Stripe is ready.
             </div>
           </>
         )}
 
-        <div className="mt-4 text-xs text-slate-500">
+        <div className="mt-3 text-[11px] text-slate-500">
           For PCI compliance, card data is collected securely by Stripe.
         </div>
       </div>
@@ -351,11 +351,11 @@ function ProceedToPaymentLayout({
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/55 px-4 py-6">
-      <div className="w-full max-w-6xl rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
-        <div className="flex items-center justify-between bg-slate-900 px-5 py-4 text-white">
+      <div className="w-full max-w-[930px] rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
+        <div className="flex items-center justify-between bg-slate-900 px-4 py-3 text-white">
           <div>
-            <div className="text-lg font-semibold">Proceed to Payment</div>
-            <div className="text-xs text-slate-300">
+            <div className="text-base font-semibold">Proceed to Payment</div>
+            <div className="text-[11px] text-slate-300">
               Secure checkout for your selected CoreFlex plan.
             </div>
           </div>
@@ -363,7 +363,7 @@ function ProceedToPaymentLayout({
           <button
             type="button"
             onClick={onClose}
-            className="rounded-lg border border-slate-600 px-3 py-1.5 text-sm font-semibold hover:bg-slate-800"
+            className="rounded-lg border border-slate-600 px-3 py-1.5 text-xs font-semibold hover:bg-slate-800"
           >
             Close
           </button>
@@ -373,20 +373,20 @@ function ProceedToPaymentLayout({
           onSubmit={handleSubmit}
           className="grid grid-cols-1 xl:grid-cols-3 gap-0"
         >
-          <div className="xl:col-span-2 border-r border-slate-200 p-5">
+          <div className="xl:col-span-2 border-r border-slate-200 p-4">
             {(localError || checkoutError) && (
-              <div className="mb-4 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+              <div className="mb-3 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-xs text-red-700">
                 {localError || checkoutError}
               </div>
             )}
 
-            <div className="mb-5">
-              <div className="text-sm font-semibold text-slate-900">
+            <div className="mb-4">
+              <div className="text-[13px] font-semibold text-slate-900">
                 Contact Information
               </div>
-              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2.5">
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">
+                  <label className="mb-1 block text-[11px] font-medium text-slate-600">
                     Email
                   </label>
                   <input
@@ -399,7 +399,7 @@ function ProceedToPaymentLayout({
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">
+                  <label className="mb-1 block text-[11px] font-medium text-slate-600">
                     Full Name
                   </label>
                   <input
@@ -412,7 +412,7 @@ function ProceedToPaymentLayout({
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="mb-1 block text-xs font-medium text-slate-600">
+                  <label className="mb-1 block text-[11px] font-medium text-slate-600">
                     Company
                   </label>
                   <input
@@ -426,13 +426,13 @@ function ProceedToPaymentLayout({
               </div>
             </div>
 
-            <div className="mb-5">
-              <div className="text-sm font-semibold text-slate-900">
+            <div className="mb-4">
+              <div className="text-[13px] font-semibold text-slate-900">
                 Billing Address
               </div>
-              <div className="mt-3 grid grid-cols-1 md:grid-cols-2 gap-3">
+              <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2.5">
                 <div className="md:col-span-2">
-                  <label className="mb-1 block text-xs font-medium text-slate-600">
+                  <label className="mb-1 block text-[11px] font-medium text-slate-600">
                     Address Line 1
                   </label>
                   <input
@@ -445,7 +445,7 @@ function ProceedToPaymentLayout({
                 </div>
 
                 <div className="md:col-span-2">
-                  <label className="mb-1 block text-xs font-medium text-slate-600">
+                  <label className="mb-1 block text-[11px] font-medium text-slate-600">
                     Address Line 2
                   </label>
                   <input
@@ -458,7 +458,7 @@ function ProceedToPaymentLayout({
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">
+                  <label className="mb-1 block text-[11px] font-medium text-slate-600">
                     City
                   </label>
                   <input
@@ -471,7 +471,7 @@ function ProceedToPaymentLayout({
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">
+                  <label className="mb-1 block text-[11px] font-medium text-slate-600">
                     State / Region
                   </label>
                   <input
@@ -484,7 +484,7 @@ function ProceedToPaymentLayout({
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">
+                  <label className="mb-1 block text-[11px] font-medium text-slate-600">
                     ZIP / Postal Code
                   </label>
                   <input
@@ -497,7 +497,7 @@ function ProceedToPaymentLayout({
                 </div>
 
                 <div>
-                  <label className="mb-1 block text-xs font-medium text-slate-600">
+                  <label className="mb-1 block text-[11px] font-medium text-slate-600">
                     Country
                   </label>
                   <input
@@ -518,15 +518,15 @@ function ProceedToPaymentLayout({
             />
           </div>
 
-          <div className="bg-slate-50 p-5">
+          <div className="bg-slate-50 p-4">
             <div className="rounded-xl border border-slate-200 bg-white p-4">
-              <div className="text-sm font-semibold text-slate-900">
+              <div className="text-[13px] font-semibold text-slate-900">
                 Order Summary
               </div>
 
-              <div className="mt-4 space-y-3 text-sm">
+              <div className="mt-3 space-y-2.5 text-sm">
                 <div>
-                  <div className="text-xs text-slate-500">Selected Plan</div>
+                  <div className="text-[11px] text-slate-500">Selected Plan</div>
                   <div className="font-semibold text-slate-900">
                     {selectedPlan?.name || "No plan selected"}
                   </div>
@@ -561,7 +561,7 @@ function ProceedToPaymentLayout({
 
                 <div className="border-t border-slate-200 pt-3 flex items-center justify-between gap-3">
                   <span className="text-slate-900 font-semibold">Total</span>
-                  <span className="text-lg font-bold text-slate-900">
+                  <span className="text-xl font-bold text-slate-900">
                     {selectedPlan?.key === "enterprise"
                       ? "Custom Quote"
                       : formatMoney(total)}
@@ -569,7 +569,7 @@ function ProceedToPaymentLayout({
                 </div>
               </div>
 
-              <div className="mt-5 flex flex-col gap-2">
+              <div className="mt-4 flex flex-col gap-2">
                 <button
                   type="button"
                   onClick={onClose}
@@ -601,7 +601,7 @@ function ProceedToPaymentLayout({
                 </button>
               </div>
 
-              <div className="mt-4 text-xs leading-snug text-slate-500">
+              <div className="mt-3 text-[11px] leading-snug text-slate-500">
                 Taxes, discounts, and final Stripe confirmation can be applied
                 in the backend payment-intent flow.
               </div>
