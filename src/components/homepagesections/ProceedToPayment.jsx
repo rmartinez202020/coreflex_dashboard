@@ -141,7 +141,9 @@ function PaymentMethodSection({
   setCardExpiryComplete,
   cardCvcComplete,
   setCardCvcComplete,
-  setCardInputError,
+  setCardNumberError,
+  setCardExpiryError,
+  setCardCvcError,
 }) {
   return (
     <div>
@@ -239,13 +241,9 @@ function PaymentMethodSection({
                 }}
                 onChange={(event) => {
                   setCardNumberComplete(!!event?.complete);
-                  if (event?.error?.message) {
-                    setPaymentError(event.error.message);
-                    setCardInputError(true);
-                  } else {
-                    setPaymentError("");
-                    setCardInputError(false);
-                  }
+                  const msg = event?.error?.message || "";
+                  setCardNumberError(msg);
+                  setPaymentError(msg);
                 }}
               />
             </div>
@@ -266,13 +264,9 @@ function PaymentMethodSection({
                     }}
                     onChange={(event) => {
                       setCardExpiryComplete(!!event?.complete);
-                      if (event?.error?.message) {
-                        setPaymentError(event.error.message);
-                        setCardInputError(true);
-                      } else {
-                        setPaymentError("");
-                        setCardInputError(false);
-                      }
+                      const msg = event?.error?.message || "";
+                      setCardExpiryError(msg);
+                      setPaymentError(msg);
                     }}
                   />
                 </div>
@@ -293,13 +287,9 @@ function PaymentMethodSection({
                     }}
                     onChange={(event) => {
                       setCardCvcComplete(!!event?.complete);
-                      if (event?.error?.message) {
-                        setPaymentError(event.error.message);
-                        setCardInputError(true);
-                      } else {
-                        setPaymentError("");
-                        setCardInputError(false);
-                      }
+                      const msg = event?.error?.message || "";
+                      setCardCvcError(msg);
+                      setPaymentError(msg);
                     }}
                   />
                 </div>
@@ -363,7 +353,9 @@ function ProceedToPaymentLayout({
   const [cardNumberComplete, setCardNumberComplete] = useState(false);
   const [cardExpiryComplete, setCardExpiryComplete] = useState(false);
   const [cardCvcComplete, setCardCvcComplete] = useState(false);
-  const [cardInputError, setCardInputError] = useState(false);
+  const [cardNumberError, setCardNumberError] = useState("");
+  const [cardExpiryError, setCardExpiryError] = useState("");
+  const [cardCvcError, setCardCvcError] = useState("");
   const [touched, setTouched] = useState({
     email: false,
     fullName: false,
@@ -476,15 +468,17 @@ function ProceedToPaymentLayout({
       cardNumberComplete &&
       cardExpiryComplete &&
       cardCvcComplete &&
-      !cardInputError &&
-      !paymentError
+      !cardNumberError &&
+      !cardExpiryError &&
+      !cardCvcError
     );
   }, [
     cardNumberComplete,
     cardExpiryComplete,
     cardCvcComplete,
-    cardInputError,
-    paymentError,
+    cardNumberError,
+    cardExpiryError,
+    cardCvcError,
   ]);
 
   const isPayNowDisabled =
@@ -898,7 +892,9 @@ function ProceedToPaymentLayout({
               setCardExpiryComplete={setCardExpiryComplete}
               cardCvcComplete={cardCvcComplete}
               setCardCvcComplete={setCardCvcComplete}
-              setCardInputError={setCardInputError}
+              setCardNumberError={setCardNumberError}
+              setCardExpiryError={setCardExpiryError}
+              setCardCvcError={setCardCvcError}
             />
           </div>
 
