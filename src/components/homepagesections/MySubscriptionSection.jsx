@@ -3,7 +3,7 @@ import { API_URL } from "../../config/api";
 import { getToken } from "../../utils/authToken";
 import ProceedToPayment from "./ProceedToPayment";
 
-const PLANS = [
+const DEFAULT_PLANS = [
   {
     key: "free",
     name: "Free",
@@ -69,7 +69,7 @@ const PLANS = [
 ];
 
 const PLAN_ORDER = ["free", "starter", "professional", "industrial", "enterprise"];
-const TENANT_USER_ADDON_PRICE = 310;
+const DEFAULT_TENANT_USER_ADDON_PRICE = 310;
 
 function formatMoney(value, suffix = "") {
   if (value === null || value === undefined || value === "") return "Custom";
@@ -152,6 +152,93 @@ function buildTenantUsersUsedText(used, limit) {
   }
 
   return `${safeUsed} / ${Number(limit)}`;
+}
+
+function mergePlanCatalog(defaultPlans, dbPlans) {
+  const grouped = new Map();
+
+  (Array.isArray(dbPlans) ? dbPlans : []).forEach((row) => {
+    const key = String(row?.plan_key || "").trim().toLowerCase();
+    if (!key) return;
+
+    if (!grouped.has(key)) {
+      grouped.set(key, {});
+    }
+
+    const bucket = grouped.get(key);
+    const billingType = String(row?.billing_type || "").trim().toLowerCase();
+
+    if (billingType === "monthly") {
+      bucket.monthlyPrice = row?.price_usd;
+    } else if (billingType === "one_time") {
+      bucket.oneTimeLicense = row?.price_usd;
+    }
+
+    if (row?.device_limit !== null && row?.device_limit !== undefined) {
+      bucket.deviceLimit = row.device_limit;
+    }
+    if (
+      row?.tenant_user_limit !== null &&
+      row?.tenant_user_limit !== undefined
+    ) {
+      bucket.tenantsUsers = row.tenant_user_limit;
+    }
+    if (
+      row?.data_history_days !== null &&
+      row?.data_history_days !== undefined
+    ) {
+      if (Number(row.data_history_days) >= 9999) {
+        bucket.dataHistory = "Unlimited";
+      } else if (Number(row.data_history_days) === 365) {
+        bucket.dataHistory = "1 year";
+      } else {
+        bucket.dataHistory = `${row.data_history_days} days`;
+      }
+    }
+    if (row?.plan_name) {
+      bucket.name = row.plan_name;
+    }
+  });
+
+  return defaultPlans.map((plan) => {
+    const db = grouped.get(plan.key) || {};
+    return {
+      ...plan,
+      ...db,
+      monthlyPrice:
+        db.monthlyPrice !== undefined ? db.monthlyPrice : plan.monthlyPrice,
+      oneTimeLicense:
+        db.oneTimeLicense !== undefined
+          ? db.oneTimeLicense
+          : plan.oneTimeLicense,
+      deviceLimit:
+        db.deviceLimit !== undefined ? db.deviceLimit : plan.deviceLimit,
+      tenantsUsers:
+        db.tenantsUsers !== undefined ? db.tenantsUsers : plan.tenantsUsers,
+      dataHistory:
+        db.dataHistory !== undefined ? db.dataHistory : plan.dataHistory,
+      name: db.name || plan.name,
+    };
+  });
+}
+
+function resolveAddonPrice(addons) {
+  const rows = Array.isArray(addons) ? addons : [];
+  const monthlyTenantUser = rows.find(
+    (row) =>
+      String(row?.addon_key || "").trim().toLowerCase() === "tenant_user" &&
+      String(row?.billing_type || "").trim().toLowerCase() === "monthly"
+  );
+
+  if (
+    monthlyTenantUser &&
+    monthlyTenantUser.price_usd !== null &&
+    monthlyTenantUser.price_usd !== undefined
+  ) {
+    return Number(monthlyTenantUser.price_usd || 0);
+  }
+
+  return DEFAULT_TENANT_USER_ADDON_PRICE;
 }
 
 function ActionPlanCard({
@@ -251,7 +338,7 @@ function ActionPlanCard({
   );
 }
 
-function ComparePlansModal({ open, onClose }) {
+function ComparePlansModal({ open, onClose, plans }) {
   if (!open) return null;
 
   return (
@@ -290,7 +377,7 @@ function ComparePlansModal({ open, onClose }) {
               </tr>
             </thead>
             <tbody>
-              {PLANS.map((plan, idx) => (
+              {plans.map((plan, idx) => (
                 <tr
                   key={plan.key}
                   className={idx % 2 === 0 ? "bg-white" : "bg-slate-50"}
@@ -347,6 +434,9 @@ export default function MySubscriptionSection({ onBack }) {
   const [loadingSubscription, setLoadingSubscription] = useState(true);
   const [subscriptionError, setSubscriptionError] = useState("");
 
+  const [dbPlans, setDbPlans] = useState([]);
+  const [dbAddons, setDbAddons] = useState([]);
+
   useEffect(() => {
     let isMounted = true;
 
@@ -397,19 +487,77 @@ export default function MySubscriptionSection({ onBack }) {
     };
   }, []);
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadBillingCatalog() {
+      try {
+        const token = String(getToken() || "").trim();
+        if (!token) return;
+
+        const [plansRes, addonsRes] = await Promise.all([
+          fetch(`${API_URL}/admin/billing/plans`, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }),
+          fetch(`${API_URL}/admin/billing/addons`, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+              "Content-Type": "application/json",
+            },
+          }),
+        ]);
+
+        const plansData = await plansRes.json().catch(() => []);
+        const addonsData = await addonsRes.json().catch(() => []);
+
+        if (!isMounted) return;
+
+        if (plansRes.ok && Array.isArray(plansData)) {
+          setDbPlans(plansData);
+        }
+
+        if (addonsRes.ok && Array.isArray(addonsData)) {
+          setDbAddons(addonsData);
+        }
+      } catch (err) {
+        if (!isMounted) return;
+        console.warn("Billing catalog fallback to defaults:", err);
+      }
+    }
+
+    loadBillingCatalog();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const plans = useMemo(() => {
+    return mergePlanCatalog(DEFAULT_PLANS, dbPlans);
+  }, [dbPlans]);
+
+  const tenantUserAddonPrice = useMemo(() => {
+    return resolveAddonPrice(dbAddons);
+  }, [dbAddons]);
+
   const currentPlanKey = String(subscription?.plan_key || "free").toLowerCase();
 
   const currentPlan = useMemo(() => {
-    return PLANS.find((plan) => plan.key === currentPlanKey) || PLANS[0];
-  }, [currentPlanKey]);
+    return plans.find((plan) => plan.key === currentPlanKey) || plans[0];
+  }, [currentPlanKey, plans]);
 
   const selectedPlan = useMemo(() => {
-    return PLANS.find((plan) => plan.key === selectedPlanKey) || null;
-  }, [selectedPlanKey]);
+    return plans.find((plan) => plan.key === selectedPlanKey) || null;
+  }, [selectedPlanKey, plans]);
 
   const effectivePlan = selectedPlan || currentPlan;
   const effectivePlanPrice = getNumericPlanPrice(effectivePlan, billingMode);
-  const addonSubtotal = addonTenantUsersQty * TENANT_USER_ADDON_PRICE;
+  const addonSubtotal = addonTenantUsersQty * tenantUserAddonPrice;
   const totalAmount =
     (Number.isFinite(effectivePlanPrice) ? effectivePlanPrice : 0) + addonSubtotal;
 
@@ -621,7 +769,6 @@ export default function MySubscriptionSection({ onBack }) {
             </div>
           )}
 
-          {/* CURRENT */}
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-2">
             <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
               <div className="text-[10px] text-slate-500">Plan</div>
@@ -659,7 +806,6 @@ export default function MySubscriptionSection({ onBack }) {
             </div>
           </div>
 
-          {/* ACTION SECTION */}
           <div className="mt-3 rounded-xl border border-slate-200 bg-white overflow-hidden">
             <div className="bg-slate-900 px-3 py-2">
               <div className="flex flex-col gap-1.5 xl:flex-row xl:items-center xl:justify-between">
@@ -698,7 +844,7 @@ export default function MySubscriptionSection({ onBack }) {
             </div>
 
             <div className="p-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
-              {PLANS.map((plan) => (
+              {plans.map((plan) => (
                 <ActionPlanCard
                   key={plan.key}
                   plan={plan}
@@ -714,7 +860,6 @@ export default function MySubscriptionSection({ onBack }) {
               ))}
             </div>
 
-            {/* CHECKOUT SUMMARY */}
             <div className="border-t border-slate-200 bg-slate-50 px-3 py-3">
               <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
                 <div className="xl:col-span-2 rounded-xl border border-emerald-200 bg-white p-3">
@@ -783,7 +928,7 @@ export default function MySubscriptionSection({ onBack }) {
 
                         <div className="flex items-center gap-2">
                           <div className="text-[12px] font-semibold text-slate-900">
-                            {formatMoney(TENANT_USER_ADDON_PRICE)}
+                            {formatMoney(tenantUserAddonPrice)}
                           </div>
 
                           <select
@@ -899,6 +1044,7 @@ export default function MySubscriptionSection({ onBack }) {
       <ComparePlansModal
         open={showComparePlans}
         onClose={() => setShowComparePlans(false)}
+        plans={plans}
       />
 
       <ProceedToPayment
@@ -907,7 +1053,7 @@ export default function MySubscriptionSection({ onBack }) {
         selectedPlan={effectivePlan}
         billingMode={billingMode}
         addonTenantUsersQty={addonTenantUsersQty}
-        tenantUserAddonPrice={TENANT_USER_ADDON_PRICE}
+        tenantUserAddonPrice={tenantUserAddonPrice}
         userEmail={subscription?.email || ""}
         checkoutLoading={checkoutLoading}
         checkoutError={checkoutMessage}
