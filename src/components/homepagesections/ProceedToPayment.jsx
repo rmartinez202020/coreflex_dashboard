@@ -124,7 +124,10 @@ function PaymentMethodSection({
 
             <div className="rounded-lg border border-slate-300 bg-white px-3 py-2.5 mb-3">
               <CardNumberElement
-                options={STRIPE_ELEMENT_STYLE}
+                options={{
+                  ...STRIPE_ELEMENT_STYLE,
+                  showIcon: false,
+                }}
                 onChange={(event) => {
                   if (event?.error?.message) {
                     setPaymentError(event.error.message);
