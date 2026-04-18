@@ -460,13 +460,45 @@ export default function MySubscriptionSection({ onBack }) {
     total: 0,
   });
 
+  async function loadSubscription() {
+    setLoadingSubscription(true);
+    setSubscriptionError("");
+
+    try {
+      const token = String(getToken() || "").trim();
+
+      if (!token) {
+        throw new Error("Missing authentication token.");
+      }
+
+      const response = await fetch(`${API_URL}/subscription/me`, {
+        method: "GET",
+        headers: buildJsonHeaders(token),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data.detail || "Failed to load subscription.");
+      }
+
+      setSubscription(data);
+      return data;
+    } catch (err) {
+      console.error("Failed to load subscription:", err);
+      setSubscriptionError(
+        err?.message || "Unable to load subscription information."
+      );
+      throw err;
+    } finally {
+      setLoadingSubscription(false);
+    }
+  }
+
   useEffect(() => {
     let isMounted = true;
 
-    async function loadSubscription() {
-      setLoadingSubscription(true);
-      setSubscriptionError("");
-
+    async function safeLoadSubscription() {
       try {
         const token = String(getToken() || "").trim();
 
@@ -500,7 +532,9 @@ export default function MySubscriptionSection({ onBack }) {
       }
     }
 
-    loadSubscription();
+    setLoadingSubscription(true);
+    setSubscriptionError("");
+    safeLoadSubscription();
 
     return () => {
       isMounted = false;
@@ -764,7 +798,6 @@ export default function MySubscriptionSection({ onBack }) {
 
       const stripe = payload?.stripe;
       const elements = payload?.elements;
-      const cardElement = payload?.cardElement;
 
       if (!stripe || !elements) {
         throw new Error("Stripe payment form is not ready.");
@@ -773,30 +806,43 @@ export default function MySubscriptionSection({ onBack }) {
       const billingDetails = payload?.billingDetails || {};
 
       const result = await stripe.confirmCardPayment(clientSecret, {
-  payment_method: {
-    card: payload.cardElement,
-    billing_details: {
-      name: billingDetails.fullName || "",
-      email: billingDetails.email || "",
-      address: {
-        line1: billingDetails.address1 || "",
-        line2: billingDetails.address2 || "",
-        city: billingDetails.city || "",
-        state: billingDetails.stateRegion || "",
-        postal_code: billingDetails.zipCode || "",
-        country:
-          String(billingDetails.country || "US")
-            .trim()
-            .toUpperCase()
-            .slice(0, 2) || "US",
-      },
-    },
-  },
-});
+        payment_method: {
+          card: payload.cardElement,
+          billing_details: {
+            name: billingDetails.fullName || "",
+            email: billingDetails.email || "",
+            address: {
+              line1: billingDetails.address1 || "",
+              line2: billingDetails.address2 || "",
+              city: billingDetails.city || "",
+              state: billingDetails.stateRegion || "",
+              postal_code: billingDetails.zipCode || "",
+              country:
+                String(billingDetails.country || "US")
+                  .trim()
+                  .toUpperCase()
+                  .slice(0, 2) || "US",
+            },
+          },
+        },
+      });
 
       if (result?.error) {
         throw new Error(result.error.message || "Payment confirmation failed.");
       }
+
+      const paymentIntentId = String(result?.paymentIntent?.id || "").trim();
+      if (!paymentIntentId) {
+        throw new Error("Payment succeeded but payment intent ID was not returned.");
+      }
+
+      if (typeof payload?.applyPaymentToSubscription === "function") {
+        await payload.applyPaymentToSubscription(paymentIntentId);
+      } else {
+        throw new Error("Payment apply handler is missing.");
+      }
+
+      await loadSubscription();
 
       if (
         result?.paymentIntent?.status === "succeeded" ||
@@ -806,12 +852,16 @@ export default function MySubscriptionSection({ onBack }) {
         setCheckoutMessage("Payment submitted successfully.");
         setShowProceedToPayment(false);
         resetPaymentIntentState();
+        setSelectedPlanKey(null);
+        setAddonTenantUsersQty(0);
         return;
       }
 
       setCheckoutMessage("Payment submitted. Waiting for final confirmation.");
       setShowProceedToPayment(false);
       resetPaymentIntentState();
+      setSelectedPlanKey(null);
+      setAddonTenantUsersQty(0);
     } catch (err) {
       console.error("Proceed to payment failed:", err);
       setCheckoutMessage(
@@ -826,6 +876,14 @@ export default function MySubscriptionSection({ onBack }) {
     setShowProceedToPayment(false);
     resetPaymentIntentState();
     setCheckoutLoading(false);
+  }
+
+  async function handlePaymentApplied() {
+    try {
+      await loadSubscription();
+    } catch (_) {
+      // no-op
+    }
   }
 
   return (
@@ -1187,6 +1245,7 @@ export default function MySubscriptionSection({ onBack }) {
         paymentTotal={Number(paymentBreakdown.total || 0)}
         paymentPlanAmount={Number(paymentBreakdown.planAmount || 0)}
         paymentAddonAmount={Number(paymentBreakdown.addonAmount || 0)}
+        onPaymentApplied={handlePaymentApplied}
       />
     </>
   );

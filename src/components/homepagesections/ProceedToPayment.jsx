@@ -8,6 +8,8 @@ import {
   useStripe,
 } from "@stripe/react-stripe-js";
 import { stripePromise } from "../../config/stripe";
+import { API_URL } from "../../config/api";
+import { getToken } from "../../utils/authToken";
 
 function roundMoney(value) {
   const num = Number(value || 0);
@@ -336,6 +338,7 @@ function ProceedToPaymentLayout({
   paymentTotal = 0,
   paymentPlanAmount = 0,
   paymentAddonAmount = 0,
+  onPaymentApplied,
 }) {
   const [email, setEmail] = useState(userEmail || "");
   const [fullName, setFullName] = useState("");
@@ -512,6 +515,44 @@ function ProceedToPaymentLayout({
 
   const displayError = checkoutError || localError || paymentError;
 
+  const applyPaymentToSubscription = async (paymentIntentId) => {
+    const pid = String(paymentIntentId || "").trim();
+    if (!pid) {
+      throw new Error("Missing paymentIntentId.");
+    }
+
+    const token = String(getToken() || "").trim();
+
+    const res = await fetch(`${API_URL}/billing/apply-payment`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(token ? { Authorization: `Bearer ${token}` } : {}),
+      },
+      body: JSON.stringify({
+        paymentIntentId: pid,
+      }),
+    });
+
+    const data = await res.json().catch(() => ({}));
+
+    if (!res.ok) {
+      throw new Error(
+        data?.detail || data?.message || "Failed to apply payment."
+      );
+    }
+
+    if (typeof onPaymentApplied === "function") {
+      try {
+        await onPaymentApplied(data);
+      } catch (_) {
+        // no-op
+      }
+    }
+
+    return data;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
     setLocalError("");
@@ -619,12 +660,13 @@ function ProceedToPaymentLayout({
         cardElement: cardNumberElement,
         setLocalError,
         setPaymentError,
+        applyPaymentToSubscription,
       });
       return;
     }
 
     try {
-      const { error } = await stripe.confirmCardPayment(clientSecret, {
+      const result = await stripe.confirmCardPayment(clientSecret, {
         payment_method: {
           card: cardNumberElement,
           billing_details: {
@@ -642,10 +684,20 @@ function ProceedToPaymentLayout({
         },
       });
 
-      if (error) {
-        setPaymentError(error.message || "Payment failed.");
+      if (result?.error) {
+        setPaymentError(result.error.message || "Payment failed.");
         return;
       }
+
+      const paymentIntentId = String(result?.paymentIntent?.id || "").trim();
+      if (!paymentIntentId) {
+        setPaymentError(
+          "Payment succeeded but no payment intent ID was returned."
+        );
+        return;
+      }
+
+      await applyPaymentToSubscription(paymentIntentId);
     } catch (err) {
       setPaymentError(String(err?.message || err || "Payment failed."));
     }
@@ -1033,6 +1085,7 @@ export default function ProceedToPayment({
   paymentTotal = 0,
   paymentPlanAmount = 0,
   paymentAddonAmount = 0,
+  onPaymentApplied,
 }) {
   if (!open) return null;
 
@@ -1074,6 +1127,7 @@ export default function ProceedToPayment({
         paymentTotal={paymentTotal}
         paymentPlanAmount={paymentPlanAmount}
         paymentAddonAmount={paymentAddonAmount}
+        onPaymentApplied={onPaymentApplied}
       />
     );
   }
@@ -1100,6 +1154,7 @@ export default function ProceedToPayment({
         paymentTotal={paymentTotal}
         paymentPlanAmount={paymentPlanAmount}
         paymentAddonAmount={paymentAddonAmount}
+        onPaymentApplied={onPaymentApplied}
       />
     </Elements>
   );
