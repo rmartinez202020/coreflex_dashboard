@@ -55,12 +55,18 @@ function PaymentMethodSection({
   paymentError,
   setPaymentError,
   showPaymentElement,
+  mountCardFields,
+  enableCardFields,
+  onEnableCardFields,
 }) {
+  const canRenderStripeFields =
+    showPaymentElement && mountCardFields && enableCardFields;
+
   return (
     <div>
       <div className="mb-1.5 flex items-center justify-between gap-3">
         <div className="text-[13px] font-semibold text-slate-900">
-          Payment Method
+          Billing Entry
         </div>
 
         {paymentError ? (
@@ -105,11 +111,120 @@ function PaymentMethodSection({
           </button>
         </div>
 
-        {showPaymentElement ? (
+        {!showPaymentElement ? (
           <>
+            <div className="text-xs text-slate-500">
+              Secure payment form is loading...
+            </div>
+            <div className="mt-1.5 text-[11px] text-slate-400">
+              The card fields will appear as soon as Stripe is ready.
+            </div>
+          </>
+        ) : !mountCardFields ? (
+          <>
+            <div className="rounded-lg border border-slate-300 bg-white px-3 py-3 text-sm text-slate-500">
+              Preparing secure billing fields...
+            </div>
+            <div className="mt-1.5 text-[11px] text-slate-400">
+              Please wait a moment.
+            </div>
+          </>
+        ) : !enableCardFields ? (
+          <div className="space-y-3">
+            <input
+              type="text"
+              name="contact_reference_code"
+              autoComplete="off"
+              tabIndex={-1}
+              className="hidden"
+              aria-hidden="true"
+            />
+            <input
+              type="text"
+              name="secure_reference_value"
+              autoComplete="off"
+              tabIndex={-1}
+              className="hidden"
+              aria-hidden="true"
+            />
+            <input
+              type="password"
+              name="secure_reference_password"
+              autoComplete="new-password"
+              tabIndex={-1}
+              className="hidden"
+              aria-hidden="true"
+            />
+
+            <button
+              type="button"
+              onClick={onEnableCardFields}
+              className="w-full rounded-lg border border-slate-300 bg-white px-4 py-4 text-left transition hover:border-emerald-500 hover:bg-emerald-50"
+            >
+              <div className="text-[12px] font-medium text-slate-700">
+                Number
+              </div>
+              <div className="mt-2 text-sm text-slate-500">
+                Click here to enter card details securely.
+              </div>
+            </button>
+
+            <div className="hidden sm:flex items-center gap-2">
+              <div className="flex h-7 w-11 items-center justify-center rounded-md bg-[#1A1F71] text-[10px] font-bold text-white shadow-sm">
+                VISA
+              </div>
+              <div className="relative flex h-7 w-11 items-center justify-center rounded-md bg-black shadow-sm">
+                <span className="absolute left-[10px] h-4 w-4 rounded-full bg-[#EB001B]" />
+                <span className="absolute left-[18px] h-4 w-4 rounded-full bg-[#F79E1B]" />
+              </div>
+              <div className="flex h-7 w-11 items-center justify-center rounded-md bg-[#2E77BC] text-[8px] font-bold leading-none text-white shadow-sm">
+                <span className="text-center">
+                  AMERICAN
+                  <br />
+                  EXPRESS
+                </span>
+              </div>
+              <div className="flex h-7 w-11 items-center justify-center rounded-md bg-[#C8102E] text-[10px] font-bold text-white shadow-sm">
+                JCB
+              </div>
+              <div className="flex h-7 w-11 items-center justify-center rounded-md bg-[#009FDA] text-[9px] font-bold text-white shadow-sm">
+                D-Pay
+              </div>
+              <div className="flex h-7 w-11 items-center justify-center rounded-md bg-[#FF6000] text-[8px] font-bold text-white shadow-sm">
+                DISCOVER
+              </div>
+            </div>
+          </div>
+        ) : canRenderStripeFields ? (
+          <>
+            <input
+              type="text"
+              name="contact_reference_code"
+              autoComplete="off"
+              tabIndex={-1}
+              className="hidden"
+              aria-hidden="true"
+            />
+            <input
+              type="text"
+              name="secure_reference_value"
+              autoComplete="off"
+              tabIndex={-1}
+              className="hidden"
+              aria-hidden="true"
+            />
+            <input
+              type="password"
+              name="secure_reference_password"
+              autoComplete="new-password"
+              tabIndex={-1}
+              className="hidden"
+              aria-hidden="true"
+            />
+
             <div className="mb-1.5 flex items-center justify-between gap-3">
               <div className="text-[12px] font-medium text-slate-700">
-                Card number
+                Number
               </div>
 
               <div className="hidden sm:flex items-center gap-2">
@@ -163,7 +278,7 @@ function PaymentMethodSection({
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
                 <div className="mb-1.5 text-[12px] font-medium text-slate-700">
-                  Expiration
+                  Expiry
                 </div>
                 <div
                   autoComplete="off"
@@ -187,7 +302,7 @@ function PaymentMethodSection({
 
               <div>
                 <div className="mb-1.5 text-[12px] font-medium text-slate-700">
-                  CVC
+                  Security Code
                 </div>
                 <div
                   autoComplete="off"
@@ -210,16 +325,7 @@ function PaymentMethodSection({
               </div>
             </div>
           </>
-        ) : (
-          <>
-            <div className="text-xs text-slate-500">
-              Secure payment form is loading...
-            </div>
-            <div className="mt-1.5 text-[11px] text-slate-400">
-              The card fields will appear as soon as Stripe is ready.
-            </div>
-          </>
-        )}
+        ) : null}
 
         <div className="mt-3 text-[11px] text-slate-500">
           For PCI compliance, card data is collected securely by Stripe.
@@ -255,10 +361,23 @@ function ProceedToPaymentLayout({
   const [zipCode, setZipCode] = useState("");
   const [localError, setLocalError] = useState("");
   const [paymentError, setPaymentError] = useState("");
+  const [mountCardFields, setMountCardFields] = useState(false);
+  const [enableCardFields, setEnableCardFields] = useState(false);
 
   useEffect(() => {
     setEmail(userEmail || "");
   }, [userEmail]);
+
+  useEffect(() => {
+    if (!showPaymentElement) {
+      setMountCardFields(false);
+      setEnableCardFields(false);
+      return;
+    }
+
+    const t = setTimeout(() => setMountCardFields(true), 350);
+    return () => clearTimeout(t);
+  }, [showPaymentElement]);
 
   const planPrice = useMemo(() => {
     return buildPlanPrice(selectedPlan, billingMode);
@@ -323,6 +442,11 @@ function ProceedToPaymentLayout({
 
     if (!stripe || !elements) {
       setLocalError("Stripe is still loading. Please wait a moment.");
+      return;
+    }
+
+    if (!enableCardFields) {
+      setLocalError("Please click the billing entry box and enter card details.");
       return;
     }
 
@@ -588,6 +712,9 @@ function ProceedToPaymentLayout({
               paymentError={paymentError}
               setPaymentError={setPaymentError}
               showPaymentElement={showPaymentElement}
+              mountCardFields={mountCardFields}
+              enableCardFields={enableCardFields}
+              onEnableCardFields={() => setEnableCardFields(true)}
             />
           </div>
 
