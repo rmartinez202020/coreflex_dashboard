@@ -56,6 +56,7 @@ function ProceedToPaymentLayout({
   const [stateRegion, setStateRegion] = useState("");
   const [zipCode, setZipCode] = useState("");
   const [localError, setLocalError] = useState("");
+  const [paymentError, setPaymentError] = useState("");
 
   useEffect(() => {
     setEmail(userEmail || "");
@@ -154,6 +155,7 @@ function ProceedToPaymentLayout({
         elements,
         cardElement,
         setLocalError,
+        setPaymentError,
       });
       return;
     }
@@ -349,9 +351,18 @@ function ProceedToPaymentLayout({
             </div>
 
             <div>
-              <div className="text-sm font-semibold text-slate-900">
-                Payment Method
+              <div className="mb-2 flex items-center justify-between gap-3">
+                <div className="text-sm font-semibold text-slate-900">
+                  Payment Method
+                </div>
+
+                {paymentError ? (
+                  <div className="text-xs font-medium text-red-600 text-right">
+                    {paymentError}
+                  </div>
+                ) : null}
               </div>
+
               <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 p-4">
                 <div className="mb-2 text-xs font-medium text-slate-600">
                   Secure Card Entry
@@ -380,9 +391,9 @@ function ProceedToPaymentLayout({
                       }}
                       onChange={(event) => {
                         if (event?.error?.message) {
-                          setLocalError(event.error.message);
+                          setPaymentError(event.error.message);
                         } else {
-                          setLocalError("");
+                          setPaymentError("");
                         }
                       }}
                     />
