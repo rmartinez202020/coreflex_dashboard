@@ -112,19 +112,30 @@ function PaymentMethodSection({
                 Card number
               </div>
 
-              <div className="hidden sm:flex items-center gap-1.5 text-[10px] font-semibold">
-                <span className="rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-blue-700">
+              <div className="hidden sm:flex items-center gap-2">
+                <div className="flex h-7 w-11 items-center justify-center rounded-md bg-[#1A1F71] text-[10px] font-bold text-white shadow-sm">
                   VISA
-                </span>
-                <span className="rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-orange-600">
-                  MC
-                </span>
-                <span className="rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-blue-600">
-                  AMEX
-                </span>
-                <span className="rounded-md border border-slate-300 bg-white px-1.5 py-0.5 text-emerald-700">
-                  UnionPay
-                </span>
+                </div>
+                <div className="relative flex h-7 w-11 items-center justify-center rounded-md bg-black shadow-sm">
+                  <span className="absolute left-[10px] h-4 w-4 rounded-full bg-[#EB001B]" />
+                  <span className="absolute left-[18px] h-4 w-4 rounded-full bg-[#F79E1B]" />
+                </div>
+                <div className="flex h-7 w-11 items-center justify-center rounded-md bg-[#2E77BC] text-[8px] font-bold leading-none text-white shadow-sm">
+                  <span className="text-center">
+                    AMERICAN
+                    <br />
+                    EXPRESS
+                  </span>
+                </div>
+                <div className="flex h-7 w-11 items-center justify-center rounded-md bg-[#C8102E] text-[10px] font-bold text-white shadow-sm">
+                  JCB
+                </div>
+                <div className="flex h-7 w-11 items-center justify-center rounded-md bg-[#009FDA] text-[9px] font-bold text-white shadow-sm">
+                  D-Pay
+                </div>
+                <div className="flex h-7 w-11 items-center justify-center rounded-md bg-[#FF6000] text-[8px] font-bold text-white shadow-sm">
+                  DISCOVER
+                </div>
               </div>
             </div>
 
