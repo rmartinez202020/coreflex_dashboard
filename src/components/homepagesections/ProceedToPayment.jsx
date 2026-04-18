@@ -282,15 +282,17 @@ function ProceedToPaymentLayout({
     return Number(addonTenantUsersQty || 0) * Number(tenantUserAddonPrice || 0);
   }, [addonTenantUsersQty, tenantUserAddonPrice]);
 
-  const fallbackSubtotal = useMemo(() => {
-    return planPrice + addonSubtotal;
-  }, [planPrice, addonSubtotal]);
-
   const summaryPlanAmount = useMemo(() => {
     if (selectedPlan?.key === "enterprise") return 0;
+    if (isCurrentPlanSelection) return 0;
     if (Number(paymentPlanAmount || 0) > 0) return Number(paymentPlanAmount || 0);
     return planPrice;
-  }, [selectedPlan, paymentPlanAmount, planPrice]);
+  }, [
+    selectedPlan,
+    isCurrentPlanSelection,
+    paymentPlanAmount,
+    planPrice,
+  ]);
 
   const summaryAddonAmount = useMemo(() => {
     if (Number(paymentAddonAmount || 0) > 0) return Number(paymentAddonAmount || 0);
@@ -298,18 +300,40 @@ function ProceedToPaymentLayout({
   }, [paymentAddonAmount, addonSubtotal]);
 
   const summarySubtotal = useMemo(() => {
-    if (Number(paymentSubtotal || 0) > 0) return Number(paymentSubtotal || 0);
-    return fallbackSubtotal;
-  }, [paymentSubtotal, fallbackSubtotal]);
+    if (selectedPlan?.key === "enterprise") return 0;
+    return summaryPlanAmount + summaryAddonAmount;
+  }, [selectedPlan, summaryPlanAmount, summaryAddonAmount]);
+
+  const effectiveTaxRate = useMemo(() => {
+    if (Number(paymentTaxRate || 0) > 0) {
+      return Number(paymentTaxRate || 0);
+    }
+
+    if (Number(paymentTaxRatePercent || 0) > 0) {
+      return Number(paymentTaxRatePercent || 0) / 100;
+    }
+
+    const subtotalForInference = Number(paymentSubtotal || 0);
+    const taxForInference = Number(paymentTax || 0);
+
+    if (subtotalForInference > 0 && taxForInference > 0) {
+      return taxForInference / subtotalForInference;
+    }
+
+    return 0;
+  }, [paymentTaxRate, paymentTaxRatePercent, paymentSubtotal, paymentTax]);
 
   const summaryTax = useMemo(() => {
-    return Number(paymentTax || 0);
-  }, [paymentTax]);
+    if (selectedPlan?.key === "enterprise") return 0;
+    if (summarySubtotal <= 0) return 0;
+    if (effectiveTaxRate <= 0) return Number(paymentTax || 0);
+    return summarySubtotal * effectiveTaxRate;
+  }, [selectedPlan, summarySubtotal, effectiveTaxRate, paymentTax]);
 
   const total = useMemo(() => {
-    if (Number(paymentTotal || 0) > 0) return Number(paymentTotal || 0);
+    if (selectedPlan?.key === "enterprise") return 0;
     return summarySubtotal + summaryTax;
-  }, [paymentTotal, summarySubtotal, summaryTax]);
+  }, [selectedPlan, summarySubtotal, summaryTax]);
 
   const billingLabel =
     billingMode === "monthly" ? "Monthly" : "One-Time License";
@@ -317,7 +341,9 @@ function ProceedToPaymentLayout({
   const taxDisplayLabel = useMemo(() => {
     const label = String(paymentTaxLabel || "").trim() || "Tax";
     if (paymentTaxRatePercent) return `${label} (${paymentTaxRatePercent}%)`;
-    if (paymentTaxRate) return `${label} (${(Number(paymentTaxRate) * 100).toFixed(3)}%)`;
+    if (paymentTaxRate) {
+      return `${label} (${(Number(paymentTaxRate) * 100).toFixed(3)}%)`;
+    }
     return label;
   }, [paymentTaxLabel, paymentTaxRatePercent, paymentTaxRate]);
 
@@ -759,11 +785,6 @@ function ProceedToPaymentLayout({
                 >
                   {checkoutLoading ? "Processing..." : "Pay Now"}
                 </button>
-              </div>
-
-              <div className="mt-3 text-[11px] leading-snug text-slate-500">
-                Taxes, discounts, and final Stripe confirmation can be applied
-                in the backend payment-intent flow.
               </div>
             </div>
           </div>
