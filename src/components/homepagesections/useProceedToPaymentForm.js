@@ -128,6 +128,7 @@ export default function useProceedToPaymentForm({
   paymentPlanAmount = 0,
   paymentAddonAmount = 0,
   onPaymentApplied,
+  onClose,
 }) {
   const [email, setEmail] = useState(userEmail || "");
   const [fullName, setFullName] = useState("");
@@ -140,6 +141,7 @@ export default function useProceedToPaymentForm({
   const [zipCode, setZipCode] = useState("");
   const [localError, setLocalError] = useState("");
   const [paymentError, setPaymentError] = useState("");
+  const [paymentSuccess, setPaymentSuccess] = useState(false);
   const [cardNumberComplete, setCardNumberComplete] = useState(false);
   const [cardExpiryComplete, setCardExpiryComplete] = useState(false);
   const [cardCvcComplete, setCardCvcComplete] = useState(false);
@@ -281,6 +283,7 @@ export default function useProceedToPaymentForm({
 
   const isPayNowDisabled =
     checkoutLoading ||
+    paymentSuccess ||
     !selectedPlan ||
     total <= 0 ||
     !clientSecret ||
@@ -340,6 +343,19 @@ export default function useProceedToPaymentForm({
     }
 
     return data;
+  };
+
+  const handleSuccessfulPayment = async (paymentIntentId) => {
+    await applyPaymentToSubscription(paymentIntentId);
+    setPaymentSuccess(true);
+    setPaymentError("");
+    setLocalError("");
+
+    if (typeof onClose === "function") {
+      setTimeout(() => {
+        onClose();
+      }, 2200);
+    }
   };
 
   const handleSubmit = async (e) => {
@@ -450,6 +466,8 @@ export default function useProceedToPaymentForm({
         setLocalError,
         setPaymentError,
         applyPaymentToSubscription,
+        setPaymentSuccess,
+        onClose,
       });
       return;
     }
@@ -486,7 +504,7 @@ export default function useProceedToPaymentForm({
         return;
       }
 
-      await applyPaymentToSubscription(paymentIntentId);
+      await handleSuccessfulPayment(paymentIntentId);
     } catch (err) {
       setPaymentError(String(err?.message || err || "Payment failed."));
     }
@@ -527,6 +545,7 @@ export default function useProceedToPaymentForm({
     validationErrors,
     isPayNowDisabled,
     displayError,
+    paymentSuccess,
     showFieldError,
     inputClassName,
     markTouched,
