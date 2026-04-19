@@ -620,57 +620,70 @@ export function useMySubscriptionSection() {
   ]);
 
   const openProceedToPayment = useCallback(async () => {
-    if (checkoutLoading) return;
-    if (!effectivePlan) return;
+  if (checkoutLoading) return;
+  if (!effectivePlan) return;
 
-    setCheckoutMessage("");
+  setCheckoutMessage("");
 
-    if (effectivePlan.key === "enterprise") {
+  if (effectivePlan.key === "enterprise") {
+    setCheckoutMessage(
+      "Enterprise plans should be routed through your custom sales workflow."
+    );
+    return;
+  }
+
+  if (subtotalAmount <= 0) {
+    setCheckoutMessage("There is no charge to process for this selection.");
+    return;
+  }
+
+  // ✅ OPEN TAB IMMEDIATELY (this is the fix)
+  const checkoutTab = window.open("", "_blank", "noopener,noreferrer");
+
+  try {
+    setCheckoutLoading(true);
+
+    const { url } = await createCheckoutSessionForCurrentSelection();
+
+    if (!url) {
+      throw new Error("Unable to open Stripe checkout.");
+    }
+
+    // ✅ Send that tab to Stripe
+    if (checkoutTab) {
+      checkoutTab.location.href = url;
       setCheckoutMessage(
-        "Enterprise plans should be routed through your custom sales workflow."
+        "Stripe checkout opened in a new tab. Complete payment there, then return here."
       );
       return;
     }
 
-    if (subtotalAmount <= 0) {
-      setCheckoutMessage("There is no charge to process for this selection.");
-      return;
-    }
+    // fallback (popup blocked)
+    window.location.href = url;
+  } catch (err) {
+    console.error("Checkout redirect failed:", err);
 
+    // close blank tab if failed
     try {
-      setCheckoutLoading(true);
-      const { url } = await createCheckoutSessionForCurrentSelection();
-
-      if (!url) {
-        throw new Error("Unable to open Stripe checkout.");
+      if (checkoutTab && !checkoutTab.closed) {
+        checkoutTab.close();
       }
+    } catch (_) {}
 
-      const newTab = window.open(url, "_blank", "noopener,noreferrer");
-
-      if (!newTab) {
-        window.location.href = url;
-        return;
-      }
-
-      setCheckoutMessage(
-        "Stripe checkout opened in a new tab. Complete payment there, then return to this tab."
-      );
-    } catch (err) {
-      console.error("Checkout redirect failed:", err);
-      setCheckoutMessage(
-        err?.message || "Unable to redirect to Stripe checkout."
-      );
-      resetPaymentPreview();
-    } finally {
-      setCheckoutLoading(false);
-    }
-  }, [
-    checkoutLoading,
-    effectivePlan,
-    subtotalAmount,
-    createCheckoutSessionForCurrentSelection,
-    resetPaymentPreview,
-  ]);
+    setCheckoutMessage(
+      err?.message || "Unable to redirect to Stripe checkout."
+    );
+    resetPaymentPreview();
+  } finally {
+    setCheckoutLoading(false);
+  }
+}, [
+  checkoutLoading,
+  effectivePlan,
+  subtotalAmount,
+  createCheckoutSessionForCurrentSelection,
+  resetPaymentPreview,
+]);
 
   const handleCheckoutReturn = useCallback(async () => {
     try {
