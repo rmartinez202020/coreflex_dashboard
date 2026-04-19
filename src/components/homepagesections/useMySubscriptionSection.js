@@ -645,7 +645,16 @@ export function useMySubscriptionSection() {
         throw new Error("Unable to open Stripe checkout.");
       }
 
-      window.location.href = url;
+      const newTab = window.open(url, "_blank", "noopener,noreferrer");
+
+      if (!newTab) {
+        window.location.href = url;
+        return;
+      }
+
+      setCheckoutMessage(
+        "Stripe checkout opened in a new tab. Complete payment there, then return to this tab."
+      );
     } catch (err) {
       console.error("Checkout redirect failed:", err);
       setCheckoutMessage(
