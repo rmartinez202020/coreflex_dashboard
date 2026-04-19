@@ -13,10 +13,10 @@ export default function BillingCancelPage() {
         </div>
 
         <button
-          onClick={() => (window.location.href = "/billing")}
+          onClick={() => (window.location.href = "/")}
           className="mt-4 w-full rounded-lg bg-slate-800 text-white py-2 font-semibold hover:bg-slate-900"
         >
-          Back to Billing
+          Back to Dashboard
         </button>
       </div>
     </div>
