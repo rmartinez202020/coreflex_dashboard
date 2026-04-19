@@ -679,41 +679,47 @@ export function useMySubscriptionSection() {
 
   const handleProceedToPaymentSubmit = useCallback(
     async (payload) => {
+      const stripe = payload?.stripe;
+      const elements = payload?.elements;
+      const cardElement = payload?.cardElement;
+      const billingDetails = payload?.billingDetails || {};
+
+      const showSuccessStatusAndClose = payload?.showSuccessStatusAndClose;
+      const showDeclinedStatus = payload?.showDeclinedStatus;
+      const setPaymentError = payload?.setPaymentError;
+      const setLocalError = payload?.setLocalError;
+      const applyPaymentToSubscription = payload?.applyPaymentToSubscription;
+
+      let paymentSafetyTimeout = null;
+
       try {
         if (checkoutLoading) return;
 
         setCheckoutLoading(true);
         setCheckoutMessage("");
 
-        const stripe = payload?.stripe;
-        const elements = payload?.elements;
-        const cardElement = payload?.cardElement;
-        const billingDetails = payload?.billingDetails || {};
-
-        const showProcessingStatus = payload?.showProcessingStatus;
-        const showSuccessStatusAndClose = payload?.showSuccessStatusAndClose;
-        const showDeclinedStatus = payload?.showDeclinedStatus;
-        const setPaymentError = payload?.setPaymentError;
-        const setLocalError = payload?.setLocalError;
-        const applyPaymentToSubscription = payload?.applyPaymentToSubscription;
-
-        if (typeof showProcessingStatus === "function") {
-          showProcessingStatus();
-        }
-
         if (!stripe || !elements || !cardElement) {
           const msg = "Payment could not be completed.";
           if (typeof setLocalError === "function") setLocalError(msg);
           if (typeof showDeclinedStatus === "function") showDeclinedStatus(msg);
-          throw new Error(msg);
+          return;
         }
 
         if (!clientSecret) {
           const msg = "Payment could not be completed.";
           if (typeof setLocalError === "function") setLocalError(msg);
           if (typeof showDeclinedStatus === "function") showDeclinedStatus(msg);
-          throw new Error(msg);
+          return;
         }
+
+        paymentSafetyTimeout = setTimeout(() => {
+          if (typeof setPaymentError === "function") {
+            setPaymentError("Payment is taking too long. Please try again.");
+          }
+          if (typeof showDeclinedStatus === "function") {
+            showDeclinedStatus("Payment is taking too long. Please try again.");
+          }
+        }, 20000);
 
         console.log("PAYMENT CONFIRM REQUEST:", {
           addonTenantUsersQty,
@@ -745,6 +751,11 @@ export function useMySubscriptionSection() {
           },
         });
 
+        if (paymentSafetyTimeout) {
+          clearTimeout(paymentSafetyTimeout);
+          paymentSafetyTimeout = null;
+        }
+
         if (result?.error) {
           const msg =
             result?.error?.message || "Payment could not be completed.";
@@ -759,6 +770,13 @@ export function useMySubscriptionSection() {
 
         if (!confirmedPaymentIntentId) {
           const msg = "Payment could not be completed.";
+          if (typeof setPaymentError === "function") setPaymentError(msg);
+          if (typeof showDeclinedStatus === "function") showDeclinedStatus(msg);
+          return;
+        }
+
+        if (String(result?.paymentIntent?.status || "").toLowerCase() !== "succeeded") {
+          const msg = "Payment did not complete successfully.";
           if (typeof setPaymentError === "function") setPaymentError(msg);
           if (typeof showDeclinedStatus === "function") showDeclinedStatus(msg);
           return;
@@ -797,9 +815,28 @@ export function useMySubscriptionSection() {
         setSelectedPlanKey(null);
         setAddonTenantUsersQty(0);
       } catch (err) {
+        if (paymentSafetyTimeout) {
+          clearTimeout(paymentSafetyTimeout);
+          paymentSafetyTimeout = null;
+        }
+
         console.error("Proceed to payment failed:", err);
+
+        const msg = String(err?.message || "Payment failed.");
+
+        if (typeof setPaymentError === "function") {
+          setPaymentError(msg);
+        }
+
+        if (typeof showDeclinedStatus === "function") {
+          showDeclinedStatus(msg);
+        }
+
         setCheckoutMessage("");
       } finally {
+        if (paymentSafetyTimeout) {
+          clearTimeout(paymentSafetyTimeout);
+        }
         setCheckoutLoading(false);
       }
     },
