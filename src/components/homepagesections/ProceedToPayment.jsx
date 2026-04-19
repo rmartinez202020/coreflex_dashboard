@@ -212,64 +212,51 @@ function PaymentMethodSection({
   );
 }
 
-function PaymentSuccessSection({
-  selectedPlan,
-  total,
-  billingLabel,
-  onClose,
+function PaymentStatusMiniModal({
+  open,
+  status,
+  message,
 }) {
+  if (!open) return null;
+
+  const isProcessing = status === "processing";
+  const isSuccess = status === "success";
+  const isError = status === "error";
+
+  const icon = isProcessing ? "⏳" : isSuccess ? "✅" : "❌";
+  const title = isProcessing
+    ? "Processing Payment"
+    : isSuccess
+    ? "Payment Successful"
+    : "Payment Declined";
+
+  const accentClass = isProcessing
+    ? "border-amber-200 bg-amber-50 text-amber-800"
+    : isSuccess
+    ? "border-emerald-200 bg-emerald-50 text-emerald-800"
+    : "border-red-200 bg-red-50 text-red-800";
+
+  const spinner = (
+    <div className="mx-auto mb-3 h-10 w-10 rounded-full border-4 border-slate-200 border-t-emerald-600 animate-spin" />
+  );
+
   return (
-    <div className="flex min-h-[480px] items-center justify-center p-6">
-      <div className="w-full max-w-[520px] rounded-2xl border border-emerald-200 bg-white p-6 shadow-sm">
-        <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-emerald-100 text-3xl">
-          ✅
-        </div>
-
+    <div className="fixed inset-0 z-[10050] flex items-center justify-center bg-slate-900/35 px-4">
+      <div className="w-full max-w-[360px] rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
         <div className="text-center">
-          <div className="text-2xl font-bold text-slate-900">
-            Payment Successful
-          </div>
-          <div className="mt-2 text-sm text-slate-600">
-            Your payment was processed successfully and your subscription has
-            been updated.
-          </div>
-        </div>
+          {isProcessing ? (
+            spinner
+          ) : (
+            <div className="mx-auto mb-3 flex h-12 w-12 items-center justify-center rounded-full bg-slate-100 text-2xl">
+              {icon}
+            </div>
+          )}
 
-        <div className="mt-6 rounded-xl border border-slate-200 bg-slate-50 p-4">
-          <div className="flex items-center justify-between gap-3 py-1.5">
-            <span className="text-sm text-slate-500">Plan</span>
-            <span className="text-sm font-semibold text-slate-900">
-              {selectedPlan?.name || "Selected Plan"}
-            </span>
+          <div className="text-lg font-bold text-slate-900">{title}</div>
+
+          <div className={`mt-3 rounded-xl border px-3 py-3 text-sm ${accentClass}`}>
+            {message}
           </div>
-
-          <div className="flex items-center justify-between gap-3 py-1.5">
-            <span className="text-sm text-slate-500">Billing</span>
-            <span className="text-sm font-semibold text-slate-900">
-              {billingLabel}
-            </span>
-          </div>
-
-          <div className="flex items-center justify-between gap-3 py-1.5">
-            <span className="text-sm text-slate-500">Amount Paid</span>
-            <span className="text-lg font-bold text-emerald-700">
-              {formatMoney(total)}
-            </span>
-          </div>
-        </div>
-
-        <div className="mt-5 rounded-lg border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">
-          Thank you. Your CoreFlex subscription payment has been completed.
-        </div>
-
-        <div className="mt-5">
-          <button
-            type="button"
-            onClick={onClose}
-            className="w-full rounded-lg bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700"
-          >
-            Close
-          </button>
         </div>
       </div>
     </div>
@@ -336,7 +323,9 @@ function ProceedToPaymentLayout({
     validationErrors,
     isPayNowDisabled,
     displayError,
-    paymentSuccess,
+    paymentStatusOpen,
+    paymentStatus,
+    paymentStatusMessage,
     showFieldError,
     inputClassName,
     markTouched,
@@ -367,6 +356,12 @@ function ProceedToPaymentLayout({
 
   return (
     <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/55 px-4 py-4">
+      <PaymentStatusMiniModal
+        open={paymentStatusOpen}
+        status={paymentStatus}
+        message={paymentStatusMessage}
+      />
+
       <div className="w-full max-w-[760px] rounded-2xl border border-slate-200 bg-white shadow-2xl overflow-hidden">
         <div className="flex items-center justify-between bg-slate-900 px-4 py-2.5 text-white">
           <div>
@@ -385,336 +380,327 @@ function ProceedToPaymentLayout({
           </button>
         </div>
 
-        {paymentSuccess ? (
-          <PaymentSuccessSection
-            selectedPlan={selectedPlan}
-            total={total}
-            billingLabel={billingLabel}
-            onClose={onClose}
+        <form
+          onSubmit={handleSubmit}
+          autoComplete="off"
+          className="grid grid-cols-1 xl:grid-cols-3 gap-0"
+        >
+          <input
+            type="text"
+            name="fake-username"
+            autoComplete="username"
+            tabIndex={-1}
+            className="hidden"
+            aria-hidden="true"
           />
-        ) : (
-          <form
-            onSubmit={handleSubmit}
-            autoComplete="off"
-            className="grid grid-cols-1 xl:grid-cols-3 gap-0"
-          >
-            <input
-              type="text"
-              name="fake-username"
-              autoComplete="username"
-              tabIndex={-1}
-              className="hidden"
-              aria-hidden="true"
-            />
-            <input
-              type="password"
-              name="fake-password"
-              autoComplete="new-password"
-              tabIndex={-1}
-              className="hidden"
-              aria-hidden="true"
-            />
+          <input
+            type="password"
+            name="fake-password"
+            autoComplete="new-password"
+            tabIndex={-1}
+            className="hidden"
+            aria-hidden="true"
+          />
 
-            <div className="xl:col-span-2 border-r border-slate-200 p-3">
-              <div className="mb-3">
-                <div className="text-[12px] font-semibold text-slate-900">
-                  Contact Information
+          <div className="xl:col-span-2 border-r border-slate-200 p-3">
+            <div className="mb-3">
+              <div className="text-[12px] font-semibold text-slate-900">
+                Contact Information
+              </div>
+              <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div>
+                  <label className="mb-1 block text-[10px] font-medium text-slate-600">
+                    Email
+                  </label>
+                  <input
+                    type="email"
+                    name="billing_email"
+                    autoComplete="off"
+                    value={email}
+                    onChange={(e) => setEmail(e.target.value)}
+                    onBlur={() => markTouched("email")}
+                    className={inputClassName("email")}
+                    placeholder="you@example.com"
+                  />
+                  {showFieldError("email") ? (
+                    <div className="mt-1 text-[10px] font-medium text-red-600">
+                      {validationErrors.email}
+                    </div>
+                  ) : null}
                 </div>
-                <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
-                  <div>
-                    <label className="mb-1 block text-[10px] font-medium text-slate-600">
-                      Email
-                    </label>
-                    <input
-                      type="email"
-                      name="billing_email"
-                      autoComplete="off"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      onBlur={() => markTouched("email")}
-                      className={inputClassName("email")}
-                      placeholder="you@example.com"
-                    />
-                    {showFieldError("email") ? (
-                      <div className="mt-1 text-[10px] font-medium text-red-600">
-                        {validationErrors.email}
-                      </div>
-                    ) : null}
-                  </div>
 
-                  <div>
-                    <label className="mb-1 block text-[10px] font-medium text-slate-600">
-                      Full Name
-                    </label>
-                    <input
-                      type="text"
-                      name="billing_full_name"
-                      autoComplete="off"
-                      value={fullName}
-                      onChange={(e) => setFullName(e.target.value)}
-                      onBlur={() => markTouched("fullName")}
-                      className={inputClassName("fullName")}
-                      placeholder="Full name"
-                    />
-                    {showFieldError("fullName") ? (
-                      <div className="mt-1 text-[10px] font-medium text-red-600">
-                        {validationErrors.fullName}
-                      </div>
-                    ) : null}
-                  </div>
+                <div>
+                  <label className="mb-1 block text-[10px] font-medium text-slate-600">
+                    Full Name
+                  </label>
+                  <input
+                    type="text"
+                    name="billing_full_name"
+                    autoComplete="off"
+                    value={fullName}
+                    onChange={(e) => setFullName(e.target.value)}
+                    onBlur={() => markTouched("fullName")}
+                    className={inputClassName("fullName")}
+                    placeholder="Full name"
+                  />
+                  {showFieldError("fullName") ? (
+                    <div className="mt-1 text-[10px] font-medium text-red-600">
+                      {validationErrors.fullName}
+                    </div>
+                  ) : null}
+                </div>
 
-                  <div className="md:col-span-2">
-                    <label className="mb-1 block text-[10px] font-medium text-slate-600">
-                      Company
-                    </label>
-                    <input
-                      type="text"
-                      name="billing_company"
-                      autoComplete="off"
-                      value={company}
-                      onChange={(e) => setCompany(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                      placeholder="Company name"
-                    />
-                  </div>
+                <div className="md:col-span-2">
+                  <label className="mb-1 block text-[10px] font-medium text-slate-600">
+                    Company
+                  </label>
+                  <input
+                    type="text"
+                    name="billing_company"
+                    autoComplete="off"
+                    value={company}
+                    onChange={(e) => setCompany(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                    placeholder="Company name"
+                  />
                 </div>
               </div>
-
-              <div className="mb-3">
-                <div className="text-[12px] font-semibold text-slate-900">
-                  Billing Address
-                </div>
-                <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
-                  <div className="md:col-span-2">
-                    <label className="mb-1 block text-[10px] font-medium text-slate-600">
-                      Address Line 1
-                    </label>
-                    <input
-                      type="text"
-                      name="billing_address_1"
-                      autoComplete="off"
-                      value={address1}
-                      onChange={(e) => setAddress1(e.target.value)}
-                      onBlur={() => markTouched("address1")}
-                      className={inputClassName("address1")}
-                      placeholder="Street address"
-                    />
-                    {showFieldError("address1") ? (
-                      <div className="mt-1 text-[10px] font-medium text-red-600">
-                        {validationErrors.address1}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div className="md:col-span-2">
-                    <label className="mb-1 block text-[10px] font-medium text-slate-600">
-                      Address Line 2
-                    </label>
-                    <input
-                      type="text"
-                      name="billing_address_2"
-                      autoComplete="off"
-                      value={address2}
-                      onChange={(e) => setAddress2(e.target.value)}
-                      className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
-                      placeholder="Apartment, suite, unit, etc. (optional)"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-[10px] font-medium text-slate-600">
-                      City
-                    </label>
-                    <input
-                      type="text"
-                      name="billing_city"
-                      autoComplete="off"
-                      value={city}
-                      onChange={(e) => setCity(e.target.value)}
-                      onBlur={() => markTouched("city")}
-                      className={inputClassName("city")}
-                      placeholder="City"
-                    />
-                    {showFieldError("city") ? (
-                      <div className="mt-1 text-[10px] font-medium text-red-600">
-                        {validationErrors.city}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-[10px] font-medium text-slate-600">
-                      State / Region
-                    </label>
-                    <input
-                      type="text"
-                      name="billing_state_region"
-                      autoComplete="off"
-                      value={stateRegion}
-                      onChange={(e) => setStateRegion(e.target.value)}
-                      onBlur={() => markTouched("stateRegion")}
-                      className={inputClassName("stateRegion")}
-                      placeholder="State / Region"
-                    />
-                    {showFieldError("stateRegion") ? (
-                      <div className="mt-1 text-[10px] font-medium text-red-600">
-                        {validationErrors.stateRegion}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-[10px] font-medium text-slate-600">
-                      ZIP / Postal Code
-                    </label>
-                    <input
-                      type="text"
-                      name="billing_zip_code"
-                      autoComplete="off"
-                      value={zipCode}
-                      onChange={(e) => setZipCode(e.target.value)}
-                      onBlur={() => markTouched("zipCode")}
-                      className={inputClassName("zipCode")}
-                      placeholder="ZIP / Postal code"
-                    />
-                    {showFieldError("zipCode") ? (
-                      <div className="mt-1 text-[10px] font-medium text-red-600">
-                        {validationErrors.zipCode}
-                      </div>
-                    ) : null}
-                  </div>
-
-                  <div>
-                    <label className="mb-1 block text-[10px] font-medium text-slate-600">
-                      Country
-                    </label>
-                    <input
-                      type="text"
-                      name="billing_country"
-                      autoComplete="off"
-                      value={country}
-                      onChange={(e) => setCountry(e.target.value)}
-                      onBlur={() => markTouched("country")}
-                      className={inputClassName("country")}
-                      placeholder="US"
-                    />
-                    {showFieldError("country") ? (
-                      <div className="mt-1 text-[10px] font-medium text-red-600">
-                        {validationErrors.country}
-                      </div>
-                    ) : null}
-                  </div>
-                </div>
-              </div>
-
-              <PaymentMethodSection
-                setPaymentError={setPaymentError}
-                showPaymentElement={showPaymentElement}
-                setCardNumberComplete={setCardNumberComplete}
-                setCardExpiryComplete={setCardExpiryComplete}
-                setCardCvcComplete={setCardCvcComplete}
-                setCardNumberError={setCardNumberError}
-                setCardExpiryError={setCardExpiryError}
-                setCardCvcError={setCardCvcError}
-              />
             </div>
 
-            <div className="bg-slate-50 p-3">
-              <div className="rounded-xl border border-slate-200 bg-white p-3">
-                <div className="text-[12px] font-semibold text-slate-900">
-                  Order Summary
+            <div className="mb-3">
+              <div className="text-[12px] font-semibold text-slate-900">
+                Billing Address
+              </div>
+              <div className="mt-2 grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="md:col-span-2">
+                  <label className="mb-1 block text-[10px] font-medium text-slate-600">
+                    Address Line 1
+                  </label>
+                  <input
+                    type="text"
+                    name="billing_address_1"
+                    autoComplete="off"
+                    value={address1}
+                    onChange={(e) => setAddress1(e.target.value)}
+                    onBlur={() => markTouched("address1")}
+                    className={inputClassName("address1")}
+                    placeholder="Street address"
+                  />
+                  {showFieldError("address1") ? (
+                    <div className="mt-1 text-[10px] font-medium text-red-600">
+                      {validationErrors.address1}
+                    </div>
+                  ) : null}
                 </div>
 
-                <div className="mt-2.5 space-y-2 text-sm">
-                  <div>
-                    <div className="text-[10px] text-slate-500">
-                      Selected Plan
-                    </div>
-                    <div className="font-semibold text-slate-900">
-                      {selectedPlan?.name || "No plan selected"}
-                    </div>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-slate-500">Billing</span>
-                    <span className="font-semibold text-slate-900">
-                      {billingLabel}
-                    </span>
-                  </div>
-
-                  <div className="flex items-center justify-between gap-3">
-                    <span className="text-slate-500">
-                      Plan Price
-                      {isCurrentPlanSelection ? " (Current Plan)" : ""}
-                    </span>
-                    <span className="font-semibold text-slate-900">
-                      {selectedPlan?.key === "enterprise"
-                        ? "Custom"
-                        : formatMoney(summaryPlanAmount)}
-                    </span>
-                  </div>
-
-                  {addonTenantUsersQty > 0 && (
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-slate-500">
-                        Additional Tenant-User × {addonTenantUsersQty}
-                      </span>
-                      <span className="font-semibold text-slate-900">
-                        {formatMoney(summaryAddonAmount)}
-                      </span>
-                    </div>
-                  )}
-
-                  {summaryTax > 0 && (
-                    <div className="flex items-center justify-between gap-3">
-                      <span className="text-slate-500">{taxDisplayLabel}</span>
-                      <span className="font-semibold text-slate-900">
-                        {formatMoney(summaryTax)}
-                      </span>
-                    </div>
-                  )}
-
-                  <div className="border-t border-slate-200 pt-2.5 flex items-center justify-between gap-3">
-                    <span className="text-slate-900 font-semibold">Total</span>
-                    <span className="text-xl font-bold text-slate-900">
-                      {selectedPlan?.key === "enterprise"
-                        ? "Custom Quote"
-                        : formatMoney(total)}
-                    </span>
-                  </div>
+                <div className="md:col-span-2">
+                  <label className="mb-1 block text-[10px] font-medium text-slate-600">
+                    Address Line 2
+                  </label>
+                  <input
+                    type="text"
+                    name="billing_address_2"
+                    autoComplete="off"
+                    value={address2}
+                    onChange={(e) => setAddress2(e.target.value)}
+                    className="w-full rounded-lg border border-slate-300 px-3 py-2 text-sm outline-none focus:border-emerald-500"
+                    placeholder="Apartment, suite, unit, etc. (optional)"
+                  />
                 </div>
 
-                <div className="mt-3 flex flex-col gap-2">
-                  <button
-                    type="button"
-                    onClick={onClose}
-                    className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
-                  >
-                    Back
-                  </button>
+                <div>
+                  <label className="mb-1 block text-[10px] font-medium text-slate-600">
+                    City
+                  </label>
+                  <input
+                    type="text"
+                    name="billing_city"
+                    autoComplete="off"
+                    value={city}
+                    onChange={(e) => setCity(e.target.value)}
+                    onBlur={() => markTouched("city")}
+                    className={inputClassName("city")}
+                    placeholder="City"
+                  />
+                  {showFieldError("city") ? (
+                    <div className="mt-1 text-[10px] font-medium text-red-600">
+                      {validationErrors.city}
+                    </div>
+                  ) : null}
+                </div>
 
-                  <button
-                    type="submit"
-                    disabled={isPayNowDisabled}
-                    className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${
-                      isPayNowDisabled
-                        ? "bg-slate-400 text-white cursor-not-allowed"
-                        : "bg-emerald-600 hover:bg-emerald-700"
-                    }`}
-                  >
-                    {checkoutLoading ? "Processing payment..." : "Pay Now"}
-                  </button>
+                <div>
+                  <label className="mb-1 block text-[10px] font-medium text-slate-600">
+                    State / Region
+                  </label>
+                  <input
+                    type="text"
+                    name="billing_state_region"
+                    autoComplete="off"
+                    value={stateRegion}
+                    onChange={(e) => setStateRegion(e.target.value)}
+                    onBlur={() => markTouched("stateRegion")}
+                    className={inputClassName("stateRegion")}
+                    placeholder="State / Region"
+                  />
+                  {showFieldError("stateRegion") ? (
+                    <div className="mt-1 text-[10px] font-medium text-red-600">
+                      {validationErrors.stateRegion}
+                    </div>
+                  ) : null}
+                </div>
 
-                  {displayError ? (
-                    <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700">
-                      {displayError}
+                <div>
+                  <label className="mb-1 block text-[10px] font-medium text-slate-600">
+                    ZIP / Postal Code
+                  </label>
+                  <input
+                    type="text"
+                    name="billing_zip_code"
+                    autoComplete="off"
+                    value={zipCode}
+                    onChange={(e) => setZipCode(e.target.value)}
+                    onBlur={() => markTouched("zipCode")}
+                    className={inputClassName("zipCode")}
+                    placeholder="ZIP / Postal code"
+                  />
+                  {showFieldError("zipCode") ? (
+                    <div className="mt-1 text-[10px] font-medium text-red-600">
+                      {validationErrors.zipCode}
+                    </div>
+                  ) : null}
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-[10px] font-medium text-slate-600">
+                    Country
+                  </label>
+                  <input
+                    type="text"
+                    name="billing_country"
+                    autoComplete="off"
+                    value={country}
+                    onChange={(e) => setCountry(e.target.value)}
+                    onBlur={() => markTouched("country")}
+                    className={inputClassName("country")}
+                    placeholder="US"
+                  />
+                  {showFieldError("country") ? (
+                    <div className="mt-1 text-[10px] font-medium text-red-600">
+                      {validationErrors.country}
                     </div>
                   ) : null}
                 </div>
               </div>
             </div>
-          </form>
-        )}
+
+            <PaymentMethodSection
+              setPaymentError={setPaymentError}
+              showPaymentElement={showPaymentElement}
+              setCardNumberComplete={setCardNumberComplete}
+              setCardExpiryComplete={setCardExpiryComplete}
+              setCardCvcComplete={setCardCvcComplete}
+              setCardNumberError={setCardNumberError}
+              setCardExpiryError={setCardExpiryError}
+              setCardCvcError={setCardCvcError}
+            />
+          </div>
+
+          <div className="bg-slate-50 p-3">
+            <div className="rounded-xl border border-slate-200 bg-white p-3">
+              <div className="text-[12px] font-semibold text-slate-900">
+                Order Summary
+              </div>
+
+              <div className="mt-2.5 space-y-2 text-sm">
+                <div>
+                  <div className="text-[10px] text-slate-500">
+                    Selected Plan
+                  </div>
+                  <div className="font-semibold text-slate-900">
+                    {selectedPlan?.name || "No plan selected"}
+                  </div>
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-slate-500">Billing</span>
+                  <span className="font-semibold text-slate-900">
+                    {billingLabel}
+                  </span>
+                </div>
+
+                <div className="flex items-center justify-between gap-3">
+                  <span className="text-slate-500">
+                    Plan Price
+                    {isCurrentPlanSelection ? " (Current Plan)" : ""}
+                  </span>
+                  <span className="font-semibold text-slate-900">
+                    {selectedPlan?.key === "enterprise"
+                      ? "Custom"
+                      : formatMoney(summaryPlanAmount)}
+                  </span>
+                </div>
+
+                {addonTenantUsersQty > 0 && (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-500">
+                      Additional Tenant-User × {addonTenantUsersQty}
+                    </span>
+                    <span className="font-semibold text-slate-900">
+                      {formatMoney(summaryAddonAmount)}
+                    </span>
+                  </div>
+                )}
+
+                {summaryTax > 0 && (
+                  <div className="flex items-center justify-between gap-3">
+                    <span className="text-slate-500">{taxDisplayLabel}</span>
+                    <span className="font-semibold text-slate-900">
+                      {formatMoney(summaryTax)}
+                    </span>
+                  </div>
+                )}
+
+                <div className="border-t border-slate-200 pt-2.5 flex items-center justify-between gap-3">
+                  <span className="text-slate-900 font-semibold">Total</span>
+                  <span className="text-xl font-bold text-slate-900">
+                    {selectedPlan?.key === "enterprise"
+                      ? "Custom Quote"
+                      : formatMoney(total)}
+                  </span>
+                </div>
+              </div>
+
+              <div className="mt-3 flex flex-col gap-2">
+                <button
+                  type="button"
+                  onClick={onClose}
+                  className="rounded-lg border border-slate-300 bg-white px-4 py-2 text-sm font-semibold text-slate-900 hover:bg-slate-50"
+                >
+                  Back
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={isPayNowDisabled}
+                  className={`rounded-lg px-4 py-2 text-sm font-semibold text-white ${
+                    isPayNowDisabled
+                      ? "bg-slate-400 text-white cursor-not-allowed"
+                      : "bg-emerald-600 hover:bg-emerald-700"
+                  }`}
+                >
+                  {checkoutLoading ? "Processing payment..." : "Pay Now"}
+                </button>
+
+                {displayError ? (
+                  <div className="rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[11px] text-red-700">
+                    {displayError}
+                  </div>
+                ) : null}
+              </div>
+            </div>
+          </div>
+        </form>
       </div>
     </div>
   );

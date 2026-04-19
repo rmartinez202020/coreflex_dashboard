@@ -141,7 +141,9 @@ export default function useProceedToPaymentForm({
   const [zipCode, setZipCode] = useState("");
   const [localError, setLocalError] = useState("");
   const [paymentError, setPaymentError] = useState("");
-  const [paymentSuccess, setPaymentSuccess] = useState(false);
+  const [paymentStatusOpen, setPaymentStatusOpen] = useState(false);
+  const [paymentStatus, setPaymentStatus] = useState("idle");
+  const [paymentStatusMessage, setPaymentStatusMessage] = useState("");
   const [cardNumberComplete, setCardNumberComplete] = useState(false);
   const [cardExpiryComplete, setCardExpiryComplete] = useState(false);
   const [cardCvcComplete, setCardCvcComplete] = useState(false);
@@ -281,9 +283,11 @@ export default function useProceedToPaymentForm({
     cardCvcError,
   ]);
 
+  const isPaymentBusy = paymentStatusOpen && paymentStatus === "processing";
+
   const isPayNowDisabled =
     checkoutLoading ||
-    paymentSuccess ||
+    isPaymentBusy ||
     !selectedPlan ||
     total <= 0 ||
     !clientSecret ||
@@ -345,17 +349,46 @@ export default function useProceedToPaymentForm({
     return data;
   };
 
+  const showProcessingStatus = () => {
+    setPaymentStatus("processing");
+    setPaymentStatusMessage(
+      "Please wait while we securely process your payment."
+    );
+    setPaymentStatusOpen(true);
+  };
+
+  const showSuccessStatusAndClose = () => {
+    setPaymentStatus("success");
+    setPaymentStatusMessage(
+      "Your payment was completed successfully. Closing checkout..."
+    );
+    setPaymentStatusOpen(true);
+
+    setTimeout(() => {
+      setPaymentStatusOpen(false);
+      if (typeof onClose === "function") {
+        onClose();
+      }
+    }, 1600);
+  };
+
+  const showDeclinedStatus = (message) => {
+    setPaymentStatus("error");
+    setPaymentStatusMessage(
+      String(message || "Your payment could not be processed. Please try again.")
+    );
+    setPaymentStatusOpen(true);
+
+    setTimeout(() => {
+      setPaymentStatusOpen(false);
+    }, 2200);
+  };
+
   const handleSuccessfulPayment = async (paymentIntentId) => {
     await applyPaymentToSubscription(paymentIntentId);
-    setPaymentSuccess(true);
     setPaymentError("");
     setLocalError("");
-
-    if (typeof onClose === "function") {
-      setTimeout(() => {
-        onClose();
-      }, 2200);
-    }
+    showSuccessStatusAndClose();
   };
 
   const handleSubmit = async (e) => {
@@ -444,6 +477,8 @@ export default function useProceedToPaymentForm({
       return;
     }
 
+    showProcessingStatus();
+
     if (typeof onSubmit === "function") {
       onSubmit({
         selectedPlan,
@@ -466,7 +501,12 @@ export default function useProceedToPaymentForm({
         setLocalError,
         setPaymentError,
         applyPaymentToSubscription,
-        setPaymentSuccess,
+        setPaymentStatusOpen,
+        setPaymentStatus,
+        setPaymentStatusMessage,
+        showProcessingStatus,
+        showSuccessStatusAndClose,
+        showDeclinedStatus,
         onClose,
       });
       return;
@@ -492,21 +532,25 @@ export default function useProceedToPaymentForm({
       });
 
       if (result?.error) {
-        setPaymentError(result.error.message || "Payment failed.");
+        const msg = result.error.message || "Payment failed.";
+        setPaymentError(msg);
+        showDeclinedStatus(msg);
         return;
       }
 
       const paymentIntentId = String(result?.paymentIntent?.id || "").trim();
       if (!paymentIntentId) {
-        setPaymentError(
-          "Payment succeeded but no payment intent ID was returned."
-        );
+        const msg = "Payment succeeded but no payment intent ID was returned.";
+        setPaymentError(msg);
+        showDeclinedStatus(msg);
         return;
       }
 
       await handleSuccessfulPayment(paymentIntentId);
     } catch (err) {
-      setPaymentError(String(err?.message || err || "Payment failed."));
+      const msg = String(err?.message || err || "Payment failed.");
+      setPaymentError(msg);
+      showDeclinedStatus(msg);
     }
   };
 
@@ -545,7 +589,9 @@ export default function useProceedToPaymentForm({
     validationErrors,
     isPayNowDisabled,
     displayError,
-    paymentSuccess,
+    paymentStatusOpen,
+    paymentStatus,
+    paymentStatusMessage,
     showFieldError,
     inputClassName,
     markTouched,
