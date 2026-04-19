@@ -31,10 +31,12 @@ import useDropHandler from "./hooks/useDropHandler";
 import useWindowDragResize from "./hooks/useWindowDragResize";
 import useDashboardModalsController from "./hooks/useDashboardModalsController";
 import useAlarmLogWindowState from "./hooks/useAlarmLogWindowState";
-import BillingSuccessPage from "./pages/billing/SuccessPage";
-import BillingCancelPage from "./pages/billing/CancelPage";
 
-function AppMainContent({ navigate, location }) {
+
+export default function App() {
+  const navigate = useNavigate();
+  const location = useLocation();
+
   const pathname = String(location.pathname || "").trim();
 
   const isLaunchPage = pathname === "/launchMainDashboard";
@@ -46,7 +48,7 @@ function AppMainContent({ navigate, location }) {
   const isLaunchCustomerDashboard = pathname.startsWith("/launchDashboard/");
 
   const isAnyLaunchPage =
-    isLaunchPage || isLaunchAlarmLog || isLaunchCustomerDashboard;
+  isLaunchPage || isLaunchAlarmLog || isLaunchCustomerDashboard;
 
   // ✅ NAVIGATION (persist on refresh)
   const {
@@ -129,14 +131,16 @@ function AppMainContent({ navigate, location }) {
   };
 
   const { currentUserKey, handleLogout } = useAuthController({
-    onNoAuthReset: resetToGuestState,
-    onUserChangedReset: resetForUserChange,
-    onLogoutReset: resetToGuestState,
-    navigate,
-    logoutRoute: "/",
+  onNoAuthReset: resetToGuestState,
+  onUserChangedReset: resetForUserChange,
+  onLogoutReset: resetToGuestState,
+  navigate,
+  logoutRoute: "/",
+  
+  skipAuthRedirect: isAnyLaunchPage, // ✅ NEW
 
-    skipAuthRedirect: isAnyLaunchPage, // ✅ NEW
-  });
+});
+
 
   // ✅ always keep the latest canvas in a ref (prevents stale Ctrl+Z / Ctrl+Y)
   const droppedRef = useRef([]);
@@ -220,9 +224,7 @@ function AppMainContent({ navigate, location }) {
     ).trim();
 
     return Boolean(
-      dashboardIdsDetailsState?.enabled &&
-        activeDash &&
-        detailsDash === activeDash
+      dashboardIdsDetailsState?.enabled && activeDash && detailsDash === activeDash
     );
   }, [dashboardIdsDetailsState, effectiveDashboardId]);
 
@@ -320,15 +322,15 @@ function AppMainContent({ navigate, location }) {
   } = useDashboardModalsController({ droppedTanks });
 
   // ✅ Display OUTPUT Settings
-  const [displayOutputSettingsId, setDisplayOutputSettingsId] = useState(null);
+const [displayOutputSettingsId, setDisplayOutputSettingsId] = useState(null);
 
-  const openDisplayOutputSettings = (tank) => {
-    setDisplayOutputSettingsId(tank?.id ?? null);
-  };
+const openDisplayOutputSettings = (tank) => {
+  setDisplayOutputSettingsId(tank?.id ?? null);
+};
 
-  const closeDisplayOutputSettings = () => {
-    setDisplayOutputSettingsId(null);
-  };
+const closeDisplayOutputSettings = () => {
+  setDisplayOutputSettingsId(null);
+};
 
   // ✅ Gauge Display Settings
   const [gaugeSettingsId, setGaugeSettingsId] = useState(null);
@@ -787,6 +789,7 @@ function AppMainContent({ navigate, location }) {
           onSaveProject={handleSaveProject}
           telemetryMap={telemetryMap}
           sensorsData={sensorsData}
+          
         />
       </main>
 
@@ -810,24 +813,4 @@ function AppMainContent({ navigate, location }) {
       />
     </div>
   );
-}
-
-export default function App() {
-  const navigate = useNavigate();
-  const location = useLocation();
-
-  const pathname = String(location.pathname || "").trim();
-  const isBillingSuccess = pathname === "/billing/success";
-  const isBillingCancel = pathname === "/billing/cancel";
-
-  // ✅ Handle billing routes at the true top-level before dashboard hooks run
-  if (isBillingSuccess) {
-    return <BillingSuccessPage />;
-  }
-
-  if (isBillingCancel) {
-    return <BillingCancelPage />;
-  }
-
-  return <AppMainContent navigate={navigate} location={location} />;
 }
