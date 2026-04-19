@@ -2,7 +2,6 @@ import { useEffect, useState, useRef, useCallback, useMemo } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { PointerSensor, useSensor, useSensors } from "@dnd-kit/core";
 import { API_URL } from "./config/api";
-import { getToken } from "./utils/authToken";
 import LaunchedMainDashboard from "./pages/LaunchedMainDashboard";
 import LaunchedCustomerDashboard from "./pages/LaunchedCustomerDashboard";
 import AlarmLogPage from "./pages/AlarmLogPage";
@@ -32,7 +31,6 @@ import useWindowDragResize from "./hooks/useWindowDragResize";
 import useDashboardModalsController from "./hooks/useDashboardModalsController";
 import useAlarmLogWindowState from "./hooks/useAlarmLogWindowState";
 
-
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -50,43 +48,7 @@ export default function App() {
   const isLaunchCustomerDashboard = pathname.startsWith("/launchDashboard/");
 
   const isAnyLaunchPage =
-  isLaunchPage || isLaunchAlarmLog || isLaunchCustomerDashboard;
-
-  useEffect(() => {
-  const params = new URLSearchParams(location.search);
-  const payment = String(params.get("payment") || "").trim().toLowerCase();
-
-  if (!payment) return;
-
-  if (payment === "success") {
-    setPaymentBanner("Payment successful. Your subscription is updating.");
-    setPaymentBannerType("success");
-
-    // 🔥 ADD THIS LINE
-    setActivePage("dashboard");
-
-  } else if (payment === "cancel") {
-    setPaymentBanner("Payment was canceled.");
-    setPaymentBannerType("cancel");
-  } else {
-    return;
-  }
-
-  params.delete("payment");
-  params.delete("session_id");
-
-  const nextSearch = params.toString();
-  navigate(
-    {
-      pathname: location.pathname,
-      search: nextSearch ? `?${nextSearch}` : "",
-    },
-    { replace: true }
-  );
-}, [location.pathname, location.search, navigate, setActivePage]);
-
-
-
+    isLaunchPage || isLaunchAlarmLog || isLaunchCustomerDashboard;
 
   // ✅ NAVIGATION (persist on refresh)
   const {
@@ -97,6 +59,39 @@ export default function App() {
     subPageColor,
     setSubPageColor,
   } = usePageNavigation("coreflex_activePage");
+
+  // ✅ payment banner / return from Stripe
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    const payment = String(params.get("payment") || "")
+      .trim()
+      .toLowerCase();
+
+    if (!payment) return;
+
+    if (payment === "success") {
+      setPaymentBanner("Payment successful. Your subscription is updating.");
+      setPaymentBannerType("success");
+      setActivePage("dashboard");
+    } else if (payment === "cancel") {
+      setPaymentBanner("Payment was canceled.");
+      setPaymentBannerType("cancel");
+    } else {
+      return;
+    }
+
+    params.delete("payment");
+    params.delete("session_id");
+
+    const nextSearch = params.toString();
+    navigate(
+      {
+        pathname: location.pathname,
+        search: nextSearch ? `?${nextSearch}` : "",
+      },
+      { replace: true }
+    );
+  }, [location.pathname, location.search, navigate, setActivePage]);
 
   // DEVICE DATA
   const devicesData = useDevicesData(API_URL, { pollMs: 2000 }); // pick 1000/2000/3000
@@ -169,16 +164,13 @@ export default function App() {
   };
 
   const { currentUserKey, handleLogout } = useAuthController({
-  onNoAuthReset: resetToGuestState,
-  onUserChangedReset: resetForUserChange,
-  onLogoutReset: resetToGuestState,
-  navigate,
-  logoutRoute: "/",
-  
-  skipAuthRedirect: isAnyLaunchPage, // ✅ NEW
-
-});
-
+    onNoAuthReset: resetToGuestState,
+    onUserChangedReset: resetForUserChange,
+    onLogoutReset: resetToGuestState,
+    navigate,
+    logoutRoute: "/",
+    skipAuthRedirect: isAnyLaunchPage,
+  });
 
   // ✅ always keep the latest canvas in a ref (prevents stale Ctrl+Z / Ctrl+Y)
   const droppedRef = useRef([]);
@@ -262,7 +254,9 @@ export default function App() {
     ).trim();
 
     return Boolean(
-      dashboardIdsDetailsState?.enabled && activeDash && detailsDash === activeDash
+      dashboardIdsDetailsState?.enabled &&
+        activeDash &&
+        detailsDash === activeDash
     );
   }, [dashboardIdsDetailsState, effectiveDashboardId]);
 
@@ -360,15 +354,15 @@ export default function App() {
   } = useDashboardModalsController({ droppedTanks });
 
   // ✅ Display OUTPUT Settings
-const [displayOutputSettingsId, setDisplayOutputSettingsId] = useState(null);
+  const [displayOutputSettingsId, setDisplayOutputSettingsId] = useState(null);
 
-const openDisplayOutputSettings = (tank) => {
-  setDisplayOutputSettingsId(tank?.id ?? null);
-};
+  const openDisplayOutputSettings = (tank) => {
+    setDisplayOutputSettingsId(tank?.id ?? null);
+  };
 
-const closeDisplayOutputSettings = () => {
-  setDisplayOutputSettingsId(null);
-};
+  const closeDisplayOutputSettings = () => {
+    setDisplayOutputSettingsId(null);
+  };
 
   // ✅ Gauge Display Settings
   const [gaugeSettingsId, setGaugeSettingsId] = useState(null);
@@ -425,7 +419,7 @@ const closeDisplayOutputSettings = () => {
   } = useAlarmLogWindowState({
     apiUrl: API_URL,
     dashboardId: effectiveDashboardId,
-    dashboardName: String(activeDashboard?.dashboardName || "").trim(), // ✅ NEW
+    dashboardName: String(activeDashboard?.dashboardName || "").trim(),
     activePage,
     currentUserKey,
     defaultTitle: "Alarms Log (DI-AI)",
@@ -573,7 +567,7 @@ const closeDisplayOutputSettings = () => {
 
     // ✅ give the hook dashboard context for the create-placeholder call
     activeDashboardId: activeDashboard?.dashboardId || null,
-    dashboardId: effectiveDashboardId, // "main" or UUID
+    dashboardId: effectiveDashboardId,
     selectedTank,
   });
 
@@ -635,25 +629,25 @@ const closeDisplayOutputSettings = () => {
         <Header onLogout={handleLogout} />
 
         {paymentBanner ? (
-  <div
-    className={`mx-4 mt-2 mb-2 rounded-lg border px-4 py-3 text-sm font-medium ${
-      paymentBannerType === "success"
-        ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-        : "border-amber-300 bg-amber-50 text-amber-800"
-    }`}
-  >
-    <div className="flex items-center justify-between gap-3">
-      <span>{paymentBanner}</span>
+          <div
+            className={`mx-4 mt-2 mb-2 rounded-lg border px-4 py-3 text-sm font-medium ${
+              paymentBannerType === "success"
+                ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+                : "border-amber-300 bg-amber-50 text-amber-800"
+            }`}
+          >
+            <div className="flex items-center justify-between gap-3">
+              <span>{paymentBanner}</span>
 
-      <button
-        onClick={() => setPaymentBanner("")}
-        className="shrink-0 rounded-md border border-current px-2 py-1 text-xs font-semibold opacity-80 hover:opacity-100"
-      >
-        Close
-      </button>
-    </div>
-  </div>
-) : null}
+              <button
+                onClick={() => setPaymentBanner("")}
+                className="shrink-0 rounded-md border border-current px-2 py-1 text-xs font-semibold opacity-80 hover:opacity-100"
+              >
+                Close
+              </button>
+            </div>
+          </div>
+        ) : null}
 
         <AppTopBar
           activePage={activePage}
@@ -725,7 +719,7 @@ const closeDisplayOutputSettings = () => {
           </div>
         ) : activePage === "dashboard" ? (
           <DashboardCanvas
-            dashboardId={effectiveDashboardId} // ✅ THE KEY FIX
+            dashboardId={effectiveDashboardId}
             dashboardName={String(activeDashboard?.dashboardName || "").trim()}
             dashboardMode={dashboardMode}
             sensors={sensors}
@@ -848,7 +842,6 @@ const closeDisplayOutputSettings = () => {
           onSaveProject={handleSaveProject}
           telemetryMap={telemetryMap}
           sensorsData={sensorsData}
-          
         />
       </main>
 
