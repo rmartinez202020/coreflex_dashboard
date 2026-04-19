@@ -38,6 +38,8 @@ export default function App() {
   const location = useLocation();
 
   const pathname = String(location.pathname || "").trim();
+  const [paymentBanner, setPaymentBanner] = useState("");
+  const [paymentBannerType, setPaymentBannerType] = useState("success");
 
   const isLaunchPage = pathname === "/launchMainDashboard";
   const isLaunchAlarmLog = pathname === "/launchAlarmLog";
@@ -49,6 +51,42 @@ export default function App() {
 
   const isAnyLaunchPage =
   isLaunchPage || isLaunchAlarmLog || isLaunchCustomerDashboard;
+
+  useEffect(() => {
+  const params = new URLSearchParams(location.search);
+  const payment = String(params.get("payment") || "").trim().toLowerCase();
+
+  if (!payment) return;
+
+  if (payment === "success") {
+    setPaymentBanner("Payment successful. Your subscription is updating.");
+    setPaymentBannerType("success");
+
+    // 🔥 ADD THIS LINE
+    setActivePage("dashboard");
+
+  } else if (payment === "cancel") {
+    setPaymentBanner("Payment was canceled.");
+    setPaymentBannerType("cancel");
+  } else {
+    return;
+  }
+
+  params.delete("payment");
+  params.delete("session_id");
+
+  const nextSearch = params.toString();
+  navigate(
+    {
+      pathname: location.pathname,
+      search: nextSearch ? `?${nextSearch}` : "",
+    },
+    { replace: true }
+  );
+}, [location.pathname, location.search, navigate, setActivePage]);
+
+
+
 
   // ✅ NAVIGATION (persist on refresh)
   const {
@@ -595,6 +633,27 @@ const closeDisplayOutputSettings = () => {
 
       <main className="flex-1 pt-6 pr-0 pb-6 pl-2 bg-white overflow-visible relative">
         <Header onLogout={handleLogout} />
+
+        {paymentBanner ? (
+  <div
+    className={`mx-4 mt-2 mb-2 rounded-lg border px-4 py-3 text-sm font-medium ${
+      paymentBannerType === "success"
+        ? "border-emerald-300 bg-emerald-50 text-emerald-800"
+        : "border-amber-300 bg-amber-50 text-amber-800"
+    }`}
+  >
+    <div className="flex items-center justify-between gap-3">
+      <span>{paymentBanner}</span>
+
+      <button
+        onClick={() => setPaymentBanner("")}
+        className="shrink-0 rounded-md border border-current px-2 py-1 text-xs font-semibold opacity-80 hover:opacity-100"
+      >
+        Close
+      </button>
+    </div>
+  </div>
+) : null}
 
         <AppTopBar
           activePage={activePage}
