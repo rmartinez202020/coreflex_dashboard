@@ -542,17 +542,15 @@ export function useMySubscriptionSection() {
 
   const createPaymentIntentForCurrentSelection = useCallback(async () => {
     if (!effectivePlan) {
-      throw new Error("No plan selected.");
+      throw new Error("Unable to start payment.");
     }
 
     if (effectivePlan.key === "enterprise") {
-      throw new Error(
-        "Enterprise plans use a custom quote flow. Connect this button to your sales/contact workflow."
-      );
+      throw new Error("Unable to start payment.");
     }
 
     if (subtotalAmount <= 0) {
-      throw new Error("Please select a paid upgrade or add-ons before continuing.");
+      throw new Error("Unable to start payment.");
     }
 
     if (
@@ -570,7 +568,7 @@ export function useMySubscriptionSection() {
 
     const token = String(getToken() || "").trim();
     if (!token) {
-      throw new Error("Missing authentication token.");
+      throw new Error("Unable to start payment.");
     }
 
     console.log("PAYMENT INIT REQUEST:", {
@@ -595,11 +593,11 @@ export function useMySubscriptionSection() {
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      throw new Error(data.detail || "Failed to initialize payment.");
+      throw new Error("Unable to start payment.");
     }
 
     if (!data?.clientSecret) {
-      throw new Error("clientSecret not returned from backend.");
+      throw new Error("Unable to start payment.");
     }
 
     console.log("PAYMENT INIT RESPONSE:", {
@@ -649,18 +647,14 @@ export function useMySubscriptionSection() {
     if (!effectivePlan) return;
 
     if (effectivePlan.key !== "enterprise" && subtotalAmount <= 0) {
-      setCheckoutMessage(
-        "Please select a paid upgrade or add-ons before continuing."
-      );
+      setCheckoutMessage("");
       return;
     }
 
     setCheckoutMessage("");
 
     if (effectivePlan.key === "enterprise") {
-      setCheckoutMessage(
-        "Enterprise plans use a custom quote flow. Connect this button to your sales/contact workflow."
-      );
+      setCheckoutMessage("");
       return;
     }
 
@@ -670,7 +664,7 @@ export function useMySubscriptionSection() {
       setShowProceedToPayment(true);
     } catch (err) {
       console.error("Payment init failed:", err);
-      setCheckoutMessage(err?.message || "Unable to start payment.");
+      setCheckoutMessage("");
       resetPaymentIntentState();
     } finally {
       setCheckoutLoading(false);
@@ -695,11 +689,11 @@ export function useMySubscriptionSection() {
         const elements = payload?.elements;
 
         if (!stripe || !elements) {
-          throw new Error("Stripe payment form is not ready.");
+          throw new Error("Payment could not be completed.");
         }
 
         if (!clientSecret) {
-          throw new Error("Payment intent is not ready yet.");
+          throw new Error("Payment could not be completed.");
         }
 
         const billingDetails = payload?.billingDetails || {};
@@ -735,16 +729,14 @@ export function useMySubscriptionSection() {
         });
 
         if (result?.error) {
-          throw new Error(result.error.message || "Payment confirmation failed.");
+          throw new Error("Payment could not be completed.");
         }
 
         const confirmedPaymentIntentId = String(
           result?.paymentIntent?.id || ""
         ).trim();
         if (!confirmedPaymentIntentId) {
-          throw new Error(
-            "Payment succeeded but payment intent ID was not returned."
-          );
+          throw new Error("Payment could not be completed.");
         }
 
         console.log("PAYMENT CONFIRM RESPONSE:", {
@@ -759,15 +751,11 @@ export function useMySubscriptionSection() {
           confirmedPaymentIntentId &&
           paymentIntentId !== confirmedPaymentIntentId
         ) {
-          throw new Error(
-            "Confirmed payment intent does not match the initialized checkout session."
-          );
+          throw new Error("Payment could not be completed.");
         }
 
         if (typeof payload?.applyPaymentToSubscription === "function") {
           await payload.applyPaymentToSubscription(confirmedPaymentIntentId);
-        } else {
-          throw new Error("Payment apply handler is missing.");
         }
 
         await loadSubscription();
@@ -777,7 +765,7 @@ export function useMySubscriptionSection() {
           result?.paymentIntent?.status === "processing" ||
           result?.paymentIntent?.status === "requires_capture"
         ) {
-          setCheckoutMessage("Payment submitted successfully.");
+          setCheckoutMessage("Payment successful.");
           setShowProceedToPayment(false);
           resetPaymentIntentState();
           setSelectedPlanKey(null);
@@ -785,16 +773,14 @@ export function useMySubscriptionSection() {
           return;
         }
 
-        setCheckoutMessage("Payment submitted. Waiting for final confirmation.");
+        setCheckoutMessage("Payment successful.");
         setShowProceedToPayment(false);
         resetPaymentIntentState();
         setSelectedPlanKey(null);
         setAddonTenantUsersQty(0);
       } catch (err) {
         console.error("Proceed to payment failed:", err);
-        setCheckoutMessage(
-          err?.message || "Unable to continue to payment right now."
-        );
+        setCheckoutMessage("");
       } finally {
         setCheckoutLoading(false);
       }
