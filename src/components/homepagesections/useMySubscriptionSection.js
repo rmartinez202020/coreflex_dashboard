@@ -637,26 +637,38 @@ export function useMySubscriptionSection() {
       return;
     }
 
+    const checkoutTab = window.open("", "_blank");
+
     try {
       setCheckoutLoading(true);
+
       const { url } = await createCheckoutSessionForCurrentSelection();
 
       if (!url) {
         throw new Error("Unable to open Stripe checkout.");
       }
 
-      const newTab = window.open(url, "_blank", "noopener,noreferrer");
-
-      if (!newTab) {
-        window.location.href = url;
+      if (checkoutTab) {
+        checkoutTab.location.href = url;
+        checkoutTab.focus?.();
+        setCheckoutMessage(
+          "Stripe checkout opened in a new tab. Complete payment there, then return here."
+        );
         return;
       }
 
-      setCheckoutMessage(
-        "Stripe checkout opened in a new tab. Complete payment there, then return to this tab."
-      );
+      window.location.href = url;
     } catch (err) {
       console.error("Checkout redirect failed:", err);
+
+      try {
+        if (checkoutTab && !checkoutTab.closed) {
+          checkoutTab.close();
+        }
+      } catch (_) {
+        // no-op
+      }
+
       setCheckoutMessage(
         err?.message || "Unable to redirect to Stripe checkout."
       );
