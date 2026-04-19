@@ -247,18 +247,6 @@ export default function MySubscriptionSection({ onBack }) {
         </div>
 
         <div className="px-3 pb-3 pt-1.5">
-          {subscriptionError && (
-            <div className="mt-2 rounded-lg border border-red-200 bg-red-50 px-3 py-2 text-[12px] text-red-700">
-              {subscriptionError}
-            </div>
-          )}
-
-          {checkoutMessage && (
-            <div className="mt-2 rounded-lg border border-amber-200 bg-amber-50 px-3 py-2 text-[12px] text-amber-800">
-              {checkoutMessage}
-            </div>
-          )}
-
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-2">
             <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
               <div className="text-[10px] text-slate-500">Plan</div>
