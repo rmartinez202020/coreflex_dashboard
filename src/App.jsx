@@ -31,12 +31,16 @@ import useDropHandler from "./hooks/useDropHandler";
 import useWindowDragResize from "./hooks/useWindowDragResize";
 import useDashboardModalsController from "./hooks/useDashboardModalsController";
 import useAlarmLogWindowState from "./hooks/useAlarmLogWindowState";
+import BillingSuccessPage from "./pages/billing/SuccessPage";
+import BillingCancelPage from "./pages/billing/CancelPage";
 
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
 
   const pathname = String(location.pathname || "").trim();
+  const isBillingSuccess = pathname === "/billing/success";
+  const isBillingCancel = pathname === "/billing/cancel";
 
   const isLaunchPage = pathname === "/launchMainDashboard";
   const isLaunchAlarmLog = pathname === "/launchAlarmLog";
@@ -543,6 +547,15 @@ const closeDisplayOutputSettings = () => {
     setSelectedIds([id]);
     hideContextMenu();
   };
+
+  // ✅ STRIPE BILLING PAGES
+if (isBillingSuccess) {
+  return <BillingSuccessPage />;
+}
+
+if (isBillingCancel) {
+  return <BillingCancelPage />;
+}
 
   // ✅ LAUNCH PAGE — RENDER ONLY PLAY MODE DASHBOARD
   if (isLaunchPage) {
