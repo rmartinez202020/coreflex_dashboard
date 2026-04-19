@@ -687,16 +687,33 @@ export function useMySubscriptionSection() {
 
         const stripe = payload?.stripe;
         const elements = payload?.elements;
+        const cardElement = payload?.cardElement;
+        const billingDetails = payload?.billingDetails || {};
 
-        if (!stripe || !elements) {
-          throw new Error("Payment could not be completed.");
+        const showProcessingStatus = payload?.showProcessingStatus;
+        const showSuccessStatusAndClose = payload?.showSuccessStatusAndClose;
+        const showDeclinedStatus = payload?.showDeclinedStatus;
+        const setPaymentError = payload?.setPaymentError;
+        const setLocalError = payload?.setLocalError;
+        const applyPaymentToSubscription = payload?.applyPaymentToSubscription;
+
+        if (typeof showProcessingStatus === "function") {
+          showProcessingStatus();
+        }
+
+        if (!stripe || !elements || !cardElement) {
+          const msg = "Payment could not be completed.";
+          if (typeof setLocalError === "function") setLocalError(msg);
+          if (typeof showDeclinedStatus === "function") showDeclinedStatus(msg);
+          throw new Error(msg);
         }
 
         if (!clientSecret) {
-          throw new Error("Payment could not be completed.");
+          const msg = "Payment could not be completed.";
+          if (typeof setLocalError === "function") setLocalError(msg);
+          if (typeof showDeclinedStatus === "function") showDeclinedStatus(msg);
+          throw new Error(msg);
         }
-
-        const billingDetails = payload?.billingDetails || {};
 
         console.log("PAYMENT CONFIRM REQUEST:", {
           addonTenantUsersQty,
@@ -708,7 +725,7 @@ export function useMySubscriptionSection() {
 
         const result = await stripe.confirmCardPayment(clientSecret, {
           payment_method: {
-            card: payload.cardElement,
+            card: cardElement,
             billing_details: {
               name: billingDetails.fullName || "",
               email: billingDetails.email || "",
@@ -729,14 +746,22 @@ export function useMySubscriptionSection() {
         });
 
         if (result?.error) {
-          throw new Error("Payment could not be completed.");
+          const msg =
+            result?.error?.message || "Payment could not be completed.";
+          if (typeof setPaymentError === "function") setPaymentError(msg);
+          if (typeof showDeclinedStatus === "function") showDeclinedStatus(msg);
+          return;
         }
 
         const confirmedPaymentIntentId = String(
           result?.paymentIntent?.id || ""
         ).trim();
+
         if (!confirmedPaymentIntentId) {
-          throw new Error("Payment could not be completed.");
+          const msg = "Payment could not be completed.";
+          if (typeof setPaymentError === "function") setPaymentError(msg);
+          if (typeof showDeclinedStatus === "function") showDeclinedStatus(msg);
+          return;
         }
 
         console.log("PAYMENT CONFIRM RESPONSE:", {
@@ -751,30 +776,23 @@ export function useMySubscriptionSection() {
           confirmedPaymentIntentId &&
           paymentIntentId !== confirmedPaymentIntentId
         ) {
-          throw new Error("Payment could not be completed.");
+          const msg = "Payment could not be completed.";
+          if (typeof setPaymentError === "function") setPaymentError(msg);
+          if (typeof showDeclinedStatus === "function") showDeclinedStatus(msg);
+          return;
         }
 
-        if (typeof payload?.applyPaymentToSubscription === "function") {
-          await payload.applyPaymentToSubscription(confirmedPaymentIntentId);
+        if (typeof applyPaymentToSubscription === "function") {
+          await applyPaymentToSubscription(confirmedPaymentIntentId);
         }
 
         await loadSubscription();
 
-        if (
-          result?.paymentIntent?.status === "succeeded" ||
-          result?.paymentIntent?.status === "processing" ||
-          result?.paymentIntent?.status === "requires_capture"
-        ) {
-          setCheckoutMessage("Payment successful.");
-          setShowProceedToPayment(false);
-          resetPaymentIntentState();
-          setSelectedPlanKey(null);
-          setAddonTenantUsersQty(0);
-          return;
+        if (typeof showSuccessStatusAndClose === "function") {
+          showSuccessStatusAndClose();
         }
 
         setCheckoutMessage("Payment successful.");
-        setShowProceedToPayment(false);
         resetPaymentIntentState();
         setSelectedPlanKey(null);
         setAddonTenantUsersQty(0);

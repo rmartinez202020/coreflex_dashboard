@@ -480,7 +480,7 @@ export default function useProceedToPaymentForm({
     showProcessingStatus();
 
     if (typeof onSubmit === "function") {
-      onSubmit({
+      await onSubmit({
         selectedPlan,
         billingMode,
         addonTenantUsersQty,
@@ -498,6 +498,7 @@ export default function useProceedToPaymentForm({
         stripe,
         elements,
         cardElement: cardNumberElement,
+        clientSecret,
         setLocalError,
         setPaymentError,
         applyPaymentToSubscription,
