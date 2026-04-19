@@ -267,10 +267,6 @@ export function useMySubscriptionSection() {
   const [addonTenantUsersQty, setAddonTenantUsersQty] = useState(0);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [checkoutMessage, setCheckoutMessage] = useState("");
-  const [showProceedToPayment, setShowProceedToPayment] = useState(false);
-  const [clientSecret, setClientSecret] = useState("");
-  const [paymentIntentId, setPaymentIntentId] = useState("");
-  const [checkoutSessionKey, setCheckoutSessionKey] = useState("");
 
   const [subscription, setSubscription] = useState(null);
   const [loadingSubscription, setLoadingSubscription] = useState(true);
@@ -289,10 +285,7 @@ export function useMySubscriptionSection() {
     total: 0,
   });
 
-  const resetPaymentIntentState = useCallback(() => {
-    setClientSecret("");
-    setPaymentIntentId("");
-    setCheckoutSessionKey("");
+  const resetPaymentPreview = useCallback(() => {
     setPaymentBreakdown({
       planAmount: 0,
       addonAmount: 0,
@@ -404,6 +397,7 @@ export function useMySubscriptionSection() {
       return {
         plans: Array.isArray(data?.plans) ? data.plans : [],
         addons: Array.isArray(data?.addons) ? data.addons : [],
+        tax: data?.tax || {},
       };
     }
 
@@ -429,6 +423,7 @@ export function useMySubscriptionSection() {
       return {
         plans: Array.isArray(plansData) ? plansData : [],
         addons: Array.isArray(addonsData) ? addonsData : [],
+        tax: {},
       };
     }
 
@@ -453,7 +448,7 @@ export function useMySubscriptionSection() {
               "Admin billing catalog unavailable, using defaults.",
               adminErr
             );
-            catalog = { plans: [], addons: [] };
+            catalog = { plans: [], addons: [], tax: {} };
           }
         }
 
@@ -526,7 +521,7 @@ export function useMySubscriptionSection() {
 
   const showAddon = true;
 
-  const currentCheckoutSessionKey = useMemo(() => {
+  const checkoutPreviewKey = useMemo(() => {
     return JSON.stringify({
       planKey: String(effectivePlan?.key || ""),
       billingMode: String(billingMode || ""),
@@ -540,47 +535,34 @@ export function useMySubscriptionSection() {
     isCurrentPlanSelection,
   ]);
 
-  const createPaymentIntentForCurrentSelection = useCallback(async () => {
+  const createCheckoutSessionForCurrentSelection = useCallback(async () => {
     if (!effectivePlan) {
-      throw new Error("Unable to start payment.");
+      throw new Error("Unable to start checkout.");
     }
 
     if (effectivePlan.key === "enterprise") {
-      throw new Error("Unable to start payment.");
+      throw new Error("Enterprise plans should use your sales workflow.");
     }
 
     if (subtotalAmount <= 0) {
-      throw new Error("Unable to start payment.");
-    }
-
-    if (
-      clientSecret &&
-      paymentIntentId &&
-      checkoutSessionKey &&
-      checkoutSessionKey === currentCheckoutSessionKey
-    ) {
-      return {
-        clientSecret,
-        paymentIntentId,
-        checkoutSessionKey,
-      };
+      throw new Error("There is no charge to process.");
     }
 
     const token = String(getToken() || "").trim();
     if (!token) {
-      throw new Error("Unable to start payment.");
+      throw new Error("Missing authentication token.");
     }
 
-    console.log("PAYMENT INIT REQUEST:", {
+    console.log("CHECKOUT SESSION REQUEST:", {
       effectivePlanKey: effectivePlan.key,
       billingMode,
       addonTenantUsersQty,
       isCurrentPlanSelection,
       subtotalAmount,
-      checkoutSessionKey: currentCheckoutSessionKey,
+      checkoutPreviewKey,
     });
 
-    const response = await fetch(`${API_URL}/billing/create-payment-intent`, {
+    const response = await fetch(`${API_URL}/billing/create-checkout-session`, {
       method: "POST",
       headers: buildJsonHeaders(token),
       body: JSON.stringify({
@@ -593,27 +575,26 @@ export function useMySubscriptionSection() {
     const data = await response.json().catch(() => ({}));
 
     if (!response.ok) {
-      throw new Error("Unable to start payment.");
+      throw new Error(
+        data?.detail || data?.message || "Unable to start checkout."
+      );
     }
 
-    if (!data?.clientSecret) {
-      throw new Error("Unable to start payment.");
+    if (!data?.url) {
+      throw new Error("Stripe checkout URL was not returned.");
     }
 
-    console.log("PAYMENT INIT RESPONSE:", {
-      clientSecret: data.clientSecret,
-      paymentIntentId: data.paymentIntentId,
-      paymentPlanAmount: data?.planAmount,
-      paymentAddonAmount: data?.addonAmount,
-      paymentSubtotal: data?.subtotal,
-      paymentTax: data?.tax,
-      paymentTotal: data?.total,
-      checkoutSessionKey: currentCheckoutSessionKey,
+    console.log("CHECKOUT SESSION RESPONSE:", {
+      url: data?.url,
+      checkoutSessionId: data?.checkoutSessionId,
+      planAmount: data?.planAmount,
+      addonAmount: data?.addonAmount,
+      subtotal: data?.subtotal,
+      tax: data?.tax,
+      total: data?.total,
+      checkoutPreviewKey,
     });
 
-    setClientSecret(String(data.clientSecret || ""));
-    setPaymentIntentId(String(data.paymentIntentId || ""));
-    setCheckoutSessionKey(currentCheckoutSessionKey);
     setPaymentBreakdown({
       planAmount: Number(data?.planAmount || 0),
       addonAmount: Number(data?.addonAmount || 0),
@@ -626,46 +607,51 @@ export function useMySubscriptionSection() {
     });
 
     return {
-      clientSecret: String(data.clientSecret || ""),
-      paymentIntentId: String(data.paymentIntentId || ""),
-      checkoutSessionKey: currentCheckoutSessionKey,
+      url: String(data.url || ""),
+      checkoutSessionId: String(data.checkoutSessionId || ""),
     };
   }, [
     effectivePlan,
     subtotalAmount,
-    clientSecret,
-    paymentIntentId,
-    checkoutSessionKey,
-    currentCheckoutSessionKey,
     billingMode,
     addonTenantUsersQty,
     isCurrentPlanSelection,
+    checkoutPreviewKey,
   ]);
 
   const openProceedToPayment = useCallback(async () => {
     if (checkoutLoading) return;
     if (!effectivePlan) return;
 
-    if (effectivePlan.key !== "enterprise" && subtotalAmount <= 0) {
-      setCheckoutMessage("");
-      return;
-    }
-
     setCheckoutMessage("");
 
     if (effectivePlan.key === "enterprise") {
-      setCheckoutMessage("");
+      setCheckoutMessage(
+        "Enterprise plans should be routed through your custom sales workflow."
+      );
+      return;
+    }
+
+    if (subtotalAmount <= 0) {
+      setCheckoutMessage("There is no charge to process for this selection.");
       return;
     }
 
     try {
       setCheckoutLoading(true);
-      await createPaymentIntentForCurrentSelection();
-      setShowProceedToPayment(true);
+      const { url } = await createCheckoutSessionForCurrentSelection();
+
+      if (!url) {
+        throw new Error("Unable to open Stripe checkout.");
+      }
+
+      window.location.href = url;
     } catch (err) {
-      console.error("Payment init failed:", err);
-      setCheckoutMessage("");
-      resetPaymentIntentState();
+      console.error("Checkout redirect failed:", err);
+      setCheckoutMessage(
+        err?.message || "Unable to redirect to Stripe checkout."
+      );
+      resetPaymentPreview();
     } finally {
       setCheckoutLoading(false);
     }
@@ -673,193 +659,14 @@ export function useMySubscriptionSection() {
     checkoutLoading,
     effectivePlan,
     subtotalAmount,
-    createPaymentIntentForCurrentSelection,
-    resetPaymentIntentState,
+    createCheckoutSessionForCurrentSelection,
+    resetPaymentPreview,
   ]);
 
-  const handleProceedToPaymentSubmit = useCallback(
-    async (payload) => {
-      const stripe = payload?.stripe;
-      const elements = payload?.elements;
-      const cardElement = payload?.cardElement;
-      const billingDetails = payload?.billingDetails || {};
-
-      const showSuccessStatusAndClose = payload?.showSuccessStatusAndClose;
-      const showDeclinedStatus = payload?.showDeclinedStatus;
-      const setPaymentError = payload?.setPaymentError;
-      const setLocalError = payload?.setLocalError;
-      const applyPaymentToSubscription = payload?.applyPaymentToSubscription;
-
-      let paymentSafetyTimeout = null;
-
-      try {
-        if (checkoutLoading) return;
-
-        setCheckoutLoading(true);
-        setCheckoutMessage("");
-
-        if (!stripe || !elements || !cardElement) {
-          const msg = "Payment could not be completed.";
-          if (typeof setLocalError === "function") setLocalError(msg);
-          if (typeof showDeclinedStatus === "function") showDeclinedStatus(msg);
-          return;
-        }
-
-        if (!clientSecret) {
-          const msg = "Payment could not be completed.";
-          if (typeof setLocalError === "function") setLocalError(msg);
-          if (typeof showDeclinedStatus === "function") showDeclinedStatus(msg);
-          return;
-        }
-
-        paymentSafetyTimeout = setTimeout(() => {
-          if (typeof setPaymentError === "function") {
-            setPaymentError("Payment is taking too long. Please try again.");
-          }
-          if (typeof showDeclinedStatus === "function") {
-            showDeclinedStatus("Payment is taking too long. Please try again.");
-          }
-        }, 20000);
-
-        console.log("PAYMENT CONFIRM REQUEST:", {
-          addonTenantUsersQty,
-          paymentBreakdown,
-          clientSecret,
-          paymentIntentId,
-          checkoutSessionKey,
-        });
-
-        const result = await stripe.confirmCardPayment(clientSecret, {
-          payment_method: {
-            card: cardElement,
-            billing_details: {
-              name: billingDetails.fullName || "",
-              email: billingDetails.email || "",
-              address: {
-                line1: billingDetails.address1 || "",
-                line2: billingDetails.address2 || "",
-                city: billingDetails.city || "",
-                state: billingDetails.stateRegion || "",
-                postal_code: billingDetails.zipCode || "",
-                country:
-                  String(billingDetails.country || "US")
-                    .trim()
-                    .toUpperCase()
-                    .slice(0, 2) || "US",
-              },
-            },
-          },
-        });
-
-        if (paymentSafetyTimeout) {
-          clearTimeout(paymentSafetyTimeout);
-          paymentSafetyTimeout = null;
-        }
-
-        if (result?.error) {
-          const msg =
-            result?.error?.message || "Payment could not be completed.";
-          if (typeof setPaymentError === "function") setPaymentError(msg);
-          if (typeof showDeclinedStatus === "function") showDeclinedStatus(msg);
-          return;
-        }
-
-        const confirmedPaymentIntentId = String(
-          result?.paymentIntent?.id || ""
-        ).trim();
-
-        if (!confirmedPaymentIntentId) {
-          const msg = "Payment could not be completed.";
-          if (typeof setPaymentError === "function") setPaymentError(msg);
-          if (typeof showDeclinedStatus === "function") showDeclinedStatus(msg);
-          return;
-        }
-
-        if (String(result?.paymentIntent?.status || "").toLowerCase() !== "succeeded") {
-          const msg = "Payment did not complete successfully.";
-          if (typeof setPaymentError === "function") setPaymentError(msg);
-          if (typeof showDeclinedStatus === "function") showDeclinedStatus(msg);
-          return;
-        }
-
-        console.log("PAYMENT CONFIRM RESPONSE:", {
-          paymentIntentId: confirmedPaymentIntentId,
-          expectedPaymentIntentId: paymentIntentId,
-          paymentIntentStatus: result?.paymentIntent?.status,
-          checkoutSessionKey,
-        });
-
-        if (
-          paymentIntentId &&
-          confirmedPaymentIntentId &&
-          paymentIntentId !== confirmedPaymentIntentId
-        ) {
-          const msg = "Payment could not be completed.";
-          if (typeof setPaymentError === "function") setPaymentError(msg);
-          if (typeof showDeclinedStatus === "function") showDeclinedStatus(msg);
-          return;
-        }
-
-        if (typeof applyPaymentToSubscription === "function") {
-          await applyPaymentToSubscription(confirmedPaymentIntentId);
-        }
-
-        await loadSubscription();
-
-        if (typeof showSuccessStatusAndClose === "function") {
-          showSuccessStatusAndClose();
-        }
-
-        setCheckoutMessage("Payment successful.");
-        resetPaymentIntentState();
-        setSelectedPlanKey(null);
-        setAddonTenantUsersQty(0);
-      } catch (err) {
-        if (paymentSafetyTimeout) {
-          clearTimeout(paymentSafetyTimeout);
-          paymentSafetyTimeout = null;
-        }
-
-        console.error("Proceed to payment failed:", err);
-
-        const msg = String(err?.message || "Payment failed.");
-
-        if (typeof setPaymentError === "function") {
-          setPaymentError(msg);
-        }
-
-        if (typeof showDeclinedStatus === "function") {
-          showDeclinedStatus(msg);
-        }
-
-        setCheckoutMessage("");
-      } finally {
-        if (paymentSafetyTimeout) {
-          clearTimeout(paymentSafetyTimeout);
-        }
-        setCheckoutLoading(false);
-      }
-    },
-    [
-      checkoutLoading,
-      addonTenantUsersQty,
-      paymentBreakdown,
-      clientSecret,
-      paymentIntentId,
-      checkoutSessionKey,
-      loadSubscription,
-      resetPaymentIntentState,
-    ]
-  );
-
-  const handleCloseProceedToPayment = useCallback(() => {
-    setShowProceedToPayment(false);
-    setCheckoutLoading(false);
-  }, []);
-
-  const handlePaymentApplied = useCallback(async () => {
+  const handleCheckoutReturn = useCallback(async () => {
     try {
       await loadSubscription();
+      setCheckoutMessage("Subscription refreshed.");
     } catch (_) {
       // no-op
     }
@@ -869,39 +676,35 @@ export function useMySubscriptionSection() {
     (pickedPlan) => {
       setSelectedPlanKey(pickedPlan.key);
       setCheckoutMessage("");
-      setShowProceedToPayment(false);
-      resetPaymentIntentState();
+      resetPaymentPreview();
     },
-    [resetPaymentIntentState]
+    [resetPaymentPreview]
   );
 
   const changeBillingMode = useCallback(
     (mode) => {
       setBillingMode(mode);
       setCheckoutMessage("");
-      setShowProceedToPayment(false);
-      resetPaymentIntentState();
+      resetPaymentPreview();
     },
-    [resetPaymentIntentState]
+    [resetPaymentPreview]
   );
 
   const changeAddonTenantUsersQty = useCallback(
     (qty) => {
       setAddonTenantUsersQty(Number(qty || 0));
       setCheckoutMessage("");
-      setShowProceedToPayment(false);
-      resetPaymentIntentState();
+      resetPaymentPreview();
     },
-    [resetPaymentIntentState]
+    [resetPaymentPreview]
   );
 
   const cancelSelection = useCallback(() => {
     setSelectedPlanKey(null);
     setAddonTenantUsersQty(0);
     setCheckoutMessage("");
-    setShowProceedToPayment(false);
-    resetPaymentIntentState();
-  }, [resetPaymentIntentState]);
+    resetPaymentPreview();
+  }, [resetPaymentPreview]);
 
   return {
     showComparePlans,
@@ -911,9 +714,6 @@ export function useMySubscriptionSection() {
     addonTenantUsersQty,
     checkoutLoading,
     checkoutMessage,
-    showProceedToPayment,
-    clientSecret,
-    paymentIntentId,
     subscription,
     loadingSubscription,
     subscriptionError,
@@ -935,9 +735,7 @@ export function useMySubscriptionSection() {
     displayTotal,
     showAddon,
     openProceedToPayment,
-    handleProceedToPaymentSubmit,
-    handleCloseProceedToPayment,
-    handlePaymentApplied,
+    handleCheckoutReturn,
     selectPlan,
     changeBillingMode,
     changeAddonTenantUsersQty,

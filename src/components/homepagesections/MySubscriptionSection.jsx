@@ -1,5 +1,4 @@
 import React from "react";
-import ProceedToPayment from "./ProceedToPayment";
 import {
   formatMoney,
   getDisplayPrice,
@@ -195,8 +194,6 @@ export default function MySubscriptionSection({ onBack }) {
     addonTenantUsersQty,
     checkoutLoading,
     checkoutMessage,
-    showProceedToPayment,
-    clientSecret,
     subscription,
     loadingSubscription,
     subscriptionError,
@@ -217,9 +214,6 @@ export default function MySubscriptionSection({ onBack }) {
     displayTotal,
     showAddon,
     openProceedToPayment,
-    handleProceedToPaymentSubmit,
-    handleCloseProceedToPayment,
-    handlePaymentApplied,
     selectPlan,
     changeBillingMode,
     changeAddonTenantUsersQty,
@@ -310,7 +304,7 @@ export default function MySubscriptionSection({ onBack }) {
                     Choose a Plan
                   </div>
                   <div className="mt-0.5 text-[10px] leading-tight text-slate-300">
-                    Select a plan and billing type to continue to payment.
+                    Select a plan and billing type to continue to secure checkout.
                   </div>
                 </div>
 
@@ -382,7 +376,10 @@ export default function MySubscriptionSection({ onBack }) {
                         <div className="text-slate-500 text-[10px]">Base Price</div>
                         <div className="font-semibold text-slate-900">
                           {isCurrentPlanSelection
-                            ? formatMoney(0, billingMode === "monthly" ? " / month" : "")
+                            ? formatMoney(
+                                0,
+                                billingMode === "monthly" ? " / month" : ""
+                              )
                             : getDisplayPrice(effectivePlan, billingMode)}
                         </div>
                       </div>
@@ -528,7 +525,7 @@ export default function MySubscriptionSection({ onBack }) {
                     <div className="text-[10px] leading-snug text-slate-500">
                       {effectivePlan?.key === "enterprise"
                         ? "Enterprise plans should be routed to your custom sales workflow."
-                        : "Click Proceed to Payment to open the checkout modal."}
+                        : "Click Proceed to Payment to continue on Stripe's secure hosted checkout page."}
                     </div>
                   </div>
                 </div>
@@ -551,30 +548,6 @@ export default function MySubscriptionSection({ onBack }) {
         open={showComparePlans}
         onClose={() => setShowComparePlans(false)}
         plans={plans}
-      />
-
-      <ProceedToPayment
-        open={showProceedToPayment}
-        onClose={handleCloseProceedToPayment}
-        selectedPlan={effectivePlan}
-        billingMode={billingMode}
-        addonTenantUsersQty={addonTenantUsersQty}
-        tenantUserAddonPrice={tenantUserAddonPrice}
-        userEmail={subscription?.email || ""}
-        checkoutLoading={checkoutLoading}
-        checkoutError={checkoutMessage}
-        onSubmit={handleProceedToPaymentSubmit}
-        clientSecret={clientSecret}
-        isCurrentPlanSelection={isCurrentPlanSelection}
-        paymentSubtotal={Number(paymentBreakdown.subtotal || 0)}
-        paymentTax={Number(paymentBreakdown.tax || 0)}
-        paymentTaxRate={Number(paymentBreakdown.taxRate || 0)}
-        paymentTaxRatePercent={Number(paymentBreakdown.taxRatePercent || 0)}
-        paymentTaxLabel={String(paymentBreakdown.taxLabel || "Tax")}
-        paymentTotal={Number(paymentBreakdown.total || 0)}
-        paymentPlanAmount={Number(paymentBreakdown.planAmount || 0)}
-        paymentAddonAmount={Number(paymentBreakdown.addonAmount || 0)}
-        onPaymentApplied={handlePaymentApplied}
       />
     </>
   );
