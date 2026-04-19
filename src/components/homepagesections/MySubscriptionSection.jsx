@@ -1,4 +1,6 @@
-import React from "react";
+import React, { useEffect } from "react";
+import { API_URL } from "../../config/api";
+import { getToken } from "../../utils/authToken";
 import {
   formatMoney,
   getDisplayPrice,
@@ -219,6 +221,62 @@ export default function MySubscriptionSection({ onBack }) {
     changeAddonTenantUsersQty,
     cancelSelection,
   } = useMySubscriptionSection();
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const sessionId = String(params.get("session_id") || "").trim();
+    const paymentFlag = String(params.get("payment") || "").trim().toLowerCase();
+
+    if (!sessionId || paymentFlag !== "success") return;
+
+    const token = String(getToken() || "").trim();
+    if (!token) return;
+
+    const applyKey = `coreflex_applied_checkout_${sessionId}`;
+    if (sessionStorage.getItem(applyKey) === "done") {
+      return;
+    }
+
+    let cancelled = false;
+
+    const applyCheckoutSession = async () => {
+      try {
+        const res = await fetch(
+          `${API_URL}/billing/checkout-session/${encodeURIComponent(sessionId)}/apply`,
+          {
+            method: "POST",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        const data = await res.json().catch(() => ({}));
+
+        if (!res.ok) {
+          console.error("❌ Failed to apply checkout session:", data);
+          return;
+        }
+
+        if (cancelled) return;
+
+        console.log("✅ Checkout session applied:", data);
+        sessionStorage.setItem(applyKey, "done");
+
+        const cleanUrl = `${window.location.pathname}${window.location.hash || ""}`;
+        window.history.replaceState({}, "", cleanUrl);
+        window.location.reload();
+      } catch (err) {
+        console.error("❌ Error applying checkout session:", err);
+      }
+    };
+
+    applyCheckoutSession();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   return (
     <>
