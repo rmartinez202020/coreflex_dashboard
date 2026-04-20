@@ -1,4 +1,4 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { API_URL } from "../../config/api";
 import { getToken } from "../../utils/authToken";
 import {
@@ -187,6 +187,40 @@ function ComparePlansModal({ open, onClose, plans }) {
   );
 }
 
+function PaymentSuccessModal({ open, onClose }) {
+  if (!open) return null;
+
+  return (
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/45 px-4">
+      <div className="w-full max-w-sm rounded-2xl border border-emerald-200 bg-white p-5 shadow-2xl">
+        <div className="flex items-center justify-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-2xl font-bold">
+            ✓
+          </div>
+        </div>
+
+        <div className="mt-4 text-center">
+          <div className="text-[18px] font-semibold text-slate-900">
+            Payment Successful
+          </div>
+          <div className="mt-1 text-[13px] leading-relaxed text-slate-600">
+            Your subscription is being updated now.
+          </div>
+        </div>
+
+        <div className="mt-5">
+          <button
+            onClick={onClose}
+            className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-[13px] font-semibold text-white hover:bg-emerald-700"
+          >
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export default function MySubscriptionSection({ onBack }) {
   const {
     showComparePlans,
@@ -221,6 +255,8 @@ export default function MySubscriptionSection({ onBack }) {
     changeAddonTenantUsersQty,
     cancelSelection,
   } = useMySubscriptionSection();
+
+  const [showPaymentSuccessModal, setShowPaymentSuccessModal] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -265,7 +301,7 @@ export default function MySubscriptionSection({ onBack }) {
 
         const cleanUrl = `${window.location.pathname}${window.location.hash || ""}`;
         window.history.replaceState({}, "", cleanUrl);
-        window.location.reload();
+        setShowPaymentSuccessModal(true);
       } catch (err) {
         console.error("❌ Error applying checkout session:", err);
       }
@@ -278,8 +314,18 @@ export default function MySubscriptionSection({ onBack }) {
     };
   }, []);
 
+  const handleClosePaymentSuccessModal = () => {
+    setShowPaymentSuccessModal(false);
+    window.location.reload();
+  };
+
   return (
     <>
+      <PaymentSuccessModal
+        open={showPaymentSuccessModal}
+        onClose={handleClosePaymentSuccessModal}
+      />
+
       <div
         className="rounded-xl border border-slate-200 bg-white overflow-hidden"
         style={{ marginTop: "-18px" }}
