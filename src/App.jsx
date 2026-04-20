@@ -70,12 +70,24 @@ export default function App() {
     if (!payment) return;
 
     if (payment === "success") {
-      setPaymentBanner("Payment successful. Your subscription is updating.");
+      setPaymentBanner("Payment successful. Your subscription is updated.");
       setPaymentBannerType("success");
       setActivePage("dashboard");
+
+      // ✅ ADD THIS HERE
+    setTimeout(() => {
+      setPaymentBanner("");
+    }, 3000);
+
     } else if (payment === "cancel") {
-      setPaymentBanner("Payment was canceled.");
+      setPaymentBanner("Payment Declined.");
       setPaymentBannerType("cancel");
+
+      // ✅ OPTIONAL (same behavior)
+    setTimeout(() => {
+      setPaymentBanner("");
+    }, 3000);
+    
     } else {
       return;
     }
@@ -628,26 +640,31 @@ export default function App() {
       <main className="flex-1 pt-6 pr-0 pb-6 pl-2 bg-white overflow-visible relative">
         <Header onLogout={handleLogout} />
 
-        {paymentBanner ? (
-          <div
-            className={`mx-4 mt-2 mb-2 rounded-lg border px-4 py-3 text-sm font-medium ${
-              paymentBannerType === "success"
-                ? "border-emerald-300 bg-emerald-50 text-emerald-800"
-                : "border-amber-300 bg-amber-50 text-amber-800"
-            }`}
-          >
-            <div className="flex items-center justify-between gap-3">
-              <span>{paymentBanner}</span>
+        {paymentBanner && (
+  <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40">
+    <div className="bg-white rounded-2xl shadow-xl px-6 py-5 w-[360px] text-center animate-fade-in">
+      
+      <div className={`text-lg font-semibold mb-2 ${
+        paymentBannerType === "success"
+          ? "text-emerald-600"
+          : "text-amber-600"
+      }`}>
+        {paymentBannerType === "success" ? "Payment Successful" : "Payment Cancelled"}
+      </div>
 
-              <button
-                onClick={() => setPaymentBanner("")}
-                className="shrink-0 rounded-md border border-current px-2 py-1 text-xs font-semibold opacity-80 hover:opacity-100"
-              >
-                Close
-              </button>
-            </div>
-          </div>
-        ) : null}
+      <div className="text-sm text-gray-600 mb-4">
+        {paymentBanner}
+      </div>
+
+      <button
+        onClick={() => setPaymentBanner("")}
+        className="w-full rounded-lg bg-emerald-600 text-white py-2 font-semibold hover:bg-emerald-700"
+      >
+        Continue
+      </button>
+    </div>
+  </div>
+)}
 
         <AppTopBar
           activePage={activePage}
