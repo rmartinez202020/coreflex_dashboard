@@ -31,6 +31,143 @@ import useWindowDragResize from "./hooks/useWindowDragResize";
 import useDashboardModalsController from "./hooks/useDashboardModalsController";
 import useAlarmLogWindowState from "./hooks/useAlarmLogWindowState";
 
+function PaymentStatusPopup({ open, type, message, onClose }) {
+  if (!open || !message) return null;
+
+  const isSuccess = type === "success";
+
+  return (
+    <>
+      <style>
+        {`
+          @keyframes coreflexPopupFadeIn {
+            0% {
+              opacity: 0;
+              transform: translateY(10px) scale(0.96);
+            }
+            100% {
+              opacity: 1;
+              transform: translateY(0) scale(1);
+            }
+          }
+
+          @keyframes coreflexBackdropFadeIn {
+            0% { opacity: 0; }
+            100% { opacity: 1; }
+          }
+
+          @keyframes coreflexCheckPop {
+            0% {
+              opacity: 0;
+              transform: scale(0.5) rotate(-12deg);
+            }
+            60% {
+              opacity: 1;
+              transform: scale(1.12) rotate(0deg);
+            }
+            100% {
+              opacity: 1;
+              transform: scale(1);
+            }
+          }
+
+          @keyframes coreflexRingPulse {
+            0% {
+              opacity: 0.35;
+              transform: scale(0.9);
+            }
+            100% {
+              opacity: 0;
+              transform: scale(1.35);
+            }
+          }
+        `}
+      </style>
+
+      <div
+        className="fixed inset-0 z-[99999] flex items-center justify-center bg-slate-900/45 px-4"
+        style={{ animation: "coreflexBackdropFadeIn 180ms ease-out" }}
+      >
+        <div
+          className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white px-6 py-5 shadow-2xl"
+          style={{ animation: "coreflexPopupFadeIn 220ms ease-out" }}
+        >
+          <div className="flex justify-center">
+            <div className="relative flex h-16 w-16 items-center justify-center">
+              {isSuccess ? (
+                <>
+                  <div
+                    className="absolute inset-0 rounded-full bg-emerald-200"
+                    style={{ animation: "coreflexRingPulse 900ms ease-out" }}
+                  />
+                  <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-emerald-100 shadow-inner">
+                    <svg
+                      viewBox="0 0 24 24"
+                      className="h-8 w-8 text-emerald-600"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="3"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      style={{ animation: "coreflexCheckPop 320ms ease-out 80ms both" }}
+                    >
+                      <path d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                </>
+              ) : (
+                <div className="relative flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 shadow-inner">
+                  <svg
+                    viewBox="0 0 24 24"
+                    className="h-8 w-8 text-amber-600"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2.6"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                    style={{ animation: "coreflexCheckPop 320ms ease-out 80ms both" }}
+                  >
+                    <path d="M12 8v5" />
+                    <path d="M12 16h.01" />
+                    <circle cx="12" cy="12" r="9" />
+                  </svg>
+                </div>
+              )}
+            </div>
+          </div>
+
+          <div className="mt-4 text-center">
+            <div
+              className={`text-[20px] font-bold ${
+                isSuccess ? "text-emerald-700" : "text-amber-700"
+              }`}
+            >
+              {isSuccess ? "Payment Successful" : "Payment Cancelled"}
+            </div>
+
+            <div className="mt-2 text-[13px] leading-relaxed text-slate-600">
+              {message}
+            </div>
+          </div>
+
+          <div className="mt-5">
+            <button
+              onClick={onClose}
+              className={`w-full rounded-lg px-4 py-2.5 text-[13px] font-semibold text-white transition ${
+                isSuccess
+                  ? "bg-emerald-600 hover:bg-emerald-700"
+                  : "bg-amber-500 hover:bg-amber-600"
+              }`}
+            >
+              Continue
+            </button>
+          </div>
+        </div>
+      </div>
+    </>
+  );
+}
+
 export default function App() {
   const navigate = useNavigate();
   const location = useLocation();
@@ -38,6 +175,7 @@ export default function App() {
   const pathname = String(location.pathname || "").trim();
   const [paymentBanner, setPaymentBanner] = useState("");
   const [paymentBannerType, setPaymentBannerType] = useState("success");
+  const [showPaymentPopup, setShowPaymentPopup] = useState(false);
 
   const isLaunchPage = pathname === "/launchMainDashboard";
   const isLaunchAlarmLog = pathname === "/launchAlarmLog";
@@ -60,7 +198,7 @@ export default function App() {
     setSubPageColor,
   } = usePageNavigation("coreflex_activePage");
 
-  // ✅ payment banner / return from Stripe
+  // ✅ payment popup / return from Stripe
   useEffect(() => {
     const params = new URLSearchParams(location.search);
     const payment = String(params.get("payment") || "")
@@ -69,25 +207,27 @@ export default function App() {
 
     if (!payment) return;
 
+    let timer;
+
     if (payment === "success") {
-      setPaymentBanner("Payment successful. Your subscription is updated.");
+      setPaymentBanner("Your subscription is updating.");
       setPaymentBannerType("success");
+      setShowPaymentPopup(true);
       setActivePage("dashboard");
 
-      // ✅ ADD THIS HERE
-    setTimeout(() => {
-      setPaymentBanner("");
-    }, 3000);
-
+      timer = setTimeout(() => {
+        setShowPaymentPopup(false);
+        setPaymentBanner("");
+      }, 10000);
     } else if (payment === "cancel") {
-      setPaymentBanner("Payment Declined.");
+      setPaymentBanner("Your payment was canceled.");
       setPaymentBannerType("cancel");
+      setShowPaymentPopup(true);
 
-      // ✅ OPTIONAL (same behavior)
-    setTimeout(() => {
-      setPaymentBanner("");
-    }, 3000);
-    
+      timer = setTimeout(() => {
+        setShowPaymentPopup(false);
+        setPaymentBanner("");
+      }, 10000);
     } else {
       return;
     }
@@ -103,6 +243,10 @@ export default function App() {
       },
       { replace: true }
     );
+
+    return () => {
+      if (timer) clearTimeout(timer);
+    };
   }, [location.pathname, location.search, navigate, setActivePage]);
 
   // DEVICE DATA
@@ -620,6 +764,16 @@ export default function App() {
         hideContextMenu();
       }}
     >
+      <PaymentStatusPopup
+        open={showPaymentPopup}
+        type={paymentBannerType}
+        message={paymentBanner}
+        onClose={() => {
+          setShowPaymentPopup(false);
+          setPaymentBanner("");
+        }}
+      />
+
       <SidebarLeft
         isLeftCollapsed={isLeftCollapsed}
         setIsLeftCollapsed={setIsLeftCollapsed}
@@ -639,32 +793,6 @@ export default function App() {
 
       <main className="flex-1 pt-6 pr-0 pb-6 pl-2 bg-white overflow-visible relative">
         <Header onLogout={handleLogout} />
-
-        {paymentBanner && (
-  <div className="fixed inset-0 z-[9999] flex items-center justify-center bg-black/40">
-    <div className="bg-white rounded-2xl shadow-xl px-6 py-5 w-[360px] text-center animate-fade-in">
-      
-      <div className={`text-lg font-semibold mb-2 ${
-        paymentBannerType === "success"
-          ? "text-emerald-600"
-          : "text-amber-600"
-      }`}>
-        {paymentBannerType === "success" ? "Payment Successful" : "Payment Cancelled"}
-      </div>
-
-      <div className="text-sm text-gray-600 mb-4">
-        {paymentBanner}
-      </div>
-
-      <button
-        onClick={() => setPaymentBanner("")}
-        className="w-full rounded-lg bg-emerald-600 text-white py-2 font-semibold hover:bg-emerald-700"
-      >
-        Continue
-      </button>
-    </div>
-  </div>
-)}
 
         <AppTopBar
           activePage={activePage}
