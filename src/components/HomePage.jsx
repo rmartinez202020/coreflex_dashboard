@@ -6,6 +6,7 @@ import BusinessDashboardsReportSection from "./homepagesections/BusinessDashboar
 import TenantUsersPage from "./homepagesections/TenantUsersPage";
 import MySubscriptionSection from "./homepagesections/MySubscriptionSection";
 import BillingAdminSection from "./homepagesections/BillingAdminSection";
+import AdminSubscriptionsSection from "./homepagesections/admin_subscriptions";
 
 // ✅ IMPORTANT: read token the same way the rest of the app does (sessionStorage per-tab)
 import { getToken, parseJwt } from "../utils/authToken";
@@ -109,6 +110,10 @@ export default function HomePage({
   // ✅ NEW: dedicated Billing Admin page state (OWNER ONLY)
   const [showBillingAdminPage, setShowBillingAdminPage] = React.useState(false);
 
+  // ✅ NEW: dedicated Admin Subscriptions page state (OWNER ONLY)
+  const [showAdminSubscriptionsPage, setShowAdminSubscriptionsPage] =
+    React.useState(false);
+
   // ✅ Placeholder rows (later replace with backend API)
   const [zhc1921Rows, setZhc1921Rows] = React.useState([
     {
@@ -178,6 +183,7 @@ export default function HomePage({
       setShowBusinessUsersReportPage(false);
       setShowBusinessDashboardsReportPage(false);
       setShowBillingAdminPage(false);
+      setShowAdminSubscriptionsPage(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlatformOwner, normalizedUser]);
@@ -220,6 +226,12 @@ export default function HomePage({
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [showBillingAdminPage]);
+
+  React.useEffect(() => {
+    if (showAdminSubscriptionsPage) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [showAdminSubscriptionsPage]);
 
   // ✅ Treat “device manager open” like a full-page section
   const isDeviceManagerOpen = isPlatformOwner && !!activeModel;
@@ -300,6 +312,18 @@ export default function HomePage({
       <div className="mt-4 md:mt-6">
         <BillingAdminSection
           onBack={() => setShowBillingAdminPage(false)}
+          ownerEmail={detectedEmail || normalizedUser}
+        />
+      </div>
+    );
+  }
+
+  // ✅ FULL “ADMIN SUBSCRIPTIONS PAGE” VIEW (OWNER ONLY)
+  if (isPlatformOwner && showAdminSubscriptionsPage) {
+    return (
+      <div className="mt-4 md:mt-6">
+        <AdminSubscriptionsSection
+          onBack={() => setShowAdminSubscriptionsPage(false)}
           ownerEmail={detectedEmail || normalizedUser}
         />
       </div>
@@ -449,7 +473,7 @@ export default function HomePage({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <button
               onClick={() => setShowBusinessDashboardsReportPage(true)}
               className="w-full rounded-xl bg-gray-900 text-white px-5 py-4 text-left hover:opacity-90 transition"
@@ -475,6 +499,20 @@ export default function HomePage({
               </div>
               <div className="mt-2 text-xs opacity-90">
                 Click to open users report
+              </div>
+            </button>
+
+            <button
+              onClick={() => setShowAdminSubscriptionsPage(true)}
+              className="w-full rounded-xl bg-indigo-700 text-white px-5 py-4 text-left hover:opacity-90 transition"
+            >
+              <div className="text-lg font-semibold">Admin Subscriptions</div>
+              <div className="text-sm opacity-90">
+                View and modify all user subscriptions, limits, and backend
+                data.
+              </div>
+              <div className="mt-2 text-xs opacity-90">
+                Click to open admin subscriptions
               </div>
             </button>
 
