@@ -463,69 +463,75 @@ export default function HomePage({
 
       {/* ✅ OWNER-ONLY BUSINESS SECTION */}
       {isPlatformOwner && (
-        <div className="mt-10 border-t border-gray-200 pt-6">
-          <div className="flex items-center justify-between mb-4">
-            <h2 className="text-xl font-bold text-gray-800">
+        <div className="mt-8 border-t border-gray-200 pt-5">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-lg font-bold text-gray-800">
               Business Reports (Owner Only)
             </h2>
-            <span className="text-xs text-gray-500">
+            <span className="text-[11px] text-gray-500">
               Owner: {detectedEmail || normalizedUser || "unknown"}
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
             <button
               onClick={() => setShowBusinessDashboardsReportPage(true)}
-              className="w-full rounded-xl bg-gray-900 text-white px-5 py-4 text-left hover:opacity-90 transition"
+              className="w-full rounded-lg bg-gray-900 text-white px-4 py-3 text-left hover:opacity-90 transition min-h-[112px]"
             >
-              <div className="text-lg font-semibold">
+              <div className="text-base font-semibold leading-tight">
                 Business Dashboards Report
               </div>
-              <div className="text-sm opacity-80">
+              <div className="mt-1 text-[13px] leading-snug opacity-80">
                 View all users and dashboards created.
               </div>
-              <div className="mt-2 text-xs opacity-90">
+              <div className="mt-2 text-[11px] opacity-90">
                 Click to open dashboards report
               </div>
             </button>
 
             <button
               onClick={() => setShowBusinessUsersReportPage(true)}
-              className="w-full rounded-xl bg-teal-600 text-white px-5 py-4 text-left hover:opacity-90 transition"
+              className="w-full rounded-lg bg-teal-600 text-white px-4 py-3 text-left hover:opacity-90 transition min-h-[112px]"
             >
-              <div className="text-lg font-semibold">Business Users Report</div>
-              <div className="text-sm opacity-90">
+              <div className="text-base font-semibold leading-tight">
+                Business Users Report
+              </div>
+              <div className="mt-1 text-[13px] leading-snug opacity-90">
                 View total users and account stats.
               </div>
-              <div className="mt-2 text-xs opacity-90">
+              <div className="mt-2 text-[11px] opacity-90">
                 Click to open users report
               </div>
             </button>
 
             <button
               onClick={() => setShowAdminSubscriptionsPage(true)}
-              className="w-full rounded-xl bg-indigo-700 text-white px-5 py-4 text-left hover:opacity-90 transition"
+              className="w-full rounded-lg bg-indigo-700 text-white px-4 py-3 text-left hover:opacity-90 transition min-h-[112px]"
             >
-              <div className="text-lg font-semibold">Admin Subscriptions</div>
-              <div className="text-sm opacity-90">
+              <div className="text-base font-semibold leading-tight">
+                Admin Subscriptions
+              </div>
+              <div className="mt-1 text-[13px] leading-snug opacity-90">
                 View and modify all user subscriptions, limits, and backend
                 data.
               </div>
-              <div className="mt-2 text-xs opacity-90">
+              <div className="mt-2 text-[11px] opacity-90">
                 Click to open admin subscriptions
               </div>
             </button>
 
             <button
               onClick={() => setShowBillingAdminPage(true)}
-              className="w-full rounded-xl bg-emerald-700 text-white px-5 py-4 text-left hover:opacity-90 transition"
+              className="w-full rounded-lg bg-emerald-700 text-white px-4 py-3 text-left hover:opacity-90 transition min-h-[112px]"
             >
-              <div className="text-lg font-semibold">Billing Admin</div>
-              <div className="text-sm opacity-90">
+              <div className="text-base font-semibold leading-tight">
+                Billing Admin
+              </div>
+              <div className="mt-1 text-[13px] leading-snug opacity-90">
                 Manage plans, add-ons, pricing, and Stripe sync as platform
                 owner.
               </div>
-              <div className="mt-2 text-xs opacity-90">
+              <div className="mt-2 text-[11px] opacity-90">
                 Click to open billing admin
               </div>
             </button>
