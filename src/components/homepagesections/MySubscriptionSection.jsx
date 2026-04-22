@@ -383,7 +383,7 @@ export default function MySubscriptionSection({ onBack }) {
             <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
               <div className="text-[10px] text-slate-500">Tenants-Users</div>
               <div className="mt-0.5 text-[13px] font-semibold text-slate-900">
-                {loadingSubscription ? "Loading..." : `+${currentPlanTenantUsersUsed}`}
+                {loadingSubscription ? "Loading..." : currentPlanTenantUsersUsed}
               </div>
             </div>
           </div>
