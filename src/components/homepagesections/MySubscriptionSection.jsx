@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { API_URL } from "../../config/api";
 import { getToken } from "../../utils/authToken";
+import ProceedAgreementModal from "./ProceedAgreementModal";
 import {
   formatMoney,
   getDisplayPrice,
@@ -257,6 +258,8 @@ export default function MySubscriptionSection({ onBack }) {
   } = useMySubscriptionSection();
 
   const [showPaymentSuccessModal, setShowPaymentSuccessModal] = useState(false);
+  const [showAgreementModal, setShowAgreementModal] = useState(false);
+  const [agreementSubmitting, setAgreementSubmitting] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -319,11 +322,69 @@ export default function MySubscriptionSection({ onBack }) {
     window.location.reload();
   };
 
+  const handleOpenAgreementModal = () => {
+    if (checkoutLoading || !effectivePlan) return;
+    setShowAgreementModal(true);
+  };
+
+  const handleCloseAgreementModal = () => {
+    if (agreementSubmitting) return;
+    setShowAgreementModal(false);
+  };
+
+  const handleConfirmAgreement = async () => {
+    try {
+      setAgreementSubmitting(true);
+
+      const token = String(getToken() || "").trim();
+      if (!token) {
+        throw new Error("Missing authentication token.");
+      }
+
+      const payload = {
+        planKey: effectivePlan?.key || selectedPlanKey || currentPlanKey,
+        billingType: billingMode,
+        agreementVersion: "v1",
+        confirmed: true,
+      };
+
+      const response = await fetch(`${API_URL}/billing/agreement/confirm`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(payload),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data?.detail || "Failed to save agreement confirmation.");
+      }
+
+      setShowAgreementModal(false);
+      openProceedToPayment();
+    } catch (err) {
+      console.error("❌ Agreement confirmation failed:", err);
+      alert(err?.message || "Failed to save agreement confirmation.");
+    } finally {
+      setAgreementSubmitting(false);
+    }
+  };
+
   return (
     <>
       <PaymentSuccessModal
         open={showPaymentSuccessModal}
         onClose={handleClosePaymentSuccessModal}
+      />
+
+      <ProceedAgreementModal
+        open={showAgreementModal}
+        onClose={handleCloseAgreementModal}
+        onConfirm={handleConfirmAgreement}
+        loading={agreementSubmitting}
       />
 
       <div
@@ -601,23 +662,25 @@ export default function MySubscriptionSection({ onBack }) {
                     </button>
 
                     <button
-                      onClick={openProceedToPayment}
-                      disabled={checkoutLoading || !effectivePlan}
+                      onClick={handleOpenAgreementModal}
+                      disabled={checkoutLoading || !effectivePlan || agreementSubmitting}
                       className={`rounded-lg px-3 py-2 text-[12px] font-semibold text-white ${
-                        checkoutLoading || !effectivePlan
+                        checkoutLoading || !effectivePlan || agreementSubmitting
                           ? "bg-emerald-400 cursor-wait"
                           : "bg-emerald-600 hover:bg-emerald-700"
                       }`}
                     >
-                      {effectivePlan?.key === "enterprise"
-                        ? "Request Quote"
-                        : "Proceed to Payment"}
+                      {agreementSubmitting
+                        ? "Saving Agreement..."
+                        : effectivePlan?.key === "enterprise"
+                          ? "Request Quote"
+                          : "Proceed to Payment"}
                     </button>
 
                     <div className="text-[10px] leading-snug text-slate-500">
                       {effectivePlan?.key === "enterprise"
                         ? "Enterprise plans should be routed to your custom sales workflow."
-                        : "Click Proceed to Payment to continue on Stripe's secure hosted checkout page."}
+                        : "Click Proceed to Payment to review and accept the agreement before continuing to Stripe's secure hosted checkout page."}
                     </div>
                   </div>
                 </div>
