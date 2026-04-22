@@ -75,7 +75,7 @@ function ActionPlanCard({
 
         <div className="flex items-center justify-between gap-2">
           <span className="text-slate-500">Tenants-Users</span>
-          <span className="font-semibold text-slate-900">{plan.tenantsUsers}</span>
+          <span className="font-semibold text-slate-900">+{plan.tenantsUsers}</span>
         </div>
 
         <div className="flex items-center justify-between gap-2">
@@ -169,7 +169,7 @@ function ComparePlansModal({ open, onClose, plans }) {
                         }`
                       : plan.deviceLimit}
                   </td>
-                  <td className="px-4 py-4">{plan.tenantsUsers}</td>
+                  <td className="px-4 py-4">+{plan.tenantsUsers}</td>
                   <td className="px-4 py-4">{plan.dataHistory}</td>
                   <td className="px-4 py-4">{plan.features}</td>
                   <td className="px-4 py-4">
@@ -383,7 +383,7 @@ export default function MySubscriptionSection({ onBack }) {
             <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
               <div className="text-[10px] text-slate-500">Tenants-Users</div>
               <div className="mt-0.5 text-[13px] font-semibold text-slate-900">
-                {loadingSubscription ? "Loading..." : currentPlanTenantUsersUsed}
+                {loadingSubscription ? "Loading..." : `+${currentPlanTenantUsersUsed}`}
               </div>
             </div>
           </div>
@@ -492,7 +492,7 @@ export default function MySubscriptionSection({ onBack }) {
                       <div>
                         <div className="text-slate-500 text-[10px]">Tenants-Users</div>
                         <div className="font-semibold text-slate-900">
-                          {effectivePlan.tenantsUsers}
+                          +{effectivePlan.tenantsUsers}
                         </div>
                       </div>
                     </div>
