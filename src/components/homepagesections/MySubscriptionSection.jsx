@@ -348,7 +348,7 @@ export default function MySubscriptionSection({ onBack }) {
         confirmed: true,
       };
 
-      const response = await fetch(`${API_URL}/billing/agreement/confirm`, {
+      const response = await fetch(`${API_URL}/subscription-agreements/confirm`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
