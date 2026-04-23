@@ -571,15 +571,19 @@ export default function MySubscriptionSection({ onBack }) {
 
         <div className="px-3 pb-3 pt-1.5">
           {cancellationScheduled && (
-            <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
-              <div className="text-[13px] font-semibold text-amber-900">
-                Subscription cancellation scheduled
-              </div>
-              <div className="mt-1 text-[12px] text-amber-800">
-                Your benefits will expire on {benefitsExpireDisplay}.
-              </div>
-              <div className="mt-1 text-[11px] text-amber-700">
-                Canceled on {canceledOnDisplay}.
+            <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-2">
+              <div className="flex items-center gap-2 overflow-hidden whitespace-nowrap text-ellipsis">
+                <span className="text-[13px] font-semibold text-amber-900">
+                  Subscription cancellation scheduled:
+                </span>
+
+                <span className="text-[12px] text-amber-800">
+                  Benefits expire on {benefitsExpireDisplay}.
+                </span>
+
+                <span className="text-[11px] text-amber-700">
+                  Canceled on {canceledOnDisplay}.
+                </span>
               </div>
             </div>
           )}
