@@ -502,8 +502,13 @@ export function useMySubscriptionSection() {
     (Number.isFinite(chargeablePlanPrice) ? chargeablePlanPrice : 0) +
     addonSubtotal;
 
-  const currentPlanStatus = subscription?.status || "Active";
-  const currentPlanRenewal = formatRenewalDate(subscription?.renewal_date);
+  const cancellationScheduled = Boolean(subscription?.cancel_at_period_end);
+  const currentPlanStatus = cancellationScheduled
+    ? "Canceled"
+    : subscription?.status || subscription?.subscription_status || "Active";
+  const currentPlanRenewal = formatRenewalDate(
+    subscription?.renewal_date || subscription?.current_period_end
+  );
   const currentPlanDevicesUsed = buildDevicesUsedText(
     subscription?.devices_used,
     subscription?.device_limit

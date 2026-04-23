@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../../config/api";
 import { getToken } from "../../utils/authToken";
 import ProceedAgreementModal from "./ProceedAgreementModal";
@@ -9,6 +9,21 @@ import {
   useMySubscriptionSection,
 } from "./useMySubscriptionSection";
 
+function formatDisplayDate(value) {
+  if (!value) return "—";
+  try {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return "—";
+    return d.toLocaleDateString("en-US", {
+      year: "numeric",
+      month: "long",
+      day: "numeric",
+    });
+  } catch (err) {
+    return "—";
+  }
+}
+
 function ActionPlanCard({
   plan,
   isCurrent,
@@ -18,9 +33,9 @@ function ActionPlanCard({
   currentPlanKey,
   onCancelSubscription,
   cancelLoading,
+  cancellationScheduled,
 }) {
   const actionLabel = getPlanActionLabel(plan.key, currentPlanKey);
-
   const displayPrice = getDisplayPrice(plan, billingMode);
 
   return (
@@ -53,6 +68,12 @@ function ActionPlanCard({
           {isCurrent && (
             <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap text-emerald-800">
               Current
+            </span>
+          )}
+
+          {isCurrent && cancellationScheduled && (
+            <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap text-amber-800">
+              Canceled
             </span>
           )}
         </div>
@@ -102,14 +123,20 @@ function ActionPlanCard({
 
             <button
               onClick={onCancelSubscription}
-              disabled={cancelLoading}
+              disabled={cancelLoading || cancellationScheduled}
               className={`flex-1 rounded-lg px-3 py-2 text-[12px] font-semibold transition ${
-                cancelLoading
-                  ? "bg-red-400 text-white cursor-wait"
-                  : "bg-red-600 text-white hover:bg-red-700"
+                cancellationScheduled
+                  ? "bg-amber-100 text-amber-800 border border-amber-300 cursor-default"
+                  : cancelLoading
+                    ? "bg-red-400 text-white cursor-wait"
+                    : "bg-red-600 text-white hover:bg-red-700"
               }`}
             >
-              {cancelLoading ? "Cancelling..." : "Cancel any time"}
+              {cancellationScheduled
+                ? "Cancellation Scheduled"
+                : cancelLoading
+                  ? "Cancelling..."
+                  : "Cancel any time"}
             </button>
           </div>
         ) : (
@@ -285,6 +312,16 @@ export default function MySubscriptionSection({ onBack }) {
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [agreementSubmitting, setAgreementSubmitting] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
+
+  const cancellationScheduled = Boolean(subscription?.cancel_at_period_end);
+  const canceledOnDisplay = useMemo(
+    () => formatDisplayDate(subscription?.updated_at),
+    [subscription?.updated_at]
+  );
+  const benefitsExpireDisplay = useMemo(
+    () => formatDisplayDate(subscription?.renewal_date || currentPlanRenewal),
+    [subscription?.renewal_date, currentPlanRenewal]
+  );
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -478,6 +515,20 @@ export default function MySubscriptionSection({ onBack }) {
         </div>
 
         <div className="px-3 pb-3 pt-1.5">
+          {cancellationScheduled && (
+            <div className="mb-3 rounded-xl border border-amber-300 bg-amber-50 px-4 py-3">
+              <div className="text-[13px] font-semibold text-amber-900">
+                Subscription cancellation scheduled
+              </div>
+              <div className="mt-1 text-[12px] text-amber-800">
+                Your benefits will expire on {benefitsExpireDisplay}.
+              </div>
+              <div className="mt-1 text-[11px] text-amber-700">
+                Canceled on {canceledOnDisplay}.
+              </div>
+            </div>
+          )}
+
           <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-2">
             <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
               <div className="text-[10px] text-slate-500">Plan</div>
@@ -488,15 +539,29 @@ export default function MySubscriptionSection({ onBack }) {
 
             <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
               <div className="text-[10px] text-slate-500">Status</div>
-              <div className="mt-0.5 text-[13px] font-semibold text-emerald-700">
-                {loadingSubscription ? "Loading..." : currentPlanStatus}
+              <div
+                className={`mt-0.5 text-[13px] font-semibold ${
+                  cancellationScheduled ? "text-amber-700" : "text-emerald-700"
+                }`}
+              >
+                {loadingSubscription
+                  ? "Loading..."
+                  : cancellationScheduled
+                    ? "Canceled"
+                    : currentPlanStatus}
               </div>
             </div>
 
             <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
-              <div className="text-[10px] text-slate-500">Renewal</div>
+              <div className="text-[10px] text-slate-500">
+                {cancellationScheduled ? "Benefits Expire" : "Renewal"}
+              </div>
               <div className="mt-0.5 text-[13px] font-semibold text-slate-900">
-                {loadingSubscription ? "Loading..." : currentPlanRenewal}
+                {loadingSubscription
+                  ? "Loading..."
+                  : cancellationScheduled
+                    ? benefitsExpireDisplay
+                    : currentPlanRenewal}
               </div>
             </div>
 
@@ -564,6 +629,7 @@ export default function MySubscriptionSection({ onBack }) {
                   currentPlanKey={currentPlanKey}
                   onCancelSubscription={handleCancelSubscription}
                   cancelLoading={cancelLoading}
+                  cancellationScheduled={cancellationScheduled}
                 />
               ))}
             </div>
