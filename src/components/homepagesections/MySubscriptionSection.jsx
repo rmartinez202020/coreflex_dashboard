@@ -18,6 +18,7 @@ function ActionPlanCard({
   currentPlanKey,
 }) {
   const actionLabel = getPlanActionLabel(plan.key, currentPlanKey);
+
   const displayPrice = getDisplayPrice(plan, billingMode);
 
   return (
@@ -88,19 +89,32 @@ function ActionPlanCard({
       </div>
 
       <div className="mt-4">
-        <button
-          onClick={() => onSelect(plan)}
-          disabled={isCurrent}
-          className={`w-full rounded-lg px-3 py-2 text-[12px] font-semibold transition ${
-            isCurrent
-              ? "bg-emerald-100 text-emerald-800 border border-emerald-300 cursor-default"
-              : isSelected
+        {isCurrent ? (
+          <div className="flex gap-2">
+            <button
+              disabled
+              className="flex-1 rounded-lg px-3 py-2 text-[12px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 cursor-default"
+            >
+              {actionLabel}
+            </button>
+
+            <button className="flex-1 rounded-lg px-3 py-2 text-[12px] font-semibold bg-red-600 text-white hover:bg-red-700 transition">
+              Cancel any time
+            </button>
+          </div>
+        ) : (
+          <button
+            onClick={() => onSelect(plan)}
+            disabled={isCurrent}
+            className={`w-full rounded-lg px-3 py-2 text-[12px] font-semibold transition ${
+              isSelected
                 ? "bg-emerald-700 text-white hover:bg-emerald-800"
                 : "bg-emerald-600 text-white hover:bg-emerald-700"
-          }`}
-        >
-          {actionLabel}
-        </button>
+            }`}
+          >
+            {actionLabel}
+          </button>
+        )}
       </div>
     </div>
   );
