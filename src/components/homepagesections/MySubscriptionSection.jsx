@@ -24,6 +24,122 @@ function formatDisplayDate(value) {
   }
 }
 
+function SmallMessageModal({ open, type = "info", title, message, onClose }) {
+  if (!open) return null;
+
+  const isSuccess = type === "success";
+  const isError = type === "error";
+  const isWarning = type === "warning";
+
+  return (
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/45 px-4">
+      <div className="w-full max-w-sm rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+        <div className="flex items-center justify-center">
+          <div
+            className={`flex h-12 w-12 items-center justify-center rounded-full text-2xl font-bold ${
+              isSuccess
+                ? "bg-emerald-100 text-emerald-700"
+                : isError
+                  ? "bg-red-100 text-red-700"
+                  : isWarning
+                    ? "bg-amber-100 text-amber-700"
+                    : "bg-slate-100 text-slate-700"
+            }`}
+          >
+            {isSuccess ? "✓" : isError ? "!" : isWarning ? "!" : "i"}
+          </div>
+        </div>
+
+        <div className="mt-4 text-center">
+          <div className="text-[18px] font-semibold text-slate-900">
+            {title}
+          </div>
+          <div className="mt-1 text-[13px] leading-relaxed text-slate-600">
+            {message}
+          </div>
+        </div>
+
+        <div className="mt-5">
+          <button
+            onClick={onClose}
+            className={`w-full rounded-lg px-3 py-2 text-[13px] font-semibold text-white ${
+              isError
+                ? "bg-red-600 hover:bg-red-700"
+                : isWarning
+                  ? "bg-amber-600 hover:bg-amber-700"
+                  : "bg-emerald-600 hover:bg-emerald-700"
+            }`}
+          >
+            OK
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ConfirmPopoutModal({
+  open,
+  title,
+  message,
+  confirmText = "OK",
+  cancelText = "Cancel",
+  loading = false,
+  tone = "emerald",
+  onConfirm,
+  onCancel,
+}) {
+  if (!open) return null;
+
+  const isDanger = tone === "danger";
+
+  return (
+    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/45 px-4">
+      <div className="w-full max-w-md rounded-2xl border border-slate-200 bg-white p-5 shadow-2xl">
+        <div className="text-center">
+          <div
+            className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full text-2xl font-bold ${
+              isDanger ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"
+            }`}
+          >
+            ?
+          </div>
+
+          <div className="mt-4 text-[18px] font-semibold text-slate-900">
+            {title}
+          </div>
+
+          <div className="mt-2 text-[13px] leading-relaxed text-slate-600">
+            {message}
+          </div>
+        </div>
+
+        <div className="mt-5 grid grid-cols-2 gap-2">
+          <button
+            onClick={onCancel}
+            disabled={loading}
+            className="rounded-lg border border-slate-300 bg-white px-3 py-2 text-[13px] font-semibold text-slate-900 hover:bg-slate-50 disabled:opacity-60"
+          >
+            {cancelText}
+          </button>
+
+          <button
+            onClick={onConfirm}
+            disabled={loading}
+            className={`rounded-lg px-3 py-2 text-[13px] font-semibold text-white disabled:cursor-wait ${
+              isDanger
+                ? "bg-red-600 hover:bg-red-700 disabled:bg-red-400"
+                : "bg-emerald-600 hover:bg-emerald-700 disabled:bg-emerald-400"
+            }`}
+          >
+            {loading ? "Please wait..." : confirmText}
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function ActionPlanCard({
   plan,
   isCurrent,
@@ -256,33 +372,13 @@ function PaymentSuccessModal({ open, onClose }) {
   if (!open) return null;
 
   return (
-    <div className="fixed inset-0 z-[10000] flex items-center justify-center bg-slate-900/45 px-4">
-      <div className="w-full max-w-sm rounded-2xl border border-emerald-200 bg-white p-5 shadow-2xl">
-        <div className="flex items-center justify-center">
-          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-100 text-emerald-700 text-2xl font-bold">
-            ✓
-          </div>
-        </div>
-
-        <div className="mt-4 text-center">
-          <div className="text-[18px] font-semibold text-slate-900">
-            Payment Successful
-          </div>
-          <div className="mt-1 text-[13px] leading-relaxed text-slate-600">
-            Your subscription is being updated now.
-          </div>
-        </div>
-
-        <div className="mt-5">
-          <button
-            onClick={onClose}
-            className="w-full rounded-lg bg-emerald-600 px-3 py-2 text-[13px] font-semibold text-white hover:bg-emerald-700"
-          >
-            OK
-          </button>
-        </div>
-      </div>
-    </div>
+    <SmallMessageModal
+      open={open}
+      type="success"
+      title="Payment Successful"
+      message="Your subscription is being updated now."
+      onClose={onClose}
+    />
   );
 }
 
@@ -327,6 +423,23 @@ export default function MySubscriptionSection({ onBack }) {
   const [cancelLoading, setCancelLoading] = useState(false);
   const [reactivateLoading, setReactivateLoading] = useState(false);
 
+  const [messageModal, setMessageModal] = useState({
+    open: false,
+    type: "info",
+    title: "",
+    message: "",
+    reloadOnClose: false,
+  });
+
+  const [confirmModal, setConfirmModal] = useState({
+    open: false,
+    mode: "",
+    title: "",
+    message: "",
+    confirmText: "OK",
+    tone: "emerald",
+  });
+
   const cancellationScheduled = Boolean(subscription?.cancel_at_period_end);
   const canceledOnDisplay = useMemo(
     () => formatDisplayDate(subscription?.updated_at),
@@ -336,6 +449,32 @@ export default function MySubscriptionSection({ onBack }) {
     () => formatDisplayDate(subscription?.renewal_date || currentPlanRenewal),
     [subscription?.renewal_date, currentPlanRenewal]
   );
+
+  const showMessage = ({ type = "info", title, message, reloadOnClose = false }) => {
+    setMessageModal({
+      open: true,
+      type,
+      title,
+      message,
+      reloadOnClose,
+    });
+  };
+
+  const closeMessageModal = () => {
+    const shouldReload = messageModal.reloadOnClose;
+
+    setMessageModal({
+      open: false,
+      type: "info",
+      title: "",
+      message: "",
+      reloadOnClose: false,
+    });
+
+    if (shouldReload) {
+      window.location.reload();
+    }
+  };
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -443,19 +582,54 @@ export default function MySubscriptionSection({ onBack }) {
       openProceedToPayment();
     } catch (err) {
       console.error("❌ Agreement confirmation failed:", err);
-      alert(err?.message || "Failed to save agreement confirmation.");
+      showMessage({
+        type: "error",
+        title: "Agreement Failed",
+        message: err?.message || "Failed to save agreement confirmation.",
+      });
     } finally {
       setAgreementSubmitting(false);
     }
   };
 
-  const handleCancelSubscription = async () => {
-    try {
-      const confirmed = window.confirm(
-        "Are you sure you want to cancel your subscription at the end of the current billing period?"
-      );
-      if (!confirmed) return;
+  const handleCancelSubscription = () => {
+    setConfirmModal({
+      open: true,
+      mode: "cancel",
+      title: "Cancel Subscription?",
+      message:
+        "Your subscription will stay active until the end of the current billing period.",
+      confirmText: "Schedule Cancel",
+      tone: "danger",
+    });
+  };
 
+  const handleReactivateSubscription = () => {
+    setConfirmModal({
+      open: true,
+      mode: "reactivate",
+      title: "Reactivate Subscription?",
+      message: "Your subscription will continue renewing normally.",
+      confirmText: "Reactivate",
+      tone: "emerald",
+    });
+  };
+
+  const closeConfirmModal = () => {
+    if (cancelLoading || reactivateLoading) return;
+
+    setConfirmModal({
+      open: false,
+      mode: "",
+      title: "",
+      message: "",
+      confirmText: "OK",
+      tone: "emerald",
+    });
+  };
+
+  const executeCancelSubscription = async () => {
+    try {
       setCancelLoading(true);
 
       const token = String(getToken() || "").trim();
@@ -476,27 +650,32 @@ export default function MySubscriptionSection({ onBack }) {
         throw new Error(data?.detail || "Failed to cancel subscription.");
       }
 
-      alert(
-        data?.message ||
-          "Your subscription is scheduled to cancel at the end of the current billing period."
-      );
+      closeConfirmModal();
 
-      window.location.reload();
+      showMessage({
+        type: "success",
+        title: "Cancellation Scheduled",
+        message:
+          data?.message ||
+          "Your subscription is scheduled to cancel at the end of the current billing period.",
+        reloadOnClose: true,
+      });
     } catch (err) {
       console.error("❌ Cancel subscription failed:", err);
-      alert(err?.message || "Failed to cancel subscription.");
+      closeConfirmModal();
+
+      showMessage({
+        type: "error",
+        title: "Cancellation Failed",
+        message: err?.message || "Failed to cancel subscription.",
+      });
     } finally {
       setCancelLoading(false);
     }
   };
 
-  const handleReactivateSubscription = async () => {
+  const executeReactivateSubscription = async () => {
     try {
-      const confirmed = window.confirm(
-        "Do you want to reactivate this subscription and continue renewing normally?"
-      );
-      if (!confirmed) return;
-
       setReactivateLoading(true);
 
       const token = String(getToken() || "").trim();
@@ -517,17 +696,38 @@ export default function MySubscriptionSection({ onBack }) {
         throw new Error(data?.detail || "Failed to reactivate subscription.");
       }
 
-      alert(
-        data?.message ||
-          "Subscription reactivated successfully. Your plan will continue normally."
-      );
+      closeConfirmModal();
 
-      window.location.reload();
+      showMessage({
+        type: "success",
+        title: "Subscription Reactivated",
+        message:
+          data?.message ||
+          "Subscription reactivated successfully. Your plan will continue normally.",
+        reloadOnClose: true,
+      });
     } catch (err) {
       console.error("❌ Reactivate subscription failed:", err);
-      alert(err?.message || "Failed to reactivate subscription.");
+      closeConfirmModal();
+
+      showMessage({
+        type: "error",
+        title: "Reactivation Failed",
+        message: err?.message || "Failed to reactivate subscription.",
+      });
     } finally {
       setReactivateLoading(false);
+    }
+  };
+
+  const handleConfirmAction = () => {
+    if (confirmModal.mode === "cancel") {
+      executeCancelSubscription();
+      return;
+    }
+
+    if (confirmModal.mode === "reactivate") {
+      executeReactivateSubscription();
     }
   };
 
@@ -536,6 +736,26 @@ export default function MySubscriptionSection({ onBack }) {
       <PaymentSuccessModal
         open={showPaymentSuccessModal}
         onClose={handleClosePaymentSuccessModal}
+      />
+
+      <SmallMessageModal
+        open={messageModal.open}
+        type={messageModal.type}
+        title={messageModal.title}
+        message={messageModal.message}
+        onClose={closeMessageModal}
+      />
+
+      <ConfirmPopoutModal
+        open={confirmModal.open}
+        title={confirmModal.title}
+        message={confirmModal.message}
+        confirmText={confirmModal.confirmText}
+        cancelText="Cancel"
+        tone={confirmModal.tone}
+        loading={cancelLoading || reactivateLoading}
+        onConfirm={handleConfirmAction}
+        onCancel={closeConfirmModal}
       />
 
       <ProceedAgreementModal
