@@ -32,7 +32,9 @@ function ActionPlanCard({
   isSelected,
   currentPlanKey,
   onCancelSubscription,
+  onReactivateSubscription,
   cancelLoading,
+  reactivateLoading,
   cancellationScheduled,
 }) {
   const actionLabel = getPlanActionLabel(plan.key, currentPlanKey);
@@ -115,15 +117,26 @@ function ActionPlanCard({
         {isCurrent ? (
           <div className="flex gap-2">
             <button
-              disabled
-              className="flex-1 rounded-lg px-3 py-2 text-[12px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 cursor-default"
+              onClick={cancellationScheduled ? onReactivateSubscription : undefined}
+              disabled={reactivateLoading || cancelLoading ? true : !cancellationScheduled}
+              className={`flex-1 rounded-lg px-3 py-2 text-[12px] font-semibold transition ${
+                cancellationScheduled
+                  ? reactivateLoading
+                    ? "bg-emerald-400 text-white cursor-wait"
+                    : "bg-emerald-600 text-white hover:bg-emerald-700"
+                  : "bg-emerald-100 text-emerald-800 border border-emerald-300 cursor-default"
+              }`}
             >
-              {actionLabel}
+              {cancellationScheduled
+                ? reactivateLoading
+                  ? "Reactivating..."
+                  : "Reactivate Plan"
+                : actionLabel}
             </button>
 
             <button
               onClick={onCancelSubscription}
-              disabled={cancelLoading || cancellationScheduled}
+              disabled={cancelLoading || reactivateLoading || cancellationScheduled}
               className={`flex-1 rounded-lg px-3 py-2 text-[12px] font-semibold transition ${
                 cancellationScheduled
                   ? "bg-amber-100 text-amber-800 border border-amber-300 cursor-default"
@@ -312,6 +325,7 @@ export default function MySubscriptionSection({ onBack }) {
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [agreementSubmitting, setAgreementSubmitting] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
+  const [reactivateLoading, setReactivateLoading] = useState(false);
 
   const cancellationScheduled = Boolean(subscription?.cancel_at_period_end);
   const canceledOnDisplay = useMemo(
@@ -476,6 +490,47 @@ export default function MySubscriptionSection({ onBack }) {
     }
   };
 
+  const handleReactivateSubscription = async () => {
+    try {
+      const confirmed = window.confirm(
+        "Do you want to reactivate this subscription and continue renewing normally?"
+      );
+      if (!confirmed) return;
+
+      setReactivateLoading(true);
+
+      const token = String(getToken() || "").trim();
+      if (!token) {
+        throw new Error("Missing authentication token.");
+      }
+
+      const response = await fetch(`${API_URL}/billing/reactivate-subscription`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data?.detail || "Failed to reactivate subscription.");
+      }
+
+      alert(
+        data?.message ||
+          "Subscription reactivated successfully. Your plan will continue normally."
+      );
+
+      window.location.reload();
+    } catch (err) {
+      console.error("❌ Reactivate subscription failed:", err);
+      alert(err?.message || "Failed to reactivate subscription.");
+    } finally {
+      setReactivateLoading(false);
+    }
+  };
+
   return (
     <>
       <PaymentSuccessModal
@@ -628,7 +683,9 @@ export default function MySubscriptionSection({ onBack }) {
                   isSelected={selectedPlanKey === plan.key}
                   currentPlanKey={currentPlanKey}
                   onCancelSubscription={handleCancelSubscription}
+                  onReactivateSubscription={handleReactivateSubscription}
                   cancelLoading={cancelLoading}
+                  reactivateLoading={reactivateLoading}
                   cancellationScheduled={cancellationScheduled}
                 />
               ))}
@@ -797,9 +854,17 @@ export default function MySubscriptionSection({ onBack }) {
 
                     <button
                       onClick={handleOpenAgreementModal}
-                      disabled={checkoutLoading || !effectivePlan || agreementSubmitting}
+                      disabled={
+                        checkoutLoading ||
+                        !effectivePlan ||
+                        agreementSubmitting ||
+                        reactivateLoading
+                      }
                       className={`rounded-lg px-3 py-2 text-[12px] font-semibold text-white ${
-                        checkoutLoading || !effectivePlan || agreementSubmitting
+                        checkoutLoading ||
+                        !effectivePlan ||
+                        agreementSubmitting ||
+                        reactivateLoading
                           ? "bg-emerald-400 cursor-wait"
                           : "bg-emerald-600 hover:bg-emerald-700"
                       }`}
