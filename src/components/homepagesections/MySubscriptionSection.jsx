@@ -16,6 +16,8 @@ function ActionPlanCard({
   onSelect,
   isSelected,
   currentPlanKey,
+  onCancelSubscription,
+  cancelLoading,
 }) {
   const actionLabel = getPlanActionLabel(plan.key, currentPlanKey);
 
@@ -98,8 +100,16 @@ function ActionPlanCard({
               {actionLabel}
             </button>
 
-            <button className="flex-1 rounded-lg px-3 py-2 text-[12px] font-semibold bg-red-600 text-white hover:bg-red-700 transition">
-              Cancel any time
+            <button
+              onClick={onCancelSubscription}
+              disabled={cancelLoading}
+              className={`flex-1 rounded-lg px-3 py-2 text-[12px] font-semibold transition ${
+                cancelLoading
+                  ? "bg-red-400 text-white cursor-wait"
+                  : "bg-red-600 text-white hover:bg-red-700"
+              }`}
+            >
+              {cancelLoading ? "Cancelling..." : "Cancel any time"}
             </button>
           </div>
         ) : (
@@ -274,6 +284,7 @@ export default function MySubscriptionSection({ onBack }) {
   const [showPaymentSuccessModal, setShowPaymentSuccessModal] = useState(false);
   const [showAgreementModal, setShowAgreementModal] = useState(false);
   const [agreementSubmitting, setAgreementSubmitting] = useState(false);
+  const [cancelLoading, setCancelLoading] = useState(false);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -384,6 +395,47 @@ export default function MySubscriptionSection({ onBack }) {
       alert(err?.message || "Failed to save agreement confirmation.");
     } finally {
       setAgreementSubmitting(false);
+    }
+  };
+
+  const handleCancelSubscription = async () => {
+    try {
+      const confirmed = window.confirm(
+        "Are you sure you want to cancel your subscription at the end of the current billing period?"
+      );
+      if (!confirmed) return;
+
+      setCancelLoading(true);
+
+      const token = String(getToken() || "").trim();
+      if (!token) {
+        throw new Error("Missing authentication token.");
+      }
+
+      const response = await fetch(`${API_URL}/billing/cancel-subscription`, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(data?.detail || "Failed to cancel subscription.");
+      }
+
+      alert(
+        data?.message ||
+          "Your subscription is scheduled to cancel at the end of the current billing period."
+      );
+
+      window.location.reload();
+    } catch (err) {
+      console.error("❌ Cancel subscription failed:", err);
+      alert(err?.message || "Failed to cancel subscription.");
+    } finally {
+      setCancelLoading(false);
     }
   };
 
@@ -510,6 +562,8 @@ export default function MySubscriptionSection({ onBack }) {
                   onSelect={selectPlan}
                   isSelected={selectedPlanKey === plan.key}
                   currentPlanKey={currentPlanKey}
+                  onCancelSubscription={handleCancelSubscription}
+                  cancelLoading={cancelLoading}
                 />
               ))}
             </div>
