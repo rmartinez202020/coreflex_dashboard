@@ -99,7 +99,9 @@ function ConfirmPopoutModal({
         <div className="text-center">
           <div
             className={`mx-auto flex h-12 w-12 items-center justify-center rounded-full text-2xl font-bold ${
-              isDanger ? "bg-red-100 text-red-700" : "bg-emerald-100 text-emerald-700"
+              isDanger
+                ? "bg-red-100 text-red-700"
+                : "bg-emerald-100 text-emerald-700"
             }`}
           >
             ?
@@ -218,7 +220,9 @@ function ActionPlanCard({
 
         <div className="flex items-center justify-between gap-2">
           <span className="text-slate-500">Tenants-Users</span>
-          <span className="font-semibold text-slate-900">+{plan.tenantsUsers}</span>
+          <span className="font-semibold text-slate-900">
+            +{plan.tenantsUsers}
+          </span>
         </div>
 
         <div className="flex items-center justify-between gap-2">
@@ -313,11 +317,21 @@ function ComparePlansModal({ open, onClose, plans }) {
             <thead className="bg-slate-100 sticky top-0 z-10">
               <tr>
                 <th className="px-4 py-3 text-left font-semibold">Plan</th>
-                <th className="px-4 py-3 text-left font-semibold">Monthly Price</th>
-                <th className="px-4 py-3 text-left font-semibold">One-Time License</th>
-                <th className="px-4 py-3 text-left font-semibold">Device Limit</th>
-                <th className="px-4 py-3 text-left font-semibold">Tenants-Users</th>
-                <th className="px-4 py-3 text-left font-semibold">Data History</th>
+                <th className="px-4 py-3 text-left font-semibold">
+                  Monthly Price
+                </th>
+                <th className="px-4 py-3 text-left font-semibold">
+                  One-Time License
+                </th>
+                <th className="px-4 py-3 text-left font-semibold">
+                  Device Limit
+                </th>
+                <th className="px-4 py-3 text-left font-semibold">
+                  Tenants-Users
+                </th>
+                <th className="px-4 py-3 text-left font-semibold">
+                  Data History
+                </th>
                 <th className="px-4 py-3 text-left font-semibold">Features</th>
                 <th className="px-4 py-3 text-left font-semibold">
                   Annual Updates &amp; Support
@@ -441,10 +455,12 @@ export default function MySubscriptionSection({ onBack }) {
   });
 
   const cancellationScheduled = Boolean(subscription?.cancel_at_period_end);
+
   const canceledOnDisplay = useMemo(
     () => formatDisplayDate(subscription?.updated_at),
     [subscription?.updated_at]
   );
+
   const benefitsExpireDisplay = useMemo(
     () => formatDisplayDate(subscription?.renewal_date || currentPlanRenewal),
     [subscription?.renewal_date, currentPlanRenewal]
@@ -474,6 +490,20 @@ export default function MySubscriptionSection({ onBack }) {
     if (shouldReload) {
       window.location.reload();
     }
+  };
+
+  const handleSelectPlan = (plan) => {
+    if (cancellationScheduled && plan?.key !== currentPlanKey) {
+      showMessage({
+        type: "warning",
+        title: "Reactivate Required",
+        message:
+          "Your subscription is scheduled for cancellation. Please reactivate your current plan before changing to another plan.",
+      });
+      return;
+    }
+
+    selectPlan(plan);
   };
 
   useEffect(() => {
@@ -538,6 +568,16 @@ export default function MySubscriptionSection({ onBack }) {
   };
 
   const handleOpenAgreementModal = () => {
+    if (cancellationScheduled && effectivePlan?.key !== currentPlanKey) {
+      showMessage({
+        type: "warning",
+        title: "Reactivate Required",
+        message:
+          "Your subscription is scheduled for cancellation. Please reactivate your current plan before changing to another plan.",
+      });
+      return;
+    }
+
     if (checkoutLoading || !effectivePlan) return;
     setShowAgreementModal(true);
   };
@@ -903,7 +943,7 @@ export default function MySubscriptionSection({ onBack }) {
                   plan={plan}
                   isCurrent={plan.key === currentPlanKey}
                   billingMode={billingMode}
-                  onSelect={selectPlan}
+                  onSelect={handleSelectPlan}
                   isSelected={selectedPlanKey === plan.key}
                   currentPlanKey={currentPlanKey}
                   onCancelSubscription={handleCancelSubscription}
@@ -941,7 +981,9 @@ export default function MySubscriptionSection({ onBack }) {
                       </div>
 
                       <div>
-                        <div className="text-slate-500 text-[10px]">Base Price</div>
+                        <div className="text-slate-500 text-[10px]">
+                          Base Price
+                        </div>
                         <div className="font-semibold text-slate-900">
                           {isCurrentPlanSelection
                             ? formatMoney(
@@ -966,7 +1008,9 @@ export default function MySubscriptionSection({ onBack }) {
                       </div>
 
                       <div>
-                        <div className="text-slate-500 text-[10px]">Tenants-Users</div>
+                        <div className="text-slate-500 text-[10px]">
+                          Tenants-Users
+                        </div>
                         <div className="font-semibold text-slate-900">
                           +{effectivePlan.tenantsUsers}
                         </div>
