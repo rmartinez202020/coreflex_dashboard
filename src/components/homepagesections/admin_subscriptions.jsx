@@ -9,26 +9,6 @@ function fmtDate(value) {
   return d.toLocaleString();
 }
 
-function toInputDateTimeLocal(value) {
-  if (!value) return "";
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return "";
-  const pad = (n) => String(n).padStart(2, "0");
-  const yyyy = d.getFullYear();
-  const mm = pad(d.getMonth() + 1);
-  const dd = pad(d.getDate());
-  const hh = pad(d.getHours());
-  const mi = pad(d.getMinutes());
-  return `${yyyy}-${mm}-${dd}T${hh}:${mi}`;
-}
-
-function fromInputDateTimeLocal(value) {
-  if (!value) return null;
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return null;
-  return d.toISOString();
-}
-
 function normalizeInt(value, fallback = 0) {
   const n = Number(value);
   if (!Number.isFinite(n)) return fallback;
@@ -73,8 +53,6 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
     plan_key: "free",
     device_limit: 1,
     tenants_users_limit: 1,
-    active_date: "",
-    renewal_date: "",
     is_active: true,
   });
 
@@ -176,8 +154,6 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
       plan_key: row.plan_key || "free",
       device_limit: normalizeInt(row.device_limit, 1),
       tenants_users_limit: normalizeInt(row.tenants_users_limit, 1),
-      active_date: toInputDateTimeLocal(row.active_date),
-      renewal_date: toInputDateTimeLocal(row.renewal_date),
       is_active: !!row.is_active,
     });
   }
@@ -188,8 +164,6 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
       plan_key: "free",
       device_limit: 1,
       tenants_users_limit: 1,
-      active_date: "",
-      renewal_date: "",
       is_active: true,
     });
   }
@@ -204,8 +178,6 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
         plan_key: String(form.plan_key || "free").trim().toLowerCase(),
         device_limit: normalizeInt(form.device_limit, 1),
         tenants_users_limit: normalizeInt(form.tenants_users_limit, 1),
-        active_date: fromInputDateTimeLocal(form.active_date),
-        renewal_date: fromInputDateTimeLocal(form.renewal_date),
         is_active: !!form.is_active,
       };
 
@@ -244,8 +216,6 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
                   payload.plan_key,
                 device_limit: payload.device_limit,
                 tenants_users_limit: payload.tenants_users_limit,
-                active_date: payload.active_date,
-                renewal_date: payload.renewal_date,
                 is_active: payload.is_active,
                 status: payload.is_active ? "Active" : "Inactive",
               }
@@ -279,8 +249,7 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
               Admin Subscriptions
             </h1>
             <p className="mt-2 text-sm text-slate-200">
-              View live backend subscription rows and edit plan, limits, dates,
-              and active status.
+              View live backend subscription rows and edit plan, limits, and active status.
             </p>
           </div>
 
@@ -514,7 +483,7 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
                                 </div>
 
                                 <div className="text-xs text-slate-500">
-                                  Edit backend row directly
+                                  Dates are synced from Stripe billing
                                 </div>
                               </div>
 
@@ -581,34 +550,24 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
                                   <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
                                     Active Date
                                   </label>
-                                  <input
-                                    type="datetime-local"
-                                    value={form.active_date}
-                                    onChange={(e) =>
-                                      setForm((prev) => ({
-                                        ...prev,
-                                        active_date: e.target.value,
-                                      }))
-                                    }
-                                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-slate-500"
-                                  />
+                                  <div className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm text-slate-600">
+                                    {fmtDate(row.active_date)}
+                                  </div>
+                                  <div className="mt-1 text-[11px] text-slate-500">
+                                    Read-only. This date is managed by Stripe/backend sync.
+                                  </div>
                                 </div>
 
                                 <div>
                                   <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
                                     Renewal Date
                                   </label>
-                                  <input
-                                    type="datetime-local"
-                                    value={form.renewal_date}
-                                    onChange={(e) =>
-                                      setForm((prev) => ({
-                                        ...prev,
-                                        renewal_date: e.target.value,
-                                      }))
-                                    }
-                                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-slate-500"
-                                  />
+                                  <div className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm text-slate-600">
+                                    {fmtDate(row.renewal_date)}
+                                  </div>
+                                  <div className="mt-1 text-[11px] text-slate-500">
+                                    Read-only. Changing this in CoreFlex does not trigger Stripe billing.
+                                  </div>
                                 </div>
 
                                 <div className="flex items-end">
