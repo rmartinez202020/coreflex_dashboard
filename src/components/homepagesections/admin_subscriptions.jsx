@@ -261,44 +261,54 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
         </div>
       </div>
 
-      <div className="mt-4 grid grid-cols-1 md:grid-cols-5 gap-4">
-        <div className={`rounded-2xl border p-4 shadow-sm ${statTileClass("default")}`}>
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+      <div className="mt-3 grid grid-cols-1 md:grid-cols-5 gap-2">
+        <div className={`rounded-xl border px-3 py-2 shadow-sm ${statTileClass("default")}`}>
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
             Total Users
           </div>
-          <div className="mt-2 text-3xl font-bold text-slate-800">{stats.total}</div>
+          <div className="mt-1 text-[22px] font-bold leading-tight text-slate-800">
+            {stats.total}
+          </div>
         </div>
 
-        <div className={`rounded-2xl border p-4 shadow-sm ${statTileClass("good")}`}>
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <div className={`rounded-xl border px-3 py-2 shadow-sm ${statTileClass("good")}`}>
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
             Active
           </div>
-          <div className="mt-2 text-3xl font-bold text-slate-800">{stats.active}</div>
+          <div className="mt-1 text-[22px] font-bold leading-tight text-slate-800">
+            {stats.active}
+          </div>
         </div>
 
-        <div className={`rounded-2xl border p-4 shadow-sm ${statTileClass("warn")}`}>
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <div className={`rounded-xl border px-3 py-2 shadow-sm ${statTileClass("warn")}`}>
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
             Inactive
           </div>
-          <div className="mt-2 text-3xl font-bold text-slate-800">{stats.inactive}</div>
+          <div className="mt-1 text-[22px] font-bold leading-tight text-slate-800">
+            {stats.inactive}
+          </div>
         </div>
 
-        <div className={`rounded-2xl border p-4 shadow-sm ${statTileClass("bad")}`}>
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <div className={`rounded-xl border px-3 py-2 shadow-sm ${statTileClass("bad")}`}>
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
             Over Device Limit
           </div>
-          <div className="mt-2 text-3xl font-bold text-slate-800">{stats.overDevice}</div>
+          <div className="mt-1 text-[22px] font-bold leading-tight text-slate-800">
+            {stats.overDevice}
+          </div>
         </div>
 
-        <div className={`rounded-2xl border p-4 shadow-sm ${statTileClass("bad")}`}>
-          <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+        <div className={`rounded-xl border px-3 py-2 shadow-sm ${statTileClass("bad")}`}>
+          <div className="text-[10px] font-semibold uppercase tracking-wide text-slate-500">
             Over Tenant Limit
           </div>
-          <div className="mt-2 text-3xl font-bold text-slate-800">{stats.overTenant}</div>
+          <div className="mt-1 text-[22px] font-bold leading-tight text-slate-800">
+            {stats.overTenant}
+          </div>
         </div>
       </div>
 
-      <div className="mt-6 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+      <div className="mt-4 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
         <div className="flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
           <div>
             <h2 className="text-2xl font-bold text-slate-900">
