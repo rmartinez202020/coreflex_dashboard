@@ -44,7 +44,6 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
   const [form, setForm] = useState({
     device_limit: 1,
     tenants_users_limit: 1,
-    is_active: true,
   });
 
   const token = getToken();
@@ -144,7 +143,6 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
     setForm({
       device_limit: normalizeInt(row.device_limit, 1),
       tenants_users_limit: normalizeInt(row.tenants_users_limit, 1),
-      is_active: !!row.is_active,
     });
   }
 
@@ -153,7 +151,6 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
     setForm({
       device_limit: 1,
       tenants_users_limit: 1,
-      is_active: true,
     });
   }
 
@@ -166,7 +163,6 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
       const payload = {
         device_limit: normalizeInt(form.device_limit, 1),
         tenants_users_limit: normalizeInt(form.tenants_users_limit, 1),
-        is_active: !!form.is_active,
       };
 
       let res = await fetch(`${API_URL}/admin/subscriptions/${userId}`, {
@@ -200,8 +196,6 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
                 ...row,
                 device_limit: payload.device_limit,
                 tenants_users_limit: payload.tenants_users_limit,
-                is_active: payload.is_active,
-                status: payload.is_active ? "Active" : "Inactive",
               }
             : row
         )
@@ -234,7 +228,7 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
                 Admin Subscriptions
               </h1>
               <p className="mt-0.5 text-[11px] leading-tight text-slate-200">
-                View live backend subscription rows and edit limits and active status.
+                View live backend subscription rows and edit device/tenant limits.
               </p>
             </div>
           </div>
@@ -480,7 +474,7 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
                                   </div>
 
                                   <div className="text-xs text-slate-500">
-                                    Plan and dates are synced from Stripe billing
+                                    Plan, dates, and status are synced from Stripe billing
                                   </div>
                                 </div>
 
@@ -557,21 +551,16 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
                                     </div>
                                   </div>
 
-                                  <div className="flex items-end">
-                                    <label className="flex w-full items-center gap-3 rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-700">
-                                      <input
-                                        type="checkbox"
-                                        checked={!!form.is_active}
-                                        onChange={(e) =>
-                                          setForm((prev) => ({
-                                            ...prev,
-                                            is_active: e.target.checked,
-                                          }))
-                                        }
-                                        className="h-4 w-4"
-                                      />
-                                      Active Subscription
+                                  <div>
+                                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                      Status
                                     </label>
+                                    <div className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm text-slate-700">
+                                      {row.is_active ? "Active" : "Inactive"}
+                                    </div>
+                                    <div className="mt-1 text-[11px] text-slate-500">
+                                      Read-only. Status is managed by Stripe/backend sync.
+                                    </div>
                                   </div>
                                 </div>
 
