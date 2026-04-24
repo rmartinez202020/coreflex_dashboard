@@ -155,13 +155,14 @@ function ActionPlanCard({
   reactivateLoading,
   cancellationScheduled,
 }) {
+  const isEnterprise = plan?.key === "enterprise";
   const actionLabel = getPlanActionLabel(plan.key, currentPlanKey);
   const displayPrice = getDisplayPrice(plan, billingMode);
 
   return (
     <div
       className={`rounded-xl border bg-white px-3 py-3 shadow-sm transition flex flex-col ${
-        isSelected
+        isSelected && !isEnterprise
           ? "border-emerald-500 ring-2 ring-emerald-200"
           : isCurrent
             ? "border-emerald-300"
@@ -276,15 +277,17 @@ function ActionPlanCard({
           </div>
         ) : (
           <button
-            onClick={() => onSelect(plan)}
-            disabled={isCurrent}
+            onClick={isEnterprise ? undefined : () => onSelect(plan)}
+            disabled={isEnterprise}
             className={`w-full rounded-lg px-3 py-2 text-[12px] font-semibold transition ${
-              isSelected
-                ? "bg-emerald-700 text-white hover:bg-emerald-800"
-                : "bg-emerald-600 text-white hover:bg-emerald-700"
+              isEnterprise
+                ? "bg-slate-300 text-slate-600 cursor-not-allowed"
+                : isSelected
+                  ? "bg-emerald-700 text-white hover:bg-emerald-800"
+                  : "bg-emerald-600 text-white hover:bg-emerald-700"
             }`}
           >
-            {actionLabel}
+            {isEnterprise ? "Contact Sales" : actionLabel}
           </button>
         )}
       </div>
@@ -521,6 +524,10 @@ export default function MySubscriptionSection({ onBack }) {
   };
 
   const handleSelectPlan = (plan) => {
+    if (plan?.key === "enterprise") {
+      return;
+    }
+
     if (cancellationScheduled && plan?.key !== currentPlanKey) {
       showMessage({
         type: "warning",
