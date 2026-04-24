@@ -473,6 +473,10 @@ export default function MySubscriptionSection({ onBack }) {
     currentPlanKey,
   ]);
 
+  const shouldShowPlanChargeLine = useMemo(() => {
+    return Boolean(effectivePlan) && !isCurrentPlanSelection;
+  }, [effectivePlan, isCurrentPlanSelection]);
+
   const canceledOnDisplay = useMemo(
     () => formatDisplayDate(subscription?.updated_at),
     [subscription?.updated_at]
@@ -908,7 +912,7 @@ export default function MySubscriptionSection({ onBack }) {
                       Purchase Additional Tenant-Users
                     </div>
                     <div className="mt-1 text-[11px] leading-snug text-slate-500">
-                      Add more tenant-user seats to your current subscription.
+                      Add more tenant-user seats to your current account.
                     </div>
                   </div>
 
@@ -920,8 +924,7 @@ export default function MySubscriptionSection({ onBack }) {
                             Additional Tenant-User
                           </div>
                           <div className="mt-0.5 text-[11px] text-slate-500">
-                            Select how many additional tenant-user slots you want
-                            to purchase.
+                            Select how many you want to purchase.
                           </div>
                         </div>
 
@@ -955,12 +958,11 @@ export default function MySubscriptionSection({ onBack }) {
                   </div>
 
                   <div className="mt-3 space-y-2 text-[12px]">
-                    {effectivePlan ? (
+                    {shouldShowPlanChargeLine && (
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-slate-500">
                           {effectivePlan.name}{" "}
                           {billingMode === "monthly" ? "(Monthly)" : "(One-Time)"}
-                          {isCurrentPlanSelection ? " - Current Plan" : ""}
                         </span>
                         <span className="font-semibold text-slate-900">
                           {effectivePlan.key === "enterprise"
@@ -968,7 +970,7 @@ export default function MySubscriptionSection({ onBack }) {
                             : formatMoney(chargeablePlanPrice || 0)}
                         </span>
                       </div>
-                    ) : null}
+                    )}
 
                     {addonTenantUsersQty > 0 && (
                       <div className="flex items-center justify-between gap-3">
