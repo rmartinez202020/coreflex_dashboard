@@ -31,14 +31,6 @@ function statTileClass(kind) {
   return "border-slate-200 bg-white";
 }
 
-const PLAN_OPTIONS = [
-  { value: "free", label: "Free" },
-  { value: "starter", label: "Starter" },
-  { value: "professional", label: "Professional" },
-  { value: "industrial", label: "Industrial" },
-  { value: "enterprise", label: "Enterprise" },
-];
-
 export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -50,7 +42,6 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
   const [statusFilter, setStatusFilter] = useState("all");
   const [editingUserId, setEditingUserId] = useState(null);
   const [form, setForm] = useState({
-    plan_key: "free",
     device_limit: 1,
     tenants_users_limit: 1,
     is_active: true,
@@ -151,7 +142,6 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
     setSuccessMessage("");
     setError("");
     setForm({
-      plan_key: row.plan_key || "free",
       device_limit: normalizeInt(row.device_limit, 1),
       tenants_users_limit: normalizeInt(row.tenants_users_limit, 1),
       is_active: !!row.is_active,
@@ -161,7 +151,6 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
   function cancelEdit() {
     setEditingUserId(null);
     setForm({
-      plan_key: "free",
       device_limit: 1,
       tenants_users_limit: 1,
       is_active: true,
@@ -175,7 +164,6 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
       setSuccessMessage("");
 
       const payload = {
-        plan_key: String(form.plan_key || "free").trim().toLowerCase(),
         device_limit: normalizeInt(form.device_limit, 1),
         tenants_users_limit: normalizeInt(form.tenants_users_limit, 1),
         is_active: !!form.is_active,
@@ -210,10 +198,6 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
           row.user_id === userId
             ? {
                 ...row,
-                plan_key: payload.plan_key,
-                plan_label:
-                  PLAN_OPTIONS.find((p) => p.value === payload.plan_key)?.label ||
-                  payload.plan_key,
                 device_limit: payload.device_limit,
                 tenants_users_limit: payload.tenants_users_limit,
                 is_active: payload.is_active,
@@ -250,7 +234,7 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
                 Admin Subscriptions
               </h1>
               <p className="mt-0.5 text-[11px] leading-tight text-slate-200">
-                View live backend subscription rows and edit plan, limits, and active status.
+                View live backend subscription rows and edit limits and active status.
               </p>
             </div>
           </div>
@@ -496,7 +480,7 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
                                   </div>
 
                                   <div className="text-xs text-slate-500">
-                                    Dates are synced from Stripe billing
+                                    Plan and dates are synced from Stripe billing
                                   </div>
                                 </div>
 
@@ -505,22 +489,12 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
                                     <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
                                       Plan
                                     </label>
-                                    <select
-                                      value={form.plan_key}
-                                      onChange={(e) =>
-                                        setForm((prev) => ({
-                                          ...prev,
-                                          plan_key: e.target.value,
-                                        }))
-                                      }
-                                      className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-slate-500"
-                                    >
-                                      {PLAN_OPTIONS.map((opt) => (
-                                        <option key={opt.value} value={opt.value}>
-                                          {opt.label}
-                                        </option>
-                                      ))}
-                                    </select>
+                                    <div className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm text-slate-700">
+                                      {row.plan_label || row.plan_key || "Free"}
+                                    </div>
+                                    <div className="mt-1 text-[11px] text-slate-500">
+                                      Read-only. Plan changes must be handled through Stripe checkout/subscription flow.
+                                    </div>
                                   </div>
 
                                   <div>
