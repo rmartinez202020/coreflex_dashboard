@@ -456,6 +456,23 @@ export default function MySubscriptionSection({ onBack }) {
 
   const cancellationScheduled = Boolean(subscription?.cancel_at_period_end);
 
+  const isTenantUsersOnlyCheckout = useMemo(() => {
+    return (
+      Boolean(isCurrentPlanSelection) &&
+      Number(addonTenantUsersQty || 0) > 0 &&
+      Number(addonSubtotal || 0) > 0 &&
+      Number(chargeablePlanPrice || 0) <= 0 &&
+      effectivePlan?.key === currentPlanKey
+    );
+  }, [
+    isCurrentPlanSelection,
+    addonTenantUsersQty,
+    addonSubtotal,
+    chargeablePlanPrice,
+    effectivePlan?.key,
+    currentPlanKey,
+  ]);
+
   const canceledOnDisplay = useMemo(
     () => formatDisplayDate(subscription?.updated_at),
     [subscription?.updated_at]
@@ -579,6 +596,12 @@ export default function MySubscriptionSection({ onBack }) {
     }
 
     if (checkoutLoading || !effectivePlan) return;
+
+    if (isTenantUsersOnlyCheckout) {
+      openProceedToPayment();
+      return;
+    }
+
     setShowAgreementModal(true);
   };
 
@@ -1141,14 +1164,30 @@ export default function MySubscriptionSection({ onBack }) {
                         ? "Saving Agreement..."
                         : effectivePlan?.key === "enterprise"
                           ? "Request Quote"
-                          : "Proceed to Payment"}
+                          : isTenantUsersOnlyCheckout
+                            ? "Continue to Stripe"
+                            : "Proceed to Payment"}
                     </button>
 
                     <div className="text-[10px] leading-snug text-slate-500">
                       {effectivePlan?.key === "enterprise"
                         ? "Enterprise plans should be routed to your custom sales workflow."
-                        : "Click Proceed to Payment to review and accept the agreement before continuing to Stripe's secure hosted checkout page."}
+                        : isTenantUsersOnlyCheckout
+                          ? "Tenant-user add-ons for your current plan go directly to Stripe's secure hosted checkout page."
+                          : "Click Proceed to Payment to review and accept the agreement before continuing to Stripe's secure hosted checkout page."}
                     </div>
+
+                    {checkoutMessage && (
+                      <div className="text-[10px] leading-snug text-slate-500">
+                        {checkoutMessage}
+                      </div>
+                    )}
+
+                    {subscriptionError && (
+                      <div className="text-[10px] leading-snug text-red-600">
+                        {subscriptionError}
+                      </div>
+                    )}
                   </div>
                 </div>
               </div>
