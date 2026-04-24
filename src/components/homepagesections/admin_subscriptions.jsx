@@ -360,273 +360,275 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
           </div>
         ) : null}
 
-        <div className="mt-5 overflow-x-auto rounded-2xl border border-slate-200">
-          <table className="min-w-[1500px] w-full">
-            <thead className="bg-slate-800 text-white">
-              <tr className="text-left text-sm">
-                <th className="px-4 py-3 font-semibold">User ID</th>
-                <th className="px-4 py-3 font-semibold">Name</th>
-                <th className="px-4 py-3 font-semibold">Email</th>
-                <th className="px-4 py-3 font-semibold">Company</th>
-                <th className="px-4 py-3 font-semibold">Plan</th>
-                <th className="px-4 py-3 font-semibold">Device Limit</th>
-                <th className="px-4 py-3 font-semibold">Devices Used</th>
-                <th className="px-4 py-3 font-semibold">Tenant Limit</th>
-                <th className="px-4 py-3 font-semibold">Tenant Used</th>
-                <th className="px-4 py-3 font-semibold">Active Date</th>
-                <th className="px-4 py-3 font-semibold">Renewal Date</th>
-                <th className="px-4 py-3 font-semibold">Status</th>
-                <th className="px-4 py-3 font-semibold text-right">Actions</th>
-              </tr>
-            </thead>
-
-            <tbody className="divide-y divide-slate-200 bg-white">
-              {loading ? (
-                <tr>
-                  <td colSpan={13} className="px-4 py-10 text-center text-slate-500">
-                    Loading subscriptions...
-                  </td>
+        <div className="mt-5 rounded-2xl border border-slate-200 overflow-hidden">
+          <div className="max-h-[320px] overflow-y-auto overflow-x-auto">
+            <table className="min-w-[1500px] w-full">
+              <thead className="sticky top-0 z-10 bg-slate-800 text-white">
+                <tr className="text-left text-sm">
+                  <th className="px-4 py-3 font-semibold">User ID</th>
+                  <th className="px-4 py-3 font-semibold">Name</th>
+                  <th className="px-4 py-3 font-semibold">Email</th>
+                  <th className="px-4 py-3 font-semibold">Company</th>
+                  <th className="px-4 py-3 font-semibold">Plan</th>
+                  <th className="px-4 py-3 font-semibold">Device Limit</th>
+                  <th className="px-4 py-3 font-semibold">Devices Used</th>
+                  <th className="px-4 py-3 font-semibold">Tenant Limit</th>
+                  <th className="px-4 py-3 font-semibold">Tenant Used</th>
+                  <th className="px-4 py-3 font-semibold">Active Date</th>
+                  <th className="px-4 py-3 font-semibold">Renewal Date</th>
+                  <th className="px-4 py-3 font-semibold">Status</th>
+                  <th className="px-4 py-3 font-semibold text-right">Actions</th>
                 </tr>
-              ) : filteredRows.length === 0 ? (
-                <tr>
-                  <td colSpan={13} className="px-4 py-10 text-center text-slate-500">
-                    No subscriptions found.
-                  </td>
-                </tr>
-              ) : (
-                filteredRows.map((row) => {
-                  const isEditing = editingUserId === row.user_id;
-                  const overDevice = !!row.device_over_limit;
-                  const overTenant = !!row.tenant_users_over_limit;
+              </thead>
 
-                  return (
-                    <React.Fragment key={row.user_id}>
-                      <tr className="align-top text-sm hover:bg-slate-50">
-                        <td className="px-4 py-3 font-semibold text-slate-900">
-                          {row.user_id}
-                        </td>
-                        <td className="px-4 py-3 text-slate-800">
-                          {row.name || "—"}
-                        </td>
-                        <td className="px-4 py-3 text-slate-700">
-                          {row.email || "—"}
-                        </td>
-                        <td className="px-4 py-3 text-slate-700">
-                          {row.company || "—"}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${planBadgeClass(
-                              row.plan_key
-                            )}`}
-                          >
-                            {row.plan_label || row.plan_key || "Free"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-slate-800">
-                          {row.device_limit ?? 0}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={
-                              overDevice
-                                ? "font-semibold text-red-600"
-                                : "text-slate-800"
-                            }
-                          >
-                            {row.devices_used ?? 0}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-slate-800">
-                          {row.tenants_users_limit ?? 0}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={
-                              overTenant
-                                ? "font-semibold text-red-600"
-                                : "text-slate-800"
-                            }
-                          >
-                            {row.tenant_users_used ?? 0}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3 text-slate-700">
-                          {fmtDate(row.active_date)}
-                        </td>
-                        <td className="px-4 py-3 text-slate-700">
-                          {fmtDate(row.renewal_date)}
-                        </td>
-                        <td className="px-4 py-3">
-                          <span
-                            className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
-                              row.is_active
-                                ? "bg-emerald-100 text-emerald-700"
-                                : "bg-slate-200 text-slate-700"
-                            }`}
-                          >
-                            {row.is_active ? "Active" : "Inactive"}
-                          </span>
-                        </td>
-                        <td className="px-4 py-3">
-                          <div className="flex items-center justify-end gap-2">
-                            <button
-                              onClick={() => startEdit(row)}
-                              className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 transition"
+              <tbody className="divide-y divide-slate-200 bg-white">
+                {loading ? (
+                  <tr>
+                    <td colSpan={13} className="px-4 py-10 text-center text-slate-500">
+                      Loading subscriptions...
+                    </td>
+                  </tr>
+                ) : filteredRows.length === 0 ? (
+                  <tr>
+                    <td colSpan={13} className="px-4 py-10 text-center text-slate-500">
+                      No subscriptions found.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredRows.map((row) => {
+                    const isEditing = editingUserId === row.user_id;
+                    const overDevice = !!row.device_over_limit;
+                    const overTenant = !!row.tenant_users_over_limit;
+
+                    return (
+                      <React.Fragment key={row.user_id}>
+                        <tr className="align-top text-sm hover:bg-slate-50">
+                          <td className="px-4 py-3 font-semibold text-slate-900">
+                            {row.user_id}
+                          </td>
+                          <td className="px-4 py-3 text-slate-800">
+                            {row.name || "—"}
+                          </td>
+                          <td className="px-4 py-3 text-slate-700">
+                            {row.email || "—"}
+                          </td>
+                          <td className="px-4 py-3 text-slate-700">
+                            {row.company || "—"}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`inline-flex rounded-full border px-2.5 py-1 text-xs font-semibold ${planBadgeClass(
+                                row.plan_key
+                              )}`}
                             >
-                              Edit
-                            </button>
-                          </div>
-                        </td>
-                      </tr>
-
-                      {isEditing ? (
-                        <tr>
-                          <td colSpan={13} className="bg-slate-50 px-4 py-4">
-                            <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
-                              <div className="mb-4 flex items-center justify-between gap-3">
-                                <div>
-                                  <div className="text-lg font-bold text-slate-900">
-                                    Edit Subscription — User {row.user_id}
-                                  </div>
-                                  <div className="text-sm text-slate-600">
-                                    {row.name || "Unknown user"} • {row.email || "No email"}
-                                  </div>
-                                </div>
-
-                                <div className="text-xs text-slate-500">
-                                  Dates are synced from Stripe billing
-                                </div>
-                              </div>
-
-                              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
-                                <div>
-                                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                    Plan
-                                  </label>
-                                  <select
-                                    value={form.plan_key}
-                                    onChange={(e) =>
-                                      setForm((prev) => ({
-                                        ...prev,
-                                        plan_key: e.target.value,
-                                      }))
-                                    }
-                                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-slate-500"
-                                  >
-                                    {PLAN_OPTIONS.map((opt) => (
-                                      <option key={opt.value} value={opt.value}>
-                                        {opt.label}
-                                      </option>
-                                    ))}
-                                  </select>
-                                </div>
-
-                                <div>
-                                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                    Device Limit
-                                  </label>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={form.device_limit}
-                                    onChange={(e) =>
-                                      setForm((prev) => ({
-                                        ...prev,
-                                        device_limit: e.target.value,
-                                      }))
-                                    }
-                                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-slate-500"
-                                  />
-                                </div>
-
-                                <div>
-                                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                    Tenant Users Limit
-                                  </label>
-                                  <input
-                                    type="number"
-                                    min="0"
-                                    value={form.tenants_users_limit}
-                                    onChange={(e) =>
-                                      setForm((prev) => ({
-                                        ...prev,
-                                        tenants_users_limit: e.target.value,
-                                      }))
-                                    }
-                                    className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-slate-500"
-                                  />
-                                </div>
-
-                                <div>
-                                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                    Active Date
-                                  </label>
-                                  <div className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm text-slate-600">
-                                    {fmtDate(row.active_date)}
-                                  </div>
-                                  <div className="mt-1 text-[11px] text-slate-500">
-                                    Read-only. This date is managed by Stripe/backend sync.
-                                  </div>
-                                </div>
-
-                                <div>
-                                  <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
-                                    Renewal Date
-                                  </label>
-                                  <div className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm text-slate-600">
-                                    {fmtDate(row.renewal_date)}
-                                  </div>
-                                  <div className="mt-1 text-[11px] text-slate-500">
-                                    Read-only. Changing this in CoreFlex does not trigger Stripe billing.
-                                  </div>
-                                </div>
-
-                                <div className="flex items-end">
-                                  <label className="flex w-full items-center gap-3 rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-700">
-                                    <input
-                                      type="checkbox"
-                                      checked={!!form.is_active}
-                                      onChange={(e) =>
-                                        setForm((prev) => ({
-                                          ...prev,
-                                          is_active: e.target.checked,
-                                        }))
-                                      }
-                                      className="h-4 w-4"
-                                    />
-                                    Active Subscription
-                                  </label>
-                                </div>
-                              </div>
-
-                              <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
-                                <button
-                                  onClick={cancelEdit}
-                                  disabled={saving}
-                                  className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 transition"
-                                >
-                                  Cancel
-                                </button>
-
-                                <button
-                                  onClick={() => saveEdit(row.user_id)}
-                                  disabled={saving}
-                                  className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 transition"
-                                >
-                                  {saving ? "Saving..." : "Save"}
-                                </button>
-                              </div>
+                              {row.plan_label || row.plan_key || "Free"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-slate-800">
+                            {row.device_limit ?? 0}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={
+                                overDevice
+                                  ? "font-semibold text-red-600"
+                                  : "text-slate-800"
+                              }
+                            >
+                              {row.devices_used ?? 0}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-slate-800">
+                            {row.tenants_users_limit ?? 0}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={
+                                overTenant
+                                  ? "font-semibold text-red-600"
+                                  : "text-slate-800"
+                              }
+                            >
+                              {row.tenant_users_used ?? 0}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3 text-slate-700">
+                            {fmtDate(row.active_date)}
+                          </td>
+                          <td className="px-4 py-3 text-slate-700">
+                            {fmtDate(row.renewal_date)}
+                          </td>
+                          <td className="px-4 py-3">
+                            <span
+                              className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${
+                                row.is_active
+                                  ? "bg-emerald-100 text-emerald-700"
+                                  : "bg-slate-200 text-slate-700"
+                              }`}
+                            >
+                              {row.is_active ? "Active" : "Inactive"}
+                            </span>
+                          </td>
+                          <td className="px-4 py-3">
+                            <div className="flex items-center justify-end gap-2">
+                              <button
+                                onClick={() => startEdit(row)}
+                                className="rounded-lg bg-indigo-600 px-3 py-2 text-xs font-semibold text-white hover:bg-indigo-700 transition"
+                              >
+                                Edit
+                              </button>
                             </div>
                           </td>
                         </tr>
-                      ) : null}
-                    </React.Fragment>
-                  );
-                })
-              )}
-            </tbody>
-          </table>
+
+                        {isEditing ? (
+                          <tr>
+                            <td colSpan={13} className="bg-slate-50 px-4 py-4">
+                              <div className="rounded-2xl border border-slate-200 bg-white p-4 shadow-sm">
+                                <div className="mb-4 flex items-center justify-between gap-3">
+                                  <div>
+                                    <div className="text-lg font-bold text-slate-900">
+                                      Edit Subscription — User {row.user_id}
+                                    </div>
+                                    <div className="text-sm text-slate-600">
+                                      {row.name || "Unknown user"} • {row.email || "No email"}
+                                    </div>
+                                  </div>
+
+                                  <div className="text-xs text-slate-500">
+                                    Dates are synced from Stripe billing
+                                  </div>
+                                </div>
+
+                                <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4">
+                                  <div>
+                                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                      Plan
+                                    </label>
+                                    <select
+                                      value={form.plan_key}
+                                      onChange={(e) =>
+                                        setForm((prev) => ({
+                                          ...prev,
+                                          plan_key: e.target.value,
+                                        }))
+                                      }
+                                      className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-slate-500"
+                                    >
+                                      {PLAN_OPTIONS.map((opt) => (
+                                        <option key={opt.value} value={opt.value}>
+                                          {opt.label}
+                                        </option>
+                                      ))}
+                                    </select>
+                                  </div>
+
+                                  <div>
+                                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                      Device Limit
+                                    </label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={form.device_limit}
+                                      onChange={(e) =>
+                                        setForm((prev) => ({
+                                          ...prev,
+                                          device_limit: e.target.value,
+                                        }))
+                                      }
+                                      className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-slate-500"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                      Tenant Users Limit
+                                    </label>
+                                    <input
+                                      type="number"
+                                      min="0"
+                                      value={form.tenants_users_limit}
+                                      onChange={(e) =>
+                                        setForm((prev) => ({
+                                          ...prev,
+                                          tenants_users_limit: e.target.value,
+                                        }))
+                                      }
+                                      className="w-full rounded-xl border border-slate-300 px-4 py-2.5 text-sm outline-none focus:border-slate-500"
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                      Active Date
+                                    </label>
+                                    <div className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm text-slate-600">
+                                      {fmtDate(row.active_date)}
+                                    </div>
+                                    <div className="mt-1 text-[11px] text-slate-500">
+                                      Read-only. This date is managed by Stripe/backend sync.
+                                    </div>
+                                  </div>
+
+                                  <div>
+                                    <label className="mb-1 block text-xs font-semibold uppercase tracking-wide text-slate-500">
+                                      Renewal Date
+                                    </label>
+                                    <div className="w-full rounded-xl border border-slate-200 bg-slate-100 px-4 py-2.5 text-sm text-slate-600">
+                                      {fmtDate(row.renewal_date)}
+                                    </div>
+                                    <div className="mt-1 text-[11px] text-slate-500">
+                                      Read-only. Changing this in CoreFlex does not trigger Stripe billing.
+                                    </div>
+                                  </div>
+
+                                  <div className="flex items-end">
+                                    <label className="flex w-full items-center gap-3 rounded-xl border border-slate-300 px-4 py-3 text-sm text-slate-700">
+                                      <input
+                                        type="checkbox"
+                                        checked={!!form.is_active}
+                                        onChange={(e) =>
+                                          setForm((prev) => ({
+                                            ...prev,
+                                            is_active: e.target.checked,
+                                          }))
+                                        }
+                                        className="h-4 w-4"
+                                      />
+                                      Active Subscription
+                                    </label>
+                                  </div>
+                                </div>
+
+                                <div className="mt-5 flex flex-wrap items-center justify-end gap-3">
+                                  <button
+                                    onClick={cancelEdit}
+                                    disabled={saving}
+                                    className="rounded-xl border border-slate-300 bg-white px-4 py-2.5 text-sm font-semibold text-slate-700 hover:bg-slate-50 disabled:opacity-60 transition"
+                                  >
+                                    Cancel
+                                  </button>
+
+                                  <button
+                                    onClick={() => saveEdit(row.user_id)}
+                                    disabled={saving}
+                                    className="rounded-xl bg-emerald-600 px-4 py-2.5 text-sm font-semibold text-white hover:bg-emerald-700 disabled:opacity-60 transition"
+                                  >
+                                    {saving ? "Saving..." : "Save"}
+                                  </button>
+                                </div>
+                              </div>
+                            </td>
+                          </tr>
+                        ) : null}
+                      </React.Fragment>
+                    );
+                  })
+                )}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     </div>
