@@ -40,7 +40,7 @@ export default function ProceedAgreementModal({
           <ul className="list-disc pl-5 mt-2 space-y-1">
 
             <li>
-              You authorize CoreFlex Alliance LLC to charge your selected payment method
+              You authorize CoreFlexIOTs Platform to charge your selected payment method
               for the chosen subscription plan and any additional tenant-user add-ons.
             </li>
 
