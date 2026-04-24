@@ -473,6 +473,13 @@ export default function MySubscriptionSection({ onBack }) {
     currentPlanKey,
   ]);
 
+  const hasCheckoutSelection = useMemo(() => {
+    return (
+      Boolean(selectedPlanKey && selectedPlanKey !== currentPlanKey) ||
+      Number(addonTenantUsersQty || 0) > 0
+    );
+  }, [selectedPlanKey, currentPlanKey, addonTenantUsersQty]);
+
   const shouldShowPlanChargeLine = useMemo(() => {
     return Boolean(effectivePlan) && !isCurrentPlanSelection;
   }, [effectivePlan, isCurrentPlanSelection]);
@@ -1017,18 +1024,26 @@ export default function MySubscriptionSection({ onBack }) {
                       Cancel
                     </button>
 
-                    <SubscriptionAgreementGate
-                      effectivePlan={effectivePlan}
-                      selectedPlanKey={selectedPlanKey}
-                      currentPlanKey={currentPlanKey}
-                      billingMode={billingMode}
-                      checkoutLoading={checkoutLoading}
-                      reactivateLoading={reactivateLoading}
-                      cancellationScheduled={cancellationScheduled}
-                      isTenantUsersOnlyCheckout={isTenantUsersOnlyCheckout}
-                      openProceedToPayment={openProceedToPayment}
-                      showMessage={showMessage}
-                    />
+                    <div
+                      className={
+                        hasCheckoutSelection
+                          ? "[&>button]:!bg-emerald-400 [&>button:hover]:!bg-emerald-500 [&>button]:!py-3.5 [&>button]:!text-[14px] [&>button]:!rounded-xl [&>button]:!shadow-md"
+                          : "[&>button]:!bg-slate-300 [&>button]:!text-slate-600 [&>button]:!py-3.5 [&>button]:!text-[14px] [&>button]:!rounded-xl [&>button]:!cursor-not-allowed"
+                      }
+                    >
+                      <SubscriptionAgreementGate
+                        effectivePlan={effectivePlan}
+                        selectedPlanKey={selectedPlanKey}
+                        currentPlanKey={currentPlanKey}
+                        billingMode={billingMode}
+                        checkoutLoading={checkoutLoading || !hasCheckoutSelection}
+                        reactivateLoading={reactivateLoading}
+                        cancellationScheduled={cancellationScheduled}
+                        isTenantUsersOnlyCheckout={isTenantUsersOnlyCheckout}
+                        openProceedToPayment={openProceedToPayment}
+                        showMessage={showMessage}
+                      />
+                    </div>
 
                     {checkoutMessage && (
                       <div className="text-[10px] leading-snug text-slate-500">
