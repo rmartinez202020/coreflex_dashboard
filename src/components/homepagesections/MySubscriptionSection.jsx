@@ -903,65 +903,14 @@ export default function MySubscriptionSection({ onBack }) {
             <div className="border-t border-slate-200 bg-slate-50 px-3 py-3">
               <div className="grid grid-cols-1 xl:grid-cols-3 gap-3">
                 <div className="xl:col-span-2 rounded-xl border border-emerald-200 bg-white p-3">
-                  <div className="text-[13px] font-semibold text-slate-900">
-                    {selectedPlanKey ? "Selected Plan" : "Current Plan + Add-ons"}
-                  </div>
-
-                  {effectivePlan ? (
-                    <div className="mt-2 grid grid-cols-2 lg:grid-cols-5 gap-2 text-[12px]">
-                      <div>
-                        <div className="text-slate-500 text-[10px]">Plan</div>
-                        <div className="font-semibold text-slate-900">
-                          {effectivePlan.name}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="text-slate-500 text-[10px]">Billing</div>
-                        <div className="font-semibold text-slate-900">
-                          {billingMode === "monthly"
-                            ? "Monthly"
-                            : "One-Time License"}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="text-slate-500 text-[10px]">
-                          Base Price
-                        </div>
-                        <div className="font-semibold text-slate-900">
-                          {isCurrentPlanSelection
-                            ? formatMoney(
-                                0,
-                                billingMode === "monthly" ? " / month" : ""
-                              )
-                            : getDisplayPrice(effectivePlan, billingMode)}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="text-slate-500 text-[10px]">Devices</div>
-                        <div className="font-semibold text-slate-900">
-                          {typeof effectivePlan.deviceLimit === "number"
-                            ? `${effectivePlan.deviceLimit} ${
-                                effectivePlan.deviceLimit === 1
-                                  ? "device"
-                                  : "devices"
-                              }`
-                            : effectivePlan.deviceLimit}
-                        </div>
-                      </div>
-
-                      <div>
-                        <div className="text-slate-500 text-[10px]">
-                          Tenants-Users
-                        </div>
-                        <div className="font-semibold text-slate-900">
-                          +{effectivePlan.tenantsUsers}
-                        </div>
-                      </div>
+                  <div>
+                    <div className="text-[15px] font-bold text-slate-900">
+                      Purchase Additional Tenant-Users
                     </div>
-                  ) : null}
+                    <div className="mt-1 text-[11px] leading-snug text-slate-500">
+                      Add more tenant-user seats to your current subscription.
+                    </div>
+                  </div>
 
                   {showAddon && (
                     <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
@@ -971,7 +920,8 @@ export default function MySubscriptionSection({ onBack }) {
                             Additional Tenant-User
                           </div>
                           <div className="mt-0.5 text-[11px] text-slate-500">
-                            Add more tenant-user slots for this subscription.
+                            Select how many additional tenant-user slots you want
+                            to purchase.
                           </div>
                         </div>
 
