@@ -115,13 +115,7 @@ export default function SubscriptionAgreementGate({
             : "bg-emerald-600 hover:bg-emerald-700"
         }`}
       >
-        {agreementSubmitting
-          ? "Saving Agreement..."
-          : effectivePlan?.key === "enterprise"
-            ? "Request Quote"
-            : isTenantUsersOnlyCheckout
-              ? "Continue to Stripe"
-              : "Proceed to Payment"}
+        {agreementSubmitting ? "Saving Agreement..." : "Continue to Payment"}
       </button>
 
       <div className="text-[10px] leading-snug text-slate-500">
@@ -129,7 +123,7 @@ export default function SubscriptionAgreementGate({
           ? "Enterprise plans should be routed to your custom sales workflow."
           : isTenantUsersOnlyCheckout
             ? "Tenant-user add-ons for your current plan go directly to Stripe's secure hosted checkout page."
-            : "Click Proceed to Payment to review and accept the agreement before continuing to Stripe's secure hosted checkout page."}
+            : "Click Continue to Payment to review and accept the agreement before continuing to Stripe's secure hosted checkout page."}
       </div>
     </>
   );
