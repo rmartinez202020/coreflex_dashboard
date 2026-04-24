@@ -1018,18 +1018,18 @@ export default function MySubscriptionSection({ onBack }) {
 
                   <div className="mt-4 flex flex-col gap-2">
                     <button
-                      className="rounded-lg border border-slate-300 bg-white hover:bg-slate-50 text-slate-900 px-3 py-2 text-[12px] font-semibold"
+                      className="w-full rounded-lg border border-slate-300 bg-white px-3 py-2 text-[12px] font-semibold text-slate-900 hover:bg-slate-50"
                       onClick={cancelSelection}
                     >
                       Cancel
                     </button>
 
                     <div
-                      className={
+                      className={`w-full ${
                         hasCheckoutSelection
-                          ? "[&>button]:!bg-emerald-500 [&>button:hover]:!bg-emerald-600 [&>button]:!py-4 [&>button]:!text-[14px] [&>button]:!rounded-xl [&>button]:!shadow-md"
-                          : "[&>button]:!bg-slate-300 [&>button]:!text-slate-600 [&>button]:!py-4 [&>button]:!text-[14px] [&>button]:!rounded-xl [&>button]:!cursor-not-allowed [&>button:hover]:!bg-slate-300"
-                      }
+                          ? "[&>button]:!w-full [&>button]:!bg-emerald-500 [&>button:hover]:!bg-emerald-600 [&>button]:!py-4 [&>button]:!text-[14px] [&>button]:!rounded-xl [&>button]:!shadow-md"
+                          : "[&>button]:!w-full [&>button]:!bg-slate-300 [&>button]:!text-slate-600 [&>button]:!py-4 [&>button]:!text-[14px] [&>button]:!rounded-xl [&>button]:!cursor-not-allowed [&>button:hover]:!bg-slate-300"
+                      }`}
                     >
                       <SubscriptionAgreementGate
                         effectivePlan={effectivePlan}
