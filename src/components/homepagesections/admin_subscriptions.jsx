@@ -361,7 +361,7 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
         ) : null}
 
         <div className="mt-5 rounded-2xl border border-slate-200 overflow-hidden">
-          <div className="max-h-[320px] overflow-y-auto overflow-x-auto">
+          <div className="max-h-[520px] overflow-y-auto overflow-x-auto">
             <table className="min-w-[1500px] w-full">
               <thead className="sticky top-0 z-10 bg-slate-800 text-white">
                 <tr className="text-left text-sm">
