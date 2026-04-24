@@ -234,32 +234,34 @@ export default function AdminSubscriptionsSection({ onBack, ownerEmail }) {
   }
 
   return (
-    <div className="mt-4 md:mt-6">
-      <div className="rounded-2xl bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950 text-white px-5 py-5 shadow-sm">
-        <button
-          onClick={onBack}
-          className="mb-4 inline-flex items-center rounded-lg bg-white/10 px-4 py-2 text-sm font-semibold text-white hover:bg-white/20 transition"
-        >
-          ← Back
-        </button>
+    <div className="mt-2 md:mt-3">
+      <div className="rounded-xl bg-gradient-to-r from-slate-950 via-slate-900 to-blue-950 text-white px-4 py-3 shadow-sm">
+        <div className="flex items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <button
+              onClick={onBack}
+              className="inline-flex items-center rounded-lg bg-white/10 px-3 py-1.5 text-[12px] font-semibold text-white hover:bg-white/20 transition"
+            >
+              ← Back
+            </button>
 
-        <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
-          <div>
-            <h1 className="text-3xl font-bold tracking-tight">
-              Admin Subscriptions
-            </h1>
-            <p className="mt-2 text-sm text-slate-200">
-              View live backend subscription rows and edit plan, limits, and active status.
-            </p>
+            <div>
+              <h1 className="text-[18px] font-bold leading-tight tracking-tight">
+                Admin Subscriptions
+              </h1>
+              <p className="mt-0.5 text-[11px] leading-tight text-slate-200">
+                View live backend subscription rows and edit plan, limits, and active status.
+              </p>
+            </div>
           </div>
 
-          <div className="text-xs text-slate-300">
+          <div className="hidden md:block text-[11px] text-slate-300">
             Owner: {ownerEmail || "unknown"}
           </div>
         </div>
       </div>
 
-      <div className="mt-6 grid grid-cols-1 md:grid-cols-5 gap-4">
+      <div className="mt-4 grid grid-cols-1 md:grid-cols-5 gap-4">
         <div className={`rounded-2xl border p-4 shadow-sm ${statTileClass("default")}`}>
           <div className="text-xs font-semibold uppercase tracking-wide text-slate-500">
             Total Users
