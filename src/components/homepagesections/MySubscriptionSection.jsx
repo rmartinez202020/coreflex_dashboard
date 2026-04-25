@@ -533,6 +533,10 @@ export default function MySubscriptionSection({ onBack }) {
     currentPlanKey,
   ]);
 
+  const bypassAgreementModal = useMemo(() => {
+    return billingMode === "one_time" || isTenantUsersOnlyCheckout;
+  }, [billingMode, isTenantUsersOnlyCheckout]);
+
   const hasCheckoutSelection = useMemo(() => {
     return (
       Boolean(selectedPlanKey && selectedPlanKey !== currentPlanKey) ||
@@ -1214,7 +1218,7 @@ export default function MySubscriptionSection({ onBack }) {
                         checkoutLoading={checkoutLoading || !hasCheckoutSelection}
                         reactivateLoading={reactivateLoading}
                         cancellationScheduled={cancellationScheduled}
-                        isTenantUsersOnlyCheckout={isTenantUsersOnlyCheckout}
+                        isTenantUsersOnlyCheckout={bypassAgreementModal}
                         openProceedToPayment={openProceedToPayment}
                         showMessage={showMessage}
                       />
