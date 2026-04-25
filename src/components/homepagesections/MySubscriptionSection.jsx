@@ -726,11 +726,10 @@ export default function MySubscriptionSection({ onBack }) {
 
                 const isCurrentMonthlyPlan =
                   billingMode === "monthly" &&
-                  !planIsOneTimePaid &&
+                  !hasOneTimePaidPlan &&
                   plan.key === currentPlanKey;
 
                 const isOneTimeDowngradeBlocked =
-                  billingMode === "one_time" &&
                   hasOneTimePaidPlan &&
                   paidOneTimePlanIndex >= 0 &&
                   planIndex >= 0 &&
@@ -741,16 +740,14 @@ export default function MySubscriptionSection({ onBack }) {
                     key={plan.key}
                     plan={plan}
                     isCurrent={isCurrentMonthlyPlan}
-                    isOneTimePaid={
-                      billingMode === "one_time" && planIsOneTimePaid
-                    }
+                    isOneTimePaid={planIsOneTimePaid}
                     isOneTimeDowngradeBlocked={isOneTimeDowngradeBlocked}
                     oneTimePaidDate={paidDate}
                     billingMode={billingMode}
                     onSelect={handleSelectPlan}
                     isSelected={
                       selectedPlanKey === plan.key &&
-                      !(billingMode === "one_time" && planIsOneTimePaid) &&
+                      !planIsOneTimePaid &&
                       !isOneTimeDowngradeBlocked
                     }
                     currentPlanKey={currentPlanKey}
