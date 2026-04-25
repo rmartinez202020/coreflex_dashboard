@@ -140,7 +140,6 @@ export function addOneMonth(value) {
     const originalDay = date.getDate();
     date.setMonth(date.getMonth() + 1);
 
-    // Handles dates like Jan 31 -> Feb 28/29 instead of rolling into March.
     if (date.getDate() !== originalDay) {
       date.setDate(0);
     }
@@ -654,11 +653,9 @@ export function useMySubscriptionSection() {
       );
     }
 
-    if (!data?.url) {
-      throw new Error("Stripe checkout URL was not returned.");
-    }
-
     console.log("CHECKOUT SESSION RESPONSE:", {
+      directApplied: data?.directApplied,
+      checkoutMode: data?.checkoutMode,
       url: data?.url,
       checkoutSessionId: data?.checkoutSessionId,
       planAmount: data?.planAmount,
@@ -680,7 +677,27 @@ export function useMySubscriptionSection() {
       total: Number(data?.total || 0),
     });
 
+    if (data?.directApplied) {
+      return {
+        directApplied: true,
+        checkoutMode: String(data?.checkoutMode || "subscription_item_update"),
+        message:
+          data?.message ||
+          "Tenant-user add-on was added to your existing subscription.",
+        subscriptionId: String(
+          data?.subscriptionId || data?.stripeSubscriptionId || ""
+        ),
+        addedTenantUsers: Number(data?.addedTenantUsers || 0),
+        tenantsUsersLimit: Number(data?.tenantsUsersLimit || 0),
+      };
+    }
+
+    if (!data?.url) {
+      throw new Error("Stripe checkout URL was not returned.");
+    }
+
     return {
+      directApplied: false,
       url: String(data.url || ""),
       checkoutSessionId: String(data.checkoutSessionId || ""),
     };
@@ -711,19 +728,37 @@ export function useMySubscriptionSection() {
       return;
     }
 
-    const checkoutTab = window.open("", "_blank");
+    let checkoutTab = null;
 
     try {
       setCheckoutLoading(true);
 
-      const { url } = await createCheckoutSessionForCurrentSelection();
+      const result = await createCheckoutSessionForCurrentSelection();
+
+      if (result?.directApplied) {
+        await loadSubscription();
+
+        setSelectedPlanKey(null);
+        setAddonTenantUsersQty(0);
+        resetPaymentPreview();
+
+        setCheckoutMessage(
+          result.message ||
+            "Tenant-user add-on was added to your existing subscription."
+        );
+
+        return;
+      }
+
+      const url = String(result?.url || "").trim();
 
       if (!url) {
         throw new Error("Unable to open Stripe checkout.");
       }
 
+      checkoutTab = window.open(url, "_blank");
+
       if (checkoutTab) {
-        checkoutTab.location.href = url;
         checkoutTab.focus?.();
         setCheckoutMessage(
           "Stripe checkout opened in a new tab. Complete payment there, then return here."
@@ -755,6 +790,7 @@ export function useMySubscriptionSection() {
     effectivePlan,
     subtotalAmount,
     createCheckoutSessionForCurrentSelection,
+    loadSubscription,
     resetPaymentPreview,
   ]);
 
