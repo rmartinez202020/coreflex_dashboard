@@ -11,6 +11,7 @@ import {
   ComparePlansModal,
   ConfirmPopoutModal,
   formatDisplayDate,
+  LoadingDataModal,
   normalizeAgreementRows,
   PaymentSuccessModal,
   SmallMessageModal,
@@ -51,6 +52,7 @@ export default function MySubscriptionSection({ onBack }) {
     cancelSelection,
   } = useMySubscriptionSection();
 
+  const [showInitialLoadingModal, setShowInitialLoadingModal] = useState(true);
   const [showPaymentSuccessModal, setShowPaymentSuccessModal] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [reactivateLoading, setReactivateLoading] = useState(false);
@@ -226,6 +228,16 @@ export default function MySubscriptionSection({ onBack }) {
 
     selectPlan(plan);
   };
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setShowInitialLoadingModal(false);
+    }, 5000);
+
+    return () => {
+      window.clearTimeout(timer);
+    };
+  }, []);
 
   useEffect(() => {
     const token = String(getToken() || "").trim();
@@ -508,6 +520,8 @@ export default function MySubscriptionSection({ onBack }) {
 
   return (
     <>
+      <LoadingDataModal open={showInitialLoadingModal} />
+
       <PaymentSuccessModal
         open={showPaymentSuccessModal}
         onClose={handleClosePaymentSuccessModal}
