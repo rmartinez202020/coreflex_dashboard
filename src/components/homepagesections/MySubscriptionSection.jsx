@@ -17,6 +17,26 @@ import {
   SmallMessageModal,
 } from "./MySubscriptionSectionParts";
 
+function addOneMonth(value) {
+  if (!value) return null;
+
+  try {
+    const d = new Date(value);
+    if (Number.isNaN(d.getTime())) return null;
+
+    const originalDay = d.getDate();
+    d.setMonth(d.getMonth() + 1);
+
+    if (d.getDate() !== originalDay) {
+      d.setDate(0);
+    }
+
+    return d;
+  } catch (err) {
+    return null;
+  }
+}
+
 export default function MySubscriptionSection({ onBack }) {
   const {
     showComparePlans,
@@ -153,10 +173,24 @@ export default function MySubscriptionSection({ onBack }) {
     [subscription?.updated_at]
   );
 
-  const benefitsExpireDisplay = useMemo(
-    () => formatDisplayDate(subscription?.renewal_date || currentPlanRenewal),
-    [subscription?.renewal_date, currentPlanRenewal]
-  );
+  const benefitsExpireDisplay = useMemo(() => {
+    const renewalDate = subscription?.renewal_date || currentPlanRenewal;
+
+    if (renewalDate) {
+      return formatDisplayDate(renewalDate);
+    }
+
+    const activeDatePlusOneMonth = addOneMonth(subscription?.active_date);
+    if (activeDatePlusOneMonth) {
+      return formatDisplayDate(activeDatePlusOneMonth);
+    }
+
+    return "—";
+  }, [
+    subscription?.renewal_date,
+    subscription?.active_date,
+    currentPlanRenewal,
+  ]);
 
   const showMessage = ({
     type = "info",
