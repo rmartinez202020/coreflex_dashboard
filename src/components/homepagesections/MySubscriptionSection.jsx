@@ -150,10 +150,12 @@ export default function MySubscriptionSection({ onBack }) {
 
   const hasCheckoutSelection = useMemo(() => {
     return (
-      Boolean(selectedPlanKey && selectedPlanKey !== currentPlanKey) ||
-      Number(addonTenantUsersQty || 0) > 0
+      Boolean(
+        selectedPlanKey &&
+          (selectedPlanKey !== currentPlanKey || billingMode === "one_time")
+      ) || Number(addonTenantUsersQty || 0) > 0
     );
-  }, [selectedPlanKey, currentPlanKey, addonTenantUsersQty]);
+  }, [selectedPlanKey, currentPlanKey, billingMode, addonTenantUsersQty]);
 
   const shouldShowPlanChargeLine = useMemo(() => {
     return Boolean(effectivePlan) && !isCurrentPlanSelection;
@@ -748,7 +750,7 @@ export default function MySubscriptionSection({ onBack }) {
                     onSelect={handleSelectPlan}
                     isSelected={
                       selectedPlanKey === plan.key &&
-                      !planIsOneTimePaid &&
+                      !(billingMode === "one_time" && planIsOneTimePaid) &&
                       !isOneTimeDowngradeBlocked
                     }
                     currentPlanKey={currentPlanKey}

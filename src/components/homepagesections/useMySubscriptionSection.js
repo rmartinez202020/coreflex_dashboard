@@ -559,10 +559,20 @@ export function useMySubscriptionSection() {
   const effectivePlan = selectedPlan || currentPlan;
   const effectivePlanPrice = getNumericPlanPrice(effectivePlan, billingMode);
 
-  const isCurrentPlanSelection =
-    !selectedPlan || selectedPlan.key === currentPlanKey;
+  // ✅ FIX:
+  // Monthly current plan = no charge.
+  // One-time current plan = chargeable license purchase.
+  const isSamePlanSelection = selectedPlan?.key === currentPlanKey;
 
-  const chargeablePlanPrice = isCurrentPlanSelection ? 0 : effectivePlanPrice;
+  const isCurrentPlanSelection =
+    !selectedPlan || (billingMode === "monthly" && isSamePlanSelection);
+
+  const chargeablePlanPrice =
+    billingMode === "one_time" && isSamePlanSelection
+      ? effectivePlanPrice
+      : isCurrentPlanSelection
+        ? 0
+        : effectivePlanPrice;
 
   const addonSubtotal = addonTenantUsersQty * tenantUserAddonPrice;
   const subtotalAmount =
@@ -600,12 +610,14 @@ export function useMySubscriptionSection() {
       billingMode: String(billingMode || ""),
       addonTenantUsersQty: Number(addonTenantUsersQty || 0),
       isCurrentPlanSelection: Boolean(isCurrentPlanSelection),
+      chargeablePlanPrice: Number(chargeablePlanPrice || 0),
     });
   }, [
     effectivePlan?.key,
     billingMode,
     addonTenantUsersQty,
     isCurrentPlanSelection,
+    chargeablePlanPrice,
   ]);
 
   const createCheckoutSessionForCurrentSelection = useCallback(async () => {
@@ -631,6 +643,7 @@ export function useMySubscriptionSection() {
       billingMode,
       addonTenantUsersQty,
       isCurrentPlanSelection,
+      chargeablePlanPrice,
       subtotalAmount,
       checkoutPreviewKey,
     });
@@ -707,6 +720,7 @@ export function useMySubscriptionSection() {
     billingMode,
     addonTenantUsersQty,
     isCurrentPlanSelection,
+    chargeablePlanPrice,
     checkoutPreviewKey,
   ]);
 
