@@ -155,6 +155,7 @@ function ActionPlanCard({
   plan,
   isCurrent,
   isOneTimePaid,
+  oneTimePaidDate,
   billingMode,
   onSelect,
   isSelected,
@@ -168,6 +169,7 @@ function ActionPlanCard({
   const isEnterprise = plan?.key === "enterprise";
   const actionLabel = getPlanActionLabel(plan.key, currentPlanKey);
   const displayPrice = getDisplayPrice(plan, billingMode);
+  const paidDateDisplay = formatDisplayDate(oneTimePaidDate);
 
   const showCurrentBadge = isCurrent && billingMode === "monthly" && !isOneTimePaid;
   const showPaidBadge = billingMode === "one_time" && isOneTimePaid;
@@ -226,6 +228,12 @@ function ActionPlanCard({
         <div className="mt-1 text-[18px] font-bold leading-tight text-slate-900">
           {displayPrice}
         </div>
+
+        {showPaidBadge && (
+          <div className="mt-1 text-[11px] font-semibold text-emerald-700">
+            Paid on {paidDateDisplay}
+          </div>
+        )}
       </div>
 
       <div className="mt-3 space-y-1.5 text-[12px]">
@@ -299,7 +307,7 @@ function ActionPlanCard({
             disabled
             className="w-full rounded-lg border border-emerald-300 bg-emerald-100 px-3 py-2 text-[12px] font-semibold text-emerald-800 cursor-default"
           >
-            Paid
+            Paid • {paidDateDisplay}
           </button>
         ) : (
           <button
@@ -465,7 +473,7 @@ export default function MySubscriptionSection({ onBack }) {
   const [showPaymentSuccessModal, setShowPaymentSuccessModal] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [reactivateLoading, setReactivateLoading] = useState(false);
-  const [oneTimePaidPlanKeys, setOneTimePaidPlanKeys] = useState([]);
+  const [oneTimePaidPlanMap, setOneTimePaidPlanMap] = useState({});
 
   const [messageModal, setMessageModal] = useState({
     open: false,
@@ -515,12 +523,8 @@ export default function MySubscriptionSection({ onBack }) {
   }, [effectivePlan, isCurrentPlanSelection]);
 
   const paidOneTimePlanKeySet = useMemo(() => {
-    return new Set(
-      oneTimePaidPlanKeys
-        .map((key) => String(key || "").trim().toLowerCase())
-        .filter(Boolean)
-    );
-  }, [oneTimePaidPlanKeys]);
+    return new Set(Object.keys(oneTimePaidPlanMap));
+  }, [oneTimePaidPlanMap]);
 
   const canceledOnDisplay = useMemo(
     () => formatDisplayDate(subscription?.updated_at),
@@ -563,7 +567,10 @@ export default function MySubscriptionSection({ onBack }) {
       return;
     }
 
-    if (billingMode === "one_time" && paidOneTimePlanKeySet.has(plan?.key)) {
+    if (
+      billingMode === "one_time" &&
+      paidOneTimePlanKeySet.has(String(plan?.key || "").toLowerCase())
+    ) {
       return;
     }
 
@@ -607,20 +614,42 @@ export default function MySubscriptionSection({ onBack }) {
           const data = await res.json().catch(() => ({}));
           const rows = normalizeAgreementRows(data);
 
-          const paidKeys = rows
-            .filter((row) => {
-              const billingType = String(row?.billing_type || row?.billingType || "")
-                .trim()
-                .toLowerCase();
-              const confirmed = row?.confirmed;
+          const paidMap = {};
 
-              return billingType === "one_time" && confirmed !== false;
-            })
-            .map((row) => String(row?.plan_key || row?.planKey || "").trim().toLowerCase())
-            .filter(Boolean);
+          rows.forEach((row) => {
+            const billingType = String(row?.billing_type || row?.billingType || "")
+              .trim()
+              .toLowerCase();
+            const confirmed = row?.confirmed;
+            const planKey = String(row?.plan_key || row?.planKey || "")
+              .trim()
+              .toLowerCase();
+
+            if (billingType !== "one_time" || confirmed === false || !planKey) {
+              return;
+            }
+
+            const paidAt =
+              row?.confirmed_at ||
+              row?.confirmedAt ||
+              row?.paid_at ||
+              row?.paidAt ||
+              row?.created_at ||
+              row?.createdAt ||
+              null;
+
+            const oldTime = paidMap[planKey]
+              ? new Date(paidMap[planKey]).getTime()
+              : 0;
+            const newTime = paidAt ? new Date(paidAt).getTime() : 0;
+
+            if (!paidMap[planKey] || newTime >= oldTime) {
+              paidMap[planKey] = paidAt;
+            }
+          });
 
           if (!cancelled) {
-            setOneTimePaidPlanKeys([...new Set(paidKeys)]);
+            setOneTimePaidPlanMap(paidMap);
           }
 
           return;
@@ -996,32 +1025,40 @@ export default function MySubscriptionSection({ onBack }) {
             </div>
 
             <div className="p-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
-              {plans.map((plan) => (
-                <ActionPlanCard
-                  key={plan.key}
-                  plan={plan}
-                  isCurrent={billingMode === "monthly" && plan.key === currentPlanKey}
-                  isOneTimePaid={
-                    billingMode === "one_time" &&
-                    paidOneTimePlanKeySet.has(String(plan.key || "").toLowerCase())
-                  }
-                  billingMode={billingMode}
-                  onSelect={handleSelectPlan}
-                  isSelected={
-                    selectedPlanKey === plan.key &&
-                    !(
+              {plans.map((plan) => {
+                const planKey = String(plan.key || "").toLowerCase();
+                const paidDate = oneTimePaidPlanMap[planKey] || null;
+
+                return (
+                  <ActionPlanCard
+                    key={plan.key}
+                    plan={plan}
+                    isCurrent={
+                      billingMode === "monthly" && plan.key === currentPlanKey
+                    }
+                    isOneTimePaid={
                       billingMode === "one_time" &&
-                      paidOneTimePlanKeySet.has(String(plan.key || "").toLowerCase())
-                    )
-                  }
-                  currentPlanKey={currentPlanKey}
-                  onCancelSubscription={handleCancelSubscription}
-                  onReactivateSubscription={handleReactivateSubscription}
-                  cancelLoading={cancelLoading}
-                  reactivateLoading={reactivateLoading}
-                  cancellationScheduled={cancellationScheduled}
-                />
-              ))}
+                      paidOneTimePlanKeySet.has(planKey)
+                    }
+                    oneTimePaidDate={paidDate}
+                    billingMode={billingMode}
+                    onSelect={handleSelectPlan}
+                    isSelected={
+                      selectedPlanKey === plan.key &&
+                      !(
+                        billingMode === "one_time" &&
+                        paidOneTimePlanKeySet.has(planKey)
+                      )
+                    }
+                    currentPlanKey={currentPlanKey}
+                    onCancelSubscription={handleCancelSubscription}
+                    onReactivateSubscription={handleReactivateSubscription}
+                    cancelLoading={cancelLoading}
+                    reactivateLoading={reactivateLoading}
+                    cancellationScheduled={cancellationScheduled}
+                  />
+                );
+              })}
             </div>
 
             <div className="border-t border-slate-200 bg-slate-50 px-3 py-3">
