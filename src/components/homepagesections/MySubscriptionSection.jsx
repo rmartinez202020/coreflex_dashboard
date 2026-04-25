@@ -894,11 +894,9 @@ export default function MySubscriptionSection({ onBack }) {
                       </div>
                     )}
 
-                    {subscriptionError && (
-                      <div className="text-[10px] leading-snug text-red-600">
-                        {subscriptionError}
-                      </div>
-                    )}
+                    {/* subscriptionError intentionally hidden from UI.
+                        Backend subscription errors are still available in useMySubscriptionSection
+                        but are not shown in the Order Summary card. */}
                   </div>
                 </div>
               </div>
