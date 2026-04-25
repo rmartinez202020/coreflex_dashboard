@@ -157,6 +157,7 @@ export function ActionPlanCard({
   plan,
   isCurrent,
   isOneTimePaid,
+  isOneTimeDowngradeBlocked = false,
   oneTimePaidDate,
   billingMode,
   onSelect,
@@ -179,11 +180,16 @@ export function ActionPlanCard({
   return (
     <div
       className={`rounded-xl border bg-white px-3 py-3 shadow-sm transition flex flex-col ${
-        isSelected && !isEnterprise && !showPaidBadge
+        isSelected &&
+        !isEnterprise &&
+        !showPaidBadge &&
+        !isOneTimeDowngradeBlocked
           ? "border-emerald-500 ring-2 ring-emerald-200"
           : showCurrentBadge || showPaidBadge
             ? "border-emerald-300"
-            : "border-slate-200 hover:border-slate-300"
+            : isOneTimeDowngradeBlocked
+              ? "border-slate-200 opacity-80"
+              : "border-slate-200 hover:border-slate-300"
       }`}
     >
       <div className="flex items-start justify-between gap-2">
@@ -215,6 +221,12 @@ export function ActionPlanCard({
             </span>
           )}
 
+          {isOneTimeDowngradeBlocked && (
+            <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap text-slate-600">
+              Locked
+            </span>
+          )}
+
           {showCurrentBadge && cancellationScheduled && (
             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap text-amber-800">
               Canceled
@@ -234,6 +246,12 @@ export function ActionPlanCard({
         {showPaidBadge && (
           <div className="mt-1 text-[11px] font-semibold text-emerald-700">
             Paid on {paidDateDisplay}
+          </div>
+        )}
+
+        {isOneTimeDowngradeBlocked && (
+          <div className="mt-1 text-[11px] font-semibold text-slate-500">
+            Downgrade unavailable after one-time purchase
           </div>
         )}
       </div>
@@ -312,6 +330,13 @@ export function ActionPlanCard({
             className="w-full rounded-lg border border-emerald-300 bg-emerald-100 px-3 py-2 text-[12px] font-semibold text-emerald-800 cursor-default"
           >
             Paid • {paidDateDisplay}
+          </button>
+        ) : isOneTimeDowngradeBlocked ? (
+          <button
+            disabled
+            className="w-full rounded-lg border border-slate-300 bg-slate-100 px-3 py-2 text-[12px] font-semibold text-slate-500 cursor-not-allowed"
+          >
+            Downgrade Locked
           </button>
         ) : (
           <button

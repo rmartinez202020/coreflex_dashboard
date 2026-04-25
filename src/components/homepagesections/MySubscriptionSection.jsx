@@ -94,6 +94,14 @@ export default function MySubscriptionSection({ onBack }) {
 
   const hasOneTimePaidPlan = Boolean(paidOneTimePlanKey);
 
+  const paidOneTimePlanIndex = useMemo(() => {
+    if (!hasOneTimePaidPlan || !plans?.length || !paidOneTimePlanKey) return -1;
+
+    return plans.findIndex(
+      (plan) => String(plan?.key || "").toLowerCase() === paidOneTimePlanKey
+    );
+  }, [hasOneTimePaidPlan, plans, paidOneTimePlanKey]);
+
   const cancellationScheduled =
     !hasOneTimePaidPlan && Boolean(subscription?.cancel_at_period_end);
 
@@ -188,6 +196,22 @@ export default function MySubscriptionSection({ onBack }) {
 
     if (paidOneTimePlanKeySet.has(planKey)) {
       return;
+    }
+
+    if (hasOneTimePaidPlan && paidOneTimePlanIndex >= 0) {
+      const selectedPlanIndex = plans.findIndex(
+        (item) => String(item?.key || "").toLowerCase() === planKey
+      );
+
+      if (selectedPlanIndex >= 0 && selectedPlanIndex < paidOneTimePlanIndex) {
+        showMessage({
+          type: "warning",
+          title: "Downgrade Locked",
+          message:
+            "This account already has a paid one-time license. You can only upgrade to a higher plan.",
+        });
+        return;
+      }
     }
 
     if (cancellationScheduled && planKey !== currentPlanKey) {
@@ -645,10 +669,16 @@ export default function MySubscriptionSection({ onBack }) {
             </div>
 
             <div className="p-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
-              {plans.map((plan) => {
+              {plans.map((plan, planIndex) => {
                 const planKey = String(plan.key || "").toLowerCase();
                 const paidDate = oneTimePaidPlanMap[planKey] || null;
                 const planIsOneTimePaid = paidOneTimePlanKeySet.has(planKey);
+
+                const isOneTimeDowngradeBlocked =
+                  hasOneTimePaidPlan &&
+                  paidOneTimePlanIndex >= 0 &&
+                  planIndex >= 0 &&
+                  planIndex < paidOneTimePlanIndex;
 
                 return (
                   <ActionPlanCard
@@ -656,10 +686,15 @@ export default function MySubscriptionSection({ onBack }) {
                     plan={plan}
                     isCurrent={!planIsOneTimePaid && plan.key === currentPlanKey}
                     isOneTimePaid={planIsOneTimePaid}
+                    isOneTimeDowngradeBlocked={isOneTimeDowngradeBlocked}
                     oneTimePaidDate={paidDate}
                     billingMode={billingMode}
                     onSelect={handleSelectPlan}
-                    isSelected={selectedPlanKey === plan.key && !planIsOneTimePaid}
+                    isSelected={
+                      selectedPlanKey === plan.key &&
+                      !planIsOneTimePaid &&
+                      !isOneTimeDowngradeBlocked
+                    }
                     currentPlanKey={currentPlanKey}
                     onCancelSubscription={handleCancelSubscription}
                     onReactivateSubscription={handleReactivateSubscription}
