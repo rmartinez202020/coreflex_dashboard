@@ -24,6 +24,15 @@ function formatDisplayDate(value) {
   }
 }
 
+function normalizeAgreementRows(data) {
+  if (Array.isArray(data)) return data;
+  if (Array.isArray(data?.items)) return data.items;
+  if (Array.isArray(data?.agreements)) return data.agreements;
+  if (Array.isArray(data?.acceptances)) return data.acceptances;
+  if (Array.isArray(data?.rows)) return data.rows;
+  return [];
+}
+
 function SmallMessageModal({ open, type = "info", title, message, onClose }) {
   if (!open) return null;
 
@@ -145,6 +154,7 @@ function ConfirmPopoutModal({
 function ActionPlanCard({
   plan,
   isCurrent,
+  isOneTimePaid,
   billingMode,
   onSelect,
   isSelected,
@@ -159,12 +169,15 @@ function ActionPlanCard({
   const actionLabel = getPlanActionLabel(plan.key, currentPlanKey);
   const displayPrice = getDisplayPrice(plan, billingMode);
 
+  const showCurrentBadge = isCurrent && billingMode === "monthly" && !isOneTimePaid;
+  const showPaidBadge = billingMode === "one_time" && isOneTimePaid;
+
   return (
     <div
       className={`rounded-xl border bg-white px-3 py-3 shadow-sm transition flex flex-col ${
-        isSelected && !isEnterprise
+        isSelected && !isEnterprise && !isOneTimePaid
           ? "border-emerald-500 ring-2 ring-emerald-200"
-          : isCurrent
+          : showCurrentBadge || showPaidBadge
             ? "border-emerald-300"
             : "border-slate-200 hover:border-slate-300"
       }`}
@@ -186,13 +199,19 @@ function ActionPlanCard({
             </span>
           )}
 
-          {isCurrent && (
+          {showCurrentBadge && (
             <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap text-emerald-800">
               Current
             </span>
           )}
 
-          {isCurrent && cancellationScheduled && (
+          {showPaidBadge && (
+            <span className="rounded-full bg-emerald-100 px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap text-emerald-800">
+              Paid
+            </span>
+          )}
+
+          {showCurrentBadge && cancellationScheduled && (
             <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap text-amber-800">
               Canceled
             </span>
@@ -235,7 +254,7 @@ function ActionPlanCard({
       </div>
 
       <div className="mt-4">
-        {isCurrent ? (
+        {showCurrentBadge ? (
           <div className="flex gap-2">
             <button
               onClick={cancellationScheduled ? onReactivateSubscription : undefined}
@@ -275,6 +294,13 @@ function ActionPlanCard({
                   : "Cancel any time"}
             </button>
           </div>
+        ) : showPaidBadge ? (
+          <button
+            disabled
+            className="w-full rounded-lg border border-emerald-300 bg-emerald-100 px-3 py-2 text-[12px] font-semibold text-emerald-800 cursor-default"
+          >
+            Paid
+          </button>
         ) : (
           <button
             onClick={isEnterprise ? undefined : () => onSelect(plan)}
@@ -439,6 +465,7 @@ export default function MySubscriptionSection({ onBack }) {
   const [showPaymentSuccessModal, setShowPaymentSuccessModal] = useState(false);
   const [cancelLoading, setCancelLoading] = useState(false);
   const [reactivateLoading, setReactivateLoading] = useState(false);
+  const [oneTimePaidPlanKeys, setOneTimePaidPlanKeys] = useState([]);
 
   const [messageModal, setMessageModal] = useState({
     open: false,
@@ -487,6 +514,14 @@ export default function MySubscriptionSection({ onBack }) {
     return Boolean(effectivePlan) && !isCurrentPlanSelection;
   }, [effectivePlan, isCurrentPlanSelection]);
 
+  const paidOneTimePlanKeySet = useMemo(() => {
+    return new Set(
+      oneTimePaidPlanKeys
+        .map((key) => String(key || "").trim().toLowerCase())
+        .filter(Boolean)
+    );
+  }, [oneTimePaidPlanKeys]);
+
   const canceledOnDisplay = useMemo(
     () => formatDisplayDate(subscription?.updated_at),
     [subscription?.updated_at]
@@ -528,6 +563,10 @@ export default function MySubscriptionSection({ onBack }) {
       return;
     }
 
+    if (billingMode === "one_time" && paidOneTimePlanKeySet.has(plan?.key)) {
+      return;
+    }
+
     if (cancellationScheduled && plan?.key !== currentPlanKey) {
       showMessage({
         type: "warning",
@@ -540,6 +579,63 @@ export default function MySubscriptionSection({ onBack }) {
 
     selectPlan(plan);
   };
+
+  useEffect(() => {
+    const token = String(getToken() || "").trim();
+    if (!token) return;
+
+    let cancelled = false;
+
+    const loadOneTimePaidPlans = async () => {
+      const urlsToTry = [
+        `${API_URL}/subscription-agreements/me`,
+        `${API_URL}/subscription-agreements/accepted`,
+        `${API_URL}/subscription-agreements`,
+      ];
+
+      for (const url of urlsToTry) {
+        try {
+          const res = await fetch(url, {
+            method: "GET",
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          });
+
+          if (!res.ok) continue;
+
+          const data = await res.json().catch(() => ({}));
+          const rows = normalizeAgreementRows(data);
+
+          const paidKeys = rows
+            .filter((row) => {
+              const billingType = String(row?.billing_type || row?.billingType || "")
+                .trim()
+                .toLowerCase();
+              const confirmed = row?.confirmed;
+
+              return billingType === "one_time" && confirmed !== false;
+            })
+            .map((row) => String(row?.plan_key || row?.planKey || "").trim().toLowerCase())
+            .filter(Boolean);
+
+          if (!cancelled) {
+            setOneTimePaidPlanKeys([...new Set(paidKeys)]);
+          }
+
+          return;
+        } catch (err) {
+          console.warn("Could not load one-time paid plan data:", err);
+        }
+      }
+    };
+
+    loadOneTimePaidPlans();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -904,10 +1000,20 @@ export default function MySubscriptionSection({ onBack }) {
                 <ActionPlanCard
                   key={plan.key}
                   plan={plan}
-                  isCurrent={plan.key === currentPlanKey}
+                  isCurrent={billingMode === "monthly" && plan.key === currentPlanKey}
+                  isOneTimePaid={
+                    billingMode === "one_time" &&
+                    paidOneTimePlanKeySet.has(String(plan.key || "").toLowerCase())
+                  }
                   billingMode={billingMode}
                   onSelect={handleSelectPlan}
-                  isSelected={selectedPlanKey === plan.key}
+                  isSelected={
+                    selectedPlanKey === plan.key &&
+                    !(
+                      billingMode === "one_time" &&
+                      paidOneTimePlanKeySet.has(String(plan.key || "").toLowerCase())
+                    )
+                  }
                   currentPlanKey={currentPlanKey}
                   onCancelSubscription={handleCancelSubscription}
                   onReactivateSubscription={handleReactivateSubscription}
