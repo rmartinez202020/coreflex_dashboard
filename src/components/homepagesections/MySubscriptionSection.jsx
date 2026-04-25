@@ -171,13 +171,13 @@ function ActionPlanCard({
   const displayPrice = getDisplayPrice(plan, billingMode);
   const paidDateDisplay = formatDisplayDate(oneTimePaidDate);
 
-  const showCurrentBadge = isCurrent && billingMode === "monthly" && !isOneTimePaid;
-  const showPaidBadge = billingMode === "one_time" && isOneTimePaid;
+  const showPaidBadge = Boolean(isOneTimePaid);
+  const showCurrentBadge = Boolean(isCurrent) && !showPaidBadge;
 
   return (
     <div
       className={`rounded-xl border bg-white px-3 py-3 shadow-sm transition flex flex-col ${
-        isSelected && !isEnterprise && !isOneTimePaid
+        isSelected && !isEnterprise && !showPaidBadge
           ? "border-emerald-500 ring-2 ring-emerald-200"
           : showCurrentBadge || showPaidBadge
             ? "border-emerald-300"
@@ -492,7 +492,29 @@ export default function MySubscriptionSection({ onBack }) {
     tone: "emerald",
   });
 
-  const cancellationScheduled = Boolean(subscription?.cancel_at_period_end);
+  const paidOneTimePlanKeySet = useMemo(() => {
+    return new Set(Object.keys(oneTimePaidPlanMap));
+  }, [oneTimePaidPlanMap]);
+
+  const paidOneTimePlan = useMemo(() => {
+    if (!plans?.length || paidOneTimePlanKeySet.size <= 0) return null;
+
+    const currentPaidPlan = plans.find((plan) =>
+      paidOneTimePlanKeySet.has(String(plan?.key || "").toLowerCase())
+    );
+
+    return currentPaidPlan || null;
+  }, [plans, paidOneTimePlanKeySet]);
+
+  const paidOneTimePlanKey = String(paidOneTimePlan?.key || "").toLowerCase();
+  const paidOneTimeDate = paidOneTimePlanKey
+    ? oneTimePaidPlanMap[paidOneTimePlanKey]
+    : null;
+
+  const hasOneTimePaidPlan = Boolean(paidOneTimePlanKey);
+
+  const cancellationScheduled =
+    !hasOneTimePaidPlan && Boolean(subscription?.cancel_at_period_end);
 
   const isTenantUsersOnlyCheckout = useMemo(() => {
     return (
@@ -522,9 +544,19 @@ export default function MySubscriptionSection({ onBack }) {
     return Boolean(effectivePlan) && !isCurrentPlanSelection;
   }, [effectivePlan, isCurrentPlanSelection]);
 
-  const paidOneTimePlanKeySet = useMemo(() => {
-    return new Set(Object.keys(oneTimePaidPlanMap));
-  }, [oneTimePaidPlanMap]);
+  const displayedCurrentPlan = hasOneTimePaidPlan ? paidOneTimePlan : currentPlan;
+  const displayedStatus = hasOneTimePaidPlan ? "Paid" : currentPlanStatus;
+  const displayedRenewal = hasOneTimePaidPlan
+    ? formatDisplayDate(paidOneTimeDate)
+    : currentPlanRenewal;
+
+  const displayedDevicesUsed = hasOneTimePaidPlan
+    ? currentPlanDevicesUsed
+    : currentPlanDevicesUsed;
+
+  const displayedTenantUsersUsed = hasOneTimePaidPlan
+    ? currentPlanTenantUsersUsed
+    : currentPlanTenantUsersUsed;
 
   const canceledOnDisplay = useMemo(
     () => formatDisplayDate(subscription?.updated_at),
@@ -563,18 +595,17 @@ export default function MySubscriptionSection({ onBack }) {
   };
 
   const handleSelectPlan = (plan) => {
-    if (plan?.key === "enterprise") {
+    const planKey = String(plan?.key || "").toLowerCase();
+
+    if (planKey === "enterprise") {
       return;
     }
 
-    if (
-      billingMode === "one_time" &&
-      paidOneTimePlanKeySet.has(String(plan?.key || "").toLowerCase())
-    ) {
+    if (paidOneTimePlanKeySet.has(planKey)) {
       return;
     }
 
-    if (cancellationScheduled && plan?.key !== currentPlanKey) {
+    if (cancellationScheduled && planKey !== currentPlanKey) {
       showMessage({
         type: "warning",
         title: "Reactivate Required",
@@ -940,7 +971,7 @@ export default function MySubscriptionSection({ onBack }) {
             <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
               <div className="text-[10px] text-slate-500">Plan</div>
               <div className="mt-0.5 text-[13px] font-semibold text-slate-900">
-                {loadingSubscription ? "Loading..." : currentPlan.name}
+                {loadingSubscription ? "Loading..." : displayedCurrentPlan.name}
               </div>
             </div>
 
@@ -955,34 +986,38 @@ export default function MySubscriptionSection({ onBack }) {
                   ? "Loading..."
                   : cancellationScheduled
                     ? "Canceled"
-                    : currentPlanStatus}
+                    : displayedStatus}
               </div>
             </div>
 
             <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
               <div className="text-[10px] text-slate-500">
-                {cancellationScheduled ? "Benefits Expire" : "Renewal"}
+                {hasOneTimePaidPlan
+                  ? "Paid On"
+                  : cancellationScheduled
+                    ? "Benefits Expire"
+                    : "Renewal"}
               </div>
               <div className="mt-0.5 text-[13px] font-semibold text-slate-900">
                 {loadingSubscription
                   ? "Loading..."
                   : cancellationScheduled
                     ? benefitsExpireDisplay
-                    : currentPlanRenewal}
+                    : displayedRenewal}
               </div>
             </div>
 
             <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
               <div className="text-[10px] text-slate-500">Devices Used</div>
               <div className="mt-0.5 text-[13px] font-semibold text-slate-900">
-                {loadingSubscription ? "Loading..." : currentPlanDevicesUsed}
+                {loadingSubscription ? "Loading..." : displayedDevicesUsed}
               </div>
             </div>
 
             <div className="rounded-lg bg-white border border-emerald-200 px-3 py-2">
               <div className="text-[10px] text-slate-500">Tenants-Users</div>
               <div className="mt-0.5 text-[13px] font-semibold text-slate-900">
-                {loadingSubscription ? "Loading..." : currentPlanTenantUsersUsed}
+                {loadingSubscription ? "Loading..." : displayedTenantUsersUsed}
               </div>
             </div>
           </div>
@@ -1028,28 +1063,18 @@ export default function MySubscriptionSection({ onBack }) {
               {plans.map((plan) => {
                 const planKey = String(plan.key || "").toLowerCase();
                 const paidDate = oneTimePaidPlanMap[planKey] || null;
+                const planIsOneTimePaid = paidOneTimePlanKeySet.has(planKey);
 
                 return (
                   <ActionPlanCard
                     key={plan.key}
                     plan={plan}
-                    isCurrent={
-                      billingMode === "monthly" && plan.key === currentPlanKey
-                    }
-                    isOneTimePaid={
-                      billingMode === "one_time" &&
-                      paidOneTimePlanKeySet.has(planKey)
-                    }
+                    isCurrent={!planIsOneTimePaid && plan.key === currentPlanKey}
+                    isOneTimePaid={planIsOneTimePaid}
                     oneTimePaidDate={paidDate}
                     billingMode={billingMode}
                     onSelect={handleSelectPlan}
-                    isSelected={
-                      selectedPlanKey === plan.key &&
-                      !(
-                        billingMode === "one_time" &&
-                        paidOneTimePlanKeySet.has(planKey)
-                      )
-                    }
+                    isSelected={selectedPlanKey === plan.key && !planIsOneTimePaid}
                     currentPlanKey={currentPlanKey}
                     onCancelSubscription={handleCancelSubscription}
                     onReactivateSubscription={handleReactivateSubscription}
