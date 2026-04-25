@@ -130,6 +130,74 @@ export function getPlanActionLabel(planKey, currentPlanKey) {
   return "Choose Plan";
 }
 
+export function addOneMonth(value) {
+  if (!value) return null;
+
+  try {
+    const date = new Date(value);
+    if (Number.isNaN(date.getTime())) return null;
+
+    const originalDay = date.getDate();
+    date.setMonth(date.getMonth() + 1);
+
+    // Handles dates like Jan 31 -> Feb 28/29 instead of rolling into March.
+    if (date.getDate() !== originalDay) {
+      date.setDate(0);
+    }
+
+    return date;
+  } catch (err) {
+    return null;
+  }
+}
+
+export function getRenewalDateValue(subscription) {
+  const renewalDate =
+    subscription?.renewal_date ||
+    subscription?.current_period_end ||
+    subscription?.stripe_current_period_end ||
+    subscription?.period_end ||
+    null;
+
+  if (renewalDate) {
+    const parsedRenewal = new Date(renewalDate);
+    if (!Number.isNaN(parsedRenewal.getTime())) {
+      return parsedRenewal;
+    }
+  }
+
+  const status = String(
+    subscription?.status || subscription?.subscription_status || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const planKey = String(subscription?.plan_key || "").trim().toLowerCase();
+
+  const billingType = String(
+    subscription?.billing_type ||
+      subscription?.billingType ||
+      subscription?.payment_type ||
+      subscription?.paymentType ||
+      "monthly"
+  )
+    .trim()
+    .toLowerCase();
+
+  const shouldUseActiveDateFallback =
+    planKey !== "free" &&
+    billingType !== "one_time" &&
+    billingType !== "one-time" &&
+    billingType !== "onetime" &&
+    status !== "expired";
+
+  if (shouldUseActiveDateFallback && subscription?.active_date) {
+    return addOneMonth(subscription.active_date);
+  }
+
+  return null;
+}
+
 export function formatRenewalDate(value) {
   if (!value) return "—";
 
@@ -506,9 +574,10 @@ export function useMySubscriptionSection() {
   const currentPlanStatus = cancellationScheduled
     ? "Canceled"
     : subscription?.status || subscription?.subscription_status || "Active";
-  const currentPlanRenewal = formatRenewalDate(
-    subscription?.renewal_date || subscription?.current_period_end
-  );
+
+  const currentPlanRenewalDateValue = getRenewalDateValue(subscription);
+  const currentPlanRenewal = formatRenewalDate(currentPlanRenewalDateValue);
+
   const currentPlanDevicesUsed = buildDevicesUsedText(
     subscription?.devices_used,
     subscription?.device_limit
@@ -755,6 +824,7 @@ export function useMySubscriptionSection() {
     addonSubtotal,
     currentPlanStatus,
     currentPlanRenewal,
+    currentPlanRenewalDateValue,
     currentPlanDevicesUsed,
     currentPlanTenantUsersUsed,
     displayTax,
