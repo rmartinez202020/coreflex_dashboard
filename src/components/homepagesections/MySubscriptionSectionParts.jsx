@@ -332,7 +332,7 @@ export function ActionPlanCard({
             disabled
             className="w-full rounded-lg bg-slate-300 px-3 py-2 text-[11px] font-semibold text-slate-600 cursor-not-allowed"
           >
-            Cancel Montly Subcription to Upgrade
+            To Purchase "Cancel Montly Subcription"
           </button>
         ) : showCurrentBadge ? (
           <div className="flex gap-2">
