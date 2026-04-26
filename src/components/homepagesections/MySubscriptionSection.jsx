@@ -325,24 +325,13 @@ export default function MySubscriptionSection({ onBack }) {
 
     const payloadOverride = {
       planKey,
-
-      // ✅ Tenant-user add-ons are NOT one-time plan purchases.
-      // They must be processed as tenant_user_addon_only.
       billingType: isAddonOnlyPurchase ? "monthly" : checkoutBillingMode,
-
-      // ✅ Backend expects this exact field name.
       extraTenantUsers,
-
-      // ✅ Backend should use this to charge/add ONLY tenant-users.
       checkoutType: isAddonOnlyPurchase ? "tenant_user_addon_only" : "",
-
       effectivePlanKey: planKey,
       billingMode: isAddonOnlyPurchase ? "monthly" : checkoutBillingMode,
-
       isTenantUsersOnlyCheckout: isAddonOnlyPurchase,
     };
-
-    console.log("✅ CHECKOUT PAYLOAD OVERRIDE:", payloadOverride);
 
     return openProceedToPayment(payloadOverride);
   };
@@ -429,7 +418,7 @@ export default function MySubscriptionSection({ onBack }) {
 
           return;
         } catch (err) {
-          console.warn("Could not load one-time paid plan data:", err);
+          // Silent failure: the UI can continue without one-time purchase data.
         }
       }
     };
@@ -470,23 +459,21 @@ export default function MySubscriptionSection({ onBack }) {
           }
         );
 
-        const data = await res.json().catch(() => ({}));
+        await res.json().catch(() => ({}));
 
         if (!res.ok) {
-          console.error("❌ Failed to apply checkout session:", data);
           return;
         }
 
         if (cancelled) return;
 
-        console.log("✅ Checkout session applied:", data);
         sessionStorage.setItem(applyKey, "done");
 
         const cleanUrl = `${window.location.pathname}${window.location.hash || ""}`;
         window.history.replaceState({}, "", cleanUrl);
         setShowPaymentSuccessModal(true);
       } catch (err) {
-        console.error("❌ Error applying checkout session:", err);
+        // Silent failure: user can refresh or retry from billing page.
       }
     };
 
@@ -571,7 +558,6 @@ export default function MySubscriptionSection({ onBack }) {
         reloadOnClose: true,
       });
     } catch (err) {
-      console.error("❌ Cancel subscription failed:", err);
       closeConfirmModal();
 
       showMessage({
@@ -617,7 +603,6 @@ export default function MySubscriptionSection({ onBack }) {
         reloadOnClose: true,
       });
     } catch (err) {
-      console.error("❌ Reactivate subscription failed:", err);
       closeConfirmModal();
 
       showMessage({
@@ -673,6 +658,7 @@ export default function MySubscriptionSection({ onBack }) {
       changeAddonTenantUsersQty={changeAddonTenantUsersQty}
       cancelSelection={cancelSelection}
       loadingSubscription={loadingSubscription}
+      subscriptionError={subscriptionError}
       displayedCurrentPlan={displayedCurrentPlan}
       displayedStatus={displayedStatus}
       displayedRenewal={displayedRenewal}

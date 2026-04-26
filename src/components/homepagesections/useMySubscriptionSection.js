@@ -263,12 +263,14 @@ export function mergePlanCatalog(defaultPlans, dbPlans) {
     if (row?.device_limit !== null && row?.device_limit !== undefined) {
       bucket.deviceLimit = row.device_limit;
     }
+
     if (
       row?.tenant_user_limit !== null &&
       row?.tenant_user_limit !== undefined
     ) {
       bucket.tenantsUsers = row.tenant_user_limit;
     }
+
     if (
       row?.data_history_days !== null &&
       row?.data_history_days !== undefined
@@ -281,6 +283,7 @@ export function mergePlanCatalog(defaultPlans, dbPlans) {
         bucket.dataHistory = `${row.data_history_days} days`;
       }
     }
+
     if (row?.plan_name) {
       bucket.name = row.plan_name;
     }
@@ -288,6 +291,7 @@ export function mergePlanCatalog(defaultPlans, dbPlans) {
 
   return defaultPlans.map((plan) => {
     const db = grouped.get(plan.key) || {};
+
     return {
       ...plan,
       ...db,
@@ -390,7 +394,6 @@ export function useMySubscriptionSection() {
       setSubscription(data);
       return data;
     } catch (err) {
-      console.error("Failed to load subscription:", err);
       setSubscriptionError(
         err?.message || "Unable to load subscription information."
       );
@@ -426,7 +429,6 @@ export function useMySubscriptionSection() {
         setSubscription(data);
       } catch (err) {
         if (!isMounted) return;
-        console.error("Failed to load subscription:", err);
         setSubscriptionError(
           err?.message || "Unable to load subscription information."
         );
@@ -503,18 +505,9 @@ export function useMySubscriptionSection() {
         try {
           catalog = await tryLoadPublicCatalog(token);
         } catch (publicErr) {
-          console.warn(
-            "Public billing catalog unavailable, trying admin fallback.",
-            publicErr
-          );
-
           try {
             catalog = await tryLoadAdminCatalog(token);
           } catch (adminErr) {
-            console.warn(
-              "Admin billing catalog unavailable, using defaults.",
-              adminErr
-            );
             catalog = { plans: [], addons: [], tax: {} };
           }
         }
@@ -525,7 +518,6 @@ export function useMySubscriptionSection() {
         setDbAddons(Array.isArray(catalog?.addons) ? catalog.addons : []);
       } catch (err) {
         if (!isMounted) return;
-        console.warn("Billing catalog fallback to defaults:", err);
         setDbPlans([]);
         setDbAddons([]);
       }
@@ -588,6 +580,7 @@ export function useMySubscriptionSection() {
     subscription?.devices_used,
     subscription?.device_limit
   );
+
   const currentPlanTenantUsersUsed = buildTenantUsersUsedText(
     subscription?.tenant_users_used,
     subscription?.tenants_users_limit
@@ -686,18 +679,6 @@ export function useMySubscriptionSection() {
         requestPayload.checkoutType = finalCheckoutType;
       }
 
-      console.log("CHECKOUT SESSION REQUEST:", {
-        effectivePlanKey: effectivePlan.key,
-        billingMode,
-        addonTenantUsersQty,
-        isCurrentPlanSelection,
-        chargeablePlanPrice,
-        subtotalAmount,
-        checkoutPreviewKey,
-        payloadOverride: normalizedOverride,
-        requestPayload,
-      });
-
       const response = await fetch(`${API_URL}/billing/create-checkout-session`, {
         method: "POST",
         headers: buildJsonHeaders(token),
@@ -711,19 +692,6 @@ export function useMySubscriptionSection() {
           data?.detail || data?.message || "Unable to start checkout."
         );
       }
-
-      console.log("CHECKOUT SESSION RESPONSE:", {
-        directApplied: data?.directApplied,
-        checkoutMode: data?.checkoutMode,
-        url: data?.url,
-        checkoutSessionId: data?.checkoutSessionId,
-        planAmount: data?.planAmount,
-        addonAmount: data?.addonAmount,
-        subtotal: data?.subtotal,
-        tax: data?.tax,
-        total: data?.total,
-        checkoutPreviewKey,
-      });
 
       setPaymentBreakdown({
         planAmount: Number(data?.planAmount || 0),
@@ -766,9 +734,6 @@ export function useMySubscriptionSection() {
       subtotalAmount,
       billingMode,
       addonTenantUsersQty,
-      isCurrentPlanSelection,
-      chargeablePlanPrice,
-      checkoutPreviewKey,
     ]
   );
 
@@ -832,8 +797,6 @@ export function useMySubscriptionSection() {
 
         window.location.href = url;
       } catch (err) {
-        console.error("Checkout redirect failed:", err);
-
         try {
           if (checkoutTab && !checkoutTab.closed) {
             checkoutTab.close();
