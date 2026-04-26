@@ -307,7 +307,9 @@ export function ActionPlanCard({
 
         <div className="flex items-center justify-between gap-2">
           <span className="text-slate-500">Tenants-Users</span>
-          <span className="font-semibold text-slate-900">+1</span>
+          <span className="font-semibold text-slate-900">
+            {isEnterprise ? "Unlimited" : "+1"}
+          </span>
         </div>
 
         <div className="flex items-center justify-between gap-2">
@@ -485,7 +487,9 @@ export function ComparePlansModal({ open, onClose, plans }) {
                         }`
                       : plan.deviceLimit}
                   </td>
-                  <td className="px-4 py-4 font-semibold">+1</td>
+                  <td className="px-4 py-4 font-semibold">
+                    {plan.key === "enterprise" ? "Unlimited" : "+1"}
+                  </td>
                   <td className="px-4 py-4">{plan.dataHistory}</td>
                   <td className="px-4 py-4">{plan.features}</td>
                   <td className="px-4 py-4">
