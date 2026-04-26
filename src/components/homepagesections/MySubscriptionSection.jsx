@@ -169,9 +169,6 @@ export default function MySubscriptionSection({ onBack }) {
     currentPlanKey,
   ]);
 
-  // ✅ IMPORTANT:
-  // Tenant-user add-ons for the current plan must be processed as payment mode,
-  // not as a new monthly subscription checkout.
   useEffect(() => {
     if (isTenantUsersOnlyCheckout && billingMode !== "one_time") {
       changeBillingMode("one_time");
@@ -319,9 +316,6 @@ export default function MySubscriptionSection({ onBack }) {
     selectPlan(plan);
   };
 
-  // ✅ CRITICAL FIX:
-  // Always pass the backend payload names explicitly.
-  // Backend expects: planKey, billingType, extraTenantUsers.
   const handleProceedToPayment = () => {
     const planKey = String(
       effectivePlan?.key || selectedPlanKey || currentPlanKey || "free"
@@ -336,13 +330,15 @@ export default function MySubscriptionSection({ onBack }) {
       billingType: checkoutBillingMode,
       extraTenantUsers,
 
-      // Compatibility keys in case the hook still reads the old UI names.
+      checkoutType: extraTenantUsers > 0 ? "tenant_user_addon_only" : "",
+      force_one_time_payment: extraTenantUsers > 0 ? "true" : "false",
+      do_not_create_subscription: extraTenantUsers > 0 ? "true" : "false",
+
       effectivePlanKey: planKey,
       billingMode: checkoutBillingMode,
       addonTenantUsersQty: extraTenantUsers,
 
-      isTenantUsersOnlyCheckout,
-      checkoutType: isTenantUsersOnlyCheckout ? "tenant_user_addon_only" : "",
+      isTenantUsersOnlyCheckout: extraTenantUsers > 0 || isTenantUsersOnlyCheckout,
     };
 
     console.log("✅ CHECKOUT PAYLOAD OVERRIDE:", payloadOverride);
