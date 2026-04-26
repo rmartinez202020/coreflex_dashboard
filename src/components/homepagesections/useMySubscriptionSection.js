@@ -559,9 +559,6 @@ export function useMySubscriptionSection() {
   const effectivePlan = selectedPlan || currentPlan;
   const effectivePlanPrice = getNumericPlanPrice(effectivePlan, billingMode);
 
-  // ✅ FIX:
-  // Monthly current plan = no charge.
-  // One-time current plan = chargeable license purchase.
   const isSamePlanSelection = selectedPlan?.key === currentPlanKey;
 
   const isCurrentPlanSelection =
@@ -620,193 +617,248 @@ export function useMySubscriptionSection() {
     chargeablePlanPrice,
   ]);
 
-  const createCheckoutSessionForCurrentSelection = useCallback(async () => {
-    if (!effectivePlan) {
-      throw new Error("Unable to start checkout.");
-    }
+  const createCheckoutSessionForCurrentSelection = useCallback(
+    async (payloadOverride = null) => {
+      if (!effectivePlan) {
+        throw new Error("Unable to start checkout.");
+      }
 
-    if (effectivePlan.key === "enterprise") {
-      throw new Error("Enterprise plans should use your sales workflow.");
-    }
+      if (effectivePlan.key === "enterprise") {
+        throw new Error("Enterprise plans should use your sales workflow.");
+      }
 
-    if (subtotalAmount <= 0) {
-      throw new Error("There is no charge to process.");
-    }
+      if (subtotalAmount <= 0) {
+        throw new Error("There is no charge to process.");
+      }
 
-    const token = String(getToken() || "").trim();
-    if (!token) {
-      throw new Error("Missing authentication token.");
-    }
+      const token = String(getToken() || "").trim();
+      if (!token) {
+        throw new Error("Missing authentication token.");
+      }
 
-    console.log("CHECKOUT SESSION REQUEST:", {
-      effectivePlanKey: effectivePlan.key,
+      const normalizedOverride =
+        payloadOverride && typeof payloadOverride === "object"
+          ? payloadOverride
+          : {};
+
+      const finalPlanKey = String(
+        normalizedOverride.planKey ||
+          normalizedOverride.effectivePlanKey ||
+          effectivePlan.key
+      )
+        .trim()
+        .toLowerCase();
+
+      const finalBillingType = String(
+        normalizedOverride.billingType ||
+          normalizedOverride.billingMode ||
+          billingMode
+      )
+        .trim()
+        .toLowerCase();
+
+      const finalExtraTenantUsers = Math.max(
+        0,
+        Number(
+          normalizedOverride.extraTenantUsers ??
+            normalizedOverride.addonTenantUsersQty ??
+            addonTenantUsersQty ??
+            0
+        )
+      );
+
+      const finalCheckoutType = String(
+        normalizedOverride.checkoutType ||
+          (normalizedOverride.isTenantUsersOnlyCheckout
+            ? "tenant_user_addon_only"
+            : "")
+      )
+        .trim()
+        .toLowerCase();
+
+      const requestPayload = {
+        planKey: finalPlanKey,
+        billingType: finalBillingType,
+        extraTenantUsers: finalExtraTenantUsers,
+      };
+
+      if (finalCheckoutType) {
+        requestPayload.checkoutType = finalCheckoutType;
+      }
+
+      console.log("CHECKOUT SESSION REQUEST:", {
+        effectivePlanKey: effectivePlan.key,
+        billingMode,
+        addonTenantUsersQty,
+        isCurrentPlanSelection,
+        chargeablePlanPrice,
+        subtotalAmount,
+        checkoutPreviewKey,
+        payloadOverride: normalizedOverride,
+        requestPayload,
+      });
+
+      const response = await fetch(`${API_URL}/billing/create-checkout-session`, {
+        method: "POST",
+        headers: buildJsonHeaders(token),
+        body: JSON.stringify(requestPayload),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          data?.detail || data?.message || "Unable to start checkout."
+        );
+      }
+
+      console.log("CHECKOUT SESSION RESPONSE:", {
+        directApplied: data?.directApplied,
+        checkoutMode: data?.checkoutMode,
+        url: data?.url,
+        checkoutSessionId: data?.checkoutSessionId,
+        planAmount: data?.planAmount,
+        addonAmount: data?.addonAmount,
+        subtotal: data?.subtotal,
+        tax: data?.tax,
+        total: data?.total,
+        checkoutPreviewKey,
+      });
+
+      setPaymentBreakdown({
+        planAmount: Number(data?.planAmount || 0),
+        addonAmount: Number(data?.addonAmount || 0),
+        subtotal: Number(data?.subtotal || 0),
+        tax: Number(data?.tax || 0),
+        taxRate: Number(data?.taxRate || 0),
+        taxRatePercent: Number(data?.taxRatePercent || 0),
+        taxLabel: String(data?.taxLabel || "Tax"),
+        total: Number(data?.total || 0),
+      });
+
+      if (data?.directApplied) {
+        return {
+          directApplied: true,
+          checkoutMode: String(data?.checkoutMode || "subscription_item_update"),
+          message:
+            data?.message ||
+            "Tenant-user add-on was added to your existing subscription.",
+          subscriptionId: String(
+            data?.subscriptionId || data?.stripeSubscriptionId || ""
+          ),
+          addedTenantUsers: Number(data?.addedTenantUsers || 0),
+          tenantsUsersLimit: Number(data?.tenantsUsersLimit || 0),
+        };
+      }
+
+      if (!data?.url) {
+        throw new Error("Stripe checkout URL was not returned.");
+      }
+
+      return {
+        directApplied: false,
+        url: String(data.url || ""),
+        checkoutSessionId: String(data.checkoutSessionId || ""),
+      };
+    },
+    [
+      effectivePlan,
+      subtotalAmount,
       billingMode,
       addonTenantUsersQty,
       isCurrentPlanSelection,
       chargeablePlanPrice,
-      subtotalAmount,
       checkoutPreviewKey,
-    });
+    ]
+  );
 
-    const response = await fetch(`${API_URL}/billing/create-checkout-session`, {
-      method: "POST",
-      headers: buildJsonHeaders(token),
-      body: JSON.stringify({
-        planKey: effectivePlan.key,
-        billingType: billingMode,
-        extraTenantUsers: addonTenantUsersQty,
-      }),
-    });
+  const openProceedToPayment = useCallback(
+    async (payloadOverride = null) => {
+      if (checkoutLoading) return;
+      if (!effectivePlan) return;
 
-    const data = await response.json().catch(() => ({}));
+      setCheckoutMessage("");
 
-    if (!response.ok) {
-      throw new Error(
-        data?.detail || data?.message || "Unable to start checkout."
-      );
-    }
-
-    console.log("CHECKOUT SESSION RESPONSE:", {
-      directApplied: data?.directApplied,
-      checkoutMode: data?.checkoutMode,
-      url: data?.url,
-      checkoutSessionId: data?.checkoutSessionId,
-      planAmount: data?.planAmount,
-      addonAmount: data?.addonAmount,
-      subtotal: data?.subtotal,
-      tax: data?.tax,
-      total: data?.total,
-      checkoutPreviewKey,
-    });
-
-    setPaymentBreakdown({
-      planAmount: Number(data?.planAmount || 0),
-      addonAmount: Number(data?.addonAmount || 0),
-      subtotal: Number(data?.subtotal || 0),
-      tax: Number(data?.tax || 0),
-      taxRate: Number(data?.taxRate || 0),
-      taxRatePercent: Number(data?.taxRatePercent || 0),
-      taxLabel: String(data?.taxLabel || "Tax"),
-      total: Number(data?.total || 0),
-    });
-
-    if (data?.directApplied) {
-      return {
-        directApplied: true,
-        checkoutMode: String(data?.checkoutMode || "subscription_item_update"),
-        message:
-          data?.message ||
-          "Tenant-user add-on was added to your existing subscription.",
-        subscriptionId: String(
-          data?.subscriptionId || data?.stripeSubscriptionId || ""
-        ),
-        addedTenantUsers: Number(data?.addedTenantUsers || 0),
-        tenantsUsersLimit: Number(data?.tenantsUsersLimit || 0),
-      };
-    }
-
-    if (!data?.url) {
-      throw new Error("Stripe checkout URL was not returned.");
-    }
-
-    return {
-      directApplied: false,
-      url: String(data.url || ""),
-      checkoutSessionId: String(data.checkoutSessionId || ""),
-    };
-  }, [
-    effectivePlan,
-    subtotalAmount,
-    billingMode,
-    addonTenantUsersQty,
-    isCurrentPlanSelection,
-    chargeablePlanPrice,
-    checkoutPreviewKey,
-  ]);
-
-  const openProceedToPayment = useCallback(async () => {
-    if (checkoutLoading) return;
-    if (!effectivePlan) return;
-
-    setCheckoutMessage("");
-
-    if (effectivePlan.key === "enterprise") {
-      setCheckoutMessage(
-        "Enterprise plans should be routed through your custom sales workflow."
-      );
-      return;
-    }
-
-    if (subtotalAmount <= 0) {
-      setCheckoutMessage("There is no charge to process for this selection.");
-      return;
-    }
-
-    let checkoutTab = null;
-
-    try {
-      setCheckoutLoading(true);
-
-      const result = await createCheckoutSessionForCurrentSelection();
-
-      if (result?.directApplied) {
-        await loadSubscription();
-
-        setSelectedPlanKey(null);
-        setAddonTenantUsersQty(0);
-        resetPaymentPreview();
-
+      if (effectivePlan.key === "enterprise") {
         setCheckoutMessage(
-          result.message ||
-            "Tenant-user add-on was added to your existing subscription."
-        );
-
-        return;
-      }
-
-      const url = String(result?.url || "").trim();
-
-      if (!url) {
-        throw new Error("Unable to open Stripe checkout.");
-      }
-
-      checkoutTab = window.open(url, "_blank");
-
-      if (checkoutTab) {
-        checkoutTab.focus?.();
-        setCheckoutMessage(
-          "Stripe checkout opened in a new tab. Complete payment there, then return here."
+          "Enterprise plans should be routed through your custom sales workflow."
         );
         return;
       }
 
-      window.location.href = url;
-    } catch (err) {
-      console.error("Checkout redirect failed:", err);
+      if (subtotalAmount <= 0) {
+        setCheckoutMessage("There is no charge to process for this selection.");
+        return;
+      }
+
+      let checkoutTab = null;
 
       try {
-        if (checkoutTab && !checkoutTab.closed) {
-          checkoutTab.close();
-        }
-      } catch (_) {
-        // no-op
-      }
+        setCheckoutLoading(true);
 
-      setCheckoutMessage(
-        err?.message || "Unable to redirect to Stripe checkout."
-      );
-      resetPaymentPreview();
-    } finally {
-      setCheckoutLoading(false);
-    }
-  }, [
-    checkoutLoading,
-    effectivePlan,
-    subtotalAmount,
-    createCheckoutSessionForCurrentSelection,
-    loadSubscription,
-    resetPaymentPreview,
-  ]);
+        const result =
+          await createCheckoutSessionForCurrentSelection(payloadOverride);
+
+        if (result?.directApplied) {
+          await loadSubscription();
+
+          setSelectedPlanKey(null);
+          setAddonTenantUsersQty(0);
+          resetPaymentPreview();
+
+          setCheckoutMessage(
+            result.message ||
+              "Tenant-user add-on was added to your existing subscription."
+          );
+
+          return;
+        }
+
+        const url = String(result?.url || "").trim();
+
+        if (!url) {
+          throw new Error("Unable to open Stripe checkout.");
+        }
+
+        checkoutTab = window.open(url, "_blank");
+
+        if (checkoutTab) {
+          checkoutTab.focus?.();
+          setCheckoutMessage(
+            "Stripe checkout opened in a new tab. Complete payment there, then return here."
+          );
+          return;
+        }
+
+        window.location.href = url;
+      } catch (err) {
+        console.error("Checkout redirect failed:", err);
+
+        try {
+          if (checkoutTab && !checkoutTab.closed) {
+            checkoutTab.close();
+          }
+        } catch (_) {
+          // no-op
+        }
+
+        setCheckoutMessage(
+          err?.message || "Unable to redirect to Stripe checkout."
+        );
+        resetPaymentPreview();
+      } finally {
+        setCheckoutLoading(false);
+      }
+    },
+    [
+      checkoutLoading,
+      effectivePlan,
+      subtotalAmount,
+      createCheckoutSessionForCurrentSelection,
+      loadSubscription,
+      resetPaymentPreview,
+    ]
+  );
 
   const handleCheckoutReturn = useCallback(async () => {
     try {
