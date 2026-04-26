@@ -398,7 +398,12 @@ export default function MySubscriptionSection({ onBack }) {
               .trim()
               .toLowerCase();
 
-            if (billingType !== "one_time" || confirmed === false || !planKey) {
+            if (
+              billingType !== "one_time" ||
+              confirmed === false ||
+              !planKey ||
+              planKey === "free"
+            ) {
               return;
             }
 
