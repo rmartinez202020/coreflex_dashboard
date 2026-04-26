@@ -127,6 +127,28 @@ export default function MySubscriptionSection({ onBack }) {
   const cancellationScheduled =
     !hasOneTimePaidPlan && Boolean(subscription?.cancel_at_period_end);
 
+  const hasActiveMonthlySubscription = useMemo(() => {
+    const planKey = String(currentPlanKey || "").toLowerCase();
+    const status = String(currentPlanStatus || subscription?.status || "")
+      .trim()
+      .toLowerCase();
+
+    return (
+      billingMode === "one_time" &&
+      !hasOneTimePaidPlan &&
+      !cancellationScheduled &&
+      planKey !== "free" &&
+      ["active", "paid", "trialing"].includes(status)
+    );
+  }, [
+    billingMode,
+    currentPlanKey,
+    currentPlanStatus,
+    subscription?.status,
+    hasOneTimePaidPlan,
+    cancellationScheduled,
+  ]);
+
   const isTenantUsersOnlyCheckout = useMemo(() => {
     return (
       Boolean(isCurrentPlanSelection) &&
@@ -149,13 +171,23 @@ export default function MySubscriptionSection({ onBack }) {
   }, [billingMode, isTenantUsersOnlyCheckout]);
 
   const hasCheckoutSelection = useMemo(() => {
+    if (hasActiveMonthlySubscription) {
+      return Number(addonTenantUsersQty || 0) > 0;
+    }
+
     return (
       Boolean(
         selectedPlanKey &&
           (selectedPlanKey !== currentPlanKey || billingMode === "one_time")
       ) || Number(addonTenantUsersQty || 0) > 0
     );
-  }, [selectedPlanKey, currentPlanKey, billingMode, addonTenantUsersQty]);
+  }, [
+    hasActiveMonthlySubscription,
+    selectedPlanKey,
+    currentPlanKey,
+    billingMode,
+    addonTenantUsersQty,
+  ]);
 
   const shouldShowPlanChargeLine = useMemo(() => {
     return Boolean(effectivePlan) && !isCurrentPlanSelection;
@@ -229,6 +261,10 @@ export default function MySubscriptionSection({ onBack }) {
     const planKey = String(plan?.key || "").toLowerCase();
 
     if (planKey === "enterprise") {
+      return;
+    }
+
+    if (hasActiveMonthlySubscription && planKey !== "free") {
       return;
     }
 
@@ -735,6 +771,11 @@ export default function MySubscriptionSection({ onBack }) {
                   planIndex >= 0 &&
                   planIndex < paidOneTimePlanIndex;
 
+                const isOneTimeBlockedByActiveMonthly =
+                  hasActiveMonthlySubscription &&
+                  billingMode === "one_time" &&
+                  !["free", "enterprise"].includes(planKey);
+
                 return (
                   <ActionPlanCard
                     key={plan.key}
@@ -742,13 +783,17 @@ export default function MySubscriptionSection({ onBack }) {
                     isCurrent={isCurrentMonthlyPlan}
                     isOneTimePaid={planIsOneTimePaid}
                     isOneTimeDowngradeBlocked={isOneTimeDowngradeBlocked}
+                    isOneTimeBlockedByActiveMonthly={
+                      isOneTimeBlockedByActiveMonthly
+                    }
                     oneTimePaidDate={paidDate}
                     billingMode={billingMode}
                     onSelect={handleSelectPlan}
                     isSelected={
                       selectedPlanKey === plan.key &&
                       !planIsOneTimePaid &&
-                      !isOneTimeDowngradeBlocked
+                      !isOneTimeDowngradeBlocked &&
+                      !isOneTimeBlockedByActiveMonthly
                     }
                     currentPlanKey={currentPlanKey}
                     onCancelSubscription={handleCancelSubscription}

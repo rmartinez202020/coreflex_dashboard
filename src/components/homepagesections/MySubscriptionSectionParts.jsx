@@ -184,6 +184,7 @@ export function ActionPlanCard({
   isCurrent,
   isOneTimePaid,
   isOneTimeDowngradeBlocked = false,
+  isOneTimeBlockedByActiveMonthly = false,
   oneTimePaidDate,
   billingMode,
   onSelect,
@@ -211,11 +212,12 @@ export function ActionPlanCard({
         !isEnterprise &&
         !isFreePlan &&
         !showPaidBadge &&
-        !isOneTimeDowngradeBlocked
+        !isOneTimeDowngradeBlocked &&
+        !isOneTimeBlockedByActiveMonthly
           ? "border-emerald-500 ring-2 ring-emerald-200"
           : showCurrentBadge || showPaidBadge
             ? "border-emerald-300"
-            : isOneTimeDowngradeBlocked
+            : isOneTimeDowngradeBlocked || isOneTimeBlockedByActiveMonthly
               ? "border-slate-200 opacity-80"
               : "border-slate-200 hover:border-slate-300"
       }`}
@@ -249,7 +251,7 @@ export function ActionPlanCard({
             </span>
           )}
 
-          {isOneTimeDowngradeBlocked && (
+          {(isOneTimeDowngradeBlocked || isOneTimeBlockedByActiveMonthly) && (
             <span className="rounded-full bg-slate-100 px-2 py-0.5 text-[10px] font-semibold whitespace-nowrap text-slate-600">
               Locked
             </span>
@@ -280,6 +282,12 @@ export function ActionPlanCard({
         {isOneTimeDowngradeBlocked && (
           <div className="mt-1 text-[11px] font-semibold text-slate-500">
             Downgrade unavailable after one-time purchase
+          </div>
+        )}
+
+        {isOneTimeBlockedByActiveMonthly && (
+          <div className="mt-1 text-[11px] font-semibold text-slate-500">
+            Cancel monthly subscription first
           </div>
         )}
       </div>
@@ -318,6 +326,13 @@ export function ActionPlanCard({
             className="w-full rounded-lg bg-slate-300 px-3 py-2 text-[12px] font-semibold text-slate-600 cursor-not-allowed"
           >
             Free Plan
+          </button>
+        ) : isOneTimeBlockedByActiveMonthly ? (
+          <button
+            disabled
+            className="w-full rounded-lg bg-slate-300 px-3 py-2 text-[11px] font-semibold text-slate-600 cursor-not-allowed"
+          >
+            Cancel Montly Subcription to Upgrade
           </button>
         ) : showCurrentBadge ? (
           <div className="flex gap-2">
