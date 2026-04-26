@@ -60,7 +60,7 @@ export const DEFAULT_PLANS = [
     oneTimeLicense: null,
     deviceLimit: "Unlimited",
     tenantsUsers: 5,
-    dataHistory: "Unlimited",
+    dataHistory: "2 years",
     features: "Custom integrations, dedicated server, priority support",
     annualSupport: 1500,
     shortFeature: "Custom integrations and priority support",
