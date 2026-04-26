@@ -150,12 +150,15 @@ export default function MySubscriptionSection({ onBack }) {
   ]);
 
   const isTenantUsersOnlyCheckout = useMemo(() => {
+    const effectiveKey = String(effectivePlan?.key || "").toLowerCase();
+    const currentKey = String(currentPlanKey || "").toLowerCase();
+
     return (
       Boolean(isCurrentPlanSelection) &&
       Number(addonTenantUsersQty || 0) > 0 &&
       Number(addonSubtotal || 0) > 0 &&
       Number(chargeablePlanPrice || 0) <= 0 &&
-      effectivePlan?.key === currentPlanKey
+      effectiveKey === currentKey
     );
   }, [
     isCurrentPlanSelection,
@@ -314,6 +317,37 @@ export default function MySubscriptionSection({ onBack }) {
     }
 
     selectPlan(plan);
+  };
+
+  // ✅ CRITICAL FIX:
+  // Always pass the backend payload names explicitly.
+  // Backend expects: planKey, billingType, extraTenantUsers.
+  const handleProceedToPayment = () => {
+    const planKey = String(
+      effectivePlan?.key || selectedPlanKey || currentPlanKey || "free"
+    )
+      .trim()
+      .toLowerCase();
+
+    const extraTenantUsers = Math.max(0, Number(addonTenantUsersQty || 0));
+
+    const payloadOverride = {
+      planKey,
+      billingType: checkoutBillingMode,
+      extraTenantUsers,
+
+      // Compatibility keys in case the hook still reads the old UI names.
+      effectivePlanKey: planKey,
+      billingMode: checkoutBillingMode,
+      addonTenantUsersQty: extraTenantUsers,
+
+      isTenantUsersOnlyCheckout,
+      checkoutType: isTenantUsersOnlyCheckout ? "tenant_user_addon_only" : "",
+    };
+
+    console.log("✅ CHECKOUT PAYLOAD OVERRIDE:", payloadOverride);
+
+    return openProceedToPayment(payloadOverride);
   };
 
   useEffect(() => {
@@ -967,7 +1001,7 @@ export default function MySubscriptionSection({ onBack }) {
                             : cancellationScheduled
                         }
                         isTenantUsersOnlyCheckout={bypassAgreementModal}
-                        openProceedToPayment={openProceedToPayment}
+                        openProceedToPayment={handleProceedToPayment}
                         showMessage={showMessage}
                       />
                     </div>
