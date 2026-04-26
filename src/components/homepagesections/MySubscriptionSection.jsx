@@ -166,9 +166,20 @@ export default function MySubscriptionSection({ onBack }) {
     currentPlanKey,
   ]);
 
+  // ✅ IMPORTANT:
+  // Tenant-user add-ons for the current plan must be processed as payment mode,
+  // not as a new monthly subscription checkout.
+  useEffect(() => {
+    if (isTenantUsersOnlyCheckout && billingMode !== "one_time") {
+      changeBillingMode("one_time");
+    }
+  }, [isTenantUsersOnlyCheckout, billingMode, changeBillingMode]);
+
+  const checkoutBillingMode = isTenantUsersOnlyCheckout ? "one_time" : billingMode;
+
   const bypassAgreementModal = useMemo(() => {
-    return billingMode === "one_time" || isTenantUsersOnlyCheckout;
-  }, [billingMode, isTenantUsersOnlyCheckout]);
+    return checkoutBillingMode === "one_time" || isTenantUsersOnlyCheckout;
+  }, [checkoutBillingMode, isTenantUsersOnlyCheckout]);
 
   const hasCheckoutSelection = useMemo(() => {
     if (hasActiveMonthlySubscription) {
@@ -178,14 +189,14 @@ export default function MySubscriptionSection({ onBack }) {
     return (
       Boolean(
         selectedPlanKey &&
-          (selectedPlanKey !== currentPlanKey || billingMode === "one_time")
+          (selectedPlanKey !== currentPlanKey || checkoutBillingMode === "one_time")
       ) || Number(addonTenantUsersQty || 0) > 0
     );
   }, [
     hasActiveMonthlySubscription,
     selectedPlanKey,
     currentPlanKey,
-    billingMode,
+    checkoutBillingMode,
     addonTenantUsersQty,
   ]);
 
@@ -289,7 +300,7 @@ export default function MySubscriptionSection({ onBack }) {
     }
 
     if (
-      billingMode !== "one_time" &&
+      checkoutBillingMode !== "one_time" &&
       cancellationScheduled &&
       planKey !== currentPlanKey
     ) {
@@ -879,7 +890,9 @@ export default function MySubscriptionSection({ onBack }) {
                       <div className="flex items-center justify-between gap-3">
                         <span className="text-slate-500">
                           {effectivePlan.name}{" "}
-                          {billingMode === "monthly" ? "(Monthly)" : "(One-Time)"}
+                          {checkoutBillingMode === "monthly"
+                            ? "(Monthly)"
+                            : "(One-Time)"}
                         </span>
                         <span className="font-semibold text-slate-900">
                           {effectivePlan.key === "enterprise"
@@ -945,11 +958,13 @@ export default function MySubscriptionSection({ onBack }) {
                         effectivePlan={effectivePlan}
                         selectedPlanKey={selectedPlanKey}
                         currentPlanKey={currentPlanKey}
-                        billingMode={billingMode}
+                        billingMode={checkoutBillingMode}
                         checkoutLoading={checkoutLoading || !hasCheckoutSelection}
                         reactivateLoading={reactivateLoading}
                         cancellationScheduled={
-                          billingMode === "one_time" ? false : cancellationScheduled
+                          checkoutBillingMode === "one_time"
+                            ? false
+                            : cancellationScheduled
                         }
                         isTenantUsersOnlyCheckout={bypassAgreementModal}
                         openProceedToPayment={openProceedToPayment}
