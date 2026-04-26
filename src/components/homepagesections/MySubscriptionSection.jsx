@@ -326,16 +326,13 @@ export default function MySubscriptionSection({ onBack }) {
     const extraTenantUsers = Math.max(0, Number(addonTenantUsersQty || 0));
 
     const isAddonOnlyPurchase =
-      isTenantUsersOnlyCheckout ||
-      (extraTenantUsers > 0 &&
-        Number(chargeablePlanPrice || 0) <= 0 &&
-        Boolean(isCurrentPlanSelection));
+      extraTenantUsers > 0 || isTenantUsersOnlyCheckout;
 
     const payloadOverride = {
       planKey,
       billingType: isAddonOnlyPurchase ? "one_time" : checkoutBillingMode,
 
-      // ✅ BACKEND EXPECTS THIS EXACT FIELD NAME
+      // ✅ IMPORTANT: backend expects this exact field name
       extraTenantUsers,
 
       checkoutType: isAddonOnlyPurchase ? "tenant_user_addon_only" : "",
