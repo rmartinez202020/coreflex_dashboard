@@ -2,9 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { API_URL } from "../../config/api";
 import { getToken } from "../../utils/authToken";
 import MySubscriptionSectionView from "./MySubscriptionSectionView";
-import {
-  useMySubscriptionSection,
-} from "./useMySubscriptionSection";
+import { useMySubscriptionSection } from "./useMySubscriptionSection";
 import {
   formatDisplayDate,
   normalizeAgreementRows,
@@ -165,9 +163,6 @@ export default function MySubscriptionSection({ onBack }) {
     currentPlanKey,
   ]);
 
-  // ✅ IMPORTANT:
-  // Do NOT auto-switch billingMode to one_time when tenant-user add-on is selected.
-  // The UI only blocks plan clicks while addonTenantUsersQty > 0.
   const checkoutBillingMode = billingMode;
 
   const bypassAgreementModal = useMemo(() => {
@@ -182,7 +177,8 @@ export default function MySubscriptionSection({ onBack }) {
     return (
       Boolean(
         selectedPlanKey &&
-          (selectedPlanKey !== currentPlanKey || checkoutBillingMode === "one_time")
+          (selectedPlanKey !== currentPlanKey ||
+            checkoutBillingMode === "one_time")
       ) || Number(addonTenantUsersQty || 0) > 0
     );
   }, [
@@ -314,30 +310,34 @@ export default function MySubscriptionSection({ onBack }) {
   };
 
   const handleProceedToPayment = () => {
+    const extraTenantUsers = Math.max(0, Number(addonTenantUsersQty || 0));
+
+    const isAddonOnlyPurchase =
+      extraTenantUsers > 0 && isTenantUsersOnlyCheckout;
+
     const planKey = String(
-      effectivePlan?.key || selectedPlanKey || currentPlanKey || "free"
+      isAddonOnlyPurchase
+        ? currentPlanKey
+        : effectivePlan?.key || selectedPlanKey || currentPlanKey || "free"
     )
       .trim()
       .toLowerCase();
 
-    const extraTenantUsers = Math.max(0, Number(addonTenantUsersQty || 0));
-
-    const isAddonOnlyPurchase =
-      extraTenantUsers > 0 || isTenantUsersOnlyCheckout;
-
     const payloadOverride = {
       planKey,
-      billingType: isAddonOnlyPurchase ? "one_time" : checkoutBillingMode,
 
-      // ✅ IMPORTANT: backend expects this exact field name
+      // ✅ Tenant-user add-ons are NOT one-time plan purchases.
+      // They must be processed as tenant_user_addon_only.
+      billingType: isAddonOnlyPurchase ? "monthly" : checkoutBillingMode,
+
+      // ✅ Backend expects this exact field name.
       extraTenantUsers,
 
+      // ✅ Backend should use this to charge/add ONLY tenant-users.
       checkoutType: isAddonOnlyPurchase ? "tenant_user_addon_only" : "",
-      force_one_time_payment: isAddonOnlyPurchase ? "true" : "false",
-      do_not_create_subscription: isAddonOnlyPurchase ? "true" : "false",
 
       effectivePlanKey: planKey,
-      billingMode: isAddonOnlyPurchase ? "one_time" : checkoutBillingMode,
+      billingMode: isAddonOnlyPurchase ? "monthly" : checkoutBillingMode,
 
       isTenantUsersOnlyCheckout: isAddonOnlyPurchase,
     };
@@ -640,6 +640,7 @@ export default function MySubscriptionSection({ onBack }) {
       executeReactivateSubscription();
     }
   };
+
   return (
     <MySubscriptionSectionView
       onBack={onBack}
