@@ -196,6 +196,7 @@ export function ActionPlanCard({
   cancellationScheduled,
 }) {
   const isEnterprise = plan?.key === "enterprise";
+  const isFreePlan = String(plan?.key || "").toLowerCase() === "free";
   const actionLabel = getPlanActionLabel(plan.key, currentPlanKey);
   const displayPrice = getDisplayPrice(plan, billingMode);
   const paidDateDisplay = formatDisplayDate(oneTimePaidDate);
@@ -208,6 +209,7 @@ export function ActionPlanCard({
       className={`rounded-xl border bg-white px-3 py-3 shadow-sm transition flex flex-col ${
         isSelected &&
         !isEnterprise &&
+        !isFreePlan &&
         !showPaidBadge &&
         !isOneTimeDowngradeBlocked
           ? "border-emerald-500 ring-2 ring-emerald-200"
@@ -310,7 +312,14 @@ export function ActionPlanCard({
       </div>
 
       <div className="mt-4">
-        {showCurrentBadge ? (
+        {isFreePlan ? (
+          <button
+            disabled
+            className="w-full rounded-lg bg-slate-300 px-3 py-2 text-[12px] font-semibold text-slate-600 cursor-not-allowed"
+          >
+            Free Plan
+          </button>
+        ) : showCurrentBadge ? (
           <div className="flex gap-2">
             <button
               onClick={cancellationScheduled ? onReactivateSubscription : undefined}
