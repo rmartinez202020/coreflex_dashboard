@@ -172,13 +172,10 @@ export default function MySubscriptionSection({ onBack }) {
     currentPlanKey,
   ]);
 
-  useEffect(() => {
-    if (isTenantUsersOnlyCheckout && billingMode !== "one_time") {
-      changeBillingMode("one_time");
-    }
-  }, [isTenantUsersOnlyCheckout, billingMode, changeBillingMode]);
-
-  const checkoutBillingMode = isTenantUsersOnlyCheckout ? "one_time" : billingMode;
+  // ✅ IMPORTANT:
+  // Do NOT auto-switch billingMode to one_time when tenant-user add-on is selected.
+  // The UI only blocks plan clicks while addonTenantUsersQty > 0.
+  const checkoutBillingMode = billingMode;
 
   const bypassAgreementModal = useMemo(() => {
     return checkoutBillingMode === "one_time" || isTenantUsersOnlyCheckout;
@@ -817,7 +814,9 @@ export default function MySubscriptionSection({ onBack }) {
 
             <div
               className={`p-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3 ${
-                isAddonSelectionActive ? "opacity-50" : ""
+                isAddonSelectionActive
+                  ? "opacity-50 pointer-events-none cursor-not-allowed"
+                  : ""
               }`}
             >
               {plans.map((plan, planIndex) => {
@@ -863,7 +862,7 @@ export default function MySubscriptionSection({ onBack }) {
                     }
                     oneTimePaidDate={paidDate}
                     billingMode={billingMode}
-                    onSelect={isAddonSelectionActive ? () => {} : handleSelectPlan}
+                    onSelect={handleSelectPlan}
                     isSelected={
                       !isAddonSelectionActive &&
                       selectedPlanKey === plan.key &&
