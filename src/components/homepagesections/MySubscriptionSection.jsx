@@ -325,20 +325,27 @@ export default function MySubscriptionSection({ onBack }) {
 
     const extraTenantUsers = Math.max(0, Number(addonTenantUsersQty || 0));
 
+    const isAddonOnlyPurchase =
+      isTenantUsersOnlyCheckout ||
+      (extraTenantUsers > 0 &&
+        Number(chargeablePlanPrice || 0) <= 0 &&
+        Boolean(isCurrentPlanSelection));
+
     const payloadOverride = {
       planKey,
-      billingType: checkoutBillingMode,
+      billingType: isAddonOnlyPurchase ? "one_time" : checkoutBillingMode,
+
+      // ✅ BACKEND EXPECTS THIS EXACT FIELD NAME
       extraTenantUsers,
 
-      checkoutType: extraTenantUsers > 0 ? "tenant_user_addon_only" : "",
-      force_one_time_payment: extraTenantUsers > 0 ? "true" : "false",
-      do_not_create_subscription: extraTenantUsers > 0 ? "true" : "false",
+      checkoutType: isAddonOnlyPurchase ? "tenant_user_addon_only" : "",
+      force_one_time_payment: isAddonOnlyPurchase ? "true" : "false",
+      do_not_create_subscription: isAddonOnlyPurchase ? "true" : "false",
 
       effectivePlanKey: planKey,
-      billingMode: checkoutBillingMode,
-      addonTenantUsersQty: extraTenantUsers,
+      billingMode: isAddonOnlyPurchase ? "one_time" : checkoutBillingMode,
 
-      isTenantUsersOnlyCheckout: extraTenantUsers > 0 || isTenantUsersOnlyCheckout,
+      isTenantUsersOnlyCheckout: isAddonOnlyPurchase,
     };
 
     console.log("✅ CHECKOUT PAYLOAD OVERRIDE:", payloadOverride);
