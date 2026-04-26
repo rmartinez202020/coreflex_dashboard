@@ -199,6 +199,7 @@ export function ActionPlanCard({
   const isEnterprise = plan?.key === "enterprise";
   const isFreePlan = String(plan?.key || "").toLowerCase() === "free";
   const actionLabel = getPlanActionLabel(plan.key, currentPlanKey);
+  const oneTimeActionLabel = "Click to Order";
   const displayPrice = getDisplayPrice(plan, billingMode);
   const paidDateDisplay = formatDisplayDate(oneTimePaidDate);
 
@@ -400,7 +401,11 @@ export function ActionPlanCard({
                   : "bg-emerald-600 text-white hover:bg-emerald-700"
             }`}
           >
-            {isEnterprise ? "Contact Sales" : actionLabel}
+            {isEnterprise
+              ? "Contact Sales"
+              : billingMode === "one_time"
+                ? oneTimeActionLabel
+                : actionLabel}
           </button>
         )}
       </div>
