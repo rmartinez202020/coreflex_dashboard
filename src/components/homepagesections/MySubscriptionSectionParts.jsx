@@ -29,6 +29,12 @@ export function normalizeAgreementRows(data) {
   return [];
 }
 
+function getPlanDataHistory(plan) {
+  return String(plan?.key || "").toLowerCase() === "industrial"
+    ? "2 years"
+    : plan?.dataHistory;
+}
+
 export function LoadingDataModal({ open }) {
   if (!open) return null;
 
@@ -202,6 +208,7 @@ export function ActionPlanCard({
   const oneTimeActionLabel = "Click to Order";
   const displayPrice = getDisplayPrice(plan, billingMode);
   const paidDateDisplay = formatDisplayDate(oneTimePaidDate);
+  const dataHistoryDisplay = getPlanDataHistory(plan);
 
   const showPaidBadge = Boolean(isOneTimePaid);
   const showCurrentBadge = Boolean(isCurrent) && !showPaidBadge;
@@ -315,7 +322,7 @@ export function ActionPlanCard({
         <div className="flex items-center justify-between gap-2">
           <span className="text-slate-500">Data History</span>
           <span className="font-semibold text-slate-900 text-right">
-            {plan.dataHistory}
+            {dataHistoryDisplay}
           </span>
         </div>
       </div>
@@ -490,7 +497,7 @@ export function ComparePlansModal({ open, onClose, plans }) {
                   <td className="px-4 py-4 font-semibold">
                     {plan.key === "enterprise" ? "Unlimited" : "+1"}
                   </td>
-                  <td className="px-4 py-4">{plan.dataHistory}</td>
+                  <td className="px-4 py-4">{getPlanDataHistory(plan)}</td>
                   <td className="px-4 py-4">{plan.features}</td>
                   <td className="px-4 py-4">
                     {plan.annualSupport === null
