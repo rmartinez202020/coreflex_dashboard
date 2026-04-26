@@ -288,7 +288,13 @@ export default function MySubscriptionSection({ onBack }) {
       }
     }
 
-    if (cancellationScheduled && planKey !== currentPlanKey) {
+    // ✅ Only block plan changes during scheduled cancellation for MONTHLY mode.
+    // ✅ One-time license purchases are allowed even if monthly subscription is canceled/scheduled to cancel.
+    if (
+      billingMode !== "one_time" &&
+      cancellationScheduled &&
+      planKey !== currentPlanKey
+    ) {
       showMessage({
         type: "warning",
         title: "Reactivate Required",
@@ -933,7 +939,9 @@ export default function MySubscriptionSection({ onBack }) {
                         billingMode={billingMode}
                         checkoutLoading={checkoutLoading || !hasCheckoutSelection}
                         reactivateLoading={reactivateLoading}
-                        cancellationScheduled={cancellationScheduled}
+                        cancellationScheduled={
+                          billingMode === "one_time" ? false : cancellationScheduled
+                        }
                         isTenantUsersOnlyCheckout={bypassAgreementModal}
                         openProceedToPayment={openProceedToPayment}
                         showMessage={showMessage}
