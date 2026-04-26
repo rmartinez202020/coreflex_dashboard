@@ -95,6 +95,9 @@ export default function MySubscriptionSection({ onBack }) {
     tone: "emerald",
   });
 
+  const isAddonSelectionActive = Number(addonTenantUsersQty || 0) > 0;
+  const isPlanSelectionActive = Boolean(selectedPlanKey);
+
   const paidOneTimePlanKeySet = useMemo(() => {
     return new Set(Object.keys(oneTimePaidPlanMap));
   }, [oneTimePaidPlanMap]);
@@ -269,6 +272,10 @@ export default function MySubscriptionSection({ onBack }) {
   };
 
   const handleSelectPlan = (plan) => {
+    if (isAddonSelectionActive) {
+      return;
+    }
+
     const planKey = String(plan?.key || "").toLowerCase();
 
     if (planKey === "enterprise") {
@@ -808,7 +815,11 @@ export default function MySubscriptionSection({ onBack }) {
               </div>
             </div>
 
-            <div className="p-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
+            <div
+              className={`p-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3 ${
+                isAddonSelectionActive ? "opacity-50" : ""
+              }`}
+            >
               {plans.map((plan, planIndex) => {
                 const planKey = String(plan.key || "").toLowerCase();
                 const currentKey = String(currentPlanKey || "").toLowerCase();
@@ -852,8 +863,9 @@ export default function MySubscriptionSection({ onBack }) {
                     }
                     oneTimePaidDate={paidDate}
                     billingMode={billingMode}
-                    onSelect={handleSelectPlan}
+                    onSelect={isAddonSelectionActive ? () => {} : handleSelectPlan}
                     isSelected={
+                      !isAddonSelectionActive &&
                       selectedPlanKey === plan.key &&
                       !planIsOneTimePaid &&
                       !isCurrentFreeOneTimePlan &&
@@ -884,7 +896,13 @@ export default function MySubscriptionSection({ onBack }) {
                   </div>
 
                   {showAddon && (
-                    <div className="mt-3 rounded-xl border border-slate-200 bg-slate-50 px-3 py-3">
+                    <div
+                      className={`mt-3 rounded-xl border px-3 py-3 ${
+                        isPlanSelectionActive
+                          ? "border-slate-200 bg-slate-100 opacity-60"
+                          : "border-slate-200 bg-slate-50"
+                      }`}
+                    >
                       <div className="flex flex-col gap-2 lg:flex-row lg:items-center lg:justify-between">
                         <div>
                           <div className="text-[12px] font-semibold text-slate-900">
@@ -902,10 +920,15 @@ export default function MySubscriptionSection({ onBack }) {
 
                           <select
                             value={addonTenantUsersQty}
+                            disabled={isPlanSelectionActive}
                             onChange={(e) =>
                               changeAddonTenantUsersQty(Number(e.target.value || 0))
                             }
-                            className="rounded-lg border border-slate-300 bg-white px-2 py-1.5 text-[12px] text-slate-900 outline-none focus:border-emerald-500"
+                            className={`rounded-lg border px-2 py-1.5 text-[12px] outline-none ${
+                              isPlanSelectionActive
+                                ? "cursor-not-allowed border-slate-200 bg-slate-100 text-slate-400"
+                                : "border-slate-300 bg-white text-slate-900 focus:border-emerald-500"
+                            }`}
                           >
                             {[0, 1, 2, 3, 4, 5].map((qty) => (
                               <option key={qty} value={qty}>
