@@ -307,9 +307,7 @@ export function ActionPlanCard({
 
         <div className="flex items-center justify-between gap-2">
           <span className="text-slate-500">Tenants-Users</span>
-          <span className="font-semibold text-slate-900">
-            +{plan.tenantsUsers}
-          </span>
+          <span className="font-semibold text-slate-900">+1</span>
         </div>
 
         <div className="flex items-center justify-between gap-2">
@@ -333,7 +331,7 @@ export function ActionPlanCard({
             disabled
             className="w-full rounded-lg bg-slate-300 px-3 py-2 text-[11px] font-semibold text-slate-600 cursor-not-allowed"
           >
-            To Purchase "Cancel Montly Subcription"
+            To Purchase "Cancel Monthly Subscription"
           </button>
         ) : showCurrentBadge ? (
           <div className="flex gap-2">
@@ -487,7 +485,7 @@ export function ComparePlansModal({ open, onClose, plans }) {
                         }`
                       : plan.deviceLimit}
                   </td>
-                  <td className="px-4 py-4">+{plan.tenantsUsers}</td>
+                  <td className="px-4 py-4 font-semibold">+1</td>
                   <td className="px-4 py-4">{plan.dataHistory}</td>
                   <td className="px-4 py-4">{plan.features}</td>
                   <td className="px-4 py-4">
