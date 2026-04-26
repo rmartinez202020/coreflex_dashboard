@@ -288,8 +288,6 @@ export default function MySubscriptionSection({ onBack }) {
       }
     }
 
-    // ✅ Only block plan changes during scheduled cancellation for MONTHLY mode.
-    // ✅ One-time license purchases are allowed even if monthly subscription is canceled/scheduled to cancel.
     if (
       billingMode !== "one_time" &&
       cancellationScheduled &&
@@ -763,13 +761,23 @@ export default function MySubscriptionSection({ onBack }) {
             <div className="p-3 grid grid-cols-1 md:grid-cols-2 xl:grid-cols-5 gap-3">
               {plans.map((plan, planIndex) => {
                 const planKey = String(plan.key || "").toLowerCase();
+                const currentKey = String(currentPlanKey || "").toLowerCase();
                 const paidDate = oneTimePaidPlanMap[planKey] || null;
                 const planIsOneTimePaid = paidOneTimePlanKeySet.has(planKey);
 
                 const isCurrentMonthlyPlan =
                   billingMode === "monthly" &&
                   !hasOneTimePaidPlan &&
-                  plan.key === currentPlanKey;
+                  planKey === currentKey;
+
+                const isCurrentFreeOneTimePlan =
+                  billingMode === "one_time" &&
+                  !hasOneTimePaidPlan &&
+                  planKey === "free" &&
+                  currentKey === "free";
+
+                const isCurrentPlanCard =
+                  isCurrentMonthlyPlan || isCurrentFreeOneTimePlan;
 
                 const isOneTimeDowngradeBlocked =
                   hasOneTimePaidPlan &&
@@ -786,7 +794,7 @@ export default function MySubscriptionSection({ onBack }) {
                   <ActionPlanCard
                     key={plan.key}
                     plan={plan}
-                    isCurrent={isCurrentMonthlyPlan}
+                    isCurrent={isCurrentPlanCard}
                     isOneTimePaid={planIsOneTimePaid}
                     isOneTimeDowngradeBlocked={isOneTimeDowngradeBlocked}
                     isOneTimeBlockedByActiveMonthly={
@@ -798,6 +806,7 @@ export default function MySubscriptionSection({ onBack }) {
                     isSelected={
                       selectedPlanKey === plan.key &&
                       !planIsOneTimePaid &&
+                      !isCurrentFreeOneTimePlan &&
                       !isOneTimeDowngradeBlocked &&
                       !isOneTimeBlockedByActiveMonthly
                     }
@@ -954,9 +963,7 @@ export default function MySubscriptionSection({ onBack }) {
                       </div>
                     )}
 
-                    {/* subscriptionError intentionally hidden from UI.
-                        Backend subscription errors are still available in useMySubscriptionSection
-                        but are not shown in the Order Summary card. */}
+                    {/* subscriptionError intentionally hidden from UI. */}
                   </div>
                 </div>
               </div>
