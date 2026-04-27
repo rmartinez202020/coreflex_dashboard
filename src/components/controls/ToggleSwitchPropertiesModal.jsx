@@ -28,8 +28,6 @@ function nextTick() {
   });
 }
 
-// ✅ IMPORTANT: Keep these OUTSIDE the main component.
-// If they are inside, React remounts the input every keystroke and focus is lost.
 function Label({ children }) {
   return (
     <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
@@ -731,7 +729,9 @@ export default function ToggleSwitchPropertiesModal({
                   Toggle Preview
                 </div>
 
-                <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10 }}>
+                <div
+                  style={{ fontSize: 12, color: "#64748b", marginBottom: 10 }}
+                >
                   This preview shows how the title will appear above the toggle.
                 </div>
 
@@ -923,7 +923,9 @@ export default function ToggleSwitchPropertiesModal({
                 }}
               >
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>
+                  <div
+                    style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}
+                  >
                     Status
                   </div>
                   <div
@@ -943,7 +945,9 @@ export default function ToggleSwitchPropertiesModal({
                 </div>
 
                 <div>
-                  <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>
+                  <div
+                    style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}
+                  >
                     Value
                   </div>
                   <div
