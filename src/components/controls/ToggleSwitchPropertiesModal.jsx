@@ -44,8 +44,9 @@ export default function ToggleSwitchPropertiesModal({
 }) {
   const p = toggleSwitch?.properties || {};
 
-  const MODAL_W = Math.min(1180, window.innerWidth - 80);
-  const MODAL_H = Math.min(680, window.innerHeight - 120);
+  // ✅ Wider modal like Graphic Display modal
+  const MODAL_W = Math.min(1500, window.innerWidth - 80);
+  const MODAL_H = Math.min(720, window.innerHeight - 120);
 
   const forcedModel = "zhc1921";
 
@@ -113,7 +114,9 @@ export default function ToggleSwitchPropertiesModal({
         ? String(il.field || "").toLowerCase()
         : "di1"
     );
-    setInterlockType(String(il.type || "NO").toUpperCase() === "NC" ? "NC" : "NO");
+    setInterlockType(
+      String(il.type || "NO").toUpperCase() === "NC" ? "NC" : "NO"
+    );
   }, [open, toggleSwitch?.id, isLaunched]);
 
   const modalRef = React.useRef(null);
@@ -537,6 +540,20 @@ export default function ToggleSwitchPropertiesModal({
     </div>
   );
 
+  const SectionCard = ({ children }) => (
+    <div
+      style={{
+        border: "1px solid #e5e7eb",
+        borderRadius: 12,
+        padding: 14,
+        background: "#fff",
+        minHeight: 0,
+      }}
+    >
+      {children}
+    </div>
+  );
+
   if (!open || !toggleSwitch || isLaunched) return null;
 
   const portalTarget = typeof document !== "undefined" ? document.body : null;
@@ -626,39 +643,16 @@ export default function ToggleSwitchPropertiesModal({
           </button>
         </div>
 
-        <div style={{ padding: 16, overflow: "auto", flex: "1 1 auto" }}>
+        <div
+          style={{
+            padding: 16,
+            overflow: "auto",
+            flex: "1 1 auto",
+            background: "#f8fafc",
+          }}
+        >
           <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
             Bind this toggle to a <b>CF-2000 Digital Output (DO)</b>.
-          </div>
-
-          <div
-            style={{
-              border: "1px solid #e5e7eb",
-              borderRadius: 12,
-              padding: 14,
-              marginBottom: 12,
-            }}
-          >
-            <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 10 }}>
-              Display Title (optional)
-            </div>
-
-            <Label>Title shown above the toggle</Label>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value.slice(0, 40))}
-              placeholder="Example: Main Pump"
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                borderRadius: 10,
-                border: "1px solid #cbd5e1",
-                fontSize: 14,
-              }}
-            />
-            <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
-              Leave blank to hide the title. Max 40 characters.
-            </div>
           </div>
 
           {!dashboardId && (
@@ -704,14 +698,16 @@ export default function ToggleSwitchPropertiesModal({
             </div>
           )}
 
+          {/* ✅ Graphic Display style: separate sections */}
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "0.95fr 1.25fr",
+              gridTemplateColumns: "360px 1fr 390px",
               gap: 14,
               alignItems: "start",
             }}
           >
+            {/* LEFT SECTION */}
             <ToggleSwitchPropertiesModalInterlock
               open={open}
               isLaunched={isLaunched}
@@ -727,13 +723,112 @@ export default function ToggleSwitchPropertiesModal({
               setType={setInterlockType}
             />
 
-            <div
-              style={{
-                border: "1px solid #e5e7eb",
-                borderRadius: 12,
-                padding: 14,
-              }}
-            >
+            {/* MIDDLE SECTION */}
+            <SectionCard>
+              <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}>
+                Display Settings
+              </div>
+
+              <Label>Title</Label>
+              <input
+                value={title}
+                onChange={(e) => setTitle(e.target.value.slice(0, 40))}
+                placeholder="Example: Main Pump"
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: "1px solid #cbd5e1",
+                  fontSize: 14,
+                  marginBottom: 8,
+                }}
+              />
+
+              <div style={{ fontSize: 12, color: "#64748b", marginBottom: 14 }}>
+                Leave blank to hide the title. Max 40 characters.
+              </div>
+
+              <div
+                style={{
+                  border: "1px solid #e5e7eb",
+                  background: "#f8fafc",
+                  borderRadius: 12,
+                  padding: 14,
+                }}
+              >
+                <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 8 }}>
+                  Toggle Preview
+                </div>
+
+                <div style={{ fontSize: 12, color: "#64748b", marginBottom: 10 }}>
+                  This preview shows how the title will appear above the toggle.
+                </div>
+
+                <div
+                  style={{
+                    border: "1px dashed #cbd5e1",
+                    borderRadius: 12,
+                    padding: 14,
+                    background: "#fff",
+                    display: "flex",
+                    flexDirection: "column",
+                    alignItems: "center",
+                    gap: 8,
+                  }}
+                >
+                  {String(title || "").trim() ? (
+                    <div
+                      style={{
+                        fontSize: 13,
+                        fontWeight: 1000,
+                        color: "#0f172a",
+                        textAlign: "center",
+                      }}
+                    >
+                      {String(title || "").trim()}
+                    </div>
+                  ) : (
+                    <div
+                      style={{
+                        fontSize: 12,
+                        color: "#94a3b8",
+                        textAlign: "center",
+                      }}
+                    >
+                      No title
+                    </div>
+                  )}
+
+                  <div
+                    style={{
+                      width: 80,
+                      height: 36,
+                      borderRadius: 999,
+                      background: "#111827",
+                      border: "3px solid #020617",
+                      position: "relative",
+                      boxShadow: "inset 0 0 10px rgba(0,0,0,0.45)",
+                    }}
+                  >
+                    <div
+                      style={{
+                        width: 28,
+                        height: 28,
+                        borderRadius: 999,
+                        background: "#22c55e",
+                        position: "absolute",
+                        left: 4,
+                        top: 1,
+                        boxShadow: "0 0 14px rgba(34,197,94,0.8)",
+                      }}
+                    />
+                  </div>
+                </div>
+              </div>
+            </SectionCard>
+
+            {/* RIGHT SECTION */}
+            <SectionCard>
               <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}>
                 Output that this toggle controls (DO)
               </div>
@@ -757,107 +852,103 @@ export default function ToggleSwitchPropertiesModal({
                 </div>
               </div>
 
-              <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-                <div style={{ flex: 1 }}>
-                  <Label>Device</Label>
-                  <select
-                    value={deviceId || ""}
-                    onChange={(e) => {
-                      const next = String(e.target.value || "");
-                      setDeviceId(next);
+              <Label>Device</Label>
+              <select
+                value={deviceId || ""}
+                onChange={(e) => {
+                  const next = String(e.target.value || "");
+                  setDeviceId(next);
 
-                      if (!interlockDeviceId) {
-                        setInterlockDeviceId(next);
-                      }
-                    }}
-                    style={{
-                      width: "100%",
-                      padding: "10px 12px",
-                      borderRadius: 10,
-                      border: "1px solid #cbd5e1",
-                      fontSize: 14,
-                      background: "white",
-                    }}
-                  >
-                    <option value="">— Select device —</option>
-                    {filteredDevices.map((d) => (
-                      <option key={d.id} value={d.id}>
-                        {d.id}
-                      </option>
-                    ))}
-                  </select>
+                  if (!interlockDeviceId) {
+                    setInterlockDeviceId(next);
+                  }
+                }}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: "1px solid #cbd5e1",
+                  fontSize: 14,
+                  background: "white",
+                  marginBottom: 12,
+                }}
+              >
+                <option value="">— Select device —</option>
+                {filteredDevices.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.id}
+                  </option>
+                ))}
+              </select>
+
+              <Label>Select DO</Label>
+              <select
+                value={field}
+                onChange={(e) => setField(String(e.target.value || ""))}
+                disabled={!deviceId}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: "1px solid #cbd5e1",
+                  fontSize: 14,
+                  background: "white",
+                  opacity: deviceId ? 1 : 0.6,
+                  cursor: deviceId ? "pointer" : "not-allowed",
+                  marginBottom: 12,
+                }}
+              >
+                <option value="">— Select DO —</option>
+                {DO_OPTIONS.map((t) => {
+                  const f = String(t.key).toLowerCase();
+                  const info = usedMap?.[f];
+                  const disabled = deviceId ? isOptionDisabled(f) : true;
+
+                  const usedLabel =
+                    info?.widgetId && info.widgetId !== widgetId
+                      ? ` (Used${info.title ? `: ${info.title}` : ""}${
+                          info.dashboardName || info.dashboardId
+                            ? ` / Dashboard: ${
+                                info.dashboardName || info.dashboardId
+                              }`
+                            : ""
+                        })`
+                      : "";
+
+                  return (
+                    <option key={t.key} value={t.key} disabled={disabled}>
+                      {t.label}
+                      {usedLabel}
+                    </option>
+                  );
+                })}
+              </select>
+
+              {usedByOther && (
+                <div
+                  style={{
+                    marginBottom: 12,
+                    fontSize: 12,
+                    color: "#dc2626",
+                    fontWeight: 900,
+                  }}
+                >
+                  {effectiveField.toUpperCase()} is already used
+                  {usedByOther.title ? ` by "${usedByOther.title}"` : ""}
+                  {usedByOther.dashboardName || usedByOther.dashboardId
+                    ? ` on dashboard "${
+                        usedByOther.dashboardName || usedByOther.dashboardId
+                      }"`
+                    : ""}
+                  . Choose another DO.
                 </div>
-
-                <div style={{ flex: 1 }}>
-                  <Label>Select DO</Label>
-                  <select
-                    value={field}
-                    onChange={(e) => setField(String(e.target.value || ""))}
-                    disabled={!deviceId}
-                    style={{
-                      width: "100%",
-                      padding: "10px 12px",
-                      borderRadius: 10,
-                      border: "1px solid #cbd5e1",
-                      fontSize: 14,
-                      background: "white",
-                      opacity: deviceId ? 1 : 0.6,
-                      cursor: deviceId ? "pointer" : "not-allowed",
-                    }}
-                  >
-                    <option value="">— Select DO —</option>
-                    {DO_OPTIONS.map((t) => {
-                      const f = String(t.key).toLowerCase();
-                      const info = usedMap?.[f];
-                      const disabled = deviceId ? isOptionDisabled(f) : true;
-
-                      const usedLabel =
-                        info?.widgetId && info.widgetId !== widgetId
-                          ? ` (Used${info.title ? `: ${info.title}` : ""}${
-                              info.dashboardName || info.dashboardId
-                                ? ` / Dashboard: ${
-                                    info.dashboardName || info.dashboardId
-                                  }`
-                                : ""
-                            })`
-                          : "";
-
-                      return (
-                        <option key={t.key} value={t.key} disabled={disabled}>
-                          {t.label}
-                          {usedLabel}
-                        </option>
-                      );
-                    })}
-                  </select>
-
-                  {usedByOther && (
-                    <div
-                      style={{
-                        marginTop: 8,
-                        fontSize: 12,
-                        color: "#dc2626",
-                        fontWeight: 900,
-                      }}
-                    >
-                      {effectiveField.toUpperCase()} is already used
-                      {usedByOther.title ? ` by "${usedByOther.title}"` : ""}
-                      {usedByOther.dashboardName || usedByOther.dashboardId
-                        ? ` on dashboard "${
-                            usedByOther.dashboardName || usedByOther.dashboardId
-                          }"`
-                        : ""}
-                      . Choose another DO.
-                    </div>
-                  )}
-                </div>
-              </div>
+              )}
 
               <div
                 style={{
-                  display: "flex",
-                  justifyContent: "space-between",
-                  alignItems: "center",
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 12,
                   border: "1px solid #e5e7eb",
                   background: "#f8fafc",
                   borderRadius: 12,
@@ -870,28 +961,23 @@ export default function ToggleSwitchPropertiesModal({
                   >
                     Status
                   </div>
-                  <div style={{ fontSize: 13, color: "#475569", marginTop: 2 }}>
-                    {deviceId && effectiveField ? (
-                      <>
-                        <span
-                          style={{
-                            fontWeight: 900,
-                            color: usedByOther ? "#dc2626" : "#0f172a",
-                          }}
-                        >
-                          {statusText}
-                        </span>
-                        <span style={{ marginLeft: 10, color: "#64748b" }}>
-                          Bound: <b>{deviceId}</b> / <b>{effectiveField}</b>
-                        </span>
-                      </>
-                    ) : (
-                      statusText
-                    )}
+                  <div
+                    style={{
+                      marginTop: 6,
+                      fontSize: 13,
+                      fontWeight: 1000,
+                      color: usedByOther
+                        ? "#dc2626"
+                        : isOnlineWithData
+                        ? "#16a34a"
+                        : "#dc2626",
+                    }}
+                  >
+                    {statusText}
                   </div>
                 </div>
 
-                <div style={{ textAlign: "right" }}>
+                <div>
                   <div
                     style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}
                   >
@@ -899,16 +985,28 @@ export default function ToggleSwitchPropertiesModal({
                   </div>
                   <div
                     style={{
-                      marginTop: 2,
+                      marginTop: 6,
                       fontSize: 18,
                       fontWeight: 1000,
                       color: isOnlineWithData ? "#0f172a" : "#94a3b8",
                       fontFamily: "monospace",
-                      minWidth: 22,
                     }}
                   >
                     {valueText}
                   </div>
+                </div>
+
+                <div
+                  style={{
+                    gridColumn: "1 / -1",
+                    fontSize: 12,
+                    color: "#64748b",
+                  }}
+                >
+                  Bound:{" "}
+                  <b>
+                    {deviceId || "—"} / {effectiveField || "—"}
+                  </b>
                 </div>
               </div>
 
@@ -916,7 +1014,7 @@ export default function ToggleSwitchPropertiesModal({
                 Tip: Value preview is best-effort from{" "}
                 <code>/zhc1921/my-devices</code>.
               </div>
-            </div>
+            </SectionCard>
           </div>
         </div>
 
