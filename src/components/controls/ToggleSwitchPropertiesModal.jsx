@@ -44,9 +44,8 @@ export default function ToggleSwitchPropertiesModal({
 }) {
   const p = toggleSwitch?.properties || {};
 
-  // ✅ Wider modal like Graphic Display modal
   const MODAL_W = Math.min(1500, window.innerWidth - 80);
-  const MODAL_H = Math.min(720, window.innerHeight - 120);
+  const MODAL_H = Math.min(window.innerHeight - 40, 900);
 
   const forcedModel = "zhc1921";
 
@@ -65,9 +64,6 @@ export default function ToggleSwitchPropertiesModal({
   const initialTitle = String(p.title ?? toggleSwitch?.title ?? "").trim();
   const [title, setTitle] = React.useState(initialTitle);
 
-  // =========================
-  // ✅ INTERLOCK STATE
-  // =========================
   const initialInterlock = p.interlock || {};
 
   const [interlockEnabled, setInterlockEnabled] = React.useState(
@@ -568,9 +564,9 @@ export default function ToggleSwitchPropertiesModal({
         zIndex: 999999,
       }}
       onPointerDown={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onClose?.();
+        if (e.target === e.currentTarget) {
+          onClose?.();
+        }
       }}
     >
       <div
@@ -582,7 +578,7 @@ export default function ToggleSwitchPropertiesModal({
           width: MODAL_W,
           maxWidth: "calc(100vw - 80px)",
           height: MODAL_H,
-          maxHeight: "calc(100vh - 120px)",
+          maxHeight: "calc(100vh - 40px)",
           background: "#fff",
           borderRadius: 12,
           boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
@@ -615,11 +611,9 @@ export default function ToggleSwitchPropertiesModal({
           <button
             data-no-drag="true"
             onPointerDown={(e) => {
-              e.preventDefault();
               e.stopPropagation();
             }}
             onMouseDown={(e) => {
-              e.preventDefault();
               e.stopPropagation();
             }}
             onClick={(e) => {
@@ -646,7 +640,8 @@ export default function ToggleSwitchPropertiesModal({
         <div
           style={{
             padding: 16,
-            overflow: "auto",
+            overflowY: "auto",
+            overflowX: "hidden",
             flex: "1 1 auto",
             background: "#f8fafc",
           }}
@@ -698,7 +693,6 @@ export default function ToggleSwitchPropertiesModal({
             </div>
           )}
 
-          {/* ✅ Graphic Display style: separate sections */}
           <div
             style={{
               display: "grid",
@@ -707,7 +701,6 @@ export default function ToggleSwitchPropertiesModal({
               alignItems: "start",
             }}
           >
-            {/* LEFT SECTION */}
             <ToggleSwitchPropertiesModalInterlock
               open={open}
               isLaunched={isLaunched}
@@ -723,7 +716,6 @@ export default function ToggleSwitchPropertiesModal({
               setType={setInterlockType}
             />
 
-            {/* MIDDLE SECTION */}
             <SectionCard>
               <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}>
                 Display Settings
@@ -827,7 +819,6 @@ export default function ToggleSwitchPropertiesModal({
               </div>
             </SectionCard>
 
-            {/* RIGHT SECTION */}
             <SectionCard>
               <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}>
                 Output that this toggle controls (DO)
