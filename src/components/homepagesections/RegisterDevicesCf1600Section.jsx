@@ -1,17 +1,13 @@
 // src/components/homepagesections/RegisterDevicesCf1600Section.jsx
 import React from "react";
 import { API_URL } from "../../config/api";
-
-// ✅ ✅ IMPORTANT: use per-tab auth token (sessionStorage-first)
 import { getToken } from "../../utils/authToken";
 
-// Auth headers (single source of truth)
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-// ✅ Date formatter: 01/01/2025-8:15AM
 function formatDateMMDDYYYY_hmma(ts) {
   if (!ts) return "—";
 
@@ -31,19 +27,16 @@ function formatDateMMDDYYYY_hmma(ts) {
   return `${mm}/${dd}/${yyyy}-${h}:${min}${ampm}`;
 }
 
-// ✅ Professional confirm modal (same as CF-2000)
 function ConfirmDeleteModal({ open, deviceId, busy, onCancel, onConfirm }) {
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-[9999]">
-      {/* overlay */}
       <div
         className="absolute inset-0 bg-black/40"
         onClick={busy ? undefined : onCancel}
       />
 
-      {/* dialog */}
       <div className="absolute inset-0 flex items-center justify-center p-4">
         <div className="w-full max-w-[560px] rounded-2xl border border-slate-200 bg-white shadow-2xl">
           <div className="p-5">
@@ -71,8 +64,7 @@ function ConfirmDeleteModal({ open, deviceId, busy, onCancel, onConfirm }) {
                   </div>
                   <div className="mt-1">
                     The device will be removed from your Registered Devices list
-                    and can be claimed again later. Any configuration linked to
-                    this device under your account may stop working.
+                    and can be claimed again later.
                   </div>
                 </div>
 
@@ -104,7 +96,6 @@ function ConfirmDeleteModal({ open, deviceId, busy, onCancel, onConfirm }) {
   );
 }
 
-// ✅ CF-1600 columns (NO user column)
 const CF1600_IO_COLS = [
   { key: "ai1", label: "AI-1" },
   { key: "ai2", label: "AI-2" },
@@ -112,13 +103,18 @@ const CF1600_IO_COLS = [
   { key: "ao2", label: "AO-2" },
 ];
 
-export default function RegisterDevicesCf1600Section({ onBack }) {
+export default function RegisterDevicesCf1600Section({
+  onBack,
+  devicesUsed = 0,
+  deviceLimit = "—",
+  deviceLimitReached = false,
+  refreshRegisteredDeviceCount,
+}) {
   const [deviceId, setDeviceId] = React.useState("");
   const [rows, setRows] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [err, setErr] = React.useState("");
 
-  // modal state
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [pendingDeleteId, setPendingDeleteId] = React.useState("");
   const [deleting, setDeleting] = React.useState(false);
@@ -134,7 +130,6 @@ export default function RegisterDevicesCf1600Section({ onBack }) {
         throw new Error("Missing auth token. Please logout and login again.");
       }
 
-      // ✅ CF-1600 backend route (expected)
       const res = await fetch(`${API_URL}/zhc1661/my-devices`, {
         headers: {
           "Content-Type": "application/json",
@@ -158,10 +153,17 @@ export default function RegisterDevicesCf1600Section({ onBack }) {
   }
 
   async function claimDevice() {
+    if (deviceLimitReached) {
+      return setErr(
+        `Device limit reached. You are using ${devicesUsed} / ${deviceLimit} devices.`
+      );
+    }
+
     const id = String(deviceId || "").trim();
     if (!id) return setErr("Please enter a DEVICE ID.");
-    if (!/^\d+$/.test(id))
+    if (!/^\d+$/.test(id)) {
       return setErr("DEVICE ID must be numeric (digits only).");
+    }
 
     setLoading(true);
     setErr("");
@@ -172,7 +174,6 @@ export default function RegisterDevicesCf1600Section({ onBack }) {
         throw new Error("Missing auth token. Please logout and login again.");
       }
 
-      // ✅ CF-1600 backend route (expected)
       const res = await fetch(`${API_URL}/zhc1661/claim`, {
         method: "POST",
         headers: {
@@ -189,6 +190,10 @@ export default function RegisterDevicesCf1600Section({ onBack }) {
 
       setDeviceId("");
       await loadMyDevices();
+
+      if (typeof refreshRegisteredDeviceCount === "function") {
+        await refreshRegisteredDeviceCount();
+      }
     } catch (e) {
       setErr(e.message || "Claim failed");
     } finally {
@@ -207,7 +212,6 @@ export default function RegisterDevicesCf1600Section({ onBack }) {
     const id = String(pendingDeleteId || "").trim();
     if (!id) return;
 
-    // close immediately
     setConfirmOpen(false);
     setPendingDeleteId("");
 
@@ -220,7 +224,6 @@ export default function RegisterDevicesCf1600Section({ onBack }) {
         throw new Error("Missing auth token. Please logout and login again.");
       }
 
-      // ✅ CF-1600 backend route (expected)
       const res = await fetch(
         `${API_URL}/zhc1661/unclaim/${encodeURIComponent(id)}`,
         {
@@ -237,6 +240,10 @@ export default function RegisterDevicesCf1600Section({ onBack }) {
       }
 
       await loadMyDevices();
+
+      if (typeof refreshRegisteredDeviceCount === "function") {
+        await refreshRegisteredDeviceCount();
+      }
     } catch (e) {
       setErr(e.message || "Remove failed");
     } finally {
@@ -248,6 +255,8 @@ export default function RegisterDevicesCf1600Section({ onBack }) {
     loadMyDevices();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const addDisabled = loading || deleting || deviceLimitReached;
 
   return (
     <>
@@ -277,8 +286,7 @@ export default function RegisterDevicesCf1600Section({ onBack }) {
                 Register Devices — Model CF-1600
               </div>
               <div className="text-xs text-sky-100">
-                Enter a DEVICE ID. We verify it exists and assign it to your
-                account.
+                Device usage: {devicesUsed} / {deviceLimit}
               </div>
             </div>
           </div>
@@ -293,6 +301,13 @@ export default function RegisterDevicesCf1600Section({ onBack }) {
         </div>
 
         <div className="p-4">
+          {deviceLimitReached ? (
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+              Device limit reached. Remove a device or upgrade your plan before
+              registering another device.
+            </div>
+          ) : null}
+
           <div className="mb-4">
             <div className="text-sm font-semibold mb-2">Add / Claim Device ID</div>
 
@@ -300,13 +315,16 @@ export default function RegisterDevicesCf1600Section({ onBack }) {
               <input
                 value={deviceId}
                 onChange={(e) => setDeviceId(e.target.value)}
-                placeholder="Enter DEVICE ID"
-                className="flex-1 rounded-lg border px-3 py-2 text-sm"
+                placeholder={
+                  deviceLimitReached ? "Device limit reached" : "Enter DEVICE ID"
+                }
+                disabled={addDisabled}
+                className="flex-1 rounded-lg border px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-400"
               />
               <button
                 onClick={claimDevice}
-                disabled={loading}
-                className="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm"
+                disabled={addDisabled}
+                className="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 + Add Device
               </button>
@@ -315,25 +333,20 @@ export default function RegisterDevicesCf1600Section({ onBack }) {
             {err && <div className="mt-2 text-xs text-red-600">{err}</div>}
           </div>
 
-          {/* ✅ table (no user column) */}
           <div className="rounded-xl border overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full table-fixed text-[12px]">
                 <thead>
-                  {/* Row 1 */}
                   <tr className="bg-blue-200">
                     <th className="px-[6px] py-[3px] w-[140px] text-left font-bold text-slate-900">
                       DEVICE ID
                     </th>
-
                     <th className="px-[6px] py-[3px] w-[150px] text-left font-bold text-slate-900">
                       Date
                     </th>
-
                     <th className="px-[6px] py-[3px] w-[110px] text-left font-bold text-slate-900">
                       Status
                     </th>
-
                     <th className="px-[6px] py-[3px] w-[150px] text-left font-bold text-slate-900 border-r border-blue-300">
                       last seen
                     </th>
@@ -350,27 +363,6 @@ export default function RegisterDevicesCf1600Section({ onBack }) {
                     <th className="px-[6px] py-[3px] w-[112px] text-right font-bold text-slate-900">
                       Action
                     </th>
-                  </tr>
-
-                  {/* Row 2 (subtitles like your sheet) */}
-                  <tr className="bg-white text-[11px]">
-                    <th className="px-[6px] py-[3px] border-t border-slate-200" />
-                    <th className="px-[6px] py-[3px] border-t border-slate-200" />
-                    <th className="px-[6px] py-[3px] text-left text-slate-700 border-t border-slate-200">
-                      online/offline
-                    </th>
-                    <th className="px-[6px] py-[3px] border-t border-slate-200 border-r border-slate-200" />
-
-                    {CF1600_IO_COLS.map((c) => (
-                      <th
-                        key={c.key}
-                        className="px-[6px] py-[3px] text-center text-slate-700 border-t border-slate-200"
-                      >
-                        value
-                      </th>
-                    ))}
-
-                    <th className="px-[6px] py-[3px] border-t border-slate-200" />
                   </tr>
                 </thead>
 
@@ -449,7 +441,6 @@ export default function RegisterDevicesCf1600Section({ onBack }) {
                               onClick={() => requestDelete(r)}
                               disabled={loading || deleting}
                               className="inline-flex items-center justify-center rounded-lg bg-red-600 px-3 py-1.5 text-[12px] font-semibold text-white shadow-sm hover:bg-red-700 disabled:opacity-50"
-                              title="Remove device from my account"
                             >
                               Remove
                             </button>

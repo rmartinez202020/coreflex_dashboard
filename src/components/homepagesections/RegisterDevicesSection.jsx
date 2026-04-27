@@ -46,6 +46,14 @@ function getDeviceLimit(plan, subscription) {
   );
 }
 
+function normalizeDeviceLimit(value) {
+  if (value === "Unlimited") return Infinity;
+  if (value === "unlimited") return Infinity;
+
+  const num = Number(value);
+  return Number.isFinite(num) ? num : 0;
+}
+
 async function fetchDeviceCount(url) {
   const res = await fetch(url, {
     method: "GET",
@@ -84,49 +92,53 @@ export default function RegisterDevicesSection({ onBack }) {
     ? "—"
     : getDeviceLimit(currentPlan, subscription);
 
-  React.useEffect(() => {
-    let cancelled = false;
+  const numericDeviceLimit = normalizeDeviceLimit(deviceLimit);
 
-    async function loadRegisteredDeviceCount() {
-      setLoadingDeviceCount(true);
+  const deviceLimitReached =
+    !loadingDeviceCount &&
+    !loadingSubscription &&
+    numericDeviceLimit !== Infinity &&
+    numericDeviceLimit > 0 &&
+    registeredDeviceCount >= numericDeviceLimit;
 
-      try {
-        const token = String(getToken() || "").trim();
+  const refreshRegisteredDeviceCount = React.useCallback(async () => {
+    setLoadingDeviceCount(true);
 
-        if (!token) {
-          setRegisteredDeviceCount(0);
-          return;
-        }
+    try {
+      const token = String(getToken() || "").trim();
 
-        const counts = await Promise.all(
-          DEVICE_COUNT_ENDPOINTS.map((url) => fetchDeviceCount(url))
-        );
-
-        if (cancelled) return;
-
-        const total = counts.reduce((sum, count) => sum + Number(count || 0), 0);
-        setRegisteredDeviceCount(total);
-      } catch (err) {
-        if (!cancelled) {
-          setRegisteredDeviceCount(0);
-        }
-      } finally {
-        if (!cancelled) {
-          setLoadingDeviceCount(false);
-        }
+      if (!token) {
+        setRegisteredDeviceCount(0);
+        return;
       }
+
+      const counts = await Promise.all(
+        DEVICE_COUNT_ENDPOINTS.map((url) => fetchDeviceCount(url))
+      );
+
+      const total = counts.reduce((sum, count) => sum + Number(count || 0), 0);
+      setRegisteredDeviceCount(total);
+    } catch (err) {
+      setRegisteredDeviceCount(0);
+    } finally {
+      setLoadingDeviceCount(false);
     }
-
-    loadRegisteredDeviceCount();
-
-    return () => {
-      cancelled = true;
-    };
   }, []);
+
+  React.useEffect(() => {
+    refreshRegisteredDeviceCount();
+  }, [refreshRegisteredDeviceCount]);
 
   const devicesUsedDisplay = loadingDeviceCount
     ? "Loading..."
     : `${registeredDeviceCount} / ${deviceLimit}`;
+
+  const sharedDeviceLimitProps = {
+    devicesUsed: registeredDeviceCount,
+    deviceLimit,
+    deviceLimitReached,
+    refreshRegisteredDeviceCount,
+  };
 
   if (!activeModel) {
     return (
@@ -158,7 +170,13 @@ export default function RegisterDevicesSection({ onBack }) {
               </div>
             </div>
 
-            <div className="rounded-lg border border-sky-500/40 bg-white/10 px-4 py-3">
+            <div
+              className={`rounded-lg border px-4 py-3 ${
+                deviceLimitReached
+                  ? "border-red-300 bg-red-500/20"
+                  : "border-sky-500/40 bg-white/10"
+              }`}
+            >
               <div className="text-xs text-sky-100">Devices Used</div>
               <div className="mt-1 text-base font-semibold text-white">
                 {devicesUsedDisplay}
@@ -172,6 +190,13 @@ export default function RegisterDevicesSection({ onBack }) {
               </div>
             </div>
           </div>
+
+          {deviceLimitReached ? (
+            <div className="mt-2 text-xs font-semibold text-yellow-200">
+              Device limit reached. Remove a device or upgrade your plan before
+              registering another device.
+            </div>
+          ) : null}
 
           {subscriptionError ? (
             <div className="mt-2 text-xs text-yellow-200">
@@ -197,15 +222,39 @@ export default function RegisterDevicesSection({ onBack }) {
   }
 
   if (activeModel === "cf2000") {
-    return <RegisterDevicesCf2000Section onBack={() => setActiveModel(null)} />;
+    return (
+      <RegisterDevicesCf2000Section
+        onBack={() => {
+          refreshRegisteredDeviceCount();
+          setActiveModel(null);
+        }}
+        {...sharedDeviceLimitProps}
+      />
+    );
   }
 
   if (activeModel === "cf1600") {
-    return <RegisterDevicesCf1600Section onBack={() => setActiveModel(null)} />;
+    return (
+      <RegisterDevicesCf1600Section
+        onBack={() => {
+          refreshRegisteredDeviceCount();
+          setActiveModel(null);
+        }}
+        {...sharedDeviceLimitProps}
+      />
+    );
   }
 
   if (activeModel === "tp400") {
-    return <RegisterDevicesTp4000Section onBack={() => setActiveModel(null)} />;
+    return (
+      <RegisterDevicesTp4000Section
+        onBack={() => {
+          refreshRegisteredDeviceCount();
+          setActiveModel(null);
+        }}
+        {...sharedDeviceLimitProps}
+      />
+    );
   }
 
   return null;

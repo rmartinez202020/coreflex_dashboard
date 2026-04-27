@@ -1,17 +1,13 @@
 // src/components/homepagesections/RegisterDevicesTp4000Section.jsx
 import React from "react";
 import { API_URL } from "../../config/api";
-
-// ✅ ✅ IMPORTANT: use per-tab auth token (sessionStorage-first)
 import { getToken } from "../../utils/authToken";
 
-// Auth headers (single source of truth)
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-// ✅ Date formatter: 01/01/2025-8:15AM
 function formatDateMMDDYYYY_hmma(ts) {
   if (!ts) return "—";
 
@@ -31,19 +27,16 @@ function formatDateMMDDYYYY_hmma(ts) {
   return `${mm}/${dd}/${yyyy}-${h}:${min}${ampm}`;
 }
 
-// ✅ Professional confirm modal
 function ConfirmDeleteModal({ open, deviceId, busy, onCancel, onConfirm }) {
   if (!open) return null;
 
   return (
     <div className="fixed inset-0 z-[9999]">
-      {/* overlay */}
       <div
         className="absolute inset-0 bg-black/40"
         onClick={busy ? undefined : onCancel}
       />
 
-      {/* dialog */}
       <div className="absolute inset-0 flex items-center justify-center p-4">
         <div className="w-full max-w-[560px] rounded-2xl border border-slate-200 bg-white shadow-2xl">
           <div className="p-5">
@@ -71,8 +64,7 @@ function ConfirmDeleteModal({ open, deviceId, busy, onCancel, onConfirm }) {
                   </div>
                   <div className="mt-1">
                     The device will be removed from your Registered Devices list
-                    and can be claimed again later. Any configuration linked to
-                    this device under your account may stop working.
+                    and can be claimed again later.
                   </div>
                 </div>
 
@@ -115,13 +107,18 @@ const TP4000_TE_COLS = [
   { key: "te108", label: "TE-108" },
 ];
 
-export default function RegisterDevicesTp4000Section({ onBack }) {
+export default function RegisterDevicesTp4000Section({
+  onBack,
+  devicesUsed = 0,
+  deviceLimit = "—",
+  deviceLimitReached = false,
+  refreshRegisteredDeviceCount,
+}) {
   const [deviceId, setDeviceId] = React.useState("");
   const [rows, setRows] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [err, setErr] = React.useState("");
 
-  // modal state
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [pendingDeleteId, setPendingDeleteId] = React.useState("");
   const [deleting, setDeleting] = React.useState(false);
@@ -137,7 +134,6 @@ export default function RegisterDevicesTp4000Section({ onBack }) {
         throw new Error("Missing auth token. Please logout and login again.");
       }
 
-      // ✅ TP-4000 backend route (expected)
       const res = await fetch(`${API_URL}/tp4000/my-devices`, {
         headers: {
           "Content-Type": "application/json",
@@ -161,10 +157,17 @@ export default function RegisterDevicesTp4000Section({ onBack }) {
   }
 
   async function claimDevice() {
+    if (deviceLimitReached) {
+      return setErr(
+        `Device limit reached. You are using ${devicesUsed} / ${deviceLimit} devices.`
+      );
+    }
+
     const id = String(deviceId || "").trim();
     if (!id) return setErr("Please enter a DEVICE ID.");
-    if (!/^\d+$/.test(id))
+    if (!/^\d+$/.test(id)) {
       return setErr("DEVICE ID must be numeric (digits only).");
+    }
 
     setLoading(true);
     setErr("");
@@ -175,7 +178,6 @@ export default function RegisterDevicesTp4000Section({ onBack }) {
         throw new Error("Missing auth token. Please logout and login again.");
       }
 
-      // ✅ TP-4000 backend route (expected)
       const res = await fetch(`${API_URL}/tp4000/claim`, {
         method: "POST",
         headers: {
@@ -192,6 +194,10 @@ export default function RegisterDevicesTp4000Section({ onBack }) {
 
       setDeviceId("");
       await loadMyDevices();
+
+      if (typeof refreshRegisteredDeviceCount === "function") {
+        await refreshRegisteredDeviceCount();
+      }
     } catch (e) {
       setErr(e.message || "Claim failed");
     } finally {
@@ -222,7 +228,6 @@ export default function RegisterDevicesTp4000Section({ onBack }) {
         throw new Error("Missing auth token. Please logout and login again.");
       }
 
-      // ✅ TP-4000 backend route (expected)
       const res = await fetch(
         `${API_URL}/tp4000/unclaim/${encodeURIComponent(id)}`,
         {
@@ -239,6 +244,10 @@ export default function RegisterDevicesTp4000Section({ onBack }) {
       }
 
       await loadMyDevices();
+
+      if (typeof refreshRegisteredDeviceCount === "function") {
+        await refreshRegisteredDeviceCount();
+      }
     } catch (e) {
       setErr(e.message || "Remove failed");
     } finally {
@@ -250,6 +259,8 @@ export default function RegisterDevicesTp4000Section({ onBack }) {
     loadMyDevices();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const addDisabled = loading || deleting || deviceLimitReached;
 
   return (
     <>
@@ -279,8 +290,7 @@ export default function RegisterDevicesTp4000Section({ onBack }) {
                 Register Devices — Model TP-4000
               </div>
               <div className="text-xs text-sky-100">
-                Enter a DEVICE ID. We verify it exists and assign it to your
-                account.
+                Device usage: {devicesUsed} / {deviceLimit}
               </div>
             </div>
           </div>
@@ -295,6 +305,13 @@ export default function RegisterDevicesTp4000Section({ onBack }) {
         </div>
 
         <div className="p-4">
+          {deviceLimitReached ? (
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+              Device limit reached. Remove a device or upgrade your plan before
+              registering another device.
+            </div>
+          ) : null}
+
           <div className="mb-4">
             <div className="text-sm font-semibold mb-2">Add / Claim Device ID</div>
 
@@ -302,13 +319,19 @@ export default function RegisterDevicesTp4000Section({ onBack }) {
               <input
                 value={deviceId}
                 onChange={(e) => setDeviceId(e.target.value)}
-                placeholder="Enter DEVICE ID"
-                className="flex-1 rounded-lg border px-3 py-2 text-sm"
+                placeholder={
+                  deviceLimitReached ? "Device limit reached" : "Enter DEVICE ID"
+                }
+                disabled={addDisabled}
+                className="flex-1 rounded-lg border px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-400"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !addDisabled) claimDevice();
+                }}
               />
               <button
                 onClick={claimDevice}
-                disabled={loading}
-                className="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm"
+                disabled={addDisabled}
+                className="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 + Add Device
               </button>
@@ -317,12 +340,10 @@ export default function RegisterDevicesTp4000Section({ onBack }) {
             {err && <div className="mt-2 text-xs text-red-600">{err}</div>}
           </div>
 
-          {/* ✅ table (NO user column) */}
           <div className="rounded-xl border overflow-hidden">
             <div className="overflow-x-auto">
               <table className="w-full table-auto text-[12px]">
                 <thead>
-                  {/* Row 1 (blue titles) */}
                   <tr className="bg-blue-200">
                     <th className="text-left font-bold text-slate-900 px-1.5 py-1 border-b border-blue-300 w-[145px]">
                       DEVICE ID
@@ -330,9 +351,6 @@ export default function RegisterDevicesTp4000Section({ onBack }) {
                     <th className="text-left font-bold text-slate-900 px-1.5 py-1 border-b border-blue-300 w-[110px]">
                       Date
                     </th>
-
-                    {/* ✅ REMOVED USER COLUMN */}
-
                     <th className="text-left font-bold text-slate-900 px-1.5 py-1 border-b border-blue-300 w-[95px]">
                       Status
                     </th>
@@ -354,12 +372,9 @@ export default function RegisterDevicesTp4000Section({ onBack }) {
                     </th>
                   </tr>
 
-                  {/* Row 2 (subtitles) */}
                   <tr className="bg-white text-[11px]">
                     <th className="px-1.5 py-1 border-b border-slate-200" />
                     <th className="px-1.5 py-1 border-b border-slate-200" />
-
-                    {/* ✅ REMOVED USER COLUMN */}
 
                     <th className="px-1.5 py-1 text-left text-slate-700 border-b border-slate-200">
                       online/offline

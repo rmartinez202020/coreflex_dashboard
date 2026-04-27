@@ -1,17 +1,13 @@
 // src/components/homepagesections/RegisterDevicesCf2000Section.jsx
 import React from "react";
 import { API_URL } from "../../config/api";
-
-// ✅ ✅ IMPORTANT: use per-tab auth token (sessionStorage-first)
 import { getToken } from "../../utils/authToken";
 
-// Auth headers (single source of truth)
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-// ✅ Date formatter: 01/01/2025-8:15AM
 function formatDateMMDDYYYY_hmma(ts) {
   if (!ts) return "—";
 
@@ -32,7 +28,6 @@ function formatDateMMDDYYYY_hmma(ts) {
   return `${mm}/${dd}/${yyyy}-${h}:${min}${ampm}`;
 }
 
-// ✅ Professional confirm modal (white background)
 function ConfirmDeleteModal({ open, deviceId, busy, onCancel, onConfirm }) {
   if (!open) return null;
 
@@ -68,8 +63,7 @@ function ConfirmDeleteModal({ open, deviceId, busy, onCancel, onConfirm }) {
                   </div>
                   <div className="mt-1">
                     The device will be removed from your Registered Devices list
-                    and can be claimed again later. Any configuration linked to
-                    this device under your account may stop working.
+                    and can be claimed again later.
                   </div>
                 </div>
 
@@ -101,23 +95,26 @@ function ConfirmDeleteModal({ open, deviceId, busy, onCancel, onConfirm }) {
   );
 }
 
-export default function RegisterDevicesCf2000Section({ onBack }) {
+export default function RegisterDevicesCf2000Section({
+  onBack,
+  devicesUsed = 0,
+  deviceLimit = "—",
+  deviceLimitReached = false,
+  refreshRegisteredDeviceCount,
+}) {
   const [deviceId, setDeviceId] = React.useState("");
   const [rows, setRows] = React.useState([]);
   const [loading, setLoading] = React.useState(false);
   const [err, setErr] = React.useState("");
 
-  // ✅ modal state
   const [confirmOpen, setConfirmOpen] = React.useState(false);
   const [pendingDeleteId, setPendingDeleteId] = React.useState("");
   const [deleting, setDeleting] = React.useState(false);
 
-  // ✅ LIVE polling controls
   const POLL_MS = 3000;
   const isMountedRef = React.useRef(true);
   const firstLoadDoneRef = React.useRef(false);
 
-  // ✅ REFS to prevent effect re-creating intervals (prevents blinking)
   const loadingRef = React.useRef(false);
   const deletingRef = React.useRef(false);
   const confirmOpenRef = React.useRef(false);
@@ -134,7 +131,6 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
     confirmOpenRef.current = confirmOpen;
   }, [confirmOpen]);
 
-  // ✅ avoid unnecessary re-render if same data
   const lastJsonRef = React.useRef("");
 
   async function loadMyDevices({ silent = false } = {}) {
@@ -166,7 +162,6 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
       const list = Array.isArray(data) ? data : [];
       const json = JSON.stringify(list);
 
-      // ✅ if nothing changed, don't touch state (prevents button flicker)
       if (silent && json === lastJsonRef.current) {
         firstLoadDoneRef.current = true;
         return;
@@ -185,18 +180,26 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
   }
 
   async function claimDevice() {
+    if (deviceLimitReached) {
+      return setErr(
+        `Device limit reached. You are using ${devicesUsed} / ${deviceLimit} devices.`
+      );
+    }
+
     const id = String(deviceId || "").trim();
     if (!id) return setErr("Please enter a DEVICE ID.");
-    if (!/^\d+$/.test(id))
+    if (!/^\d+$/.test(id)) {
       return setErr("DEVICE ID must be numeric (digits only).");
+    }
 
     setLoading(true);
     setErr("");
 
     try {
       const token = String(getToken() || "").trim();
-      if (!token)
+      if (!token) {
         throw new Error("Missing auth token. Please logout and login again.");
+      }
 
       const res = await fetch(`${API_URL}/zhc1921/claim`, {
         method: "POST",
@@ -214,6 +217,10 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
 
       setDeviceId("");
       await loadMyDevices({ silent: false });
+
+      if (typeof refreshRegisteredDeviceCount === "function") {
+        await refreshRegisteredDeviceCount();
+      }
     } catch (e) {
       setErr(e.message || "Claim failed");
     } finally {
@@ -240,8 +247,9 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
 
     try {
       const token = String(getToken() || "").trim();
-      if (!token)
+      if (!token) {
         throw new Error("Missing auth token. Please logout and login again.");
+      }
 
       const res = await fetch(
         `${API_URL}/zhc1921/unclaim/${encodeURIComponent(id)}`,
@@ -257,6 +265,10 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
       }
 
       await loadMyDevices({ silent: false });
+
+      if (typeof refreshRegisteredDeviceCount === "function") {
+        await refreshRegisteredDeviceCount();
+      }
     } catch (e) {
       setErr(e.message || "Remove failed");
     } finally {
@@ -264,11 +276,9 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
     }
   }
 
-  // ✅ mount + polling RUNS ONCE (no dependencies)
   React.useEffect(() => {
     isMountedRef.current = true;
 
-    // first load
     loadMyDevices({ silent: false });
 
     const intervalId = setInterval(() => {
@@ -286,6 +296,8 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  const addDisabled = loading || deleting || deviceLimitReached;
 
   return (
     <>
@@ -315,8 +327,7 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
                 Register Devices — Model CF-2000
               </div>
               <div className="text-xs text-sky-100">
-                Enter a DEVICE ID. We verify it exists and assign it to your
-                account.
+                Device usage: {devicesUsed} / {deviceLimit}
               </div>
             </div>
           </div>
@@ -331,6 +342,13 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
         </div>
 
         <div className="p-4">
+          {deviceLimitReached ? (
+            <div className="mb-4 rounded-xl border border-red-200 bg-red-50 px-4 py-3 text-sm font-semibold text-red-700">
+              Device limit reached. Remove a device or upgrade your plan before
+              registering another device.
+            </div>
+          ) : null}
+
           <div className="mb-4">
             <div className="text-sm font-semibold mb-2">
               Add / Claim Device ID
@@ -340,16 +358,19 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
               <input
                 value={deviceId}
                 onChange={(e) => setDeviceId(e.target.value)}
-                placeholder="Enter DEVICE ID"
-                className="flex-1 rounded-lg border px-3 py-2 text-sm"
+                placeholder={
+                  deviceLimitReached ? "Device limit reached" : "Enter DEVICE ID"
+                }
+                disabled={addDisabled}
+                className="flex-1 rounded-lg border px-3 py-2 text-sm disabled:bg-slate-100 disabled:text-slate-400"
                 onKeyDown={(e) => {
-                  if (e.key === "Enter" && !loading) claimDevice();
+                  if (e.key === "Enter" && !addDisabled) claimDevice();
                 }}
               />
               <button
                 onClick={claimDevice}
-                disabled={loading}
-                className="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm disabled:opacity-50"
+                disabled={addDisabled}
+                className="rounded-lg bg-slate-900 text-white px-4 py-2 text-sm disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 + Add Device
               </button>
@@ -381,8 +402,8 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
                       "DI-2",
                       "DI-3",
                       "DI-4",
-                      "DI-5", // ✅ NEW
-                      "DI-6", // ✅ NEW
+                      "DI-5",
+                      "DI-6",
                       "DO-1",
                       "DO-2",
                       "DO-3",
@@ -437,7 +458,7 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
 
                       return (
                         <tr
-                          key={i}
+                          key={`${r?.deviceId || "row"}-${i}`}
                           className={i % 2 ? "bg-slate-50" : "bg-white"}
                         >
                           <td className="px-[6px] py-[3px] truncate text-slate-800">
@@ -451,7 +472,6 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
                             {formatDateMMDDYYYY_hmma(r.addedAt)}
                           </td>
 
-                          {/* ✅ Status with green dot when Online */}
                           <td className="px-[6px] py-[3px] text-slate-800">
                             <div className="flex items-center gap-1.5">
                               <span
@@ -475,8 +495,8 @@ export default function RegisterDevicesCf2000Section({ onBack }) {
                             r.in2,
                             r.in3,
                             r.in4,
-                            r.in5, // ✅ NEW
-                            r.in6, // ✅ NEW
+                            r.in5,
+                            r.in6,
                             r.do1,
                             r.do2,
                             r.do3,
