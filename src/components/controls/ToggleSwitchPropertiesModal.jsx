@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { API_URL } from "../../config/api";
 import { getToken } from "../../utils/authToken";
 import { fetchUsedDOs, bindControlDO } from "./controlBindings";
+import ToggleSwitchPropertiesModalInterlock from "./ToggleSwitchPropertiesModalInterlock";
 import ToggleSwitchpropertiesmodalTelemetric, {
   to01,
   readDoFromRow,
@@ -14,12 +15,10 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-// ✅ ONLY CF-2000 (ZHC1921)
 const MODEL_META = {
   zhc1921: { label: "ZHC1921 (CF-2000)", base: "zhc1921" },
 };
 
-// ✅ ONLY 4 DO outputs
 const DO_OPTIONS = [
   { key: "do1", label: "DO-1" },
   { key: "do2", label: "DO-2" },
@@ -38,27 +37,18 @@ export default function ToggleSwitchPropertiesModal({
   toggleSwitch,
   onSave,
   onClose,
-  // ✅ MUST be true in PLAY mode
   isLaunched = false,
-
-  // ✅ NEW (recommended): pass this from parent/dashboard
   dashboardId: dashboardIdProp,
   dashboardName: dashboardNameProp,
-
-  // ✅ NEW: Save Project callback
   onSaveProject = null,
 }) {
-  // ✅ DO NOT early return before hooks
   const p = toggleSwitch?.properties || {};
 
-  // ✅ Modal sizing (MATCH BlinkingAlarm feel)
-  const MODAL_W = Math.min(980, window.innerWidth - 80);
-  const MODAL_H = Math.min(640, window.innerHeight - 120);
+  const MODAL_W = Math.min(1180, window.innerWidth - 80);
+  const MODAL_H = Math.min(680, window.innerHeight - 120);
 
-  // ✅ Force CF-2000 model
   const forcedModel = "zhc1921";
 
-  // ✅ Backward compatible initial binding:
   const initialDeviceId = String(p.bindDeviceId || p?.tag?.deviceId || "");
   const initialField = String(p.bindField || p?.tag?.field || "do1");
 
@@ -71,40 +61,61 @@ export default function ToggleSwitchPropertiesModal({
 
   const [deviceSearch, setDeviceSearch] = React.useState("");
 
-  // ✅ NEW: Optional Title (shows above the toggle widget)
   const initialTitle = String(p.title ?? toggleSwitch?.title ?? "").trim();
   const [title, setTitle] = React.useState(initialTitle);
 
   // =========================
-  // ✅ HARD GUARANTEE: NEVER IN PLAY MODE
+  // ✅ INTERLOCK STATE
   // =========================
+  const initialInterlock = p.interlock || {};
+
+  const [interlockEnabled, setInterlockEnabled] = React.useState(
+    Boolean(initialInterlock.enabled)
+  );
+
+  const [interlockDeviceId, setInterlockDeviceId] = React.useState(
+    String(initialInterlock.deviceId || initialDeviceId || "")
+  );
+
+  const [interlockField, setInterlockField] = React.useState(
+    /^di[1-6]$/.test(String(initialInterlock.field || "").toLowerCase())
+      ? String(initialInterlock.field || "").toLowerCase()
+      : "di1"
+  );
+
+  const [interlockType, setInterlockType] = React.useState(
+    String(initialInterlock.type || "NO").toUpperCase() === "NC" ? "NC" : "NO"
+  );
+
   React.useEffect(() => {
     if (isLaunched && open) onClose?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLaunched, open]);
 
-  // =========================
-  // REHYDRATE ON OPEN (EDIT ONLY)
-  // =========================
   React.useEffect(() => {
     if (!open || !toggleSwitch || isLaunched) return;
 
     const pp = toggleSwitch?.properties || {};
     const f = String(pp.bindField || pp?.tag?.field || "do1");
+    const il = pp.interlock || {};
 
-    setDeviceId(String(pp.bindDeviceId || pp?.tag?.deviceId || ""));
+    const nextDeviceId = String(pp.bindDeviceId || pp?.tag?.deviceId || "");
+
+    setDeviceId(nextDeviceId);
     setField(/^do[1-4]$/.test(f.toLowerCase()) ? f : "do1");
     setDeviceSearch("");
-
-    // ✅ NEW: rehydrate title when opening
     setTitle(String(pp.title ?? toggleSwitch?.title ?? "").trim());
+
+    setInterlockEnabled(Boolean(il.enabled));
+    setInterlockDeviceId(String(il.deviceId || nextDeviceId || ""));
+    setInterlockField(
+      /^di[1-6]$/.test(String(il.field || "").toLowerCase())
+        ? String(il.field || "").toLowerCase()
+        : "di1"
+    );
+    setInterlockType(String(il.type || "NO").toUpperCase() === "NC" ? "NC" : "NO");
   }, [open, toggleSwitch?.id, isLaunched]);
 
-  // =========================
-  // DRAGGABLE WINDOW (Portal-safe)
-  // ✅ FIX: prevent dragging the underlying toggle widget while dragging modal
-  // ✅ FIX: allow clicking X (do NOT start drag from button)
-  // =========================
   const modalRef = React.useRef(null);
   const dragRef = React.useRef({
     dragging: false,
@@ -120,7 +131,6 @@ export default function ToggleSwitchPropertiesModal({
     return { left, top };
   });
 
-  // ✅ recenter on open (EDIT ONLY)
   React.useEffect(() => {
     if (!open || isLaunched) return;
     const left = Math.max(20, Math.round((window.innerWidth - MODAL_W) / 2));
@@ -128,7 +138,6 @@ export default function ToggleSwitchPropertiesModal({
     setPos({ left, top });
   }, [open, MODAL_W, MODAL_H, isLaunched]);
 
-  // ✅ use pointer events so drag doesn't leak to canvas/draggable
   React.useEffect(() => {
     if (isLaunched) return;
 
@@ -173,7 +182,6 @@ export default function ToggleSwitchPropertiesModal({
   }, [MODAL_W, isLaunched]);
 
   const startDrag = (e) => {
-    // ✅ If user clicked a control inside header (like X), do NOT start drag.
     const t = e.target;
     if (
       t?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")
@@ -181,11 +189,9 @@ export default function ToggleSwitchPropertiesModal({
       return;
     }
 
-    // ✅ stop event so underlying DraggableDroppedTank doesn't start dragging
     e.preventDefault();
     e.stopPropagation();
 
-    // support touch/mouse
     const pt = "touches" in e && e.touches?.[0] ? e.touches[0] : e;
 
     dragRef.current.dragging = true;
@@ -197,15 +203,11 @@ export default function ToggleSwitchPropertiesModal({
     document.body.style.userSelect = "none";
     document.body.style.cursor = "grabbing";
 
-    // ✅ capture pointer if available
     try {
       e.currentTarget?.setPointerCapture?.(e.pointerId);
     } catch {}
   };
 
-  // =========================
-  // DEVICES (BACKEND) — EDIT ONLY (CF-2000 only)
-  // =========================
   const [devices, setDevices] = React.useState([]);
   const [devicesErr, setDevicesErr] = React.useState("");
 
@@ -258,13 +260,8 @@ export default function ToggleSwitchPropertiesModal({
     return devices.filter((d) => String(d.id || "").toLowerCase().includes(q));
   }, [devices, deviceSearch]);
 
-  // =========================
-  // ✅ USED DOs (backend uniqueness GLOBAL across ALL dashboards for this device)
-  // =========================
   const widgetId = String(toggleSwitch?.id || "").trim();
 
-  // ✅ Prefer the current dashboard coming from parent.
-  // Fallback to widget properties only if parent was not provided.
   const dashboardId = String(
     dashboardIdProp ?? p.dashboardId ?? toggleSwitch?.dashboardId ?? ""
   ).trim();
@@ -298,9 +295,6 @@ export default function ToggleSwitchPropertiesModal({
       const ac = new AbortController();
       usedAbortRef.current = ac;
 
-      // ✅ IMPORTANT:
-      // Used DOs are now fetched by device only (ALL dashboards),
-      // not by current dashboard.
       const rows = await fetchUsedDOs({
         deviceId: dev,
         signal: ac.signal,
@@ -357,9 +351,6 @@ export default function ToggleSwitchPropertiesModal({
     [usedMap, widgetId]
   );
 
-  // =========================
-  // ✅ LIVE STATUS / VALUE (EDIT ONLY) — Extracted
-  // =========================
   const { telemetryRow, backendDeviceStatus } =
     ToggleSwitchpropertiesmodalTelemetric({
       open,
@@ -378,10 +369,11 @@ export default function ToggleSwitchPropertiesModal({
   const hasSelection = !!deviceId && !!effectiveField;
   const hasData = rawValue !== undefined && rawValue !== null;
   const isOnlineWithData = deviceIsOnline && hasData && hasSelection;
-  const as01 = React.useMemo(() => (isOnlineWithData ? to01(rawValue) : null), [
-    isOnlineWithData,
-    rawValue,
-  ]);
+
+  const as01 = React.useMemo(
+    () => (isOnlineWithData ? to01(rawValue) : null),
+    [isOnlineWithData, rawValue]
+  );
 
   const statusText = !deviceId
     ? "Select a device and DO"
@@ -397,11 +389,14 @@ export default function ToggleSwitchPropertiesModal({
 
   const valueText = isOnlineWithData ? String(as01 ?? 0) : "—";
 
-  // =========================
-  // APPLY SAVE + BACKEND BIND
-  // =========================
   const canApplyLocal =
     !!String(deviceId || "").trim() && /^do[1-4]$/.test(effectiveField);
+
+  const interlockValid =
+    !interlockEnabled ||
+    (!!String(interlockDeviceId || "").trim() &&
+      /^di[1-6]$/.test(String(interlockField || "").toLowerCase()) &&
+      ["NO", "NC"].includes(String(interlockType || "").toUpperCase()));
 
   const [saving, setSaving] = React.useState(false);
   const [saveErr, setSaveErr] = React.useState("");
@@ -415,6 +410,7 @@ export default function ToggleSwitchPropertiesModal({
 
   const canApply =
     canApplyLocal &&
+    interlockValid &&
     !!String(dashboardId || "").trim() &&
     !!String(widgetId || "").trim() &&
     !usedByOther &&
@@ -431,9 +427,12 @@ export default function ToggleSwitchPropertiesModal({
     const dev = String(deviceId || "").trim();
     const f = String(effectiveField || "").trim().toLowerCase();
 
-    const safeTitle = String(title || "")
-      .trim()
-      .slice(0, 40); // ✅ keep it short so it looks good above the toggle
+    const safeTitle = String(title || "").trim().slice(0, 40);
+
+    const safeInterlockDeviceId = String(interlockDeviceId || "").trim();
+    const safeInterlockField = String(interlockField || "").trim().toLowerCase();
+    const safeInterlockType =
+      String(interlockType || "NO").toUpperCase() === "NC" ? "NC" : "NO";
 
     if (!dash || !wid) {
       setSaveErr(
@@ -441,20 +440,26 @@ export default function ToggleSwitchPropertiesModal({
       );
       return;
     }
+
     if (!dev || !/^do[1-4]$/.test(f)) return;
+
+    if (
+      interlockEnabled &&
+      (!safeInterlockDeviceId || !/^di[1-6]$/.test(safeInterlockField))
+    ) {
+      setSaveErr("Interlock is enabled. Select a CF-2000 device and DI tag.");
+      return;
+    }
 
     setSaving(true);
 
     try {
-      // 1) Build updated widget FIRST
       const nextProps = {
         ...(toggleSwitch?.properties || {}),
 
-        // ✅ persist dashboard context INSIDE widget too
         dashboardId: dash,
         dashboardName: dashName,
 
-        // ✅ NEW: optional title
         title: safeTitle,
 
         bindModel: forcedModel,
@@ -465,6 +470,15 @@ export default function ToggleSwitchPropertiesModal({
           model: forcedModel,
           deviceId: dev,
           field: f,
+        },
+
+        interlock: {
+          enabled: Boolean(interlockEnabled),
+          model: forcedModel,
+          deviceId: interlockEnabled ? safeInterlockDeviceId : "",
+          field: interlockEnabled ? safeInterlockField : "",
+          type: safeInterlockType,
+          mode: "block_when_active",
         },
       };
 
@@ -478,37 +492,29 @@ export default function ToggleSwitchPropertiesModal({
         resolvedDashboardName: dashName,
         bindDeviceId: dev,
         bindField: f,
+        interlock: nextProps.interlock,
       });
 
-      // 2) Update canvas immediately (so it will be persisted)
       onSave?.(next);
 
-      // ✅ IMPORTANT:
-      // Give parent React state one tick to commit before save project runs.
       await nextTick();
 
-      // 3) Save Project (persist dashboard JSON)
       if (typeof onSaveProject === "function") {
         await onSaveProject();
       }
 
-      // 4) Bind DO in backend (locks the DO)
       await bindControlDO({
         dashboardId: dash,
         dashboardName: dashName,
         widgetId: wid,
         widgetType: "toggle",
-        title: String(safeTitle || "Toggle")
-          .trim()
-          .slice(0, 120),
+        title: String(safeTitle || "Toggle").trim().slice(0, 120),
         deviceId: dev,
         field: f,
       });
 
-      // 5) Refresh used list
       await loadUsed();
 
-      // 6) Close modal
       onClose?.();
     } catch (e) {
       console.error("[ToggleSwitchPropertiesModal] APPLY FAILED", e);
@@ -531,7 +537,6 @@ export default function ToggleSwitchPropertiesModal({
     </div>
   );
 
-  // ✅ ABSOLUTE BLOCK: never render in PLAY mode
   if (!open || !toggleSwitch || isLaunched) return null;
 
   const portalTarget = typeof document !== "undefined" ? document.body : null;
@@ -544,11 +549,6 @@ export default function ToggleSwitchPropertiesModal({
         inset: 0,
         background: "rgba(0,0,0,0.35)",
         zIndex: 999999,
-      }}
-      onMouseDown={(e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        onClose?.();
       }}
       onPointerDown={(e) => {
         e.preventDefault();
@@ -576,7 +576,6 @@ export default function ToggleSwitchPropertiesModal({
         onMouseDown={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div
           onPointerDown={startDrag}
           style={{
@@ -627,13 +626,11 @@ export default function ToggleSwitchPropertiesModal({
           </button>
         </div>
 
-        {/* Body */}
         <div style={{ padding: 16, overflow: "auto", flex: "1 1 auto" }}>
           <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
             Bind this toggle to a <b>CF-2000 Digital Output (DO)</b>.
           </div>
 
-          {/* ✅ NEW: TITLE */}
           <div
             style={{
               border: "1px solid #e5e7eb",
@@ -649,7 +646,7 @@ export default function ToggleSwitchPropertiesModal({
             <Label>Title shown above the toggle</Label>
             <input
               value={title}
-              onChange={(e) => setTitle(e.target.value)}
+              onChange={(e) => setTitle(e.target.value.slice(0, 40))}
               placeholder="Example: Main Pump"
               style={{
                 width: "100%",
@@ -682,220 +679,247 @@ export default function ToggleSwitchPropertiesModal({
             </div>
           )}
 
-          <div
-            style={{
-              border: "1px solid #e5e7eb",
-              borderRadius: 12,
-              padding: 14,
-            }}
-          >
-            <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}>
-              Output that this toggle controls (DO)
+          {devicesErr && (
+            <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>
+              {devicesErr}
             </div>
+          )}
 
-            {devicesErr && (
-              <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>
-                {devicesErr}
-              </div>
-            )}
-
-            {usedErr && (
-              <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>
-                {usedErr}
-              </div>
-            )}
-
-            {saveErr && (
-              <div
-                style={{
-                  marginBottom: 10,
-                  color: "#dc2626",
-                  fontSize: 12,
-                  fontWeight: 900,
-                }}
-              >
-                {saveErr}
-              </div>
-            )}
-
-            {/* Search Device */}
-            <div style={{ marginBottom: 10 }}>
-              <Label>Search Device (CF-2000)</Label>
-              <input
-                value={deviceSearch}
-                onChange={(e) => setDeviceSearch(e.target.value)}
-                placeholder="Type device id..."
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  border: "1px solid #cbd5e1",
-                  fontSize: 14,
-                }}
-              />
-              <div style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}>
-                Showing <b>{filteredDevices.length}</b> device(s)
-              </div>
+          {usedErr && (
+            <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>
+              {usedErr}
             </div>
+          )}
 
-            <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-              {/* Device */}
-              <div style={{ flex: 1 }}>
-                <Label>Device</Label>
-                <select
-                  value={deviceId || ""}
-                  onChange={(e) => {
-                    const next = String(e.target.value || "");
-                    setDeviceId(next);
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: 10,
-                    border: "1px solid #cbd5e1",
-                    fontSize: 14,
-                    background: "white",
-                  }}
-                >
-                  <option value="">— Select device —</option>
-                  {filteredDevices.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.id}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* DO */}
-              <div style={{ flex: 1 }}>
-                <Label>Select DO</Label>
-                <select
-                  value={field}
-                  onChange={(e) => setField(String(e.target.value || ""))}
-                  disabled={!deviceId}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: 10,
-                    border: "1px solid #cbd5e1",
-                    fontSize: 14,
-                    background: "white",
-                    opacity: deviceId ? 1 : 0.6,
-                    cursor: deviceId ? "pointer" : "not-allowed",
-                  }}
-                >
-                  <option value="">— Select DO —</option>
-                  {DO_OPTIONS.map((t) => {
-                    const f = String(t.key).toLowerCase();
-                    const info = usedMap?.[f];
-                    const disabled = deviceId ? isOptionDisabled(f) : true;
-
-                    const usedLabel =
-                      info?.widgetId && info.widgetId !== widgetId
-                        ? ` (Used${info.title ? `: ${info.title}` : ""}${
-                            info.dashboardName || info.dashboardId
-                              ? ` / Dashboard: ${
-                                  info.dashboardName || info.dashboardId
-                                }`
-                              : ""
-                          })`
-                        : "";
-
-                    return (
-                      <option key={t.key} value={t.key} disabled={disabled}>
-                        {t.label}
-                        {usedLabel}
-                      </option>
-                    );
-                  })}
-                </select>
-
-                {usedByOther && (
-                  <div
-                    style={{
-                      marginTop: 8,
-                      fontSize: 12,
-                      color: "#dc2626",
-                      fontWeight: 900,
-                    }}
-                  >
-                    {effectiveField.toUpperCase()} is already used
-                    {usedByOther.title ? ` by "${usedByOther.title}"` : ""}
-                    {usedByOther.dashboardName || usedByOther.dashboardId
-                      ? ` on dashboard "${
-                          usedByOther.dashboardName || usedByOther.dashboardId
-                        }"`
-                      : ""}
-                    . Choose another DO.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* STATUS BAR */}
+          {saveErr && (
             <div
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                border: "1px solid #e5e7eb",
-                background: "#f8fafc",
-                borderRadius: 12,
-                padding: "12px 14px",
+                marginBottom: 10,
+                color: "#dc2626",
+                fontSize: 12,
+                fontWeight: 900,
               }}
             >
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>
-                  Status
+              {saveErr}
+            </div>
+          )}
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "0.95fr 1.25fr",
+              gap: 14,
+              alignItems: "start",
+            }}
+          >
+            <ToggleSwitchPropertiesModalInterlock
+              open={open}
+              isLaunched={isLaunched}
+              forcedModel={forcedModel}
+              devices={devices}
+              enabled={interlockEnabled}
+              setEnabled={setInterlockEnabled}
+              deviceId={interlockDeviceId}
+              setDeviceId={setInterlockDeviceId}
+              field={interlockField}
+              setField={setInterlockField}
+              type={interlockType}
+              setType={setInterlockType}
+            />
+
+            <div
+              style={{
+                border: "1px solid #e5e7eb",
+                borderRadius: 12,
+                padding: 14,
+              }}
+            >
+              <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}>
+                Output that this toggle controls (DO)
+              </div>
+
+              <div style={{ marginBottom: 10 }}>
+                <Label>Search Device (CF-2000)</Label>
+                <input
+                  value={deviceSearch}
+                  onChange={(e) => setDeviceSearch(e.target.value)}
+                  placeholder="Type device id..."
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5e1",
+                    fontSize: 14,
+                  }}
+                />
+                <div style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}>
+                  Showing <b>{filteredDevices.length}</b> device(s)
                 </div>
-                <div style={{ fontSize: 13, color: "#475569", marginTop: 2 }}>
-                  {deviceId && effectiveField ? (
-                    <>
-                      <span
-                        style={{
-                          fontWeight: 900,
-                          color: usedByOther ? "#dc2626" : "#0f172a",
-                        }}
-                      >
-                        {statusText}
-                      </span>
-                      <span style={{ marginLeft: 10, color: "#64748b" }}>
-                        Bound: <b>{deviceId}</b> / <b>{effectiveField}</b>
-                      </span>
-                    </>
-                  ) : (
-                    statusText
+              </div>
+
+              <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+                <div style={{ flex: 1 }}>
+                  <Label>Device</Label>
+                  <select
+                    value={deviceId || ""}
+                    onChange={(e) => {
+                      const next = String(e.target.value || "");
+                      setDeviceId(next);
+
+                      if (!interlockDeviceId) {
+                        setInterlockDeviceId(next);
+                      }
+                    }}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #cbd5e1",
+                      fontSize: 14,
+                      background: "white",
+                    }}
+                  >
+                    <option value="">— Select device —</option>
+                    {filteredDevices.map((d) => (
+                      <option key={d.id} value={d.id}>
+                        {d.id}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div style={{ flex: 1 }}>
+                  <Label>Select DO</Label>
+                  <select
+                    value={field}
+                    onChange={(e) => setField(String(e.target.value || ""))}
+                    disabled={!deviceId}
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #cbd5e1",
+                      fontSize: 14,
+                      background: "white",
+                      opacity: deviceId ? 1 : 0.6,
+                      cursor: deviceId ? "pointer" : "not-allowed",
+                    }}
+                  >
+                    <option value="">— Select DO —</option>
+                    {DO_OPTIONS.map((t) => {
+                      const f = String(t.key).toLowerCase();
+                      const info = usedMap?.[f];
+                      const disabled = deviceId ? isOptionDisabled(f) : true;
+
+                      const usedLabel =
+                        info?.widgetId && info.widgetId !== widgetId
+                          ? ` (Used${info.title ? `: ${info.title}` : ""}${
+                              info.dashboardName || info.dashboardId
+                                ? ` / Dashboard: ${
+                                    info.dashboardName || info.dashboardId
+                                  }`
+                                : ""
+                            })`
+                          : "";
+
+                      return (
+                        <option key={t.key} value={t.key} disabled={disabled}>
+                          {t.label}
+                          {usedLabel}
+                        </option>
+                      );
+                    })}
+                  </select>
+
+                  {usedByOther && (
+                    <div
+                      style={{
+                        marginTop: 8,
+                        fontSize: 12,
+                        color: "#dc2626",
+                        fontWeight: 900,
+                      }}
+                    >
+                      {effectiveField.toUpperCase()} is already used
+                      {usedByOther.title ? ` by "${usedByOther.title}"` : ""}
+                      {usedByOther.dashboardName || usedByOther.dashboardId
+                        ? ` on dashboard "${
+                            usedByOther.dashboardName || usedByOther.dashboardId
+                          }"`
+                        : ""}
+                      . Choose another DO.
+                    </div>
                   )}
                 </div>
               </div>
 
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>
-                  Value
+              <div
+                style={{
+                  display: "flex",
+                  justifyContent: "space-between",
+                  alignItems: "center",
+                  border: "1px solid #e5e7eb",
+                  background: "#f8fafc",
+                  borderRadius: 12,
+                  padding: "12px 14px",
+                }}
+              >
+                <div>
+                  <div
+                    style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}
+                  >
+                    Status
+                  </div>
+                  <div style={{ fontSize: 13, color: "#475569", marginTop: 2 }}>
+                    {deviceId && effectiveField ? (
+                      <>
+                        <span
+                          style={{
+                            fontWeight: 900,
+                            color: usedByOther ? "#dc2626" : "#0f172a",
+                          }}
+                        >
+                          {statusText}
+                        </span>
+                        <span style={{ marginLeft: 10, color: "#64748b" }}>
+                          Bound: <b>{deviceId}</b> / <b>{effectiveField}</b>
+                        </span>
+                      </>
+                    ) : (
+                      statusText
+                    )}
+                  </div>
                 </div>
-                <div
-                  style={{
-                    marginTop: 2,
-                    fontSize: 18,
-                    fontWeight: 1000,
-                    color: isOnlineWithData ? "#0f172a" : "#94a3b8",
-                    fontFamily: "monospace",
-                    minWidth: 22,
-                  }}
-                >
-                  {valueText}
+
+                <div style={{ textAlign: "right" }}>
+                  <div
+                    style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}
+                  >
+                    Value
+                  </div>
+                  <div
+                    style={{
+                      marginTop: 2,
+                      fontSize: 18,
+                      fontWeight: 1000,
+                      color: isOnlineWithData ? "#0f172a" : "#94a3b8",
+                      fontFamily: "monospace",
+                      minWidth: 22,
+                    }}
+                  >
+                    {valueText}
+                  </div>
                 </div>
               </div>
-            </div>
 
-            <div style={{ fontSize: 12, color: "#64748b", marginTop: 10 }}>
-              Tip: Value preview is best-effort from{" "}
-              <code>/zhc1921/my-devices</code>.
+              <div style={{ fontSize: 12, color: "#64748b", marginTop: 10 }}>
+                Tip: Value preview is best-effort from{" "}
+                <code>/zhc1921/my-devices</code>.
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Footer */}
         <div
           style={{
             display: "flex",
@@ -950,6 +974,8 @@ export default function ToggleSwitchPropertiesModal({
                 ? "Missing dashboardId"
                 : usedByOther
                 ? "This DO is already used"
+                : !interlockValid
+                ? "Complete interlock setup or disable it"
                 : "Apply"
             }
           >
