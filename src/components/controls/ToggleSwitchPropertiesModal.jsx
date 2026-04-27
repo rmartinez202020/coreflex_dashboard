@@ -28,6 +28,32 @@ function nextTick() {
   });
 }
 
+// ✅ IMPORTANT: Keep these OUTSIDE the main component.
+// If they are inside, React remounts the input every keystroke and focus is lost.
+function Label({ children }) {
+  return (
+    <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
+      {children}
+    </div>
+  );
+}
+
+function SectionCard({ children }) {
+  return (
+    <div
+      style={{
+        border: "1px solid #e5e7eb",
+        borderRadius: 12,
+        padding: 14,
+        background: "#fff",
+        minHeight: 0,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function ToggleSwitchPropertiesModal({
   open = false,
   toggleSwitch,
@@ -65,14 +91,17 @@ export default function ToggleSwitchPropertiesModal({
   const [interlockEnabled, setInterlockEnabled] = React.useState(
     Boolean(initialInterlock.enabled)
   );
+
   const [interlockDeviceId, setInterlockDeviceId] = React.useState(
     String(initialInterlock.deviceId || initialDeviceId || "")
   );
+
   const [interlockField, setInterlockField] = React.useState(
     /^di[1-6]$/.test(String(initialInterlock.field || "").toLowerCase())
       ? String(initialInterlock.field || "").toLowerCase()
       : "di1"
   );
+
   const [interlockType, setInterlockType] = React.useState(
     String(initialInterlock.type || "NO").toUpperCase() === "NC" ? "NC" : "NO"
   );
@@ -506,26 +535,6 @@ export default function ToggleSwitchPropertiesModal({
     }
   };
 
-  const Label = ({ children }) => (
-    <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-      {children}
-    </div>
-  );
-
-  const SectionCard = ({ children }) => (
-    <div
-      style={{
-        border: "1px solid #e5e7eb",
-        borderRadius: 12,
-        padding: 14,
-        background: "#fff",
-        minHeight: 0,
-      }}
-    >
-      {children}
-    </div>
-  );
-
   if (!open || !toggleSwitch || isLaunched) return null;
 
   const portalTarget = typeof document !== "undefined" ? document.body : null;
@@ -694,14 +703,7 @@ export default function ToggleSwitchPropertiesModal({
               <Label>Title</Label>
               <input
                 value={title}
-                onMouseDown={(e) => e.stopPropagation()}
-                onPointerDown={(e) => e.stopPropagation()}
-                onClick={(e) => e.stopPropagation()}
-                onKeyDown={(e) => e.stopPropagation()}
-                onChange={(e) => {
-                  e.stopPropagation();
-                  setTitle(e.target.value.slice(0, 40));
-                }}
+                onChange={(e) => setTitle(e.target.value.slice(0, 40))}
                 placeholder="Example: Main Pump"
                 style={{
                   width: "100%",
@@ -805,14 +807,7 @@ export default function ToggleSwitchPropertiesModal({
                 <Label>Search Device (CF-2000)</Label>
                 <input
                   value={deviceSearch}
-                  onMouseDown={(e) => e.stopPropagation()}
-                  onPointerDown={(e) => e.stopPropagation()}
-                  onClick={(e) => e.stopPropagation()}
-                  onKeyDown={(e) => e.stopPropagation()}
-                  onChange={(e) => {
-                    e.stopPropagation();
-                    setDeviceSearch(e.target.value);
-                  }}
+                  onChange={(e) => setDeviceSearch(e.target.value)}
                   placeholder="Type device id..."
                   style={{
                     width: "100%",
