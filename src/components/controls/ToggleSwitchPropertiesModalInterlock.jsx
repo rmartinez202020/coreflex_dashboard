@@ -5,7 +5,7 @@ import ToggleSwitchpropertiesmodalTelemetric, {
 } from "./ToggleSwitchpropertiesmodalTelemetric";
 
 const MODEL_META = {
-  zhc1921: { label: "CF-2000 (ZHC1921)", base: "zhc1921" },
+  zhc1921: { label: "CF-2000", base: "zhc1921" },
 };
 
 const DI_OPTIONS = [
@@ -103,7 +103,7 @@ export default function ToggleSwitchPropertiesModalInterlock({
   setType,
 }) {
   const safeModel = String(forcedModel || "zhc1921").trim().toLowerCase();
-  const safeModelLabel = MODEL_META?.[safeModel]?.label || "CF-2000 (ZHC1921)";
+  const safeModelLabel = MODEL_META?.[safeModel]?.label || "CF-2000";
 
   const safeDeviceId = String(deviceId || "").trim();
   const safeField = /^di[1-6]$/.test(String(field || "").toLowerCase())
@@ -157,6 +157,7 @@ export default function ToggleSwitchPropertiesModalInterlock({
         border: "1px solid #e5e7eb",
         borderRadius: 12,
         padding: 14,
+        background: "#fff",
       }}
     >
       <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}>
@@ -349,7 +350,8 @@ export default function ToggleSwitchPropertiesModalInterlock({
           <div style={{ marginTop: 6, fontSize: 13, fontWeight: 1000 }}>
             <span
               style={{
-                color: enabled && value01 !== null ? interlockState.color : "#64748b",
+                color:
+                  enabled && value01 !== null ? interlockState.color : "#64748b",
               }}
             >
               ●

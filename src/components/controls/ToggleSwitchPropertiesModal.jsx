@@ -15,10 +15,6 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-const MODEL_META = {
-  zhc1921: { label: "ZHC1921 (CF-2000)", base: "zhc1921" },
-};
-
 const DO_OPTIONS = [
   { key: "do1", label: "DO-1" },
   { key: "do2", label: "DO-2" },
@@ -60,26 +56,23 @@ export default function ToggleSwitchPropertiesModal({
   );
 
   const [deviceSearch, setDeviceSearch] = React.useState("");
-
-  const initialTitle = String(p.title ?? toggleSwitch?.title ?? "").trim();
-  const [title, setTitle] = React.useState(initialTitle);
+  const [title, setTitle] = React.useState(
+    String(p.title ?? toggleSwitch?.title ?? "").trim()
+  );
 
   const initialInterlock = p.interlock || {};
 
   const [interlockEnabled, setInterlockEnabled] = React.useState(
     Boolean(initialInterlock.enabled)
   );
-
   const [interlockDeviceId, setInterlockDeviceId] = React.useState(
     String(initialInterlock.deviceId || initialDeviceId || "")
   );
-
   const [interlockField, setInterlockField] = React.useState(
     /^di[1-6]$/.test(String(initialInterlock.field || "").toLowerCase())
       ? String(initialInterlock.field || "").toLowerCase()
       : "di1"
   );
-
   const [interlockType, setInterlockType] = React.useState(
     String(initialInterlock.type || "NO").toUpperCase() === "NC" ? "NC" : "NO"
   );
@@ -95,7 +88,6 @@ export default function ToggleSwitchPropertiesModal({
     const pp = toggleSwitch?.properties || {};
     const f = String(pp.bindField || pp?.tag?.field || "do1");
     const il = pp.interlock || {};
-
     const nextDeviceId = String(pp.bindDeviceId || pp?.tag?.deviceId || "");
 
     setDeviceId(nextDeviceId);
@@ -147,17 +139,17 @@ export default function ToggleSwitchPropertiesModal({
       const dx = e.clientX - dragRef.current.startX;
       const dy = e.clientY - dragRef.current.startY;
 
-      const nextLeft = dragRef.current.startLeft + dx;
-      const nextTop = dragRef.current.startTop + dy;
-
       const rect = modalRef.current?.getBoundingClientRect();
       const mw = rect?.width ?? MODAL_W;
 
       const clampedLeft = Math.min(
         window.innerWidth - 20,
-        Math.max(20 - (mw - 60), nextLeft)
+        Math.max(20 - (mw - 60), dragRef.current.startLeft + dx)
       );
-      const clampedTop = Math.min(window.innerHeight - 20, Math.max(20, nextTop));
+      const clampedTop = Math.min(
+        window.innerHeight - 20,
+        Math.max(20, dragRef.current.startTop + dy)
+      );
 
       setPos({ left: clampedLeft, top: clampedTop });
     };
@@ -191,11 +183,9 @@ export default function ToggleSwitchPropertiesModal({
     e.preventDefault();
     e.stopPropagation();
 
-    const pt = "touches" in e && e.touches?.[0] ? e.touches[0] : e;
-
     dragRef.current.dragging = true;
-    dragRef.current.startX = pt.clientX;
-    dragRef.current.startY = pt.clientY;
+    dragRef.current.startX = e.clientX;
+    dragRef.current.startY = e.clientY;
     dragRef.current.startLeft = pos.left;
     dragRef.current.startTop = pos.top;
 
@@ -291,6 +281,7 @@ export default function ToggleSwitchPropertiesModal({
     try {
       setUsedErr("");
       if (usedAbortRef.current) usedAbortRef.current.abort();
+
       const ac = new AbortController();
       usedAbortRef.current = ac;
 
@@ -325,6 +316,7 @@ export default function ToggleSwitchPropertiesModal({
   React.useEffect(() => {
     if (!open || isLaunched) return;
     loadUsed();
+
     return () => {
       if (usedAbortRef.current) usedAbortRef.current.abort();
     };
@@ -455,22 +447,17 @@ export default function ToggleSwitchPropertiesModal({
     try {
       const nextProps = {
         ...(toggleSwitch?.properties || {}),
-
         dashboardId: dash,
         dashboardName: dashName,
-
         title: safeTitle,
-
         bindModel: forcedModel,
         bindDeviceId: dev,
         bindField: f,
-
         tag: {
           model: forcedModel,
           deviceId: dev,
           field: f,
         },
-
         interlock: {
           enabled: Boolean(interlockEnabled),
           model: forcedModel,
@@ -482,17 +469,6 @@ export default function ToggleSwitchPropertiesModal({
       };
 
       const next = { ...toggleSwitch, properties: nextProps };
-
-      console.log("[ToggleSwitchPropertiesModal] APPLY", {
-        widgetId: wid,
-        dashboardIdProp,
-        dashboardNameProp,
-        resolvedDashboardId: dash,
-        resolvedDashboardName: dashName,
-        bindDeviceId: dev,
-        bindField: f,
-        interlock: nextProps.interlock,
-      });
 
       onSave?.(next);
 
@@ -564,9 +540,7 @@ export default function ToggleSwitchPropertiesModal({
         zIndex: 999999,
       }}
       onPointerDown={(e) => {
-        if (e.target === e.currentTarget) {
-          onClose?.();
-        }
+        if (e.target === e.currentTarget) onClose?.();
       }}
     >
       <div
@@ -610,12 +584,8 @@ export default function ToggleSwitchPropertiesModal({
 
           <button
             data-no-drag="true"
-            onPointerDown={(e) => {
-              e.stopPropagation();
-            }}
-            onMouseDown={(e) => {
-              e.stopPropagation();
-            }}
+            onPointerDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -724,7 +694,14 @@ export default function ToggleSwitchPropertiesModal({
               <Label>Title</Label>
               <input
                 value={title}
-                onChange={(e) => setTitle(e.target.value.slice(0, 40))}
+                onMouseDown={(e) => e.stopPropagation()}
+                onPointerDown={(e) => e.stopPropagation()}
+                onClick={(e) => e.stopPropagation()}
+                onKeyDown={(e) => e.stopPropagation()}
+                onChange={(e) => {
+                  e.stopPropagation();
+                  setTitle(e.target.value.slice(0, 40));
+                }}
                 placeholder="Example: Main Pump"
                 style={{
                   width: "100%",
@@ -828,7 +805,14 @@ export default function ToggleSwitchPropertiesModal({
                 <Label>Search Device (CF-2000)</Label>
                 <input
                   value={deviceSearch}
-                  onChange={(e) => setDeviceSearch(e.target.value)}
+                  onMouseDown={(e) => e.stopPropagation()}
+                  onPointerDown={(e) => e.stopPropagation()}
+                  onClick={(e) => e.stopPropagation()}
+                  onKeyDown={(e) => e.stopPropagation()}
+                  onChange={(e) => {
+                    e.stopPropagation();
+                    setDeviceSearch(e.target.value);
+                  }}
                   placeholder="Type device id..."
                   style={{
                     width: "100%",
@@ -849,10 +833,7 @@ export default function ToggleSwitchPropertiesModal({
                 onChange={(e) => {
                   const next = String(e.target.value || "");
                   setDeviceId(next);
-
-                  if (!interlockDeviceId) {
-                    setInterlockDeviceId(next);
-                  }
+                  if (!interlockDeviceId) setInterlockDeviceId(next);
                 }}
                 style={{
                   width: "100%",
@@ -947,9 +928,7 @@ export default function ToggleSwitchPropertiesModal({
                 }}
               >
                 <div>
-                  <div
-                    style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}
-                  >
+                  <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>
                     Status
                   </div>
                   <div
@@ -969,9 +948,7 @@ export default function ToggleSwitchPropertiesModal({
                 </div>
 
                 <div>
-                  <div
-                    style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}
-                  >
+                  <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>
                     Value
                   </div>
                   <div
@@ -1058,15 +1035,6 @@ export default function ToggleSwitchPropertiesModal({
               opacity: saving ? 0.8 : 1,
             }}
             type="button"
-            title={
-              !dashboardId
-                ? "Missing dashboardId"
-                : usedByOther
-                ? "This DO is already used"
-                : !interlockValid
-                ? "Complete interlock setup or disable it"
-                : "Apply"
-            }
           >
             {saving ? "Saving..." : "Apply"}
           </button>
