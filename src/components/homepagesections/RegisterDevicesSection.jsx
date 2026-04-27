@@ -124,6 +124,7 @@ export default function RegisterDevicesSection({ onBack }) {
     );
   }
 
+  
   if (activeModel === "cf2000") {
     return <RegisterDevicesCf2000Section onBack={() => setActiveModel(null)} />;
   }
