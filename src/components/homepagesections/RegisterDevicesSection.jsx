@@ -33,6 +33,20 @@ function getDeviceLimit(plan, subscription) {
   );
 }
 
+// 🔥 FIX: normalize "0 / 200" → extract only USED value
+function extractUsedDevices(value) {
+  if (value === null || value === undefined) return "—";
+
+  const str = String(value);
+
+  // If already formatted like "0 / 200"
+  if (str.includes("/")) {
+    return str.split("/")[0].trim(); // ✅ keep only "0"
+  }
+
+  return str;
+}
+
 export default function RegisterDevicesSection({ onBack }) {
   const [activeModel, setActiveModel] = React.useState(null);
 
@@ -53,7 +67,9 @@ export default function RegisterDevicesSection({ onBack }) {
     ? "—"
     : getDeviceLimit(currentPlan, subscription);
 
-  const devicesUsed = loadingSubscription ? "—" : currentPlanDevicesUsed ?? 0;
+  const devicesUsed = loadingSubscription
+    ? "—"
+    : extractUsedDevices(currentPlanDevicesUsed); // ✅ FIX applied
 
   // VIEW A: MODEL SELECTION
   if (!activeModel) {
@@ -89,7 +105,7 @@ export default function RegisterDevicesSection({ onBack }) {
             <div className="rounded-lg border border-sky-500/40 bg-white/10 px-4 py-3">
               <div className="text-xs text-sky-100">Devices Used</div>
               <div className="mt-1 text-base font-semibold text-white">
-                {devicesUsed} / {deviceLimit}
+                {devicesUsed} / {deviceLimit} {/* ✅ now correct */}
               </div>
             </div>
 
@@ -124,7 +140,6 @@ export default function RegisterDevicesSection({ onBack }) {
     );
   }
 
-  
   if (activeModel === "cf2000") {
     return <RegisterDevicesCf2000Section onBack={() => setActiveModel(null)} />;
   }
