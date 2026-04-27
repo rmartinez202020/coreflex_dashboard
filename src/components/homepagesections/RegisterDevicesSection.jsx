@@ -1,5 +1,7 @@
 // src/components/homepagesections/RegisterDevicesSection.jsx
 import React from "react";
+import { API_URL } from "../../config/api";
+import { getToken } from "../../utils/authToken";
 import { useMySubscriptionSection } from "./useMySubscriptionSection";
 
 // ✅ extracted sections
@@ -12,6 +14,17 @@ const MODELS = [
   { key: "cf1600", label: "Model CF-1600", desc: "4-AI // 2-AO" },
   { key: "tp400", label: "Model TP-400", desc: "8-Thermocouple channels" },
 ];
+
+const DEVICE_COUNT_ENDPOINTS = [
+  `${API_URL}/zhc1921/my-devices`,
+  `${API_URL}/zhc1661/my-devices`,
+  `${API_URL}/tp4000/my-devices`,
+];
+
+function getAuthHeaders() {
+  const token = String(getToken() || "").trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
 
 function getPlanName(plan, fallbackKey) {
   const name = String(plan?.name || plan?.plan_name || "").trim();
@@ -33,22 +46,27 @@ function getDeviceLimit(plan, subscription) {
   );
 }
 
-// 🔥 FIX: normalize "0 / 200" → extract only USED value
-function extractUsedDevices(value) {
-  if (value === null || value === undefined) return "—";
+async function fetchDeviceCount(url) {
+  const res = await fetch(url, {
+    method: "GET",
+    headers: {
+      "Content-Type": "application/json",
+      ...getAuthHeaders(),
+    },
+  });
 
-  const str = String(value);
-
-  // If already formatted like "0 / 200"
-  if (str.includes("/")) {
-    return str.split("/")[0].trim(); // ✅ keep only "0"
+  if (!res.ok) {
+    return 0;
   }
 
-  return str;
+  const data = await res.json().catch(() => []);
+  return Array.isArray(data) ? data.length : 0;
 }
 
 export default function RegisterDevicesSection({ onBack }) {
   const [activeModel, setActiveModel] = React.useState(null);
+  const [registeredDeviceCount, setRegisteredDeviceCount] = React.useState(0);
+  const [loadingDeviceCount, setLoadingDeviceCount] = React.useState(true);
 
   const {
     subscription,
@@ -56,7 +74,6 @@ export default function RegisterDevicesSection({ onBack }) {
     subscriptionError,
     currentPlan,
     currentPlanKey,
-    currentPlanDevicesUsed,
   } = useMySubscriptionSection();
 
   const planName = loadingSubscription
@@ -67,11 +84,50 @@ export default function RegisterDevicesSection({ onBack }) {
     ? "—"
     : getDeviceLimit(currentPlan, subscription);
 
-  const devicesUsed = loadingSubscription
-    ? "—"
-    : extractUsedDevices(currentPlanDevicesUsed); // ✅ FIX applied
+  React.useEffect(() => {
+    let cancelled = false;
 
-  // VIEW A: MODEL SELECTION
+    async function loadRegisteredDeviceCount() {
+      setLoadingDeviceCount(true);
+
+      try {
+        const token = String(getToken() || "").trim();
+
+        if (!token) {
+          setRegisteredDeviceCount(0);
+          return;
+        }
+
+        const counts = await Promise.all(
+          DEVICE_COUNT_ENDPOINTS.map((url) => fetchDeviceCount(url))
+        );
+
+        if (cancelled) return;
+
+        const total = counts.reduce((sum, count) => sum + Number(count || 0), 0);
+        setRegisteredDeviceCount(total);
+      } catch (err) {
+        if (!cancelled) {
+          setRegisteredDeviceCount(0);
+        }
+      } finally {
+        if (!cancelled) {
+          setLoadingDeviceCount(false);
+        }
+      }
+    }
+
+    loadRegisteredDeviceCount();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const devicesUsedDisplay = loadingDeviceCount
+    ? "Loading..."
+    : `${registeredDeviceCount} / ${deviceLimit}`;
+
   if (!activeModel) {
     return (
       <div className="mt-6 rounded-xl border border-slate-200 bg-white overflow-hidden">
@@ -105,7 +161,7 @@ export default function RegisterDevicesSection({ onBack }) {
             <div className="rounded-lg border border-sky-500/40 bg-white/10 px-4 py-3">
               <div className="text-xs text-sky-100">Devices Used</div>
               <div className="mt-1 text-base font-semibold text-white">
-                {devicesUsed} / {deviceLimit} {/* ✅ now correct */}
+                {devicesUsedDisplay}
               </div>
             </div>
 
