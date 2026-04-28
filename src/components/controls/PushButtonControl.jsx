@@ -282,6 +282,16 @@ export default function PushButtonControl({
     /^di[1-6]$/.test(interlockField) &&
     (interlockType === "NO" || interlockType === "NC");
 
+  const showInterlockText =
+    play &&
+    !isOffline &&
+    hasBinding &&
+    hasInterlockConfig &&
+    interlockKnown &&
+    interlockActive;
+
+  const interlockBlocksAction = showInterlockText || backendInterlockBlocked;
+
   const safeW = Math.max(70, Number(width) || 110);
   const safeH = Math.max(70, Number(height) || 110);
   const size = Math.min(safeW, safeH);
@@ -300,16 +310,6 @@ export default function PushButtonControl({
 
   const isPressed = !!pressed || localPressed;
   const safeTitle = String(title || "").trim();
-
-  const showInterlockText =
-    play &&
-    !isOffline &&
-    hasBinding &&
-    hasInterlockConfig &&
-    interlockKnown &&
-    interlockActive;
-
-  const interlockBlocksAction = showInterlockText || backendInterlockBlocked;
 
   const bezelBg =
     "linear-gradient(180deg, #2B2B2B 0%, #0E0E0E 55%, #1B1B1B 100%)";
@@ -382,7 +382,7 @@ export default function PushButtonControl({
     }
   }
 
-  const hardBlockInterlock = React.useCallback(() => {
+  function hardBlockInterlock() {
     pointerActiveRef.current = false;
     setLocalPressed(false);
     setIsBusy(false);
@@ -393,7 +393,7 @@ export default function PushButtonControl({
       clearTimeout(pulseTimerRef.current);
       pulseTimerRef.current = null;
     }
-  }, []);
+  }
 
   const fetchRemote = React.useCallback(async () => {
     if (!play) return;
@@ -421,6 +421,7 @@ export default function PushButtonControl({
           setDeviceStatus("offline");
           setInterlockActive(false);
           setInterlockKnown(false);
+          setBackendInterlockBlocked(false);
           return;
         }
 
@@ -436,10 +437,11 @@ export default function PushButtonControl({
           setDeviceStatus("offline");
           setInterlockActive(false);
           setInterlockKnown(false);
+          setBackendInterlockBlocked(false);
           return;
         }
 
-        // ✅ Same source used by ToggleSwitchControl
+        // ✅ Same endpoint used by toggle interlock logic
         url = `${API_URL}/zhc1921/my-devices`;
       }
 
@@ -461,20 +463,20 @@ export default function PushButtonControl({
       const data = await res.json().catch(() => []);
       const list = Array.isArray(data) ? data : [];
 
-      const controlRow =
+      const row =
         list.find(
           (r) =>
             String(r?.deviceId ?? r?.device_id ?? "").trim() === bindDeviceId
         ) || null;
 
-      if (!controlRow) {
+      if (!row) {
         setDeviceStatus("offline");
         setInterlockActive(false);
         setInterlockKnown(false);
         return;
       }
 
-      const status = readStatusFromRow(controlRow);
+      const status = readStatusFromRow(row);
       setDeviceStatus(status || "offline");
 
       if (status === "offline") {
@@ -491,11 +493,17 @@ export default function PushButtonControl({
               interlockDeviceId
           ) || null;
 
-        if (interlockRow) {
+        if (!interlockRow) {
+          setInterlockActive(false);
+          setInterlockKnown(false);
+        } else {
           const rawDi = readDiFromRow(interlockRow, interlockField);
           const di01 = to01(rawDi);
 
-          if (di01 !== null) {
+          if (di01 === null) {
+            setInterlockActive(false);
+            setInterlockKnown(false);
+          } else {
             const active = interlockType === "NC" ? di01 === 0 : di01 === 1;
 
             setInterlockActive(active);
@@ -506,13 +514,7 @@ export default function PushButtonControl({
             } else {
               setBackendInterlockBlocked(false);
             }
-          } else {
-            setInterlockActive(false);
-            setInterlockKnown(false);
           }
-        } else {
-          setInterlockActive(false);
-          setInterlockKnown(false);
         }
       } else {
         setInterlockActive(false);
@@ -520,7 +522,7 @@ export default function PushButtonControl({
         setBackendInterlockBlocked(false);
       }
 
-      readDoFromRow(controlRow, bindField);
+      readDoFromRow(row, bindField);
     } catch {
       setDeviceStatus("offline");
       setInterlockActive(false);
@@ -537,7 +539,6 @@ export default function PushButtonControl({
     interlockDeviceId,
     interlockField,
     interlockType,
-    hardBlockInterlock,
   ]);
 
   useEffect(() => {
@@ -548,7 +549,6 @@ export default function PushButtonControl({
       setBackendInterlockBlocked(false);
       return;
     }
-
     if (!hasBinding) {
       setDeviceStatus("");
       setInterlockActive(false);
@@ -556,7 +556,6 @@ export default function PushButtonControl({
       setBackendInterlockBlocked(false);
       return;
     }
-
     fetchRemote();
   }, [play, hasBinding, fetchRemote]);
 
@@ -579,7 +578,7 @@ export default function PushButtonControl({
     if (!play) return;
     if (!hasBinding) return;
 
-    const ms = Math.max(500, Number(pollMs) || 12000);
+    const ms = Math.max(500, Number(pollMs) || 2000);
 
     const t = setInterval(() => {
       if (document.hidden) return;
@@ -592,7 +591,7 @@ export default function PushButtonControl({
   async function performPulse() {
     await fetchRemote();
 
-    if (showInterlockText || interlockBlocksAction) {
+    if (interlockBlocksAction || showInterlockText) {
       hardBlockInterlock();
       return;
     }
@@ -663,7 +662,7 @@ export default function PushButtonControl({
         try {
           await fetchRemote();
 
-          if (showInterlockText || interlockBlocksAction) {
+          if (interlockBlocksAction || showInterlockText) {
             hardBlockInterlock();
             return;
           }
@@ -744,7 +743,7 @@ export default function PushButtonControl({
     e.preventDefault();
     e.stopPropagation();
 
-    if (showInterlockText || interlockBlocksAction) {
+    if (interlockBlocksAction || showInterlockText) {
       hardBlockInterlock();
       return;
     }
@@ -791,7 +790,7 @@ export default function PushButtonControl({
 
     e.preventDefault();
 
-    if (showInterlockText || interlockBlocksAction) {
+    if (interlockBlocksAction || showInterlockText) {
       hardBlockInterlock();
       return;
     }
@@ -832,7 +831,7 @@ export default function PushButtonControl({
     if (isOffline || interlockBlocksAction) {
       hardBlockInterlock();
     }
-  }, [play, hasBinding, isOffline, interlockBlocksAction, hardBlockInterlock]);
+  }, [play, hasBinding, isOffline, interlockBlocksAction]);
 
   useEffect(() => {
     return () => {
@@ -912,6 +911,7 @@ export default function PushButtonControl({
           justifyContent: "center",
           touchAction: play ? "none" : "auto",
           WebkitTouchCallout: "none",
+          pointerEvents: interlockBlocksAction ? "none" : "auto",
           cursor: play
             ? disabled ||
               !hasBinding ||
