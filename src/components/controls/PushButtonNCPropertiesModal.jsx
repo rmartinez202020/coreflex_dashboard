@@ -879,7 +879,7 @@ export default function PushButtonNCPropertiesModal({
                           marginTop: 8,
                           fontSize: 12,
                           color: "#dc2626",
-                          fontWeight: 900,
+                          fontWeight: 400,
                         }}
                       >
                         {effectiveField.toUpperCase()} is already used
@@ -900,7 +900,7 @@ export default function PushButtonNCPropertiesModal({
                           marginTop: 8,
                           fontSize: 12,
                           color: "#dc2626",
-                          fontWeight: 900,
+                          fontWeight: 400,
                         }}
                       >
                         Desired DO must be at state 0.{" "}
@@ -926,7 +926,7 @@ export default function PushButtonNCPropertiesModal({
                     <div
                       style={{
                         fontSize: 12,
-                        fontWeight: 900,
+                        fontWeight: 400,
                         color: "#0f172a",
                       }}
                     >
@@ -939,7 +939,7 @@ export default function PushButtonNCPropertiesModal({
                         <>
                           <span
                             style={{
-                              fontWeight: 900,
+                              fontWeight: 400,
                               color:
                                 usedByOther || isDoStateOne
                                   ? "#dc2626"
@@ -962,7 +962,7 @@ export default function PushButtonNCPropertiesModal({
                     <div
                       style={{
                         fontSize: 12,
-                        fontWeight: 900,
+                        fontWeight: 400,
                         color: "#0f172a",
                       }}
                     >
@@ -1014,7 +1014,7 @@ export default function PushButtonNCPropertiesModal({
               border: "1px solid #cbd5e1",
               background: "white",
               cursor: "pointer",
-              fontWeight: 900,
+              fontWeight: 400,
               fontSize: 14,
             }}
             type="button"
@@ -1036,7 +1036,7 @@ export default function PushButtonNCPropertiesModal({
               background: canApply ? "#22c55e" : "#e5e7eb",
               color: canApply ? "white" : "#64748b",
               cursor: canApply ? "pointer" : "not-allowed",
-              fontWeight: 900,
+              fontWeight: 400,
               fontSize: 14,
               opacity: saving ? 0.8 : 1,
             }}
