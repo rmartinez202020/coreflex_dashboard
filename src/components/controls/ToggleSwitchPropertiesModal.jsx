@@ -521,6 +521,11 @@ export default function ToggleSwitchPropertiesModal({
         title: String(safeTitle || "Toggle").trim().slice(0, 120),
         deviceId: dev,
         field: f,
+        interlockEnabled: Boolean(interlockEnabled),
+        interlockDeviceId: interlockEnabled ? safeInterlockDeviceId : "",
+        interlockField: interlockEnabled ? safeInterlockField : "",
+        interlockType: safeInterlockType,
+        interlockMode: "block_when_active",
       });
 
       await loadUsed();

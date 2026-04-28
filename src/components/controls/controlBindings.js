@@ -32,6 +32,18 @@ export function isDOField(field) {
   return /^do[1-4]$/.test(String(field || "").trim().toLowerCase());
 }
 
+export function isDIField(field) {
+  return /^di[1-6]$/.test(String(field || "").trim().toLowerCase());
+}
+
+function normalizeInterlockType(value) {
+  return String(value || "NO").trim().toUpperCase() === "NC" ? "NC" : "NO";
+}
+
+function normalizeInterlockMode(value) {
+  return String(value || "block_when_active").trim() || "block_when_active";
+}
+
 // ===============================
 // 📡 Get Used Control Fields
 // ===============================
@@ -77,6 +89,14 @@ export async function bindControlField({
   scaleMax,
   aoScaleMin,
   aoScaleMax,
+
+  // ✅ Interlock values - backend only applies these to toggle / push_no / push_nc
+  interlockEnabled,
+  interlockDeviceId,
+  interlockField,
+  interlockType,
+  interlockMode,
+
   signal,
 } = {}) {
   const safeField = String(field || "").trim().toLowerCase();
@@ -84,6 +104,8 @@ export async function bindControlField({
   if (!isSupportedControlField(safeField)) {
     throw new Error(`Unsupported control field: ${safeField || "(empty)"}`);
   }
+
+  const safeInterlockField = String(interlockField || "").trim().toLowerCase();
 
   const body = {
     dashboardId,
@@ -93,10 +115,29 @@ export async function bindControlField({
     title,
     deviceId,
     field: safeField,
+
     ...(scaleMin !== undefined ? { scaleMin: Number(scaleMin) } : {}),
     ...(scaleMax !== undefined ? { scaleMax: Number(scaleMax) } : {}),
     ...(aoScaleMin !== undefined ? { aoScaleMin: Number(aoScaleMin) } : {}),
     ...(aoScaleMax !== undefined ? { aoScaleMax: Number(aoScaleMax) } : {}),
+
+    // ✅ Send interlock payload when provided.
+    // Safe for display_output because backend ignores/clears it for unsupported widget types.
+    ...(interlockEnabled !== undefined
+      ? { interlockEnabled: Boolean(interlockEnabled) }
+      : {}),
+    ...(interlockDeviceId !== undefined
+      ? { interlockDeviceId: String(interlockDeviceId || "").trim() }
+      : {}),
+    ...(interlockField !== undefined
+      ? { interlockField: safeInterlockField }
+      : {}),
+    ...(interlockType !== undefined
+      ? { interlockType: normalizeInterlockType(interlockType) }
+      : {}),
+    ...(interlockMode !== undefined
+      ? { interlockMode: normalizeInterlockMode(interlockMode) }
+      : {}),
   };
 
   const res = await fetch(`${API_URL}/control-bindings/bind`, {
@@ -251,7 +292,7 @@ export async function writeControlValue({
   } catch {}
 
   const msg = payload?.detail || `Write failed (${res.status})`;
-  const err = new Error(msg);
+  const err = new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
   err.code = res.status;
   err.detail = payload;
   throw err;
