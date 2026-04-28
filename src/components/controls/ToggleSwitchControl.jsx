@@ -30,12 +30,27 @@ function readDoFromRow(row, field) {
   const up = f.toUpperCase();
   if (row[up] !== undefined) return row[up];
 
-  // do1..do4 -> out1..out4
   const n = f.replace("do", "");
   const alt = `out${n}`;
   if (row[alt] !== undefined) return row[alt];
+
   const altUp = `OUT${n}`;
   if (row[altUp] !== undefined) return row[altUp];
+
+  return undefined;
+}
+
+// ✅ Read DI value from backend device row
+function readDiFromRow(row, field) {
+  if (!row || !field) return undefined;
+
+  const f = String(field).toLowerCase().trim();
+  if (!/^di[1-6]$/.test(f)) return undefined;
+
+  if (row[f] !== undefined) return row[f];
+
+  const up = f.toUpperCase();
+  if (row[up] !== undefined) return row[up];
 
   return undefined;
 }
@@ -46,11 +61,9 @@ function getAuthHeaders() {
 }
 
 function readStatusFromRow(row) {
-  return String(row?.status ?? row?.Status ?? "").trim().toLowerCase(); // "online" | "offline" | ""
+  return String(row?.status ?? row?.Status ?? "").trim().toLowerCase();
 }
 
-// ✅ Default backend writer (so Launch works even if parent forgot to pass onWrite)
-// ✅ Handles 409 gracefully (backend lock) so UI can show "Control Action in Progress"
 async function defaultWriteToBackend({
   dashboardId,
   widgetId,
@@ -82,7 +95,6 @@ async function defaultWriteToBackend({
     }),
   });
 
-  // ✅ Special case: backend advisory lock (occupied)
   if (res.status === 409) {
     let detail = null;
     try {
@@ -90,11 +102,16 @@ async function defaultWriteToBackend({
     } catch {
       detail = null;
     }
+
     return {
       ok: false,
       busy: true,
       status: 409,
-      message: "Control Action in Progress",
+      message:
+        detail?.detail?.error ||
+        detail?.detail ||
+        detail?.error ||
+        "Control Action in Progress",
       detail,
     };
   }
@@ -120,7 +137,6 @@ function isLaunchRoute() {
   }
 }
 
-// ✅ Resolve ids robustly (Launch sometimes uses different shapes)
 function resolveWidgetId(widget) {
   return String(
     widget?.id ??
@@ -168,27 +184,21 @@ export default function ToggleSwitchControl({
   dashboardName = "",
   onSaveProject = null,
   onWrite = null,
-  lockMs = 12000, // used as manual cooldown too
-  pollMs = 12000, // ✅ Continuous sync interval
-  statusVerifyMs = 10000, // kept for compatibility (no longer used for polling)
-
-  // ✅ match backend hold time for occupied state (your backend = 10s)
+  lockMs = 12000,
+  pollMs = 12000,
+  statusVerifyMs = 10000,
   actuationHoldMs = 10000,
-
-  // ✅ tenant/public launch context
   tenantEmail = "",
   tenantAccessLevel = "",
 }) {
   const [openProps, setOpenProps] = React.useState(false);
 
-  // ✅ Launch auto-detect
   const play = !!isLaunched || isLaunchRoute();
 
   const safeW = Math.max(90, Number(width) || 180);
   const safeH = Math.max(40, Number(height) || 70);
   const radius = safeH / 2;
 
-  /* === VISUAL TUNING === */
   const bezelPad = Math.max(2, Math.round(safeH * 0.045));
   const trackPad = Math.max(4, Math.round(safeH * 0.075));
   const panelInset = Math.max(8, Math.round(safeH * 0.13));
@@ -196,9 +206,6 @@ export default function ToggleSwitchControl({
   const knobSize = safeH - trackPad * 2 + Math.round(safeH * 0.04);
   const knobTop = trackPad - Math.round(safeH * 0.015);
 
-  // =========================
-  // ✅ Stable dashboard context for modal + writes
-  // =========================
   const resolvedDashboardIdForWidget = React.useMemo(
     () => resolveDashboardId({ dashboardId, widget }),
     [dashboardId, widget]
@@ -209,10 +216,10 @@ export default function ToggleSwitchControl({
     [dashboardName, widget]
   );
 
-  // ✅ Build a normalized widget so modal always receives dashboard context
   const widgetForModal = React.useMemo(() => {
     const base = widget || {};
     const props = base?.properties || {};
+
     return {
       ...base,
       dashboardId: resolvedDashboardIdForWidget || base?.dashboardId || "",
@@ -227,10 +234,39 @@ export default function ToggleSwitchControl({
     };
   }, [widget, resolvedDashboardIdForWidget, resolvedDashboardNameForWidget]);
 
-  // =========================
-  // ✅ Binding (from widget props)
-  // =========================
   const p = widget?.properties || {};
+
+  // =========================
+  // 🔒 Interlock config
+  // Supports BOTH:
+  // 1) saved widget properties: properties.interlock.enabled/deviceId/field/type
+  // 2) backend-style fields: properties.interlock_enabled/interlock_device_id/...
+  // =========================
+  const interlock = p.interlock || {};
+
+  const interlockEnabled =
+    Boolean(interlock.enabled) || Boolean(p.interlock_enabled);
+
+  const interlockDeviceId = String(
+    interlock.deviceId || p.interlock_device_id || ""
+  ).trim();
+
+  const interlockField = String(
+    interlock.field || p.interlock_field || ""
+  )
+    .trim()
+    .toLowerCase();
+
+  const interlockType = String(interlock.type || p.interlock_type || "NO")
+    .trim()
+    .toUpperCase();
+
+  const hasInterlockConfig =
+    interlockEnabled &&
+    !!interlockDeviceId &&
+    /^di[1-6]$/.test(interlockField) &&
+    (interlockType === "NO" || interlockType === "NC");
+
   const bindDeviceId = String(p.bindDeviceId || p?.tag?.deviceId || "").trim();
   const bindField = String(p.bindField || p?.tag?.field || "")
     .trim()
@@ -238,37 +274,31 @@ export default function ToggleSwitchControl({
 
   const hasBinding = !!bindDeviceId && /^do[1-4]$/.test(bindField);
 
-  // ✅ NEW: Optional Title (from modal)
   const title = String(p.title || "").trim();
 
-  // ✅ Secure read readiness
   const token = String(getToken() || "").trim();
   const tenantEmailSafe = String(tenantEmail || "").trim().toLowerCase();
   const tenantAccessSafe = String(tenantAccessLevel || "").trim();
   const secureReadReady = !!token || !!tenantEmailSafe;
 
-  // =========================
-  // ✅ Mapping:
-  // DO=1 -> UI OFF
-  // DO=0 -> UI ON
-  // =========================
   const [uiIsOn, setUiIsOn] = React.useState(() => {
     const v01 = to01(isOn);
     if (v01 === null) return true;
-    return v01 === 0; // invert
+    return v01 === 0;
   });
 
-  const [deviceStatus, setDeviceStatus] = React.useState(""); // "online" | "offline" | ""
+  const [deviceStatus, setDeviceStatus] = React.useState("");
   const isOffline = hasBinding && deviceStatus === "offline";
 
-  // ✅ Banner state (NO "pending")
-  const [banner, setBanner] = React.useState({ kind: "none", text: "" }); // none|success|error|occupied
+  // ✅ Runtime interlock state
+  const [interlockActive, setInterlockActive] = React.useState(false);
+  const [interlockKnown, setInterlockKnown] = React.useState(false);
+
+  const [banner, setBanner] = React.useState({ kind: "none", text: "" });
   const bannerTimerRef = React.useRef(null);
 
-  // ✅ store expected DO (0/1) after manual toggle; cleared after confirm
   const pendingWriteRef = React.useRef(null);
 
-  // keep uiIsOn in sync with prop ONLY when not launched
   React.useEffect(() => {
     if (play) return;
     const v01 = to01(isOn);
@@ -276,12 +306,10 @@ export default function ToggleSwitchControl({
     setUiIsOn(v01 === 0);
   }, [isOn, play]);
 
-  // close modal if switching to launched
   React.useEffect(() => {
     if (play && openProps) setOpenProps(false);
   }, [play, openProps]);
 
-  // cleanup timers on unmount
   React.useEffect(() => {
     return () => {
       if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
@@ -290,6 +318,7 @@ export default function ToggleSwitchControl({
 
   function showBanner(kind, text, ms = null) {
     setBanner({ kind, text: String(text || "") });
+
     if (bannerTimerRef.current) clearTimeout(bannerTimerRef.current);
     bannerTimerRef.current = null;
 
@@ -300,19 +329,14 @@ export default function ToggleSwitchControl({
     }
   }
 
-  // =========================
-  // ✅ TIME TICK (lock + cooldown)
-  // =========================
   const [nowTick, setNowTick] = React.useState(Date.now());
+
   React.useEffect(() => {
     if (!play) return;
     const t = setInterval(() => setNowTick(Date.now()), 1000);
     return () => clearInterval(t);
   }, [play]);
 
-  // =========================
-  // ✅ STARTUP LOCK WINDOW (kept)
-  // =========================
   const [lockedUntil, setLockedUntil] = React.useState(0);
 
   React.useEffect(() => {
@@ -320,14 +344,12 @@ export default function ToggleSwitchControl({
       setLockedUntil(0);
       return;
     }
+
     setLockedUntil(Date.now() + Math.max(0, Number(lockMs) || 6000));
   }, [play, lockMs]);
 
   const isStartupLocked = play && nowTick < lockedUntil;
 
-  // =========================
-  // ✅ MANUAL COOLDOWN (includes occupied hold)
-  // =========================
   const [cooldownUntil, setCooldownUntil] = React.useState(0);
 
   React.useEffect(() => {
@@ -336,9 +358,6 @@ export default function ToggleSwitchControl({
 
   const isManualCooldown = play && nowTick < cooldownUntil;
 
-  // =========================
-  // ✅ Fetch DO + status (secure path)
-  // =========================
   const fetchRemote = React.useCallback(async () => {
     if (!play) return;
     if (!hasBinding) return;
@@ -356,41 +375,74 @@ export default function ToggleSwitchControl({
         },
       });
 
-      if (!res.ok) {
-        return;
-      }
+      if (!res.ok) return;
 
       const data = await res.json();
       const list = Array.isArray(data) ? data : [];
-      const row =
+
+      const controlRow =
         list.find(
           (r) => String(r.deviceId ?? r.device_id ?? "").trim() === bindDeviceId
         ) || null;
 
-      // ✅ If device not returned, treat as offline
-      if (!row) {
+      if (!controlRow) {
         setDeviceStatus("offline");
+        setInterlockKnown(false);
         return;
       }
 
-      const status = readStatusFromRow(row);
+      const status = readStatusFromRow(controlRow);
       setDeviceStatus(status);
 
-      // ✅ If offline, do not try to sync DO
-      if (status === "offline") return;
+      if (status === "offline") {
+        setInterlockKnown(false);
+        return;
+      }
 
-      const raw = readDoFromRow(row, bindField);
+      // =========================
+      // 🔒 Evaluate interlock DI
+      // =========================
+      if (hasInterlockConfig) {
+        const interlockRow =
+          list.find(
+            (r) =>
+              String(r.deviceId ?? r.device_id ?? "").trim() ===
+              interlockDeviceId
+          ) || null;
+
+        if (interlockRow) {
+          const rawDi = readDiFromRow(interlockRow, interlockField);
+          const di01 = to01(rawDi);
+
+          if (di01 !== null) {
+            const active =
+              interlockType === "NC" ? di01 === 0 : di01 === 1;
+
+            setInterlockActive(active);
+            setInterlockKnown(true);
+          } else {
+            setInterlockActive(false);
+            setInterlockKnown(false);
+          }
+        } else {
+          setInterlockActive(false);
+          setInterlockKnown(false);
+        }
+      } else {
+        setInterlockActive(false);
+        setInterlockKnown(false);
+      }
+
+      const raw = readDoFromRow(controlRow, bindField);
       const do01 = to01(raw);
       if (do01 === null) return;
 
-      // ✅ Confirm pending write by backend read value match
       if (pendingWriteRef.current !== null && do01 === pendingWriteRef.current) {
         pendingWriteRef.current = null;
         showBanner("success", "Successful", 4000);
       }
 
-      // ✅ ALWAYS sync UI position (online)
-      setUiIsOn(do01 === 0); // invert
+      setUiIsOn(do01 === 0);
     } catch {
       // ignore
     }
@@ -402,9 +454,12 @@ export default function ToggleSwitchControl({
     tenantAccessSafe,
     bindDeviceId,
     bindField,
+    hasInterlockConfig,
+    interlockDeviceId,
+    interlockField,
+    interlockType,
   ]);
 
-  // ✅ Fetch once when play starts AND secure context is ready
   React.useEffect(() => {
     if (!play) return;
     if (!hasBinding) return;
@@ -413,25 +468,22 @@ export default function ToggleSwitchControl({
     fetchRemote();
   }, [play, hasBinding, secureReadReady, fetchRemote]);
 
-  // ✅ PC-190: startup secure retry burst (ADD THIS RIGHT BELOW)
-React.useEffect(() => {
-  if (!play) return;
-  if (!hasBinding) return;
-  if (!secureReadReady) return;
+  React.useEffect(() => {
+    if (!play) return;
+    if (!hasBinding) return;
+    if (!secureReadReady) return;
 
-  const tries = [800, 1800, 3200, 5000];
+    const tries = [800, 1800, 3200, 5000];
 
-  const timers = tries.map((ms) =>
-    setTimeout(() => {
-      fetchRemote();
-    }, ms)
-  );
+    const timers = tries.map((ms) =>
+      setTimeout(() => {
+        fetchRemote();
+      }, ms)
+    );
 
-  return () => timers.forEach(clearTimeout);
-}, [play, hasBinding, secureReadReady, fetchRemote]);
+    return () => timers.forEach(clearTimeout);
+  }, [play, hasBinding, secureReadReady, fetchRemote]);
 
-  // ✅ If secure context becomes ready a little later in Launch,
-  // fetch immediately again instead of waiting for next poll
   React.useEffect(() => {
     if (!play) return;
     if (!hasBinding) return;
@@ -440,7 +492,6 @@ React.useEffect(() => {
     fetchRemote();
   }, [secureReadReady, play, hasBinding, fetchRemote]);
 
-  // ✅ Continuous secure sync poll
   React.useEffect(() => {
     if (!play) return;
     if (!hasBinding) return;
@@ -456,10 +507,9 @@ React.useEffect(() => {
     return () => clearInterval(t);
   }, [play, hasBinding, secureReadReady, fetchRemote, pollMs]);
 
-  // =========================
   // ✅ Manual toggle in PLAY:
-  // Blocked when offline/startup/cooldown
-  // =========================
+  // Blocked when offline/startup/cooldown.
+  // Interlock blocks ONLY when trying to turn ON.
   const canInteractInPlay =
     play &&
     hasBinding &&
@@ -474,21 +524,25 @@ React.useEffect(() => {
 
     if (!canInteractInPlay) return;
 
-    // clear banner on new action
-    showBanner("none", "");
-
     const prevUi = uiIsOn;
     const nextUi = !uiIsOn;
-    setUiIsOn(nextUi);
-
-    // local cooldown after click
-    setCooldownUntil(Date.now() + Math.max(0, Number(lockMs) || 6000));
 
     // UI ON => DO 0
     // UI OFF => DO 1
     const nextDo01 = nextUi ? 0 : 1;
 
-    // mark pending until backend confirms
+    // 🔒 Interlock rule:
+    // If DI is active, this toggle cannot turn ON.
+    // Turning OFF is still allowed.
+    if (hasInterlockConfig && interlockKnown && interlockActive && nextUi) {
+      showBanner("error", "Blocked by interlock", 5000);
+      return;
+    }
+
+    showBanner("none", "");
+
+    setUiIsOn(nextUi);
+    setCooldownUntil(Date.now() + Math.max(0, Number(lockMs) || 6000));
     pendingWriteRef.current = nextDo01;
 
     try {
@@ -513,6 +567,7 @@ React.useEffect(() => {
             widgetId: wid,
             widget,
           });
+
           pendingWriteRef.current = null;
           setUiIsOn(prevUi);
           showBanner("error", "Write blocked", 4000);
@@ -528,12 +583,10 @@ React.useEffect(() => {
         });
       }
 
-      // ✅ Handle backend occupied (409)
       if (resp?.busy === true || resp?.status === 409) {
         pendingWriteRef.current = null;
         setUiIsOn(prevUi);
 
-        // match backend hold (10s)
         setCooldownUntil(
           Date.now() + Math.max(0, Number(actuationHoldMs) || 10000)
         );
@@ -557,8 +610,6 @@ React.useEffect(() => {
         return;
       }
 
-      // ✅ NO PENDING: either show success (if confirmed by backend) or show nothing.
-      // Secure poll will confirm and show success when DO matches expected.
       if (nodeRedOk) {
         showBanner("success", "Successful", 4000);
       } else {
@@ -572,9 +623,11 @@ React.useEffect(() => {
       if (looksLike409) {
         pendingWriteRef.current = null;
         setUiIsOn(prevUi);
+
         setCooldownUntil(
           Date.now() + Math.max(0, Number(actuationHoldMs) || 10000)
         );
+
         showBanner("occupied", "Control Action in Progress", 12000);
         return;
       }
@@ -586,19 +639,18 @@ React.useEffect(() => {
     }
   };
 
-  // If device goes offline, clear pending banner (avoid misleading)
   React.useEffect(() => {
     if (!play) return;
     if (!hasBinding) return;
+
     if (isOffline) {
       pendingWriteRef.current = null;
       showBanner("none", "");
+      setInterlockActive(false);
+      setInterlockKnown(false);
     }
   }, [play, hasBinding, isOffline]);
 
-  // =========================
-  // VISUALS
-  // =========================
   const bezelBg =
     "linear-gradient(180deg, #2B2B2B 0%, #0E0E0E 50%, #1C1C1C 100%)";
   const trackBg = "#0A0A0A";
@@ -631,16 +683,20 @@ React.useEffect(() => {
     hasBinding &&
     (!secureReadReady || isOffline || isStartupLocked || isManualCooldown);
 
-  // ✅ ONLY show status banners in PLAY / LAUNCH, never in EDIT
   const showOfflineText = play && secureReadReady && isOffline;
   const showOccupiedText = play && !isOffline && banner.kind === "occupied";
   const showSuccessText = play && !isOffline && banner.kind === "success";
   const showErrorText = play && !isOffline && banner.kind === "error";
+  const showInterlockText =
+    play &&
+    !isOffline &&
+    hasInterlockConfig &&
+    interlockKnown &&
+    interlockActive;
 
   return (
     <>
       <div style={{ display: "inline-flex", flexDirection: "column" }}>
-        {/* ✅ NEW: Title above toggle */}
         {title && (
           <div
             style={{
@@ -671,6 +727,8 @@ React.useEffect(() => {
               ? "Waiting for secure launch context"
               : isOffline
               ? "Device Offline"
+              : showInterlockText
+              ? "Interlock Active"
               : uiIsOn
               ? "ON"
               : "OFF"
@@ -699,7 +757,6 @@ React.useEffect(() => {
             opacity: showOverlay ? 0.92 : 1,
           }}
         >
-          {/* Track */}
           <div
             style={{
               width: "100%",
@@ -710,7 +767,6 @@ React.useEffect(() => {
               overflow: "hidden",
             }}
           >
-            {/* Color panel */}
             <div
               style={{
                 position: "absolute",
@@ -722,7 +778,6 @@ React.useEffect(() => {
               }}
             />
 
-            {/* ON / OFF text */}
             <div
               style={{
                 position: "absolute",
@@ -742,7 +797,6 @@ React.useEffect(() => {
               {uiIsOn ? "ON" : "OFF"}
             </div>
 
-            {/* Knob */}
             <div
               style={{
                 position: "absolute",
@@ -761,7 +815,6 @@ React.useEffect(() => {
               }}
             />
 
-            {/* Lock/Cooldown/offline overlay (NO TEXT) */}
             {showOverlay && (
               <div
                 style={{
@@ -777,7 +830,6 @@ React.useEffect(() => {
           </div>
         </div>
 
-        {/* ✅ OFFLINE text under toggle (PLAY / LAUNCH ONLY) */}
         {showOfflineText && (
           <div
             style={{
@@ -796,7 +848,24 @@ React.useEffect(() => {
           </div>
         )}
 
-        {/* ✅ OCCUPIED (professional) */}
+        {showInterlockText && (
+          <div
+            style={{
+              marginTop: 6,
+              textAlign: "center",
+              color: "#d97706",
+              fontWeight: 800,
+              fontSize: 14,
+              letterSpacing: 0.25,
+              lineHeight: 1,
+              userSelect: "none",
+              pointerEvents: "none",
+            }}
+          >
+            Interlock Active
+          </div>
+        )}
+
         {showOccupiedText && (
           <div
             style={{
@@ -815,7 +884,6 @@ React.useEffect(() => {
           </div>
         )}
 
-        {/* ✅ SUCCESS */}
         {showSuccessText && (
           <div
             style={{
@@ -834,7 +902,6 @@ React.useEffect(() => {
           </div>
         )}
 
-        {/* ✅ ERROR */}
         {showErrorText && (
           <div
             style={{
