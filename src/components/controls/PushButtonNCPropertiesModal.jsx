@@ -4,6 +4,7 @@ import { createPortal } from "react-dom";
 import { API_URL } from "../../config/api";
 import { getToken } from "../../utils/authToken";
 import { fetchUsedDOs, bindControlDO } from "./controlBindings";
+import ToggleSwitchPropertiesModalInterlock from "./ToggleSwitchPropertiesModalInterlock";
 import ToggleSwitchpropertiesmodalTelemetric, {
   to01,
   readDoFromRow,
@@ -14,12 +15,6 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-// ✅ ONLY CF-2000 (ZHC1921)
-const MODEL_META = {
-  zhc1921: { label: "ZHC1921 (CF-2000)", base: "zhc1921" },
-};
-
-// ✅ ONLY 4 DO outputs
 const DO_OPTIONS = [
   { key: "do1", label: "DO-1" },
   { key: "do2", label: "DO-2" },
@@ -27,31 +22,52 @@ const DO_OPTIONS = [
   { key: "do4", label: "DO-4" },
 ];
 
+function nextTick() {
+  return new Promise((resolve) => {
+    setTimeout(resolve, 0);
+  });
+}
+
+function Label({ children }) {
+  return (
+    <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
+      {children}
+    </div>
+  );
+}
+
+function SectionCard({ children }) {
+  return (
+    <div
+      style={{
+        border: "1px solid #e5e7eb",
+        borderRadius: 12,
+        padding: 14,
+        background: "#fff",
+        minHeight: 0,
+      }}
+    >
+      {children}
+    </div>
+  );
+}
+
 export default function PushButtonNCPropertiesModal({
   open = false,
   pushButton,
   onSave,
   onClose,
-  // ✅ MUST be true in PLAY mode
   isLaunched = false,
-
-  // ✅ pass this from parent/dashboard
   dashboardId: dashboardIdProp,
-
-  // ✅ Save Project callback
   onSaveProject = null,
 }) {
-  // ✅ DO NOT early return before hooks
   const p = pushButton?.properties || {};
 
-  // ✅ Modal sizing
-  const MODAL_W = Math.min(980, window.innerWidth - 80);
-  const MODAL_H = Math.min(640, window.innerHeight - 120);
+  const MODAL_W = Math.min(1500, window.innerWidth - 80);
+  const MODAL_H = Math.min(window.innerHeight - 40, 900);
 
-  // ✅ Force CF-2000 model
   const forcedModel = "zhc1921";
 
-  // ✅ Backward compatible initial binding
   const initialDeviceId = String(p.bindDeviceId || p?.tag?.deviceId || "");
   const initialField = String(p.bindField || p?.tag?.field || "do1");
 
@@ -64,36 +80,59 @@ export default function PushButtonNCPropertiesModal({
 
   const [deviceSearch, setDeviceSearch] = React.useState("");
 
-  // ✅ Optional Title
   const initialTitle = String(p.title ?? pushButton?.title ?? "").trim();
   const [title, setTitle] = React.useState(initialTitle);
 
-  // =========================
-  // ✅ HARD GUARANTEE: NEVER IN PLAY MODE
-  // =========================
+  const initialInterlock = p.interlock || {};
+
+  const [interlockEnabled, setInterlockEnabled] = React.useState(
+    Boolean(initialInterlock.enabled)
+  );
+
+  const [interlockDeviceId, setInterlockDeviceId] = React.useState(
+    String(initialInterlock.deviceId || initialDeviceId || "")
+  );
+
+  const [interlockField, setInterlockField] = React.useState(
+    /^di[1-6]$/.test(String(initialInterlock.field || "").toLowerCase())
+      ? String(initialInterlock.field || "").toLowerCase()
+      : "di1"
+  );
+
+  const [interlockType, setInterlockType] = React.useState(
+    String(initialInterlock.type || "NO").toUpperCase() === "NC" ? "NC" : "NO"
+  );
+
   React.useEffect(() => {
     if (isLaunched && open) onClose?.();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isLaunched, open]);
 
-  // =========================
-  // REHYDRATE ON OPEN (EDIT ONLY)
-  // =========================
   React.useEffect(() => {
     if (!open || !pushButton || isLaunched) return;
 
     const pp = pushButton?.properties || {};
     const f = String(pp.bindField || pp?.tag?.field || "do1");
+    const il = pp.interlock || {};
+    const nextDeviceId = String(pp.bindDeviceId || pp?.tag?.deviceId || "");
 
-    setDeviceId(String(pp.bindDeviceId || pp?.tag?.deviceId || ""));
+    setDeviceId(nextDeviceId);
     setField(/^do[1-4]$/.test(f.toLowerCase()) ? f : "do1");
     setDeviceSearch("");
     setTitle(String(pp.title ?? pushButton?.title ?? "").trim());
+
+    setInterlockEnabled(Boolean(il.enabled));
+    setInterlockDeviceId(String(il.deviceId || nextDeviceId || ""));
+    setInterlockField(
+      /^di[1-6]$/.test(String(il.field || "").toLowerCase())
+        ? String(il.field || "").toLowerCase()
+        : "di1"
+    );
+    setInterlockType(
+      String(il.type || "NO").toUpperCase() === "NC" ? "NC" : "NO"
+    );
   }, [open, pushButton?.id, isLaunched]);
 
-  // =========================
-  // DRAGGABLE WINDOW
-  // =========================
   const modalRef = React.useRef(null);
   const dragRef = React.useRef({
     dragging: false,
@@ -126,19 +165,16 @@ export default function PushButtonNCPropertiesModal({
       const dx = e.clientX - dragRef.current.startX;
       const dy = e.clientY - dragRef.current.startY;
 
-      const nextLeft = dragRef.current.startLeft + dx;
-      const nextTop = dragRef.current.startTop + dy;
-
       const rect = modalRef.current?.getBoundingClientRect();
       const mw = rect?.width ?? MODAL_W;
 
       const clampedLeft = Math.min(
         window.innerWidth - 20,
-        Math.max(20 - (mw - 60), nextLeft)
+        Math.max(20 - (mw - 60), dragRef.current.startLeft + dx)
       );
       const clampedTop = Math.min(
         window.innerHeight - 20,
-        Math.max(20, nextTop)
+        Math.max(20, dragRef.current.startTop + dy)
       );
 
       setPos({ left: clampedLeft, top: clampedTop });
@@ -173,11 +209,9 @@ export default function PushButtonNCPropertiesModal({
     e.preventDefault();
     e.stopPropagation();
 
-    const pt = "touches" in e && e.touches?.[0] ? e.touches[0] : e;
-
     dragRef.current.dragging = true;
-    dragRef.current.startX = pt.clientX;
-    dragRef.current.startY = pt.clientY;
+    dragRef.current.startX = e.clientX;
+    dragRef.current.startY = e.clientY;
     dragRef.current.startLeft = pos.left;
     dragRef.current.startTop = pos.top;
 
@@ -189,9 +223,6 @@ export default function PushButtonNCPropertiesModal({
     } catch {}
   };
 
-  // =========================
-  // DEVICES (BACKEND) — EDIT ONLY
-  // =========================
   const [devices, setDevices] = React.useState([]);
   const [devicesErr, setDevicesErr] = React.useState("");
 
@@ -247,13 +278,12 @@ export default function PushButtonNCPropertiesModal({
     );
   }, [devices, deviceSearch]);
 
-  // =========================
-  // ✅ USED DOs (GLOBAL across ALL dashboards for this device)
-  // =========================
   const widgetId = String(pushButton?.id || "").trim();
+
   const dashboardId = String(
     dashboardIdProp || pushButton?.dashboardId || p.dashboardId || ""
   ).trim();
+
   const dashboardName = String(
     pushButton?.dashboardName ||
       p.dashboardName ||
@@ -279,6 +309,7 @@ export default function PushButtonNCPropertiesModal({
     try {
       setUsedErr("");
       if (usedAbortRef.current) usedAbortRef.current.abort();
+
       const ac = new AbortController();
       usedAbortRef.current = ac;
 
@@ -291,6 +322,7 @@ export default function PushButtonNCPropertiesModal({
       (Array.isArray(rows) ? rows : []).forEach((r) => {
         const f = String(r.field || "").trim().toLowerCase();
         if (!/^do[1-4]$/.test(f)) return;
+
         m[f] = {
           field: f,
           widgetId: String(r.widgetId || "").trim(),
@@ -312,6 +344,7 @@ export default function PushButtonNCPropertiesModal({
   React.useEffect(() => {
     if (!open || isLaunched) return;
     loadUsed();
+
     return () => {
       if (usedAbortRef.current) usedAbortRef.current.abort();
     };
@@ -337,9 +370,6 @@ export default function PushButtonNCPropertiesModal({
     [usedMap, widgetId]
   );
 
-  // =========================
-  // ✅ LIVE STATUS / VALUE
-  // =========================
   const { telemetryRow, backendDeviceStatus } =
     ToggleSwitchpropertiesmodalTelemetric({
       open,
@@ -358,10 +388,11 @@ export default function PushButtonNCPropertiesModal({
   const hasSelection = !!deviceId && !!effectiveField;
   const hasData = rawValue !== undefined && rawValue !== null;
   const isOnlineWithData = deviceIsOnline && hasData && hasSelection;
-  const as01 = React.useMemo(() => (isOnlineWithData ? to01(rawValue) : null), [
-    isOnlineWithData,
-    rawValue,
-  ]);
+
+  const as01 = React.useMemo(
+    () => (isOnlineWithData ? to01(rawValue) : null),
+    [isOnlineWithData, rawValue]
+  );
 
   const isDoStateOne = isOnlineWithData && Number(as01) === 1;
 
@@ -381,11 +412,14 @@ export default function PushButtonNCPropertiesModal({
 
   const valueText = isOnlineWithData ? String(as01 ?? 0) : "—";
 
-  // =========================
-  // APPLY SAVE + BACKEND BIND
-  // =========================
   const canApplyLocal =
     !!String(deviceId || "").trim() && /^do[1-4]$/.test(effectiveField);
+
+  const interlockValid =
+    !interlockEnabled ||
+    (!!String(interlockDeviceId || "").trim() &&
+      /^di[1-6]$/.test(String(interlockField || "").toLowerCase()) &&
+      ["NO", "NC"].includes(String(interlockType || "").toUpperCase()));
 
   const [saving, setSaving] = React.useState(false);
   const [saveErr, setSaveErr] = React.useState("");
@@ -399,6 +433,7 @@ export default function PushButtonNCPropertiesModal({
 
   const canApply =
     canApplyLocal &&
+    interlockValid &&
     !!String(dashboardId || "").trim() &&
     !!String(widgetId || "").trim() &&
     !usedByOther &&
@@ -418,13 +453,27 @@ export default function PushButtonNCPropertiesModal({
 
     const safeTitle = String(title || "").trim().slice(0, 40);
 
+    const safeInterlockDeviceId = String(interlockDeviceId || "").trim();
+    const safeInterlockField = String(interlockField || "").trim().toLowerCase();
+    const safeInterlockType =
+      String(interlockType || "NO").toUpperCase() === "NC" ? "NC" : "NO";
+
     if (!dash || !wid) {
       setSaveErr(
         "Missing dashboardId / widgetId. Pass dashboardId into the modal from the dashboard page."
       );
       return;
     }
+
     if (!dev || !/^do[1-4]$/.test(f)) return;
+
+    if (
+      interlockEnabled &&
+      (!safeInterlockDeviceId || !/^di[1-6]$/.test(safeInterlockField))
+    ) {
+      setSaveErr("Interlock is enabled. Select a CF-2000 device and DI tag.");
+      return;
+    }
 
     if (isDoStateOne) {
       setSaveErr(
@@ -440,24 +489,30 @@ export default function PushButtonNCPropertiesModal({
         ...(pushButton?.properties || {}),
         dashboardId: dash,
         dashboardName: dashName,
-
-        // ✅ widget title
         title: safeTitle,
-
         bindModel: forcedModel,
         bindDeviceId: dev,
         bindField: f,
-
         tag: {
           model: forcedModel,
           deviceId: dev,
           field: f,
+        },
+        interlock: {
+          enabled: Boolean(interlockEnabled),
+          model: forcedModel,
+          deviceId: interlockEnabled ? safeInterlockDeviceId : "",
+          field: interlockEnabled ? safeInterlockField : "",
+          type: safeInterlockType,
+          mode: "block_when_active",
         },
       };
 
       const next = { ...pushButton, properties: nextProps };
 
       onSave?.(next);
+
+      await nextTick();
 
       if (typeof onSaveProject === "function") {
         await onSaveProject();
@@ -471,6 +526,11 @@ export default function PushButtonNCPropertiesModal({
         title: String(safeTitle || "Push Button NC").trim().slice(0, 120),
         deviceId: dev,
         field: f,
+        interlockEnabled: Boolean(interlockEnabled),
+        interlockDeviceId: interlockEnabled ? safeInterlockDeviceId : "",
+        interlockField: interlockEnabled ? safeInterlockField : "",
+        interlockType: safeInterlockType,
+        interlockMode: "block_when_active",
       });
 
       const writeRes = await fetch(`${API_URL}/control-bindings/write`, {
@@ -484,7 +544,7 @@ export default function PushButtonNCPropertiesModal({
         body: JSON.stringify({
           dashboardId: dash,
           widgetId: wid,
-          value01: 1, // ✅ NC initial state = CLOSED
+          value01: 1,
         }),
       });
 
@@ -515,12 +575,6 @@ export default function PushButtonNCPropertiesModal({
       setSaving(false);
     }
   };
-
-  const Label = ({ children }) => (
-    <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>
-      {children}
-    </div>
-  );
 
   if (!open || !pushButton || isLaunched) return null;
 
@@ -555,7 +609,7 @@ export default function PushButtonNCPropertiesModal({
           width: MODAL_W,
           maxWidth: "calc(100vw - 80px)",
           height: MODAL_H,
-          maxHeight: "calc(100vh - 120px)",
+          maxHeight: "calc(100vh - 40px)",
           background: "#fff",
           borderRadius: 12,
           boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
@@ -566,7 +620,6 @@ export default function PushButtonNCPropertiesModal({
         onMouseDown={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
       >
-        {/* Header */}
         <div
           onPointerDown={startDrag}
           style={{
@@ -617,41 +670,18 @@ export default function PushButtonNCPropertiesModal({
           </button>
         </div>
 
-        {/* Body */}
-        <div style={{ padding: 16, overflow: "auto", flex: "1 1 auto" }}>
+        <div
+          style={{
+            padding: 16,
+            overflowY: "auto",
+            overflowX: "hidden",
+            flex: "1 1 auto",
+            background: "#f8fafc",
+          }}
+        >
           <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
-            Bind this <b>NC push button</b> to a <b>CF-2000 Digital Output (DO)</b>.
-          </div>
-
-          {/* TITLE */}
-          <div
-            style={{
-              border: "1px solid #e5e7eb",
-              borderRadius: 12,
-              padding: 14,
-              marginBottom: 12,
-            }}
-          >
-            <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 10 }}>
-              Display Title (optional)
-            </div>
-
-            <Label>Title shown above the push button</Label>
-            <input
-              value={title}
-              onChange={(e) => setTitle(e.target.value)}
-              placeholder="Example: Stop Pump"
-              style={{
-                width: "100%",
-                padding: "10px 12px",
-                borderRadius: 10,
-                border: "1px solid #cbd5e1",
-                fontSize: 14,
-              }}
-            />
-            <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
-              Leave blank to hide the title. Max 40 characters.
-            </div>
+            Bind this <b>NC push button</b> to a{" "}
+            <b>CF-2000 Digital Output (DO)</b>.
           </div>
 
           {!dashboardId && (
@@ -672,236 +702,296 @@ export default function PushButtonNCPropertiesModal({
             </div>
           )}
 
-          <div
-            style={{
-              border: "1px solid #e5e7eb",
-              borderRadius: 12,
-              padding: 14,
-            }}
-          >
-            <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}>
-              Output that this push button controls (DO)
+          {devicesErr && (
+            <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>
+              {devicesErr}
             </div>
+          )}
 
-            {devicesErr && (
-              <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>
-                {devicesErr}
-              </div>
-            )}
-
-            {usedErr && (
-              <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>
-                {usedErr}
-              </div>
-            )}
-
-            {saveErr && (
-              <div
-                style={{
-                  marginBottom: 10,
-                  color: "#dc2626",
-                  fontSize: 12,
-                  fontWeight: 900,
-                }}
-              >
-                {saveErr}
-              </div>
-            )}
-
-            {/* Search Device */}
-            <div style={{ marginBottom: 10 }}>
-              <Label>Search Device (CF-2000)</Label>
-              <input
-                value={deviceSearch}
-                onChange={(e) => setDeviceSearch(e.target.value)}
-                placeholder="Type device id..."
-                style={{
-                  width: "100%",
-                  padding: "10px 12px",
-                  borderRadius: 10,
-                  border: "1px solid #cbd5e1",
-                  fontSize: 14,
-                }}
-              />
-              <div style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}>
-                Showing <b>{filteredDevices.length}</b> device(s)
-              </div>
+          {usedErr && (
+            <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>
+              {usedErr}
             </div>
+          )}
 
-            <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
-              {/* Device */}
-              <div style={{ flex: 1 }}>
-                <Label>Device</Label>
-                <select
-                  value={deviceId || ""}
-                  onChange={(e) => {
-                    const next = String(e.target.value || "");
-                    setDeviceId(next);
-                  }}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: 10,
-                    border: "1px solid #cbd5e1",
-                    fontSize: 14,
-                    background: "white",
-                  }}
-                >
-                  <option value="">— Select device —</option>
-                  {filteredDevices.map((d) => (
-                    <option key={d.id} value={d.id}>
-                      {d.id}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* DO */}
-              <div style={{ flex: 1 }}>
-                <Label>Select DO</Label>
-                <select
-                  value={field}
-                  onChange={(e) => setField(String(e.target.value || ""))}
-                  disabled={!deviceId}
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: 10,
-                    border: "1px solid #cbd5e1",
-                    fontSize: 14,
-                    background: "white",
-                    opacity: deviceId ? 1 : 0.6,
-                    cursor: deviceId ? "pointer" : "not-allowed",
-                  }}
-                >
-                  <option value="">— Select DO —</option>
-                  {DO_OPTIONS.map((t) => {
-                    const f = String(t.key).toLowerCase();
-                    const info = usedMap?.[f];
-                    const disabled = deviceId ? isOptionDisabled(f) : true;
-
-                    const usedLabel =
-                      info?.widgetId && info.widgetId !== widgetId
-                        ? ` (Used${info.title ? `: ${info.title}` : ""}${
-                            info.dashboardName || info.dashboardId
-                              ? ` / Dashboard: ${
-                                  info.dashboardName || info.dashboardId
-                                }`
-                              : ""
-                          })`
-                        : "";
-
-                    return (
-                      <option key={t.key} value={t.key} disabled={disabled}>
-                        {t.label}
-                        {usedLabel}
-                      </option>
-                    );
-                  })}
-                </select>
-
-                {usedByOther && (
-                  <div
-                    style={{
-                      marginTop: 8,
-                      fontSize: 12,
-                      color: "#dc2626",
-                      fontWeight: 900,
-                    }}
-                  >
-                    {effectiveField.toUpperCase()} is already used
-                    {usedByOther.title ? ` by "${usedByOther.title}"` : ""}
-                    {usedByOther.dashboardName || usedByOther.dashboardId
-                      ? ` on dashboard "${
-                          usedByOther.dashboardName || usedByOther.dashboardId
-                        }"`
-                      : ""}
-                    . Choose another DO.
-                  </div>
-                )}
-
-                {!usedByOther && isDoStateOne && (
-                  <div
-                    style={{
-                      marginTop: 8,
-                      fontSize: 12,
-                      color: "#dc2626",
-                      fontWeight: 900,
-                    }}
-                  >
-                    Desired DO must be at state 0. {effectiveField.toUpperCase()} is
-                    currently state 1. Turn the output OFF before applying this Push
-                    Button NC.
-                  </div>
-                )}
-              </div>
-            </div>
-
-            {/* STATUS BAR */}
+          {saveErr && (
             <div
               style={{
-                display: "flex",
-                justifyContent: "space-between",
-                alignItems: "center",
-                border: "1px solid #e5e7eb",
-                background: "#f8fafc",
-                borderRadius: 12,
-                padding: "12px 14px",
+                marginBottom: 10,
+                color: "#dc2626",
+                fontSize: 12,
+                fontWeight: 900,
               }}
             >
-              <div>
-                <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>
-                  Status
+              {saveErr}
+            </div>
+          )}
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "360px 1fr",
+              gap: 14,
+              alignItems: "start",
+            }}
+          >
+            <ToggleSwitchPropertiesModalInterlock
+              open={open}
+              isLaunched={isLaunched}
+              forcedModel={forcedModel}
+              devices={devices}
+              enabled={interlockEnabled}
+              setEnabled={setInterlockEnabled}
+              deviceId={interlockDeviceId}
+              setDeviceId={setInterlockDeviceId}
+              field={interlockField}
+              setField={setInterlockField}
+              type={interlockType}
+              setType={setInterlockType}
+            />
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <SectionCard>
+                <div
+                  style={{ fontSize: 13, fontWeight: 1000, marginBottom: 10 }}
+                >
+                  Display Title (optional)
                 </div>
-                <div style={{ fontSize: 13, color: "#475569", marginTop: 2 }}>
-                  {deviceId && effectiveField ? (
-                    <>
-                      <span
+
+                <Label>Title shown above the push button</Label>
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value.slice(0, 40))}
+                  placeholder="Example: Stop Pump"
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5e1",
+                    fontSize: 14,
+                  }}
+                />
+                <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
+                  Leave blank to hide the title. Max 40 characters.
+                </div>
+              </SectionCard>
+
+              <SectionCard>
+                <div
+                  style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}
+                >
+                  Output that this push button controls (DO)
+                </div>
+
+                <div style={{ marginBottom: 10 }}>
+                  <Label>Search Device (CF-2000)</Label>
+                  <input
+                    value={deviceSearch}
+                    onChange={(e) => setDeviceSearch(e.target.value)}
+                    placeholder="Type device id..."
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #cbd5e1",
+                      fontSize: 14,
+                    }}
+                  />
+                  <div style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}>
+                    Showing <b>{filteredDevices.length}</b> device(s)
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <Label>Device</Label>
+                    <select
+                      value={deviceId || ""}
+                      onChange={(e) => {
+                        const next = String(e.target.value || "");
+                        setDeviceId(next);
+                        if (!interlockDeviceId) setInterlockDeviceId(next);
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        border: "1px solid #cbd5e1",
+                        fontSize: 14,
+                        background: "white",
+                      }}
+                    >
+                      <option value="">— Select device —</option>
+                      {filteredDevices.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.id}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div style={{ flex: 1 }}>
+                    <Label>Select DO</Label>
+                    <select
+                      value={field}
+                      onChange={(e) => setField(String(e.target.value || ""))}
+                      disabled={!deviceId}
+                      style={{
+                        width: "100%",
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        border: "1px solid #cbd5e1",
+                        fontSize: 14,
+                        background: "white",
+                        opacity: deviceId ? 1 : 0.6,
+                        cursor: deviceId ? "pointer" : "not-allowed",
+                      }}
+                    >
+                      <option value="">— Select DO —</option>
+                      {DO_OPTIONS.map((t) => {
+                        const f = String(t.key).toLowerCase();
+                        const info = usedMap?.[f];
+                        const disabled = deviceId ? isOptionDisabled(f) : true;
+
+                        const usedLabel =
+                          info?.widgetId && info.widgetId !== widgetId
+                            ? ` (Used${info.title ? `: ${info.title}` : ""}${
+                                info.dashboardName || info.dashboardId
+                                  ? ` / Dashboard: ${
+                                      info.dashboardName || info.dashboardId
+                                    }`
+                                  : ""
+                              })`
+                            : "";
+
+                        return (
+                          <option key={t.key} value={t.key} disabled={disabled}>
+                            {t.label}
+                            {usedLabel}
+                          </option>
+                        );
+                      })}
+                    </select>
+
+                    {usedByOther && (
+                      <div
                         style={{
+                          marginTop: 8,
+                          fontSize: 12,
+                          color: "#dc2626",
                           fontWeight: 900,
-                          color:
-                            usedByOther || isDoStateOne ? "#dc2626" : "#0f172a",
                         }}
                       >
-                        {statusText}
-                      </span>
-                      <span style={{ marginLeft: 10, color: "#64748b" }}>
-                        Bound: <b>{deviceId}</b> / <b>{effectiveField}</b>
-                      </span>
-                    </>
-                  ) : (
-                    statusText
-                  )}
-                </div>
-              </div>
+                        {effectiveField.toUpperCase()} is already used
+                        {usedByOther.title ? ` by "${usedByOther.title}"` : ""}
+                        {usedByOther.dashboardName || usedByOther.dashboardId
+                          ? ` on dashboard "${
+                              usedByOther.dashboardName ||
+                              usedByOther.dashboardId
+                            }"`
+                          : ""}
+                        . Choose another DO.
+                      </div>
+                    )}
 
-              <div style={{ textAlign: "right" }}>
-                <div style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}>
-                  Value
+                    {!usedByOther && isDoStateOne && (
+                      <div
+                        style={{
+                          marginTop: 8,
+                          fontSize: 12,
+                          color: "#dc2626",
+                          fontWeight: 900,
+                        }}
+                      >
+                        Desired DO must be at state 0.{" "}
+                        {effectiveField.toUpperCase()} is currently state 1.
+                        Turn the output OFF before applying this Push Button NC.
+                      </div>
+                    )}
+                  </div>
                 </div>
+
                 <div
                   style={{
-                    marginTop: 2,
-                    fontSize: 18,
-                    fontWeight: 1000,
-                    color: isOnlineWithData ? "#0f172a" : "#94a3b8",
-                    fontFamily: "monospace",
-                    minWidth: 22,
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    border: "1px solid #e5e7eb",
+                    background: "#f8fafc",
+                    borderRadius: 12,
+                    padding: "12px 14px",
                   }}
                 >
-                  {valueText}
-                </div>
-              </div>
-            </div>
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 900,
+                        color: "#0f172a",
+                      }}
+                    >
+                      Status
+                    </div>
+                    <div
+                      style={{ fontSize: 13, color: "#475569", marginTop: 2 }}
+                    >
+                      {deviceId && effectiveField ? (
+                        <>
+                          <span
+                            style={{
+                              fontWeight: 900,
+                              color:
+                                usedByOther || isDoStateOne
+                                  ? "#dc2626"
+                                  : "#0f172a",
+                            }}
+                          >
+                            {statusText}
+                          </span>
+                          <span style={{ marginLeft: 10, color: "#64748b" }}>
+                            Bound: <b>{deviceId}</b> / <b>{effectiveField}</b>
+                          </span>
+                        </>
+                      ) : (
+                        statusText
+                      )}
+                    </div>
+                  </div>
 
-            <div style={{ fontSize: 12, color: "#64748b", marginTop: 10 }}>
-              Tip: Value preview is best-effort from{" "}
-              <code>/zhc1921/my-devices</code>.
+                  <div style={{ textAlign: "right" }}>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 900,
+                        color: "#0f172a",
+                      }}
+                    >
+                      Value
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 2,
+                        fontSize: 18,
+                        fontWeight: 1000,
+                        color: isOnlineWithData ? "#0f172a" : "#94a3b8",
+                        fontFamily: "monospace",
+                        minWidth: 22,
+                      }}
+                    >
+                      {valueText}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ fontSize: 12, color: "#64748b", marginTop: 10 }}>
+                  Tip: Value preview is best-effort from{" "}
+                  <code>/zhc1921/my-devices</code>.
+                </div>
+              </SectionCard>
             </div>
           </div>
         </div>
 
-        {/* Footer */}
         <div
           style={{
             display: "flex",
@@ -958,6 +1048,8 @@ export default function PushButtonNCPropertiesModal({
                 ? "This DO is already used"
                 : isDoStateOne
                 ? "Desired DO must be at state 0"
+                : !interlockValid
+                ? "Interlock configuration is incomplete"
                 : "Apply"
             }
           >
