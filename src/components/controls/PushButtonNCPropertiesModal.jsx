@@ -71,6 +71,22 @@ export default function PushButtonNCPropertiesModal({
   const initialDeviceId = String(p.bindDeviceId || p?.tag?.deviceId || "");
   const initialField = String(p.bindField || p?.tag?.field || "do1");
 
+  const initialInterlock = p.interlock || {};
+  const initialInterlockEnabled =
+    Boolean(initialInterlock.enabled) || Boolean(p.interlock_enabled);
+
+  const initialInterlockDeviceId = String(
+    initialInterlock.deviceId || p.interlock_device_id || initialDeviceId || ""
+  );
+
+  const initialInterlockFieldRaw = String(
+    initialInterlock.field || p.interlock_field || ""
+  ).toLowerCase();
+
+  const initialInterlockTypeRaw = String(
+    initialInterlock.type || p.interlock_type || "NO"
+  ).toUpperCase();
+
   const [deviceId, setDeviceId] = React.useState(initialDeviceId);
   const [field, setField] = React.useState(
     /^do[1-4]$/.test(String(initialField || "").toLowerCase())
@@ -83,24 +99,22 @@ export default function PushButtonNCPropertiesModal({
   const initialTitle = String(p.title ?? pushButton?.title ?? "").trim();
   const [title, setTitle] = React.useState(initialTitle);
 
-  const initialInterlock = p.interlock || {};
-
   const [interlockEnabled, setInterlockEnabled] = React.useState(
-    Boolean(initialInterlock.enabled)
+    initialInterlockEnabled
   );
 
   const [interlockDeviceId, setInterlockDeviceId] = React.useState(
-    String(initialInterlock.deviceId || initialDeviceId || "")
+    initialInterlockDeviceId
   );
 
   const [interlockField, setInterlockField] = React.useState(
-    /^di[1-6]$/.test(String(initialInterlock.field || "").toLowerCase())
-      ? String(initialInterlock.field || "").toLowerCase()
+    /^di[1-6]$/.test(initialInterlockFieldRaw)
+      ? initialInterlockFieldRaw
       : "di1"
   );
 
   const [interlockType, setInterlockType] = React.useState(
-    String(initialInterlock.type || "NO").toUpperCase() === "NC" ? "NC" : "NO"
+    initialInterlockTypeRaw === "NC" ? "NC" : "NO"
   );
 
   React.useEffect(() => {
@@ -116,21 +130,32 @@ export default function PushButtonNCPropertiesModal({
     const il = pp.interlock || {};
     const nextDeviceId = String(pp.bindDeviceId || pp?.tag?.deviceId || "");
 
+    const nextInterlockEnabled =
+      Boolean(il.enabled) || Boolean(pp.interlock_enabled);
+
+    const nextInterlockDeviceId = String(
+      il.deviceId || pp.interlock_device_id || nextDeviceId || ""
+    );
+
+    const nextInterlockField = String(
+      il.field || pp.interlock_field || ""
+    ).toLowerCase();
+
+    const nextInterlockType = String(
+      il.type || pp.interlock_type || "NO"
+    ).toUpperCase();
+
     setDeviceId(nextDeviceId);
     setField(/^do[1-4]$/.test(f.toLowerCase()) ? f : "do1");
     setDeviceSearch("");
     setTitle(String(pp.title ?? pushButton?.title ?? "").trim());
 
-    setInterlockEnabled(Boolean(il.enabled));
-    setInterlockDeviceId(String(il.deviceId || nextDeviceId || ""));
+    setInterlockEnabled(nextInterlockEnabled);
+    setInterlockDeviceId(nextInterlockDeviceId);
     setInterlockField(
-      /^di[1-6]$/.test(String(il.field || "").toLowerCase())
-        ? String(il.field || "").toLowerCase()
-        : "di1"
+      /^di[1-6]$/.test(nextInterlockField) ? nextInterlockField : "di1"
     );
-    setInterlockType(
-      String(il.type || "NO").toUpperCase() === "NC" ? "NC" : "NO"
-    );
+    setInterlockType(nextInterlockType === "NC" ? "NC" : "NO");
   }, [open, pushButton?.id, isLaunched]);
 
   const modalRef = React.useRef(null);
@@ -506,6 +531,12 @@ export default function PushButtonNCPropertiesModal({
           type: safeInterlockType,
           mode: "block_when_active",
         },
+
+        // ✅ Save interlock using same flat structure as Toggle
+        interlock_enabled: Boolean(interlockEnabled),
+        interlock_device_id: interlockEnabled ? safeInterlockDeviceId : "",
+        interlock_field: interlockEnabled ? safeInterlockField : "",
+        interlock_type: safeInterlockType,
       };
 
       const next = { ...pushButton, properties: nextProps };
@@ -522,7 +553,10 @@ export default function PushButtonNCPropertiesModal({
         dashboardId: dash,
         dashboardName: dashName,
         widgetId: wid,
+
+        // ✅ Backend normalizer accepts pushButtonNC and converts it to push_nc
         widgetType: "pushButtonNC",
+
         title: String(safeTitle || "Push Button NC").trim().slice(0, 120),
         deviceId: dev,
         field: f,
