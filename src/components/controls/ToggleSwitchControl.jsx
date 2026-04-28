@@ -64,6 +64,18 @@ function readStatusFromRow(row) {
   return String(row?.status ?? row?.Status ?? "").trim().toLowerCase();
 }
 
+function readErrorMessage(payload) {
+  const detail = payload?.detail;
+
+  if (typeof detail === "string") return detail;
+  if (typeof detail?.error === "string") return detail.error;
+  if (typeof detail?.message === "string") return detail.message;
+  if (typeof payload?.error === "string") return payload.error;
+  if (typeof payload?.message === "string") return payload.message;
+
+  return "";
+}
+
 async function defaultWriteToBackend({
   dashboardId,
   widgetId,
@@ -103,15 +115,19 @@ async function defaultWriteToBackend({
       detail = null;
     }
 
+    const message = readErrorMessage(detail);
+    const isInterlockBlocked =
+      String(message || "").toLowerCase().includes("interlock") ||
+      String(detail?.detail?.error || "").toLowerCase().includes("interlock");
+
     return {
       ok: false,
-      busy: true,
+      busy: !isInterlockBlocked,
+      interlockBlocked: isInterlockBlocked,
       status: 409,
-      message:
-        detail?.detail?.error ||
-        detail?.detail ||
-        detail?.error ||
-        "Control Action in Progress",
+      message: isInterlockBlocked
+        ? "Interlock active"
+        : message || "Control Action in Progress",
       detail,
     };
   }
@@ -251,9 +267,7 @@ export default function ToggleSwitchControl({
     interlock.deviceId || p.interlock_device_id || ""
   ).trim();
 
-  const interlockField = String(
-    interlock.field || p.interlock_field || ""
-  )
+  const interlockField = String(interlock.field || p.interlock_field || "")
     .trim()
     .toLowerCase();
 
@@ -293,6 +307,8 @@ export default function ToggleSwitchControl({
   // ✅ Runtime interlock state
   const [interlockActive, setInterlockActive] = React.useState(false);
   const [interlockKnown, setInterlockKnown] = React.useState(false);
+  const [backendInterlockBlocked, setBackendInterlockBlocked] =
+    React.useState(false);
 
   const [banner, setBanner] = React.useState({ kind: "none", text: "" });
   const bannerTimerRef = React.useRef(null);
@@ -415,11 +431,14 @@ export default function ToggleSwitchControl({
           const di01 = to01(rawDi);
 
           if (di01 !== null) {
-            const active =
-              interlockType === "NC" ? di01 === 0 : di01 === 1;
+            const active = interlockType === "NC" ? di01 === 0 : di01 === 1;
 
             setInterlockActive(active);
             setInterlockKnown(true);
+
+            if (!active) {
+              setBackendInterlockBlocked(false);
+            }
           } else {
             setInterlockActive(false);
             setInterlockKnown(false);
@@ -431,6 +450,7 @@ export default function ToggleSwitchControl({
       } else {
         setInterlockActive(false);
         setInterlockKnown(false);
+        setBackendInterlockBlocked(false);
       }
 
       const raw = readDoFromRow(controlRow, bindField);
@@ -507,22 +527,32 @@ export default function ToggleSwitchControl({
     return () => clearInterval(t);
   }, [play, hasBinding, secureReadReady, fetchRemote, pollMs]);
 
+  const showInterlockText =
+    play &&
+    !isOffline &&
+    hasBinding &&
+    ((hasInterlockConfig && interlockKnown && interlockActive) ||
+      backendInterlockBlocked);
+
+  // ✅ If Interlock Active and toggle is currently OFF,
+  // block activation at the widget level.
+  // If it is already ON, allow turning OFF.
+  const interlockBlocksActivation = showInterlockText && !uiIsOn;
+
   // ✅ Manual toggle in PLAY:
-  // Blocked when offline/startup/cooldown.
-  // Interlock blocks ONLY when trying to turn ON.
+  // Blocked when offline/startup/cooldown/interlock activation.
   const canInteractInPlay =
     play &&
     hasBinding &&
     secureReadReady &&
     !isOffline &&
     !isStartupLocked &&
-    !isManualCooldown;
+    !isManualCooldown &&
+    !interlockBlocksActivation;
 
   const handleToggle = async (e) => {
     e?.preventDefault?.();
     e?.stopPropagation?.();
-
-    if (!canInteractInPlay) return;
 
     const prevUi = uiIsOn;
     const nextUi = !uiIsOn;
@@ -534,10 +564,13 @@ export default function ToggleSwitchControl({
     // 🔒 Interlock rule:
     // If DI is active, this toggle cannot turn ON.
     // Turning OFF is still allowed.
-    if (hasInterlockConfig && interlockKnown && interlockActive && nextUi) {
-      showBanner("error", "Blocked by interlock", 5000);
+    if (showInterlockText && nextUi) {
+      pendingWriteRef.current = null;
+      showBanner("error", "Interlock active", 5000);
       return;
     }
+
+    if (!canInteractInPlay) return;
 
     showBanner("none", "");
 
@@ -583,6 +616,14 @@ export default function ToggleSwitchControl({
         });
       }
 
+      if (resp?.interlockBlocked === true) {
+        pendingWriteRef.current = null;
+        setUiIsOn(prevUi);
+        setBackendInterlockBlocked(true);
+        showBanner("error", "Interlock active", 5000);
+        return;
+      }
+
       if (resp?.busy === true || resp?.status === 409) {
         pendingWriteRef.current = null;
         setUiIsOn(prevUi);
@@ -617,8 +658,18 @@ export default function ToggleSwitchControl({
       }
     } catch (err) {
       const msg = String(err?.message || err || "");
+      const lower = msg.toLowerCase();
+
+      if (lower.includes("interlock")) {
+        pendingWriteRef.current = null;
+        setUiIsOn(prevUi);
+        setBackendInterlockBlocked(true);
+        showBanner("error", "Interlock active", 5000);
+        return;
+      }
+
       const looksLike409 =
-        msg.includes("409") || msg.toLowerCase().includes("write in progress");
+        msg.includes("409") || lower.includes("write in progress");
 
       if (looksLike409) {
         pendingWriteRef.current = null;
@@ -648,6 +699,7 @@ export default function ToggleSwitchControl({
       showBanner("none", "");
       setInterlockActive(false);
       setInterlockKnown(false);
+      setBackendInterlockBlocked(false);
     }
   }, [play, hasBinding, isOffline]);
 
@@ -670,6 +722,8 @@ export default function ToggleSwitchControl({
     ? "not-allowed"
     : isOffline
     ? "not-allowed"
+    : interlockBlocksActivation
+    ? "not-allowed"
     : canInteractInPlay
     ? "pointer"
     : play && hasBinding && (isStartupLocked || isManualCooldown)
@@ -681,18 +735,16 @@ export default function ToggleSwitchControl({
   const showOverlay =
     play &&
     hasBinding &&
-    (!secureReadReady || isOffline || isStartupLocked || isManualCooldown);
+    (!secureReadReady ||
+      isOffline ||
+      isStartupLocked ||
+      isManualCooldown ||
+      interlockBlocksActivation);
 
   const showOfflineText = play && secureReadReady && isOffline;
   const showOccupiedText = play && !isOffline && banner.kind === "occupied";
   const showSuccessText = play && !isOffline && banner.kind === "success";
   const showErrorText = play && !isOffline && banner.kind === "error";
-  const showInterlockText =
-    play &&
-    !isOffline &&
-    hasInterlockConfig &&
-    interlockKnown &&
-    interlockActive;
 
   return (
     <>
@@ -742,7 +794,13 @@ export default function ToggleSwitchControl({
                 }
               : undefined
           }
-          onClick={canInteractInPlay ? handleToggle : undefined}
+          onClick={
+            play && hasBinding
+              ? handleToggle
+              : canInteractInPlay
+              ? handleToggle
+              : undefined
+          }
           style={{
             width: safeW,
             height: safeH,
@@ -851,18 +909,18 @@ export default function ToggleSwitchControl({
         {showInterlockText && (
           <div
             style={{
-              marginTop: 6,
+              marginTop: 5,
               textAlign: "center",
-              color: "#d97706",
-              fontWeight: 800,
-              fontSize: 14,
-              letterSpacing: 0.25,
+              color: "#dc2626",
+              fontWeight: 700,
+              fontSize: 11,
+              letterSpacing: 0.2,
               lineHeight: 1,
               userSelect: "none",
               pointerEvents: "none",
             }}
           >
-            Interlock Active
+            Interlock active
           </div>
         )}
 
