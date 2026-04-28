@@ -39,20 +39,6 @@ function readDoFromRow(row, field) {
   return undefined;
 }
 
-function readDiFromRow(row, field) {
-  if (!row || !field) return undefined;
-
-  const f = String(field).toLowerCase().trim();
-  if (!/^di[1-6]$/.test(f)) return undefined;
-
-  if (row[f] !== undefined) return row[f];
-
-  const up = f.toUpperCase();
-  if (row[up] !== undefined) return row[up];
-
-  return undefined;
-}
-
 function readStatusFromRow(row) {
   return String(
     row?.status ??
@@ -63,18 +49,6 @@ function readStatusFromRow(row) {
   )
     .trim()
     .toLowerCase();
-}
-
-function readErrorMessage(payload) {
-  const detail = payload?.detail;
-
-  if (typeof detail === "string") return detail;
-  if (typeof detail?.error === "string") return detail.error;
-  if (typeof detail?.message === "string") return detail.message;
-  if (typeof payload?.error === "string") return payload.error;
-  if (typeof payload?.message === "string") return payload.message;
-
-  return "";
 }
 
 async function defaultWriteToBackend({
@@ -118,19 +92,11 @@ async function defaultWriteToBackend({
       detail = null;
     }
 
-    const message = readErrorMessage(detail);
-    const isInterlockBlocked =
-      String(message || "").toLowerCase().includes("interlock") ||
-      String(detail?.detail?.error || "").toLowerCase().includes("interlock");
-
     return {
       ok: false,
-      busy: !isInterlockBlocked,
-      interlockBlocked: isInterlockBlocked,
+      busy: true,
       status: 409,
-      message: isInterlockBlocked
-        ? "Interlock active"
-        : message || "Control Action in Progress",
+      message: "Control Action in Progress",
       detail,
     };
   }
@@ -198,7 +164,7 @@ function resolveDashboardId({ dashboardId, widget }) {
 }
 
 export default function PushButtonControl({
-  variant = "NO",
+  variant = "NO", // "NO" = green, "NC" = red
   width = 110,
   height = 110,
   pressed = false,
@@ -208,6 +174,7 @@ export default function PushButtonControl({
   onPressEnd,
   disabled = false,
 
+  // ✅ runtime control props
   isLaunched = false,
   visualOnly = false,
   widget = null,
@@ -216,6 +183,7 @@ export default function PushButtonControl({
   onWrite = null,
   pollMs = 12000,
 
+  // ✅ NEW: tenant/public launch context
   tenantEmail = "",
   tenantAccessLevel = "",
 }) {
@@ -223,10 +191,6 @@ export default function PushButtonControl({
   const [isBusy, setIsBusy] = useState(false);
   const [banner, setBanner] = useState({ kind: "none", text: "" });
   const [deviceStatus, setDeviceStatus] = useState("");
-  const [interlockActive, setInterlockActive] = useState(false);
-  const [interlockKnown, setInterlockKnown] = useState(false);
-  const [backendInterlockBlocked, setBackendInterlockBlocked] = useState(false);
-
   const pointerActiveRef = useRef(false);
   const runningRef = useRef(false);
   const pulseTimerRef = useRef(null);
@@ -235,44 +199,12 @@ export default function PushButtonControl({
   const play = !!isLaunched || isLaunchRoute();
 
   const p = widget?.properties || {};
-
-  const interlock = p.interlock || {};
-  const interlockEnabled =
-    Boolean(interlock.enabled) || Boolean(p.interlock_enabled);
-
-  const interlockDeviceId = String(
-    interlock.deviceId || p.interlock_device_id || ""
-  ).trim();
-
-  const interlockField = String(interlock.field || p.interlock_field || "")
-    .trim()
-    .toLowerCase();
-
-  const interlockType = String(interlock.type || p.interlock_type || "NO")
-    .trim()
-    .toUpperCase();
-
-  const hasInterlockConfig =
-    interlockEnabled &&
-    !!interlockDeviceId &&
-    /^di[1-6]$/.test(interlockField) &&
-    (interlockType === "NO" || interlockType === "NC");
-
   const bindDeviceId = String(p.bindDeviceId || p?.tag?.deviceId || "").trim();
   const bindField = String(p.bindField || p?.tag?.field || "")
     .trim()
     .toLowerCase();
-
   const hasBinding = !!bindDeviceId && /^do[1-4]$/.test(bindField);
   const isOffline = play && hasBinding && deviceStatus === "offline";
-
-  const showInterlockText =
-    play &&
-    !isOffline &&
-    hasBinding &&
-    hasInterlockConfig &&
-    interlockKnown &&
-    interlockActive;
 
   const safeW = Math.max(70, Number(width) || 110);
   const safeH = Math.max(70, Number(height) || 110);
@@ -285,6 +217,8 @@ export default function PushButtonControl({
   const isGreen = String(variant).toUpperCase() === "NO";
   const text = (label ?? (isGreen ? "NO" : "NC")).toUpperCase();
 
+  // ✅ NO: press closes(1), release timer reopens(0)
+  // ✅ NC: press opens(0), release timer recloses(1)
   const pulseStartValue01 = isGreen ? 1 : 0;
   const pulseEndValue01 = isGreen ? 0 : 1;
 
@@ -328,8 +262,7 @@ export default function PushButtonControl({
     hasBinding &&
     !isOffline &&
     !isBusy &&
-    !runningRef.current &&
-    !showInterlockText;
+    !runningRef.current;
 
   const bannerStyle = {
     width: containerW,
@@ -381,12 +314,10 @@ export default function PushButtonControl({
       const isPublicLaunch = !token && !!tenantEmailSafe;
 
       if (isPublicLaunch) {
-        const { dashboardSlug, publicLaunchId } =
-          getPublicLaunchParamsFromPath();
+        const { dashboardSlug, publicLaunchId } = getPublicLaunchParamsFromPath();
 
         if (!dashboardSlug || !publicLaunchId || !tenantEmailSafe) {
           setDeviceStatus("offline");
-          setInterlockKnown(false);
           return;
         }
 
@@ -400,12 +331,9 @@ export default function PushButtonControl({
       } else {
         if (!token) {
           setDeviceStatus("offline");
-          setInterlockKnown(false);
           return;
         }
-
-        // ✅ Use CF-2000 endpoint so DI values are available for interlock
-        url = `${API_URL}/zhc1921/my-devices`;
+        url = `${API_URL}/devices`;
       }
 
       if (tenantEmailSafe) headers["X-Tenant-Email"] = tenantEmailSafe;
@@ -418,100 +346,41 @@ export default function PushButtonControl({
 
       if (!res.ok) {
         setDeviceStatus("offline");
-        setInterlockKnown(false);
         return;
       }
 
       const data = await res.json().catch(() => []);
       const list = Array.isArray(data) ? data : [];
-
       const row =
         list.find(
-          (r) =>
-            String(r?.deviceId ?? r?.device_id ?? "").trim() === bindDeviceId
+          (r) => String(r?.deviceId ?? r?.device_id ?? "").trim() === bindDeviceId
         ) || null;
 
       if (!row) {
         setDeviceStatus("offline");
-        setInterlockKnown(false);
         return;
       }
 
       const status = readStatusFromRow(row);
       setDeviceStatus(status || "offline");
 
-      if (status === "offline") {
-        setInterlockKnown(false);
-        return;
-      }
-
-      if (hasInterlockConfig) {
-        const interlockRow =
-          list.find(
-            (r) =>
-              String(r?.deviceId ?? r?.device_id ?? "").trim() ===
-              interlockDeviceId
-          ) || null;
-
-        if (interlockRow) {
-          const rawDi = readDiFromRow(interlockRow, interlockField);
-          const di01 = to01(rawDi);
-
-          if (di01 !== null) {
-            const active = interlockType === "NC" ? di01 === 0 : di01 === 1;
-            setInterlockActive(active);
-            setInterlockKnown(true);
-
-            if (!active) setBackendInterlockBlocked(false);
-          } else {
-            setInterlockActive(false);
-            setInterlockKnown(false);
-          }
-        } else {
-          setInterlockActive(false);
-          setInterlockKnown(false);
-        }
-      } else {
-        setInterlockActive(false);
-        setInterlockKnown(false);
-        setBackendInterlockBlocked(false);
-      }
+      if (status === "offline") return;
 
       readDoFromRow(row, bindField);
     } catch {
       setDeviceStatus("offline");
-      setInterlockKnown(false);
     }
-  }, [
-    play,
-    hasBinding,
-    bindDeviceId,
-    bindField,
-    tenantEmail,
-    tenantAccessLevel,
-    hasInterlockConfig,
-    interlockDeviceId,
-    interlockField,
-    interlockType,
-  ]);
+  }, [play, hasBinding, bindDeviceId, bindField, tenantEmail, tenantAccessLevel]);
 
   useEffect(() => {
     if (!play) {
       setDeviceStatus("");
-      setInterlockActive(false);
-      setInterlockKnown(false);
-      setBackendInterlockBlocked(false);
       return;
     }
-
     if (!hasBinding) {
       setDeviceStatus("");
-      setInterlockActive(false);
-      setInterlockKnown(false);
-      setBackendInterlockBlocked(false);
       return;
     }
-
     fetchRemote();
   }, [play, hasBinding, fetchRemote]);
 
@@ -530,14 +399,6 @@ export default function PushButtonControl({
   }, [play, hasBinding, fetchRemote, pollMs]);
 
   async function performPulse() {
-    if (showInterlockText) {
-      setLocalPressed(false);
-      setIsBusy(false);
-      runningRef.current = false;
-      showBanner("error", "Interlock active", 3000);
-      return;
-    }
-
     if (!canActuateInPlay) return;
 
     const wid = resolveWidgetId(widget);
@@ -575,15 +436,6 @@ export default function PushButtonControl({
         });
       }
 
-      if (resp?.interlockBlocked === true) {
-        setLocalPressed(false);
-        setIsBusy(false);
-        runningRef.current = false;
-        setBackendInterlockBlocked(true);
-        showBanner("error", "Interlock active", 3000);
-        return;
-      }
-
       if (resp?.busy === true || resp?.status === 409) {
         setLocalPressed(false);
         setIsBusy(false);
@@ -603,12 +455,6 @@ export default function PushButtonControl({
 
       pulseTimerRef.current = setTimeout(async () => {
         try {
-          // ✅ If interlock becomes active during pulse, do not send release/write-back.
-          if (showInterlockText) {
-            showBanner("error", "Interlock active", 3000);
-            return;
-          }
-
           let endResp = null;
 
           if (typeof onWrite === "function") {
@@ -630,26 +476,13 @@ export default function PushButtonControl({
             });
           }
 
-          if (endResp?.interlockBlocked === true) {
-            setBackendInterlockBlocked(true);
-            showBanner("error", "Interlock active", 3000);
-            return;
-          }
-
           const endOk = endResp?.ok !== false;
           if (!endOk && !(endResp?.busy === true || endResp?.status === 409)) {
             showBanner("error", "Failed", 4000);
           } else {
             showBanner("none", "");
           }
-        } catch (err) {
-          const msg = String(err?.message || err || "").toLowerCase();
-          if (msg.includes("interlock")) {
-            setBackendInterlockBlocked(true);
-            showBanner("error", "Interlock active", 3000);
-            return;
-          }
-
+        } catch {
           showBanner("error", "Failed", 4000);
         } finally {
           setLocalPressed(false);
@@ -658,19 +491,10 @@ export default function PushButtonControl({
           pulseTimerRef.current = null;
         }
       }, Math.max(500, Number(pulseMs) || 12000));
-    } catch (err) {
-      const msg = String(err?.message || err || "").toLowerCase();
-
+    } catch {
       setLocalPressed(false);
       setIsBusy(false);
       runningRef.current = false;
-
-      if (msg.includes("interlock")) {
-        setBackendInterlockBlocked(true);
-        showBanner("error", "Interlock active", 3000);
-        return;
-      }
-
       showBanner("error", "Failed", 4000);
     }
   }
@@ -684,13 +508,6 @@ export default function PushButtonControl({
     pointerActiveRef.current = true;
 
     if (play) {
-      if (showInterlockText) {
-        pointerActiveRef.current = false;
-        setLocalPressed(false);
-        showBanner("error", "Interlock active", 3000);
-        return;
-      }
-
       if (!canActuateInPlay) return;
       onPressStart?.(e);
       void performPulse();
@@ -708,12 +525,6 @@ export default function PushButtonControl({
       e.preventDefault();
       e.stopPropagation();
       pointerActiveRef.current = false;
-
-      if (showInterlockText) {
-        setLocalPressed(false);
-        return;
-      }
-
       onPressEnd?.(e);
       return;
     }
@@ -738,13 +549,6 @@ export default function PushButtonControl({
     pointerActiveRef.current = true;
 
     if (play) {
-      if (showInterlockText) {
-        pointerActiveRef.current = false;
-        setLocalPressed(false);
-        showBanner("error", "Interlock active", 3000);
-        return;
-      }
-
       if (!canActuateInPlay) return;
       onPressStart?.(e);
       void performPulse();
@@ -763,11 +567,6 @@ export default function PushButtonControl({
     pointerActiveRef.current = false;
 
     if (play) {
-      if (showInterlockText) {
-        setLocalPressed(false);
-        return;
-      }
-
       onPressEnd?.(e);
       return;
     }
@@ -779,16 +578,11 @@ export default function PushButtonControl({
   useEffect(() => {
     if (!play) return;
     if (!hasBinding) return;
-
     if (isOffline) {
       setLocalPressed(false);
       setIsBusy(false);
       runningRef.current = false;
       showBanner("none", "");
-      setInterlockActive(false);
-      setInterlockKnown(false);
-      setBackendInterlockBlocked(false);
-
       if (pulseTimerRef.current) {
         clearTimeout(pulseTimerRef.current);
         pulseTimerRef.current = null;
@@ -808,15 +602,9 @@ export default function PushButtonControl({
 
   const showOfflineText = isOffline;
   const showBusyText =
-    !showOfflineText &&
-    !showInterlockText &&
-    banner.kind === "occupied" &&
-    !!banner.text;
+    !showOfflineText && banner.kind === "occupied" && !!banner.text;
   const showErrorText =
-    !showOfflineText &&
-    !showInterlockText &&
-    banner.kind === "error" &&
-    !!banner.text;
+    !showOfflineText && banner.kind === "error" && !!banner.text;
 
   return (
     <div
@@ -871,15 +659,11 @@ export default function PushButtonControl({
           touchAction: play ? "none" : "auto",
           WebkitTouchCallout: "none",
           cursor: play
-            ? disabled ||
-              !hasBinding ||
-              isBusy ||
-              isOffline ||
-              showInterlockText
+            ? disabled || !hasBinding || isBusy || isOffline
               ? "not-allowed"
               : "pointer"
             : "default",
-          opacity: disabled || showInterlockText ? 0.7 : 1,
+          opacity: disabled ? 0.7 : 1,
         }}
         title={
           play
@@ -887,8 +671,6 @@ export default function PushButtonControl({
               ? "Bind this push button to a DO"
               : isOffline
               ? "Device Offline"
-              : showInterlockText
-              ? "Interlock active"
               : isBusy
               ? "Control Action in Progress"
               : safeTitle || text
@@ -991,26 +773,6 @@ export default function PushButtonControl({
           }}
         >
           Offline
-        </div>
-      )}
-
-      {showInterlockText && (
-        <div
-          style={{
-            width: containerW,
-            marginTop: 5,
-            textAlign: "center",
-            color: "#dc2626",
-            fontWeight: 700,
-            fontSize: 11,
-            letterSpacing: 0.2,
-            lineHeight: 1,
-            userSelect: "none",
-            pointerEvents: "none",
-            whiteSpace: "nowrap",
-          }}
-        >
-          Interlock active
         </div>
       )}
 
