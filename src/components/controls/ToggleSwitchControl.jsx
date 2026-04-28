@@ -561,15 +561,14 @@ export default function ToggleSwitchControl({
     // UI OFF => DO 1
     const nextDo01 = nextUi ? 0 : 1;
 
-    // 🔒 Interlock rule:
-    // If DI is active, this toggle cannot turn ON.
-    // Turning OFF is still allowed.
-    if (showInterlockText && nextUi) {
+    // ✅ Block ONLY when command is trying to turn ON
+    // Your mapping: ON = DO 0, OFF = DO 1
+    if (showInterlockText && nextDo01 === 0) {
       pendingWriteRef.current = null;
       showBanner("error", "Interlock active", 5000);
       return;
     }
-
+    
     if (!canInteractInPlay) return;
 
     showBanner("none", "");
