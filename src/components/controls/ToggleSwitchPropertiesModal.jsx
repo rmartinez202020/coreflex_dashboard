@@ -4,7 +4,6 @@ import { createPortal } from "react-dom";
 import { API_URL } from "../../config/api";
 import { getToken } from "../../utils/authToken";
 import { fetchUsedDOs, bindControlDO } from "./controlBindings";
-import ToggleSwitchPropertiesModalInterlock from "./ToggleSwitchPropertiesModalInterlock";
 import ToggleSwitchpropertiesmodalTelemetric, {
   to01,
   readDoFromRow,
@@ -20,6 +19,15 @@ const DO_OPTIONS = [
   { key: "do2", label: "DO-2" },
   { key: "do3", label: "DO-3" },
   { key: "do4", label: "DO-4" },
+];
+
+const DI_OPTIONS = [
+  { key: "di1", label: "DI-1" },
+  { key: "di2", label: "DI-2" },
+  { key: "di3", label: "DI-3" },
+  { key: "di4", label: "DI-4" },
+  { key: "di5", label: "DI-5" },
+  { key: "di6", label: "DI-6" },
 ];
 
 function nextTick() {
@@ -68,6 +76,7 @@ export default function ToggleSwitchPropertiesModal({
   const MODAL_H = Math.min(window.innerHeight - 40, 900);
 
   const forcedModel = "zhc1921";
+  const displayModel = "CF-2000";
 
   const initialDeviceId = String(p.bindDeviceId || p?.tag?.deviceId || "");
   const initialField = String(p.bindField || p?.tag?.field || "do1");
@@ -106,8 +115,7 @@ export default function ToggleSwitchPropertiesModal({
 
   React.useEffect(() => {
     if (isLaunched && open) onClose?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLaunched, open]);
+  }, [isLaunched, open, onClose]);
 
   React.useEffect(() => {
     if (!open || !toggleSwitch || isLaunched) return;
@@ -132,7 +140,7 @@ export default function ToggleSwitchPropertiesModal({
     setInterlockType(
       String(il.type || "NO").toUpperCase() === "NC" ? "NC" : "NO"
     );
-  }, [open, toggleSwitch?.id, isLaunched]);
+  }, [open, toggleSwitch, isLaunched]);
 
   const modalRef = React.useRef(null);
   const dragRef = React.useRef({
@@ -678,20 +686,217 @@ export default function ToggleSwitchPropertiesModal({
               alignItems: "start",
             }}
           >
-            <ToggleSwitchPropertiesModalInterlock
-              open={open}
-              isLaunched={isLaunched}
-              forcedModel={forcedModel}
-              devices={devices}
-              enabled={interlockEnabled}
-              setEnabled={setInterlockEnabled}
-              deviceId={interlockDeviceId}
-              setDeviceId={setInterlockDeviceId}
-              field={interlockField}
-              setField={setInterlockField}
-              type={interlockType}
-              setType={setInterlockType}
-            />
+            <SectionCard>
+              <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}>
+                Active Interlock
+              </div>
+
+              <label
+                style={{
+                  display: "flex",
+                  alignItems: "flex-start",
+                  gap: 10,
+                  padding: "10px 10px",
+                  borderRadius: 10,
+                  border: "1px solid #e5e7eb",
+                  background: "#f8fafc",
+                  marginBottom: 14,
+                  cursor: "pointer",
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={interlockEnabled}
+                  onChange={(e) => setInterlockEnabled(e.target.checked)}
+                  style={{ marginTop: 2 }}
+                />
+                <div>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 1000,
+                      color: "#0f172a",
+                    }}
+                  >
+                    Enable Interlock
+                  </div>
+                  <div style={{ fontSize: 12, color: "#64748b" }}>
+                    If this DI is active, this toggle cannot turn ON.
+                  </div>
+                </div>
+              </label>
+
+              <Label>Model</Label>
+              <div
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: "1px solid #cbd5e1",
+                  background: "#f8fafc",
+                  color: "#0f172a",
+                  fontSize: 14,
+                  fontWeight: 900,
+                  marginBottom: 12,
+                }}
+              >
+                {displayModel}
+              </div>
+
+              <Label>Device</Label>
+              <select
+                value={interlockDeviceId || ""}
+                onChange={(e) =>
+                  setInterlockDeviceId(String(e.target.value || ""))
+                }
+                disabled={!interlockEnabled}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: "1px solid #cbd5e1",
+                  fontSize: 14,
+                  background: "white",
+                  opacity: interlockEnabled ? 1 : 0.6,
+                  cursor: interlockEnabled ? "pointer" : "not-allowed",
+                  marginBottom: 12,
+                }}
+              >
+                <option value="">— Select device —</option>
+                {devices.map((d) => (
+                  <option key={d.id} value={d.id}>
+                    {d.id}
+                  </option>
+                ))}
+              </select>
+
+              <Label>Select Tag</Label>
+              <select
+                value={interlockField}
+                onChange={(e) =>
+                  setInterlockField(String(e.target.value || "di1"))
+                }
+                disabled={!interlockEnabled}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: "1px solid #cbd5e1",
+                  fontSize: 14,
+                  background: "white",
+                  opacity: interlockEnabled ? 1 : 0.6,
+                  cursor: interlockEnabled ? "pointer" : "not-allowed",
+                  marginBottom: 12,
+                }}
+              >
+                {DI_OPTIONS.map((t) => (
+                  <option key={t.key} value={t.key}>
+                    {t.label}
+                  </option>
+                ))}
+              </select>
+
+              <Label>Interlock Contact Type</Label>
+              <select
+                value={interlockType}
+                onChange={(e) =>
+                  setInterlockType(
+                    String(e.target.value || "NO").toUpperCase() === "NC"
+                      ? "NC"
+                      : "NO"
+                  )
+                }
+                disabled={!interlockEnabled}
+                style={{
+                  width: "100%",
+                  padding: "10px 12px",
+                  borderRadius: 10,
+                  border: "1px solid #cbd5e1",
+                  fontSize: 14,
+                  background: "white",
+                  opacity: interlockEnabled ? 1 : 0.6,
+                  cursor: interlockEnabled ? "pointer" : "not-allowed",
+                  marginBottom: 12,
+                }}
+              >
+                <option value="NO">NO - Normally Open</option>
+                <option value="NC">NC - Normally Closed</option>
+              </select>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 12,
+                  border: "1px solid #e5e7eb",
+                  background: "#f8fafc",
+                  borderRadius: 12,
+                  padding: "12px 14px",
+                }}
+              >
+                <div>
+                  <div
+                    style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}
+                  >
+                    Device Status
+                  </div>
+                  <div
+                    style={{
+                      marginTop: 6,
+                      fontSize: 13,
+                      fontWeight: 1000,
+                      color: interlockEnabled ? "#16a34a" : "#64748b",
+                    }}
+                  >
+                    {interlockEnabled ? "Enabled" : "Disabled"}
+                  </div>
+                </div>
+
+                <div>
+                  <div
+                    style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}
+                  >
+                    Selected Tag
+                  </div>
+                  <div
+                    style={{
+                      marginTop: 6,
+                      fontSize: 13,
+                      fontWeight: 1000,
+                      color: "#0f172a",
+                    }}
+                  >
+                    • {String(interlockField || "di1").toUpperCase()}
+                  </div>
+                  <div
+                    style={{
+                      marginTop: 6,
+                      fontSize: 12,
+                      fontWeight: 900,
+                      color: "#64748b",
+                    }}
+                  >
+                    {interlockEnabled
+                      ? `${interlockType} interlock active`
+                      : "Interlock disabled"}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    gridColumn: "1 / -1",
+                    fontSize: 12,
+                    color: "#64748b",
+                  }}
+                >
+                  Bound Tag:{" "}
+                  <b>
+                    {interlockDeviceId || "—"} /{" "}
+                    {String(interlockField || "di1").toUpperCase()}
+                  </b>
+                </div>
+              </div>
+            </SectionCard>
 
             <SectionCard>
               <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}>
@@ -975,11 +1180,6 @@ export default function ToggleSwitchPropertiesModal({
                     {deviceId || "—"} / {effectiveField || "—"}
                   </b>
                 </div>
-              </div>
-
-              <div style={{ fontSize: 12, color: "#64748b", marginTop: 10 }}>
-                Tip: Value preview is best-effort from{" "}
-                <code>/zhc1921/my-devices</code>.
               </div>
             </SectionCard>
           </div>
