@@ -531,9 +531,11 @@ export default function ToggleSwitchControl({
     play &&
     !isOffline &&
     hasBinding &&
-    ((hasInterlockConfig && interlockKnown && interlockActive) ||
-      backendInterlockBlocked);
+    hasInterlockConfig &&
+    interlockKnown &&
+    interlockActive;
 
+      
   // ✅ If Interlock Active and toggle is currently OFF,
   // block activation at the widget level.
   // If it is already ON, allow turning OFF.
