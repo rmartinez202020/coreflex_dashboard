@@ -157,6 +157,68 @@ async function defaultWriteToBackend({
   }
 }
 
+async function fetchBackendBinding({ dashboardId, widgetId, tenantEmail = "", tenantAccessLevel = "" }) {
+  const dash = String(dashboardId || "").trim();
+  const wid = String(widgetId || "").trim();
+  const tenantEmailSafe = String(tenantEmail || "").trim().toLowerCase();
+  const tenantAccessSafe = String(tenantAccessLevel || "").trim();
+
+  if (!dash || !wid) return null;
+
+  const headers = {
+    ...getAuthHeaders(),
+    ...(tenantEmailSafe ? { "X-Tenant-Email": tenantEmailSafe } : {}),
+    ...(tenantAccessSafe ? { "X-Tenant-Access": tenantAccessSafe } : {}),
+    "Cache-Control": "no-cache",
+    Pragma: "no-cache",
+  };
+
+  const qs = new URLSearchParams({
+    dashboardId: dash,
+    widgetId: wid,
+    _ts: String(Date.now()),
+  });
+
+  const candidates = [
+    `${API_URL}/control-bindings/binding?${qs.toString()}`,
+    `${API_URL}/control-bindings/resolve?${qs.toString()}`,
+    `${API_URL}/control-bindings/${encodeURIComponent(dash)}/${encodeURIComponent(wid)}?_ts=${Date.now()}`,
+    `${API_URL}/control-bindings?${qs.toString()}`,
+  ];
+
+  for (const url of candidates) {
+    try {
+      const res = await fetch(url, {
+        method: "GET",
+        headers,
+      });
+
+      if (!res.ok) continue;
+
+      const data = await res.json().catch(() => null);
+      if (!data) continue;
+
+      if (Array.isArray(data)) {
+        const found =
+          data.find(
+            (r) =>
+              String(r?.dashboardId ?? r?.dashboard_id ?? "").trim() === dash &&
+              String(r?.widgetId ?? r?.widget_id ?? "").trim() === wid
+          ) || null;
+
+        if (found) return found;
+      } else {
+        const item = data?.binding || data?.row || data?.item || data;
+        if (item && typeof item === "object") return item;
+      }
+    } catch {
+      // try next candidate
+    }
+  }
+
+  return null;
+}
+
 function isLaunchRoute() {
   try {
     const p = String(window?.location?.pathname || "").toLowerCase();
@@ -210,7 +272,7 @@ function resolveDashboardId({ dashboardId, widget }) {
 }
 
 export default function PushButtonControl({
-  variant = "NO", // "NO" = green, "NC" = red
+  variant = "NO",
   width = 110,
   height = 110,
   pressed = false,
@@ -220,7 +282,6 @@ export default function PushButtonControl({
   onPressEnd,
   disabled = false,
 
-  // ✅ runtime control props
   isLaunched = false,
   visualOnly = false,
   widget = null,
@@ -229,7 +290,6 @@ export default function PushButtonControl({
   onWrite = null,
   pollMs = 12000,
 
-  // ✅ NEW: tenant/public launch context
   tenantEmail = "",
   tenantAccessLevel = "",
 }) {
@@ -237,6 +297,9 @@ export default function PushButtonControl({
   const [isBusy, setIsBusy] = useState(false);
   const [banner, setBanner] = useState({ kind: "none", text: "" });
   const [deviceStatus, setDeviceStatus] = useState("");
+
+  const [backendBinding, setBackendBinding] = useState(null);
+  const [bindingLoaded, setBindingLoaded] = useState(false);
 
   const [interlockActive, setInterlockActive] = useState(false);
   const [interlockKnown, setInterlockKnown] = useState(false);
@@ -250,9 +313,25 @@ export default function PushButtonControl({
   const play = !!isLaunched || isLaunchRoute();
 
   const p = widget?.properties || {};
+  const resolvedWidgetId = resolveWidgetId(widget);
+  const resolvedDashboardId = resolveDashboardId({ dashboardId, widget });
 
-  const bindDeviceId = String(p.bindDeviceId || p?.tag?.deviceId || "").trim();
-  const bindField = String(p.bindField || p?.tag?.field || "")
+  const bindingProps = backendBinding || {};
+
+  const bindDeviceId = String(
+    bindingProps.deviceId ||
+      bindingProps.device_id ||
+      p.bindDeviceId ||
+      p?.tag?.deviceId ||
+      ""
+  ).trim();
+
+  const bindField = String(
+    bindingProps.field ||
+      p.bindField ||
+      p?.tag?.field ||
+      ""
+  )
     .trim()
     .toLowerCase();
 
@@ -262,17 +341,36 @@ export default function PushButtonControl({
   const interlock = p.interlock || {};
 
   const interlockEnabled =
-    Boolean(interlock.enabled) || Boolean(p.interlock_enabled);
+    Boolean(bindingProps.interlock_enabled) ||
+    Boolean(bindingProps.interlockEnabled) ||
+    Boolean(interlock.enabled) ||
+    Boolean(p.interlock_enabled);
 
   const interlockDeviceId = String(
-    interlock.deviceId || p.interlock_device_id || ""
+    bindingProps.interlock_device_id ||
+      bindingProps.interlockDeviceId ||
+      interlock.deviceId ||
+      p.interlock_device_id ||
+      ""
   ).trim();
 
-  const interlockField = String(interlock.field || p.interlock_field || "")
+  const interlockField = String(
+    bindingProps.interlock_field ||
+      bindingProps.interlockField ||
+      interlock.field ||
+      p.interlock_field ||
+      ""
+  )
     .trim()
     .toLowerCase();
 
-  const interlockType = String(interlock.type || p.interlock_type || "NO")
+  const interlockType = String(
+    bindingProps.interlock_type ||
+      bindingProps.interlockType ||
+      interlock.type ||
+      p.interlock_type ||
+      "NO"
+  )
     .trim()
     .toUpperCase();
 
@@ -303,8 +401,6 @@ export default function PushButtonControl({
   const isGreen = String(variant).toUpperCase() === "NO";
   const text = (label ?? (isGreen ? "NO" : "NC")).toUpperCase();
 
-  // ✅ NO: press closes(1), release timer reopens(0)
-  // ✅ NC: press opens(0), release timer recloses(1)
   const pulseStartValue01 = isGreen ? 1 : 0;
   const pulseEndValue01 = isGreen ? 0 : 1;
 
@@ -346,6 +442,7 @@ export default function PushButtonControl({
     !visualOnly &&
     !disabled &&
     hasBinding &&
+    bindingLoaded &&
     !isOffline &&
     !isBusy &&
     !interlockBlocksAction &&
@@ -395,6 +492,48 @@ export default function PushButtonControl({
     }
   }
 
+  const loadBackendBinding = React.useCallback(async () => {
+    if (!play) {
+      setBackendBinding(null);
+      setBindingLoaded(true);
+      return;
+    }
+
+    if (!resolvedDashboardId || !resolvedWidgetId) {
+      setBackendBinding(null);
+      setBindingLoaded(true);
+      return;
+    }
+
+    try {
+      const row = await fetchBackendBinding({
+        dashboardId: resolvedDashboardId,
+        widgetId: resolvedWidgetId,
+        tenantEmail,
+        tenantAccessLevel,
+      });
+
+      setBackendBinding(row || null);
+      setBindingLoaded(true);
+
+      console.log("[PushButtonControl] backend binding loaded:", {
+        dashboardId: resolvedDashboardId,
+        widgetId: resolvedWidgetId,
+        row,
+      });
+    } catch (err) {
+      setBackendBinding(null);
+      setBindingLoaded(true);
+
+      console.warn("[PushButtonControl] backend binding load failed:", err);
+    }
+  }, [play, resolvedDashboardId, resolvedWidgetId, tenantEmail, tenantAccessLevel]);
+
+  useEffect(() => {
+    setBindingLoaded(false);
+    loadBackendBinding();
+  }, [loadBackendBinding]);
+
   const fetchRemote = React.useCallback(async () => {
     if (!play) return;
     if (!hasBinding) return;
@@ -441,7 +580,6 @@ export default function PushButtonControl({
           return;
         }
 
-        // ✅ Same endpoint used by toggle interlock logic
         url = `${API_URL}/zhc1921/my-devices`;
       }
 
@@ -549,6 +687,7 @@ export default function PushButtonControl({
       setBackendInterlockBlocked(false);
       return;
     }
+
     if (!hasBinding) {
       setDeviceStatus("");
       setInterlockActive(false);
@@ -556,6 +695,7 @@ export default function PushButtonControl({
       setBackendInterlockBlocked(false);
       return;
     }
+
     fetchRemote();
   }, [play, hasBinding, fetchRemote]);
 
@@ -589,6 +729,7 @@ export default function PushButtonControl({
   }, [play, hasBinding, fetchRemote, pollMs]);
 
   async function performPulse() {
+    await loadBackendBinding();
     await fetchRemote();
 
     if (interlockBlocksAction || showInterlockText) {
@@ -598,8 +739,8 @@ export default function PushButtonControl({
 
     if (!canActuateInPlay) return;
 
-    const wid = resolveWidgetId(widget);
-    const dash = resolveDashboardId({ dashboardId, widget });
+    const wid = resolvedWidgetId;
+    const dash = resolvedDashboardId;
 
     if (!dash || !wid) {
       showBanner("error", "Write blocked", 4000);
@@ -660,6 +801,7 @@ export default function PushButtonControl({
 
       pulseTimerRef.current = setTimeout(async () => {
         try {
+          await loadBackendBinding();
           await fetchRemote();
 
           if (interlockBlocksAction || showInterlockText) {
@@ -858,6 +1000,14 @@ export default function PushButtonControl({
     banner.kind === "error" &&
     !!banner.text;
 
+  const cursorBlocked =
+    disabled ||
+    !hasBinding ||
+    !bindingLoaded ||
+    isBusy ||
+    isOffline ||
+    interlockBlocksAction;
+
   return (
     <div
       style={{
@@ -893,10 +1043,10 @@ export default function PushButtonControl({
 
       <div
         role="button"
-        tabIndex={disabled || interlockBlocksAction ? -1 : 0}
+        tabIndex={cursorBlocked ? -1 : 0}
         aria-label={ariaLabel}
         aria-pressed={isPressed}
-        aria-disabled={disabled || interlockBlocksAction}
+        aria-disabled={cursorBlocked}
         onPointerDown={play ? handlePressStart : undefined}
         onPointerUp={play ? handlePressEnd : undefined}
         onPointerCancel={play ? handlePressEnd : undefined}
@@ -911,22 +1061,15 @@ export default function PushButtonControl({
           justifyContent: "center",
           touchAction: play ? "none" : "auto",
           WebkitTouchCallout: "none",
-          pointerEvents: interlockBlocksAction ? "none" : "auto",
-          cursor: play
-            ? disabled ||
-              !hasBinding ||
-              isBusy ||
-              isOffline ||
-              interlockBlocksAction
-              ? "not-allowed"
-              : "pointer"
-            : "default",
+          cursor: play ? (cursorBlocked ? "not-allowed" : "pointer") : "default",
           opacity: disabled ? 0.7 : interlockBlocksAction ? 0.75 : 1,
         }}
         title={
           play
             ? !hasBinding
               ? "Bind this push button to a DO"
+              : !bindingLoaded
+              ? "Loading control binding"
               : isOffline
               ? "Device Offline"
               : interlockBlocksAction
