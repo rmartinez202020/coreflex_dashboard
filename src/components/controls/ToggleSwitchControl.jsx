@@ -559,7 +559,7 @@ export default function ToggleSwitchControl({
 
     // UI ON => DO 0
     // UI OFF => DO 1
-    const nextDo01 = nextUi ? 0 : 1;
+    const nextDo01 = nextUi ? 1 : 0;
 
     // ✅ Block ONLY when command is trying to turn ON
     // Your mapping: ON = DO 0, OFF = DO 1
