@@ -563,10 +563,11 @@ export default function ToggleSwitchControl({
 
     // ✅ Block ONLY when command is trying to turn ON
     // Your mapping: ON = DO 0, OFF = DO 1
-    if (showInterlockText && nextDo01 === 0) {
+
+    if (showInterlockText && !uiIsOn) {
       pendingWriteRef.current = null;
       showBanner("error", "Interlock active", 5000);
-      return;
+    return;
     }
     
     if (!canInteractInPlay) return;
