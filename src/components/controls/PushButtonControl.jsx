@@ -127,10 +127,11 @@ async function defaultWriteToBackend({
     }
 
     const message = readErrorMessage(detail);
+    const detailText = JSON.stringify(detail || {}).toLowerCase();
+
     const isInterlockBlocked =
       String(message || "").toLowerCase().includes("interlock") ||
-      String(detail?.detail?.error || "").toLowerCase().includes("interlock") ||
-      String(detail?.detail?.message || "").toLowerCase().includes("interlock");
+      detailText.includes("interlock");
 
     return {
       ok: false,
@@ -228,7 +229,7 @@ export default function PushButtonControl({
   onWrite = null,
   pollMs = 12000,
 
-  // ✅ tenant/public launch context
+  // ✅ NEW: tenant/public launch context
   tenantEmail = "",
   tenantAccessLevel = "",
 }) {
@@ -237,7 +238,6 @@ export default function PushButtonControl({
   const [banner, setBanner] = useState({ kind: "none", text: "" });
   const [deviceStatus, setDeviceStatus] = useState("");
 
-  // ✅ Runtime interlock state
   const [interlockActive, setInterlockActive] = useState(false);
   const [interlockKnown, setInterlockKnown] = useState(false);
   const [backendInterlockBlocked, setBackendInterlockBlocked] = useState(false);
@@ -250,6 +250,7 @@ export default function PushButtonControl({
   const play = !!isLaunched || isLaunchRoute();
 
   const p = widget?.properties || {};
+
   const bindDeviceId = String(p.bindDeviceId || p?.tag?.deviceId || "").trim();
   const bindField = String(p.bindField || p?.tag?.field || "")
     .trim()
@@ -258,12 +259,6 @@ export default function PushButtonControl({
   const hasBinding = !!bindDeviceId && /^do[1-4]$/.test(bindField);
   const isOffline = play && hasBinding && deviceStatus === "offline";
 
-  // =========================
-  // 🔒 Interlock config
-  // Supports BOTH:
-  // 1) properties.interlock.enabled/deviceId/field/type
-  // 2) properties.interlock_enabled/interlock_device_id/...
-  // =========================
   const interlock = p.interlock || {};
 
   const interlockEnabled =
@@ -287,16 +282,6 @@ export default function PushButtonControl({
     /^di[1-6]$/.test(interlockField) &&
     (interlockType === "NO" || interlockType === "NC");
 
-  const showInterlockText =
-    play &&
-    !isOffline &&
-    hasBinding &&
-    hasInterlockConfig &&
-    interlockKnown &&
-    interlockActive;
-
-  const interlockBlocksAction = showInterlockText || backendInterlockBlocked;
-
   const safeW = Math.max(70, Number(width) || 110);
   const safeH = Math.max(70, Number(height) || 110);
   const size = Math.min(safeW, safeH);
@@ -315,6 +300,16 @@ export default function PushButtonControl({
 
   const isPressed = !!pressed || localPressed;
   const safeTitle = String(title || "").trim();
+
+  const showInterlockText =
+    play &&
+    !isOffline &&
+    hasBinding &&
+    hasInterlockConfig &&
+    interlockKnown &&
+    interlockActive;
+
+  const interlockBlocksAction = showInterlockText || backendInterlockBlocked;
 
   const bezelBg =
     "linear-gradient(180deg, #2B2B2B 0%, #0E0E0E 55%, #1B1B1B 100%)";
@@ -387,6 +382,19 @@ export default function PushButtonControl({
     }
   }
 
+  const hardBlockInterlock = React.useCallback(() => {
+    pointerActiveRef.current = false;
+    setLocalPressed(false);
+    setIsBusy(false);
+    runningRef.current = false;
+    showBanner("none", "");
+
+    if (pulseTimerRef.current) {
+      clearTimeout(pulseTimerRef.current);
+      pulseTimerRef.current = null;
+    }
+  }, []);
+
   const fetchRemote = React.useCallback(async () => {
     if (!play) return;
     if (!hasBinding) return;
@@ -431,9 +439,7 @@ export default function PushButtonControl({
           return;
         }
 
-        // ✅ IMPORTANT:
-        // Match ToggleSwitchControl reference.
-        // /devices was not reliably giving the DI row used for interlock.
+        // ✅ Same source used by ToggleSwitchControl
         url = `${API_URL}/zhc1921/my-devices`;
       }
 
@@ -477,9 +483,6 @@ export default function PushButtonControl({
         return;
       }
 
-      // =========================
-      // 🔒 Evaluate interlock DI
-      // =========================
       if (hasInterlockConfig) {
         const interlockRow =
           list.find(
@@ -499,15 +502,7 @@ export default function PushButtonControl({
             setInterlockKnown(true);
 
             if (active) {
-              setLocalPressed(false);
-              setIsBusy(false);
-              runningRef.current = false;
-              showBanner("none", "");
-
-              if (pulseTimerRef.current) {
-                clearTimeout(pulseTimerRef.current);
-                pulseTimerRef.current = null;
-              }
+              hardBlockInterlock();
             } else {
               setBackendInterlockBlocked(false);
             }
@@ -542,6 +537,7 @@ export default function PushButtonControl({
     interlockDeviceId,
     interlockField,
     interlockType,
+    hardBlockInterlock,
   ]);
 
   useEffect(() => {
@@ -568,7 +564,7 @@ export default function PushButtonControl({
     if (!play) return;
     if (!hasBinding) return;
 
-    const tries = [800, 1800, 3200, 5000];
+    const tries = [200, 800, 1800, 3200, 5000];
 
     const timers = tries.map((ms) =>
       setTimeout(() => {
@@ -594,11 +590,10 @@ export default function PushButtonControl({
   }, [play, hasBinding, fetchRemote, pollMs]);
 
   async function performPulse() {
-    if (interlockBlocksAction) {
-      setLocalPressed(false);
-      setIsBusy(false);
-      runningRef.current = false;
-      showBanner("none", "");
+    await fetchRemote();
+
+    if (showInterlockText || interlockBlocksAction) {
+      hardBlockInterlock();
       return;
     }
 
@@ -640,13 +635,10 @@ export default function PushButtonControl({
       }
 
       if (resp?.interlockBlocked === true) {
-        setLocalPressed(false);
-        setIsBusy(false);
-        runningRef.current = false;
         setInterlockActive(true);
         setInterlockKnown(true);
         setBackendInterlockBlocked(true);
-        showBanner("none", "");
+        hardBlockInterlock();
         return;
       }
 
@@ -669,8 +661,10 @@ export default function PushButtonControl({
 
       pulseTimerRef.current = setTimeout(async () => {
         try {
-          if (interlockBlocksAction) {
-            showBanner("none", "");
+          await fetchRemote();
+
+          if (showInterlockText || interlockBlocksAction) {
+            hardBlockInterlock();
             return;
           }
 
@@ -699,7 +693,7 @@ export default function PushButtonControl({
             setInterlockActive(true);
             setInterlockKnown(true);
             setBackendInterlockBlocked(true);
-            showBanner("none", "");
+            hardBlockInterlock();
             return;
           }
 
@@ -716,7 +710,7 @@ export default function PushButtonControl({
             setInterlockActive(true);
             setInterlockKnown(true);
             setBackendInterlockBlocked(true);
-            showBanner("none", "");
+            hardBlockInterlock();
           } else {
             showBanner("error", "Failed", 4000);
           }
@@ -734,14 +728,13 @@ export default function PushButtonControl({
         setInterlockActive(true);
         setInterlockKnown(true);
         setBackendInterlockBlocked(true);
-        showBanner("none", "");
+        hardBlockInterlock();
       } else {
+        setLocalPressed(false);
+        setIsBusy(false);
+        runningRef.current = false;
         showBanner("error", "Failed", 4000);
       }
-
-      setLocalPressed(false);
-      setIsBusy(false);
-      runningRef.current = false;
     }
   }
 
@@ -751,17 +744,14 @@ export default function PushButtonControl({
     e.preventDefault();
     e.stopPropagation();
 
+    if (showInterlockText || interlockBlocksAction) {
+      hardBlockInterlock();
+      return;
+    }
+
     pointerActiveRef.current = true;
 
     if (play) {
-      if (interlockBlocksAction) {
-        setLocalPressed(false);
-        setIsBusy(false);
-        runningRef.current = false;
-        showBanner("none", "");
-        return;
-      }
-
       if (!canActuateInPlay) return;
       onPressStart?.(e);
       void performPulse();
@@ -800,17 +790,15 @@ export default function PushButtonControl({
     if (pointerActiveRef.current) return;
 
     e.preventDefault();
+
+    if (showInterlockText || interlockBlocksAction) {
+      hardBlockInterlock();
+      return;
+    }
+
     pointerActiveRef.current = true;
 
     if (play) {
-      if (interlockBlocksAction) {
-        setLocalPressed(false);
-        setIsBusy(false);
-        runningRef.current = false;
-        showBanner("none", "");
-        return;
-      }
-
       if (!canActuateInPlay) return;
       onPressStart?.(e);
       void performPulse();
@@ -842,17 +830,9 @@ export default function PushButtonControl({
     if (!hasBinding) return;
 
     if (isOffline || interlockBlocksAction) {
-      setLocalPressed(false);
-      setIsBusy(false);
-      runningRef.current = false;
-      showBanner("none", "");
-
-      if (pulseTimerRef.current) {
-        clearTimeout(pulseTimerRef.current);
-        pulseTimerRef.current = null;
-      }
+      hardBlockInterlock();
     }
-  }, [play, hasBinding, isOffline, interlockBlocksAction]);
+  }, [play, hasBinding, isOffline, interlockBlocksAction, hardBlockInterlock]);
 
   useEffect(() => {
     return () => {
@@ -941,7 +921,7 @@ export default function PushButtonControl({
               ? "not-allowed"
               : "pointer"
             : "default",
-          opacity: disabled ? 0.7 : interlockBlocksAction ? 0.82 : 1,
+          opacity: disabled ? 0.7 : interlockBlocksAction ? 0.75 : 1,
         }}
         title={
           play
