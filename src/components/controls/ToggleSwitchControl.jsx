@@ -298,7 +298,7 @@ export default function ToggleSwitchControl({
   const [uiIsOn, setUiIsOn] = React.useState(() => {
     const v01 = to01(isOn);
     if (v01 === null) return true;
-    return v01 === 0;
+    return v01 === 1;
   });
 
   const [deviceStatus, setDeviceStatus] = React.useState("");
@@ -462,7 +462,7 @@ export default function ToggleSwitchControl({
         showBanner("success", "Successful", 4000);
       }
 
-      setUiIsOn(do01 === 0);
+      setUiIsOn(do01 === 1);
     } catch {
       // ignore
     }
