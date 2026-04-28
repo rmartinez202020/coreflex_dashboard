@@ -298,7 +298,7 @@ export default function ToggleSwitchControl({
   const [uiIsOn, setUiIsOn] = React.useState(() => {
     const v01 = to01(isOn);
     if (v01 === null) return true;
-    return v01 === 1;
+    return v01 === 0;
   });
 
   const [deviceStatus, setDeviceStatus] = React.useState("");
@@ -462,7 +462,7 @@ export default function ToggleSwitchControl({
         showBanner("success", "Successful", 4000);
       }
 
-      setUiIsOn(do01 === 1);
+      setUiIsOn(do01 === 0);
     } catch {
       // ignore
     }
@@ -559,7 +559,7 @@ export default function ToggleSwitchControl({
 
     // UI ON => DO 0
     // UI OFF => DO 1
-    const nextDo01 = nextUi ? 1 : 0;
+    const nextDo01 = nextUi ? 0 : 1;
 
     // ✅ Block ONLY when command is trying to turn ON
     // Your mapping: ON = DO 0, OFF = DO 1
