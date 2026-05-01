@@ -19,27 +19,6 @@ function to01(v) {
   return v ? 1 : 0;
 }
 
-function readDoFromRow(row, field) {
-  if (!row || !field) return undefined;
-
-  const f = String(field).toLowerCase().trim();
-  if (!/^do[1-4]$/.test(f)) return undefined;
-
-  if (row[f] !== undefined) return row[f];
-
-  const up = f.toUpperCase();
-  if (row[up] !== undefined) return row[up];
-
-  const n = f.replace("do", "");
-  const alt = `out${n}`;
-  if (row[alt] !== undefined) return row[alt];
-
-  const altUp = `OUT${n}`;
-  if (row[altUp] !== undefined) return row[altUp];
-
-  return undefined;
-}
-
 function readDiFromRow(row, field) {
   if (!row || !field) return undefined;
 
@@ -157,7 +136,12 @@ async function defaultWriteToBackend({
   }
 }
 
-async function fetchBackendBinding({ dashboardId, widgetId, tenantEmail = "", tenantAccessLevel = "" }) {
+async function fetchBackendBinding({
+  dashboardId,
+  widgetId,
+  tenantEmail = "",
+  tenantAccessLevel = "",
+}) {
   const dash = String(dashboardId || "").trim();
   const wid = String(widgetId || "").trim();
   const tenantEmailSafe = String(tenantEmail || "").trim().toLowerCase();
@@ -182,7 +166,9 @@ async function fetchBackendBinding({ dashboardId, widgetId, tenantEmail = "", te
   const candidates = [
     `${API_URL}/control-bindings/binding?${qs.toString()}`,
     `${API_URL}/control-bindings/resolve?${qs.toString()}`,
-    `${API_URL}/control-bindings/${encodeURIComponent(dash)}/${encodeURIComponent(wid)}?_ts=${Date.now()}`,
+    `${API_URL}/control-bindings/${encodeURIComponent(
+      dash
+    )}/${encodeURIComponent(wid)}?_ts=${Date.now()}`,
     `${API_URL}/control-bindings?${qs.toString()}`,
   ];
 
@@ -236,6 +222,7 @@ function getPublicLaunchParamsFromPath() {
     const idx = parts.findIndex(
       (p) => String(p || "").toLowerCase() === "launchdashboard"
     );
+
     if (idx < 0) return { dashboardSlug: "", publicLaunchId: "" };
 
     const dashboardSlug = String(parts[idx + 1] || "").trim();
@@ -271,56 +258,16 @@ function resolveDashboardId({ dashboardId, widget }) {
   return v || "main";
 }
 
-export default function PushButtonControl({
-  variant = "NO",
-  width = 110,
-  height = 110,
-  pressed = false,
-  label,
-  title = "",
-  onPressStart,
-  onPressEnd,
-  disabled = false,
-
-  isLaunched = false,
-  visualOnly = false,
-  widget = null,
-  dashboardId = null,
-  pulseMs = 12000,
-  onWrite = null,
-  pollMs = 12000,
-
-  tenantEmail = "",
-  tenantAccessLevel = "",
-}) {
-  const [localPressed, setLocalPressed] = useState(false);
-  const [isBusy, setIsBusy] = useState(false);
-  const [banner, setBanner] = useState({ kind: "none", text: "" });
-  const [deviceStatus, setDeviceStatus] = useState("");
-
-  const [backendBinding, setBackendBinding] = useState(null);
-  const [bindingLoaded, setBindingLoaded] = useState(false);
-
-  const [interlockActive, setInterlockActive] = useState(false);
-  const [interlockKnown, setInterlockKnown] = useState(false);
-  const [backendInterlockBlocked, setBackendInterlockBlocked] = useState(false);
-
-  const pointerActiveRef = useRef(false);
-  const runningRef = useRef(false);
-  const pulseTimerRef = useRef(null);
-  const bannerTimerRef = useRef(null);
-
-  const play = !!isLaunched || isLaunchRoute();
-
+function buildRuntimeConfig({ row, widget }) {
   const p = widget?.properties || {};
-  const resolvedWidgetId = resolveWidgetId(widget);
-  const resolvedDashboardId = resolveDashboardId({ dashboardId, widget });
-
-  const bindingProps = backendBinding || {};
+  const bindingProps = row || {};
+  const interlock = p.interlock || {};
 
   const bindDeviceId = String(
     bindingProps.deviceId ||
       bindingProps.device_id ||
+      bindingProps.bindDeviceId ||
+      bindingProps.bind_device_id ||
       p.bindDeviceId ||
       p?.tag?.deviceId ||
       ""
@@ -328,17 +275,14 @@ export default function PushButtonControl({
 
   const bindField = String(
     bindingProps.field ||
+      bindingProps.bindField ||
+      bindingProps.bind_field ||
       p.bindField ||
       p?.tag?.field ||
       ""
   )
     .trim()
     .toLowerCase();
-
-  const hasBinding = !!bindDeviceId && /^do[1-4]$/.test(bindField);
-  const isOffline = play && hasBinding && deviceStatus === "offline";
-
-  const interlock = p.interlock || {};
 
   const interlockEnabled =
     Boolean(bindingProps.interlock_enabled) ||
@@ -374,21 +318,218 @@ export default function PushButtonControl({
     .trim()
     .toUpperCase();
 
+  const hasBinding = !!bindDeviceId && /^do[1-4]$/.test(bindField);
+
   const hasInterlockConfig =
     interlockEnabled &&
     !!interlockDeviceId &&
     /^di[1-6]$/.test(interlockField) &&
     (interlockType === "NO" || interlockType === "NC");
 
-  const showInterlockText =
-    play &&
-    !isOffline &&
-    hasBinding &&
-    hasInterlockConfig &&
-    interlockKnown &&
-    interlockActive;
+  return {
+    bindDeviceId,
+    bindField,
+    hasBinding,
+    interlockEnabled,
+    interlockDeviceId,
+    interlockField,
+    interlockType,
+    hasInterlockConfig,
+  };
+}
 
-  const interlockBlocksAction = showInterlockText || backendInterlockBlocked;
+async function fetchRuntimeStatus({
+  config,
+  tenantEmail = "",
+  tenantAccessLevel = "",
+}) {
+  const token = String(getToken() || "").trim();
+  const tenantEmailSafe = String(tenantEmail || "").trim().toLowerCase();
+  const tenantAccessSafe = String(tenantAccessLevel || "").trim();
+
+  let url = "";
+  const headers = {
+    ...getAuthHeaders(),
+    "Cache-Control": "no-cache",
+    Pragma: "no-cache",
+  };
+
+  const isPublicLaunch = !token && !!tenantEmailSafe;
+
+  if (isPublicLaunch) {
+    const { dashboardSlug, publicLaunchId } = getPublicLaunchParamsFromPath();
+
+    if (!dashboardSlug || !publicLaunchId || !tenantEmailSafe) {
+      return {
+        ok: false,
+        offline: true,
+        interlockActive: false,
+        interlockKnown: false,
+      };
+    }
+
+    const qs = new URLSearchParams({
+      dashboard_slug: dashboardSlug,
+      public_launch_id: publicLaunchId,
+      tenant_email: tenantEmailSafe,
+    });
+
+    url = `${API_URL}/tenant-access/devices?${qs.toString()}`;
+  } else {
+    if (!token) {
+      return {
+        ok: false,
+        offline: true,
+        interlockActive: false,
+        interlockKnown: false,
+      };
+    }
+
+    url = `${API_URL}/zhc1921/my-devices`;
+  }
+
+  if (tenantEmailSafe) headers["X-Tenant-Email"] = tenantEmailSafe;
+  if (tenantAccessSafe) headers["X-Tenant-Access"] = tenantAccessSafe;
+
+  const res = await fetch(url, {
+    method: "GET",
+    headers,
+  });
+
+  if (!res.ok) {
+    return {
+      ok: false,
+      offline: true,
+      interlockActive: false,
+      interlockKnown: false,
+    };
+  }
+
+  const data = await res.json().catch(() => []);
+  const list = Array.isArray(data) ? data : [];
+
+  const controlRow =
+    list.find(
+      (r) =>
+        String(r?.deviceId ?? r?.device_id ?? "").trim() ===
+        config.bindDeviceId
+    ) || null;
+
+  if (!controlRow) {
+    return {
+      ok: false,
+      offline: true,
+      interlockActive: false,
+      interlockKnown: false,
+    };
+  }
+
+  const status = readStatusFromRow(controlRow);
+  const offline = status === "offline" || !status;
+
+  if (offline) {
+    return {
+      ok: true,
+      offline: true,
+      interlockActive: false,
+      interlockKnown: false,
+    };
+  }
+
+  if (!config.hasInterlockConfig) {
+    return {
+      ok: true,
+      offline: false,
+      interlockActive: false,
+      interlockKnown: false,
+    };
+  }
+
+  const interlockRow =
+    list.find(
+      (r) =>
+        String(r?.deviceId ?? r?.device_id ?? "").trim() ===
+        config.interlockDeviceId
+    ) || null;
+
+  if (!interlockRow) {
+    return {
+      ok: true,
+      offline: false,
+      interlockActive: false,
+      interlockKnown: false,
+    };
+  }
+
+  const rawDi = readDiFromRow(interlockRow, config.interlockField);
+  const di01 = to01(rawDi);
+
+  if (di01 === null) {
+    return {
+      ok: true,
+      offline: false,
+      interlockActive: false,
+      interlockKnown: false,
+    };
+  }
+
+  const active = config.interlockType === "NC" ? di01 === 0 : di01 === 1;
+
+  return {
+    ok: true,
+    offline: false,
+    interlockActive: active,
+    interlockKnown: true,
+  };
+}
+
+export default function PushButtonControl({
+  variant = "NO",
+  width = 110,
+  height = 110,
+  pressed = false,
+  label,
+  title = "",
+  onPressStart,
+  onPressEnd,
+  disabled = false,
+
+  isLaunched = false,
+  visualOnly = false,
+  widget = null,
+  dashboardId = null,
+  pulseMs = 12000,
+  onWrite = null,
+
+  tenantEmail = "",
+  tenantAccessLevel = "",
+}) {
+  const [localPressed, setLocalPressed] = useState(false);
+  const [isBusy, setIsBusy] = useState(false);
+  const [banner, setBanner] = useState({ kind: "none", text: "" });
+  const [deviceStatus, setDeviceStatus] = useState("");
+
+  const [interlockActive, setInterlockActive] = useState(false);
+  const [interlockKnown, setInterlockKnown] = useState(false);
+  const [backendInterlockBlocked, setBackendInterlockBlocked] = useState(false);
+
+  const pointerActiveRef = useRef(false);
+  const runningRef = useRef(false);
+  const pulseTimerRef = useRef(null);
+  const bannerTimerRef = useRef(null);
+
+  const play = !!isLaunched || isLaunchRoute();
+
+  const resolvedWidgetId = resolveWidgetId(widget);
+  const resolvedDashboardId = resolveDashboardId({ dashboardId, widget });
+
+  const p = widget?.properties || {};
+  const localConfig = buildRuntimeConfig({ row: null, widget });
+
+  const hasLocalBinding = localConfig.hasBinding;
+  const hasRuntimeIdentity = !!resolvedDashboardId && !!resolvedWidgetId;
+
+  const isOffline = play && deviceStatus === "offline";
 
   const safeW = Math.max(70, Number(width) || 110);
   const safeH = Math.max(70, Number(height) || 110);
@@ -437,17 +578,6 @@ export default function PushButtonControl({
     return `${name}${titlePart}${labelPart}`.trim();
   }, [isGreen, label, safeTitle]);
 
-  const canActuateInPlay =
-    play &&
-    !visualOnly &&
-    !disabled &&
-    hasBinding &&
-    bindingLoaded &&
-    !isOffline &&
-    !isBusy &&
-    !interlockBlocksAction &&
-    !runningRef.current;
-
   const bannerStyle = {
     width: containerW,
     marginTop: 6,
@@ -484,7 +614,6 @@ export default function PushButtonControl({
     setLocalPressed(false);
     setIsBusy(false);
     runningRef.current = false;
-    showBanner("none", "");
 
     if (pulseTimerRef.current) {
       clearTimeout(pulseTimerRef.current);
@@ -492,252 +621,65 @@ export default function PushButtonControl({
     }
   }
 
-  const loadBackendBinding = React.useCallback(async () => {
-    if (!play) {
-      setBackendBinding(null);
-      setBindingLoaded(true);
-      return;
-    }
+  async function prepareRuntimeForPress() {
+    const row = await fetchBackendBinding({
+      dashboardId: resolvedDashboardId,
+      widgetId: resolvedWidgetId,
+      tenantEmail,
+      tenantAccessLevel,
+    });
 
-    if (!resolvedDashboardId || !resolvedWidgetId) {
-      setBackendBinding(null);
-      setBindingLoaded(true);
-      return;
-    }
+    const config = buildRuntimeConfig({ row, widget });
 
-    try {
-      const row = await fetchBackendBinding({
-        dashboardId: resolvedDashboardId,
-        widgetId: resolvedWidgetId,
-        tenantEmail,
-        tenantAccessLevel,
-      });
-
-      setBackendBinding(row || null);
-      setBindingLoaded(true);
-
-      console.log("[PushButtonControl] backend binding loaded:", {
-        dashboardId: resolvedDashboardId,
-        widgetId: resolvedWidgetId,
-        row,
-      });
-    } catch (err) {
-      setBackendBinding(null);
-      setBindingLoaded(true);
-
-      console.warn("[PushButtonControl] backend binding load failed:", err);
-    }
-  }, [play, resolvedDashboardId, resolvedWidgetId, tenantEmail, tenantAccessLevel]);
-
-  useEffect(() => {
-    setBindingLoaded(false);
-    loadBackendBinding();
-  }, [loadBackendBinding]);
-
-  const fetchRemote = React.useCallback(async () => {
-    if (!play) return;
-    if (!hasBinding) return;
-
-    try {
-      const token = String(getToken() || "").trim();
-      const tenantEmailSafe = String(tenantEmail || "").trim().toLowerCase();
-      const tenantAccessSafe = String(tenantAccessLevel || "").trim();
-
-      let url = "";
-      let headers = {
-        ...getAuthHeaders(),
-        "Cache-Control": "no-cache",
-        Pragma: "no-cache",
+    if (!config.hasBinding) {
+      return {
+        ok: false,
+        reason: "missing_binding",
+        config,
+        status: null,
       };
-
-      const isPublicLaunch = !token && !!tenantEmailSafe;
-
-      if (isPublicLaunch) {
-        const { dashboardSlug, publicLaunchId } =
-          getPublicLaunchParamsFromPath();
-
-        if (!dashboardSlug || !publicLaunchId || !tenantEmailSafe) {
-          setDeviceStatus("offline");
-          setInterlockActive(false);
-          setInterlockKnown(false);
-          setBackendInterlockBlocked(false);
-          return;
-        }
-
-        const qs = new URLSearchParams({
-          dashboard_slug: dashboardSlug,
-          public_launch_id: publicLaunchId,
-          tenant_email: tenantEmailSafe,
-        });
-
-        url = `${API_URL}/tenant-access/devices?${qs.toString()}`;
-      } else {
-        if (!token) {
-          setDeviceStatus("offline");
-          setInterlockActive(false);
-          setInterlockKnown(false);
-          setBackendInterlockBlocked(false);
-          return;
-        }
-
-        url = `${API_URL}/zhc1921/my-devices`;
-      }
-
-      if (tenantEmailSafe) headers["X-Tenant-Email"] = tenantEmailSafe;
-      if (tenantAccessSafe) headers["X-Tenant-Access"] = tenantAccessSafe;
-
-      const res = await fetch(url, {
-        method: "GET",
-        headers,
-      });
-
-      if (!res.ok) {
-        setDeviceStatus("offline");
-        setInterlockActive(false);
-        setInterlockKnown(false);
-        return;
-      }
-
-      const data = await res.json().catch(() => []);
-      const list = Array.isArray(data) ? data : [];
-
-      const row =
-        list.find(
-          (r) =>
-            String(r?.deviceId ?? r?.device_id ?? "").trim() === bindDeviceId
-        ) || null;
-
-      if (!row) {
-        setDeviceStatus("offline");
-        setInterlockActive(false);
-        setInterlockKnown(false);
-        return;
-      }
-
-      const status = readStatusFromRow(row);
-      setDeviceStatus(status || "offline");
-
-      if (status === "offline") {
-        setInterlockActive(false);
-        setInterlockKnown(false);
-        return;
-      }
-
-      if (hasInterlockConfig) {
-        const interlockRow =
-          list.find(
-            (r) =>
-              String(r?.deviceId ?? r?.device_id ?? "").trim() ===
-              interlockDeviceId
-          ) || null;
-
-        if (!interlockRow) {
-          setInterlockActive(false);
-          setInterlockKnown(false);
-        } else {
-          const rawDi = readDiFromRow(interlockRow, interlockField);
-          const di01 = to01(rawDi);
-
-          if (di01 === null) {
-            setInterlockActive(false);
-            setInterlockKnown(false);
-          } else {
-            const active = interlockType === "NC" ? di01 === 0 : di01 === 1;
-
-            setInterlockActive(active);
-            setInterlockKnown(true);
-
-            if (active) {
-              hardBlockInterlock();
-            } else {
-              setBackendInterlockBlocked(false);
-            }
-          }
-        }
-      } else {
-        setInterlockActive(false);
-        setInterlockKnown(false);
-        setBackendInterlockBlocked(false);
-      }
-
-      readDoFromRow(row, bindField);
-    } catch {
-      setDeviceStatus("offline");
-      setInterlockActive(false);
-      setInterlockKnown(false);
-    }
-  }, [
-    play,
-    hasBinding,
-    bindDeviceId,
-    bindField,
-    tenantEmail,
-    tenantAccessLevel,
-    hasInterlockConfig,
-    interlockDeviceId,
-    interlockField,
-    interlockType,
-  ]);
-
-  useEffect(() => {
-    if (!play) {
-      setDeviceStatus("");
-      setInterlockActive(false);
-      setInterlockKnown(false);
-      setBackendInterlockBlocked(false);
-      return;
     }
 
-    if (!hasBinding) {
-      setDeviceStatus("");
-      setInterlockActive(false);
-      setInterlockKnown(false);
-      setBackendInterlockBlocked(false);
-      return;
+    const status = await fetchRuntimeStatus({
+      config,
+      tenantEmail,
+      tenantAccessLevel,
+    });
+
+    setDeviceStatus(status.offline ? "offline" : "online");
+    setInterlockActive(status.interlockActive);
+    setInterlockKnown(status.interlockKnown);
+
+    if (status.offline) {
+      return {
+        ok: false,
+        reason: "offline",
+        config,
+        status,
+      };
     }
 
-    fetchRemote();
-  }, [play, hasBinding, fetchRemote]);
+    if (status.interlockKnown && status.interlockActive) {
+      return {
+        ok: false,
+        reason: "interlock",
+        config,
+        status,
+      };
+    }
 
-  useEffect(() => {
-    if (!play) return;
-    if (!hasBinding) return;
+    setBackendInterlockBlocked(false);
 
-    const tries = [200, 800, 1800, 3200, 5000];
-
-    const timers = tries.map((ms) =>
-      setTimeout(() => {
-        fetchRemote();
-      }, ms)
-    );
-
-    return () => timers.forEach(clearTimeout);
-  }, [play, hasBinding, fetchRemote]);
-
-  useEffect(() => {
-    if (!play) return;
-    if (!hasBinding) return;
-
-    const ms = Math.max(500, Number(pollMs) || 2000);
-
-    const t = setInterval(() => {
-      if (document.hidden) return;
-      fetchRemote();
-    }, ms);
-
-    return () => clearInterval(t);
-  }, [play, hasBinding, fetchRemote, pollMs]);
+    return {
+      ok: true,
+      reason: "",
+      config,
+      status,
+    };
+  }
 
   async function performPulse() {
-    await loadBackendBinding();
-    await fetchRemote();
-
-    if (interlockBlocksAction || showInterlockText) {
-      hardBlockInterlock();
-      return;
-    }
-
-    if (!canActuateInPlay) return;
+    if (!play || visualOnly || disabled || isBusy || runningRef.current) return;
 
     const wid = resolvedWidgetId;
     const dash = resolvedDashboardId;
@@ -747,18 +689,43 @@ export default function PushButtonControl({
       return;
     }
 
-    runningRef.current = true;
     setIsBusy(true);
-    setLocalPressed(true);
-    showBanner("occupied", "Control Action in Progress", null);
+    showBanner("occupied", "Checking interlock", null);
 
     try {
+      const prepared = await prepareRuntimeForPress();
+
+      if (!prepared.ok) {
+        setIsBusy(false);
+        runningRef.current = false;
+        setLocalPressed(false);
+
+        if (prepared.reason === "interlock") {
+          setBackendInterlockBlocked(true);
+          hardBlockInterlock();
+          showBanner("error", "Interlock Active", 5000);
+          return;
+        }
+
+        if (prepared.reason === "offline") {
+          showBanner("error", "Offline", 5000);
+          return;
+        }
+
+        showBanner("error", "Write blocked", 4000);
+        return;
+      }
+
+      runningRef.current = true;
+      setLocalPressed(true);
+      showBanner("occupied", "Control Action in Progress", null);
+
       let resp = null;
 
       if (typeof onWrite === "function") {
         resp = await onWrite({
-          deviceId: bindDeviceId,
-          field: bindField,
+          deviceId: prepared.config.bindDeviceId,
+          field: prepared.config.bindField,
           value01: pulseStartValue01,
           widget,
           tenantEmail,
@@ -779,6 +746,7 @@ export default function PushButtonControl({
         setInterlockKnown(true);
         setBackendInterlockBlocked(true);
         hardBlockInterlock();
+        showBanner("error", "Interlock Active", 5000);
         return;
       }
 
@@ -801,20 +769,12 @@ export default function PushButtonControl({
 
       pulseTimerRef.current = setTimeout(async () => {
         try {
-          await loadBackendBinding();
-          await fetchRemote();
-
-          if (interlockBlocksAction || showInterlockText) {
-            hardBlockInterlock();
-            return;
-          }
-
           let endResp = null;
 
           if (typeof onWrite === "function") {
             endResp = await onWrite({
-              deviceId: bindDeviceId,
-              field: bindField,
+              deviceId: prepared.config.bindDeviceId,
+              field: prepared.config.bindField,
               value01: pulseEndValue01,
               widget,
               tenantEmail,
@@ -835,6 +795,7 @@ export default function PushButtonControl({
             setInterlockKnown(true);
             setBackendInterlockBlocked(true);
             hardBlockInterlock();
+            showBanner("error", "Interlock Active", 5000);
             return;
           }
 
@@ -852,6 +813,7 @@ export default function PushButtonControl({
             setInterlockKnown(true);
             setBackendInterlockBlocked(true);
             hardBlockInterlock();
+            showBanner("error", "Interlock Active", 5000);
           } else {
             showBanner("error", "Failed", 4000);
           }
@@ -870,6 +832,7 @@ export default function PushButtonControl({
         setInterlockKnown(true);
         setBackendInterlockBlocked(true);
         hardBlockInterlock();
+        showBanner("error", "Interlock Active", 5000);
       } else {
         setLocalPressed(false);
         setIsBusy(false);
@@ -885,15 +848,13 @@ export default function PushButtonControl({
     e.preventDefault();
     e.stopPropagation();
 
-    if (interlockBlocksAction || showInterlockText) {
-      hardBlockInterlock();
-      return;
-    }
-
     pointerActiveRef.current = true;
 
     if (play) {
-      if (!canActuateInPlay) return;
+      if (visualOnly || isBusy || runningRef.current || !hasRuntimeIdentity) {
+        return;
+      }
+
       onPressStart?.(e);
       void performPulse();
       return;
@@ -932,15 +893,13 @@ export default function PushButtonControl({
 
     e.preventDefault();
 
-    if (interlockBlocksAction || showInterlockText) {
-      hardBlockInterlock();
-      return;
-    }
-
     pointerActiveRef.current = true;
 
     if (play) {
-      if (!canActuateInPlay) return;
+      if (visualOnly || isBusy || runningRef.current || !hasRuntimeIdentity) {
+        return;
+      }
+
       onPressStart?.(e);
       void performPulse();
       return;
@@ -967,15 +926,6 @@ export default function PushButtonControl({
   }
 
   useEffect(() => {
-    if (!play) return;
-    if (!hasBinding) return;
-
-    if (isOffline || interlockBlocksAction) {
-      hardBlockInterlock();
-    }
-  }, [play, hasBinding, isOffline, interlockBlocksAction]);
-
-  useEffect(() => {
     return () => {
       if (pulseTimerRef.current) {
         clearTimeout(pulseTimerRef.current);
@@ -986,7 +936,10 @@ export default function PushButtonControl({
   }, []);
 
   const showOfflineText = isOffline;
-  const showInterlockActiveText = !showOfflineText && interlockBlocksAction;
+
+  const showInterlockActiveText =
+    !showOfflineText &&
+    (backendInterlockBlocked || (interlockKnown && interlockActive));
 
   const showBusyText =
     !showOfflineText &&
@@ -1002,11 +955,9 @@ export default function PushButtonControl({
 
   const cursorBlocked =
     disabled ||
-    !hasBinding ||
-    !bindingLoaded ||
     isBusy ||
-    isOffline ||
-    interlockBlocksAction;
+    !hasRuntimeIdentity ||
+    (!hasLocalBinding && !hasRuntimeIdentity);
 
   return (
     <div
@@ -1062,17 +1013,15 @@ export default function PushButtonControl({
           touchAction: play ? "none" : "auto",
           WebkitTouchCallout: "none",
           cursor: play ? (cursorBlocked ? "not-allowed" : "pointer") : "default",
-          opacity: disabled ? 0.7 : interlockBlocksAction ? 0.75 : 1,
+          opacity: disabled ? 0.7 : showInterlockActiveText ? 0.75 : 1,
         }}
         title={
           play
-            ? !hasBinding
+            ? !hasRuntimeIdentity
               ? "Bind this push button to a DO"
-              : !bindingLoaded
-              ? "Loading control binding"
               : isOffline
               ? "Device Offline"
-              : interlockBlocksAction
+              : showInterlockActiveText
               ? "Interlock Active"
               : isBusy
               ? "Control Action in Progress"
