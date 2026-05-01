@@ -517,6 +517,7 @@ export default function PushButtonControl({
   const runningRef = useRef(false);
   const pulseTimerRef = useRef(null);
   const bannerTimerRef = useRef(null);
+  const interlockClearTimerRef = useRef(null);
 
   const play = !!isLaunched || isLaunchRoute();
 
@@ -598,6 +599,13 @@ export default function PushButtonControl({
     }
   }
 
+  function clearInterlockTimer() {
+    if (interlockClearTimerRef.current) {
+      clearTimeout(interlockClearTimerRef.current);
+      interlockClearTimerRef.current = null;
+    }
+  }
+
   function showBanner(kind, text, ms = null) {
     setBanner({ kind, text: String(text || "") });
     clearBannerTimer();
@@ -607,6 +615,23 @@ export default function PushButtonControl({
         setBanner({ kind: "none", text: "" });
       }, ms);
     }
+  }
+
+  function showTemporaryInterlock(ms = 8000) {
+    clearInterlockTimer();
+
+    setInterlockActive(true);
+    setInterlockKnown(true);
+    setBackendInterlockBlocked(true);
+    showBanner("error", "Interlock Active", ms);
+
+    interlockClearTimerRef.current = setTimeout(() => {
+      setInterlockActive(false);
+      setInterlockKnown(false);
+      setBackendInterlockBlocked(false);
+      showBanner("none", "");
+      interlockClearTimerRef.current = null;
+    }, Math.max(1000, Number(ms) || 8000));
   }
 
   function hardBlockInterlock() {
@@ -690,7 +715,7 @@ export default function PushButtonControl({
     }
 
     setIsBusy(true);
-    showBanner("occupied", "Checking interlock", null);
+    showBanner("none", "");
 
     try {
       const prepared = await prepareRuntimeForPress();
@@ -701,9 +726,8 @@ export default function PushButtonControl({
         setLocalPressed(false);
 
         if (prepared.reason === "interlock") {
-          setBackendInterlockBlocked(true);
           hardBlockInterlock();
-          showBanner("error", "Interlock Active", 5000);
+          showTemporaryInterlock(8000);
           return;
         }
 
@@ -742,11 +766,8 @@ export default function PushButtonControl({
       }
 
       if (resp?.interlockBlocked === true) {
-        setInterlockActive(true);
-        setInterlockKnown(true);
-        setBackendInterlockBlocked(true);
         hardBlockInterlock();
-        showBanner("error", "Interlock Active", 5000);
+        showTemporaryInterlock(8000);
         return;
       }
 
@@ -791,11 +812,8 @@ export default function PushButtonControl({
           }
 
           if (endResp?.interlockBlocked === true) {
-            setInterlockActive(true);
-            setInterlockKnown(true);
-            setBackendInterlockBlocked(true);
             hardBlockInterlock();
-            showBanner("error", "Interlock Active", 5000);
+            showTemporaryInterlock(8000);
             return;
           }
 
@@ -809,11 +827,8 @@ export default function PushButtonControl({
           const msg = String(err?.message || err || "").toLowerCase();
 
           if (msg.includes("interlock")) {
-            setInterlockActive(true);
-            setInterlockKnown(true);
-            setBackendInterlockBlocked(true);
             hardBlockInterlock();
-            showBanner("error", "Interlock Active", 5000);
+            showTemporaryInterlock(8000);
           } else {
             showBanner("error", "Failed", 4000);
           }
@@ -828,11 +843,8 @@ export default function PushButtonControl({
       const msg = String(err?.message || err || "").toLowerCase();
 
       if (msg.includes("interlock")) {
-        setInterlockActive(true);
-        setInterlockKnown(true);
-        setBackendInterlockBlocked(true);
         hardBlockInterlock();
-        showBanner("error", "Interlock Active", 5000);
+        showTemporaryInterlock(8000);
       } else {
         setLocalPressed(false);
         setIsBusy(false);
@@ -931,7 +943,9 @@ export default function PushButtonControl({
         clearTimeout(pulseTimerRef.current);
         pulseTimerRef.current = null;
       }
+
       clearBannerTimer();
+      clearInterlockTimer();
     };
   }, []);
 
