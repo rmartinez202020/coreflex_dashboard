@@ -95,32 +95,27 @@ export default function PushButtonNCPropertiesModal({
   );
 
   const [deviceSearch, setDeviceSearch] = React.useState("");
-
   const initialTitle = String(p.title ?? pushButton?.title ?? "").trim();
   const [title, setTitle] = React.useState(initialTitle);
 
   const [interlockEnabled, setInterlockEnabled] = React.useState(
     initialInterlockEnabled
   );
-
   const [interlockDeviceId, setInterlockDeviceId] = React.useState(
     initialInterlockDeviceId
   );
-
   const [interlockField, setInterlockField] = React.useState(
     /^di[1-6]$/.test(initialInterlockFieldRaw)
       ? initialInterlockFieldRaw
       : "di1"
   );
-
   const [interlockType, setInterlockType] = React.useState(
     initialInterlockTypeRaw === "NC" ? "NC" : "NO"
   );
 
   React.useEffect(() => {
     if (isLaunched && open) onClose?.();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isLaunched, open]);
+  }, [isLaunched, open, onClose]);
 
   React.useEffect(() => {
     if (!open || !pushButton || isLaunched) return;
@@ -149,14 +144,13 @@ export default function PushButtonNCPropertiesModal({
     setField(/^do[1-4]$/.test(f.toLowerCase()) ? f : "do1");
     setDeviceSearch("");
     setTitle(String(pp.title ?? pushButton?.title ?? "").trim());
-
     setInterlockEnabled(nextInterlockEnabled);
     setInterlockDeviceId(nextInterlockDeviceId);
     setInterlockField(
       /^di[1-6]$/.test(nextInterlockField) ? nextInterlockField : "di1"
     );
     setInterlockType(nextInterlockType === "NC" ? "NC" : "NO");
-  }, [open, pushButton?.id, isLaunched]);
+  }, [open, pushButton, pushButton?.id, isLaunched]);
 
   const modalRef = React.useRef(null);
   const dragRef = React.useRef({
@@ -519,6 +513,7 @@ export default function PushButtonNCPropertiesModal({
           type: safeInterlockType,
           mode: "block_when_active",
         },
+
         interlock_enabled: Boolean(interlockEnabled),
         interlock_device_id: interlockEnabled ? safeInterlockDeviceId : "",
         interlock_field: interlockEnabled ? safeInterlockField : "",
@@ -637,7 +632,422 @@ export default function PushButtonNCPropertiesModal({
         onMouseDown={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
       >
-        {/* KEEP THE REST OF YOUR JSX EXACTLY THE SAME */}
+        <div
+          onPointerDown={startDrag}
+          style={{
+            background: "#0f172a",
+            color: "#fff",
+            padding: "12px 14px",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "space-between",
+            fontWeight: 900,
+            fontSize: 16,
+            letterSpacing: 0.2,
+            cursor: "grab",
+            flex: "0 0 auto",
+          }}
+          title="Drag to move"
+        >
+          <span>Push Button NC (CF-2000)</span>
+
+          <button
+            data-no-drag="true"
+            onPointerDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onMouseDown={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+            }}
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose?.();
+            }}
+            style={{
+              border: "none",
+              background: "transparent",
+              color: "white",
+              fontSize: 22,
+              cursor: "pointer",
+              lineHeight: 1,
+              padding: 2,
+            }}
+            title="Close"
+            type="button"
+          >
+            ✕
+          </button>
+        </div>
+
+        <div
+          style={{
+            padding: 16,
+            overflowY: "auto",
+            overflowX: "hidden",
+            flex: "1 1 auto",
+            background: "#f8fafc",
+          }}
+        >
+          <div style={{ fontSize: 12, color: "#64748b", marginBottom: 12 }}>
+            Bind this <b>NC push button</b> to a{" "}
+            <b>CF-2000 Digital Output (DO)</b>.
+          </div>
+
+          {!dashboardId && (
+            <div
+              style={{
+                marginBottom: 10,
+                padding: "10px 12px",
+                borderRadius: 10,
+                border: "1px solid #fecaca",
+                background: "#fff1f2",
+                color: "#991b1b",
+                fontSize: 12,
+                fontWeight: 900,
+              }}
+            >
+              Missing <code>dashboardId</code>. Pass it to this modal so the
+              widget can be saved correctly.
+            </div>
+          )}
+
+          {devicesErr && (
+            <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>
+              {devicesErr}
+            </div>
+          )}
+
+          {usedErr && (
+            <div style={{ marginBottom: 10, color: "#dc2626", fontSize: 12 }}>
+              {usedErr}
+            </div>
+          )}
+
+          {saveErr && (
+            <div
+              style={{
+                marginBottom: 10,
+                color: "#dc2626",
+                fontSize: 12,
+                fontWeight: 900,
+              }}
+            >
+              {saveErr}
+            </div>
+          )}
+
+          <div
+            style={{
+              display: "grid",
+              gridTemplateColumns: "360px 1fr",
+              gap: 14,
+              alignItems: "start",
+            }}
+          >
+            <ToggleSwitchPropertiesModalInterlock
+              open={open}
+              isLaunched={isLaunched}
+              forcedModel={forcedModel}
+              devices={devices}
+              enabled={interlockEnabled}
+              setEnabled={setInterlockEnabled}
+              deviceId={interlockDeviceId}
+              setDeviceId={setInterlockDeviceId}
+              field={interlockField}
+              setField={setInterlockField}
+              type={interlockType}
+              setType={setInterlockType}
+            />
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <SectionCard>
+                <div
+                  style={{ fontSize: 13, fontWeight: 1000, marginBottom: 10 }}
+                >
+                  Display Title (optional)
+                </div>
+
+                <Label>Title shown above the push button</Label>
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value.slice(0, 40))}
+                  placeholder="Example: Stop Pump"
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5e1",
+                    fontSize: 14,
+                  }}
+                />
+                <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
+                  Leave blank to hide the title. Max 40 characters.
+                </div>
+              </SectionCard>
+
+              <SectionCard>
+                <div
+                  style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}
+                >
+                  Output that this push button controls (DO)
+                </div>
+
+                <div style={{ marginBottom: 10 }}>
+                  <Label>Search Device (CF-2000)</Label>
+                  <input
+                    value={deviceSearch}
+                    onChange={(e) => setDeviceSearch(e.target.value)}
+                    placeholder="Type device id..."
+                    style={{
+                      width: "100%",
+                      padding: "10px 12px",
+                      borderRadius: 10,
+                      border: "1px solid #cbd5e1",
+                      fontSize: 14,
+                    }}
+                  />
+                  <div style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}>
+                    Showing <b>{filteredDevices.length}</b> device(s)
+                  </div>
+                </div>
+
+                <div style={{ display: "flex", gap: 12, marginBottom: 12 }}>
+                  <div style={{ flex: 1 }}>
+                    <Label>Device</Label>
+                    <select
+                      value={deviceId || ""}
+                      onChange={(e) => {
+                        const next = String(e.target.value || "");
+                        setDeviceId(next);
+                        if (!interlockDeviceId) setInterlockDeviceId(next);
+                      }}
+                      style={{
+                        width: "100%",
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        border: "1px solid #cbd5e1",
+                        fontSize: 14,
+                        background: "white",
+                      }}
+                    >
+                      <option value="">— Select device —</option>
+                      {filteredDevices.map((d) => (
+                        <option key={d.id} value={d.id}>
+                          {d.id}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
+                  <div style={{ flex: 1 }}>
+                    <Label>Select DO</Label>
+                    <select
+                      value={field}
+                      onChange={(e) => setField(String(e.target.value || ""))}
+                      disabled={!deviceId}
+                      style={{
+                        width: "100%",
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        border: "1px solid #cbd5e1",
+                        fontSize: 14,
+                        background: "white",
+                        opacity: deviceId ? 1 : 0.6,
+                        cursor: deviceId ? "pointer" : "not-allowed",
+                      }}
+                    >
+                      <option value="">— Select DO —</option>
+                      {DO_OPTIONS.map((t) => {
+                        const f = String(t.key).toLowerCase();
+                        const info = usedMap?.[f];
+                        const disabled = deviceId ? isOptionDisabled(f) : true;
+
+                        const usedLabel =
+                          info?.widgetId && info.widgetId !== widgetId
+                            ? ` (Used${info.title ? `: ${info.title}` : ""}${
+                                info.dashboardName || info.dashboardId
+                                  ? ` / Dashboard: ${
+                                      info.dashboardName || info.dashboardId
+                                    }`
+                                  : ""
+                              })`
+                            : "";
+
+                        return (
+                          <option key={t.key} value={t.key} disabled={disabled}>
+                            {t.label}
+                            {usedLabel}
+                          </option>
+                        );
+                      })}
+                    </select>
+
+                    {usedByOther && (
+                      <div
+                        style={{
+                          marginTop: 8,
+                          fontSize: 12,
+                          color: "#dc2626",
+                          fontWeight: 400,
+                        }}
+                      >
+                        {effectiveField.toUpperCase()} is already used
+                        {usedByOther.title ? ` by "${usedByOther.title}"` : ""}
+                        {usedByOther.dashboardName || usedByOther.dashboardId
+                          ? ` on dashboard "${
+                              usedByOther.dashboardName ||
+                              usedByOther.dashboardId
+                            }"`
+                          : ""}
+                        . Choose another DO.
+                      </div>
+                    )}
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    display: "flex",
+                    justifyContent: "space-between",
+                    alignItems: "center",
+                    border: "1px solid #e5e7eb",
+                    background: "#f8fafc",
+                    borderRadius: 12,
+                    padding: "12px 14px",
+                  }}
+                >
+                  <div>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 400,
+                        color: "#0f172a",
+                      }}
+                    >
+                      Status
+                    </div>
+                    <div
+                      style={{ fontSize: 13, color: "#475569", marginTop: 2 }}
+                    >
+                      {deviceId && effectiveField ? (
+                        <>
+                          <span
+                            style={{
+                              fontWeight: 400,
+                              color: usedByOther ? "#dc2626" : "#0f172a",
+                            }}
+                          >
+                            {statusText}
+                          </span>
+                          <span style={{ marginLeft: 10, color: "#64748b" }}>
+                            Bound: <b>{deviceId}</b> / <b>{effectiveField}</b>
+                          </span>
+                        </>
+                      ) : (
+                        statusText
+                      )}
+                    </div>
+                  </div>
+
+                  <div style={{ textAlign: "right" }}>
+                    <div
+                      style={{
+                        fontSize: 12,
+                        fontWeight: 400,
+                        color: "#0f172a",
+                      }}
+                    >
+                      Value
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 2,
+                        fontSize: 18,
+                        fontWeight: 1000,
+                        color: isOnlineWithData ? "#0f172a" : "#94a3b8",
+                        fontFamily: "monospace",
+                        minWidth: 22,
+                      }}
+                    >
+                      {valueText}
+                    </div>
+                  </div>
+                </div>
+
+                <div style={{ fontSize: 12, color: "#64748b", marginTop: 10 }}>
+                  Tip: Value preview is best-effort from{" "}
+                  <code>/zhc1921/my-devices</code>.
+                </div>
+              </SectionCard>
+            </div>
+          </div>
+        </div>
+
+        <div
+          style={{
+            display: "flex",
+            justifyContent: "flex-end",
+            gap: 10,
+            padding: 14,
+            borderTop: "1px solid #e5e7eb",
+            flex: "0 0 auto",
+          }}
+        >
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              onClose?.();
+            }}
+            style={{
+              padding: "9px 14px",
+              borderRadius: 10,
+              border: "1px solid #cbd5e1",
+              background: "white",
+              cursor: "pointer",
+              fontWeight: 400,
+              fontSize: 14,
+            }}
+            type="button"
+          >
+            Cancel
+          </button>
+
+          <button
+            onClick={(e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              apply();
+            }}
+            disabled={!canApply}
+            style={{
+              padding: "9px 14px",
+              borderRadius: 10,
+              border: "1px solid #16a34a",
+              background: canApply ? "#22c55e" : "#e5e7eb",
+              color: canApply ? "white" : "#64748b",
+              cursor: canApply ? "pointer" : "not-allowed",
+              fontWeight: 400,
+              fontSize: 14,
+              opacity: saving ? 0.8 : 1,
+            }}
+            type="button"
+            title={
+              !dashboardId
+                ? "Missing dashboardId"
+                : usedByOther
+                ? "This DO is already used"
+                : !interlockValid
+                ? "Interlock configuration is incomplete"
+                : "Apply"
+            }
+          >
+            {saving ? "Saving..." : "Apply"}
+          </button>
+        </div>
       </div>
     </div>,
     portalTarget
