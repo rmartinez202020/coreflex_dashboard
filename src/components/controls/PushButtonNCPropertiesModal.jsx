@@ -153,7 +153,7 @@ export default function PushButtonNCPropertiesModal({
   const p = pushButton?.properties || {};
 
   const MODAL_W = Math.min(1500, window.innerWidth - 80);
-  const MODAL_H = Math.min(window.innerHeight - 40, 900);
+  const MODAL_H = Math.min(760, window.innerHeight - 80);
 
   const forcedModel = "zhc1921";
 
@@ -728,7 +728,7 @@ export default function PushButtonNCPropertiesModal({
           width: MODAL_W,
           maxWidth: "calc(100vw - 80px)",
           height: MODAL_H,
-          maxHeight: "calc(100vh - 40px)",
+          maxHeight: "calc(100vh - 80px)",
           background: "#fff",
           borderRadius: 12,
           boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
