@@ -73,7 +73,7 @@ export default function ToggleSwitchPropertiesModal({
   const p = toggleSwitch?.properties || {};
 
   const MODAL_W = Math.min(1500, window.innerWidth - 80);
-  const MODAL_H = Math.min(window.innerHeight - 40, 900);
+  const MODAL_H = Math.min(620, window.innerHeight - 120);
 
   const forcedModel = "zhc1921";
   const displayModel = "CF-2000";
@@ -572,7 +572,7 @@ export default function ToggleSwitchPropertiesModal({
           width: MODAL_W,
           maxWidth: "calc(100vw - 80px)",
           height: MODAL_H,
-          maxHeight: "calc(100vh - 40px)",
+          maxHeight: "calc(100vh - 120px)",
           background: "#fff",
           borderRadius: 12,
           boxShadow: "0 12px 40px rgba(0,0,0,0.25)",
