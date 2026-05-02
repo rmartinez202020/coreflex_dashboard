@@ -60,6 +60,87 @@ function SectionCard({ children }) {
   );
 }
 
+function OpeningDataLoader({ show }) {
+  if (!show) return null;
+
+  return (
+    <div
+      data-no-drag="true"
+      style={{
+        position: "absolute",
+        inset: 0,
+        zIndex: 50,
+        background: "rgba(248,250,252,0.72)",
+        backdropFilter: "blur(2px)",
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "center",
+        pointerEvents: "auto",
+      }}
+    >
+      <div
+        style={{
+          width: 190,
+          minHeight: 130,
+          borderRadius: 16,
+          background: "#0f172a",
+          color: "#fff",
+          boxShadow: "0 18px 45px rgba(15,23,42,0.35)",
+          border: "1px solid rgba(255,255,255,0.12)",
+          display: "flex",
+          flexDirection: "column",
+          alignItems: "center",
+          justifyContent: "center",
+          gap: 12,
+          padding: 18,
+        }}
+      >
+        <div
+          style={{
+            width: 34,
+            height: 34,
+            borderRadius: "50%",
+            border: "4px solid rgba(255,255,255,0.18)",
+            borderTopColor: "#22c55e",
+            animation: "cfPushButtonNCModalSpin 0.85s linear infinite",
+          }}
+        />
+
+        <div
+          style={{
+            fontSize: 14,
+            fontWeight: 1000,
+            letterSpacing: 0.2,
+            textAlign: "center",
+          }}
+        >
+          Loading Data
+        </div>
+
+        <div
+          style={{
+            fontSize: 11,
+            color: "#cbd5e1",
+            textAlign: "center",
+            lineHeight: 1.35,
+          }}
+        >
+          Preparing CF-2000 configuration...
+        </div>
+
+        <style>
+          {`
+            @keyframes cfPushButtonNCModalSpin {
+              from { transform: rotate(0deg); }
+              to { transform: rotate(360deg); }
+            }
+          `}
+        </style>
+      </div>
+    </div>
+  );
+}
+
 export default function PushButtonNCPropertiesModal({
   open = false,
   pushButton,
@@ -105,6 +186,23 @@ export default function PushButtonNCPropertiesModal({
   const [deviceSearch, setDeviceSearch] = React.useState("");
   const initialTitle = String(p.title ?? pushButton?.title ?? "").trim();
   const [title, setTitle] = React.useState(initialTitle);
+
+  const [openingLoading, setOpeningLoading] = React.useState(false);
+
+  React.useEffect(() => {
+    if (!open || isLaunched) {
+      setOpeningLoading(false);
+      return;
+    }
+
+    setOpeningLoading(true);
+
+    const timer = setTimeout(() => {
+      setOpeningLoading(false);
+    }, 5000);
+
+    return () => clearTimeout(timer);
+  }, [open, isLaunched, pushButton?.id]);
 
   const [interlockEnabled, setInterlockEnabled] = React.useState(
     initialInterlockEnabled
@@ -460,7 +558,8 @@ export default function PushButtonNCPropertiesModal({
     !!String(dashboardId || "").trim() &&
     !!String(widgetId || "").trim() &&
     !usedByOther &&
-    !saving;
+    !saving &&
+    !openingLoading;
 
   const apply = async () => {
     if (!pushButton) return;
@@ -612,12 +711,12 @@ export default function PushButtonNCPropertiesModal({
       onMouseDown={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        onClose?.();
+        if (!openingLoading) onClose?.();
       }}
       onPointerDown={(e) => {
         e.preventDefault();
         e.stopPropagation();
-        onClose?.();
+        if (!openingLoading) onClose?.();
       }}
     >
       <div
@@ -640,6 +739,8 @@ export default function PushButtonNCPropertiesModal({
         onMouseDown={(e) => e.stopPropagation()}
         onPointerDown={(e) => e.stopPropagation()}
       >
+        <OpeningDataLoader show={openingLoading} />
+
         <div
           onPointerDown={startDrag}
           style={{
@@ -661,6 +762,7 @@ export default function PushButtonNCPropertiesModal({
 
           <button
             data-no-drag="true"
+            disabled={openingLoading}
             onPointerDown={(e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -672,16 +774,17 @@ export default function PushButtonNCPropertiesModal({
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              onClose?.();
+              if (!openingLoading) onClose?.();
             }}
             style={{
               border: "none",
               background: "transparent",
               color: "white",
               fontSize: 22,
-              cursor: "pointer",
+              cursor: openingLoading ? "not-allowed" : "pointer",
               lineHeight: 1,
               padding: 2,
+              opacity: openingLoading ? 0.45 : 1,
             }}
             title="Close"
             type="button"
@@ -1127,16 +1230,18 @@ export default function PushButtonNCPropertiesModal({
             onClick={(e) => {
               e.preventDefault();
               e.stopPropagation();
-              onClose?.();
+              if (!openingLoading) onClose?.();
             }}
+            disabled={openingLoading}
             style={{
               padding: "9px 14px",
               borderRadius: 10,
               border: "1px solid #cbd5e1",
               background: "white",
-              cursor: "pointer",
+              cursor: openingLoading ? "not-allowed" : "pointer",
               fontWeight: 400,
               fontSize: 14,
+              opacity: openingLoading ? 0.55 : 1,
             }}
             type="button"
           >
