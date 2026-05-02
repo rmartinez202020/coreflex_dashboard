@@ -821,86 +821,11 @@ export default function ToggleSwitchPropertiesModal({
                   background: "white",
                   opacity: interlockEnabled ? 1 : 0.6,
                   cursor: interlockEnabled ? "pointer" : "not-allowed",
-                  marginBottom: 12,
                 }}
               >
                 <option value="NO">NO - Normally Open</option>
                 <option value="NC">NC - Normally Closed</option>
               </select>
-
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 12,
-                  border: "1px solid #e5e7eb",
-                  background: "#f8fafc",
-                  borderRadius: 12,
-                  padding: "12px 14px",
-                }}
-              >
-                <div>
-                  <div
-                    style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}
-                  >
-                    Device Status
-                  </div>
-                  <div
-                    style={{
-                      marginTop: 6,
-                      fontSize: 13,
-                      fontWeight: 1000,
-                      color: interlockEnabled ? "#16a34a" : "#64748b",
-                    }}
-                  >
-                    {interlockEnabled ? "Enabled" : "Disabled"}
-                  </div>
-                </div>
-
-                <div>
-                  <div
-                    style={{ fontSize: 12, fontWeight: 900, color: "#0f172a" }}
-                  >
-                    Selected Tag
-                  </div>
-                  <div
-                    style={{
-                      marginTop: 6,
-                      fontSize: 13,
-                      fontWeight: 1000,
-                      color: "#0f172a",
-                    }}
-                  >
-                    • {String(interlockField || "di1").toUpperCase()}
-                  </div>
-                  <div
-                    style={{
-                      marginTop: 6,
-                      fontSize: 12,
-                      fontWeight: 900,
-                      color: "#64748b",
-                    }}
-                  >
-                    {interlockEnabled
-                      ? `${interlockType} interlock active`
-                      : "Interlock disabled"}
-                  </div>
-                </div>
-
-                <div
-                  style={{
-                    gridColumn: "1 / -1",
-                    fontSize: 12,
-                    color: "#64748b",
-                  }}
-                >
-                  Bound Tag:{" "}
-                  <b>
-                    {interlockDeviceId || "—"} /{" "}
-                    {String(interlockField || "di1").toUpperCase()}
-                  </b>
-                </div>
-              </div>
             </SectionCard>
 
             <SectionCard>
