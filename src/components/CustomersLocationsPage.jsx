@@ -400,9 +400,9 @@ export default function CustomersLocationsPage({
           </p>
         </div>
 
-        <div className="mt-3 grid grid-cols-1 xl:grid-cols-[0.95fr_1.05fr] gap-4">
+        <div className="mt-3 grid grid-cols-1 xl:grid-cols-[0.95fr_1.05fr] gap-4 items-stretch">
           {/* FORM */}
-          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 h-full">
             <div className="flex items-center justify-between gap-2">
               <h3 className="text-lg font-semibold text-gray-800">
                 {editingItemId
@@ -541,7 +541,7 @@ export default function CustomersLocationsPage({
           </div>
 
           {/* LIST */}
-          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 flex flex-col min-h-[420px] max-h-[560px]">
+          <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100 flex flex-col h-full min-h-full">
             <div className="flex items-center justify-between gap-3">
               <h3 className="text-lg font-semibold text-gray-800">
                 Your Customers / Locations
