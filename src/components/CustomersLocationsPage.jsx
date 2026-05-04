@@ -21,7 +21,6 @@ L.Icon.Default.mergeOptions({
   shadowUrl: markerShadow,
 });
 
-// Small helper to format coords nicely
 const fmt = (n) => (typeof n === "number" ? n.toFixed(6) : "");
 
 function PinPickerMap({ value, onChange }) {
@@ -88,7 +87,8 @@ function PinPickerModal({ open, onClose, value, onConfirm }) {
               Pin on map
             </h4>
             <p className="text-xs text-gray-500 mt-1">
-              Click on the map to drop a pin. You can also drag the pin to adjust.
+              Click on the map to drop a pin. You can also drag the pin to
+              adjust.
             </p>
           </div>
 
@@ -379,8 +379,8 @@ export default function CustomersLocationsPage({
   const hasPin = form.pin?.lat != null && form.pin?.lng != null;
 
   return (
-    <div className="w-full h-full flex justify-center">
-      <div className="w-full max-w-[1120px]">
+    <div className="w-full h-full">
+      <div className="w-full">
         {/* HEADER */}
         <div
           className={`w-full p-3 rounded-lg text-white ${
@@ -400,7 +400,7 @@ export default function CustomersLocationsPage({
           </p>
         </div>
 
-        <div className="mt-3 grid grid-cols-1 lg:grid-cols-[0.9fr_1.1fr] gap-4">
+        <div className="mt-3 grid grid-cols-1 xl:grid-cols-[0.95fr_1.05fr] gap-4">
           {/* FORM */}
           <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-100">
             <div className="flex items-center justify-between gap-2">
@@ -659,7 +659,6 @@ export default function CustomersLocationsPage({
           </div>
         ) : null}
 
-        {/* PIN PICKER MODAL */}
         <PinPickerModal
           open={showPinPicker}
           onClose={() => setShowPinPicker(false)}
@@ -670,7 +669,6 @@ export default function CustomersLocationsPage({
           }}
         />
 
-        {/* MAP MODAL (VIEW) */}
         <LocationsMapModal
           open={showMap}
           onClose={() => setShowMap(false)}
