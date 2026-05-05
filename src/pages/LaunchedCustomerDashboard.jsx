@@ -1,5 +1,5 @@
 // src/pages/LaunchedCustomerDashboard.jsx
-import React, { useEffect, useMemo, useState } from "react";
+import React, { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation, useParams } from "react-router-dom";
 import DashboardCanvas from "../components/DashboardCanvas";
 import PortalTopBar from "./PortalTopBar.jsx";
@@ -26,6 +26,8 @@ function buildDirectAlarmLogPageUrl({
 export default function LaunchedCustomerDashboard() {
   const params = useParams();
   const location = useLocation();
+
+  const tenantSessionRef = useRef("");
 
   const pathParts = useMemo(() => {
     return String(location.pathname || "")
@@ -82,6 +84,7 @@ export default function LaunchedCustomerDashboard() {
   const [isTenantAuthenticated, setIsTenantAuthenticated] = useState(false);
   const [tenantName, setTenantName] = useState("Portal User");
   const [tenantAccessLevel, setTenantAccessLevel] = useState("read_only");
+  const [tenantSessionId, setTenantSessionId] = useState("");
 
   const [tenantEmail, setTenantEmail] = useState("");
   const [tenantPassword, setTenantPassword] = useState("");
@@ -93,6 +96,49 @@ export default function LaunchedCustomerDashboard() {
   const [confirmNewPassword, setConfirmNewPassword] = useState("");
   const [passwordChangeLoading, setPasswordChangeLoading] = useState(false);
   const [passwordChangeError, setPasswordChangeError] = useState("");
+
+  useEffect(() => {
+    tenantSessionRef.current = String(tenantSessionId || "").trim();
+  }, [tenantSessionId]);
+
+  const buildTenantSessionPayload = (sessionIdOverride = "") => {
+    const sid = String(sessionIdOverride || tenantSessionRef.current || "").trim();
+
+    return {
+      dashboard_slug: String(publicDashSlug || "").trim(),
+      public_launch_id: String(publicDashLaunchId || "").trim(),
+      email: String(tenantEmail || "").trim().toLowerCase(),
+      session_id: sid,
+    };
+  };
+
+  const releaseTenantSession = async (sessionIdOverride = "") => {
+    if (!isPublicLaunch) return;
+
+    const payload = buildTenantSessionPayload(sessionIdOverride);
+
+    if (
+      !payload.dashboard_slug ||
+      !payload.public_launch_id ||
+      !payload.email ||
+      !payload.session_id
+    ) {
+      return;
+    }
+
+    try {
+      await fetch(`${API_URL}/customers-dashboards/tenant-access/session/logout`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        keepalive: true,
+        body: JSON.stringify(payload),
+      });
+    } catch (err) {
+      console.warn("⚠️ Tenant session release failed:", err);
+    }
+  };
 
   const injectDashboardIdIntoObjects = (objects, dash, allowInject = true) => {
     if (!Array.isArray(objects)) return [];
@@ -127,6 +173,8 @@ export default function LaunchedCustomerDashboard() {
     setIsTenantAuthenticated(false);
     setTenantName("Portal User");
     setTenantAccessLevel("read_only");
+    setTenantSessionId("");
+    tenantSessionRef.current = "";
     setTenantAuthError("");
     setRequiresPasswordChange(false);
     setNewPassword("");
@@ -134,6 +182,16 @@ export default function LaunchedCustomerDashboard() {
     setPasswordChangeError("");
     setTenantPassword("");
     setSensorsData([]);
+  };
+
+  const handleTenantLogout = async () => {
+    const currentSessionId = String(tenantSessionRef.current || "").trim();
+
+    if (isPublicLaunch && currentSessionId) {
+      await releaseTenantSession(currentSessionId);
+    }
+
+    resetTenantAuthState();
   };
 
   useEffect(() => {
@@ -252,82 +310,182 @@ export default function LaunchedCustomerDashboard() {
   }, [privateDashId, publicDashSlug, publicDashLaunchId, isPublicLaunch]);
 
   useEffect(() => {
-  const dashboardId = String(resolvedDashboardId || "").trim();
-  const tenantEmailSafe = String(tenantEmail || "").trim().toLowerCase();
+    if (!isPublicLaunch || !isTenantAuthenticated || !tenantSessionId) return;
 
-  if (!dashboardId) {
-    setHasAlarmLog(false);
-    return;
-  }
+    let alive = true;
+    let timer = null;
 
-  if (isPublicLaunch && (!isTenantAuthenticated || !tenantEmailSafe)) {
-    setHasAlarmLog(false);
-    return;
-  }
+    const sendHeartbeat = async () => {
+      const payload = buildTenantSessionPayload();
 
-  let alive = true;
-  const controller = new AbortController();
-
-  const checkAlarmLogAvailability = async () => {
-    try {
-      let url = "";
-      let headers = {};
-
-      if (isPublicLaunch) {
-        const qs = new URLSearchParams({
-          dashboard_slug: publicDashSlug,
-          public_launch_id: publicDashLaunchId,
-          tenant_email: tenantEmailSafe,
-          window_key: "alarmLog",
-        });
-
-        url = `${API_URL}/alarm-log-windows/public/by-dashboard?${qs.toString()}`;
-      } else {
-        const qs = new URLSearchParams({
-          dashboard_id: dashboardId,
-          window_key: "alarmLog",
-        });
-
-        const token = String(getToken() || "").trim();
-        headers = token ? { Authorization: `Bearer ${token}` } : {};
-        url = `${API_URL}/alarm-log-windows/by-dashboard?${qs.toString()}`;
-      }
-
-      const res = await fetch(url, {
-        headers,
-        signal: controller.signal,
-      });
-
-      if (!res.ok) {
-        if (alive) setHasAlarmLog(false);
+      if (
+        !payload.dashboard_slug ||
+        !payload.public_launch_id ||
+        !payload.email ||
+        !payload.session_id
+      ) {
         return;
       }
 
-      const data = await res.json().catch(() => ({}));
-      if (!alive) return;
+      try {
+        const res = await fetch(
+          `${API_URL}/customers-dashboards/tenant-access/session/heartbeat`,
+          {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(payload),
+          }
+        );
 
-      setHasAlarmLog(Boolean(data?.found));
-    } catch (err) {
-      if (err?.name === "AbortError") return;
-      console.error("❌ Alarm log availability check failed:", err);
-      if (alive) setHasAlarmLog(false);
+        if (!res.ok && alive) {
+          console.warn("⚠️ Tenant session heartbeat rejected.");
+          resetTenantAuthState();
+          setTenantAuthError(
+            "Your session expired or was closed. Please sign in again."
+          );
+        }
+      } catch (err) {
+        console.warn("⚠️ Tenant session heartbeat failed:", err);
+      }
+    };
+
+    sendHeartbeat();
+    timer = setInterval(sendHeartbeat, 30000);
+
+    return () => {
+      alive = false;
+      if (timer) clearInterval(timer);
+    };
+  }, [
+    isPublicLaunch,
+    isTenantAuthenticated,
+    tenantSessionId,
+    tenantEmail,
+    publicDashSlug,
+    publicDashLaunchId,
+  ]);
+
+  useEffect(() => {
+    if (!isPublicLaunch) return;
+
+    const handleBeforeUnload = () => {
+      const sid = String(tenantSessionRef.current || "").trim();
+
+      if (!sid) return;
+
+      const payload = buildTenantSessionPayload(sid);
+
+      if (
+        !payload.dashboard_slug ||
+        !payload.public_launch_id ||
+        !payload.email ||
+        !payload.session_id
+      ) {
+        return;
+      }
+
+      try {
+        const blob = new Blob([JSON.stringify(payload)], {
+          type: "application/json",
+        });
+
+        navigator.sendBeacon(
+          `${API_URL}/customers-dashboards/tenant-access/session/logout`,
+          blob
+        );
+      } catch (err) {
+        console.warn("⚠️ sendBeacon logout failed:", err);
+      }
+    };
+
+    window.addEventListener("beforeunload", handleBeforeUnload);
+    window.addEventListener("pagehide", handleBeforeUnload);
+
+    return () => {
+      window.removeEventListener("beforeunload", handleBeforeUnload);
+      window.removeEventListener("pagehide", handleBeforeUnload);
+    };
+  }, [isPublicLaunch, tenantEmail, publicDashSlug, publicDashLaunchId]);
+
+  useEffect(() => {
+    const dashboardId = String(resolvedDashboardId || "").trim();
+    const tenantEmailSafe = String(tenantEmail || "").trim().toLowerCase();
+
+    if (!dashboardId) {
+      setHasAlarmLog(false);
+      return;
     }
-  };
 
-  checkAlarmLogAvailability();
+    if (isPublicLaunch && (!isTenantAuthenticated || !tenantEmailSafe)) {
+      setHasAlarmLog(false);
+      return;
+    }
 
-  return () => {
-    alive = false;
-    controller.abort();
-  };
-}, [
-  resolvedDashboardId,
-  isPublicLaunch,
-  isTenantAuthenticated,
-  tenantEmail,
-  publicDashSlug,
-  publicDashLaunchId,
-]);
+    let alive = true;
+    const controller = new AbortController();
+
+    const checkAlarmLogAvailability = async () => {
+      try {
+        let url = "";
+        let headers = {};
+
+        if (isPublicLaunch) {
+          const qs = new URLSearchParams({
+            dashboard_slug: publicDashSlug,
+            public_launch_id: publicDashLaunchId,
+            tenant_email: tenantEmailSafe,
+            window_key: "alarmLog",
+          });
+
+          url = `${API_URL}/alarm-log-windows/public/by-dashboard?${qs.toString()}`;
+        } else {
+          const qs = new URLSearchParams({
+            dashboard_id: dashboardId,
+            window_key: "alarmLog",
+          });
+
+          const token = String(getToken() || "").trim();
+          headers = token ? { Authorization: `Bearer ${token}` } : {};
+          url = `${API_URL}/alarm-log-windows/by-dashboard?${qs.toString()}`;
+        }
+
+        const res = await fetch(url, {
+          headers,
+          signal: controller.signal,
+        });
+
+        if (!res.ok) {
+          if (alive) setHasAlarmLog(false);
+          return;
+        }
+
+        const data = await res.json().catch(() => ({}));
+        if (!alive) return;
+
+        setHasAlarmLog(Boolean(data?.found));
+      } catch (err) {
+        if (err?.name === "AbortError") return;
+        console.error("❌ Alarm log availability check failed:", err);
+        if (alive) setHasAlarmLog(false);
+      }
+    };
+
+    checkAlarmLogAvailability();
+
+    return () => {
+      alive = false;
+      controller.abort();
+    };
+  }, [
+    resolvedDashboardId,
+    isPublicLaunch,
+    isTenantAuthenticated,
+    tenantEmail,
+    publicDashSlug,
+    publicDashLaunchId,
+  ]);
 
   useEffect(() => {
     if (isPublicLaunch && !isTenantAuthenticated) {
@@ -430,31 +588,30 @@ export default function LaunchedCustomerDashboard() {
   ]);
 
   const handleOpenAlarmLog = () => {
-  const dashboardIdSafe =
-    String(resolvedDashboardId || privateDashId || "main").trim() || "main";
+    const dashboardIdSafe =
+      String(resolvedDashboardId || privateDashId || "main").trim() || "main";
 
-  const dashboardNameSafe =
-    String(dashboardTitle || "Dashboard").trim() || "Dashboard";
+    const dashboardNameSafe =
+      String(dashboardTitle || "Dashboard").trim() || "Dashboard";
 
-  const url = new URL("/launchAlarmLog", window.location.origin);
+    const url = new URL("/launchAlarmLog", window.location.origin);
 
-  url.searchParams.set("dashboardId", dashboardIdSafe);
-  url.searchParams.set("dashboardName", dashboardNameSafe);
-  url.searchParams.set("windowKey", "alarmLog");
+    url.searchParams.set("dashboardId", dashboardIdSafe);
+    url.searchParams.set("dashboardName", dashboardNameSafe);
+    url.searchParams.set("windowKey", "alarmLog");
 
-  if (isPublicLaunch) {
-    url.searchParams.set("isPublic", "1");
-    url.searchParams.set("dashboardSlug", String(publicDashSlug || "").trim());
-    url.searchParams.set(
-      "publicLaunchId",
-      String(publicDashLaunchId || "").trim()
-    );
-    url.searchParams.set("tenantEmail", String(tenantEmail || "").trim());
-  }
+    if (isPublicLaunch) {
+      url.searchParams.set("isPublic", "1");
+      url.searchParams.set("dashboardSlug", String(publicDashSlug || "").trim());
+      url.searchParams.set(
+        "publicLaunchId",
+        String(publicDashLaunchId || "").trim()
+      );
+      url.searchParams.set("tenantEmail", String(tenantEmail || "").trim());
+    }
 
-  window.open(url.toString(), "_blank", "noopener,noreferrer");
-  
-};
+    window.open(url.toString(), "_blank", "noopener,noreferrer");
+  };
 
   const handleTenantLogin = async () => {
     const email = String(tenantEmail || "").trim().toLowerCase();
@@ -489,6 +646,12 @@ export default function LaunchedCustomerDashboard() {
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
+        if (res.status === 409) {
+          throw new Error(
+            "This tenant user is already logged in to this dashboard. Please logout from the other session first."
+          );
+        }
+
         throw new Error(
           String(
             data?.detail ||
@@ -499,6 +662,7 @@ export default function LaunchedCustomerDashboard() {
       }
 
       const mustChange = Boolean(data?.must_change_password);
+      const sessionId = String(data?.session_id || "").trim();
 
       setTenantName(
         String(data?.tenant_name || data?.full_name || email || "Portal User")
@@ -510,14 +674,25 @@ export default function LaunchedCustomerDashboard() {
       if (mustChange) {
         setRequiresPasswordChange(true);
         setIsTenantAuthenticated(false);
+        setTenantSessionId("");
+        tenantSessionRef.current = "";
         return;
       }
 
+      if (!sessionId) {
+        throw new Error("Login succeeded, but no dashboard session was returned.");
+      }
+
+      setTenantSessionId(sessionId);
+      tenantSessionRef.current = sessionId;
       setRequiresPasswordChange(false);
       setIsTenantAuthenticated(true);
     } catch (err) {
       console.error("❌ Tenant login failed:", err);
       setTenantAuthError(String(err?.message || err));
+      setTenantSessionId("");
+      tenantSessionRef.current = "";
+      setIsTenantAuthenticated(false);
     } finally {
       setTenantAuthLoading(false);
     }
@@ -569,6 +744,12 @@ export default function LaunchedCustomerDashboard() {
       const data = await res.json().catch(() => ({}));
 
       if (!res.ok) {
+        if (res.status === 409) {
+          throw new Error(
+            "This tenant user is already logged in to this dashboard. Please logout from the other session first."
+          );
+        }
+
         throw new Error(
           String(
             data?.detail || data?.error || "Failed to set the new password."
@@ -576,10 +757,21 @@ export default function LaunchedCustomerDashboard() {
         );
       }
 
+      const sessionId = String(data?.session_id || "").trim();
+
+      if (!sessionId) {
+        throw new Error(
+          "Password was changed, but no dashboard session was returned."
+        );
+      }
+
       setTenantPassword(nextPassword);
       setNewPassword("");
       setConfirmNewPassword("");
       setRequiresPasswordChange(false);
+      setTenantSessionId(sessionId);
+      tenantSessionRef.current = sessionId;
+
       setTenantName(
         String(data?.tenant_name || data?.full_name || email || "Portal User")
       );
@@ -590,6 +782,9 @@ export default function LaunchedCustomerDashboard() {
     } catch (err) {
       console.error("❌ Tenant password change failed:", err);
       setPasswordChangeError(String(err?.message || err));
+      setTenantSessionId("");
+      tenantSessionRef.current = "";
+      setIsTenantAuthenticated(false);
     } finally {
       setPasswordChangeLoading(false);
     }
@@ -656,7 +851,7 @@ export default function LaunchedCustomerDashboard() {
         onLogin={() => {}}
         onLogout={() => {
           if (isPublicLaunch) {
-            resetTenantAuthState();
+            handleTenantLogout();
             return;
           }
           window.close();
