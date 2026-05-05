@@ -28,6 +28,24 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+function TenantUsersLoadingOverlay({ open }) {
+  if (!open) return null;
+
+  return (
+    <div className="absolute inset-0 z-[9999] flex items-center justify-center bg-white/75 backdrop-blur-[1px]">
+      <div className="w-[170px] h-[150px] rounded-2xl border border-gray-200 bg-white shadow-2xl flex flex-col items-center justify-center">
+        <div className="relative w-11 h-11 mb-4">
+          <div className="absolute inset-0 rounded-xl border-4 border-gray-200" />
+          <div className="absolute inset-0 rounded-xl border-4 border-blue-600 border-t-transparent animate-spin" />
+        </div>
+
+        <div className="text-sm font-bold text-gray-800">Loading Data</div>
+        <div className="mt-1 text-xs text-gray-500">Please wait...</div>
+      </div>
+    </div>
+  );
+}
+
 function normalizeUserFromBackend(row) {
   const dashboards = Array.isArray(row?.dashboards) ? row.dashboards : [];
 
@@ -37,9 +55,7 @@ function normalizeUserFromBackend(row) {
     email: norm(row?.email).toLowerCase(),
     access: normalizeAccess(row?.access_level || row?.access),
     customerName: norm(row?.customer_name || row?.customerName),
-    dashboards: dashboards
-      .map((d) => String(d?.id ?? "").trim())
-      .filter(Boolean),
+    dashboards: dashboards.map((d) => String(d?.id ?? "").trim()).filter(Boolean),
     dashboardObjects: dashboards
       .map((d) => ({
         id: String(d?.id ?? "").trim(),
@@ -64,6 +80,8 @@ export default function TenantUsersPage({
   onGoBack,
   currentAdminEmail = "roquemartinezpolanco@gmail.com",
 }) {
+  const [showInitialLoading, setShowInitialLoading] = useState(true);
+
   const [users, setUsers] = useState([]);
   const [loadingUsers, setLoadingUsers] = useState(false);
   const [usersError, setUsersError] = useState("");
@@ -75,24 +93,19 @@ export default function TenantUsersPage({
   const [showModal, setShowModal] = useState(false);
   const [editingUserId, setEditingUserId] = useState(null);
 
-  // ✅ search/filter states
   const [searchCustomer, setSearchCustomer] = useState("");
   const [searchEmail, setSearchEmail] = useState("");
 
-  // ✅ Customers from backend (/customer-locations)
   const [customers, setCustomers] = useState([]);
   const [loadingCustomers, setLoadingCustomers] = useState(false);
   const [customersError, setCustomersError] = useState("");
 
-  // ✅ Dashboards from backend (/customers-dashboards?customer_name=...)
   const [customerDashboards, setCustomerDashboards] = useState([]);
   const [loadingDashboards, setLoadingDashboards] = useState(false);
   const [dashboardsError, setDashboardsError] = useState("");
 
-  // ✅ page-level message
   const [pageMsg, setPageMsg] = useState("");
 
-  // ✅ modal validation / save/delete state
   const [formError, setFormError] = useState("");
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
@@ -108,6 +121,14 @@ export default function TenantUsersPage({
   const normalizedAdminEmail = String(currentAdminEmail || "")
     .trim()
     .toLowerCase();
+
+  useEffect(() => {
+    const timer = window.setTimeout(() => {
+      setShowInitialLoading(false);
+    }, 5000);
+
+    return () => window.clearTimeout(timer);
+  }, []);
 
   const fetchTenantUsersFromBackend = useCallback(async () => {
     try {
@@ -321,7 +342,6 @@ export default function TenantUsersPage({
     });
   }, [users, searchCustomer, searchEmail]);
 
-  // ✅ subscription counters for top section
   const totalTenantUserSlots =
     Number(subscription?.tenantUsersLimit ?? 0) > 0
       ? Number(subscription.tenantUsersLimit)
@@ -578,7 +598,9 @@ export default function TenantUsersPage({
   };
 
   return (
-    <div className="w-full h-full border rounded-lg bg-white p-6">
+    <div className="relative w-full h-full border rounded-lg bg-white p-6">
+      <TenantUsersLoadingOverlay open={showInitialLoading} />
+
       {/* HEADER */}
       <div className="mb-6 rounded-lg bg-[#374151] text-white px-5 py-4 flex items-center gap-4">
         <button
@@ -705,18 +727,16 @@ export default function TenantUsersPage({
           Tenant Users ({filteredUsers.length})
         </h3>
 
-        <div className="flex items-center gap-2">
-          <button
-            onClick={openCreateModal}
-            disabled={
-              loadingSubscription ||
-              (totalTenantUserSlots > 0 && usedTenantUsers >= totalTenantUserSlots)
-            }
-            className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
-          >
-            + Add User
-          </button>
-        </div>
+        <button
+          onClick={openCreateModal}
+          disabled={
+            loadingSubscription ||
+            (totalTenantUserSlots > 0 && usedTenantUsers >= totalTenantUserSlots)
+          }
+          className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
+        >
+          + Add User
+        </button>
       </div>
 
       {/* TABLE */}
@@ -779,7 +799,6 @@ export default function TenantUsersPage({
               {editingUserId ? "Edit User" : "Create User"}
             </h3>
 
-            {/* NAME */}
             <input
               placeholder="Name"
               className="w-full border rounded-md px-3 py-2 mb-2"
@@ -791,7 +810,6 @@ export default function TenantUsersPage({
               disabled={isSubmitting || isDeleting}
             />
 
-            {/* EMAIL */}
             <input
               placeholder="Email"
               className={`w-full border rounded-md px-3 py-2 mb-1 ${
@@ -822,7 +840,6 @@ export default function TenantUsersPage({
               </div>
             ) : null}
 
-            {/* ACCESS */}
             <select
               className="w-full border rounded-md px-3 py-2 mb-2"
               value={form.access}
@@ -839,7 +856,6 @@ export default function TenantUsersPage({
               ))}
             </select>
 
-            {/* CUSTOMER */}
             <select
               className="w-full border rounded-md px-3 py-2 mb-3"
               value={form.customerName}
@@ -870,7 +886,6 @@ export default function TenantUsersPage({
               </div>
             ) : null}
 
-            {/* DASHBOARDS */}
             <div className="mb-3">
               <div className="text-sm font-semibold mb-1">
                 Assign Dashboards
@@ -901,10 +916,7 @@ export default function TenantUsersPage({
                   </div>
                 ) : (
                   availableDashboards.map((d) => (
-                    <label
-                      key={d.id}
-                      className="flex items-center gap-2 text-sm"
-                    >
+                    <label key={d.id} className="flex items-center gap-2 text-sm">
                       <input
                         type="checkbox"
                         checked={form.dashboards.includes(String(d.id))}
@@ -924,7 +936,6 @@ export default function TenantUsersPage({
               </div>
             ) : null}
 
-            {/* ACTIONS */}
             <div className="flex justify-between items-center gap-2">
               <div>
                 {editingUserId ? (
