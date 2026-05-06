@@ -136,72 +136,21 @@ async function defaultWriteToBackend({
   }
 }
 
-async function fetchBackendBinding({
-  dashboardId,
-  widgetId,
-  tenantEmail = "",
-  tenantAccessLevel = "",
-}) {
-  const dash = String(dashboardId || "").trim();
-  const wid = String(widgetId || "").trim();
-  const tenantEmailSafe = String(tenantEmail || "").trim().toLowerCase();
-  const tenantAccessSafe = String(tenantAccessLevel || "").trim();
+/*
+  Backend binding lookup removed intentionally.
 
-  if (!dash || !wid) return null;
+  Reason:
+  The backend currently does NOT expose these GET routes:
+  - /control-bindings/binding
+  - /control-bindings/resolve
+  - /control-bindings/{dashboardId}/{widgetId}
+  - GET /control-bindings
 
-  const headers = {
-    ...getAuthHeaders(),
-    ...(tenantEmailSafe ? { "X-Tenant-Email": tenantEmailSafe } : {}),
-    ...(tenantAccessSafe ? { "X-Tenant-Access": tenantAccessSafe } : {}),
-    "Cache-Control": "no-cache",
-    Pragma: "no-cache",
-  };
-
-  const qs = new URLSearchParams({
-    dashboardId: dash,
-    widgetId: wid,
-    _ts: String(Date.now()),
-  });
-
-  const candidates = [
-    `${API_URL}/control-bindings/binding?${qs.toString()}`,
-    `${API_URL}/control-bindings/resolve?${qs.toString()}`,
-    `${API_URL}/control-bindings/${encodeURIComponent(
-      dash
-    )}/${encodeURIComponent(wid)}?_ts=${Date.now()}`,
-    `${API_URL}/control-bindings?${qs.toString()}`,
-  ];
-
-  for (const url of candidates) {
-    try {
-      const res = await fetch(url, {
-        method: "GET",
-        headers,
-      });
-
-      if (!res.ok) continue;
-
-      const data = await res.json().catch(() => null);
-      if (!data) continue;
-
-      if (Array.isArray(data)) {
-        const found =
-          data.find(
-            (r) =>
-              String(r?.dashboardId ?? r?.dashboard_id ?? "").trim() === dash &&
-              String(r?.widgetId ?? r?.widget_id ?? "").trim() === wid
-          ) || null;
-
-        if (found) return found;
-      } else {
-        const item = data?.binding || data?.row || data?.item || data;
-        if (item && typeof item === "object") return item;
-      }
-    } catch {
-      // try next candidate
-    }
-  }
-
+  This component now uses the widget's local saved properties only.
+  Actual actuation still goes through:
+  - POST /control-bindings/write
+*/
+async function fetchBackendBinding() {
   return null;
 }
 
@@ -524,7 +473,6 @@ export default function PushButtonControl({
   const resolvedWidgetId = resolveWidgetId(widget);
   const resolvedDashboardId = resolveDashboardId({ dashboardId, widget });
 
-  const p = widget?.properties || {};
   const localConfig = buildRuntimeConfig({ row: null, widget });
 
   const hasLocalBinding = localConfig.hasBinding;
@@ -647,13 +595,7 @@ export default function PushButtonControl({
   }
 
   async function prepareRuntimeForPress() {
-    const row = await fetchBackendBinding({
-      dashboardId: resolvedDashboardId,
-      widgetId: resolvedWidgetId,
-      tenantEmail,
-      tenantAccessLevel,
-    });
-
+    const row = await fetchBackendBinding();
     const config = buildRuntimeConfig({ row, widget });
 
     if (!config.hasBinding) {
