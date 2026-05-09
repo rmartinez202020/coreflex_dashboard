@@ -47,6 +47,7 @@ export default function SidebarLeft({
   ========================= */
   const [showIndicators, setShowIndicators] = useState(false);
   const [showDeviceControls, setShowDeviceControls] = useState(false);
+  const [showWirelessLevelSensor, setShowWirelessLevelSensor] = useState(false);
 
   // ✅ helper: open ONLY one section at a time
   const openOnly = (section) => {
@@ -56,6 +57,7 @@ export default function SidebarLeft({
         if (next) {
           setShowLevelSensors(false);
           setShowDeviceControls(false);
+          setShowWirelessLevelSensor(false);
         }
         return next;
       });
@@ -68,6 +70,7 @@ export default function SidebarLeft({
         if (next) {
           setShowIndicators(false);
           setShowDeviceControls(false);
+          setShowWirelessLevelSensor(false);
         }
         return next;
       });
@@ -80,10 +83,23 @@ export default function SidebarLeft({
         if (next) {
           setShowIndicators(false);
           setShowLevelSensors(false);
+          setShowWirelessLevelSensor(false);
         }
         return next;
       });
       return;
+    }
+
+    if (section === "wirelesslevelsensor") {
+      setShowWirelessLevelSensor((prev) => {
+        const next = !prev;
+        if (next) {
+          setShowIndicators(false);
+          setShowLevelSensors(false);
+          setShowDeviceControls(false);
+        }
+        return next;
+      });
     }
   };
 
@@ -223,6 +239,7 @@ export default function SidebarLeft({
                   setShowIndicators(false);
                   setShowLevelSensors(false);
                   setShowDeviceControls(false);
+                  setShowWirelessLevelSensor(false);
                 }
                 return next;
               })
@@ -326,25 +343,40 @@ export default function SidebarLeft({
                 </div>
               )}
 
-              {/* ✅ WIRELESS LEVEL SENSOR */}
+              {/* WIRELESS LEVEL SENSOR SECTION */}
               <div
-                draggable
-                onDragStart={handleWirelessLevelSensorDragStart}
-                className="mt-3 mb-2 cursor-grab active:cursor-grabbing select-none rounded-md border border-cyan-500/30 bg-[#111827] hover:bg-[#1e293b] px-2 py-2 text-[12.5px] text-cyan-300 shadow-sm"
-                title="Drag Wireless Level Sensor to dashboard"
+                className="cursor-pointer mb-2 flex items-start gap-2 text-[13px]"
+                onClick={() => openOnly("wirelesslevelsensor")}
               >
-                <div className="flex items-center gap-2">
-                  <span className="text-[15px]">📡</span>
-                  <div className="leading-tight">
-                    <div className="font-semibold text-cyan-300">
-                      Wireless Level Sensor
-                    </div>
-                    <div className="text-[11px] text-cyan-200/80">
-                      (Unlimited)
+                <div className="leading-tight">
+                  <div>Wireless Level Sensor</div>
+                  <div className="text-[11px] text-gray-400">(Unlimited)</div>
+                </div>
+                <span>{showWirelessLevelSensor ? "▾" : "▸"}</span>
+              </div>
+
+              {showWirelessLevelSensor && (
+                <div className="ml-0">
+                  <div
+                    draggable
+                    onDragStart={handleWirelessLevelSensorDragStart}
+                    className="mb-2 cursor-grab active:cursor-grabbing select-none rounded-md border border-cyan-500/30 bg-[#111827] hover:bg-[#1e293b] px-2 py-2 text-[12.5px] text-cyan-300 shadow-sm"
+                    title="Drag Wireless Level Sensor to dashboard"
+                  >
+                    <div className="flex items-center gap-2">
+                      <span className="text-[15px]">📡</span>
+                      <div className="leading-tight">
+                        <div className="font-semibold text-cyan-300">
+                          Wireless Level Sensor
+                        </div>
+                        <div className="text-[11px] text-cyan-200/80">
+                          (Unlimited)
+                        </div>
+                      </div>
                     </div>
                   </div>
                 </div>
-              </div>
+              )}
             </div>
           )}
         </div>
