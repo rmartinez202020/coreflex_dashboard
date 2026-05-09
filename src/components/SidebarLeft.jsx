@@ -15,7 +15,6 @@ import {
   DraggableStatusTextBox,
   DraggableBlinkingAlarm,
   DraggableStateImage,
-  // ✅ NEW
   DraggableCounterInput,
 } from "./indicators";
 
@@ -127,24 +126,26 @@ export default function SidebarLeft({
     onRequestRestore();
   };
 
-  // ✅ target size to feel like “90% zoom” while staying at 100%
-  const EXPANDED_W = 190; // was 225
+  const handleWirelessLevelSensorDragStart = (e) => {
+    const shapeName = "wirelessLevelSensor";
+
+    e.dataTransfer.setData("shape", shapeName);
+    e.dataTransfer.setData("text/plain", shapeName);
+  };
+
+  const EXPANDED_W = 190;
   const COLLAPSED_W = 45;
 
   return (
     <aside
       className={
-        // ✅ overflow-visible so the button never gets clipped
         "relative bg-[#0f172a] text-white h-full border-r border-gray-800 transition-all duration-300 overflow-visible " +
-        // ✅ padding only when expanded
         (isLeftCollapsed ? "" : "px-3 py-3")
       }
-      // ✅ IMPORTANT: use inline width (Tailwind can't compile dynamic w-[${...}])
       style={{ width: isLeftCollapsed ? COLLAPSED_W : EXPANDED_W }}
     >
       {/* Collapse / Expand */}
       <button
-        // ✅ anchor to right edge so it stays visible in both states
         className="absolute top-3 right-2 z-50 text-white bg-[#1e293b] px-2 py-1 rounded hover:bg-[#334155] shadow-md"
         onClick={(e) => {
           e.stopPropagation();
@@ -158,7 +159,6 @@ export default function SidebarLeft({
 
       {!isLeftCollapsed && (
         <div className="mt-10">
-          {/* ✅ slightly smaller title */}
           <h1 className="text-[15px] font-bold mb-2">CoreFlex IOTs V1.18</h1>
 
           {/* SAVE */}
@@ -213,7 +213,7 @@ export default function SidebarLeft({
             Main Dashboard
           </div>
 
-          {/* DEVICES (no badge icon) */}
+          {/* DEVICES */}
           <div
             className="cursor-pointer mb-2 flex items-center gap-2 text-[13px]"
             onClick={() =>
@@ -242,9 +242,7 @@ export default function SidebarLeft({
               </div>
 
               {showIndicators && (
-                // ✅ Make children align flush-left like other sections
                 <div className="ml-0">
-                  {/* ✅ no small icons */}
                   <div className="mb-2 text-[12.5px] flex items-center">
                     <div className="flex-1">
                       <DraggableLedCircle label="Led Circle (DI)" />
@@ -269,7 +267,6 @@ export default function SidebarLeft({
                     </div>
                   </div>
 
-                  {/* ✅ Counter Input aligned + renamed */}
                   <div className="mb-2 text-[12.5px] flex items-center">
                     <div className="flex-1">
                       <DraggableCounterInput label="Counter Input (DI)" />
@@ -328,6 +325,26 @@ export default function SidebarLeft({
                   <DraggableControls />
                 </div>
               )}
+
+              {/* ✅ WIRELESS LEVEL SENSOR */}
+              <div
+                draggable
+                onDragStart={handleWirelessLevelSensorDragStart}
+                className="mt-3 mb-2 cursor-grab active:cursor-grabbing select-none rounded-md border border-cyan-500/30 bg-[#111827] hover:bg-[#1e293b] px-2 py-2 text-[12.5px] text-cyan-300 shadow-sm"
+                title="Drag Wireless Level Sensor to dashboard"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="text-[15px]">📡</span>
+                  <div className="leading-tight">
+                    <div className="font-semibold text-cyan-300">
+                      Wireless Level Sensor
+                    </div>
+                    <div className="text-[11px] text-cyan-200/80">
+                      (Unlimited)
+                    </div>
+                  </div>
+                </div>
+              </div>
             </div>
           )}
         </div>
