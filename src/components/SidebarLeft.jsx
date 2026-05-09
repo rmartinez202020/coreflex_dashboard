@@ -18,6 +18,49 @@ import {
   DraggableCounterInput,
 } from "./indicators";
 
+function WirelessTankIcon({ size = 78 }) {
+  const w = size;
+  const h = Math.round(size * 0.68);
+
+  return (
+    <svg
+      width={w}
+      height={h}
+      viewBox="0 0 160 110"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{ display: "block" }}
+    >
+      <g stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M18 36 L104 20 L148 34 L62 51 Z" />
+        <path d="M18 36 L18 92 L62 108 L62 51 Z" />
+        <path d="M62 51 L148 34 L148 88 L62 108 Z" />
+        <path d="M18 92 L62 76 L148 88" strokeDasharray="5 5" opacity="0.8" />
+        <path d="M62 51 L62 108" strokeDasharray="5 5" opacity="0.8" />
+
+        <path d="M36 28 L36 11 L74 5 L104 14 L104 31 L62 40 Z" />
+        <path d="M36 11 L74 21 L104 14" />
+        <path d="M74 21 L74 39" />
+
+        <ellipse cx="48" cy="22" rx="8" ry="12" />
+        <ellipse cx="48" cy="22" rx="4" ry="8" />
+
+        <rect x="28" y="55" width="12" height="13" rx="2" />
+        <path d="M29 55 L34 50 L40 55" />
+
+        <ellipse cx="32" cy="87" rx="7" ry="11" />
+        <ellipse cx="32" cy="87" rx="3.5" ry="7" />
+
+        <ellipse cx="54" cy="96" rx="7" ry="11" />
+        <ellipse cx="54" cy="96" rx="3.5" ry="7" />
+
+        <path d="M30 97 L30 104 L43 104 L43 101" />
+        <path d="M117 97 L117 104 L132 104 L132 94" />
+      </g>
+    </svg>
+  );
+}
+
 export default function SidebarLeft({
   isLeftCollapsed,
   setIsLeftCollapsed,
@@ -36,20 +79,13 @@ export default function SidebarLeft({
   onGoHome,
   onGoMainDashboard,
 }) {
-  /* =========================
-     SAVE STATE
-  ========================= */
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
 
-  /* =========================
-     DEVICE MENUS (ACCORDION)
-  ========================= */
   const [showIndicators, setShowIndicators] = useState(false);
   const [showDeviceControls, setShowDeviceControls] = useState(false);
   const [showWirelessLevelSensor, setShowWirelessLevelSensor] = useState(false);
 
-  // ✅ helper: open ONLY one section at a time
   const openOnly = (section) => {
     if (section === "indicators") {
       setShowIndicators((prev) => {
@@ -103,17 +139,11 @@ export default function SidebarLeft({
     }
   };
 
-  /* =========================
-     HELPERS
-  ========================= */
   const formatDate = (date) => {
     if (!date) return "Never";
     return date.toLocaleString();
   };
 
-  /* =========================
-     SAVE HANDLER
-  ========================= */
   const handleSaveClick = async (e) => {
     e.stopPropagation();
     if (isSaving) return;
@@ -134,9 +164,6 @@ export default function SidebarLeft({
     }
   };
 
-  /* =========================
-     RESTORE HANDLER
-  ========================= */
   const handleUploadClick = (e) => {
     e.stopPropagation();
     onRequestRestore();
@@ -144,7 +171,6 @@ export default function SidebarLeft({
 
   const handleWirelessLevelSensorDragStart = (e) => {
     const shapeName = "wirelessLevelSensor";
-
     e.dataTransfer.setData("shape", shapeName);
     e.dataTransfer.setData("text/plain", shapeName);
   };
@@ -160,7 +186,6 @@ export default function SidebarLeft({
       }
       style={{ width: isLeftCollapsed ? COLLAPSED_W : EXPANDED_W }}
     >
-      {/* Collapse / Expand */}
       <button
         className="absolute top-3 right-2 z-50 text-white bg-[#1e293b] px-2 py-1 rounded hover:bg-[#334155] shadow-md"
         onClick={(e) => {
@@ -177,7 +202,6 @@ export default function SidebarLeft({
         <div className="mt-10">
           <h1 className="text-[15px] font-bold mb-2">CoreFlex IOTs V1.18</h1>
 
-          {/* SAVE */}
           <button
             onClick={handleSaveClick}
             disabled={isSaving}
@@ -204,7 +228,6 @@ export default function SidebarLeft({
             ⬆ Restore Project
           </button>
 
-          {/* Navigation */}
           <div
             className={`cursor-pointer mb-3 text-[13px] ${
               activePage === "home" ? "font-bold" : ""
@@ -229,7 +252,6 @@ export default function SidebarLeft({
             Main Dashboard
           </div>
 
-          {/* DEVICES */}
           <div
             className="cursor-pointer mb-2 flex items-center gap-2 text-[13px]"
             onClick={() =>
@@ -250,7 +272,6 @@ export default function SidebarLeft({
 
           {showDevices && (
             <div className="ml-0">
-              {/* INDICATORS */}
               <div
                 className="cursor-pointer mb-2 flex items-center gap-2 text-[13px]"
                 onClick={() => openOnly("indicators")}
@@ -292,7 +313,6 @@ export default function SidebarLeft({
                 </div>
               )}
 
-              {/* LEVEL SENSORS */}
               <div
                 className="cursor-pointer mb-2 flex items-center gap-2 text-[13px]"
                 onClick={() => openOnly("levelsensors")}
@@ -329,7 +349,6 @@ export default function SidebarLeft({
                 </div>
               )}
 
-              {/* DEVICE CONTROLS */}
               <div
                 className="cursor-pointer mb-2 flex items-center gap-2 text-[13px]"
                 onClick={() => openOnly("devicecontrols")}
@@ -343,7 +362,6 @@ export default function SidebarLeft({
                 </div>
               )}
 
-              {/* WIRELESS LEVEL SENSOR SECTION */}
               <div
                 className="cursor-pointer mb-2 flex items-start gap-2 text-[13px]"
                 onClick={() => openOnly("wirelesslevelsensor")}
@@ -360,20 +378,14 @@ export default function SidebarLeft({
                   <div
                     draggable
                     onDragStart={handleWirelessLevelSensorDragStart}
-                    className="mb-2 cursor-grab active:cursor-grabbing select-none rounded-md border border-cyan-500/30 bg-[#111827] hover:bg-[#1e293b] px-2 py-2 text-[12.5px] text-cyan-300 shadow-sm"
+                    className="cursor-pointer flex flex-col items-center mb-3 cursor-grab active:cursor-grabbing select-none"
                     title="Drag Wireless Level Sensor to dashboard"
+                    style={{ userSelect: "none" }}
                   >
-                    <div className="flex items-center gap-2">
-                      <span className="text-[15px]">📡</span>
-                      <div className="leading-tight">
-                        <div className="font-semibold text-cyan-300">
-                          Wireless Level Sensor
-                        </div>
-                        <div className="text-[11px] text-cyan-200/80">
-                          (Unlimited)
-                        </div>
-                      </div>
-                    </div>
+                    <WirelessTankIcon size={78} />
+                    <span className="text-[11px] mt-1 text-center leading-tight">
+                      wirelessTank
+                    </span>
                   </div>
                 </div>
               )}
