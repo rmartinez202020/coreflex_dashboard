@@ -18,44 +18,61 @@ import {
   DraggableCounterInput,
 } from "./indicators";
 
-function WirelessTankIcon({ size = 78 }) {
+function WirelessTankIcon({ size = 125 }) {
   const w = size;
-  const h = Math.round(size * 0.68);
+  const h = Math.round(size * 0.78);
 
   return (
     <svg
       width={w}
       height={h}
-      viewBox="0 0 160 110"
+      viewBox="0 0 220 140"
       fill="none"
       xmlns="http://www.w3.org/2000/svg"
-      style={{ display: "block" }}
+      style={{ display: "block", maxWidth: "100%" }}
     >
-      <g stroke="#cbd5e1" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M18 36 L104 20 L148 34 L62 51 Z" />
-        <path d="M18 36 L18 92 L62 108 L62 51 Z" />
-        <path d="M62 51 L148 34 L148 88 L62 108 Z" />
-        <path d="M18 92 L62 76 L148 88" strokeDasharray="5 5" opacity="0.8" />
-        <path d="M62 51 L62 108" strokeDasharray="5 5" opacity="0.8" />
+      <g
+        stroke="#cbd5e1"
+        strokeWidth="2.4"
+        strokeLinecap="round"
+        strokeLinejoin="round"
+      >
+        {/* Main tank body */}
+        <path d="M18 45 L118 22 L202 42 L102 66 Z" />
+        <path d="M18 45 L18 112 L102 136 L102 66 Z" />
+        <path d="M102 66 L202 42 L202 105 L102 136 Z" />
 
-        <path d="M36 28 L36 11 L74 5 L104 14 L104 31 L62 40 Z" />
-        <path d="M36 11 L74 21 L104 14" />
-        <path d="M74 21 L74 39" />
+        {/* Hidden / back construction lines */}
+        <path d="M18 112 L102 91 L202 105" strokeDasharray="6 6" opacity="0.8" />
+        <path d="M102 66 L102 136" strokeDasharray="6 6" opacity="0.8" />
+        <path d="M118 22 L118 88" strokeDasharray="6 6" opacity="0.55" />
 
-        <ellipse cx="48" cy="22" rx="8" ry="12" />
-        <ellipse cx="48" cy="22" rx="4" ry="8" />
+        {/* Top box */}
+        <path d="M52 36 L52 13 L96 6 L132 17 L132 41 L87 51 Z" />
+        <path d="M52 13 L87 24 L132 17" />
+        <path d="M87 24 L87 51" />
 
-        <rect x="28" y="55" width="12" height="13" rx="2" />
-        <path d="M29 55 L34 50 L40 55" />
+        {/* Top circular port */}
+        <ellipse cx="66" cy="27" rx="10" ry="14" />
+        <ellipse cx="66" cy="27" rx="5" ry="9" />
 
-        <ellipse cx="32" cy="87" rx="7" ry="11" />
-        <ellipse cx="32" cy="87" rx="3.5" ry="7" />
+        {/* Side latches */}
+        <rect x="33" y="68" width="14" height="16" rx="2" />
+        <path d="M34 68 L40 61 L47 68" />
 
-        <ellipse cx="54" cy="96" rx="7" ry="11" />
-        <ellipse cx="54" cy="96" rx="3.5" ry="7" />
+        <rect x="61" y="76" width="14" height="16" rx="2" />
+        <path d="M62 76 L68 69 L75 76" />
 
-        <path d="M30 97 L30 104 L43 104 L43 101" />
-        <path d="M117 97 L117 104 L132 104 L132 94" />
+        {/* Lower ports */}
+        <ellipse cx="39" cy="105" rx="9" ry="14" />
+        <ellipse cx="39" cy="105" rx="4.5" ry="9" />
+
+        <ellipse cx="78" cy="117" rx="9" ry="14" />
+        <ellipse cx="78" cy="117" rx="4.5" ry="9" />
+
+        {/* Feet */}
+        <path d="M38 123 L38 134 L57 134 L57 128" />
+        <path d="M158 122 L158 134 L180 134 L180 116" />
       </g>
     </svg>
   );
@@ -382,7 +399,7 @@ export default function SidebarLeft({
                     title="Drag Wireless Level Sensor to dashboard"
                     style={{ userSelect: "none" }}
                   >
-                    <WirelessTankIcon size={78} />
+                    <WirelessTankIcon size={125} />
                     <span className="text-[11px] mt-1 text-center leading-tight">
                       wirelessTank
                     </span>
