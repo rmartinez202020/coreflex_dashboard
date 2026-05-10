@@ -8,8 +8,8 @@ export default function Sidebarleftwirelesstank({
   return (
     <svg
       width={size}
-      height={Math.round(size * 0.9)}
-      viewBox="0 0 260 235"
+      height={Math.round(size * 0.92)}
+      viewBox="0 0 320 295"
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       style={{
@@ -24,48 +24,74 @@ export default function Sidebarleftwirelesstank({
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        <path d="M22 70 L91 58 L238 78 L170 94 Z" />
-        <path d="M22 70 L22 176 L170 208 L170 94 Z" />
-        <path d="M170 94 L238 78 L238 181 L170 208 Z" />
+        {/* MAIN TANK BODY - reference proportion */}
+        <path d="M30 82 L225 82 L300 110 L100 110 Z" />
+        <path d="M30 82 L100 110 L100 260 L30 228 Z" />
+        <path d="M100 110 L300 110 L300 260 L100 260 Z" />
 
-        <path d="M22 70 L22 64 L91 52 L238 72 L238 78" />
-        <path d="M22 64 L170 88 L238 72" />
-        <path d="M22 176 L170 208 L238 181" />
+        {/* TOP RIM / DOUBLE EDGE */}
+        <path d="M30 82 L30 76 L225 76 L300 104 L300 110" />
+        <path d="M30 76 L100 104 L300 104" />
+        <path d="M100 110 L100 260" />
+        <path d="M30 228 L100 260 L300 260" />
 
-        <path d="M22 176 L170 150 L238 181" strokeDasharray="6 6" opacity="0.65" />
-        <path d="M170 94 L170 208" strokeDasharray="6 6" opacity="0.65" />
-        <path d="M91 58 L91 150" strokeDasharray="6 6" opacity="0.45" />
+        {/* INNER CAD DASHED GEOMETRY */}
+        <path
+          d="M30 162 L100 188 L300 188"
+          strokeDasharray="6 6"
+          opacity="0.65"
+        />
+        <path
+          d="M100 188 L225 162 L300 188"
+          strokeDasharray="6 6"
+          opacity="0.55"
+        />
+        <path
+          d="M225 82 L225 188"
+          strokeDasharray="6 6"
+          opacity="0.55"
+        />
 
-        <path d="M52 62 L52 24 L118 13 L170 27 L170 66 L106 78 Z" />
-        <path d="M52 24 L106 39 L170 27" />
-        <path d="M106 39 L106 78" />
-        <path d="M52 62 L106 74 L170 66" />
-        <path d="M58 28 L107 42 L164 31" opacity="0.6" />
+        {/* TOP TRANSMITTER / FILTER BOX */}
+        <path d="M56 76 L56 30 L142 18 L190 32 L190 76 L100 92 Z" />
+        <path d="M56 30 L102 46 L190 32" />
+        <path d="M102 46 L102 92" />
+        <path d="M56 76 L100 92 L190 76" />
 
-        <ellipse cx="74" cy="43" rx="12" ry="18" />
-        <ellipse cx="74" cy="43" rx="8" ry="14" />
-        <ellipse cx="74" cy="43" rx="4" ry="9" />
+        {/* DOUBLE EDGE ON BOX TOP */}
+        <path d="M61 34 L103 49 L184 36" opacity="0.65" />
+        <path d="M61 72 L100 86 L184 72" opacity="0.65" />
 
-        <path d="M8 105 L24 109 L24 127 L8 123 Z" />
-        <path d="M10 105 L17 96 L24 109" />
-        <path d="M12 114 L22 116" />
-        <path d="M12 123 L22 125" />
+        {/* ROUND PORT ON BOX */}
+        <ellipse cx="80" cy="54" rx="13" ry="22" />
+        <ellipse cx="80" cy="54" rx="9" ry="17" />
+        <ellipse cx="80" cy="54" rx="4" ry="11" />
 
-        <path d="M58 118 L76 122 L76 142 L58 138 Z" />
-        <path d="M60 118 L68 108 L76 122" />
-        <path d="M62 127 L73 130" />
-        <path d="M62 138 L73 140" />
+        {/* LEFT SIDE LATCHES */}
+        <path d="M10 130 L27 136 L27 157 L10 151 Z" />
+        <path d="M12 130 L19 118 L27 136" />
+        <path d="M14 140 L25 144" />
+        <path d="M14 151 L25 155" />
 
-        <ellipse cx="38" cy="160" rx="10" ry="18" />
-        <ellipse cx="38" cy="160" rx="6" ry="13" />
-        <ellipse cx="38" cy="160" rx="3" ry="8" />
+        <path d="M72 146 L90 152 L90 174 L72 168 Z" />
+        <path d="M74 146 L82 132 L90 152" />
+        <path d="M76 157 L88 161" />
+        <path d="M76 168 L88 172" />
 
-        <ellipse cx="84" cy="176" rx="10" ry="18" />
-        <ellipse cx="84" cy="176" rx="6" ry="13" />
-        <ellipse cx="84" cy="176" rx="3" ry="8" />
+        {/* LOWER ROUND PORTS */}
+        <ellipse cx="48" cy="220" rx="11" ry="22" />
+        <ellipse cx="48" cy="220" rx="7" ry="17" />
+        <ellipse cx="48" cy="220" rx="3.5" ry="11" />
 
-        <path d="M65 202 L65 216 L94 216 L94 211" />
-        <path d="M205 195 L205 209 L233 209 L233 183" />
+        <ellipse cx="91" cy="238" rx="11" ry="22" />
+        <ellipse cx="91" cy="238" rx="7" ry="17" />
+        <ellipse cx="91" cy="238" rx="3.5" ry="11" />
+
+        {/* BOTTOM BASE / FEET */}
+        <path d="M30 228 L100 266 L300 266" opacity="0.8" />
+
+        <path d="M82 260 L82 278 L118 278 L118 266" />
+        <path d="M255 260 L255 278 L292 278 L292 260" />
       </g>
     </svg>
   );
