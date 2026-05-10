@@ -8,6 +8,7 @@ import {
 } from "./ProTankIcon";
 
 import Sidebarleftwirelesstank from "./Sidebarleftwirelesstank";
+import Sidebarleftwirlessstank2 from "./Sidebarleftwirlessstank2";
 import DraggableControls from "./DraggableControls";
 
 import {
@@ -124,8 +125,7 @@ export default function SidebarLeft({
     onRequestRestore();
   };
 
-  const handleWirelessLevelSensorDragStart = (e) => {
-    const shapeName = "wirelessTank";
+  const handleWirelessLevelSensorDragStart = (e, shapeName = "wirelessTank") => {
     e.dataTransfer.setData("shape", shapeName);
     e.dataTransfer.setData("text/plain", shapeName);
   };
@@ -307,8 +307,10 @@ export default function SidebarLeft({
                 <div className="ml-0">
                   <div
                     draggable
-                    onDragStart={handleWirelessLevelSensorDragStart}
-                    className="cursor-pointer flex flex-col items-center mb-5 cursor-grab active:cursor-grabbing select-none"
+                    onDragStart={(e) =>
+                      handleWirelessLevelSensorDragStart(e, "wirelessTank")
+                    }
+                    className="cursor-pointer flex flex-col items-center mb-4 cursor-grab active:cursor-grabbing select-none"
                     title="Drag Tank#1 to dashboard"
                     style={{ userSelect: "none" }}
                   >
@@ -320,12 +322,14 @@ export default function SidebarLeft({
 
                   <div
                     draggable
-                    onDragStart={handleWirelessLevelSensorDragStart}
+                    onDragStart={(e) =>
+                      handleWirelessLevelSensorDragStart(e, "wirelessTank2")
+                    }
                     className="cursor-pointer flex flex-col items-center mb-3 cursor-grab active:cursor-grabbing select-none"
                     title="Drag Tank#2 to dashboard"
                     style={{ userSelect: "none" }}
                   >
-                    <Sidebarleftwirelesstank size={150} liquidLevel={58} />
+                    <Sidebarleftwirlessstank2 size={150} strokeColor="#ffffff" />
                     <span className="text-[11px] mt-1 text-center leading-tight">
                       Tank#2
                     </span>
