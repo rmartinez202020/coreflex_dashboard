@@ -28,11 +28,11 @@ export default function Sidebarleftwirelesstank({
         <path d="M30 95 L135 125 L135 452" />
         <path d="M492 95 L492 405" />
         <path d="M30 385 L135 452 L492 405" />
-        <path d="M30 91 L135 120 L492 90" />
         <path d="M30 95 L30 385" />
 
-        {/* open top/rear edges */}
-        <path d="M30 95 L135 125 L360 72 L492 95" />
+        {/* top opening, split so it does not cut through the filter box */}
+        <path d="M30 95 L72 107" />
+        <path d="M252 108 L360 72 L492 95" />
         <path d="M135 125 L492 95" />
         <path d="M360 72 L360 325" strokeDasharray="7 8" opacity="0.65" />
 
@@ -43,17 +43,17 @@ export default function Sidebarleftwirelesstank({
           opacity="0.65"
         />
         <path
-          d="M30 385 L135 354 L360 325 L492 405"
-          strokeDasharray="7 8"
-          opacity="0.55"
+          d="M34 384 L135 354 L360 325 L488 404"
+          strokeDasharray="4 9"
+          opacity="0.42"
         />
         <path
           d="M135 235 L135 354 L360 325 L360 205"
           strokeDasharray="7 8"
-          opacity="0.55"
+          opacity="0.5"
         />
 
-        {/* top filter box - aligned to tank top */}
+        {/* top filter box */}
         <path d="M72 48 L178 32 L252 50 L145 68 Z" />
         <path d="M72 48 L145 68 L145 126 L72 106 Z" />
         <path d="M145 68 L252 50 L252 108 L145 126 Z" />
