@@ -1,137 +1,71 @@
-// src/components/Sidebarleftwirelesstank.jsx
 import React from "react";
 
 export default function Sidebarleftwirelesstank({
   size = 220,
-  strokeColor = "#dbeafe",
+  strokeColor = "#1f2933",
+  liquidColor = "#efe76a",
 }) {
   return (
     <svg
       width={size}
-      height={Math.round(size * 0.92)}
-      viewBox="0 0 420 420"
+      height={Math.round(size * 0.94)}
+      viewBox="0 0 500 470"
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
-      style={{
-        display: "block",
-        overflow: "visible",
-        maxWidth: "100%",
-      }}
+      style={{ display: "block", overflow: "visible", maxWidth: "100%" }}
     >
-      <g
-        stroke={strokeColor}
-        strokeWidth="2"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        {/* =========================
-            MAIN TANK
-        ========================= */}
+      <defs>
+        <linearGradient id="tankLiquid" x1="80" y1="205" x2="420" y2="405">
+          <stop offset="0" stopColor={liquidColor} stopOpacity="0.55" />
+          <stop offset="0.55" stopColor={liquidColor} stopOpacity="0.82" />
+          <stop offset="1" stopColor={liquidColor} stopOpacity="0.5" />
+        </linearGradient>
+      </defs>
 
-        {/* top plane */}
-        <path d="M78 95 L265 95 L345 124 L158 124 Z" />
-
-        {/* left side */}
-        <path d="M78 95 L158 124 L158 330 L78 294 Z" />
-
-        {/* front face */}
-        <path d="M158 124 L345 124 L345 330 L158 330 Z" />
-
-        {/* top lip */}
-        <path d="M72 88 L265 88 L352 118" />
-        <path d="M72 88 L152 118" />
-        <path d="M72 95 L72 88" />
-        <path d="M352 118 L352 124" />
-
-        {/* bottom */}
-        <path d="M78 294 L158 330 L345 330" />
-
-        {/* =========================
-            INNER DASHED CAD LINES
-        ========================= */}
-
+      <g stroke={strokeColor} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
         <path
-          d="M78 190 L158 218 L345 218"
-          strokeDasharray="6 6"
-          opacity="0.7"
+          d="M30 202 L135 235 L360 205 L492 240 L492 406 L135 452 L30 385 Z"
+          fill="url(#tankLiquid)"
+          stroke="none"
         />
 
-        <path
-          d="M158 218 L265 190 L345 218"
-          strokeDasharray="6 6"
-          opacity="0.7"
-        />
+        <path d="M30 95 L135 125 L492 95 L492 405 L135 452 L30 385 Z" />
+        <path d="M30 95 L135 125 L135 452" />
+        <path d="M135 125 L492 95" />
+        <path d="M30 91 L135 120 L492 90" />
+        <path d="M135 125 L360 72 L492 95" />
+        <path d="M360 72 L360 205" strokeDasharray="6 7" opacity="0.65" />
 
-        <path
-          d="M265 95 L265 218"
-          strokeDasharray="6 6"
-          opacity="0.7"
-        />
+        <path d="M30 202 L135 235 L360 205 L492 240" strokeDasharray="6 7" opacity="0.62" />
+        <path d="M30 385 L135 354 L360 325 L492 405" strokeDasharray="6 7" opacity="0.55" />
+        <path d="M135 235 L135 354 L360 325 L360 205" strokeDasharray="6 7" opacity="0.55" />
 
-        {/* =========================
-            TOP FILTER BOX
-        ========================= */}
+        <path d="M72 42 L180 28 L252 45 L143 61 Z" />
+        <path d="M72 42 L143 61 L143 123 L72 102 Z" />
+        <path d="M143 61 L252 45 L252 107 L143 123 Z" />
+        <path d="M67 37 L180 22 L257 40" />
+        <path d="M67 37 L139 56" />
+        <path d="M72 102 L143 123 L252 107" />
 
-        {/* top */}
-        <path d="M98 66 L170 58 L225 73 L153 82 Z" />
+        <ellipse cx="104" cy="78" rx="13" ry="25" />
+        <ellipse cx="108" cy="79" rx="10" ry="22" />
+        <ellipse cx="112" cy="80" rx="6" ry="17" />
 
-        {/* left */}
-        <path d="M98 66 L153 82 L153 124 L98 104 Z" />
+        <path d="M28 160 L45 166 L45 188 L28 183 Z" />
+        <path d="M31 160 L38 150 L45 166" />
+        <path d="M106 189 L127 197 L127 224 L106 216 Z" />
+        <path d="M109 189 L118 176 L127 197" />
 
-        {/* front */}
-        <path d="M153 82 L225 73 L225 114 L153 124 Z" />
+        <ellipse cx="46" cy="360" rx="10" ry="23" />
+        <ellipse cx="50" cy="360" rx="8" ry="20" />
+        <ellipse cx="54" cy="360" rx="5" ry="15" />
 
-        {/* extra lip */}
-        <path d="M94 62 L170 54 L230 70" />
-        <path d="M94 62 L149 78" />
+        <ellipse cx="112" cy="395" rx="12" ry="24" />
+        <ellipse cx="116" cy="395" rx="9" ry="21" />
+        <ellipse cx="120" cy="395" rx="5" ry="16" />
 
-        {/* lower edge */}
-        <path d="M98 104 L153 120 L225 114" />
-
-        {/* =========================
-            ROUND PORT TOP
-        ========================= */}
-
-        <ellipse cx="122" cy="88" rx="14" ry="24" />
-        <ellipse cx="122" cy="88" rx="9" ry="18" />
-        <ellipse cx="122" cy="88" rx="4" ry="11" />
-
-        {/* =========================
-            SIDE LATCHES
-        ========================= */}
-
-        {/* rear latch */}
-        <path d="M54 170 L72 176 L72 198 L54 192 Z" />
-        <path d="M56 170 L63 158 L72 176" />
-        <path d="M59 181 L69 184" />
-        <path d="M59 192 L69 194" />
-
-        {/* front latch */}
-        <path d="M132 192 L151 198 L151 223 L132 216 Z" />
-        <path d="M134 192 L142 178 L151 198" />
-        <path d="M137 204 L148 208" />
-        <path d="M137 216 L148 219" />
-
-        {/* =========================
-            LOWER ROUND PORTS
-        ========================= */}
-
-        {/* rear lower port */}
-        <ellipse cx="93" cy="258" rx="12" ry="23" />
-        <ellipse cx="93" cy="258" rx="8" ry="17" />
-        <ellipse cx="93" cy="258" rx="4" ry="10" />
-
-        {/* front lower port */}
-        <ellipse cx="144" cy="285" rx="12" ry="23" />
-        <ellipse cx="144" cy="285" rx="8" ry="17" />
-        <ellipse cx="144" cy="285" rx="4" ry="10" />
-
-        {/* =========================
-            FEET
-        ========================= */}
-
-        <path d="M112 330 L112 352 L144 352 L144 340" />
-        <path d="M286 330 L286 349 L320 349 L320 330" />
+        <path d="M140 452 L140 466 L178 461 L178 447" />
+        <path d="M432 413 L432 428 L468 423 L468 409" />
       </g>
     </svg>
   );
