@@ -8,7 +8,7 @@ import {
 } from "./ProTankIcon";
 
 import Sidebarleftwirelesstank from "./Sidebarleftwirelesstank";
-import Sidebarleftwirlessstank2 from "./Sidebarleftwirlessstank2";
+import Sidebarleftwirlesstank2 from "./Sidebarleftwirelesstank2";
 import DraggableControls from "./DraggableControls";
 
 import {
@@ -329,7 +329,7 @@ export default function SidebarLeft({
                     title="Drag Tank#2 to dashboard"
                     style={{ userSelect: "none" }}
                   >
-                    <Sidebarleftwirlessstank2 size={150} strokeColor="#ffffff" />
+                    <Sidebarleftwirlesstank2 size={150} strokeColor="#ffffff" />
                     <span className="text-[11px] mt-1 text-center leading-tight">
                       Tank#2
                     </span>
