@@ -285,9 +285,6 @@ export default function SidebarLeft({
                     style={{ userSelect: "none" }}
                   >
                     <Sidebarleftwirelesstank size={115} liquidLevel={58} />
-                    <span className="text-[11px] mt-1 text-center leading-tight">
-                      wirelessTank
-                    </span>
                   </div>
                 </div>
               )}
@@ -326,9 +323,6 @@ export default function SidebarLeft({
                     style={{ userSelect: "none" }}
                   >
                     <Sidebarleftwirelesstank size={150} liquidLevel={58} />
-                    <span className="text-[11px] mt-1 text-center leading-tight">
-                      wirelessTank
-                    </span>
                   </div>
                 </div>
               )}
