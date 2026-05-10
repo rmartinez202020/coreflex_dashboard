@@ -8,8 +8,8 @@ export default function Sidebarleftwirelesstank2({
   return (
     <svg
       width={size}
-      height={Math.round(size * 0.9)}
-      viewBox="0 0 780 700"
+      height={Math.round(size * 0.88)}
+      viewBox="0 0 620 545"
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       style={{
@@ -20,122 +20,118 @@ export default function Sidebarleftwirelesstank2({
     >
       <g
         stroke={strokeColor}
-        strokeWidth="2.4"
+        strokeWidth="2.8"
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        {/* top square tank lid */}
-        <path d="M58 95 L379 23 C390 20 401 20 412 22 L720 73" />
-        <path d="M58 95 C48 97 42 104 43 113 C44 120 51 124 62 126" />
-        <path d="M720 73 C735 76 743 84 742 94 C741 101 734 106 722 107" />
-        <path d="M62 126 L398 173" />
-        <path d="M398 173 L722 107" />
-        <path d="M57 105 L398 153 L724 88" />
-        <path d="M61 117 L398 164 L722 99" />
-        <path d="M398 153 C395 160 395 166 398 173" />
-        <path d="M43 113 L44 550" />
-        <path d="M742 94 L741 525" />
+        {/* top slab */}
+        <path d="M45 83 L335 25 C346 23 358 23 370 25 L574 65" />
+        <path d="M45 83 C33 86 27 93 28 102 C29 111 38 116 52 118" />
+        <path d="M574 65 C589 68 597 76 596 87 C595 96 586 102 571 105" />
+        <path d="M52 118 L321 160" />
+        <path d="M321 160 L571 105" />
+        <path d="M45 94 L322 138 L578 84" />
+        <path d="M51 108 L322 151 L572 98" />
+        <path d="M321 138 C315 146 315 154 321 160" />
+        <path d="M28 102 L28 401" />
+        <path d="M596 87 L596 381" />
 
-        {/* rounded top corner details */}
-        <path d="M382 153 C394 144 417 147 429 158" />
-        <path d="M382 153 L382 167 C394 178 418 180 430 164 L429 158" />
-        <path d="M58 95 C58 102 59 109 62 126" />
-        <path d="M720 73 C722 84 722 95 722 107" />
+        {/* large front and side faces */}
+        <path d="M52 118 L52 396" />
+        <path d="M321 160 L321 467" />
+        <path d="M571 105 L571 371" />
+        <path d="M52 396 L321 467" />
+        <path d="M321 467 L571 386" />
+        <path d="M52 383 L321 450" />
+        <path d="M321 450 L571 371" />
+        <path d="M348 155 L348 456" />
+        <path d="M488 123 L488 413" />
+        <path d="M321 160 C330 151 340 151 348 155" />
+        <path d="M321 450 C329 459 340 461 348 456" />
 
-        {/* front and side panels */}
-        <path d="M44 550 L398 628" />
-        <path d="M398 628 L741 533" />
-        <path d="M44 535 L398 610" />
-        <path d="M398 610 L741 516" />
-        <path d="M398 173 L398 628" />
-        <path d="M430 164 L430 612" />
-        <path d="M620 128 L620 565" />
-        <path d="M720 107 L720 532" />
-        <path d="M62 126 L62 548" />
-        <path d="M398 610 C406 617 420 617 430 612" />
+        {/* rounded front vertical corner */}
+        <path d="M321 160 C334 169 344 169 348 155" />
+        <path d="M321 467 C334 480 347 476 348 456" />
+        <path d="M321 160 C317 245 317 374 321 467" />
+        <path d="M348 155 C344 247 344 370 348 456" />
 
-        {/* bottom bevel and rounded lower edges */}
-        <path d="M44 550 C46 564 55 572 72 576 L374 642" />
-        <path d="M741 533 C733 548 718 557 695 564 L431 638" />
-        <path d="M374 642 C393 646 414 645 431 638" />
-        <path d="M398 628 C405 636 417 639 431 638" />
-        <path d="M44 535 C48 543 55 548 66 551" />
-        <path d="M741 516 C733 525 722 531 707 535" />
+        {/* bottom raised rim */}
+        <path d="M30 398 C32 409 39 416 52 420 L306 487" />
+        <path d="M306 487 C322 492 342 490 359 484" />
+        <path d="M359 484 L574 414" />
+        <path d="M574 414 C587 410 594 401 596 389" />
+        <path d="M30 386 L52 396" />
+        <path d="M596 376 L571 386" />
+        <path d="M52 420 L306 487" opacity="0.55" />
+        <path d="M359 484 L574 414" opacity="0.55" />
 
-        {/* top hatch and cap */}
-        <path d="M245 78 C271 45 366 33 443 47 C515 61 553 93 522 119" />
-        <path d="M245 78 C226 95 239 116 282 130 C349 151 464 143 512 116" />
-        <path d="M282 130 C351 164 498 151 522 119" />
-        <path d="M266 83 C291 60 364 52 429 62 C489 71 521 94 497 112" />
-        <path d="M266 83 C249 96 261 112 299 122 C358 138 455 132 497 112" />
-        <path d="M342 38 L342 72" />
-        <path d="M342 38 C356 29 398 29 413 38" />
-        <path d="M342 72 C357 80 399 81 414 72" />
-        <path d="M413 38 L414 72" />
-        <path d="M347 37 C362 44 396 45 408 38" />
-        <path d="M334 72 L423 74" />
-        <path d="M334 72 C324 78 319 85 319 93" />
-        <path d="M423 74 C433 80 438 87 437 94" />
-        <path d="M319 93 C342 105 412 107 437 94" />
-        <path d="M327 81 C352 90 405 91 429 83" />
+        {/* top hatch assembly */}
+        <path d="M227 77 C249 50 325 41 389 53 C449 64 482 90 458 113" />
+        <path d="M227 77 C210 94 224 113 264 126 C326 146 421 139 458 113" />
+        <path d="M264 126 C327 155 433 143 458 113" />
+        <path d="M249 81 C270 62 330 56 382 65 C429 73 455 92 437 107" />
+        <path d="M249 81 C235 93 248 106 279 115 C330 129 403 125 437 107" />
+        <path d="M325 39 L325 68" />
+        <path d="M325 39 C339 31 374 31 388 39" />
+        <path d="M325 68 C338 77 374 77 388 68" />
+        <path d="M388 39 L388 68" />
+        <path d="M331 38 C346 44 369 44 383 39" />
+        <path d="M317 68 L396 70" />
+        <path d="M317 68 C309 73 304 79 304 87" />
+        <path d="M396 70 C406 75 411 82 410 90" />
+        <path d="M304 87 C326 100 388 101 410 90" />
 
-        {/* small top port */}
-        <path d="M213 96 C224 92 241 93 251 98" />
-        <path d="M213 96 C205 100 207 105 218 108 C229 111 247 110 255 105" />
-        <path d="M251 98 C260 102 260 106 255 109" />
-        <path d="M218 108 C230 112 247 111 255 105" />
-        <path d="M255 96 L277 90" />
-        <path d="M263 94 L269 87" />
+        {/* small top fitting */}
+        <path d="M198 100 C208 96 225 96 235 101" />
+        <path d="M198 100 C191 104 194 109 204 112 C216 115 232 113 239 108" />
+        <path d="M235 101 C243 105 244 110 239 113" />
+        <path d="M239 99 L262 94" />
 
-        {/* small fitting on hatch */}
-        <path d="M333 87 C338 83 347 84 351 88" />
-        <path d="M333 87 C329 92 332 98 339 99 C347 100 354 96 354 91" />
-        <path d="M345 88 L363 80" />
-        <path d="M342 94 L360 89" />
+        {/* small valve detail on hatch */}
+        <path d="M319 88 C324 84 333 85 337 89" />
+        <path d="M319 88 C315 93 318 98 325 99 C333 100 339 96 340 91" />
+        <path d="M332 89 L349 83" />
 
-        {/* front lower circular ports */}
-        <ellipse cx="168" cy="548" rx="18" ry="31" />
-        <ellipse cx="173" cy="549" rx="13" ry="25" />
-        <ellipse cx="179" cy="550" rx="8" ry="19" />
-        <path d="M153 527 C164 518 184 523 195 539" />
-        <path d="M151 565 C161 584 184 587 197 572" />
+        {/* front lower ports */}
+        <ellipse cx="146" cy="387" rx="17" ry="29" />
+        <ellipse cx="151" cy="388" rx="12" ry="23" />
+        <ellipse cx="156" cy="389" rx="7" ry="17" />
+        <path d="M132 367 C143 358 162 363 173 378" />
+        <path d="M131 403 C142 421 163 423 175 409" />
 
-        <ellipse cx="340" cy="588" rx="19" ry="32" />
-        <ellipse cx="345" cy="589" rx="14" ry="26" />
-        <ellipse cx="351" cy="590" rx="8" ry="20" />
-        <path d="M325 567 C336 557 358 563 370 579" />
-        <path d="M323 604 C334 624 358 627 372 611" />
+        <ellipse cx="276" cy="421" rx="17" ry="29" />
+        <ellipse cx="281" cy="422" rx="12" ry="23" />
+        <ellipse cx="286" cy="423" rx="7" ry="17" />
+        <path d="M262 401 C273 392 292 397 303 412" />
+        <path d="M261 437 C272 455 293 457 305 443" />
 
         {/* legs */}
-        <path d="M46 574 L46 645" />
-        <path d="M46 645 L78 654" />
-        <path d="M78 654 L79 590" />
-        <path d="M58 577 L92 585" />
-        <path d="M92 585 L92 638" />
-        <path d="M78 654 L92 638" />
-        <path d="M47 633 C55 640 67 644 78 645" />
+        <path d="M36 417 L36 480" />
+        <path d="M36 480 L67 488" />
+        <path d="M67 488 L67 430" />
+        <path d="M50 421 L82 429" />
+        <path d="M82 429 L82 471" />
+        <path d="M67 488 L82 471" />
 
-        <path d="M386 629 L386 689" />
-        <path d="M386 689 L433 700" />
-        <path d="M433 700 L433 640" />
-        <path d="M402 632 L449 621" />
-        <path d="M449 621 L449 679" />
-        <path d="M433 700 L449 679" />
-        <path d="M386 676 C397 684 416 690 433 691" />
+        <path d="M309 487 L309 536" />
+        <path d="M309 536 L352 545" />
+        <path d="M352 545 L352 492" />
+        <path d="M325 490 L369 478" />
+        <path d="M369 478 L369 526" />
+        <path d="M352 545 L369 526" />
 
-        <path d="M672 551 L672 617" />
-        <path d="M672 617 L711 607" />
-        <path d="M711 607 L711 539" />
-        <path d="M689 547 L730 535" />
-        <path d="M730 535 L730 591" />
-        <path d="M711 607 L730 591" />
-        <path d="M672 604 C683 611 699 612 711 607" />
+        <path d="M520 432 L520 485" />
+        <path d="M520 485 L556 474" />
+        <path d="M556 474 L556 419" />
+        <path d="M536 427 L572 415" />
+        <path d="M572 415 L572 461" />
+        <path d="M556 474 L572 461" />
 
-        {/* panel edge accents */}
-        <path d="M64 128 L397 176" opacity="0.45" />
-        <path d="M431 166 L720 108" opacity="0.45" />
-        <path d="M65 532 L397 604" opacity="0.45" />
-        <path d="M431 596 L720 516" opacity="0.45" />
+        {/* subtle panel duplicates to mimic technical line art */}
+        <path d="M55 128 L318 169" opacity="0.4" />
+        <path d="M352 164 L568 116" opacity="0.4" />
+        <path d="M55 389 L318 456" opacity="0.4" />
+        <path d="M352 463 L568 395" opacity="0.4" />
       </g>
     </svg>
   );
