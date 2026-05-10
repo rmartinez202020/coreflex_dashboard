@@ -9,7 +9,7 @@ export default function Sidebarleftwirelesstank({
     <svg
       width={size}
       height={Math.round(size * 0.92)}
-      viewBox="0 0 320 295"
+      viewBox="0 0 420 420"
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       style={{
@@ -24,74 +24,114 @@ export default function Sidebarleftwirelesstank({
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        {/* MAIN TANK BODY - reference proportion */}
-        <path d="M30 82 L225 82 L300 110 L100 110 Z" />
-        <path d="M30 82 L100 110 L100 260 L30 228 Z" />
-        <path d="M100 110 L300 110 L300 260 L100 260 Z" />
+        {/* =========================
+            MAIN TANK
+        ========================= */}
 
-        {/* TOP RIM / DOUBLE EDGE */}
-        <path d="M30 82 L30 76 L225 76 L300 104 L300 110" />
-        <path d="M30 76 L100 104 L300 104" />
-        <path d="M100 110 L100 260" />
-        <path d="M30 228 L100 260 L300 260" />
+        {/* top plane */}
+        <path d="M78 95 L265 95 L345 124 L158 124 Z" />
 
-        {/* INNER CAD DASHED GEOMETRY */}
+        {/* left side */}
+        <path d="M78 95 L158 124 L158 330 L78 294 Z" />
+
+        {/* front face */}
+        <path d="M158 124 L345 124 L345 330 L158 330 Z" />
+
+        {/* top lip */}
+        <path d="M72 88 L265 88 L352 118" />
+        <path d="M72 88 L152 118" />
+        <path d="M72 95 L72 88" />
+        <path d="M352 118 L352 124" />
+
+        {/* bottom */}
+        <path d="M78 294 L158 330 L345 330" />
+
+        {/* =========================
+            INNER DASHED CAD LINES
+        ========================= */}
+
         <path
-          d="M30 162 L100 188 L300 188"
+          d="M78 190 L158 218 L345 218"
           strokeDasharray="6 6"
-          opacity="0.65"
+          opacity="0.7"
         />
+
         <path
-          d="M100 188 L225 162 L300 188"
+          d="M158 218 L265 190 L345 218"
           strokeDasharray="6 6"
-          opacity="0.55"
+          opacity="0.7"
         />
+
         <path
-          d="M225 82 L225 188"
+          d="M265 95 L265 218"
           strokeDasharray="6 6"
-          opacity="0.55"
+          opacity="0.7"
         />
 
-        {/* TOP TRANSMITTER / FILTER BOX */}
-        <path d="M56 76 L56 30 L142 18 L190 32 L190 76 L100 92 Z" />
-        <path d="M56 30 L102 46 L190 32" />
-        <path d="M102 46 L102 92" />
-        <path d="M56 76 L100 92 L190 76" />
+        {/* =========================
+            TOP FILTER BOX
+        ========================= */}
 
-        {/* DOUBLE EDGE ON BOX TOP */}
-        <path d="M61 34 L103 49 L184 36" opacity="0.65" />
-        <path d="M61 72 L100 86 L184 72" opacity="0.65" />
+        {/* top */}
+        <path d="M98 66 L170 58 L225 73 L153 82 Z" />
 
-        {/* ROUND PORT ON BOX */}
-        <ellipse cx="80" cy="54" rx="13" ry="22" />
-        <ellipse cx="80" cy="54" rx="9" ry="17" />
-        <ellipse cx="80" cy="54" rx="4" ry="11" />
+        {/* left */}
+        <path d="M98 66 L153 82 L153 124 L98 104 Z" />
 
-        {/* LEFT SIDE LATCHES */}
-        <path d="M10 130 L27 136 L27 157 L10 151 Z" />
-        <path d="M12 130 L19 118 L27 136" />
-        <path d="M14 140 L25 144" />
-        <path d="M14 151 L25 155" />
+        {/* front */}
+        <path d="M153 82 L225 73 L225 114 L153 124 Z" />
 
-        <path d="M72 146 L90 152 L90 174 L72 168 Z" />
-        <path d="M74 146 L82 132 L90 152" />
-        <path d="M76 157 L88 161" />
-        <path d="M76 168 L88 172" />
+        {/* extra lip */}
+        <path d="M94 62 L170 54 L230 70" />
+        <path d="M94 62 L149 78" />
 
-        {/* LOWER ROUND PORTS */}
-        <ellipse cx="48" cy="220" rx="11" ry="22" />
-        <ellipse cx="48" cy="220" rx="7" ry="17" />
-        <ellipse cx="48" cy="220" rx="3.5" ry="11" />
+        {/* lower edge */}
+        <path d="M98 104 L153 120 L225 114" />
 
-        <ellipse cx="91" cy="238" rx="11" ry="22" />
-        <ellipse cx="91" cy="238" rx="7" ry="17" />
-        <ellipse cx="91" cy="238" rx="3.5" ry="11" />
+        {/* =========================
+            ROUND PORT TOP
+        ========================= */}
 
-        {/* BOTTOM BASE / FEET */}
-        <path d="M30 228 L100 266 L300 266" opacity="0.8" />
+        <ellipse cx="122" cy="88" rx="14" ry="24" />
+        <ellipse cx="122" cy="88" rx="9" ry="18" />
+        <ellipse cx="122" cy="88" rx="4" ry="11" />
 
-        <path d="M82 260 L82 278 L118 278 L118 266" />
-        <path d="M255 260 L255 278 L292 278 L292 260" />
+        {/* =========================
+            SIDE LATCHES
+        ========================= */}
+
+        {/* rear latch */}
+        <path d="M54 170 L72 176 L72 198 L54 192 Z" />
+        <path d="M56 170 L63 158 L72 176" />
+        <path d="M59 181 L69 184" />
+        <path d="M59 192 L69 194" />
+
+        {/* front latch */}
+        <path d="M132 192 L151 198 L151 223 L132 216 Z" />
+        <path d="M134 192 L142 178 L151 198" />
+        <path d="M137 204 L148 208" />
+        <path d="M137 216 L148 219" />
+
+        {/* =========================
+            LOWER ROUND PORTS
+        ========================= */}
+
+        {/* rear lower port */}
+        <ellipse cx="93" cy="258" rx="12" ry="23" />
+        <ellipse cx="93" cy="258" rx="8" ry="17" />
+        <ellipse cx="93" cy="258" rx="4" ry="10" />
+
+        {/* front lower port */}
+        <ellipse cx="144" cy="285" rx="12" ry="23" />
+        <ellipse cx="144" cy="285" rx="8" ry="17" />
+        <ellipse cx="144" cy="285" rx="4" ry="10" />
+
+        {/* =========================
+            FEET
+        ========================= */}
+
+        <path d="M112 330 L112 352 L144 352 L144 340" />
+        <path d="M286 330 L286 349 L320 349 L320 330" />
       </g>
     </svg>
   );
