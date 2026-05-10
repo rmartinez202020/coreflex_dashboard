@@ -55,26 +55,26 @@ export default function Sidebarleftwirelesstank({
           opacity="0.48"
         />
 
-        {/* top filter box - wider */}
-        <path d="M58 50 L176 32 L266 51 L146 70 Z" />
-        <path d="M58 50 L146 70 L146 122 L58 103 Z" />
-        <path d="M146 70 L266 51 L266 103 L146 122 Z" />
+        {/* top filter box - angle matched to tank */}
+        <path d="M58 52 L176 39 L266 58 L146 70 Z" />
+        <path d="M58 52 L146 70 L146 122 L58 104 Z" />
+        <path d="M146 70 L266 58 L266 110 L146 122 Z" />
 
         {/* top cap/lip */}
-        <path d="M52 45 L176 26 L272 47" />
-        <path d="M52 45 L142 65" />
-        <path d="M52 53 L142 73 L272 54" />
+        <path d="M52 47 L176 33 L272 54" />
+        <path d="M52 47 L142 65" />
+        <path d="M52 55 L142 73 L272 61" />
 
         {/* bottom lip connected to tank */}
-        <path d="M58 103 L146 122 L266 103" />
-        <path d="M54 109 L140 129 L268 110" />
+        <path d="M58 104 L146 122 L266 110" />
+        <path d="M54 110 L140 129 L268 117" />
         <path d="M140 129 L135 125" />
-        <path d="M268 110 L266 103" />
+        <path d="M268 117 L266 110" />
 
         {/* top round port */}
-        <ellipse cx="92" cy="79" rx="12" ry="22" />
-        <ellipse cx="96" cy="80" rx="9" ry="19" />
-        <ellipse cx="100" cy="81" rx="5" ry="14" />
+        <ellipse cx="92" cy="81" rx="12" ry="22" />
+        <ellipse cx="96" cy="82" rx="9" ry="19" />
+        <ellipse cx="100" cy="83" rx="5" ry="14" />
 
         {/* side latches */}
         <path d="M28 160 L45 166 L45 188 L28 183 Z" />
