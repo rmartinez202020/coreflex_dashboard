@@ -106,9 +106,6 @@ export default function Draggablewirelesstank({
   const props = tank?.properties || {};
   const scale = tank?.scale || 1;
 
-  // ✅ removed default "wirelessTank" text
-  const name = String(props.name || "").trim();
-
   const unit = String(props.unit || "").trim();
 
   const strokeColor = String(
@@ -213,21 +210,6 @@ export default function Draggablewirelesstank({
           </div>
         )}
       </div>
-
-      {name ? (
-        <div
-          style={{
-            marginTop: 2,
-            fontSize: `${13 * scale}px`,
-            fontWeight: 600,
-            color: strokeColor,
-            lineHeight: 1.1,
-            userSelect: "none",
-          }}
-        >
-          {name}
-        </div>
-      ) : null}
 
       <div
         style={{
