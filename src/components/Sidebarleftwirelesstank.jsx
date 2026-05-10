@@ -23,34 +23,35 @@ export default function Sidebarleftwirelesstank({
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        {/* main tank */}
-        <path d="M30 95 L135 125 L492 95 L492 405 L135 452 L30 385 Z" />
-        <path d="M30 95 L135 125 L135 452" />
-        <path d="M492 95 L492 405" />
-        <path d="M30 385 L135 452 L492 405" />
-        <path d="M30 95 L30 385" />
-
-        {/* top opening, split so it does not cut through the filter box */}
+        {/* main tank outer edges */}
         <path d="M30 95 L72 107" />
+        <path d="M252 108 L492 95" />
+        <path d="M30 95 L30 385" />
+        <path d="M135 125 L135 452" />
+        <path d="M492 95 L492 405" />
+        <path d="M30 385 L135 452" />
+        <path d="M135 452 L492 405" />
+        <path d="M492 95 L492 405" />
+
+        {/* top rear opening */}
         <path d="M252 108 L360 72 L492 95" />
-        <path d="M135 125 L492 95" />
         <path d="M360 72 L360 325" strokeDasharray="7 8" opacity="0.65" />
 
         {/* internal CAD lines */}
         <path
           d="M30 202 L135 235 L360 205 L492 240"
           strokeDasharray="7 8"
-          opacity="0.65"
+          opacity="0.58"
         />
         <path
-          d="M34 384 L135 354 L360 325 L488 404"
-          strokeDasharray="4 9"
+          d="M135 354 L360 325 L492 405"
+          strokeDasharray="7 8"
           opacity="0.42"
         />
         <path
           d="M135 235 L135 354 L360 325 L360 205"
           strokeDasharray="7 8"
-          opacity="0.5"
+          opacity="0.48"
         />
 
         {/* top filter box */}
@@ -63,7 +64,7 @@ export default function Sidebarleftwirelesstank({
         <path d="M66 42 L140 63" />
         <path d="M66 50 L140 71 L258 52" />
 
-        {/* bottom lip sitting on tank */}
+        {/* bottom lip connected to tank */}
         <path d="M72 106 L145 126 L252 108" />
         <path d="M68 112 L140 134 L254 116" />
         <path d="M140 134 L135 125" />
