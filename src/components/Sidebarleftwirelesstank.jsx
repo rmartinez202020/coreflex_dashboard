@@ -25,7 +25,7 @@ export default function Sidebarleftwirelesstank({
       >
         {/* main tank outer edges */}
         <path d="M30 104 L72 112" />
-        <path d="M254 118 L492 104" />
+        <path d="M135 125 L492 104" />
         <path d="M30 104 L30 385" />
         <path d="M135 125 L135 452" />
         <path d="M492 104 L492 405" />
