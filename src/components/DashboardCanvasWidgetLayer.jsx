@@ -15,6 +15,7 @@ import DraggableVerticalTank from "./DraggableVerticalTank";
 import DraggableSiloTank from "./DraggableSiloTank";
 import DraggableStandardTank from "./DraggableStandardTank";
 import DraggableHorizontalTank from "./DraggableHorizontalTank";
+import Draggablewirelesstank from "./Draggablewirelesstank";
 import {
   DraggableLedCircle,
   DraggableStatusTextBox,
@@ -124,7 +125,6 @@ function getTelemetryRow(telemetryMap, model, deviceId) {
 }
 
 function getTelemetryStatus(row) {
-  // ✅ If there is no telemetry row, treat it as offline
   if (!row || typeof row !== "object") {
     return "offline";
   }
@@ -491,8 +491,7 @@ export default function DashboardCanvasWidgetLayer({
           dashboardId: resolvedDash || tank?.dashboardId || "",
           dashboard_id: resolvedDash || tank?.dashboard_id || "",
           dashboardName: resolvedDashboardName || tank?.dashboardName || "",
-          dashboard_name:
-            resolvedDashboardName || tank?.dashboard_name || "",
+          dashboard_name: resolvedDashboardName || tank?.dashboard_name || "",
           properties: {
             ...(tank?.properties || {}),
             dashboardId:
@@ -571,9 +570,7 @@ export default function DashboardCanvasWidgetLayer({
         const hasBinding = !!deviceId && !!field;
         const deviceIsOffline =
           isPlay && hasBinding && backendStatus === "offline";
-        const deviceIsOnline = backendStatus
-          ? backendStatus === "online"
-          : true;
+        const deviceIsOnline = backendStatus ? backendStatus === "online" : true;
 
         return (
           <DraggableDroppedTank
@@ -927,6 +924,24 @@ export default function DashboardCanvasWidgetLayer({
                   telemetryMap={telemetryMap}
                 />
               </div>
+            )}
+          </DraggableDroppedTank>
+        );
+      }
+
+      if (tank.shape === "wirelessTank") {
+        return (
+          <DraggableDroppedTank {...commonProps}>
+            {wrapWithOverlay(
+              tank,
+              <div className="flex flex-col items-center">
+                <Draggablewirelesstank
+                  tank={tank}
+                  isPlay={isPlay}
+                  telemetryMap={telemetryMap}
+                />
+              </div>,
+              "ai1"
             )}
           </DraggableDroppedTank>
         );
