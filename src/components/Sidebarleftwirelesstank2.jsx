@@ -1,3 +1,4 @@
+```jsx
 // Sidebarleftwirelesstank2.jsx
 import React from "react";
 
@@ -66,17 +67,17 @@ export default function Sidebarleftwirelesstank2({
         <path d="M359 484 L574 414" opacity="0.55" />
 
         {/* front lower ports */}
-        <ellipse cx="146" cy="387" rx="17" ry="29" />
-        <ellipse cx="151" cy="388" rx="12" ry="23" />
-        <ellipse cx="156" cy="389" rx="7" ry="17" />
-        <path d="M132 367 C143 358 162 363 173 378" />
-        <path d="M131 403 C142 421 163 423 175 409" />
+        <ellipse cx="146" cy="350" rx="17" ry="29" />
+        <ellipse cx="151" cy="351" rx="12" ry="23" />
+        <ellipse cx="156" cy="352" rx="7" ry="17" />
+        <path d="M132 330 C143 321 162 326 173 341" />
+        <path d="M131 366 C142 384 163 386 175 372" />
 
-        <ellipse cx="276" cy="421" rx="17" ry="29" />
-        <ellipse cx="281" cy="422" rx="12" ry="23" />
-        <ellipse cx="286" cy="423" rx="7" ry="17" />
-        <path d="M262 401 C273 392 292 397 303 412" />
-        <path d="M261 437 C272 455 293 457 305 443" />
+        <ellipse cx="276" cy="383" rx="17" ry="29" />
+        <ellipse cx="281" cy="384" rx="12" ry="23" />
+        <ellipse cx="286" cy="385" rx="7" ry="17" />
+        <path d="M262 363 C273 354 292 359 303 374" />
+        <path d="M261 399 C272 417 293 419 305 405" />
 
         {/* legs */}
         <path d="M36 417 L36 480" />
@@ -114,3 +115,4 @@ export default function Sidebarleftwirelesstank2({
     </svg>
   );
 }
+```
