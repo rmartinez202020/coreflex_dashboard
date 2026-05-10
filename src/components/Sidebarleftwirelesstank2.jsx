@@ -65,33 +65,6 @@ export default function Sidebarleftwirelesstank2({
         <path d="M52 420 L306 487" opacity="0.55" />
         <path d="M359 484 L574 414" opacity="0.55" />
 
-        {/* top hatch assembly */}
-        <path d="M227 77 C249 50 325 41 389 53 C449 64 482 90 458 113" />
-        <path d="M227 77 C210 94 224 113 264 126 C326 146 421 139 458 113" />
-        <path d="M264 126 C327 155 433 143 458 113" />
-        <path d="M249 81 C270 62 330 56 382 65 C429 73 455 92 437 107" />
-        <path d="M249 81 C235 93 248 106 279 115 C330 129 403 125 437 107" />
-        <path d="M325 39 L325 68" />
-        <path d="M325 39 C339 31 374 31 388 39" />
-        <path d="M325 68 C338 77 374 77 388 68" />
-        <path d="M388 39 L388 68" />
-        <path d="M331 38 C346 44 369 44 383 39" />
-        <path d="M317 68 L396 70" />
-        <path d="M317 68 C309 73 304 79 304 87" />
-        <path d="M396 70 C406 75 411 82 410 90" />
-        <path d="M304 87 C326 100 388 101 410 90" />
-
-        {/* small top fitting */}
-        <path d="M198 100 C208 96 225 96 235 101" />
-        <path d="M198 100 C191 104 194 109 204 112 C216 115 232 113 239 108" />
-        <path d="M235 101 C243 105 244 110 239 113" />
-        <path d="M239 99 L262 94" />
-
-        {/* small valve detail on hatch */}
-        <path d="M319 88 C324 84 333 85 337 89" />
-        <path d="M319 88 C315 93 318 98 325 99 C333 100 339 96 340 91" />
-        <path d="M332 89 L349 83" />
-
         {/* front lower ports */}
         <ellipse cx="146" cy="387" rx="17" ry="29" />
         <ellipse cx="151" cy="388" rx="12" ry="23" />
@@ -112,6 +85,7 @@ export default function Sidebarleftwirelesstank2({
         <path d="M50 421 L82 429" />
         <path d="M82 429 L82 471" />
         <path d="M67 488 L82 471" />
+        <path d="M37 468 C46 476 57 480 67 481" />
 
         <path d="M309 487 L309 536" />
         <path d="M309 536 L352 545" />
@@ -119,6 +93,7 @@ export default function Sidebarleftwirelesstank2({
         <path d="M325 490 L369 478" />
         <path d="M369 478 L369 526" />
         <path d="M352 545 L369 526" />
+        <path d="M309 523 C320 531 336 536 352 537" />
 
         <path d="M520 432 L520 485" />
         <path d="M520 485 L556 474" />
@@ -126,12 +101,15 @@ export default function Sidebarleftwirelesstank2({
         <path d="M536 427 L572 415" />
         <path d="M572 415 L572 461" />
         <path d="M556 474 L572 461" />
+        <path d="M520 472 C529 478 545 479 556 474" />
 
         {/* subtle panel duplicates to mimic technical line art */}
         <path d="M55 128 L318 169" opacity="0.4" />
         <path d="M352 164 L568 116" opacity="0.4" />
         <path d="M55 389 L318 456" opacity="0.4" />
         <path d="M352 463 L568 395" opacity="0.4" />
+        <path d="M55 118 L321 160" opacity="0.35" />
+        <path d="M321 160 L571 105" opacity="0.35" />
       </g>
     </svg>
   );
