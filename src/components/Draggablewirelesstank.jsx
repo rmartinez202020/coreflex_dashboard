@@ -10,7 +10,14 @@ function readAiField(row, bindField) {
   if (!/^ai[1-8]$/.test(f)) return null;
 
   const n = f.replace("ai", "");
-  const candidates = [f, f.toUpperCase(), `ai_${n}`, `AI_${n}`, `ai-${n}`, `AI-${n}`];
+  const candidates = [
+    f,
+    f.toUpperCase(),
+    `ai_${n}`,
+    `AI_${n}`,
+    `ai-${n}`,
+    `AI-${n}`,
+  ];
 
   for (const k of candidates) {
     const v = row?.[k];
@@ -99,10 +106,14 @@ export default function Draggablewirelesstank({
   const props = tank?.properties || {};
   const scale = tank?.scale || 1;
 
-  const name = String(props.name || "wirelessTank").trim();
+  // ✅ removed default "wirelessTank" text
+  const name = String(props.name || "").trim();
+
   const unit = String(props.unit || "").trim();
 
-  const strokeColor = String(props.strokeColor || props.lineColor || "#111827").trim();
+  const strokeColor = String(
+    props.strokeColor || props.lineColor || "#111827"
+  ).trim();
 
   const bindModel = String(props.bindModel || "zhc1921").trim();
   const bindDeviceId = String(props.bindDeviceId || "").trim();
@@ -120,16 +131,25 @@ export default function Draggablewirelesstank({
     return getTelemetryRow(telemetryMap, bindModel, bindDeviceId);
   }, [isPlay, hasBinding, telemetryMap, bindModel, bindDeviceId]);
 
-  const backendStatus = String(telemetryRow?.status || "").trim().toLowerCase();
-  const deviceIsOffline = isPlay && hasBinding && backendStatus === "offline";
-  const deviceIsOnline = backendStatus ? backendStatus === "online" : true;
+  const backendStatus = String(telemetryRow?.status || "")
+    .trim()
+    .toLowerCase();
+
+  const deviceIsOffline =
+    isPlay && hasBinding && backendStatus === "offline";
+
+  const deviceIsOnline = backendStatus
+    ? backendStatus === "online"
+    : true;
 
   const liveValue = useMemo(() => {
     if (!isPlay) return null;
     if (!hasBinding) return null;
     if (!deviceIsOnline) return null;
 
-    const raw = telemetryRow ? readAiField(telemetryRow, bindField) : null;
+    const raw = telemetryRow
+      ? readAiField(telemetryRow, bindField)
+      : null;
 
     const num =
       raw === null || raw === undefined || raw === ""
@@ -154,7 +174,9 @@ export default function Draggablewirelesstank({
     if (typeof outputValue === "string") return outputValue || "--";
 
     const n = Number(outputValue);
+
     if (!Number.isFinite(n)) return "--";
+
     return String(Math.round(n));
   }, [hasBinding, isPlay, deviceIsOnline, outputValue]);
 
