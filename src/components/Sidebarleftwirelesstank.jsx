@@ -32,9 +32,9 @@ export default function Sidebarleftwirelesstank({
         <path d="M30 385 L135 452" />
         <path d="M135 452 L492 405" />
 
-        {/* top rear opening - split around the filter box */}
+        {/* top rear opening */}
         <path d="M30 104 L72 100" />
-        <path d="M252 83 L360 72" />
+        <path d="M226 87 L360 72" />
         <path d="M360 72 L492 104" />
         <path d="M360 72 L360 325" strokeDasharray="7 8" opacity="0.65" />
 
@@ -55,26 +55,26 @@ export default function Sidebarleftwirelesstank({
           opacity="0.48"
         />
 
-        {/* top filter box */}
-        <path d="M72 48 L178 32 L252 50 L145 68 Z" />
-        <path d="M72 48 L145 68 L145 126 L72 106 Z" />
-        <path d="M145 68 L252 50 L252 108 L145 126 Z" />
+        {/* top filter box - smaller */}
+        <path d="M74 52 L168 38 L226 52 L131 68 Z" />
+        <path d="M74 52 L131 68 L131 119 L74 103 Z" />
+        <path d="M131 68 L226 52 L226 103 L131 119 Z" />
 
         {/* top cap/lip */}
-        <path d="M66 42 L178 25 L258 44" />
-        <path d="M66 42 L140 63" />
-        <path d="M66 50 L140 71 L258 52" />
+        <path d="M68 47 L168 32 L232 48" />
+        <path d="M68 47 L127 63" />
+        <path d="M68 54 L127 71 L232 54" />
 
         {/* bottom lip connected to tank */}
-        <path d="M72 106 L145 126 L252 108" />
-        <path d="M68 112 L140 134 L254 118" />
-        <path d="M140 134 L135 125" />
-        <path d="M254 118 L252 108" />
+        <path d="M74 103 L131 119 L226 103" />
+        <path d="M70 109 L126 126 L228 110" />
+        <path d="M126 126 L135 125" />
+        <path d="M228 110 L226 103" />
 
         {/* top round port */}
-        <ellipse cx="103" cy="82" rx="13" ry="24" />
-        <ellipse cx="107" cy="83" rx="10" ry="21" />
-        <ellipse cx="111" cy="84" rx="6" ry="16" />
+        <ellipse cx="99" cy="80" rx="11" ry="21" />
+        <ellipse cx="103" cy="81" rx="8" ry="18" />
+        <ellipse cx="106" cy="82" rx="5" ry="13" />
 
         {/* side latches */}
         <path d="M28 160 L45 166 L45 188 L28 183 Z" />
