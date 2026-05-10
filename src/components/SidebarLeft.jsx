@@ -276,16 +276,6 @@ export default function SidebarLeft({
                       <span className="text-[11px] mt-1">{name}</span>
                     </div>
                   ))}
-
-                  <div
-                    draggable
-                    onDragStart={handleWirelessLevelSensorDragStart}
-                    className="cursor-pointer flex flex-col items-center mb-3 cursor-grab active:cursor-grabbing select-none"
-                    title="Drag Wireless Level Sensor to dashboard"
-                    style={{ userSelect: "none" }}
-                  >
-                    <Sidebarleftwirelesstank size={115} liquidLevel={58} />
-                  </div>
                 </div>
               )}
 
