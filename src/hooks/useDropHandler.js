@@ -52,7 +52,7 @@ export default function useDropHandler({
         headers: { "Content-Type": "application/json", ...getAuthHeaders() },
         body: JSON.stringify({
           widget_id: String(widgetId || "").trim(),
-          dashboard_id: dash, // "main" allowed
+          dashboard_id: dash,
         }),
       });
     } catch (err) {
@@ -77,8 +77,6 @@ export default function useDropHandler({
     return /\.(png|jpg|jpeg|gif|webp|svg)$/i.test(v);
   };
 
-  // ✅ Option A: compute a new "top layer" z for every new drop
-  // - Supports both new `z` and any older `zIndex` objects that might still exist.
   const nextTopZ = (prev) => {
     const maxZ = Math.max(
       0,
@@ -97,8 +95,8 @@ export default function useDropHandler({
     e.preventDefault();
 
     const rect = e.currentTarget.getBoundingClientRect();
-    const x = e.clientX - rect.left; // ✅ canvas coords
-    const y = e.clientY - rect.top; // ✅ canvas coords
+    const x = e.clientX - rect.left;
+    const y = e.clientY - rect.top;
 
     // ===============================
     // ✅ 1) IMAGE DROP
@@ -115,9 +113,6 @@ export default function useDropHandler({
     if (imgSrc) {
       setDroppedTanks((prev) => {
         const z = nextTopZ(prev);
-
-        // ✅ NEW: bigger default image drop size
-        // (DraggableImage can read these if you already support w/h, otherwise it will ignore safely)
         const DEFAULT_IMG_W = 260;
         const DEFAULT_IMG_H = 160;
 
@@ -131,8 +126,6 @@ export default function useDropHandler({
             scale: 1,
             src: imgSrc,
             z,
-
-            // ✅ NEW: give images an explicit size (so they don’t drop tiny)
             w: DEFAULT_IMG_W,
             h: DEFAULT_IMG_H,
           },
@@ -156,10 +149,8 @@ export default function useDropHandler({
               shape: "toggleSwitch",
               x,
               y,
-
-              w: 120, 
-              h: 45, 
-
+              w: 120,
+              h: 45,
               isOn: true,
               z,
             },
@@ -242,7 +233,6 @@ export default function useDropHandler({
     const shape = e.dataTransfer.getData("shape");
     if (!shape) return;
 
-        // ✅ GAUGE DISPLAY (AI)
     if (shape === "gaugeDisplay") {
       setDroppedTanks((prev) => {
         const z = nextTopZ(prev);
@@ -254,16 +244,11 @@ export default function useDropHandler({
             shape: "gaugeDisplay",
             x,
             y,
-
-            // default size
             w: 220,
             h: 220,
             width: 220,
             height: 220,
-
             z,
-
-            // gauge settings
             title: "Gauge",
             gaugeStyle: "classic",
             units: "",
@@ -271,23 +256,15 @@ export default function useDropHandler({
             maxValue: 100,
             decimals: 0,
             formula: "",
-
-            // AI binding
             bindModel: "zhc1921",
             bindDeviceId: "",
             bindField: "ai1",
-
-            // options
             showValue: true,
             showTicks: true,
             showLabels: true,
             showZones: true,
-
-            // thresholds
             lowWarn: null,
             highWarn: null,
-
-            // keep a properties copy too, for compatibility with your renderer/settings
             properties: {
               title: "Gauge",
               gaugeStyle: "classic",
@@ -312,14 +289,9 @@ export default function useDropHandler({
       return;
     }
 
-
-
-    // ✅ GRAPHIC DISPLAY (canvas object)
-
     if (shape === "graphicDisplay") {
       setDroppedTanks((prev) => {
         const z = nextTopZ(prev);
-
         const DEFAULT_W = 830;
         const DEFAULT_H = 340;
 
@@ -330,17 +302,12 @@ export default function useDropHandler({
             shape: "graphicDisplay",
             x,
             y,
-
-            // ✅ default drop size
             w: DEFAULT_W,
             h: DEFAULT_H,
-
-            // ✅ optional helpers (safe if your resizer uses them)
             baseW: DEFAULT_W,
             baseH: DEFAULT_H,
             minW: 520,
             minH: 260,
-
             z,
             title: "Graphic Display",
             timeUnit: "seconds",
@@ -365,14 +332,12 @@ export default function useDropHandler({
       return;
     }
 
-    // 🚫 Alarm Log drop ignored
     if (shape === "alarmLog") {
       return;
     }
 
-    // ✅ COUNTER INPUT (DI) — CREATE DB ROW ONLY HERE
     if (shape === "counterInput") {
-      const newId = makeId(); // ✅ use same ID for widget_id
+      const newId = makeId();
 
       setDroppedTanks((prev) => {
         const z = nextTopZ(prev);
@@ -400,13 +365,10 @@ export default function useDropHandler({
         ];
       });
 
-      // ✅ create device_counters row ONLY for this shape
       createCounterPlaceholder(newId);
-
       return;
     }
 
-    // ✅ INDICATORS
     if (shape === "ledCircle") {
       setDroppedTanks((prev) => {
         const z = nextTopZ(prev);
@@ -508,7 +470,6 @@ export default function useDropHandler({
       return;
     }
 
-    // TEXT BOX
     if (shape === "textBox") {
       setDroppedTanks((prev) => {
         const z = nextTopZ(prev);
@@ -525,6 +486,35 @@ export default function useDropHandler({
             width: 160,
             height: 60,
             z,
+          },
+        ];
+      });
+      return;
+    }
+
+    if (shape === "wirelessTank") {
+      setDroppedTanks((prev) => {
+        const z = nextTopZ(prev);
+
+        return [
+          ...prev,
+          {
+            id: makeId(),
+            shape: "wirelessTank",
+            x,
+            y,
+            scale: 1,
+            z,
+            properties: {
+              name: "wirelessTank",
+              strokeColor: "#111827",
+              lineColor: "#111827",
+              bindModel: "zhc1921",
+              bindDeviceId: "",
+              bindField: "ai1",
+              unit: "",
+              formula: "",
+            },
           },
         ];
       });
