@@ -1,4 +1,3 @@
-```jsx
 // Sidebarleftwirelesstank2.jsx
 import React from "react";
 
@@ -115,4 +114,3 @@ export default function Sidebarleftwirelesstank2({
     </svg>
   );
 }
-```
