@@ -45,7 +45,6 @@ export default function Sidebarleftwirelesstank2({
         <path d="M52 383 L321 450" />
         <path d="M321 450 L571 371" />
         <path d="M348 155 L348 456" />
-        <path d="M488 123 L488 413" />
         <path d="M321 160 C330 151 340 151 348 155" />
         <path d="M321 450 C329 459 340 461 348 456" />
 
