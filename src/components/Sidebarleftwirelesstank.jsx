@@ -24,8 +24,8 @@ export default function Sidebarleftwirelesstank({
         strokeLinejoin="round"
       >
         {/* main tank outer edges */}
-        <path d="M30 104 L72 116" />
-        <path d="M254 116 L492 104" />
+        <path d="M30 104 L72 112" />
+        <path d="M254 118 L492 104" />
         <path d="M30 104 L30 385" />
         <path d="M135 125 L135 452" />
         <path d="M492 104 L492 405" />
@@ -67,9 +67,9 @@ export default function Sidebarleftwirelesstank({
 
         {/* bottom lip connected to tank */}
         <path d="M72 106 L145 126 L252 108" />
-        <path d="M68 112 L140 134 L254 116" />
+        <path d="M68 112 L140 134 L254 118" />
         <path d="M140 134 L135 125" />
-        <path d="M254 116 L252 108" />
+        <path d="M254 118 L252 108" />
 
         {/* top round port */}
         <ellipse cx="103" cy="82" rx="13" ry="24" />
