@@ -25,10 +25,6 @@ export default function Sidebarleftwirelesstank({
       >
         {/* main tank outer edges */}
         <path d="M30 104 L72 116" />
-
-        {/* ✅ CONNECTED POINT A TO POINT B */}
-        <path d="M72 116 L254 116" />
-
         <path d="M254 116 L492 104" />
         <path d="M30 104 L30 385" />
         <path d="M135 125 L135 452" />
@@ -37,7 +33,7 @@ export default function Sidebarleftwirelesstank({
         <path d="M135 452 L492 405" />
 
         {/* top rear opening */}
-        <path d="M254 116 L360 72 L492 104" />
+        <path d="M135 125 L360 72 L492 104" />
         <path d="M360 72 L360 325" strokeDasharray="7 8" opacity="0.65" />
 
         {/* internal CAD lines */}
