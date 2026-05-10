@@ -125,7 +125,7 @@ export default function SidebarLeft({
   };
 
   const handleWirelessLevelSensorDragStart = (e) => {
-    const shapeName = "wirelessLevelSensor";
+    const shapeName = "wirelessTank";
     e.dataTransfer.setData("shape", shapeName);
     e.dataTransfer.setData("text/plain", shapeName);
   };
