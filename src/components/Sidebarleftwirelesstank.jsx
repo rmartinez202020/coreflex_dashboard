@@ -31,10 +31,9 @@ export default function Sidebarleftwirelesstank({
         <path d="M492 95 L492 405" />
         <path d="M30 385 L135 452" />
         <path d="M135 452 L492 405" />
-        <path d="M492 95 L492 405" />
 
         {/* top rear opening */}
-        <path d="M252 108 L360 72 L492 95" />
+        <path d="M254 116 L360 72 L492 95" />
         <path d="M360 72 L360 325" strokeDasharray="7 8" opacity="0.65" />
 
         {/* internal CAD lines */}
