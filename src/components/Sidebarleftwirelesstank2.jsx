@@ -78,29 +78,20 @@ export default function Sidebarleftwirelesstank2({
         <path d="M205 399 C216 417 237 419 249 405" />
 
         {/* legs */}
-        <path d="M36 417 L36 480" />
-        <path d="M36 480 L67 488" />
-        <path d="M67 488 L67 430" />
-        <path d="M50 421 L82 429" />
-        <path d="M82 429 L82 471" />
-        <path d="M67 488 L82 471" />
-        <path d="M37 468 C46 476 57 480 67 481" />
+        <path d="M38 415 L71 423 L71 470 L38 461 Z" />
+        <path d="M71 423 L89 417 L89 455 L71 470 Z" />
+        <path d="M38 461 L71 470" />
+        <path d="M49 418 L49 464" opacity="0.45" />
 
-        <path d="M309 487 L309 536" />
-        <path d="M309 536 L352 545" />
-        <path d="M352 545 L352 492" />
-        <path d="M325 490 L369 478" />
-        <path d="M369 478 L369 526" />
-        <path d="M352 545 L369 526" />
-        <path d="M309 523 C320 531 336 536 352 537" />
+        <path d="M313 489 L349 498 L349 542 L313 532 Z" />
+        <path d="M349 498 L371 491 L371 528 L349 542 Z" />
+        <path d="M313 532 L349 542" />
+        <path d="M325 492 L325 535" opacity="0.45" />
 
-        <path d="M520 432 L520 485" />
-        <path d="M520 485 L556 474" />
-        <path d="M556 474 L556 419" />
-        <path d="M536 427 L572 415" />
-        <path d="M572 415 L572 461" />
-        <path d="M556 474 L572 461" />
-        <path d="M520 472 C529 478 545 479 556 474" />
+        <path d="M518 431 L550 421 L550 466 L518 477 Z" />
+        <path d="M550 421 L570 415 L570 453 L550 466 Z" />
+        <path d="M518 477 L550 466" />
+        <path d="M530 427 L530 473" opacity="0.45" />
 
         {/* subtle panel duplicates to mimic technical line art */}
         <path d="M55 128 L318 169" opacity="0.4" />
