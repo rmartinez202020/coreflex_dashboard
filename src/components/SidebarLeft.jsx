@@ -308,13 +308,26 @@ export default function SidebarLeft({
                   <div
                     draggable
                     onDragStart={handleWirelessLevelSensorDragStart}
-                    className="cursor-pointer flex flex-col items-center mb-3 cursor-grab active:cursor-grabbing select-none"
+                    className="cursor-pointer flex flex-col items-center mb-5 cursor-grab active:cursor-grabbing select-none"
                     title="Drag Tank#1 to dashboard"
                     style={{ userSelect: "none" }}
                   >
                     <Sidebarleftwirelesstank size={150} liquidLevel={58} />
                     <span className="text-[11px] mt-1 text-center leading-tight">
                       Tank#1
+                    </span>
+                  </div>
+
+                  <div
+                    draggable
+                    onDragStart={handleWirelessLevelSensorDragStart}
+                    className="cursor-pointer flex flex-col items-center mb-3 cursor-grab active:cursor-grabbing select-none"
+                    title="Drag Tank#2 to dashboard"
+                    style={{ userSelect: "none" }}
+                  >
+                    <Sidebarleftwirelesstank size={150} liquidLevel={58} />
+                    <span className="text-[11px] mt-1 text-center leading-tight">
+                      Tank#2
                     </span>
                   </div>
                 </div>
