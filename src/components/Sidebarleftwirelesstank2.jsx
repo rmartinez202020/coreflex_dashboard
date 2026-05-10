@@ -66,17 +66,17 @@ export default function Sidebarleftwirelesstank2({
         <path d="M359 484 L574 414" opacity="0.55" />
 
         {/* front lower ports */}
-        <ellipse cx="146" cy="350" rx="17" ry="29" />
-        <ellipse cx="151" cy="351" rx="12" ry="23" />
-        <ellipse cx="156" cy="352" rx="7" ry="17" />
-        <path d="M132 330 C143 321 162 326 173 341" />
-        <path d="M131 366 C142 384 163 386 175 372" />
+        <ellipse cx="146" cy="406" rx="17" ry="29" />
+        <ellipse cx="151" cy="407" rx="12" ry="23" />
+        <ellipse cx="156" cy="408" rx="7" ry="17" />
+        <path d="M132 386 C143 377 162 382 173 397" />
+        <path d="M131 422 C142 440 163 442 175 428" />
 
-        <ellipse cx="276" cy="383" rx="17" ry="29" />
-        <ellipse cx="281" cy="384" rx="12" ry="23" />
-        <ellipse cx="286" cy="385" rx="7" ry="17" />
-        <path d="M262 363 C273 354 292 359 303 374" />
-        <path d="M261 399 C272 417 293 419 305 405" />
+        <ellipse cx="276" cy="438" rx="17" ry="29" />
+        <ellipse cx="281" cy="439" rx="12" ry="23" />
+        <ellipse cx="286" cy="440" rx="7" ry="17" />
+        <path d="M262 418 C273 409 292 414 303 429" />
+        <path d="M261 454 C272 472 293 474 305 460" />
 
         {/* legs */}
         <path d="M36 417 L36 480" />
