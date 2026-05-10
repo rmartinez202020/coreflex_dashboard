@@ -7,6 +7,7 @@ import {
   SiloTankIcon,
 } from "./ProTankIcon";
 
+import Sidebarleftwirelesstank from "./Sidebarleftwirelesstank";
 import DraggableControls from "./DraggableControls";
 
 import {
@@ -16,81 +17,6 @@ import {
   DraggableStateImage,
   DraggableCounterInput,
 } from "./indicators";
-
-function WirelessTankIcon({ size = 145 }) {
-  return (
-    <svg
-      width={size}
-      height={Math.round(size * 0.74)}
-      viewBox="0 0 300 160"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
-      style={{ display: "block", maxWidth: "100%" }}
-    >
-      <g
-        stroke="#dbeafe"
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
-        {/* Main professional rectangular tank - long body */}
-        <path d="M20 48 L108 28 L280 54 L192 76 Z" />
-        <path d="M20 48 L20 122 L192 152 L192 76 Z" />
-        <path d="M192 76 L280 54 L280 128 L192 152 Z" />
-
-        {/* Front/side face detail lines */}
-        <path d="M26 53 L108 35 L270 58" opacity="0.9" />
-        <path d="M192 82 L271 62" opacity="0.85" />
-        <path d="M25 118 L192 147 L274 125" opacity="0.85" />
-
-        {/* Hidden CAD-style geometry */}
-        <path d="M20 122 L192 100 L280 128" strokeDasharray="8 8" opacity="0.55" />
-        <path d="M192 76 L192 152" strokeDasharray="8 8" opacity="0.55" />
-        <path d="M108 28 L108 99" strokeDasharray="8 8" opacity="0.35" />
-
-        {/* Top service/filter box - flatter and proportional */}
-        <path d="M58 40 L58 16 L116 8 L172 20 L172 45 L115 56 Z" />
-        <path d="M58 16 L115 28 L172 20" />
-        <path d="M115 28 L115 56" />
-        <path d="M63 41 L115 51 L166 42" opacity="0.75" />
-
-        {/* Top circular inlet/outlet */}
-        <ellipse cx="79" cy="29" rx="13" ry="15" />
-        <ellipse cx="79" cy="29" rx="8" ry="11" />
-        <ellipse cx="79" cy="29" rx="4" ry="7" />
-
-        {/* Left latches - compact technical style */}
-        <path d="M35 71 L52 75 L52 91 L35 87 Z" />
-        <path d="M37 71 L44 63 L52 75" />
-        <path d="M39 77 L49 80" />
-        <path d="M40 87 L48 89" />
-
-        <path d="M74 79 L92 83 L92 101 L74 97 Z" />
-        <path d="M76 79 L84 70 L92 83" />
-        <path d="M78 86 L89 89" />
-        <path d="M79 97 L88 99" />
-
-        {/* Front lower ports */}
-        <ellipse cx="46" cy="109" rx="11" ry="16" />
-        <ellipse cx="46" cy="109" rx="7" ry="12" />
-        <ellipse cx="46" cy="109" rx="3" ry="7" />
-
-        <ellipse cx="91" cy="119" rx="11" ry="16" />
-        <ellipse cx="91" cy="119" rx="7" ry="12" />
-        <ellipse cx="91" cy="119" rx="3" ry="7" />
-
-        {/* Industrial base rail and feet */}
-        <path d="M22 126 L191 156 L276 131" />
-        <path d="M40 128 L40 147 L67 147 L67 133" />
-        <path d="M218 146 L218 158 L248 158 L248 136" />
-
-        {/* Slight top lip */}
-        <path d="M20 48 L20 43 L108 23 L280 49 L280 54" opacity="0.8" />
-        <path d="M20 43 L192 70 L280 49" opacity="0.8" />
-      </g>
-    </svg>
-  );
-}
 
 export default function SidebarLeft({
   isLeftCollapsed,
@@ -350,6 +276,19 @@ export default function SidebarLeft({
                       <span className="text-[11px] mt-1">{name}</span>
                     </div>
                   ))}
+
+                  <div
+                    draggable
+                    onDragStart={handleWirelessLevelSensorDragStart}
+                    className="cursor-pointer flex flex-col items-center mb-3 cursor-grab active:cursor-grabbing select-none"
+                    title="Drag Wireless Level Sensor to dashboard"
+                    style={{ userSelect: "none" }}
+                  >
+                    <Sidebarleftwirelesstank size={115} liquidLevel={58} />
+                    <span className="text-[11px] mt-1 text-center leading-tight">
+                      wirelessTank
+                    </span>
+                  </div>
                 </div>
               )}
 
@@ -386,7 +325,7 @@ export default function SidebarLeft({
                     title="Drag Wireless Level Sensor to dashboard"
                     style={{ userSelect: "none" }}
                   >
-                    <WirelessTankIcon size={150} />
+                    <Sidebarleftwirelesstank size={150} liquidLevel={58} />
                     <span className="text-[11px] mt-1 text-center leading-tight">
                       wirelessTank
                     </span>
