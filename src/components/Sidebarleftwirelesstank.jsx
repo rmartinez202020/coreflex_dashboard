@@ -123,15 +123,15 @@ export default function Sidebarleftwirelesstank({
             width="265"
             height="300"
             rx="18"
-            fill="rgba(15, 23, 42, 0.92)"
-            stroke="rgba(255,255,255,0.22)"
+            fill="#ffffff"
+            stroke="rgba(15,23,42,0.14)"
             strokeWidth="2"
           />
 
           <text
             x="550"
             y="138"
-            fill="#ffffff"
+            fill="#0f172a"
             fontSize="18"
             fontWeight="900"
             fontFamily="Arial, sans-serif"
@@ -140,11 +140,11 @@ export default function Sidebarleftwirelesstank({
           </text>
 
           {/* Height */}
-          <circle cx="552" cy="178" r="17" fill="rgba(34,197,94,0.22)" />
+          <circle cx="552" cy="178" r="17" fill="rgba(34,197,94,0.18)" />
           <text
             x="545"
             y="184"
-            fill="#22c55e"
+            fill="#16a34a"
             fontSize="18"
             fontWeight="900"
             fontFamily="Arial, sans-serif"
@@ -154,7 +154,7 @@ export default function Sidebarleftwirelesstank({
           <text
             x="580"
             y="172"
-            fill="#cbd5e1"
+            fill="#0f172a"
             fontSize="12"
             fontWeight="800"
             fontFamily="Arial, sans-serif"
@@ -164,7 +164,7 @@ export default function Sidebarleftwirelesstank({
           <text
             x="580"
             y="194"
-            fill="#22c55e"
+            fill="#16a34a"
             fontSize="20"
             fontWeight="900"
             fontFamily="monospace"
@@ -173,11 +173,11 @@ export default function Sidebarleftwirelesstank({
           </text>
 
           {/* Temperature */}
-          <circle cx="552" cy="238" r="17" fill="rgba(249,115,22,0.22)" />
+          <circle cx="552" cy="238" r="17" fill="rgba(249,115,22,0.18)" />
           <text
             x="544"
             y="244"
-            fill="#fb923c"
+            fill="#ea580c"
             fontSize="18"
             fontWeight="900"
             fontFamily="Arial, sans-serif"
@@ -187,7 +187,7 @@ export default function Sidebarleftwirelesstank({
           <text
             x="580"
             y="232"
-            fill="#cbd5e1"
+            fill="#0f172a"
             fontSize="12"
             fontWeight="800"
             fontFamily="Arial, sans-serif"
@@ -197,7 +197,7 @@ export default function Sidebarleftwirelesstank({
           <text
             x="580"
             y="254"
-            fill="#fb923c"
+            fill="#ea580c"
             fontSize="20"
             fontWeight="900"
             fontFamily="monospace"
@@ -206,11 +206,11 @@ export default function Sidebarleftwirelesstank({
           </text>
 
           {/* Battery */}
-          <circle cx="552" cy="298" r="17" fill="rgba(34,197,94,0.22)" />
+          <circle cx="552" cy="298" r="17" fill="rgba(34,197,94,0.18)" />
           <text
             x="545"
             y="304"
-            fill="#22c55e"
+            fill="#16a34a"
             fontSize="18"
             fontWeight="900"
             fontFamily="Arial, sans-serif"
@@ -220,7 +220,7 @@ export default function Sidebarleftwirelesstank({
           <text
             x="580"
             y="292"
-            fill="#cbd5e1"
+            fill="#0f172a"
             fontSize="12"
             fontWeight="800"
             fontFamily="Arial, sans-serif"
@@ -230,7 +230,7 @@ export default function Sidebarleftwirelesstank({
           <text
             x="580"
             y="314"
-            fill="#22c55e"
+            fill="#16a34a"
             fontSize="20"
             fontWeight="900"
             fontFamily="monospace"
@@ -239,11 +239,11 @@ export default function Sidebarleftwirelesstank({
           </text>
 
           {/* Date */}
-          <circle cx="552" cy="358" r="17" fill="rgba(59,130,246,0.22)" />
+          <circle cx="552" cy="358" r="17" fill="rgba(59,130,246,0.18)" />
           <text
             x="544"
             y="364"
-            fill="#60a5fa"
+            fill="#2563eb"
             fontSize="18"
             fontWeight="900"
             fontFamily="Arial, sans-serif"
@@ -253,7 +253,7 @@ export default function Sidebarleftwirelesstank({
           <text
             x="580"
             y="352"
-            fill="#cbd5e1"
+            fill="#0f172a"
             fontSize="12"
             fontWeight="800"
             fontFamily="Arial, sans-serif"
@@ -263,7 +263,7 @@ export default function Sidebarleftwirelesstank({
           <text
             x="580"
             y="374"
-            fill="#60a5fa"
+            fill="#2563eb"
             fontSize="16"
             fontWeight="900"
             fontFamily="monospace"
