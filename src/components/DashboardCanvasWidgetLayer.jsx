@@ -16,6 +16,7 @@ import DraggableSiloTank from "./DraggableSiloTank";
 import DraggableStandardTank from "./DraggableStandardTank";
 import DraggableHorizontalTank from "./DraggableHorizontalTank";
 import Draggablewirelesstank from "./Draggablewirelesstank";
+import Draggablewirelesstank2 from "./Draggablewirelesstank2";
 import {
   DraggableLedCircle,
   DraggableStatusTextBox,
@@ -936,6 +937,25 @@ export default function DashboardCanvasWidgetLayer({
               tank,
               <div className="flex flex-col items-center">
                 <Draggablewirelesstank
+                  tank={tank}
+                  isPlay={isPlay}
+                  telemetryMap={telemetryMap}
+                />
+              </div>,
+              "ai1"
+            )}
+          </DraggableDroppedTank>
+        );
+      }
+
+
+      if (tank.shape === "wirelessTank2") {
+        return (
+          <DraggableDroppedTank {...commonProps}>
+            {wrapWithOverlay(
+              tank,
+              <div className="flex flex-col items-center">
+                <Draggablewirelesstank2
                   tank={tank}
                   isPlay={isPlay}
                   telemetryMap={telemetryMap}
