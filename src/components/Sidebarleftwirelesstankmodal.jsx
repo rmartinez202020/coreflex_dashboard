@@ -4,7 +4,7 @@ import wl3000TankPreview from "../assets/wl3000-tank-preview.png";
 
 const MODEL_OPTIONS = [{ key: "wl3000", label: "WL-3000" }];
 
-function computeCenteredPos({ panelW = 1180, estH = 520 } = {}) {
+function computeCenteredPos({ panelW = 1180, estH = 500 } = {}) {
   const w = window.innerWidth || 1200;
   const h = window.innerHeight || 800;
 
@@ -135,14 +135,14 @@ export default function Sidebarleftwirelesstankmodal({
 
   const [pos, setPos] = useState(() => {
     if (typeof window === "undefined") return { left: 12, top: 12 };
-    return computeCenteredPos({ panelW: PANEL_W, estH: 520 });
+    return computeCenteredPos({ panelW: PANEL_W, estH: 500 });
   });
 
   const [isDragging, setIsDragging] = useState(false);
 
   useLayoutEffect(() => {
     if (!open) return;
-    setPos(computeCenteredPos({ panelW: PANEL_W, estH: 520 }));
+    setPos(computeCenteredPos({ panelW: PANEL_W, estH: 500 }));
   }, [open]);
 
   useEffect(() => {
@@ -317,7 +317,6 @@ export default function Sidebarleftwirelesstankmodal({
                 border: "1px solid #e2e8f0",
                 borderRadius: 14,
                 padding: 14,
-                minHeight: 0,
               }}
             >
               <div style={{ fontWeight: 900, fontSize: 16, color: "#0f172a", marginBottom: 10 }}>
@@ -475,14 +474,6 @@ export default function Sidebarleftwirelesstankmodal({
                     value={`${liveBattery}${liveBattery !== "--" ? " V" : ""}`}
                     accent="#15803d"
                     bg="rgba(187,247,208,0.65)"
-                  />
-
-                  <TelemetryCard
-                    icon="▣"
-                    label="IMEI"
-                    value={unitId || "--"}
-                    accent="#7c3aed"
-                    bg="rgba(221,214,254,0.75)"
                   />
                 </div>
               </div>
