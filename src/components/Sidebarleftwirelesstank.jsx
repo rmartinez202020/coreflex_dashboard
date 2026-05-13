@@ -118,7 +118,15 @@ export default function Sidebarleftwirelesstank({
         <g>
           {/* Height */}
           <circle cx="560" cy="130" r="30" fill="rgba(34,197,94,0.18)" />
-          <text x="548" y="141" fill="#16a34a" fontSize="34" fontWeight="500">
+          <text
+            x="560"
+            y="130"
+            fill="#16a34a"
+            fontSize="34"
+            fontWeight="500"
+            textAnchor="middle"
+            dominantBaseline="central"
+          >
             ↕
           </text>
           <text x="625" y="122" fill="#0f172a" fontSize="24" fontWeight="400">
@@ -137,7 +145,15 @@ export default function Sidebarleftwirelesstank({
 
           {/* Temperature */}
           <circle cx="560" cy="220" r="30" fill="rgba(249,115,22,0.18)" />
-          <text x="546" y="232" fill="#ea580c" fontSize="34" fontWeight="500">
+          <text
+            x="560"
+            y="220"
+            fill="#ea580c"
+            fontSize="34"
+            fontWeight="500"
+            textAnchor="middle"
+            dominantBaseline="central"
+          >
             ♨
           </text>
           <text x="625" y="212" fill="#0f172a" fontSize="24" fontWeight="400">
@@ -156,7 +172,15 @@ export default function Sidebarleftwirelesstank({
 
           {/* Battery */}
           <circle cx="560" cy="310" r="30" fill="rgba(34,197,94,0.18)" />
-          <text x="548" y="321" fill="#16a34a" fontSize="34" fontWeight="500">
+          <text
+            x="560"
+            y="310"
+            fill="#16a34a"
+            fontSize="30"
+            fontWeight="500"
+            textAnchor="middle"
+            dominantBaseline="central"
+          >
             🔋
           </text>
           <text x="625" y="302" fill="#0f172a" fontSize="24" fontWeight="400">
@@ -175,7 +199,15 @@ export default function Sidebarleftwirelesstank({
 
           {/* Date */}
           <circle cx="560" cy="400" r="30" fill="rgba(59,130,246,0.18)" />
-          <text x="548" y="411" fill="#2563eb" fontSize="34" fontWeight="500">
+          <text
+            x="560"
+            y="400"
+            fill="#2563eb"
+            fontSize="34"
+            fontWeight="500"
+            textAnchor="middle"
+            dominantBaseline="central"
+          >
             ▣
           </text>
           <text x="625" y="392" fill="#0f172a" fontSize="24" fontWeight="400">
