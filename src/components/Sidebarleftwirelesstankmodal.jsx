@@ -4,7 +4,7 @@ import wl3000TankPreview from "../assets/wl3000-tank-preview.png";
 
 const MODEL_OPTIONS = [{ key: "wl3000", label: "WL-3000" }];
 
-function computeCenteredPos({ panelW = 980, estH = 640 } = {}) {
+function computeCenteredPos({ panelW = 1180, estH = 520 } = {}) {
   const w = window.innerWidth || 1200;
   const h = window.innerHeight || 800;
 
@@ -15,41 +15,67 @@ function computeCenteredPos({ panelW = 980, estH = 640 } = {}) {
   return { left, top };
 }
 
-function TelemetryRow({ label, value, accent = "#0f172a" }) {
+function TelemetryCard({
+  icon,
+  label,
+  value,
+  accent = "#0f172a",
+  bg = "#f8fafc",
+}) {
   return (
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "150px 1fr",
+        gridTemplateColumns: "46px 1fr",
         alignItems: "center",
         gap: 12,
-        padding: "10px 12px",
+        padding: "11px 12px",
         borderRadius: 12,
         background: "#ffffff",
         border: "1px solid #e2e8f0",
+        minHeight: 68,
       }}
     >
       <div
         style={{
-          fontSize: 11,
+          width: 42,
+          height: 42,
+          borderRadius: "50%",
+          background: bg,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          fontSize: 22,
+          color: accent,
           fontWeight: 900,
-          color: "#64748b",
-          textTransform: "uppercase",
-          letterSpacing: 0.5,
         }}
       >
-        {label}
+        {icon}
       </div>
 
-      <div
-        style={{
-          fontSize: 15,
-          fontWeight: 900,
-          color: accent,
-          fontFamily: "monospace",
-        }}
-      >
-        {value}
+      <div>
+        <div
+          style={{
+            fontSize: 11,
+            fontWeight: 900,
+            color: "#0f172a",
+            marginBottom: 4,
+          }}
+        >
+          {label}
+        </div>
+
+        <div
+          style={{
+            fontSize: 18,
+            fontWeight: 900,
+            color: accent,
+            fontFamily: "monospace",
+            lineHeight: 1.1,
+          }}
+        >
+          {value}
+        </div>
       </div>
     </div>
   );
@@ -70,8 +96,6 @@ export default function Sidebarleftwirelesstankmodal({
   const [unitId, setUnitId] = useState(props.unitId || props.bindDeviceId || "");
   const [unitQuery, setUnitQuery] = useState("");
 
-  // Temporary static list until backend routes are assigned.
-  // Later this will come from backend and each unit will include latest payload values.
   const [units] = useState([
     {
       unitId: "860549070088252",
@@ -99,7 +123,7 @@ export default function Sidebarleftwirelesstankmodal({
     },
   ]);
 
-  const PANEL_W = 980;
+  const PANEL_W = 1180;
 
   const dragRef = useRef({
     dragging: false,
@@ -111,14 +135,14 @@ export default function Sidebarleftwirelesstankmodal({
 
   const [pos, setPos] = useState(() => {
     if (typeof window === "undefined") return { left: 12, top: 12 };
-    return computeCenteredPos({ panelW: PANEL_W, estH: 640 });
+    return computeCenteredPos({ panelW: PANEL_W, estH: 520 });
   });
 
   const [isDragging, setIsDragging] = useState(false);
 
   useLayoutEffect(() => {
     if (!open) return;
-    setPos(computeCenteredPos({ panelW: PANEL_W, estH: 640 }));
+    setPos(computeCenteredPos({ panelW: PANEL_W, estH: 520 }));
   }, [open]);
 
   useEffect(() => {
@@ -243,7 +267,7 @@ export default function Sidebarleftwirelesstankmodal({
         <div
           onMouseDown={startDrag}
           style={{
-            padding: "14px 18px",
+            padding: "12px 18px",
             borderBottom: "1px solid rgba(255,255,255,0.12)",
             background: "linear-gradient(180deg,#0b1b33,#071327)",
             color: "#fff",
@@ -278,11 +302,11 @@ export default function Sidebarleftwirelesstankmodal({
           </button>
         </div>
 
-        <div style={{ padding: 18, background: "#f8fafc" }}>
+        <div style={{ padding: 16, background: "#f8fafc" }}>
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "340px 1fr",
+              gridTemplateColumns: "360px 1fr",
               gap: 16,
               alignItems: "start",
             }}
@@ -292,17 +316,17 @@ export default function Sidebarleftwirelesstankmodal({
                 background: "#ffffff",
                 border: "1px solid #e2e8f0",
                 borderRadius: 14,
-                padding: 16,
-                minHeight: 390,
+                padding: 14,
+                minHeight: 0,
               }}
             >
-              <div style={{ fontWeight: 900, fontSize: 16, color: "#0f172a", marginBottom: 12 }}>
+              <div style={{ fontWeight: 900, fontSize: 16, color: "#0f172a", marginBottom: 10 }}>
                 Preview
               </div>
 
               <div
                 style={{
-                  height: 285,
+                  height: 260,
                   borderRadius: 14,
                   border: "1px solid #e2e8f0",
                   background: "#ffffff",
@@ -326,7 +350,7 @@ export default function Sidebarleftwirelesstankmodal({
 
               <div
                 style={{
-                  marginTop: 12,
+                  marginTop: 10,
                   borderRadius: 12,
                   background: "#f1f5f9",
                   border: "1px solid #e2e8f0",
@@ -345,61 +369,65 @@ export default function Sidebarleftwirelesstankmodal({
                 background: "#ffffff",
                 border: "1px solid #e2e8f0",
                 borderRadius: 14,
-                padding: 16,
+                padding: 14,
                 display: "grid",
-                gap: 14,
+                gap: 10,
               }}
             >
               <div style={{ fontWeight: 900, fontSize: 16, color: "#0f172a" }}>
                 Device Binding
               </div>
 
-              <div style={{ display: "grid", gap: 6 }}>
-                <div style={labelStyle}>Title</div>
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  style={inputStyle}
-                  placeholder="Tank#1"
-                />
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div style={{ display: "grid", gap: 6 }}>
+                  <div style={labelStyle}>Title</div>
+                  <input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    style={inputStyle}
+                    placeholder="Tank#1"
+                  />
+                </div>
+
+                <div style={{ display: "grid", gap: 6 }}>
+                  <div style={labelStyle}>Model</div>
+                  <select value={model} onChange={(e) => setModel(e.target.value)} style={inputStyle}>
+                    {MODEL_OPTIONS.map((m) => (
+                      <option key={m.key} value={m.key}>
+                        {m.label}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
-              <div style={{ display: "grid", gap: 6 }}>
-                <div style={labelStyle}>Model</div>
-                <select value={model} onChange={(e) => setModel(e.target.value)} style={inputStyle}>
-                  {MODEL_OPTIONS.map((m) => (
-                    <option key={m.key} value={m.key}>
-                      {m.label}
-                    </option>
-                  ))}
-                </select>
-              </div>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+                <div style={{ display: "grid", gap: 6 }}>
+                  <div style={labelStyle}>IMEI Search</div>
+                  <input
+                    value={unitQuery}
+                    onChange={(e) => setUnitQuery(e.target.value)}
+                    style={inputStyle}
+                    placeholder="Type to filter IMEI..."
+                  />
+                </div>
 
-              <div style={{ display: "grid", gap: 6 }}>
-                <div style={labelStyle}>IMEI Search</div>
-                <input
-                  value={unitQuery}
-                  onChange={(e) => setUnitQuery(e.target.value)}
-                  style={inputStyle}
-                  placeholder="Type to filter IMEI..."
-                />
-              </div>
-
-              <div style={{ display: "grid", gap: 6 }}>
-                <div style={labelStyle}>IMEI</div>
-                <select value={unitId} onChange={(e) => setUnitId(e.target.value)} style={inputStyle}>
-                  <option value="">Select IMEI...</option>
-                  {filteredUnits.map((u) => (
-                    <option key={u.unitId} value={u.unitId}>
-                      {u.unitId}
-                    </option>
-                  ))}
-                </select>
+                <div style={{ display: "grid", gap: 6 }}>
+                  <div style={labelStyle}>IMEI</div>
+                  <select value={unitId} onChange={(e) => setUnitId(e.target.value)} style={inputStyle}>
+                    <option value="">Select IMEI...</option>
+                    {filteredUnits.map((u) => (
+                      <option key={u.unitId} value={u.unitId}>
+                        {u.unitId}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div
                 style={{
-                  marginTop: 4,
+                  marginTop: 2,
                   border: "1px solid #dbeafe",
                   background: "linear-gradient(180deg,#f8fbff,#eef6ff)",
                   borderRadius: 14,
@@ -410,35 +438,51 @@ export default function Sidebarleftwirelesstankmodal({
                   Wireless Telemetry
                 </div>
 
-                <div style={{ display: "grid", gap: 8 }}>
-                  <TelemetryRow
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 10,
+                  }}
+                >
+                  <TelemetryCard
+                    icon="↕"
                     label="Height"
                     value={`${liveHeight}${liveHeight !== "--" ? " in" : ""}`}
-                    accent="#15803d"
+                    accent="#16a34a"
+                    bg="rgba(187,247,208,0.65)"
                   />
 
-                  <TelemetryRow
-                    label="Temperature"
-                    value={`${liveTemperature}${liveTemperature !== "--" ? " °F" : ""}`}
-                    accent="#c2410c"
-                  />
-
-                  <TelemetryRow
-                    label="Battery"
-                    value={`${liveBattery}${liveBattery !== "--" ? " V" : ""}`}
-                    accent="#0f766e"
-                  />
-
-                  <TelemetryRow
+                  <TelemetryCard
+                    icon="📅"
                     label="Date"
                     value={liveDate}
-                    accent="#1e293b"
+                    accent="#2563eb"
+                    bg="rgba(191,219,254,0.7)"
                   />
 
-                  <TelemetryRow
+                  <TelemetryCard
+                    icon="♨"
+                    label="Temperature"
+                    value={`${liveTemperature}${liveTemperature !== "--" ? " °F" : ""}`}
+                    accent="#ea580c"
+                    bg="rgba(254,215,170,0.7)"
+                  />
+
+                  <TelemetryCard
+                    icon="🔋"
+                    label="Battery"
+                    value={`${liveBattery}${liveBattery !== "--" ? " V" : ""}`}
+                    accent="#15803d"
+                    bg="rgba(187,247,208,0.65)"
+                  />
+
+                  <TelemetryCard
+                    icon="▣"
                     label="IMEI"
                     value={unitId || "--"}
-                    accent="#334155"
+                    accent="#7c3aed"
+                    bg="rgba(221,214,254,0.75)"
                   />
                 </div>
               </div>
@@ -448,7 +492,7 @@ export default function Sidebarleftwirelesstankmodal({
                   display: "flex",
                   justifyContent: "flex-end",
                   gap: 10,
-                  marginTop: 8,
+                  marginTop: 4,
                 }}
               >
                 <button
@@ -504,7 +548,7 @@ export default function Sidebarleftwirelesstankmodal({
             </div>
           </div>
 
-          <div style={{ marginTop: 10, fontSize: 11, color: "#64748b" }}>
+          <div style={{ marginTop: 8, fontSize: 11, color: "#64748b" }}>
             Backend polling route will be connected later. For now, this modal is focused on the final layout and saved properties.
           </div>
         </div>
