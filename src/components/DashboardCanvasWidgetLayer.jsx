@@ -352,6 +352,8 @@ export default function DashboardCanvasWidgetLayer({
   setShowVerticalTankProps,
   setActiveSiloId,
   setShowSiloProps,
+  setActiveWirelessTankId,
+  setShowWirelessTankProps,
   getTankZ,
   showDashboardIdsDetails = false,
   dashboardIdsDetailsDashboardId = "",
@@ -932,7 +934,15 @@ export default function DashboardCanvasWidgetLayer({
 
       if (tank.shape === "wirelessTank") {
         return (
-          <DraggableDroppedTank {...commonProps}>
+          <DraggableDroppedTank
+            {...commonProps}
+            onDoubleClick={() => {
+              if (!isPlay) {
+                setActiveWirelessTankId?.(tank.id);
+                setShowWirelessTankProps?.(true);
+              }
+            }}
+          >
             {wrapWithOverlay(
               tank,
               <div className="flex flex-col items-center">
@@ -940,12 +950,11 @@ export default function DashboardCanvasWidgetLayer({
                   tank={tank}
                   isPlay={isPlay}
                   telemetryMap={telemetryMap}
-                />
-              </div>,
-              "ai1"
-            )}
-          </DraggableDroppedTank>
-        );
+               />
+             </div>
+           )}
+         </DraggableDroppedTank>
+       );
       }
 
 
