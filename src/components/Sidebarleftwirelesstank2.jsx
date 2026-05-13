@@ -4,12 +4,20 @@ import React from "react";
 export default function Sidebarleftwirelesstank2({
   size = 220,
   strokeColor = "#ffffff",
+
+  // ✅ Telemetry values shown on the right side of Tank#2
+  heightValue = "--",
+  temperatureValue = "--",
+  batteryValue = "--",
+  dateValue = "--",
+
+  showTelemetry = true,
 }) {
   return (
     <svg
       width={size}
       height={Math.round(size * 0.88)}
-      viewBox="0 0 620 545"
+      viewBox="0 0 1050 545"
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       style={{
@@ -98,6 +106,119 @@ export default function Sidebarleftwirelesstank2({
         <path d="M55 118 L321 160" opacity="0.35" />
         <path d="M321 160 L571 105" opacity="0.35" />
       </g>
+
+      {/* ✅ Telemetry information only, no box/title */}
+      {showTelemetry && (
+        <g>
+          {/* Height */}
+          <circle cx="670" cy="135" r="30" fill="rgba(34,197,94,0.18)" />
+          <text
+            x="670"
+            y="135"
+            fill="#16a34a"
+            fontSize="34"
+            fontWeight="500"
+            textAnchor="middle"
+            dominantBaseline="central"
+          >
+            ↕
+          </text>
+          <text x="735" y="127" fill="#0f172a" fontSize="24" fontWeight="400">
+            Height
+          </text>
+          <text
+            x="735"
+            y="165"
+            fill="#16a34a"
+            fontSize="36"
+            fontWeight="400"
+            fontFamily="monospace"
+          >
+            {heightValue}
+          </text>
+
+          {/* Temperature */}
+          <circle cx="670" cy="225" r="30" fill="rgba(249,115,22,0.18)" />
+          <text
+            x="670"
+            y="225"
+            fill="#ea580c"
+            fontSize="34"
+            fontWeight="500"
+            textAnchor="middle"
+            dominantBaseline="central"
+          >
+            ♨
+          </text>
+          <text x="735" y="217" fill="#0f172a" fontSize="24" fontWeight="400">
+            Temperature
+          </text>
+          <text
+            x="735"
+            y="255"
+            fill="#ea580c"
+            fontSize="36"
+            fontWeight="400"
+            fontFamily="monospace"
+          >
+            {temperatureValue}
+          </text>
+
+          {/* Battery */}
+          <circle cx="670" cy="315" r="30" fill="rgba(34,197,94,0.18)" />
+          <text
+            x="670"
+            y="315"
+            fill="#16a34a"
+            fontSize="30"
+            fontWeight="500"
+            textAnchor="middle"
+            dominantBaseline="central"
+          >
+            🔋
+          </text>
+          <text x="735" y="307" fill="#0f172a" fontSize="24" fontWeight="400">
+            Battery
+          </text>
+          <text
+            x="735"
+            y="345"
+            fill="#16a34a"
+            fontSize="36"
+            fontWeight="400"
+            fontFamily="monospace"
+          >
+            {batteryValue}
+          </text>
+
+          {/* Date */}
+          <circle cx="670" cy="405" r="30" fill="rgba(59,130,246,0.18)" />
+          <text
+            x="670"
+            y="405"
+            fill="#2563eb"
+            fontSize="34"
+            fontWeight="500"
+            textAnchor="middle"
+            dominantBaseline="central"
+          >
+            ▣
+          </text>
+          <text x="735" y="397" fill="#0f172a" fontSize="24" fontWeight="400">
+            Date
+          </text>
+          <text
+            x="735"
+            y="435"
+            fill="#2563eb"
+            fontSize="26"
+            fontWeight="400"
+            fontFamily="monospace"
+          >
+            {dateValue}
+          </text>
+        </g>
+      )}
     </svg>
   );
 }
