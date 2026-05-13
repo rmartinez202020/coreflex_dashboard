@@ -485,6 +485,9 @@ export default function App() {
   const [activeVerticalTankId, setActiveVerticalTankId] = useState(null);
   const [showVerticalTankProps, setShowVerticalTankProps] = useState(false);
 
+  const [activeWirelessTankId, setActiveWirelessTankId] = useState(null);
+  const [showWirelessTankProps, setShowWirelessTankProps] = useState(false);
+
   // ✅ MODALS (extracted)
   const {
     displaySettingsId,
@@ -920,6 +923,9 @@ export default function App() {
             sensorsData={sensorsData}
             showDashboardIdsDetails={showDashboardIdsDetailsForActiveCanvas}
             onOpenDisplayOutputSettings={openDisplayOutputSettings}
+            activeWirelessTankId={activeWirelessTankId}
+            setActiveWirelessTankId={setActiveWirelessTankId}
+            setShowWirelessTankProps={setShowWirelessTankProps}
           />
         ) : activePage === "deviceControls" ? (
           <div className="w-full h-full border rounded-lg bg-white p-6">
@@ -981,6 +987,10 @@ export default function App() {
           activeStandardTankId={activeStandardTankId}
           setActiveStandardTankId={setActiveStandardTankId}
           showVerticalTankProps={showVerticalTankProps}
+          showWirelessTankProps={showWirelessTankProps}
+          setShowWirelessTankProps={setShowWirelessTankProps}
+          activeWirelessTankId={activeWirelessTankId}
+          setActiveWirelessTankId={setActiveWirelessTankId}
           setShowVerticalTankProps={setShowVerticalTankProps}
           activeVerticalTankId={activeVerticalTankId}
           setActiveVerticalTankId={setActiveVerticalTankId}
