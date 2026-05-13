@@ -10,7 +10,7 @@ export default function Sidebarleftwirelesstank({
     <svg
       width={size}
       height={Math.round(size * 0.94)}
-      viewBox="0 0 590 470"
+      viewBox="0 0 500 470"
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       style={{
@@ -107,22 +107,17 @@ export default function Sidebarleftwirelesstank({
         <path d="M438 413 L438 421 L461 418 L461 410" />
       </g>
 
-      {/* vertical wireless signal lines on right side of tank */}
+      {/* vertical wireless signal lines inside right side of tank */}
       {showSignal && (
         <g
           stroke={signalColor}
-          strokeWidth="5"
+          strokeWidth="4"
           strokeLinecap="round"
           opacity="0.98"
         >
-          {/* top */}
-          <path d="M530 150 L565 150" />
-
-          {/* middle */}
-          <path d="M530 190 L565 190" />
-
-          {/* bottom */}
-          <path d="M530 230 L565 230" />
+          <path d="M468 150 L468 178" />
+          <path d="M468 202 L468 230" />
+          <path d="M468 254 L468 282" />
         </g>
       )}
     </svg>
