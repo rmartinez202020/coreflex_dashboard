@@ -102,6 +102,9 @@ export default function DashboardCanvas({
   activeVerticalTankId,
   setActiveVerticalTankId,
   setShowVerticalTankProps,
+  activeWirelessTankId,
+  setActiveWirelessTankId,
+  setShowWirelessTankProps,
   onSaveProject,
   handleSelect,
   handleRightClick,
@@ -532,6 +535,8 @@ export default function DashboardCanvas({
           setShowVerticalTankProps={setShowVerticalTankProps}
           setActiveSiloId={setActiveSiloId}
           setShowSiloProps={setShowSiloProps}
+          setActiveWirelessTankId={setActiveWirelessTankId}
+          setShowWirelessTankProps={setShowWirelessTankProps}
           getTankZ={getTankZ}
           showDashboardIdsDetails={shouldShowDashboardIdsDetails}
           dashboardIdsDetailsDashboardId={resolvedDashboardIdValue}
