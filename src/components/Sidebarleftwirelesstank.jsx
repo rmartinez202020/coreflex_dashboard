@@ -118,10 +118,10 @@ export default function Sidebarleftwirelesstank({
         <g>
           {/* Height */}
           <circle cx="560" cy="130" r="30" fill="rgba(34,197,94,0.18)" />
-          <text x="548" y="141" fill="#16a34a" fontSize="34" fontWeight="900">
+          <text x="548" y="141" fill="#16a34a" fontSize="34" fontWeight="500">
             ↕
           </text>
-          <text x="625" y="122" fill="#0f172a" fontSize="24" fontWeight="900">
+          <text x="625" y="122" fill="#0f172a" fontSize="24" fontWeight="400">
             Height
           </text>
           <text
@@ -129,7 +129,7 @@ export default function Sidebarleftwirelesstank({
             y="160"
             fill="#16a34a"
             fontSize="36"
-            fontWeight="900"
+            fontWeight="400"
             fontFamily="monospace"
           >
             {heightValue}
@@ -137,10 +137,10 @@ export default function Sidebarleftwirelesstank({
 
           {/* Temperature */}
           <circle cx="560" cy="220" r="30" fill="rgba(249,115,22,0.18)" />
-          <text x="546" y="232" fill="#ea580c" fontSize="34" fontWeight="900">
+          <text x="546" y="232" fill="#ea580c" fontSize="34" fontWeight="500">
             ♨
           </text>
-          <text x="625" y="212" fill="#0f172a" fontSize="24" fontWeight="900">
+          <text x="625" y="212" fill="#0f172a" fontSize="24" fontWeight="400">
             Temperature
           </text>
           <text
@@ -148,7 +148,7 @@ export default function Sidebarleftwirelesstank({
             y="250"
             fill="#ea580c"
             fontSize="36"
-            fontWeight="900"
+            fontWeight="400"
             fontFamily="monospace"
           >
             {temperatureValue}
@@ -156,10 +156,10 @@ export default function Sidebarleftwirelesstank({
 
           {/* Battery */}
           <circle cx="560" cy="310" r="30" fill="rgba(34,197,94,0.18)" />
-          <text x="548" y="321" fill="#16a34a" fontSize="34" fontWeight="900">
+          <text x="548" y="321" fill="#16a34a" fontSize="34" fontWeight="500">
             🔋
           </text>
-          <text x="625" y="302" fill="#0f172a" fontSize="24" fontWeight="900">
+          <text x="625" y="302" fill="#0f172a" fontSize="24" fontWeight="400">
             Battery
           </text>
           <text
@@ -167,7 +167,7 @@ export default function Sidebarleftwirelesstank({
             y="340"
             fill="#16a34a"
             fontSize="36"
-            fontWeight="900"
+            fontWeight="400"
             fontFamily="monospace"
           >
             {batteryValue}
@@ -175,10 +175,10 @@ export default function Sidebarleftwirelesstank({
 
           {/* Date */}
           <circle cx="560" cy="400" r="30" fill="rgba(59,130,246,0.18)" />
-          <text x="548" y="411" fill="#2563eb" fontSize="34" fontWeight="900">
+          <text x="548" y="411" fill="#2563eb" fontSize="34" fontWeight="500">
             ▣
           </text>
-          <text x="625" y="392" fill="#0f172a" fontSize="24" fontWeight="900">
+          <text x="625" y="392" fill="#0f172a" fontSize="24" fontWeight="400">
             Date
           </text>
           <text
@@ -186,7 +186,7 @@ export default function Sidebarleftwirelesstank({
             y="430"
             fill="#2563eb"
             fontSize="26"
-            fontWeight="900"
+            fontWeight="400"
             fontFamily="monospace"
           >
             {dateValue}
