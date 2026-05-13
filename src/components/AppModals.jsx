@@ -12,6 +12,7 @@ import CounterInputSettingsModal from "./indicators/CounterInputSettingsModal";
 import HorizontalTankPropertiesModal from "./HorizontalTankPropertiesModal";
 import VerticalTankSettingsModal from "./VerticalTankSettingsModal";
 import StandardTankPropertiesModal from "./StandardTankPropertiesModal";
+import Sidebarleftwirelesstankmodal from "./Sidebarleftwirelesstankmodal";
 import PushButtonNOPropertiesModal from "./controls/PushButtonNOPropertiesModal";
 import PushButtonNCPropertiesModal from "./controls/PushButtonNCPropertiesModal";
 import AlarmLogWindow from "./AlarmLogWindow";
@@ -48,6 +49,10 @@ export default function AppModals({
   setShowStandardTankProps,
   activeStandardTankId,
   setActiveStandardTankId,
+  showWirelessTankProps,
+  setShowWirelessTankProps,
+  activeWirelessTankId,
+  setActiveWirelessTankId,
   alarmLogOpen,
   closeAlarmLog,
   onMinimizeAlarmLog,
@@ -74,7 +79,6 @@ export default function AppModals({
 }) {
   const isSameId = (a, b) => String(a) === String(b);
 
-  // ✅ normalize dashboardId (string or null)
   const safeDashboardId = useMemo(() => {
     const s = String(dashboardId || "").trim();
     return s ? s : null;
@@ -84,13 +88,11 @@ export default function AppModals({
     return String(dashboardName || "").trim();
   }, [dashboardName]);
 
-  // ✅ always keep latest droppedTanks (avoids stale closure issues)
   const droppedTanksRef = useRef([]);
   useEffect(() => {
     droppedTanksRef.current = Array.isArray(droppedTanks) ? droppedTanks : [];
   }, [droppedTanks]);
 
-  // ✅ Fallback position (only used if windowDrag isn't provided yet)
   const [alarmLogPos, setAlarmLogPos] = useState({ x: 140, y: 90 });
 
   useEffect(() => {
@@ -108,7 +110,6 @@ export default function AppModals({
       window.removeEventListener("coreflex-alarm-log-open-at", onOpenAt);
   }, []);
 
-  // ✅ Display INPUT (AI)
   const displayInputTarget = useMemo(() => {
     if (displaySettingsId == null) return null;
     return droppedTanks.find(
@@ -116,7 +117,6 @@ export default function AppModals({
     );
   }, [droppedTanks, displaySettingsId]);
 
-  // ✅ Display OUTPUT (AO)
   const displayOutputTarget = useMemo(() => {
     if (displayOutputSettingsId == null) return null;
     return droppedTanks.find(
@@ -169,6 +169,14 @@ export default function AppModals({
     );
   }, [droppedTanks, activeStandardTankId]);
 
+  const activeWirelessTank = useMemo(() => {
+    if (activeWirelessTankId == null) return null;
+    return droppedTanks.find(
+      (t) =>
+        isSameId(t.id, activeWirelessTankId) && t.shape === "wirelessTank"
+    );
+  }, [droppedTanks, activeWirelessTankId]);
+
   const indicatorTarget = useMemo(() => {
     if (indicatorSettingsId == null) return null;
     return droppedTanks.find(
@@ -206,7 +214,6 @@ export default function AppModals({
     );
   }, [droppedTanks, counterInputSettingsId]);
 
-  // ✅ NEW: pushButtonNO modal target
   const pushButtonNOTarget = useMemo(() => {
     if (pushButtonNOSettingsId == null) return null;
     return droppedTanks.find(
@@ -215,7 +222,6 @@ export default function AppModals({
     );
   }, [droppedTanks, pushButtonNOSettingsId]);
 
-  // ✅ NEW: pushButtonNC modal target
   const pushButtonNCTarget = useMemo(() => {
     if (pushButtonNCSettingsId == null) return null;
     return droppedTanks.find(
@@ -272,6 +278,13 @@ export default function AppModals({
     setShowStandardTankProps?.(false);
     if (typeof setActiveStandardTankId === "function") {
       setActiveStandardTankId(null);
+    }
+  };
+
+  const closeWirelessTankModal = () => {
+    setShowWirelessTankProps?.(false);
+    if (typeof setActiveWirelessTankId === "function") {
+      setActiveWirelessTankId(null);
     }
   };
 
@@ -343,7 +356,6 @@ export default function AppModals({
         />
       )}
 
-      {/* ✅ NEW: Push Button NO settings */}
       {pushButtonNOTarget && (
         <PushButtonNOPropertiesModal
           open={true}
@@ -511,7 +523,6 @@ export default function AppModals({
         />
       )}
 
-      {/* ✅ Graphic Display Settings (Apply MUST auto-save project) */}
       {graphicTarget && (
         <GraphicDisplaySettingsModal
           open={true}
@@ -600,6 +611,23 @@ export default function AppModals({
         />
       )}
 
+      {showWirelessTankProps && activeWirelessTank && (
+        <Sidebarleftwirelesstankmodal
+          open={showWirelessTankProps}
+          tank={activeWirelessTank}
+          onClose={closeWirelessTankModal}
+          onSave={(updatedTank) => {
+            setDroppedTanks((prev) =>
+              prev.map((t) =>
+                isSameId(t.id, updatedTank.id) ? updatedTank : t
+              )
+            );
+
+            closeWirelessTankModal();
+          }}
+        />
+      )}
+
       {alarmLogOpen && (
         <div
           style={{
@@ -627,7 +655,6 @@ export default function AppModals({
             windowKey="alarmLog"
           />
 
-          {/* ✅ Right edge resize */}
           <div
             onPointerDown={(e) =>
               alarmLogWindowProps?.onStartResizeWindow?.(e, "e")
@@ -644,7 +671,6 @@ export default function AppModals({
             }}
           />
 
-          {/* ✅ Bottom edge resize */}
           <div
             onPointerDown={(e) =>
               alarmLogWindowProps?.onStartResizeWindow?.(e, "s")
@@ -661,7 +687,6 @@ export default function AppModals({
             }}
           />
 
-          {/* ✅ Bottom-right corner resize */}
           <div
             onPointerDown={(e) =>
               alarmLogWindowProps?.onStartResizeWindow?.(e, "se")
