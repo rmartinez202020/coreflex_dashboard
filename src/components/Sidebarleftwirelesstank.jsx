@@ -3,12 +3,20 @@ import React from "react";
 export default function Sidebarleftwirelesstank({
   size = 220,
   strokeColor = "#ffffff",
+
+  // ✅ Telemetry values shown on the right side of the tank
+  heightValue = "--",
+  temperatureValue = "--",
+  batteryValue = "--",
+  dateValue = "--",
+
+  showTelemetry = true,
 }) {
   return (
     <svg
       width={size}
       height={Math.round(size * 0.94)}
-      viewBox="0 0 500 470"
+      viewBox="0 0 820 470"
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       style={{
@@ -104,6 +112,166 @@ export default function Sidebarleftwirelesstank({
         <path d="M432 413 L432 428 L468 423 L468 409" />
         <path d="M438 413 L438 421 L461 418 L461 410" />
       </g>
+
+      {/* ✅ Telemetry information on the right side of Tank#1 */}
+      {showTelemetry && (
+        <g>
+          {/* telemetry panel background */}
+          <rect
+            x="525"
+            y="105"
+            width="265"
+            height="300"
+            rx="18"
+            fill="rgba(15, 23, 42, 0.92)"
+            stroke="rgba(255,255,255,0.22)"
+            strokeWidth="2"
+          />
+
+          <text
+            x="550"
+            y="138"
+            fill="#ffffff"
+            fontSize="18"
+            fontWeight="900"
+            fontFamily="Arial, sans-serif"
+          >
+            Wireless Telemetry
+          </text>
+
+          {/* Height */}
+          <circle cx="552" cy="178" r="17" fill="rgba(34,197,94,0.22)" />
+          <text
+            x="545"
+            y="184"
+            fill="#22c55e"
+            fontSize="18"
+            fontWeight="900"
+            fontFamily="Arial, sans-serif"
+          >
+            ↕
+          </text>
+          <text
+            x="580"
+            y="172"
+            fill="#cbd5e1"
+            fontSize="12"
+            fontWeight="800"
+            fontFamily="Arial, sans-serif"
+          >
+            Height
+          </text>
+          <text
+            x="580"
+            y="194"
+            fill="#22c55e"
+            fontSize="20"
+            fontWeight="900"
+            fontFamily="monospace"
+          >
+            {heightValue}
+          </text>
+
+          {/* Temperature */}
+          <circle cx="552" cy="238" r="17" fill="rgba(249,115,22,0.22)" />
+          <text
+            x="544"
+            y="244"
+            fill="#fb923c"
+            fontSize="18"
+            fontWeight="900"
+            fontFamily="Arial, sans-serif"
+          >
+            ♨
+          </text>
+          <text
+            x="580"
+            y="232"
+            fill="#cbd5e1"
+            fontSize="12"
+            fontWeight="800"
+            fontFamily="Arial, sans-serif"
+          >
+            Temperature
+          </text>
+          <text
+            x="580"
+            y="254"
+            fill="#fb923c"
+            fontSize="20"
+            fontWeight="900"
+            fontFamily="monospace"
+          >
+            {temperatureValue}
+          </text>
+
+          {/* Battery */}
+          <circle cx="552" cy="298" r="17" fill="rgba(34,197,94,0.22)" />
+          <text
+            x="545"
+            y="304"
+            fill="#22c55e"
+            fontSize="18"
+            fontWeight="900"
+            fontFamily="Arial, sans-serif"
+          >
+            🔋
+          </text>
+          <text
+            x="580"
+            y="292"
+            fill="#cbd5e1"
+            fontSize="12"
+            fontWeight="800"
+            fontFamily="Arial, sans-serif"
+          >
+            Battery
+          </text>
+          <text
+            x="580"
+            y="314"
+            fill="#22c55e"
+            fontSize="20"
+            fontWeight="900"
+            fontFamily="monospace"
+          >
+            {batteryValue}
+          </text>
+
+          {/* Date */}
+          <circle cx="552" cy="358" r="17" fill="rgba(59,130,246,0.22)" />
+          <text
+            x="544"
+            y="364"
+            fill="#60a5fa"
+            fontSize="18"
+            fontWeight="900"
+            fontFamily="Arial, sans-serif"
+          >
+            ▣
+          </text>
+          <text
+            x="580"
+            y="352"
+            fill="#cbd5e1"
+            fontSize="12"
+            fontWeight="800"
+            fontFamily="Arial, sans-serif"
+          >
+            Date
+          </text>
+          <text
+            x="580"
+            y="374"
+            fill="#60a5fa"
+            fontSize="16"
+            fontWeight="900"
+            fontFamily="monospace"
+          >
+            {dateValue}
+          </text>
+        </g>
+      )}
     </svg>
   );
 }
