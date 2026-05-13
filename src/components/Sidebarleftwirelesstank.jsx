@@ -57,7 +57,7 @@ export default function Sidebarleftwirelesstank({
           opacity="0.48"
         />
 
-        {/* top filter box - angle matched to tank */}
+        {/* top filter box */}
         <path d="M58 52 L176 39 L266 58 L146 70 Z" />
         <path d="M58 52 L146 70 L146 122 L58 104 Z" />
         <path d="M146 70 L266 58 L266 110 L146 122 Z" />
@@ -107,7 +107,7 @@ export default function Sidebarleftwirelesstank({
         <path d="M438 413 L438 421 L461 418 L461 410" />
       </g>
 
-      {/* vertical wireless signal bars on right side */}
+      {/* vertical wireless signal lines on right side of tank */}
       {showSignal && (
         <g
           stroke={signalColor}
@@ -115,10 +115,14 @@ export default function Sidebarleftwirelesstank({
           strokeLinecap="round"
           opacity="0.98"
         >
-          <path d="M540 145 L540 172" />
-          <path d="M540 190 L540 217" />
-          <path d="M540 235 L540 262" />
-          <path d="M540 280 L540 307" />
+          {/* top */}
+          <path d="M530 150 L565 150" />
+
+          {/* middle */}
+          <path d="M530 190 L565 190" />
+
+          {/* bottom */}
+          <path d="M530 230 L565 230" />
         </g>
       )}
     </svg>
