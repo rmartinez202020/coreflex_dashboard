@@ -3,12 +3,14 @@ import React from "react";
 export default function Sidebarleftwirelesstank({
   size = 220,
   strokeColor = "#ffffff",
+  signalColor = "#ff5a00",
+  showSignal = true,
 }) {
   return (
     <svg
       width={size}
       height={Math.round(size * 0.94)}
-      viewBox="0 0 500 470"
+      viewBox="0 0 590 470"
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       style={{
@@ -104,6 +106,21 @@ export default function Sidebarleftwirelesstank({
         <path d="M432 413 L432 428 L468 423 L468 409" />
         <path d="M438 413 L438 421 L461 418 L461 410" />
       </g>
+
+      {/* vertical wireless signal lines on right side */}
+      {showSignal && (
+        <g
+          stroke={signalColor}
+          strokeWidth="5"
+          strokeLinecap="round"
+          opacity="0.98"
+        >
+          <path d="M525 155 L565 155" />
+          <path d="M525 190 L565 190" />
+          <path d="M525 225 L565 225" />
+          <path d="M525 260 L565 260" />
+        </g>
+      )}
     </svg>
   );
 }
