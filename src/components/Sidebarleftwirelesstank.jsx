@@ -107,7 +107,7 @@ export default function Sidebarleftwirelesstank({
         <path d="M438 413 L438 421 L461 418 L461 410" />
       </g>
 
-      {/* vertical wireless signal bars on right side */}
+      {/* vertical wireless signal lines on right side */}
       {showSignal && (
         <g
           stroke={signalColor}
@@ -115,10 +115,10 @@ export default function Sidebarleftwirelesstank({
           strokeLinecap="round"
           opacity="0.98"
         >
-          <path d="M540 145 L540 172" />
-          <path d="M540 190 L540 217" />
-          <path d="M540 235 L540 262" />
-          <path d="M540 280 L540 307" />
+          <path d="M525 155 L565 155" />
+          <path d="M525 190 L565 190" />
+          <path d="M525 225 L565 225" />
+          <path d="M525 260 L565 260" />
         </g>
       )}
     </svg>
