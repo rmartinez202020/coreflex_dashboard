@@ -1,6 +1,5 @@
 // src/components/Sidebarleftwirelesstankmodal.jsx
 import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import Sidebarleftwirelesstank from "./Sidebarleftwirelesstank";
 
 const MODEL_OPTIONS = [{ key: "wl3000", label: "WL-3000" }];
 
@@ -13,6 +12,123 @@ function computeCenteredPos({ panelW = 980, estH = 560 } = {}) {
   const top = Math.max(12, Math.floor((h - estH) / 2));
 
   return { left, top };
+}
+
+function WirelessTankPreview({ size = 300, liquidColor = "rgba(237, 220, 82, 0.55)" }) {
+  const w = size;
+  const h = Math.round(size * 0.86);
+
+  return (
+    <svg
+      width={w}
+      height={h}
+      viewBox="0 0 500 430"
+      fill="none"
+      xmlns="http://www.w3.org/2000/svg"
+      style={{ display: "block", maxWidth: "100%", overflow: "visible" }}
+    >
+      <defs>
+        <linearGradient id="wlLiquid" x1="0" x2="0" y1="0" y2="1">
+          <stop offset="0%" stopColor="#fff7a8" stopOpacity="0.78" />
+          <stop offset="100%" stopColor="#d7c82f" stopOpacity="0.48" />
+        </linearGradient>
+
+        <linearGradient id="wlMetal" x1="0" x2="1" y1="0" y2="1">
+          <stop offset="0%" stopColor="#ffffff" />
+          <stop offset="55%" stopColor="#f8fafc" />
+          <stop offset="100%" stopColor="#d7dce3" />
+        </linearGradient>
+
+        <filter id="wlSoftShadow" x="-20%" y="-20%" width="140%" height="150%">
+          <feDropShadow dx="0" dy="12" stdDeviation="10" floodColor="#000000" floodOpacity="0.16" />
+        </filter>
+      </defs>
+
+      <g filter="url(#wlSoftShadow)">
+        {/* liquid volume */}
+        <path
+          d="M28 198 L132 226 L360 198 L492 232 L492 384 L132 422 L28 360 Z"
+          fill="url(#wlLiquid)"
+        />
+        <path
+          d="M28 198 L132 226 L360 198 L492 232"
+          stroke="#b9ab23"
+          strokeWidth="1.4"
+          strokeDasharray="6 6"
+          opacity="0.72"
+        />
+
+        {/* main tank faces */}
+        <path d="M28 82 L132 108 L492 82 L492 384 L132 422 L28 360 Z" fill="rgba(255,255,255,0.2)" />
+        <path d="M28 82 L132 108 L132 422 L28 360 Z" fill="rgba(255,255,255,0.28)" />
+        <path d="M132 108 L492 82 L492 384 L132 422 Z" fill="rgba(255,255,255,0.1)" />
+
+        {/* outer tank lines */}
+        <g stroke="#111827" strokeWidth="2.1" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M28 82 L132 108 L492 82" />
+          <path d="M28 82 L28 360 L132 422 L492 384 L492 82" />
+          <path d="M132 108 L132 422" />
+          <path d="M28 360 L132 422" />
+          <path d="M132 422 L492 384" />
+        </g>
+
+        {/* internal dashed lines */}
+        <g stroke="#374151" strokeWidth="1.4" strokeDasharray="7 7" opacity="0.48" strokeLinecap="round">
+          <path d="M132 226 L360 198 L492 232" />
+          <path d="M132 338 L360 318 L492 384" />
+          <path d="M360 82 L360 318" />
+          <path d="M132 226 L132 338 L360 318 L360 198" />
+        </g>
+
+        {/* top wireless/filter box */}
+        <g fill="url(#wlMetal)" stroke="#111827" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M64 38 L176 25 L266 44 L150 58 Z" />
+          <path d="M64 38 L150 58 L150 112 L64 94 Z" />
+          <path d="M150 58 L266 44 L266 96 L150 112 Z" />
+          <path d="M58 32 L176 18 L274 40" fill="none" />
+          <path d="M58 40 L146 60 L274 47" fill="none" />
+          <path d="M64 94 L150 112 L266 96" fill="none" />
+        </g>
+
+        {/* top round port */}
+        <g stroke="#111827" strokeWidth="2" fill="none">
+          <ellipse cx="96" cy="72" rx="13" ry="24" />
+          <ellipse cx="101" cy="73" rx="9" ry="20" />
+          <ellipse cx="105" cy="74" rx="5" ry="14" />
+        </g>
+
+        {/* side latches */}
+        <g stroke="#111827" strokeWidth="2" fill="url(#wlMetal)" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M25 138 L44 145 L44 170 L25 164 Z" />
+          <path d="M29 137 L38 126 L44 145" fill="none" />
+          <path d="M31 151 L41 154" fill="none" />
+          <path d="M31 164 L41 167" fill="none" />
+
+          <path d="M104 169 L126 177 L126 204 L104 197 Z" />
+          <path d="M108 168 L118 156 L126 177" fill="none" />
+          <path d="M110 183 L123 187" fill="none" />
+          <path d="M110 197 L123 201" fill="none" />
+        </g>
+
+        {/* lower ports */}
+        <g stroke="#111827" strokeWidth="2" fill="none">
+          <ellipse cx="46" cy="334" rx="11" ry="24" />
+          <ellipse cx="51" cy="334" rx="8" ry="20" />
+          <ellipse cx="56" cy="334" rx="5" ry="15" />
+
+          <ellipse cx="112" cy="370" rx="13" ry="25" />
+          <ellipse cx="117" cy="370" rx="9" ry="21" />
+          <ellipse cx="122" cy="370" rx="5" ry="16" />
+        </g>
+
+        {/* feet */}
+        <g stroke="#111827" strokeWidth="2" fill="url(#wlMetal)" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M140 421 L140 435 L178 430 L178 416" />
+          <path d="M432 391 L432 406 L468 401 L468 387" />
+        </g>
+      </g>
+    </svg>
+  );
 }
 
 export default function Sidebarleftwirelesstankmodal({
@@ -30,7 +146,6 @@ export default function Sidebarleftwirelesstankmodal({
   const [unitId, setUnitId] = useState(props.unitId || props.bindDeviceId || "");
   const [unitQuery, setUnitQuery] = useState("");
 
-  // Temporary static list until backend routes are assigned.
   const [units] = useState([
     { unitId: "WL3000-000001", status: "offline" },
     { unitId: "WL3000-000002", status: "offline" },
@@ -238,14 +353,14 @@ export default function Sidebarleftwirelesstankmodal({
                   height: 285,
                   borderRadius: 14,
                   border: "1px solid #e2e8f0",
-                  background: "linear-gradient(180deg,#0f172a,#111827)",
+                  background: "linear-gradient(180deg,#f8fafc,#eef2f7)",
                   display: "flex",
                   alignItems: "center",
                   justifyContent: "center",
                   overflow: "hidden",
                 }}
               >
-                <Sidebarleftwirelesstank size={250} strokeColor="#e5f2ff" />
+                <WirelessTankPreview size={315} />
               </div>
 
               <div
