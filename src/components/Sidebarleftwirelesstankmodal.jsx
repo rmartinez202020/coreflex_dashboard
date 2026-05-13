@@ -4,7 +4,7 @@ import wl3000TankPreview from "../assets/wl3000-tank-preview.png";
 
 const MODEL_OPTIONS = [{ key: "wl3000", label: "WL-3000" }];
 
-function computeCenteredPos({ panelW = 980, estH = 560 } = {}) {
+function computeCenteredPos({ panelW = 980, estH = 640 } = {}) {
   const w = window.innerWidth || 1200;
   const h = window.innerHeight || 800;
 
@@ -13,6 +13,46 @@ function computeCenteredPos({ panelW = 980, estH = 560 } = {}) {
   const top = Math.max(12, Math.floor((h - estH) / 2));
 
   return { left, top };
+}
+
+function TelemetryRow({ label, value, accent = "#0f172a" }) {
+  return (
+    <div
+      style={{
+        display: "grid",
+        gridTemplateColumns: "150px 1fr",
+        alignItems: "center",
+        gap: 12,
+        padding: "10px 12px",
+        borderRadius: 12,
+        background: "#ffffff",
+        border: "1px solid #e2e8f0",
+      }}
+    >
+      <div
+        style={{
+          fontSize: 11,
+          fontWeight: 900,
+          color: "#64748b",
+          textTransform: "uppercase",
+          letterSpacing: 0.5,
+        }}
+      >
+        {label}
+      </div>
+
+      <div
+        style={{
+          fontSize: 15,
+          fontWeight: 900,
+          color: accent,
+          fontFamily: "monospace",
+        }}
+      >
+        {value}
+      </div>
+    </div>
+  );
 }
 
 export default function Sidebarleftwirelesstankmodal({
@@ -30,10 +70,33 @@ export default function Sidebarleftwirelesstankmodal({
   const [unitId, setUnitId] = useState(props.unitId || props.bindDeviceId || "");
   const [unitQuery, setUnitQuery] = useState("");
 
+  // Temporary static list until backend routes are assigned.
+  // Later this will come from backend and each unit will include latest payload values.
   const [units] = useState([
-    { unitId: "WL3000-000001", status: "offline" },
-    { unitId: "WL3000-000002", status: "offline" },
-    { unitId: "WL3000-000003", status: "offline" },
+    {
+      unitId: "860549070088252",
+      status: "online",
+      height_in: "17.83",
+      temperature_F: "37.4",
+      battery_V: "3.62",
+      received_at: "05/12/2026 09:21:40 PM",
+    },
+    {
+      unitId: "WL3000-000002",
+      status: "offline",
+      height_in: "--",
+      temperature_F: "--",
+      battery_V: "--",
+      received_at: "--",
+    },
+    {
+      unitId: "WL3000-000003",
+      status: "offline",
+      height_in: "--",
+      temperature_F: "--",
+      battery_V: "--",
+      received_at: "--",
+    },
   ]);
 
   const PANEL_W = 980;
@@ -48,14 +111,14 @@ export default function Sidebarleftwirelesstankmodal({
 
   const [pos, setPos] = useState(() => {
     if (typeof window === "undefined") return { left: 12, top: 12 };
-    return computeCenteredPos({ panelW: PANEL_W, estH: 560 });
+    return computeCenteredPos({ panelW: PANEL_W, estH: 640 });
   });
 
   const [isDragging, setIsDragging] = useState(false);
 
   useLayoutEffect(() => {
     if (!open) return;
-    setPos(computeCenteredPos({ panelW: PANEL_W, estH: 560 }));
+    setPos(computeCenteredPos({ panelW: PANEL_W, estH: 640 }));
   }, [open]);
 
   useEffect(() => {
@@ -77,6 +140,11 @@ export default function Sidebarleftwirelesstankmodal({
   const selectedUnit = useMemo(() => {
     return units.find((u) => String(u.unitId) === String(unitId)) || null;
   }, [units, unitId]);
+
+  const liveHeight = selectedUnit?.height_in || "--";
+  const liveTemperature = selectedUnit?.temperature_F || "--";
+  const liveBattery = selectedUnit?.battery_V || "--";
+  const liveDate = selectedUnit?.received_at || "--";
 
   const canApply = !!String(unitId || "").trim();
 
@@ -268,7 +336,7 @@ export default function Sidebarleftwirelesstankmodal({
                   lineHeight: 1.45,
                 }}
               >
-                This wireless tank uses the WL-3000 model and binds by Unit ID / serial number.
+                This wireless tank uses the WL-3000 model and binds by IMEI.
               </div>
             </div>
 
@@ -308,19 +376,19 @@ export default function Sidebarleftwirelesstankmodal({
               </div>
 
               <div style={{ display: "grid", gap: 6 }}>
-                <div style={labelStyle}>Unit Search</div>
+                <div style={labelStyle}>IMEI Search</div>
                 <input
                   value={unitQuery}
                   onChange={(e) => setUnitQuery(e.target.value)}
                   style={inputStyle}
-                  placeholder="Type to filter Unit ID / serial number..."
+                  placeholder="Type to filter IMEI..."
                 />
               </div>
 
               <div style={{ display: "grid", gap: 6 }}>
-                <div style={labelStyle}>Unit ID / Serial Number</div>
+                <div style={labelStyle}>IMEI</div>
                 <select value={unitId} onChange={(e) => setUnitId(e.target.value)} style={inputStyle}>
-                  <option value="">Select Unit ID...</option>
+                  <option value="">Select IMEI...</option>
                   {filteredUnits.map((u) => (
                     <option key={u.unitId} value={u.unitId}>
                       {u.unitId}
@@ -332,46 +400,48 @@ export default function Sidebarleftwirelesstankmodal({
               <div
                 style={{
                   marginTop: 4,
-                  border: "1px solid #e2e8f0",
-                  background: "#f8fafc",
+                  border: "1px solid #dbeafe",
+                  background: "linear-gradient(180deg,#f8fbff,#eef6ff)",
                   borderRadius: 14,
                   padding: 14,
                 }}
               >
-                <div style={{ fontWeight: 900, fontSize: 13, marginBottom: 10 }}>
-                  Binding Preview
+                <div style={{ fontWeight: 900, fontSize: 14, marginBottom: 12, color: "#0f172a" }}>
+                  Wireless Telemetry
                 </div>
 
-                <div style={{ fontSize: 12, color: "#334155", lineHeight: 1.8 }}>
-                  <div>
-                    Model:{" "}
-                    <span style={{ fontFamily: "monospace", fontWeight: 800 }}>
-                      WL-3000
-                    </span>
-                  </div>
+                <div style={{ display: "grid", gap: 8 }}>
+                  <TelemetryRow
+                    label="Height"
+                    value={`${liveHeight}${liveHeight !== "--" ? " in" : ""}`}
+                    accent="#15803d"
+                  />
 
-                  <div>
-                    Unit ID:{" "}
-                    <span style={{ fontFamily: "monospace", fontWeight: 800 }}>
-                      {unitId || "--"}
-                    </span>
-                  </div>
+                  <TelemetryRow
+                    label="Temperature"
+                    value={`${liveTemperature}${liveTemperature !== "--" ? " °F" : ""}`}
+                    accent="#c2410c"
+                  />
 
-                  <div>
-                    Status:{" "}
-                    {unitId ? (
-                      selectedUnit?.status === "online" ? (
-                        <span style={{ color: "#16a34a", fontWeight: 900 }}>ONLINE</span>
-                      ) : (
-                        <span style={{ color: "#dc2626", fontWeight: 900 }}>OFFLINE</span>
-                      )
-                    ) : (
-                      <span style={{ color: "#64748b", fontWeight: 900 }}>—</span>
-                    )}
-                  </div>
+                  <TelemetryRow
+                    label="Battery"
+                    value={`${liveBattery}${liveBattery !== "--" ? " V" : ""}`}
+                    accent="#0f766e"
+                  />
+
+                  <TelemetryRow
+                    label="Date"
+                    value={liveDate}
+                    accent="#1e293b"
+                  />
+
+                  <TelemetryRow
+                    label="IMEI"
+                    value={unitId || "--"}
+                    accent="#334155"
+                  />
                 </div>
               </div>
-
 
               <div
                 style={{
@@ -405,6 +475,10 @@ export default function Sidebarleftwirelesstankmodal({
                       modelLabel: "WL-3000",
                       unitId: String(unitId || "").trim(),
                       bindDeviceId: String(unitId || "").trim(),
+                      bindHeightField: "height_in",
+                      bindTemperatureField: "temperature_F",
+                      bindBatteryField: "battery_V",
+                      bindDateField: "received_at",
                     };
 
                     onSave?.({
