@@ -10,7 +10,7 @@ export default function Sidebarleftwirelesstank({
     <svg
       width={size}
       height={Math.round(size * 0.94)}
-      viewBox="0 0 500 470"
+      viewBox="0 0 590 470"
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       style={{
@@ -57,7 +57,7 @@ export default function Sidebarleftwirelesstank({
           opacity="0.48"
         />
 
-        {/* top filter box */}
+        {/* top filter box - angle matched to tank */}
         <path d="M58 52 L176 39 L266 58 L146 70 Z" />
         <path d="M58 52 L146 70 L146 122 L58 104 Z" />
         <path d="M146 70 L266 58 L266 110 L146 122 Z" />
@@ -107,17 +107,18 @@ export default function Sidebarleftwirelesstank({
         <path d="M438 413 L438 421 L461 418 L461 410" />
       </g>
 
-      {/* vertical wireless signal lines inside right side of tank */}
+      {/* vertical wireless signal bars on right side */}
       {showSignal && (
         <g
           stroke={signalColor}
-          strokeWidth="4"
+          strokeWidth="5"
           strokeLinecap="round"
           opacity="0.98"
         >
-          <path d="M468 150 L468 178" />
-          <path d="M468 202 L468 230" />
-          <path d="M468 254 L468 282" />
+          <path d="M540 145 L540 172" />
+          <path d="M540 190 L540 217" />
+          <path d="M540 235 L540 262" />
+          <path d="M540 280 L540 307" />
         </g>
       )}
     </svg>
