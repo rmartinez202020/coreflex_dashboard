@@ -44,6 +44,16 @@ export default function Sidebarleftwirelesstank2({
         <path d="M28 102 L28 401" />
         <path d="M596 87 L596 381" />
 
+        {/* square top door / hatch */}
+        <path d="M218 70 L354 48 L456 69 L318 96 Z" />
+        <path d="M238 74 L354 56 L435 72 L318 91 Z" opacity="0.55" />
+        <path d="M218 70 L238 74" opacity="0.55" />
+        <path d="M456 69 L435 72" opacity="0.55" />
+        <path d="M318 96 L318 112" />
+        <path d="M218 70 L218 86" />
+        <path d="M456 69 L456 85" />
+        <path d="M218 86 L318 112 L456 85" />
+
         {/* large front and side faces */}
         <path d="M52 118 L52 396" />
         <path d="M321 160 L321 467" />
