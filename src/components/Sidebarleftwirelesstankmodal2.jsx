@@ -503,10 +503,6 @@ export default function Sidebarleftwirelesstankmodal2({
               </div>
             </div>
           </div>
-
-          <div style={{ marginTop: 8, fontSize: 11, color: "#64748b" }}>
-            Backend polling route will be connected later. For now, this modal is focused on the final layout and saved properties.
-          </div>
         </div>
       </div>
     </div>
