@@ -3,7 +3,7 @@ import React from "react";
 
 export default function Sidebarleftwirelesstank2({
   size = 220,
-  strokeColor = "#050b22",
+  strokeColor = "#ffffff",
 
   // ✅ Telemetry values shown on the right side of Tank#2
   heightValue = "--",
@@ -16,8 +16,8 @@ export default function Sidebarleftwirelesstank2({
   return (
     <svg
       width={size}
-      height={Math.round(size * 0.79)}
-      viewBox="0 0 820 585"
+      height={Math.round(size * 0.88)}
+      viewBox="0 0 1050 545"
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       style={{
@@ -28,240 +28,191 @@ export default function Sidebarleftwirelesstank2({
     >
       <g
         stroke={strokeColor}
-        strokeWidth="2.6"
+        strokeWidth="2.8"
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        {/* Main top body */}
-        <path d="M24 130 L270 62 C285 58 301 58 316 62 L505 115" />
-        <path d="M24 130 C11 134 6 144 9 154 C12 164 25 170 43 174" />
-        <path d="M505 115 C524 119 533 129 531 141 C529 153 516 160 497 164" />
+        {/* top slab */}
+        <path d="M45 83 L335 25 C346 23 358 23 370 25 L574 65" />
+        <path d="M45 83 C33 86 27 93 28 102 C29 111 38 116 52 118" />
+        <path d="M574 65 C589 68 597 76 596 87 C595 96 586 102 571 105" />
+        <path d="M52 118 L321 160" />
+        <path d="M321 160 L571 105" />
+        <path d="M45 94 L322 138 L578 84" />
+        <path d="M51 108 L322 151 L572 98" />
+        <path d="M321 138 C315 146 315 154 321 160" />
+        <path d="M28 102 L28 401" />
+        <path d="M596 87 L596 381" />
 
-        <path d="M43 174 L270 229" />
-        <path d="M270 229 L497 164" />
-        <path d="M11 153 L270 212" />
-        <path d="M270 212 L530 139" />
-        <path d="M18 164 L270 221" />
-        <path d="M270 221 L520 151" />
+        {/* large front and side faces */}
+        <path d="M52 118 L52 396" />
+        <path d="M321 160 L321 467" />
+        <path d="M571 105 L571 371" />
+        <path d="M52 396 L321 467" />
+        <path d="M321 467 L571 386" />
+        <path d="M52 383 L321 450" />
+        <path d="M321 450 L571 371" />
+        <path d="M348 155 L348 456" />
+        <path d="M321 160 C330 151 340 151 348 155" />
+        <path d="M321 450 C329 459 340 461 348 456" />
 
-        {/* Top rounded slab edge */}
-        <path d="M270 212 C264 218 264 225 270 229" />
-        <path d="M24 130 C95 151 184 174 270 195" />
-        <path d="M270 195 L505 115" />
+        {/* rounded front vertical corner */}
+        <path d="M321 160 C334 169 344 169 348 155" />
+        <path d="M321 467 C334 480 347 476 348 456" />
+        <path d="M321 160 C317 245 317 374 321 467" />
+        <path d="M348 155 C344 247 344 370 348 456" />
 
-        {/* Vertical sides */}
-        <path d="M43 174 L43 421" />
-        <path d="M270 229 L270 522" />
-        <path d="M497 164 L497 405" />
-        <path d="M531 141 L531 388" />
-        <path d="M9 154 L9 414" />
+        {/* bottom raised rim */}
+        <path d="M30 398 C32 409 39 416 52 420 L306 487" />
+        <path d="M306 487 C322 492 342 490 359 484" />
+        <path d="M359 484 L574 414" />
+        <path d="M574 414 C587 410 594 401 596 389" />
+        <path d="M30 386 L52 396" />
+        <path d="M596 376 L571 386" />
+        <path d="M52 420 L306 487" opacity="0.55" />
+        <path d="M359 484 L574 414" opacity="0.55" />
 
-        {/* Front/side bottom shape */}
-        <path d="M43 421 L270 522" />
-        <path d="M270 522 L497 405" />
-        <path d="M9 414 L43 421" />
-        <path d="M497 405 L531 388" />
+        {/* front lower ports */}
+        <ellipse cx="100" cy="350" rx="17" ry="29" />
+        <ellipse cx="105" cy="351" rx="12" ry="23" />
+        <ellipse cx="110" cy="352" rx="7" ry="17" />
+        <path d="M86 330 C97 321 116 326 127 341" />
+        <path d="M85 366 C96 384 117 386 129 372" />
 
-        {/* Bottom rim */}
-        <path d="M9 414 C10 425 19 432 43 441 L249 533" />
-        <path d="M249 533 C267 541 285 539 304 531" />
-        <path d="M304 531 L507 426" />
-        <path d="M507 426 C522 419 530 407 531 388" />
+        <ellipse cx="220" cy="383" rx="17" ry="29" />
+        <ellipse cx="225" cy="384" rx="12" ry="23" />
+        <ellipse cx="230" cy="385" rx="7" ry="17" />
+        <path d="M206 363 C217 354 236 359 247 374" />
+        <path d="M205 399 C216 417 237 419 249 405" />
 
-        {/* Front center vertical corner */}
-        <path d="M270 229 C281 221 291 221 300 225" />
-        <path d="M300 225 L300 513" />
-        <path d="M270 522 C279 532 291 530 300 513" />
-        <path d="M270 229 C267 312 267 438 270 522" />
+        {/* short foot tabs */}
+        <path d="M36 418 L67 426 L67 446 L36 438 Z" />
+        <path d="M67 426 L82 421 L82 439 L67 446 Z" />
+        <path d="M36 438 L67 446" />
 
-        {/* Internal dashed level line */}
-        <path
-          d="M44 379 L270 284 L497 377"
-          strokeDasharray="10 12"
-          strokeWidth="2.4"
-        />
+        <path d="M306 486 L342 495 L342 517 L306 508 Z" />
+        <path d="M342 495 L364 488 L364 508 L342 517 Z" />
+        <path d="M306 508 L342 517" />
 
-        {/* Top hatch */}
-        <path d="M177 121 L298 88 L401 117 L278 154 Z" />
-        <path d="M177 121 L177 137 L278 173 L278 154" />
-        <path d="M278 173 L401 135 L401 117" />
-        <path d="M177 137 L278 173 L401 135" />
-        <path d="M194 122 L298 96 L383 119 L278 148 Z" />
+        <path d="M523 430 L550 422 L550 444 L523 452 Z" />
+        <path d="M550 422 L568 417 L568 436 L550 444 Z" />
+        <path d="M523 452 L550 444" />
 
-        {/* Left pipe */}
-        <ellipse cx="91" cy="375" rx="19" ry="35" />
-        <ellipse cx="96" cy="376" rx="13" ry="28" />
-        <ellipse cx="101" cy="377" rx="8" ry="21" />
-        <path d="M76 348 C90 335 113 341 126 361" />
-        <path d="M75 397 C88 418 114 421 128 402" />
-
-        {/* Center pipe */}
-        <ellipse cx="202" cy="421" rx="19" ry="35" />
-        <ellipse cx="207" cy="422" rx="13" ry="28" />
-        <ellipse cx="212" cy="423" rx="8" ry="21" />
-        <path d="M187 394 C201 381 224 387 237 407" />
-        <path d="M186 443 C199 464 225 467 239 448" />
-
-        {/* Feet */}
-        <path d="M31 435 L63 444 L63 471 L31 461 Z" />
-        <path d="M63 444 L84 436 L84 462 L63 471 Z" />
-        <path d="M31 461 L63 471" />
-
-        <path d="M272 520 L311 532 L311 560 L272 547 Z" />
-        <path d="M311 532 L335 520 L335 548 L311 560 Z" />
-        <path d="M272 547 L311 560" />
-
-        <path d="M454 428 L484 414 L484 441 L454 456 Z" />
-        <path d="M484 414 L506 404 L506 430 L484 441 Z" />
-        <path d="M454 456 L484 441" />
-
-        {/* Extra professional line depth */}
-        <path d="M43 186 L270 239" opacity="0.55" />
-        <path d="M300 235 L497 176" opacity="0.55" />
-        <path d="M43 429 L270 527" opacity="0.5" />
-        <path d="M300 520 L497 415" opacity="0.5" />
+        {/* subtle panel duplicates to mimic technical line art */}
+        <path d="M55 128 L318 169" opacity="0.4" />
+        <path d="M352 164 L568 116" opacity="0.4" />
+        <path d="M55 389 L318 456" opacity="0.4" />
+        <path d="M352 463 L568 395" opacity="0.4" />
+        <path d="M55 118 L321 160" opacity="0.35" />
+        <path d="M321 160 L571 105" opacity="0.35" />
       </g>
 
+      {/* ✅ Telemetry information only, no box/title */}
       {showTelemetry && (
         <g>
           {/* Height */}
-          <circle cx="615" cy="145" r="29" fill="rgba(34,197,94,0.18)" />
+          <circle cx="670" cy="135" r="30" fill="rgba(34,197,94,0.18)" />
           <text
-            x="615"
-            y="146"
+            x="670"
+            y="135"
             fill="#16a34a"
-            fontSize="36"
-            fontWeight="600"
+            fontSize="34"
+            fontWeight="500"
             textAnchor="middle"
             dominantBaseline="central"
           >
             ↕
           </text>
-          <text
-            x="670"
-            y="139"
-            fill="#050b22"
-            fontSize="24"
-            fontWeight="400"
-          >
+          <text x="735" y="127" fill="#0f172a" fontSize="24" fontWeight="400">
             Height
           </text>
           <text
-            x="670"
-            y="178"
-            fill="#00b050"
-            fontSize="30"
-            fontWeight="500"
+            x="735"
+            y="165"
+            fill="#16a34a"
+            fontSize="36"
+            fontWeight="400"
             fontFamily="monospace"
           >
             {heightValue}
           </text>
 
           {/* Temperature */}
-          <circle cx="615" cy="235" r="29" fill="rgba(249,115,22,0.18)" />
+          <circle cx="670" cy="225" r="30" fill="rgba(249,115,22,0.18)" />
           <text
-            x="615"
-            y="236"
-            fill="#ff2d00"
+            x="670"
+            y="225"
+            fill="#ea580c"
             fontSize="34"
-            fontWeight="600"
+            fontWeight="500"
             textAnchor="middle"
             dominantBaseline="central"
           >
             ♨
           </text>
-          <text
-            x="670"
-            y="229"
-            fill="#050b22"
-            fontSize="24"
-            fontWeight="400"
-          >
+          <text x="735" y="217" fill="#0f172a" fontSize="24" fontWeight="400">
             Temperature
           </text>
           <text
-            x="670"
-            y="268"
-            fill="#ff3b00"
-            fontSize="30"
-            fontWeight="500"
+            x="735"
+            y="255"
+            fill="#ea580c"
+            fontSize="36"
+            fontWeight="400"
             fontFamily="monospace"
           >
             {temperatureValue}
           </text>
 
           {/* Battery */}
-          <circle cx="615" cy="325" r="29" fill="rgba(34,197,94,0.18)" />
-          <text
-            x="615"
-            y="326"
-            fill="#22c55e"
-            fontSize="30"
-            fontWeight="600"
-            textAnchor="middle"
-            dominantBaseline="central"
-          >
-            ▯
-          </text>
-          <text
-            x="615"
-            y="326"
-            fill="#22c55e"
-            fontSize="18"
-            fontWeight="700"
-            textAnchor="middle"
-            dominantBaseline="central"
-          >
-            ▌
-          </text>
+          <circle cx="670" cy="315" r="30" fill="rgba(34,197,94,0.18)" />
           <text
             x="670"
-            y="319"
-            fill="#050b22"
-            fontSize="24"
-            fontWeight="400"
+            y="315"
+            fill="#16a34a"
+            fontSize="30"
+            fontWeight="500"
+            textAnchor="middle"
+            dominantBaseline="central"
           >
+            🔋
+          </text>
+          <text x="735" y="307" fill="#0f172a" fontSize="24" fontWeight="400">
             Battery
           </text>
           <text
-            x="670"
-            y="358"
-            fill="#00b050"
-            fontSize="30"
-            fontWeight="500"
+            x="735"
+            y="345"
+            fill="#16a34a"
+            fontSize="36"
+            fontWeight="400"
             fontFamily="monospace"
           >
             {batteryValue}
           </text>
 
           {/* Date */}
-          <circle cx="615" cy="415" r="29" fill="rgba(59,130,246,0.18)" />
+          <circle cx="670" cy="405" r="30" fill="rgba(59,130,246,0.18)" />
           <text
-            x="615"
-            y="416"
-            fill="#1473ff"
+            x="670"
+            y="405"
+            fill="#2563eb"
             fontSize="34"
-            fontWeight="600"
+            fontWeight="500"
             textAnchor="middle"
             dominantBaseline="central"
           >
             ▣
           </text>
-          <text
-            x="670"
-            y="409"
-            fill="#050b22"
-            fontSize="24"
-            fontWeight="400"
-          >
+          <text x="735" y="397" fill="#0f172a" fontSize="24" fontWeight="400">
             Date
           </text>
           <text
-            x="670"
-            y="448"
-            fill="#1473ff"
+            x="735"
+            y="435"
+            fill="#2563eb"
             fontSize="26"
-            fontWeight="500"
+            fontWeight="400"
             fontFamily="monospace"
           >
             {dateValue}
