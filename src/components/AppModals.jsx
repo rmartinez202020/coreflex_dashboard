@@ -13,6 +13,7 @@ import HorizontalTankPropertiesModal from "./HorizontalTankPropertiesModal";
 import VerticalTankSettingsModal from "./VerticalTankSettingsModal";
 import StandardTankPropertiesModal from "./StandardTankPropertiesModal";
 import Sidebarleftwirelesstankmodal from "./Sidebarleftwirelesstankmodal";
+import Sidebarleftwirelesstankmodal2 from "./Sidebarleftwirelesstankmodal2";
 import PushButtonNOPropertiesModal from "./controls/PushButtonNOPropertiesModal";
 import PushButtonNCPropertiesModal from "./controls/PushButtonNCPropertiesModal";
 import AlarmLogWindow from "./AlarmLogWindow";
@@ -53,6 +54,10 @@ export default function AppModals({
   setShowWirelessTankProps,
   activeWirelessTankId,
   setActiveWirelessTankId,
+  showWirelessTank2Props,
+  setShowWirelessTank2Props,
+  activeWirelessTank2Id,
+  setActiveWirelessTank2Id,
   alarmLogOpen,
   closeAlarmLog,
   onMinimizeAlarmLog,
@@ -177,6 +182,14 @@ export default function AppModals({
     );
   }, [droppedTanks, activeWirelessTankId]);
 
+  const activeWirelessTank2 = useMemo(() => {
+    if (activeWirelessTank2Id == null) return null;
+    return droppedTanks.find(
+      (t) =>
+        isSameId(t.id, activeWirelessTank2Id) && t.shape === "wirelessTank2"
+    );
+  }, [droppedTanks, activeWirelessTank2Id]);
+
   const indicatorTarget = useMemo(() => {
     if (indicatorSettingsId == null) return null;
     return droppedTanks.find(
@@ -285,6 +298,13 @@ export default function AppModals({
     setShowWirelessTankProps?.(false);
     if (typeof setActiveWirelessTankId === "function") {
       setActiveWirelessTankId(null);
+    }
+  };
+
+  const closeWirelessTank2Modal = () => {
+    setShowWirelessTank2Props?.(false);
+    if (typeof setActiveWirelessTank2Id === "function") {
+      setActiveWirelessTank2Id(null);
     }
   };
 
@@ -624,6 +644,23 @@ export default function AppModals({
             );
 
             closeWirelessTankModal();
+          }}
+        />
+      )}
+
+      {showWirelessTank2Props && activeWirelessTank2 && (
+        <Sidebarleftwirelesstankmodal2
+          open={showWirelessTank2Props}
+          tank={activeWirelessTank2}
+          onClose={closeWirelessTank2Modal}
+          onSave={(updatedTank) => {
+            setDroppedTanks((prev) =>
+              prev.map((t) =>
+                isSameId(t.id, updatedTank.id) ? updatedTank : t
+              )
+            );
+
+            closeWirelessTank2Modal();
           }}
         />
       )}
