@@ -48,11 +48,6 @@ export default function Sidebarleftwirelesstank({
 
         {/* internal CAD lines */}
         <path
-          d="M30 202 L135 235 L360 205 L492 240"
-          strokeDasharray="7 8"
-          opacity="0.58"
-        />
-        <path
           d="M135 354 L360 325 L492 405"
           strokeDasharray="7 8"
           opacity="0.42"
