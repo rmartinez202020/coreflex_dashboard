@@ -1,9 +1,8 @@
-// Sidebarleftwirelesstank2.jsx
 import React from "react";
 
 export default function Sidebarleftwirelesstank2({
   size = 220,
-  strokeColor = "#ffffff",
+  strokeColor = "#020617",
 
   heightValue = "--",
   temperatureValue = "--",
@@ -12,11 +11,13 @@ export default function Sidebarleftwirelesstank2({
 
   showTelemetry = true,
 }) {
+  const iconFont = "Arial, Helvetica, sans-serif";
+
   return (
     <svg
       width={size}
-      height={Math.round(size * 0.88)}
-      viewBox="0 0 1050 545"
+      height={Math.round(size * 0.82)}
+      viewBox="0 0 770 515"
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       style={{
@@ -27,119 +28,78 @@ export default function Sidebarleftwirelesstank2({
     >
       <g
         stroke={strokeColor}
-        strokeWidth="3"
+        strokeWidth="2.6"
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        {/* main tank body */}
-        <path d="M60 120 L345 45 C357 42 370 42 383 46 L610 115" />
-        <path d="M60 120 C45 125 38 136 40 148 C42 160 54 166 72 170" />
-        <path d="M610 115 C627 120 636 132 633 145 C630 156 618 163 600 166" />
+        {/* Tank body */}
+        <path d="M27 107 C27 97 34 90 47 86 L257 28 C267 25 278 24 287 27 L493 85 C507 89 514 97 514 109" />
+        <path d="M27 107 C27 119 36 126 51 130 L263 193 C271 195 279 195 287 192 L490 129 C507 124 514 117 514 108" />
+        <path d="M51 130 L51 396" />
+        <path d="M514 108 L514 389" />
+        <path d="M281 194 L281 486" />
+        <path d="M51 396 L281 486" />
+        <path d="M281 486 L514 390" />
 
-        <path d="M72 170 L335 225" />
-        <path d="M335 225 L600 166" />
+        {/* Rounded top lip */}
+        <path d="M30 116 L262 185 C273 188 282 188 292 185 L510 118" opacity="0.65" />
+        <path d="M28 132 L260 202 C273 206 282 206 294 202 L512 135" opacity="0.65" />
 
-        <path d="M40 148 L40 410" />
-        <path d="M633 145 L633 395" />
-        <path d="M72 170 L72 405" />
-        <path d="M335 225 L335 490" />
-        <path d="M600 166 L600 395" />
+        {/* Inner dashed construction lines */}
+        <path d="M52 397 L281 315" strokeDasharray="8 11" />
+        <path d="M281 315 L513 389" strokeDasharray="8 11" />
 
-        <path d="M72 405 L335 490" />
-        <path d="M335 490 L600 395" />
+        {/* Raised top hatch */}
+        <path d="M174 83 L281 53 L380 82 L274 116 Z" />
+        <path d="M174 83 L174 101 L274 136 L274 116" />
+        <path d="M380 82 L380 99 L274 136" />
+        <path d="M174 101 L274 136 L380 99" />
 
-        {/* front corner */}
-        <path d="M335 225 L335 490" />
+        {/* Front circular ports */}
+        <ellipse cx="91" cy="355" rx="20" ry="33" />
+        <ellipse cx="98" cy="356" rx="14" ry="27" />
+        <ellipse cx="104" cy="357" rx="8" ry="20" />
 
-        {/* top rim */}
-        <path d="M50 138 L335 198 L623 136" />
-        <path d="M56 152 L335 212 L616 150" />
+        <ellipse cx="196" cy="393" rx="20" ry="33" />
+        <ellipse cx="203" cy="394" rx="14" ry="27" />
+        <ellipse cx="209" cy="395" rx="8" ry="20" />
 
-        {/* top square hatch */}
-        <path d="M232 96 L350 70 L458 96 L337 128 Z" />
-        <path d="M232 96 L232 112 L337 144 L337 128" />
-        <path d="M458 96 L458 112 L337 144" />
-        <path d="M255 100 L350 80 L435 99 L337 123 Z" />
+        {/* Feet */}
+        <path d="M36 407 L67 419 L67 443 L36 431 Z" />
+        <path d="M67 419 L84 414 L84 436 L67 443 Z" />
 
-        {/* bottom rim */}
-        <path d="M40 410 L72 424 L318 502" />
-        <path d="M318 502 C334 508 354 506 372 499" />
-        <path d="M372 499 L602 420" />
-        <path d="M602 420 C618 414 629 402 633 392" />
+        <path d="M254 474 L284 486 L284 510 L254 499 Z" />
+        <path d="M284 486 L309 477 L309 500 L284 510 Z" />
 
-        {/* inside intermittent level line */}
-        <path
-          d="M40 322 L335 235 L633 320"
-          stroke={strokeColor}
-          strokeDasharray="14 14"
-          opacity="0.75"
-        />
+        <path d="M462 412 L493 399 L493 423 L462 436 Z" />
+        <path d="M493 399 L511 392 L511 414 L493 423 Z" />
 
-        {/* front lower ports */}
-        <ellipse cx="138" cy="352" rx="18" ry="31" />
-        <ellipse cx="145" cy="353" rx="12" ry="25" />
-        <ellipse cx="152" cy="354" rx="7" ry="18" />
-
-        <ellipse cx="270" cy="390" rx="18" ry="31" />
-        <ellipse cx="277" cy="391" rx="12" ry="25" />
-        <ellipse cx="284" cy="392" rx="7" ry="18" />
-
-        {/* feet */}
-        <path d="M55 420 L92 431 L92 458 L55 447 Z" />
-        <path d="M92 431 L118 424 L118 450 L92 458 Z" />
-
-        <path d="M315 500 L355 512 L355 540 L315 528 Z" />
-        <path d="M355 512 L382 503 L382 530 L355 540 Z" />
-
-        <path d="M535 436 L572 424 L572 452 L535 464 Z" />
-        <path d="M572 424 L598 417 L598 443 L572 452 Z" />
+        {/* Bottom rim */}
+        <path d="M51 407 L281 497" opacity="0.65" />
+        <path d="M281 497 L514 400" opacity="0.65" />
       </g>
 
       {showTelemetry && (
-        <g>
-          <circle cx="690" cy="135" r="30" fill="rgba(34,197,94,0.18)" />
-          <text x="690" y="135" fill="#16a34a" fontSize="34" fontWeight="500" textAnchor="middle" dominantBaseline="central">
-            ↕
-          </text>
-          <text x="755" y="127" fill="#0f172a" fontSize="24" fontWeight="400">
-            Height
-          </text>
-          <text x="755" y="165" fill="#16a34a" fontSize="36" fontWeight="400" fontFamily="monospace">
-            {heightValue}
-          </text>
+        <g fontFamily="Inter, Arial, Helvetica, sans-serif">
+          <circle cx="592" cy="110" r="28" fill="rgba(34,197,94,0.18)" />
+          <text x="592" y="111" fill="#22c55e" fontSize="32" fontWeight="600" textAnchor="middle" dominantBaseline="central" fontFamily={iconFont}>↕</text>
+          <text x="644" y="104" fill="#0f172a" fontSize="22">Height</text>
+          <text x="644" y="142" fill="#16a34a" fontSize="28" fontWeight="500" fontFamily="monospace">{heightValue}</text>
 
-          <circle cx="690" cy="225" r="30" fill="rgba(249,115,22,0.18)" />
-          <text x="690" y="225" fill="#ea580c" fontSize="34" fontWeight="500" textAnchor="middle" dominantBaseline="central">
-            ♨
-          </text>
-          <text x="755" y="217" fill="#0f172a" fontSize="24" fontWeight="400">
-            Temperature
-          </text>
-          <text x="755" y="255" fill="#ea580c" fontSize="36" fontWeight="400" fontFamily="monospace">
-            {temperatureValue}
-          </text>
+          <circle cx="592" cy="198" r="28" fill="rgba(249,115,22,0.18)" />
+          <text x="592" y="199" fill="#ef4444" fontSize="30" fontWeight="600" textAnchor="middle" dominantBaseline="central" fontFamily={iconFont}>♨</text>
+          <text x="644" y="192" fill="#0f172a" fontSize="22">Temperature</text>
+          <text x="644" y="230" fill="#f97316" fontSize="28" fontWeight="500" fontFamily="monospace">{temperatureValue}</text>
 
-          <circle cx="690" cy="315" r="30" fill="rgba(34,197,94,0.18)" />
-          <text x="690" y="315" fill="#16a34a" fontSize="30" fontWeight="500" textAnchor="middle" dominantBaseline="central">
-            🔋
-          </text>
-          <text x="755" y="307" fill="#0f172a" fontSize="24" fontWeight="400">
-            Battery
-          </text>
-          <text x="755" y="345" fill="#16a34a" fontSize="36" fontWeight="400" fontFamily="monospace">
-            {batteryValue}
-          </text>
+          <circle cx="592" cy="286" r="28" fill="rgba(34,197,94,0.18)" />
+          <text x="592" y="287" fill="#22c55e" fontSize="30" fontWeight="600" textAnchor="middle" dominantBaseline="central" fontFamily={iconFont}>▯</text>
+          <text x="644" y="280" fill="#0f172a" fontSize="22">Battery</text>
+          <text x="644" y="318" fill="#16a34a" fontSize="28" fontWeight="500" fontFamily="monospace">{batteryValue}</text>
 
-          <circle cx="690" cy="405" r="30" fill="rgba(59,130,246,0.18)" />
-          <text x="690" y="405" fill="#2563eb" fontSize="34" fontWeight="500" textAnchor="middle" dominantBaseline="central">
-            ▣
-          </text>
-          <text x="755" y="397" fill="#0f172a" fontSize="24" fontWeight="400">
-            Date
-          </text>
-          <text x="755" y="435" fill="#2563eb" fontSize="26" fontWeight="400" fontFamily="monospace">
-            {dateValue}
-          </text>
+          <circle cx="592" cy="374" r="28" fill="rgba(59,130,246,0.18)" />
+          <text x="592" y="375" fill="#2584ff" fontSize="30" fontWeight="600" textAnchor="middle" dominantBaseline="central" fontFamily={iconFont}>▣</text>
+          <text x="644" y="368" fill="#0f172a" fontSize="22">Date</text>
+          <text x="644" y="406" fill="#2584ff" fontSize="24" fontWeight="500" fontFamily="monospace">{dateValue}</text>
         </g>
       )}
     </svg>
