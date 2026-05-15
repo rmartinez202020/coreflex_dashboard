@@ -66,6 +66,31 @@ function computeMathOutput(liveValue, formula) {
   }
 }
 
+function normalizeDigitCount(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 4;
+  return Math.min(12, Math.max(1, Math.round(n)));
+}
+
+function formatDisplayPreviewValue(value, digitCount) {
+  const digits = normalizeDigitCount(digitCount);
+
+  if (value === undefined || value === null || value === "") {
+    return "-".repeat(digits);
+  }
+
+  if (typeof value === "string") {
+    return value.slice(0, digits).padStart(digits, "0");
+  }
+
+  if (Number.isFinite(Number(value))) {
+    const rounded = Math.round(Number(value));
+    return String(rounded).slice(-digits).padStart(digits, "0");
+  }
+
+  return "-".repeat(digits);
+}
+
 export default function DisplaySettingModal({
   open = true,
   tank,
@@ -76,25 +101,22 @@ export default function DisplaySettingModal({
 
   const props = tank?.properties || {};
 
-  // ✅ NEW: TITLE (top of display)
   const [title, setTitle] = useState(props.title ?? props.displayTitle ?? "");
-
-  // ✅ math
   const [formula, setFormula] = useState(props.formula ?? "");
 
-  // ✅ binding
   const [bindModel, setBindModel] = useState(props.bindModel || "zhc1921");
   const [bindDeviceId, setBindDeviceId] = useState(props.bindDeviceId || "");
   const [bindField, setBindField] = useState(props.bindField || "ai1");
 
-  // ✅ display style (4 options)
   const [displayStyle, setDisplayStyle] = useState(
     props.displayStyle || "classic"
   );
 
-  // -------------------------
-  // ✅ TELEMETRY (EXTRACTED) - fixed 2s poll inside hook
-  // -------------------------
+  // ✅ NEW: controls how many digits the display widget shows
+  const [digitCount, setDigitCount] = useState(
+    normalizeDigitCount(props.digitCount ?? props.displayDigits ?? 4)
+  );
+
   const { devices, selectedDevice } = useDisplaySettingDevices({
     open,
     bindModel,
@@ -113,7 +135,8 @@ export default function DisplaySettingModal({
   const selectedDeviceStatus = String(selectedDevice?.status || "")
     .trim()
     .toLowerCase();
-  const selectedDeviceIsOnline = hasSelectedDevice && selectedDeviceStatus === "online";
+  const selectedDeviceIsOnline =
+    hasSelectedDevice && selectedDeviceStatus === "online";
   const selectedDeviceIsOffline =
     hasSelectedDevice &&
     !!selectedDevice &&
@@ -125,11 +148,13 @@ export default function DisplaySettingModal({
     return computeMathOutput(liveValue, formula);
   }, [selectedDeviceIsOnline, liveValue, formula]);
 
+  const previewValue = useMemo(() => {
+    if (!selectedDeviceIsOnline) return "-".repeat(digitCount);
+    return formatDisplayPreviewValue(effectiveOutputValue, digitCount);
+  }, [selectedDeviceIsOnline, effectiveOutputValue, digitCount]);
+
   const liveErr = pollError;
 
-  // -------------------------
-  // ✅ DRAG STATE
-  // -------------------------
   const PANEL_W = 1240;
   const dragRef = useRef({
     dragging: false,
@@ -165,7 +190,6 @@ export default function DisplaySettingModal({
     setDidInitPos(true);
   }, [open, didInitPos]);
 
-  // ✅ Load from tank whenever tank changes
   useEffect(() => {
     if (!tank) return;
 
@@ -176,11 +200,9 @@ export default function DisplaySettingModal({
     setBindDeviceId(p.bindDeviceId ?? "");
     setBindField(p.bindField ?? "ai1");
     setDisplayStyle(p.displayStyle ?? "classic");
+    setDigitCount(normalizeDigitCount(p.digitCount ?? p.displayDigits ?? 4));
   }, [tank]);
 
-  // -------------------------
-  // ✅ DRAG handlers
-  // -------------------------
   const onDragMove = (e) => {
     if (!dragRef.current.dragging) return;
 
@@ -241,16 +263,10 @@ export default function DisplaySettingModal({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // -------------------------
-  // ✅ can apply
-  // -------------------------
   const canApply = useMemo(() => {
     return !!bindDeviceId && !!bindField;
   }, [bindDeviceId, bindField]);
 
-  // -------------------------
-  // ✅ UI
-  // -------------------------
   const labelStyle = { fontSize: 12, fontWeight: 500, color: "#111827" };
   const sectionTitleStyle = { fontWeight: 600, fontSize: 16 };
   const fieldSelectStyle = {
@@ -290,7 +306,6 @@ export default function DisplaySettingModal({
         }}
         onMouseDown={(e) => e.stopPropagation()}
       >
-        {/* HEADER BAR (DRAG HANDLE) */}
         <div
           onMouseDown={startDrag}
           style={{
@@ -329,7 +344,6 @@ export default function DisplaySettingModal({
           </button>
         </div>
 
-        {/* BODY */}
         <div style={{ padding: 18, background: "#f8fafc" }}>
           <div
             style={{
@@ -339,23 +353,13 @@ export default function DisplaySettingModal({
               alignItems: "start",
             }}
           >
-            {/* LEFT: OPTIONS */}
             <DisplaySettingsmodalOptions
               value={displayStyle}
               onChange={setDisplayStyle}
-              previewLabel={tank?.properties?.label || "Temp"}
-              previewValue={
-                !selectedDeviceIsOnline
-                  ? "--"
-                  : typeof effectiveOutputValue === "string"
-                  ? effectiveOutputValue || "--"
-                  : Number.isFinite(Number(effectiveOutputValue))
-                  ? String(Math.round(Number(effectiveOutputValue)))
-                  : "--"
-              }
+              previewLabel={tank?.properties?.label || "Degrees"}
+              previewValue={previewValue}
             />
 
-            {/* MIDDLE: MATH */}
             <div
               style={{
                 background: "#ffffff",
@@ -368,7 +372,6 @@ export default function DisplaySettingModal({
             >
               <div style={sectionTitleStyle}>Math</div>
 
-              {/* ✅ NEW: TITLE INPUT */}
               <div style={{ display: "grid", gap: 6 }}>
                 <div style={labelStyle}>Title (Top of Display)</div>
                 <input
@@ -387,6 +390,34 @@ export default function DisplaySettingModal({
                 />
                 <div style={{ fontSize: 11, color: "#64748b" }}>
                   This shows above the label on the widget.
+                </div>
+              </div>
+
+              {/* ✅ NEW: DIGIT COUNT SETTING */}
+              <div style={{ display: "grid", gap: 6 }}>
+                <div style={labelStyle}>Display Digits</div>
+                <input
+                  type="number"
+                  min="1"
+                  max="12"
+                  value={digitCount}
+                  onChange={(e) =>
+                    setDigitCount(normalizeDigitCount(e.target.value))
+                  }
+                  style={{
+                    height: 38,
+                    borderRadius: 10,
+                    border: "1px solid #d1d5db",
+                    padding: "0 10px",
+                    fontWeight: 700,
+                    background: "#fff",
+                    outline: "none",
+                    fontFamily: "monospace",
+                  }}
+                />
+                <div style={{ fontSize: 11, color: "#64748b" }}>
+                  Controls how many digits the display widget renders. Example:
+                  4 = 0000, 6 = 000000.
                 </div>
               </div>
 
@@ -553,7 +584,6 @@ export default function DisplaySettingModal({
               ) : null}
             </div>
 
-            {/* RIGHT: BINDING */}
             <div
               style={{
                 background: "#ffffff",
@@ -641,6 +671,19 @@ export default function DisplaySettingModal({
                   )}
                 </div>
 
+                {selectedDeviceIsOffline ? (
+                  <div
+                    style={{
+                      marginTop: 10,
+                      color: "#991b1b",
+                      fontSize: 12,
+                      fontWeight: 700,
+                    }}
+                  >
+                    Device is offline. Display preview will show dashes.
+                  </div>
+                ) : null}
+
                 <div
                   style={{
                     marginTop: 12,
@@ -673,7 +716,6 @@ export default function DisplaySettingModal({
                 </div>
               </div>
 
-              {/* ACTIONS */}
               <div
                 style={{
                   display: "flex",
@@ -700,6 +742,7 @@ export default function DisplaySettingModal({
                   disabled={!canApply}
                   onClick={() => {
                     const cleanTitle = String(title || "").trim();
+                    const cleanDigitCount = normalizeDigitCount(digitCount);
 
                     const nextProps = {
                       ...(tank?.properties || {}),
@@ -709,6 +752,8 @@ export default function DisplaySettingModal({
                       bindField,
                       formula,
                       displayStyle,
+                      digitCount: cleanDigitCount,
+                      displayDigits: cleanDigitCount,
                     };
 
                     const nextTank = {
@@ -719,6 +764,8 @@ export default function DisplaySettingModal({
                       bindField,
                       formula,
                       displayStyle,
+                      digitCount: cleanDigitCount,
+                      displayDigits: cleanDigitCount,
                       properties: nextProps,
                     };
 
