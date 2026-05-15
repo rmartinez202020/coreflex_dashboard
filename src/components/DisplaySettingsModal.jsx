@@ -112,7 +112,6 @@ export default function DisplaySettingModal({
     props.displayStyle || "classic"
   );
 
-  // ✅ NEW: controls how many digits the display widget shows
   const [digitCount, setDigitCount] = useState(
     normalizeDigitCount(props.digitCount ?? props.displayDigits ?? 4)
   );
@@ -135,14 +134,17 @@ export default function DisplaySettingModal({
   const selectedDeviceStatus = String(selectedDevice?.status || "")
     .trim()
     .toLowerCase();
+
   const selectedDeviceIsOnline =
     hasSelectedDevice && selectedDeviceStatus === "online";
+
   const selectedDeviceIsOffline =
     hasSelectedDevice &&
     !!selectedDevice &&
     selectedDeviceStatus !== "online";
 
   const effectiveLiveValue = selectedDeviceIsOnline ? liveValue : null;
+
   const effectiveOutputValue = useMemo(() => {
     if (!selectedDeviceIsOnline) return null;
     return computeMathOutput(liveValue, formula);
@@ -155,7 +157,9 @@ export default function DisplaySettingModal({
 
   const liveErr = pollError;
 
-  const PANEL_W = 1240;
+  // ✅ Wider modal / less tall layout
+  const PANEL_W = 1580;
+
   const dragRef = useRef({
     dragging: false,
     startX: 0,
@@ -180,11 +184,11 @@ export default function DisplaySettingModal({
     const w = window.innerWidth || 1200;
     const h = window.innerHeight || 800;
 
-    const width = Math.min(PANEL_W, Math.floor(w * 0.96));
-    const estHeight = 640;
+    const width = Math.min(PANEL_W, Math.floor(w * 0.985));
+    const estHeight = 530;
 
-    const left = Math.max(12, Math.floor((w - width) / 2));
-    const top = Math.max(12, Math.floor((h - estHeight) / 2));
+    const left = Math.max(8, Math.floor((w - width) / 2));
+    const top = Math.max(8, Math.floor((h - estHeight) / 2));
 
     setPos({ left, top });
     setDidInitPos(true);
@@ -268,13 +272,23 @@ export default function DisplaySettingModal({
   }, [bindDeviceId, bindField]);
 
   const labelStyle = { fontSize: 12, fontWeight: 500, color: "#111827" };
-  const sectionTitleStyle = { fontWeight: 600, fontSize: 16 };
+  const sectionTitleStyle = { fontWeight: 700, fontSize: 15 };
   const fieldSelectStyle = {
     height: 38,
     borderRadius: 10,
     border: "1px solid #d1d5db",
     padding: "0 10px",
     fontWeight: 400,
+    background: "#fff",
+    outline: "none",
+  };
+
+  const inputStyle = {
+    height: 38,
+    borderRadius: 10,
+    border: "1px solid #d1d5db",
+    padding: "0 10px",
+    fontWeight: 500,
     background: "#fff",
     outline: "none",
   };
@@ -298,7 +312,8 @@ export default function DisplaySettingModal({
           left: pos.left,
           top: pos.top,
           width: PANEL_W,
-          maxWidth: "96vw",
+          maxWidth: "98.5vw",
+          maxHeight: "92vh",
           borderRadius: 12,
           background: "#fff",
           boxShadow: "0 20px 60px rgba(0,0,0,0.35)",
@@ -309,7 +324,7 @@ export default function DisplaySettingModal({
         <div
           onMouseDown={startDrag}
           style={{
-            padding: "14px 18px",
+            padding: "12px 18px",
             borderBottom: "1px solid #e5e7eb",
             fontWeight: 900,
             fontSize: 16,
@@ -329,8 +344,8 @@ export default function DisplaySettingModal({
             data-no-drag="true"
             onClick={onClose}
             style={{
-              width: 34,
-              height: 34,
+              width: 32,
+              height: 32,
               borderRadius: 10,
               border: "1px solid rgba(255,255,255,0.15)",
               background: "rgba(255,255,255,0.08)",
@@ -344,12 +359,19 @@ export default function DisplaySettingModal({
           </button>
         </div>
 
-        <div style={{ padding: 18, background: "#f8fafc" }}>
+        <div
+          style={{
+            padding: 14,
+            background: "#f8fafc",
+            maxHeight: "calc(92vh - 57px)",
+            overflowY: "auto",
+          }}
+        >
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "320px 1fr 1fr",
-              gap: 16,
+              gridTemplateColumns: "360px 1.35fr 0.95fr",
+              gap: 14,
               alignItems: "start",
             }}
           >
@@ -367,57 +389,51 @@ export default function DisplaySettingModal({
                 borderRadius: 12,
                 padding: 14,
                 display: "grid",
-                gap: 12,
+                gap: 10,
               }}
             >
               <div style={sectionTitleStyle}>Math</div>
 
-              <div style={{ display: "grid", gap: 6 }}>
-                <div style={labelStyle}>Title (Top of Display)</div>
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value)}
-                  placeholder="Example: Water Tank #1"
-                  style={{
-                    height: 38,
-                    borderRadius: 10,
-                    border: "1px solid #d1d5db",
-                    padding: "0 10px",
-                    fontWeight: 500,
-                    background: "#fff",
-                    outline: "none",
-                  }}
-                />
-                <div style={{ fontSize: 11, color: "#64748b" }}>
-                  This shows above the label on the widget.
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 170px",
+                  gap: 10,
+                  alignItems: "start",
+                }}
+              >
+                <div style={{ display: "grid", gap: 5 }}>
+                  <div style={labelStyle}>Title (Top of Display)</div>
+                  <input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    placeholder="Example: Water Tank #1"
+                    style={inputStyle}
+                  />
+                  <div style={{ fontSize: 11, color: "#64748b" }}>
+                    This shows above the label on the widget.
+                  </div>
                 </div>
-              </div>
 
-              {/* ✅ NEW: DIGIT COUNT SETTING */}
-              <div style={{ display: "grid", gap: 6 }}>
-                <div style={labelStyle}>Display Digits</div>
-                <input
-                  type="number"
-                  min="1"
-                  max="12"
-                  value={digitCount}
-                  onChange={(e) =>
-                    setDigitCount(normalizeDigitCount(e.target.value))
-                  }
-                  style={{
-                    height: 38,
-                    borderRadius: 10,
-                    border: "1px solid #d1d5db",
-                    padding: "0 10px",
-                    fontWeight: 700,
-                    background: "#fff",
-                    outline: "none",
-                    fontFamily: "monospace",
-                  }}
-                />
-                <div style={{ fontSize: 11, color: "#64748b" }}>
-                  Controls how many digits the display widget renders. Example:
-                  4 = 0000, 6 = 000000.
+                <div style={{ display: "grid", gap: 5 }}>
+                  <div style={labelStyle}>Display Digits</div>
+                  <input
+                    type="number"
+                    min="1"
+                    max="12"
+                    value={digitCount}
+                    onChange={(e) =>
+                      setDigitCount(normalizeDigitCount(e.target.value))
+                    }
+                    style={{
+                      ...inputStyle,
+                      fontWeight: 700,
+                      fontFamily: "monospace",
+                    }}
+                  />
+                  <div style={{ fontSize: 11, color: "#64748b" }}>
+                    4 = 0000, 6 = 000000
+                  </div>
                 </div>
               </div>
 
@@ -441,12 +457,12 @@ export default function DisplaySettingModal({
                   </div>
                   <div
                     style={{
-                      marginTop: 6,
+                      marginTop: 5,
                       display: "inline-flex",
                       alignItems: "center",
                       justifyContent: "center",
                       minWidth: 120,
-                      height: 34,
+                      height: 32,
                       padding: "0 14px",
                       borderRadius: 999,
                       background: "rgba(187,247,208,0.55)",
@@ -474,12 +490,12 @@ export default function DisplaySettingModal({
                   </div>
                   <div
                     style={{
-                      marginTop: 6,
+                      marginTop: 5,
                       display: "inline-flex",
                       alignItems: "center",
                       justifyContent: "center",
                       minWidth: 120,
-                      height: 34,
+                      height: 32,
                       padding: "0 14px",
                       borderRadius: 999,
                       background: "#f3f4f6",
@@ -511,9 +527,9 @@ export default function DisplaySettingModal({
                 <textarea
                   value={formula}
                   onChange={(e) => setFormula(e.target.value)}
-                  rows={4}
+                  rows={3}
                   style={{
-                    marginTop: 6,
+                    marginTop: 5,
                     width: "100%",
                     borderRadius: 10,
                     border: "1px solid #d1d5db",
@@ -522,6 +538,8 @@ export default function DisplaySettingModal({
                     fontSize: 12,
                     outline: "none",
                     background: "#fff",
+                    resize: "vertical",
+                    minHeight: 74,
                   }}
                   placeholder='Example: VALUE*1.5  or  CONCAT("Temp=", VALUE)'
                 />
@@ -532,38 +550,52 @@ export default function DisplaySettingModal({
                   background: "#f1f5f9",
                   border: "1px solid #e2e8f0",
                   borderRadius: 10,
-                  padding: 12,
+                  padding: 10,
                   fontSize: 11,
                   color: "#1e293b",
                   lineHeight: 1.35,
                 }}
               >
-                <div style={{ fontWeight: 600, marginBottom: 8 }}>
-                  Supported Operators
-                </div>
-                <div style={{ display: "grid", gap: 4 }}>
-                  <div>VALUE + 10 → add</div>
-                  <div>VALUE - 3 → subtract</div>
-                  <div>VALUE * 2 → multiply</div>
-                  <div>VALUE / 5 → divide</div>
-                  <div>VALUE % 60 → modulo</div>
-                </div>
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr 1fr",
+                    gap: 12,
+                  }}
+                >
+                  <div>
+                    <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                      Supported Operators
+                    </div>
+                    <div style={{ display: "grid", gap: 3 }}>
+                      <div>VALUE + 10 → add</div>
+                      <div>VALUE - 3 → subtract</div>
+                      <div>VALUE * 2 → multiply</div>
+                      <div>VALUE / 5 → divide</div>
+                      <div>VALUE % 60 → modulo</div>
+                    </div>
+                  </div>
 
-                <div style={{ fontWeight: 600, margin: "10px 0 6px" }}>
-                  Combined Examples
-                </div>
-                <div style={{ display: "grid", gap: 4 }}>
-                  <div>(VALUE * 1.5) + 5 → scale &amp; offset</div>
-                  <div>(VALUE / 4095) * 20 - 4 → ADC → 4–20 mA</div>
-                </div>
+                  <div>
+                    <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                      Combined Examples
+                    </div>
+                    <div style={{ display: "grid", gap: 3 }}>
+                      <div>(VALUE * 1.5) + 5</div>
+                      <div>(VALUE / 4095) * 20 - 4</div>
+                    </div>
+                  </div>
 
-                <div style={{ fontWeight: 600, margin: "10px 0 6px" }}>
-                  String Output Examples
-                </div>
-                <div style={{ display: "grid", gap: 4 }}>
-                  <div>CONCAT("Temp=", VALUE)</div>
-                  <div>CONCAT("Level=", VALUE, " %")</div>
-                  <div>CONCAT("Vol=", VALUE * 2, " Gal")</div>
+                  <div>
+                    <div style={{ fontWeight: 700, marginBottom: 6 }}>
+                      String Output Examples
+                    </div>
+                    <div style={{ display: "grid", gap: 3 }}>
+                      <div>CONCAT("Temp=", VALUE)</div>
+                      <div>CONCAT("Level=", VALUE, " %")</div>
+                      <div>CONCAT("Vol=", VALUE * 2, " Gal")</div>
+                    </div>
+                  </div>
                 </div>
               </div>
 
@@ -591,12 +623,12 @@ export default function DisplaySettingModal({
                 borderRadius: 12,
                 padding: 14,
                 display: "grid",
-                gap: 12,
+                gap: 10,
               }}
             >
               <div style={sectionTitleStyle}>Tag that drives the Trend (AI)</div>
 
-              <div style={{ display: "grid", gap: 6 }}>
+              <div style={{ display: "grid", gap: 5 }}>
                 <div style={labelStyle}>Model</div>
                 <select
                   value={bindModel}
@@ -611,7 +643,7 @@ export default function DisplaySettingModal({
                 </select>
               </div>
 
-              <div style={{ display: "grid", gap: 6 }}>
+              <div style={{ display: "grid", gap: 5 }}>
                 <div style={labelStyle}>Device</div>
                 <select
                   value={bindDeviceId}
@@ -627,7 +659,7 @@ export default function DisplaySettingModal({
                 </select>
               </div>
 
-              <div style={{ display: "grid", gap: 6 }}>
+              <div style={{ display: "grid", gap: 5 }}>
                 <div style={labelStyle}>Analog Input (AI)</div>
                 <select
                   value={bindField}
@@ -647,7 +679,7 @@ export default function DisplaySettingModal({
 
               <div
                 style={{
-                  marginTop: 4,
+                  marginTop: 2,
                   border: "1px solid #e5e7eb",
                   background: "#f8fafc",
                   borderRadius: 12,
@@ -674,7 +706,7 @@ export default function DisplaySettingModal({
                 {selectedDeviceIsOffline ? (
                   <div
                     style={{
-                      marginTop: 10,
+                      marginTop: 8,
                       color: "#991b1b",
                       fontSize: 12,
                       fontWeight: 700,
@@ -686,9 +718,11 @@ export default function DisplaySettingModal({
 
                 <div
                   style={{
-                    marginTop: 12,
+                    marginTop: 10,
                     display: "flex",
                     justifyContent: "space-between",
+                    alignItems: "center",
+                    gap: 10,
                   }}
                 >
                   <div style={previewTextStyle}>Current Value</div>
@@ -699,7 +733,7 @@ export default function DisplaySettingModal({
                       alignItems: "center",
                       justifyContent: "center",
                       minWidth: 120,
-                      height: 34,
+                      height: 32,
                       padding: "0 14px",
                       borderRadius: 999,
                       background: "rgba(187,247,208,0.55)",
@@ -721,7 +755,7 @@ export default function DisplaySettingModal({
                   display: "flex",
                   justifyContent: "flex-end",
                   gap: 10,
-                  marginTop: 4,
+                  marginTop: 2,
                 }}
               >
                 <button
@@ -790,7 +824,7 @@ export default function DisplaySettingModal({
             </div>
           </div>
 
-          <div style={{ marginTop: 10, fontSize: 11, color: "#64748b" }}>
+          <div style={{ marginTop: 8, fontSize: 11, color: "#64748b" }}>
             Tip: if it feels tight on smaller screens, we can auto-switch to
             stacked layout.
           </div>
