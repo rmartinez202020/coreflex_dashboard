@@ -88,6 +88,22 @@ function normalizeField(field) {
   return String(field || "").trim().toLowerCase();
 }
 
+function normalizeDigitCount(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 4;
+  return Math.min(12, Math.max(1, Math.round(n)));
+}
+
+function getWidgetDigitCount(tank, props) {
+  return normalizeDigitCount(
+    props?.digitCount ??
+      props?.displayDigits ??
+      tank?.digitCount ??
+      tank?.displayDigits ??
+      4
+  );
+}
+
 function getBoundModel(tank) {
   return String(
     tank?.properties?.bindModel ??
@@ -297,57 +313,6 @@ function getTelemetryValue(row, field) {
     for (const key of direct) {
       if (obj?.[key] !== undefined) return obj[key];
     }
-
-    if (/^ai\d+$/.test(f)) {
-      const n = f.replace("ai", "");
-      const extra = [
-        `a${n}`,
-        `A${n}`,
-        `analog${n}`,
-        `ANALOG${n}`,
-        `ai_${n}`,
-        `AI_${n}`,
-        `ai-${n}`,
-        `AI-${n}`,
-        `analog_${n}`,
-        `ANALOG_${n}`,
-        `analog-${n}`,
-        `ANALOG-${n}`,
-      ];
-      for (const key of extra) {
-        if (obj?.[key] !== undefined) return obj[key];
-      }
-    }
-
-    if (/^di\d+$/.test(f)) {
-      const n = f.replace("di", "");
-      const extra = [
-        `in${n}`,
-        `IN${n}`,
-        `in_${n}`,
-        `IN_${n}`,
-        `in-${n}`,
-        `IN-${n}`,
-      ];
-      for (const key of extra) {
-        if (obj?.[key] !== undefined) return obj[key];
-      }
-    }
-
-    if (/^do\d+$/.test(f)) {
-      const n = f.replace("do", "");
-      const extra = [
-        `out${n}`,
-        `OUT${n}`,
-        `out_${n}`,
-        `OUT_${n}`,
-        `out-${n}`,
-        `OUT-${n}`,
-      ];
-      for (const key of extra) {
-        if (obj?.[key] !== undefined) return obj[key];
-      }
-    }
   }
 
   const tagArrays = [row.tags, row.points, row.values, row.readings].filter(
@@ -433,6 +398,31 @@ function computeMathOutput(liveValue, formula) {
   }
 }
 
+function formatDisplayValue(value, digitCount, decimalCount = 0) {
+  const digits = normalizeDigitCount(digitCount);
+
+  if (value === null || value === undefined || value === "") {
+    return "-".repeat(digits);
+  }
+
+  if (typeof value === "string") {
+    return value.slice(0, digits).padStart(digits, "0");
+  }
+
+  const n = typeof value === "number" ? value : Number(value);
+  if (!Number.isFinite(n)) return String(value).slice(0, digits);
+
+  if (decimalCount > 0) {
+    let formatted = Number(n).toFixed(decimalCount);
+    let [i, d] = formatted.split(".");
+    i = String(i).slice(-digits).padStart(digits, "0");
+    d = String(d || "").padEnd(decimalCount, "0");
+    return `${i}.${d}`;
+  }
+
+  return String(Math.round(n)).slice(-digits).padStart(digits, "0");
+}
+
 export default function DraggableDisplayBox({
   tank,
   telemetryMap = null,
@@ -442,7 +432,11 @@ export default function DraggableDisplayBox({
 
   const title = String(props.title ?? props.displayTitle ?? "").trim();
 
-  const numberFormat = props.numberFormat || "00000";
+  const digitCount = getWidgetDigitCount(tank, props);
+  const decimalCount = Number.isFinite(Number(props.decimalCount))
+    ? Math.max(0, Math.min(6, Math.round(Number(props.decimalCount))))
+    : 0;
+
   const label = props.label || "";
   const theme = props.theme || "gray";
   const scale = tank?.scale || 1;
@@ -489,7 +483,6 @@ export default function DraggableDisplayBox({
     [safeLive, formula]
   );
 
-  // ✅ ONLY show offline behavior in Play / Launch mode
   const isOffline =
     isPlay &&
     hasBinding &&
@@ -500,58 +493,18 @@ export default function DraggableDisplayBox({
       backendStatus === "down" ||
       backendStatus === "disconnected");
 
-  const [intPart, decPart] = String(numberFormat).split(".");
-  const totalInt = Math.max(1, (intPart || "0").length);
-  const totalDec = decPart ? decPart.length : 0;
-
   const displayText = useMemo(() => {
     if (hasBinding && isPlay) {
-      if (isOffline) return "--";
-      if (safeLive === null || safeLive === undefined) return "--";
-
-      const v = outputValue;
-
-      if (v === null || v === undefined || v === "") return "--";
-      if (typeof v === "string") return v;
-
-      const n = typeof v === "number" ? v : Number(v);
-      if (!Number.isFinite(n)) return String(v);
-
-      let formatted =
-        totalDec > 0 ? Number(n).toFixed(totalDec) : String(Math.round(n));
-
-      if (totalDec > 0) {
-        let [i, d] = formatted.split(".");
-        i = String(i).padStart(totalInt, "0");
-        d = String(d || "").padEnd(totalDec, "0");
-        formatted = `${i}.${d}`;
-      } else {
-        formatted = String(formatted).padStart(totalInt, "0");
+      if (isOffline) return "-".repeat(digitCount);
+      if (safeLive === null || safeLive === undefined) {
+        return "-".repeat(digitCount);
       }
 
-      return formatted;
+      return formatDisplayValue(outputValue, digitCount, decimalCount);
     }
 
     const v = props.value ?? tank?.value ?? 0;
-    if (v === null || v === undefined || v === "") return "--";
-    if (typeof v === "string") return v;
-
-    const n = typeof v === "number" ? v : Number(v);
-    if (!Number.isFinite(n)) return String(v);
-
-    let formatted =
-      totalDec > 0 ? Number(n).toFixed(totalDec) : String(Math.round(n));
-
-    if (totalDec > 0) {
-      let [i, d] = formatted.split(".");
-      i = String(i).padStart(totalInt, "0");
-      d = String(d || "").padEnd(totalDec, "0");
-      formatted = `${i}.${d}`;
-    } else {
-      formatted = String(formatted).padStart(totalInt, "0");
-    }
-
-    return formatted;
+    return formatDisplayValue(v, digitCount, decimalCount);
   }, [
     hasBinding,
     isPlay,
@@ -560,12 +513,14 @@ export default function DraggableDisplayBox({
     outputValue,
     props.value,
     tank?.value,
-    totalDec,
-    totalInt,
+    digitCount,
+    decimalCount,
   ]);
 
   const titleFontW = 500;
   const labelFontW = 500;
+
+  const boxWidth = Math.max(92, 44 + digitCount * 24) * scale;
 
   return (
     <div style={{ textAlign: "center", pointerEvents: "none" }}>
@@ -601,7 +556,7 @@ export default function DraggableDisplayBox({
 
       <div
         style={{
-          width: `${160 * scale}px`,
+          width: `${boxWidth}px`,
           height: `${65 * scale}px`,
           background: isOffline ? styleCfg.offlineBg : styleCfg.bg,
           color: isOffline ? styleCfg.offlineText : styleCfg.text,
