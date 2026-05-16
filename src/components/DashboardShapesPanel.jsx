@@ -1,17 +1,24 @@
 // src/components/DashboardShapesPanel.jsx
 import React from "react";
 
+const ICON_STROKE_WIDTH = 1.8;
+
 const SHAPES = [
   {
     type: "paintArrow",
     label: "Arrow",
     icon: (
       <svg width="30" height="30" viewBox="0 0 42 42" fill="none">
-        <path d="M8 21H28" stroke="#0f172a" strokeWidth="2.8" strokeLinecap="round" />
+        <path
+          d="M8 21H28"
+          stroke="#0f172a"
+          strokeWidth={ICON_STROKE_WIDTH}
+          strokeLinecap="round"
+        />
         <path
           d="M22 14L31 21L22 28"
           stroke="#0f172a"
-          strokeWidth="2.8"
+          strokeWidth={ICON_STROKE_WIDTH}
           strokeLinecap="round"
           strokeLinejoin="round"
         />
@@ -23,7 +30,13 @@ const SHAPES = [
     label: "Circle",
     icon: (
       <svg width="30" height="30" viewBox="0 0 42 42" fill="none">
-        <circle cx="21" cy="21" r="11" stroke="#0f172a" strokeWidth="2.8" />
+        <circle
+          cx="21"
+          cy="21"
+          r="11"
+          stroke="#0f172a"
+          strokeWidth={ICON_STROKE_WIDTH}
+        />
       </svg>
     ),
   },
@@ -32,7 +45,14 @@ const SHAPES = [
     label: "Square",
     icon: (
       <svg width="30" height="30" viewBox="0 0 42 42" fill="none">
-        <rect x="10" y="10" width="22" height="22" stroke="#0f172a" strokeWidth="2.8" />
+        <rect
+          x="10"
+          y="10"
+          width="22"
+          height="22"
+          stroke="#0f172a"
+          strokeWidth={ICON_STROKE_WIDTH}
+        />
       </svg>
     ),
   },
@@ -41,7 +61,14 @@ const SHAPES = [
     label: "Rectangle",
     icon: (
       <svg width="30" height="30" viewBox="0 0 42 42" fill="none">
-        <rect x="7" y="12" width="28" height="18" stroke="#0f172a" strokeWidth="2.8" />
+        <rect
+          x="7"
+          y="12"
+          width="28"
+          height="18"
+          stroke="#0f172a"
+          strokeWidth={ICON_STROKE_WIDTH}
+        />
       </svg>
     ),
   },
@@ -50,7 +77,14 @@ const SHAPES = [
     label: "Oval",
     icon: (
       <svg width="30" height="30" viewBox="0 0 42 42" fill="none">
-        <ellipse cx="21" cy="21" rx="14" ry="9" stroke="#0f172a" strokeWidth="2.8" />
+        <ellipse
+          cx="21"
+          cy="21"
+          rx="14"
+          ry="9"
+          stroke="#0f172a"
+          strokeWidth={ICON_STROKE_WIDTH}
+        />
       </svg>
     ),
   },
@@ -62,7 +96,7 @@ const SHAPES = [
         <path
           d="M21 9L33 31H9L21 9Z"
           stroke="#0f172a"
-          strokeWidth="2.8"
+          strokeWidth={ICON_STROKE_WIDTH}
           strokeLinejoin="round"
         />
       </svg>
@@ -74,6 +108,7 @@ function ShapeCard({ item }) {
   const handleDragStart = (e) => {
     e.dataTransfer.setData("shape", item.type);
     e.dataTransfer.setData("text/plain", item.type);
+    e.dataTransfer.setData("strokeWidth", "1.6");
     e.dataTransfer.effectAllowed = "copy";
   };
 
