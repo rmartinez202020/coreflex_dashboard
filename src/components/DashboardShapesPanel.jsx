@@ -1,7 +1,7 @@
 // src/components/DashboardShapesPanel.jsx
 import React from "react";
 
-const ICON_STROKE_WIDTH = 1.8;
+const ICON_STROKE_WIDTH = 1.2;
 
 const SHAPES = [
   {
@@ -25,6 +25,7 @@ const SHAPES = [
       </svg>
     ),
   },
+
   {
     type: "paintCircle",
     label: "Circle",
@@ -40,6 +41,7 @@ const SHAPES = [
       </svg>
     ),
   },
+
   {
     type: "paintSquare",
     label: "Square",
@@ -56,6 +58,7 @@ const SHAPES = [
       </svg>
     ),
   },
+
   {
     type: "paintRectangle",
     label: "Rectangle",
@@ -72,6 +75,7 @@ const SHAPES = [
       </svg>
     ),
   },
+
   {
     type: "paintOval",
     label: "Oval",
@@ -88,6 +92,7 @@ const SHAPES = [
       </svg>
     ),
   },
+
   {
     type: "paintTriangle",
     label: "Triangle",
@@ -108,7 +113,10 @@ function ShapeCard({ item }) {
   const handleDragStart = (e) => {
     e.dataTransfer.setData("shape", item.type);
     e.dataTransfer.setData("text/plain", item.type);
-    e.dataTransfer.setData("strokeWidth", "1.6");
+
+    // ✅ thinner dashboard shapes
+    e.dataTransfer.setData("strokeWidth", "1.2");
+
     e.dataTransfer.effectAllowed = "copy";
   };
 
@@ -135,12 +143,14 @@ function ShapeCard({ item }) {
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.border = "1px solid #60a5fa";
-        e.currentTarget.style.boxShadow = "0 3px 10px rgba(59,130,246,0.16)";
+        e.currentTarget.style.boxShadow =
+          "0 3px 10px rgba(59,130,246,0.16)";
         e.currentTarget.style.transform = "translateY(-1px)";
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.border = "1px solid #dbe4ee";
-        e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.06)";
+        e.currentTarget.style.boxShadow =
+          "0 1px 3px rgba(0,0,0,0.06)";
         e.currentTarget.style.transform = "translateY(0px)";
       }}
     >
@@ -171,7 +181,10 @@ function ShapeCard({ item }) {
   );
 }
 
-export default function DashboardShapesPanel({ visible = true, title = "Shapes" }) {
+export default function DashboardShapesPanel({
+  visible = true,
+  title = "Shapes",
+}) {
   if (!visible) return null;
 
   return (
