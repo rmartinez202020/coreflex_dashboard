@@ -26,6 +26,136 @@ import {
 } from "./indicators";
 import GaugeDisplay from "./gauge/GaugeDisplay";
 
+const PAINT_SHAPES = new Set([
+  "paintArrow",
+  "paintCircle",
+  "paintSquare",
+  "paintRectangle",
+  "paintOval",
+  "paintTriangle",
+]);
+
+function PaintDashboardShape({ tank }) {
+  const w = tank.w ?? tank.width ?? (tank.shape === "paintRectangle" ? 140 : 100);
+  const h = tank.h ?? tank.height ?? (tank.shape === "paintRectangle" ? 80 : 100);
+
+  const stroke =
+    tank.stroke ||
+    tank.strokeColor ||
+    tank?.properties?.stroke ||
+    tank?.properties?.strokeColor ||
+    "#0f172a";
+
+  const fill =
+    tank.fill ||
+    tank.fillColor ||
+    tank?.properties?.fill ||
+    tank?.properties?.fillColor ||
+    "transparent";
+
+  const strokeWidth = Number(
+    tank.strokeWidth || tank?.properties?.strokeWidth || 3
+  );
+
+  const common = {
+    stroke,
+    strokeWidth,
+    fill,
+    vectorEffect: "non-scaling-stroke",
+  };
+
+  return (
+    <svg
+      width={w}
+      height={h}
+      viewBox={`0 0 ${w} ${h}`}
+      style={{
+        display: "block",
+        overflow: "visible",
+        pointerEvents: "none",
+      }}
+    >
+      {tank.shape === "paintArrow" ? (
+        <g>
+          <line
+            x1={8}
+            y1={h / 2}
+            x2={w - 18}
+            y2={h / 2}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+            strokeLinecap="round"
+            vectorEffect="non-scaling-stroke"
+          />
+          <path
+            d={`M ${w - 30} ${h / 2 - 12} L ${w - 8} ${h / 2} L ${w - 30} ${
+              h / 2 + 12
+            }`}
+            stroke={stroke}
+            strokeWidth={strokeWidth}
+            fill="none"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            vectorEffect="non-scaling-stroke"
+          />
+        </g>
+      ) : null}
+
+      {tank.shape === "paintCircle" ? (
+        <circle
+          cx={w / 2}
+          cy={h / 2}
+          r={Math.max(4, Math.min(w, h) / 2 - strokeWidth - 3)}
+          {...common}
+        />
+      ) : null}
+
+      {tank.shape === "paintSquare" ? (
+        <rect
+          x={strokeWidth + 3}
+          y={strokeWidth + 3}
+          width={Math.max(4, Math.min(w, h) - strokeWidth * 2 - 6)}
+          height={Math.max(4, Math.min(w, h) - strokeWidth * 2 - 6)}
+          {...common}
+        />
+      ) : null}
+
+      {tank.shape === "paintRectangle" ? (
+        <rect
+          x={strokeWidth + 3}
+          y={strokeWidth + 3}
+          width={Math.max(4, w - strokeWidth * 2 - 6)}
+          height={Math.max(4, h - strokeWidth * 2 - 6)}
+          {...common}
+        />
+      ) : null}
+
+      {tank.shape === "paintOval" ? (
+        <ellipse
+          cx={w / 2}
+          cy={h / 2}
+          rx={Math.max(4, w / 2 - strokeWidth - 3)}
+          ry={Math.max(4, h / 2 - strokeWidth - 3)}
+          {...common}
+        />
+      ) : null}
+
+      {tank.shape === "paintTriangle" ? (
+        <path
+          d={`M ${w / 2} ${strokeWidth + 4} L ${w - strokeWidth - 5} ${
+            h - strokeWidth - 5
+          } L ${strokeWidth + 5} ${h - strokeWidth - 5} Z`}
+          stroke={stroke}
+          strokeWidth={strokeWidth}
+          fill={fill}
+          strokeLinejoin="round"
+          vectorEffect="non-scaling-stroke"
+        />
+      ) : null}
+    </svg>
+  );
+}
+
 function normalizeTagField(field) {
   const raw = String(field || "").trim();
   if (!raw) return "";
@@ -442,6 +572,14 @@ export default function DashboardCanvasWidgetLayer({
           ),
       };
 
+      if (PAINT_SHAPES.has(tank.shape)) {
+        return (
+          <DraggableDroppedTank {...commonProps}>
+            <PaintDashboardShape tank={tank} />
+          </DraggableDroppedTank>
+        );
+      }
+
       if (tank.shape === "alarmLog" && tank.minimized) {
         return (
           <DraggableAlarmLog
@@ -648,10 +786,7 @@ export default function DashboardCanvasWidgetLayer({
         });
 
         return (
-          <div
-            key={tank.id}
-            style={{ position: "relative", overflow: "visible" }}
-          >
+          <div key={tank.id} style={{ position: "relative", overflow: "visible" }}>
             {renderTelemetryOverlay(tank)}
             <DraggableGraphicDisplay
               tank={tank}
@@ -952,11 +1087,11 @@ export default function DashboardCanvasWidgetLayer({
                   tank={tank}
                   isPlay={isPlay}
                   telemetryMap={telemetryMap}
-               />
-             </div>
-           )}
-         </DraggableDroppedTank>
-       );
+                />
+              </div>
+            )}
+          </DraggableDroppedTank>
+        );
       }
 
       if (tank.shape === "wirelessTank2") {
@@ -977,13 +1112,12 @@ export default function DashboardCanvasWidgetLayer({
                   tank={tank}
                   isPlay={isPlay}
                   telemetryMap={telemetryMap}
-               />
-             </div>
-           )}
-         </DraggableDroppedTank>
-       );
+                />
+              </div>
+            )}
+          </DraggableDroppedTank>
+        );
       }
-
 
       if (tank.shape === "textBox") {
         return (

@@ -12,6 +12,35 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
+const PAINT_SHAPES = new Set([
+  "paintArrow",
+  "paintCircle",
+  "paintSquare",
+  "paintRectangle",
+  "paintOval",
+  "paintTriangle",
+]);
+
+function createId(prefix = "shape") {
+  return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
+}
+
+function getPaintShapeDefaults(shape) {
+  if (shape === "paintArrow") {
+    return { w: 150, h: 60, width: 150, height: 60 };
+  }
+
+  if (shape === "paintRectangle") {
+    return { w: 140, h: 80, width: 140, height: 80 };
+  }
+
+  if (shape === "paintOval") {
+    return { w: 130, h: 80, width: 130, height: 80 };
+  }
+
+  return { w: 100, h: 100, width: 100, height: 100 };
+}
+
 function resolveDashboardId({
   activeDashboardId,
   dashboardId,
@@ -41,7 +70,6 @@ function resolveDashboardId({
   return null;
 }
 
-// ✅ small helper: POST JSON
 async function postJson(path, body) {
   const token = String(getToken() || "").trim();
   if (!token) throw new Error("Missing auth token.");
@@ -64,7 +92,6 @@ async function postJson(path, body) {
   return j;
 }
 
-// ✅ Backend cleanup when GraphicDisplay widget is deleted
 async function softDeleteGraphicBinding({ dashboardId = "main", widgetId }) {
   const dash = String(dashboardId || "main").trim() || "main";
   const wid = String(widgetId || "").trim();
@@ -122,7 +149,7 @@ export default function DashboardCanvas({
   hideContextMenu,
   guides,
   onOpenDisplaySettings,
-  onOpenDisplayOutputSettings, // ✅ NEW
+  onOpenDisplayOutputSettings,
   onOpenGaugeDisplaySettings,
   onOpenGraphicDisplaySettings,
   onOpenAlarmLog,
@@ -138,7 +165,6 @@ export default function DashboardCanvas({
   onOpenPushButtonNOSettings,
   onOpenPushButtonNCSettings,
 
-  // ✅ public tenant launch support
   isPublicLaunch = false,
   publicDashSlug = "",
   publicDashLaunchId = "",
@@ -146,14 +172,10 @@ export default function DashboardCanvas({
   isTenantAuthenticated = false,
   tenantAccessLevel = "read_only",
 
-  // ✅ IDs Details overlay toggle from parent/sidebar
   showDashboardIdsDetails = false,
 }) {
   const isPlay = dashboardMode === "play" || dashboardMode === "launch";
 
-  // =====================================================
-  // ✅ Resolve current dashboard once
-  // =====================================================
   const resolvedDashboardIdValue = React.useMemo(() => {
     return resolveDashboardId({
       activeDashboardId,
@@ -163,17 +185,11 @@ export default function DashboardCanvas({
     });
   }, [activeDashboardId, dashboardId, selectedTank, droppedTanks]);
 
-  // =====================================================
-  // ✅ Only active dashboard should show IDs Details overlay
-  // =====================================================
   const shouldShowDashboardIdsDetails = React.useMemo(() => {
     const dash = String(resolvedDashboardIdValue || "").trim();
     return Boolean(showDashboardIdsDetails && dash);
   }, [showDashboardIdsDetails, resolvedDashboardIdValue]);
 
-  // =====================================================
-  // ✅ Ctrl/Cmd + click multi-select handler (EDIT only)
-  // =====================================================
   const handleObjectSelect = useMultiSelectClick({
     isPlay,
     selectedIds,
@@ -182,9 +198,6 @@ export default function DashboardCanvas({
     hideContextMenu,
   });
 
-  // =====================================================
-  // ✅ ONE POLL PER DASHBOARD (Play/Launch): shared telemetryMap
-  // =====================================================
   const { telemetryMap } = useDashboardTelemetryPoller({
     isPlay,
     API_URL,
@@ -195,14 +208,11 @@ export default function DashboardCanvas({
     dashboardId,
     selectedTank,
     resolveDashboardId,
-
-    // ✅ pass public tenant launch context into poller
     isPublicLaunch,
     publicDashSlug,
     publicDashLaunchId,
     tenantEmail,
     isTenantAuthenticated,
-
     pollMs: 2200,
     modelMeta: {
       zhc1921: { base: "zhc1921" },
@@ -211,10 +221,6 @@ export default function DashboardCanvas({
     },
   });
 
-  // =====================================================
-  // ✅ PLAY MODE: pull live counter values from backend
-  // ✅ NOW stores { count, run_seconds } into widget.properties
-  // =====================================================
   const countersRef = React.useRef({ loading: false });
 
   const fetchCountersForDashboard = React.useCallback(async () => {
@@ -319,9 +325,6 @@ export default function DashboardCanvas({
     return () => clearInterval(t);
   }, [isPlay, fetchCountersForDashboard]);
 
-  // =====================================================
-  // ✅ Detect deleted GraphicDisplay widgets and soft-delete binding in backend
-  // =====================================================
   const prevGraphicIdsRef = React.useRef(new Set());
   const deleteQueueRef = React.useRef(new Set());
 
@@ -369,7 +372,6 @@ export default function DashboardCanvas({
     });
   }, [droppedTanks, activeDashboardId, dashboardId, selectedTank]);
 
-  // ✅ Z-ORDER HELPERS
   const getTankZ = React.useCallback((t) => {
     return Number(t?.z ?? t?.zIndex ?? 0) || 0;
   }, []);
@@ -447,9 +449,6 @@ export default function DashboardCanvas({
     void sendToBack;
   }, [bringToFront, sendToBack]);
 
-  // =====================================================
-  // ✅ RESET COUNTER (Play mode)
-  // =====================================================
   const resetCounterOnBackend = React.useCallback(
     async ({ widgetId, dash }) => {
       const token = String(getToken() || "").trim();
@@ -477,6 +476,79 @@ export default function DashboardCanvas({
     [fetchCountersForDashboard]
   );
 
+  const handleCanvasDrop = React.useCallback(
+    (e) => {
+      if (isPlay) return;
+
+      const shape =
+        e.dataTransfer?.getData("shape") ||
+        e.dataTransfer?.getData("text/plain") ||
+        "";
+
+      if (!PAINT_SHAPES.has(shape)) {
+        handleDrop?.(e);
+        return;
+      }
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      const canvas = e.currentTarget;
+      const rect = canvas.getBoundingClientRect();
+      const defaults = getPaintShapeDefaults(shape);
+
+      const x = Math.max(0, e.clientX - rect.left - defaults.w / 2);
+      const y = Math.max(0, e.clientY - rect.top - defaults.h / 2);
+
+      const z =
+        Math.max(
+          0,
+          ...(Array.isArray(droppedTanks)
+            ? droppedTanks.map((t) => Number(t?.z ?? t?.zIndex ?? 0) || 0)
+            : [0])
+        ) + 1;
+
+      const newShape = {
+        id: createId(shape),
+        shape,
+        type: shape,
+        x,
+        y,
+        left: x,
+        top: y,
+        ...defaults,
+        z,
+        zIndex: z,
+        stroke: "#0f172a",
+        strokeColor: "#0f172a",
+        fill: "transparent",
+        fillColor: "transparent",
+        strokeWidth: 3,
+        properties: {
+          stroke: "#0f172a",
+          strokeColor: "#0f172a",
+          fill: "transparent",
+          fillColor: "transparent",
+          strokeWidth: 3,
+        },
+      };
+
+      setDroppedTanks((prev) => [...(Array.isArray(prev) ? prev : []), newShape]);
+      setSelectedIds?.([newShape.id]);
+      setSelectedTank?.(newShape);
+      hideContextMenu?.();
+    },
+    [
+      isPlay,
+      handleDrop,
+      droppedTanks,
+      setDroppedTanks,
+      setSelectedIds,
+      setSelectedTank,
+      hideContextMenu,
+    ]
+  );
+
   return (
     <DndContext
       sensors={isPlay ? [] : sensors}
@@ -488,7 +560,7 @@ export default function DashboardCanvas({
         className="w-full h-full border-2 border-dashed border-gray-300 rounded-lg bg-white"
         style={{ position: "relative", overflow: "hidden" }}
         onDragOver={(e) => !isPlay && e.preventDefault()}
-        onDrop={(e) => !isPlay && handleDrop(e)}
+        onDrop={handleCanvasDrop}
         onContextMenu={(e) => {
           if (isPlay) return;
           e.preventDefault();
@@ -511,7 +583,7 @@ export default function DashboardCanvas({
           handleRightClick={handleRightClick}
           handleObjectSelect={handleObjectSelect}
           onOpenDisplaySettings={onOpenDisplaySettings}
-          onOpenDisplayOutputSettings={onOpenDisplayOutputSettings} // ✅ NEW
+          onOpenDisplayOutputSettings={onOpenDisplayOutputSettings}
           onOpenGaugeDisplaySettings={onOpenGaugeDisplaySettings}
           onOpenGraphicDisplaySettings={onOpenGraphicDisplaySettings}
           onOpenAlarmLog={onOpenAlarmLog}
