@@ -10,6 +10,7 @@ import {
 import Sidebarleftwirelesstank from "./Sidebarleftwirelesstank";
 import Sidebarleftwirlesstank2 from "./Sidebarleftwirelesstank2";
 import DraggableControls from "./DraggableControls";
+import DashboardShapesPanel from "./DashboardShapesPanel";
 
 import {
   DraggableLedCircle,
@@ -41,6 +42,7 @@ export default function SidebarLeft({
   const [showIndicators, setShowIndicators] = useState(false);
   const [showDeviceControls, setShowDeviceControls] = useState(false);
   const [showWirelessLevelSensor, setShowWirelessLevelSensor] = useState(false);
+  const [showDashboardShapes, setShowDashboardShapes] = useState(false);
 
   const openOnly = (section) => {
     if (section === "indicators") {
@@ -50,6 +52,7 @@ export default function SidebarLeft({
           setShowLevelSensors(false);
           setShowDeviceControls(false);
           setShowWirelessLevelSensor(false);
+          setShowDashboardShapes(false);
         }
         return next;
       });
@@ -63,6 +66,7 @@ export default function SidebarLeft({
           setShowIndicators(false);
           setShowDeviceControls(false);
           setShowWirelessLevelSensor(false);
+          setShowDashboardShapes(false);
         }
         return next;
       });
@@ -76,6 +80,7 @@ export default function SidebarLeft({
           setShowIndicators(false);
           setShowLevelSensors(false);
           setShowWirelessLevelSensor(false);
+          setShowDashboardShapes(false);
         }
         return next;
       });
@@ -89,6 +94,21 @@ export default function SidebarLeft({
           setShowIndicators(false);
           setShowLevelSensors(false);
           setShowDeviceControls(false);
+          setShowDashboardShapes(false);
+        }
+        return next;
+      });
+      return;
+    }
+
+    if (section === "dashboardshapes") {
+      setShowDashboardShapes((prev) => {
+        const next = !prev;
+        if (next) {
+          setShowIndicators(false);
+          setShowLevelSensors(false);
+          setShowDeviceControls(false);
+          setShowWirelessLevelSensor(false);
         }
         return next;
       });
@@ -216,6 +236,7 @@ export default function SidebarLeft({
                   setShowLevelSensors(false);
                   setShowDeviceControls(false);
                   setShowWirelessLevelSensor(false);
+                  setShowDashboardShapes(false);
                 }
                 return next;
               })
@@ -334,6 +355,20 @@ export default function SidebarLeft({
                       Tank#2
                     </span>
                   </div>
+                </div>
+              )}
+
+              {/* ✅ NEW: DASHBOARD SHAPES PANEL AT BOTTOM OF DEVICES */}
+              <div
+                className="cursor-pointer mt-3 mb-2 flex items-center gap-2 text-[13px]"
+                onClick={() => openOnly("dashboardshapes")}
+              >
+                Shapes <span>{showDashboardShapes ? "▾" : "▸"}</span>
+              </div>
+
+              {showDashboardShapes && (
+                <div className="ml-0 mb-3">
+                  <DashboardShapesPanel visible={true} title="Shapes" />
                 </div>
               )}
             </div>

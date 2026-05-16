@@ -1,10 +1,8 @@
 // RightSidebar.jsx
-import { useState } from "react";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 import GaugeDisplayDraggable from "./gauge/GaugeDisplayDraggable";
 import dashboardIdsDetailsIcon from "../assets/dashboard-ids-details-icon.png";
-import DashboardShapesPanel from "./DashboardShapesPanel";
 
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
@@ -34,8 +32,6 @@ export default function RightSidebar({
   dashboardName = "",
   isDashboardOpenOnCanvas = false,
 }) {
-  const [showShapesPanel, setShowShapesPanel] = useState(false);
-
   const openLibrary = (key) => {
     if (key === "image") return setShowImageLibrary?.();
     if (key === "coreflex") return setShowCoreflexLibrary?.();
@@ -170,7 +166,7 @@ export default function RightSidebar({
       </button>
 
       {!isRightCollapsed && (
-        <div className="flex-1 flex flex-col min-h-0 overflow-y-auto overflow-x-visible">
+        <div className="flex-1 flex flex-col min-h-0">
           <h2 className="text-[15px] font-semibold mb-2 text-gray-800">
             Entities
           </h2>
@@ -243,7 +239,7 @@ export default function RightSidebar({
               </span>
             </div>
 
-            {/* ✅ GAUGE DISPLAY */}
+            {/* ✅ NEW: GAUGE DISPLAY */}
             <div className="flex flex-col items-center gap-1">
               <GaugeDisplayDraggable title="Gauge Display (AI)" />
             </div>
@@ -381,29 +377,26 @@ export default function RightSidebar({
             <span className="truncate">Alarms Log (DI-AI)</span>
           </button>
 
-          {/* ✅ BOTTOM TOOLS */}
+          {/* ✅ BOTTOM TOOL TOGGLE BUTTON */}
           <div className="mt-auto pt-5">
-            {/* ✅ SHAPES TOOLBOX BUTTON */}
             <button
               type="button"
-              onClick={() => setShowShapesPanel((prev) => !prev)}
+              onClick={toggleDashboardIdsDetails}
               disabled={!isDashboardOpenOnCanvas}
               title={
                 isDashboardOpenOnCanvas
-                  ? showShapesPanel
-                    ? "Hide Shapes"
-                    : "Show Shapes"
+                  ? isDashboardIdsDetailsOpen
+                    ? "Hide Dashboard IDs Details"
+                    : "Show Dashboard IDs Details"
                   : "Open a dashboard on canvas first"
               }
-              aria-pressed={showShapesPanel}
+              aria-pressed={isDashboardIdsDetailsOpen}
               style={{
                 width: "100%",
-                minHeight: 102,
+                minHeight: 138,
                 borderRadius: 12,
-                border: showShapesPanel
-                  ? "1px solid #60a5fa"
-                  : "1px solid #d1d5db",
-                background: showShapesPanel ? "#eff6ff" : "#ffffff",
+                border: "1px solid #d1d5db",
+                background: "#ffffff",
                 display: "flex",
                 flexDirection: "column",
                 alignItems: "center",
@@ -411,263 +404,115 @@ export default function RightSidebar({
                 gap: 6,
                 cursor: isDashboardOpenOnCanvas ? "pointer" : "not-allowed",
                 transition: "all 0.18s ease",
-                padding: "8px",
+                padding: "8px 8px 12px",
                 opacity: isDashboardOpenOnCanvas ? 1 : 0.6,
-                boxShadow: showShapesPanel
-                  ? "0 4px 14px rgba(59,130,246,0.22)"
-                  : "0 2px 8px rgba(0,0,0,0.08)",
+                boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
               }}
               onMouseEnter={(e) => {
                 if (!isDashboardOpenOnCanvas) return;
                 e.currentTarget.style.transform = "scale(1.03)";
-                e.currentTarget.style.boxShadow =
-                  "0 4px 12px rgba(0,0,0,0.15)";
+                e.currentTarget.style.boxShadow = "0 4px 12px rgba(0,0,0,0.15)";
               }}
               onMouseLeave={(e) => {
                 if (!isDashboardOpenOnCanvas) return;
                 e.currentTarget.style.transform = "scale(1)";
-                e.currentTarget.style.boxShadow = showShapesPanel
-                  ? "0 4px 14px rgba(59,130,246,0.22)"
-                  : "0 2px 8px rgba(0,0,0,0.08)";
+                e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
               }}
             >
               <div
                 style={{
-                  width: 62,
-                  height: 62,
-                  border: "2px solid #111827",
-                  borderRadius: 10,
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gridTemplateRows: "1fr 1fr",
-                  gap: 5,
-                  padding: 7,
-                  background: "#ffffff",
-                  boxShadow: "inset 0 0 0 1px rgba(15,23,42,0.05)",
+                  width: 86,
+                  height: 86,
+                  display: "flex",
+                  alignItems: "center",
+                  justifyContent: "center",
+                  overflow: "visible",
+                  flexShrink: 0,
                 }}
               >
-                <div
+                <img
+                  src={dashboardIdsDetailsIcon}
+                  alt="IDs Details"
                   style={{
-                    border: "2px solid #111827",
-                    borderRadius: "50%",
+                    width: 82,
+                    height: 82,
+                    objectFit: "contain",
+                    display: "block",
+                    opacity: isDashboardOpenOnCanvas ? 1 : 0.7,
                   }}
                 />
-
-                <div
-                  style={{
-                    border: "2px solid #111827",
-                  }}
-                />
-
-                <div
-                  style={{
-                    width: 0,
-                    height: 0,
-                    borderLeft: "10px solid transparent",
-                    borderRight: "10px solid transparent",
-                    borderBottom: "17px solid #111827",
-                    justifySelf: "center",
-                    alignSelf: "center",
-                  }}
-                />
-
-                <div
-                  style={{
-                    position: "relative",
-                    alignSelf: "center",
-                    justifySelf: "center",
-                    width: 26,
-                    height: 18,
-                  }}
-                >
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 8,
-                      left: 1,
-                      width: 22,
-                      height: 3,
-                      background: "#111827",
-                      transform: "rotate(-25deg)",
-                      borderRadius: 999,
-                    }}
-                  />
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 3,
-                      right: 0,
-                      width: 0,
-                      height: 0,
-                      borderTop: "6px solid transparent",
-                      borderBottom: "6px solid transparent",
-                      borderLeft: "9px solid #111827",
-                      transform: "rotate(-25deg)",
-                    }}
-                  />
-                </div>
               </div>
 
               <span
                 style={{
                   fontSize: 12,
                   lineHeight: 1.1,
-                  fontWeight: 600,
+                  fontWeight: 500,
                   color: isDashboardOpenOnCanvas ? "#374151" : "#9ca3af",
                   textAlign: "center",
                 }}
               >
-                Shapes
+                IDs Details
               </span>
-            </button>
 
-            {/* ✅ SHAPES PANEL */}
-            {showShapesPanel && isDashboardOpenOnCanvas ? (
-              <div style={{ marginTop: 10 }}>
-                <DashboardShapesPanel visible={true} />
-              </div>
-            ) : null}
-
-            {/* ✅ IDs DETAILS TOOL TOGGLE BUTTON */}
-            <div className="pt-4">
-              <button
-                type="button"
-                onClick={toggleDashboardIdsDetails}
-                disabled={!isDashboardOpenOnCanvas}
-                title={
-                  isDashboardOpenOnCanvas
-                    ? isDashboardIdsDetailsOpen
-                      ? "Hide Dashboard IDs Details"
-                      : "Show Dashboard IDs Details"
-                    : "Open a dashboard on canvas first"
-                }
-                aria-pressed={isDashboardIdsDetailsOpen}
+              {/* ✅ VISIBLE TOGGLE */}
+              <div
                 style={{
-                  width: "100%",
-                  minHeight: 138,
-                  borderRadius: 12,
-                  border: "1px solid #d1d5db",
-                  background: "#ffffff",
-                  display: "flex",
-                  flexDirection: "column",
-                  alignItems: "center",
-                  justifyContent: "center",
-                  gap: 6,
-                  cursor: isDashboardOpenOnCanvas ? "pointer" : "not-allowed",
-                  transition: "all 0.18s ease",
-                  padding: "8px 8px 12px",
-                  opacity: isDashboardOpenOnCanvas ? 1 : 0.6,
-                  boxShadow: "0 2px 8px rgba(0,0,0,0.08)",
-                }}
-                onMouseEnter={(e) => {
-                  if (!isDashboardOpenOnCanvas) return;
-                  e.currentTarget.style.transform = "scale(1.03)";
-                  e.currentTarget.style.boxShadow =
-                    "0 4px 12px rgba(0,0,0,0.15)";
-                }}
-                onMouseLeave={(e) => {
-                  if (!isDashboardOpenOnCanvas) return;
-                  e.currentTarget.style.transform = "scale(1)";
-                  e.currentTarget.style.boxShadow = "0 2px 8px rgba(0,0,0,0.08)";
+                  marginTop: 2,
+                  width: 72,
+                  height: 26,
+                  borderRadius: 999,
+                  background: isDashboardIdsDetailsOpen ? "#22c55e" : "#d1d5db",
+                  position: "relative",
+                  transition: "all 0.22s ease",
+                  boxShadow: isDashboardIdsDetailsOpen
+                    ? "inset 0 0 0 1px rgba(0,0,0,0.05), 0 0 10px rgba(34,197,94,0.28)"
+                    : "inset 0 0 0 1px rgba(0,0,0,0.06)",
+                  flexShrink: 0,
+                  overflow: "hidden",
                 }}
               >
                 <div
                   style={{
-                    width: 86,
-                    height: 86,
-                    display: "flex",
-                    alignItems: "center",
-                    justifyContent: "center",
-                    overflow: "visible",
-                    flexShrink: 0,
+                    position: "absolute",
+                    top: 3,
+                    left: isDashboardIdsDetailsOpen ? 47 : 3,
+                    width: 20,
+                    height: 20,
+                    borderRadius: "50%",
+                    background: "#ffffff",
+                    boxShadow: "0 1px 4px rgba(0,0,0,0.22)",
+                    transition: "left 0.22s ease, transform 0.22s ease",
+                    transform: isDashboardIdsDetailsOpen
+                      ? "scale(1.03)"
+                      : "scale(1)",
                   }}
-                >
-                  <img
-                    src={dashboardIdsDetailsIcon}
-                    alt="IDs Details"
-                    style={{
-                      width: 82,
-                      height: 82,
-                      objectFit: "contain",
-                      display: "block",
-                      opacity: isDashboardOpenOnCanvas ? 1 : 0.7,
-                    }}
-                  />
-                </div>
+                />
 
-                <span
-                  style={{
-                    fontSize: 12,
-                    lineHeight: 1.1,
-                    fontWeight: 500,
-                    color: isDashboardOpenOnCanvas ? "#374151" : "#9ca3af",
-                    textAlign: "center",
-                  }}
-                >
-                  IDs Details
-                </span>
-
-                {/* ✅ VISIBLE TOGGLE */}
                 <div
                   style={{
-                    marginTop: 2,
-                    width: 72,
-                    height: 26,
-                    borderRadius: 999,
-                    background: isDashboardIdsDetailsOpen
-                      ? "#22c55e"
-                      : "#d1d5db",
-                    position: "relative",
+                    position: "absolute",
+                    inset: 0,
+                    display: "flex",
+                    alignItems: "center",
+                    justifyContent: isDashboardIdsDetailsOpen
+                      ? "flex-start"
+                      : "flex-end",
+                    paddingLeft: 10,
+                    paddingRight: 10,
+                    fontSize: 10,
+                    fontWeight: 600,
+                    color: "#ffffff",
+                    letterSpacing: "0.2px",
+                    pointerEvents: "none",
+                    userSelect: "none",
                     transition: "all 0.22s ease",
-                    boxShadow: isDashboardIdsDetailsOpen
-                      ? "inset 0 0 0 1px rgba(0,0,0,0.05), 0 0 10px rgba(34,197,94,0.28)"
-                      : "inset 0 0 0 1px rgba(0,0,0,0.06)",
-                    flexShrink: 0,
-                    overflow: "hidden",
                   }}
                 >
-                  <div
-                    style={{
-                      position: "absolute",
-                      top: 3,
-                      left: isDashboardIdsDetailsOpen ? 47 : 3,
-                      width: 20,
-                      height: 20,
-                      borderRadius: "50%",
-                      background: "#ffffff",
-                      boxShadow: "0 1px 4px rgba(0,0,0,0.22)",
-                      transition: "left 0.22s ease, transform 0.22s ease",
-                      transform: isDashboardIdsDetailsOpen
-                        ? "scale(1.03)"
-                        : "scale(1)",
-                    }}
-                  />
-
-                  <div
-                    style={{
-                      position: "absolute",
-                      inset: 0,
-                      display: "flex",
-                      alignItems: "center",
-                      justifyContent: isDashboardIdsDetailsOpen
-                        ? "flex-start"
-                        : "flex-end",
-                      paddingLeft: 10,
-                      paddingRight: 10,
-                      fontSize: 10,
-                      fontWeight: 600,
-                      color: "#ffffff",
-                      letterSpacing: "0.2px",
-                      pointerEvents: "none",
-                      userSelect: "none",
-                      transition: "all 0.22s ease",
-                    }}
-                  >
-                    {isDashboardIdsDetailsOpen ? "Active" : "OFF"}
-                  </div>
+                  {isDashboardIdsDetailsOpen ? "Active" : "OFF"}
                 </div>
-              </button>
-            </div>
+              </div>
+            </button>
           </div>
         </div>
       )}
