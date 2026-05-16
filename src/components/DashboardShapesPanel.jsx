@@ -68,20 +68,6 @@ const SHAPES = [
       </svg>
     ),
   },
-  {
-    type: "paintComment",
-    label: "Comment",
-    icon: (
-      <svg width="30" height="30" viewBox="0 0 42 42" fill="none">
-        <path
-          d="M9 11H33V25H19L13 31V25H9V11Z"
-          stroke="#0f172a"
-          strokeWidth="2.5"
-          strokeLinejoin="round"
-        />
-      </svg>
-    ),
-  },
 ];
 
 function ShapeCard({ item }) {
