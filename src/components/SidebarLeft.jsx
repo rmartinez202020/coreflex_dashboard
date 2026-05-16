@@ -236,7 +236,6 @@ export default function SidebarLeft({
                   setShowLevelSensors(false);
                   setShowDeviceControls(false);
                   setShowWirelessLevelSensor(false);
-                  setShowDashboardShapes(false);
                 }
                 return next;
               })
@@ -357,20 +356,20 @@ export default function SidebarLeft({
                   </div>
                 </div>
               )}
+            </div>
+          )}
 
-              {/* ✅ NEW: DASHBOARD SHAPES PANEL AT BOTTOM OF DEVICES */}
-              <div
-                className="cursor-pointer mt-3 mb-2 flex items-center gap-2 text-[13px]"
-                onClick={() => openOnly("dashboardshapes")}
-              >
-                Shapes <span>{showDashboardShapes ? "▾" : "▸"}</span>
-              </div>
+          {/* ✅ DASHBOARD SHAPES BELOW DEVICES, NOT INSIDE DEVICES */}
+          <div
+            className="cursor-pointer mt-3 mb-2 flex items-center gap-2 text-[13px]"
+            onClick={() => openOnly("dashboardshapes")}
+          >
+            Shapes <span>{showDashboardShapes ? "▾" : "▸"}</span>
+          </div>
 
-              {showDashboardShapes && (
-                <div className="ml-0 mb-3">
-                  <DashboardShapesPanel visible={true} title="Shapes" />
-                </div>
-              )}
+          {showDashboardShapes && (
+            <div className="ml-0 mb-3">
+              <DashboardShapesPanel visible={true} title="Shapes" />
             </div>
           )}
         </div>
