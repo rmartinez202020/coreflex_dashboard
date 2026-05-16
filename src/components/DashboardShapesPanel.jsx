@@ -1,7 +1,8 @@
 // src/components/DashboardShapesPanel.jsx
 import React from "react";
 
-const ICON_STROKE_WIDTH = 1.2;
+const ICON_STROKE_WIDTH = 1.1;
+const DASHBOARD_STROKE_WIDTH = "0.8";
 
 const SHAPES = [
   {
@@ -25,7 +26,6 @@ const SHAPES = [
       </svg>
     ),
   },
-
   {
     type: "paintCircle",
     label: "Circle",
@@ -41,7 +41,6 @@ const SHAPES = [
       </svg>
     ),
   },
-
   {
     type: "paintSquare",
     label: "Square",
@@ -58,7 +57,6 @@ const SHAPES = [
       </svg>
     ),
   },
-
   {
     type: "paintRectangle",
     label: "Rectangle",
@@ -75,7 +73,6 @@ const SHAPES = [
       </svg>
     ),
   },
-
   {
     type: "paintOval",
     label: "Oval",
@@ -92,7 +89,6 @@ const SHAPES = [
       </svg>
     ),
   },
-
   {
     type: "paintTriangle",
     label: "Triangle",
@@ -113,10 +109,7 @@ function ShapeCard({ item }) {
   const handleDragStart = (e) => {
     e.dataTransfer.setData("shape", item.type);
     e.dataTransfer.setData("text/plain", item.type);
-
-    // ✅ thinner dashboard shapes
-    e.dataTransfer.setData("strokeWidth", "1.2");
-
+    e.dataTransfer.setData("strokeWidth", DASHBOARD_STROKE_WIDTH);
     e.dataTransfer.effectAllowed = "copy";
   };
 
@@ -143,14 +136,12 @@ function ShapeCard({ item }) {
       }}
       onMouseEnter={(e) => {
         e.currentTarget.style.border = "1px solid #60a5fa";
-        e.currentTarget.style.boxShadow =
-          "0 3px 10px rgba(59,130,246,0.16)";
+        e.currentTarget.style.boxShadow = "0 3px 10px rgba(59,130,246,0.16)";
         e.currentTarget.style.transform = "translateY(-1px)";
       }}
       onMouseLeave={(e) => {
         e.currentTarget.style.border = "1px solid #dbe4ee";
-        e.currentTarget.style.boxShadow =
-          "0 1px 3px rgba(0,0,0,0.06)";
+        e.currentTarget.style.boxShadow = "0 1px 3px rgba(0,0,0,0.06)";
         e.currentTarget.style.transform = "translateY(0px)";
       }}
     >
