@@ -53,9 +53,7 @@ function PaintDashboardShape({ tank }) {
     tank?.properties?.fillColor ||
     "transparent";
 
-  const strokeWidth = Number(
-    tank.strokeWidth || tank?.properties?.strokeWidth || 3
-  );
+  const strokeWidth = 0.8;
 
   const common = {
     stroke,

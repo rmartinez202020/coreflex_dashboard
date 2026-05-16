@@ -523,13 +523,13 @@ export default function DashboardCanvas({
         strokeColor: "#0f172a",
         fill: "transparent",
         fillColor: "transparent",
-        strokeWidth: 3,
+        strokeWidth: 0.8,
         properties: {
           stroke: "#0f172a",
           strokeColor: "#0f172a",
           fill: "transparent",
           fillColor: "transparent",
-          strokeWidth: 3,
+          strokeWidth: 0.8,
         },
       };
 
