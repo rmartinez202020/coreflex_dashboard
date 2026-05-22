@@ -377,7 +377,7 @@ export default function HomePage({
             <h2 className="text-lg font-semibold">Registered Devices</h2>
           </div>
           <p className="text-sm text-sky-100">
-            Register devices by model (CF-2000 / CF-1600 / TP-400).
+            Register devices by model (CF-2000 / CF-1600 / TP-400 / DF572).
           </p>
           <div className="mt-3 text-xs text-sky-200 opacity-90">
             Click to open Register Devices
@@ -450,15 +450,36 @@ export default function HomePage({
 
       {/* ✅ OWNER-ONLY: DEVICE MANAGER ENTRY */}
       {isPlatformOwner && (
-        <DeviceManagerSection
-          mode="inline"
-          ownerEmail={detectedEmail || normalizedUser}
-          activeModel={activeModel}
-          setActiveModel={setActiveModel}
-          zhc1921Columns={ZHC1921_COLUMNS}
-          zhc1921Rows={zhc1921Rows}
-          setZhc1921Rows={setZhc1921Rows}
-        />
+        <>
+          <DeviceManagerSection
+            mode="inline"
+            ownerEmail={detectedEmail || normalizedUser}
+            activeModel={activeModel}
+            setActiveModel={setActiveModel}
+            zhc1921Columns={ZHC1921_COLUMNS}
+            zhc1921Rows={zhc1921Rows}
+            setZhc1921Rows={setZhc1921Rows}
+          />
+
+          {/* ✅ NEW: OWNER-ONLY DF572 DEVICE MANAGER BUTTON */}
+          <div className="mt-4">
+            <button
+              onClick={() => setActiveModel("DF572")}
+              className="w-full rounded-xl border border-cyan-200 bg-cyan-50 px-5 py-4 text-left shadow-sm hover:bg-cyan-100 transition"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-2xl">📶</span>
+                <h3 className="text-lg font-semibold text-cyan-900">
+                  Wireless Level Sensor DF572
+                </h3>
+              </div>
+              <p className="mt-2 text-sm text-cyan-700">
+                Manage wireless radar level sensors, ownership, and live
+                telemetry.
+              </p>
+            </button>
+          </div>
+        </>
       )}
 
       {/* ✅ OWNER-ONLY BUSINESS SECTION */}
