@@ -8,41 +8,30 @@ import MySubscriptionSection from "./homepagesections/MySubscriptionSection";
 import BillingAdminSection from "./homepagesections/BillingAdminSection";
 import AdminSubscriptionsSection from "./homepagesections/admin_subscriptions";
 
-// ✅ IMPORTANT: read token the same way the rest of the app does (sessionStorage per-tab)
 import { getToken, parseJwt } from "../utils/authToken";
 
-// ✅ Owner allowlist (LOCKED to one admin email only)
 const PLATFORM_OWNER_EMAIL = "roquemartinez_8@hotmail.com";
 
-// ✅ Columns exactly like your spreadsheet (ZHC1921)
-// Blue row = title, second line = unit/meaning (sub)
 const ZHC1921_COLUMNS = [
   { key: "deviceId", title: "DEVICE ID", minW: 200 },
   { key: "addedAt", title: "Date", minW: 140 },
   { key: "ownedBy", title: "User", minW: 140 },
-
   { key: "status", title: "Status", sub: "online/offline", minW: 140 },
   { key: "lastSeen", title: "last seen", minW: 130 },
-
   { key: "in1", title: "DI-1", sub: "0/1", minW: 90 },
   { key: "in2", title: "DI-2", sub: "0/1", minW: 90 },
   { key: "in3", title: "DI-3", sub: "0/1", minW: 90 },
   { key: "in4", title: "DI-4", sub: "0/1", minW: 90 },
-
   { key: "do1", title: "DO 1", sub: "0/1", minW: 90 },
   { key: "do2", title: "DO 2", sub: "0/1", minW: 90 },
   { key: "do3", title: "DO 3", sub: "0/1", minW: 90 },
   { key: "do4", title: "DO 4", sub: "0/1", minW: 90 },
-
   { key: "ai1", title: "AI-1", sub: "value", minW: 100 },
   { key: "ai2", title: "AI-2", sub: "value", minW: 100 },
   { key: "ai3", title: "AI-3", sub: "value", minW: 100 },
   { key: "ai4", title: "AI-4", sub: "value", minW: 100 },
 ];
 
-// ---------------------------
-// Helpers: normalize + email
-// ---------------------------
 function safeLower(s) {
   return String(s || "").trim().toLowerCase();
 }
@@ -52,18 +41,9 @@ function looksLikeEmail(s) {
   return v.includes("@") && v.includes(".");
 }
 
-/**
- * ✅ Detect identity ONLY from:
- * - currentUserKey (from useAuthController)
- * - JWT payload from getToken() (sessionStorage per-tab)
- *
- * ❌ DO NOT read identity from localStorage here (shared across tabs)
- */
 function detectEmailFromAuth(currentUserKey) {
-  // 1) If currentUserKey already is email, use it
   if (looksLikeEmail(currentUserKey)) return String(currentUserKey).trim();
 
-  // 2) Decode JWT from the SAME token used for API calls (sessionStorage per-tab)
   const t = getToken();
   const payload = parseJwt(t);
 
@@ -72,7 +52,7 @@ function detectEmailFromAuth(currentUserKey) {
       payload.email,
       payload.user?.email,
       payload.username,
-      payload.sub, // sometimes email, sometimes id
+      payload.sub,
     ];
 
     for (const c of candidates) {
@@ -88,33 +68,25 @@ export default function HomePage({
   setSubPageColor,
   currentUserKey,
 }) {
-  // ✅ UI state
   const [showRegisterDevices, setShowRegisterDevices] = React.useState(false);
   const [activeModel, setActiveModel] = React.useState(null);
 
-  // ✅ NEW: dedicated Business Users Report page state
   const [showBusinessUsersReportPage, setShowBusinessUsersReportPage] =
     React.useState(false);
 
-  // ✅ NEW: dedicated Business Dashboards Report page state
   const [showBusinessDashboardsReportPage, setShowBusinessDashboardsReportPage] =
     React.useState(false);
 
-  // ✅ NEW: dedicated Tenant Users & Access page state
   const [showTenantUsersPage, setShowTenantUsersPage] = React.useState(false);
 
-  // ✅ NEW: dedicated My Subscription page state
   const [showMySubscriptionPage, setShowMySubscriptionPage] =
     React.useState(false);
 
-  // ✅ NEW: dedicated Billing Admin page state (OWNER ONLY)
   const [showBillingAdminPage, setShowBillingAdminPage] = React.useState(false);
 
-  // ✅ NEW: dedicated Admin Subscriptions page state (OWNER ONLY)
   const [showAdminSubscriptionsPage, setShowAdminSubscriptionsPage] =
     React.useState(false);
 
-  // ✅ Placeholder rows (later replace with backend API)
   const [zhc1921Rows, setZhc1921Rows] = React.useState([
     {
       deviceId: "1921251024070670",
@@ -137,7 +109,6 @@ export default function HomePage({
     },
   ]);
 
-  // ✅ Identity state (per-tab)
   const [detectedEmail, setDetectedEmail] = React.useState(() =>
     detectEmailFromAuth(currentUserKey)
   );
@@ -145,7 +116,6 @@ export default function HomePage({
   const normalizedUser = safeLower(detectedEmail || currentUserKey);
   const isPlatformOwner = normalizedUser === safeLower(PLATFORM_OWNER_EMAIL);
 
-  // ✅ Refresh identity when auth changes in THIS TAB
   React.useEffect(() => {
     const refreshIdentity = () => {
       const next = detectEmailFromAuth(currentUserKey);
@@ -160,11 +130,6 @@ export default function HomePage({
     };
   }, [currentUserKey]);
 
-  /**
-   * ✅ If another tab logs in/out, it might update localStorage keys used elsewhere.
-   * We do NOT read identity from localStorage, BUT we can still re-check token + currentUserKey.
-   * This keeps Home stable across multi-tab activity.
-   */
   React.useEffect(() => {
     const onStorage = () => {
       setDetectedEmail(detectEmailFromAuth(currentUserKey));
@@ -173,10 +138,6 @@ export default function HomePage({
     return () => window.removeEventListener("storage", onStorage);
   }, [currentUserKey]);
 
-  /**
-   * ✅ Critical: when identity/owner status changes, reset owner-only UI state
-   * so you don’t get stuck with activeModel open from a previous user.
-   */
   React.useEffect(() => {
     if (!isPlatformOwner) {
       setActiveModel(null);
@@ -188,7 +149,6 @@ export default function HomePage({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlatformOwner, normalizedUser]);
 
-  // ✅ Scroll helpers
   React.useEffect(() => {
     if (activeModel) window.scrollTo({ top: 0, behavior: "smooth" });
   }, [activeModel]);
@@ -233,10 +193,8 @@ export default function HomePage({
     }
   }, [showAdminSubscriptionsPage]);
 
-  // ✅ Treat “device manager open” like a full-page section
   const isDeviceManagerOpen = isPlatformOwner && !!activeModel;
 
-  // ✅ FULL “REGISTER DEVICES PAGE” VIEW
   if (showRegisterDevices) {
     return (
       <div className="mt-4 md:mt-6">
@@ -245,7 +203,6 @@ export default function HomePage({
     );
   }
 
-  // ✅ FULL “DEVICE MANAGER PAGE” VIEW
   if (isDeviceManagerOpen) {
     return (
       <div className="mt-4 md:mt-6">
@@ -262,7 +219,6 @@ export default function HomePage({
     );
   }
 
-  // ✅ FULL “BUSINESS USERS REPORT PAGE” VIEW
   if (isPlatformOwner && showBusinessUsersReportPage) {
     return (
       <div className="mt-4 md:mt-6">
@@ -274,7 +230,6 @@ export default function HomePage({
     );
   }
 
-  // ✅ FULL “BUSINESS DASHBOARDS REPORT PAGE” VIEW
   if (isPlatformOwner && showBusinessDashboardsReportPage) {
     return (
       <div className="mt-4 md:mt-6">
@@ -286,7 +241,6 @@ export default function HomePage({
     );
   }
 
-  // ✅ FULL “TENANT USERS & ACCESS PAGE” VIEW
   if (showTenantUsersPage) {
     return (
       <div className="mt-4 md:mt-6">
@@ -295,7 +249,6 @@ export default function HomePage({
     );
   }
 
-  // ✅ FULL “MY SUBSCRIPTION PAGE” VIEW
   if (showMySubscriptionPage) {
     return (
       <div className="mt-4 md:mt-6">
@@ -306,7 +259,6 @@ export default function HomePage({
     );
   }
 
-  // ✅ FULL “BILLING ADMIN PAGE” VIEW (OWNER ONLY)
   if (isPlatformOwner && showBillingAdminPage) {
     return (
       <div className="mt-4 md:mt-6">
@@ -318,7 +270,6 @@ export default function HomePage({
     );
   }
 
-  // ✅ FULL “ADMIN SUBSCRIPTIONS PAGE” VIEW (OWNER ONLY)
   if (isPlatformOwner && showAdminSubscriptionsPage) {
     return (
       <div className="mt-4 md:mt-6">
@@ -330,12 +281,10 @@ export default function HomePage({
     );
   }
 
-  // ✅ NORMAL HOME VIEW
   return (
     <>
       {/* TOP ROW CARDS */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-4 md:gap-6">
-        {/* PROFILE CARD */}
         <div
           className="rounded-xl bg-blue-600 text-white p-4 md:p-5 flex flex-col justify-between cursor-pointer hover:opacity-95 transition"
           onClick={() => {
@@ -350,7 +299,6 @@ export default function HomePage({
           <p className="text-sm text-blue-100">View and edit your profile.</p>
         </div>
 
-        {/* CUSTOMERS / LOCATIONS CARD */}
         <div
           className="rounded-xl bg-teal-500 text-white p-4 md:p-5 flex flex-col justify-between cursor-pointer hover:opacity-95 transition"
           onClick={() => {
@@ -367,7 +315,6 @@ export default function HomePage({
           </p>
         </div>
 
-        {/* REGISTERED DEVICES CARD */}
         <div
           className="rounded-xl bg-sky-700 text-white p-4 md:p-5 flex flex-col justify-between cursor-pointer hover:bg-sky-800 transition"
           onClick={() => setShowRegisterDevices(true)}
@@ -448,38 +395,68 @@ export default function HomePage({
         </div>
       </div>
 
-      {/* ✅ OWNER-ONLY: DEVICE MANAGER ENTRY */}
+      {/* ✅ OWNER-ONLY: COMPACT DEVICE MANAGER ENTRY */}
       {isPlatformOwner && (
-        <>
-          <DeviceManagerSection
-            mode="inline"
-            ownerEmail={detectedEmail || normalizedUser}
-            activeModel={activeModel}
-            setActiveModel={setActiveModel}
-            zhc1921Columns={ZHC1921_COLUMNS}
-            zhc1921Rows={zhc1921Rows}
-            setZhc1921Rows={setZhc1921Rows}
-          />
+        <div className="mt-8 border-t border-gray-200 pt-4">
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-base font-bold text-gray-800">
+              Device Manager (Owner Only)
+            </h2>
+            <span className="text-[11px] text-gray-500">
+              Owner: {detectedEmail || normalizedUser || "unknown"}
+            </span>
+          </div>
 
-          {/* ✅ NEW: OWNER-ONLY DF572 DEVICE MANAGER BUTTON */}
-          <div className="mt-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+            <button
+              onClick={() => setActiveModel("ZHC1921")}
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-3 text-left shadow-sm hover:bg-gray-50 transition min-h-[82px]"
+            >
+              <div className="text-sm font-semibold text-gray-900 leading-tight">
+                Model ZHC1921 (CF-2000)
+              </div>
+              <div className="mt-1 text-xs text-gray-600 leading-snug">
+                Manage devices and live I/O.
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveModel("ZHC1661")}
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-3 text-left shadow-sm hover:bg-gray-50 transition min-h-[82px]"
+            >
+              <div className="text-sm font-semibold text-gray-900 leading-tight">
+                Model ZHC1661 (CF-1600)
+              </div>
+              <div className="mt-1 text-xs text-gray-600 leading-snug">
+                Manage devices and live I/O.
+              </div>
+            </button>
+
+            <button
+              onClick={() => setActiveModel("TP4000")}
+              className="w-full rounded-lg border border-gray-200 bg-white px-3 py-3 text-left shadow-sm hover:bg-gray-50 transition min-h-[82px]"
+            >
+              <div className="text-sm font-semibold text-gray-900 leading-tight">
+                Model TP-4000
+              </div>
+              <div className="mt-1 text-xs text-gray-600 leading-snug">
+                Manage devices and live I/O.
+              </div>
+            </button>
+
             <button
               onClick={() => setActiveModel("DF572")}
-              className="w-full rounded-xl border border-cyan-200 bg-cyan-50 px-5 py-4 text-left shadow-sm hover:bg-cyan-100 transition"
+              className="w-full rounded-lg border border-cyan-200 bg-cyan-50 px-3 py-3 text-left shadow-sm hover:bg-cyan-100 transition min-h-[82px]"
             >
-              <div className="flex items-center gap-2">
-                <span className="text-2xl">📶</span>
-                <h3 className="text-lg font-semibold text-cyan-900">
-                  Wireless Level Sensor DF572
-                </h3>
+              <div className="text-sm font-semibold text-cyan-900 leading-tight">
+                Wireless Level Sensor DF572
               </div>
-              <p className="mt-2 text-sm text-cyan-700">
-                Manage wireless radar level sensors, ownership, and live
-                telemetry.
-              </p>
+              <div className="mt-1 text-xs text-cyan-700 leading-snug">
+                Manage sensors and telemetry.
+              </div>
             </button>
           </div>
-        </>
+        </div>
       )}
 
       {/* ✅ OWNER-ONLY BUSINESS SECTION */}
