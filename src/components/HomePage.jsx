@@ -1,5 +1,6 @@
 import React from "react";
 import DeviceManagerSection from "./homepagesections/DeviceManagerSection";
+import DeviceManagerDf572Section from "./homepagesections/DeviceManagerDf572Section";
 import RegisterDevicesSection from "./homepagesections/RegisterDevicesSection";
 import BusinessUsersReportSection from "./homepagesections/BusinessUsersReportSection";
 import BusinessDashboardsReportSection from "./homepagesections/BusinessDashboardsReportSection";
@@ -199,6 +200,19 @@ export default function HomePage({
     return (
       <div className="mt-4 md:mt-6">
         <RegisterDevicesSection onBack={() => setShowRegisterDevices(false)} />
+      </div>
+    );
+  }
+
+  // ✅ IMPORTANT: DF572 must be handled BEFORE the generic DeviceManagerSection
+  if (isPlatformOwner && activeModel === "DF572") {
+    return (
+      <div className="mt-4 md:mt-6">
+        <DeviceManagerDf572Section
+          mode="page"
+          ownerEmail={detectedEmail || normalizedUser}
+          onBack={() => setActiveModel(null)}
+        />
       </div>
     );
   }
