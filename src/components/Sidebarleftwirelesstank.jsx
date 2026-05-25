@@ -36,11 +36,31 @@ export default function Sidebarleftwirelesstank({
 
   const showLiquid = fillPercent > 0.001;
 
-  // ✅ Corrected perspective geometry
-  const yLeft = 385 - fillPercent * 281;
-  const yFront = 452 - fillPercent * 327;
-  const yBack = 405 - fillPercent * 300;
-  const yCenter = 325 - fillPercent * 220;
+  function interp(bottom, top, percent) {
+    return {
+      x: bottom.x + (top.x - bottom.x) * percent,
+      y: bottom.y + (top.y - bottom.y) * percent,
+    };
+  }
+
+  const frontLeftBottom = { x: 30, y: 385 };
+  const frontRightBottom = { x: 135, y: 452 };
+  const backRightBottom = { x: 492, y: 405 };
+
+  const frontLeftTop = { x: 30, y: 104 };
+  const frontRightTop = { x: 135, y: 125 };
+  const backRightTop = { x: 492, y: 104 };
+
+  const lf = interp(frontLeftBottom, frontLeftTop, fillPercent);
+  const rf = interp(frontRightBottom, frontRightTop, fillPercent);
+  const rb = interp(backRightBottom, backRightTop, fillPercent);
+
+  // ✅ This fixes the bad high triangle.
+  // The center/back surface point now follows the same liquid plane.
+  const centerBack = {
+    x: 360,
+    y: rb.y + (rf.y - rb.y) * 0.45,
+  };
 
   return (
     <svg
@@ -57,40 +77,51 @@ export default function Sidebarleftwirelesstank({
     >
       {showLiquid && (
         <g>
-          {/* liquid body */}
+          {/* front liquid face */}
           <polygon
             points={`
-              30,385
-              135,452
-              492,405
-              492,${yBack}
-              135,${yFront}
-              30,${yLeft}
+              ${frontLeftBottom.x},${frontLeftBottom.y}
+              ${frontRightBottom.x},${frontRightBottom.y}
+              ${rf.x},${rf.y}
+              ${lf.x},${lf.y}
             `}
             fill="rgba(255,235,120,0.64)"
             stroke="none"
           />
 
-          {/* liquid top surface */}
+          {/* right liquid face */}
           <polygon
             points={`
-              30,${yLeft}
-              135,${yFront}
-              360,${yCenter}
-              492,${yBack}
+              ${frontRightBottom.x},${frontRightBottom.y}
+              ${backRightBottom.x},${backRightBottom.y}
+              ${rb.x},${rb.y}
+              ${centerBack.x},${centerBack.y}
+              ${rf.x},${rf.y}
+            `}
+            fill="rgba(255,225,80,0.58)"
+            stroke="none"
+          />
+
+          {/* top liquid surface */}
+          <polygon
+            points={`
+              ${lf.x},${lf.y}
+              ${rf.x},${rf.y}
+              ${centerBack.x},${centerBack.y}
+              ${rb.x},${rb.y}
             `}
             fill="rgba(255,245,150,0.84)"
             stroke="rgba(180,150,40,0.45)"
             strokeWidth="1.5"
           />
 
-          {/* liquid surface dashed line */}
+          {/* liquid surface line */}
           <path
             d={`
-              M30 ${yLeft}
-              L135 ${yFront}
-              L360 ${yCenter}
-              L492 ${yBack}
+              M ${lf.x} ${lf.y}
+              L ${rf.x} ${rf.y}
+              L ${centerBack.x} ${centerBack.y}
+              L ${rb.x} ${rb.y}
             `}
             stroke="rgba(180,150,40,0.65)"
             strokeWidth="2"
