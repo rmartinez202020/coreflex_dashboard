@@ -2,6 +2,12 @@ import React from "react";
 import { API_URL } from "../../config/api";
 import { getToken } from "../../utils/authToken";
 
+const DF572_ROUTES = {
+  list: "/radar-level/sensors",
+  add: "/radar-level/sensors",
+  remove: (imei) => `/radar-level/sensors/${encodeURIComponent(imei)}`,
+};
+
 function getAuthToken() {
   return String(getToken() || "").trim();
 }
@@ -26,7 +32,9 @@ async function apiFetch(path, options = {}) {
   }
 
   if (!res.ok) {
-    throw new Error(data?.detail || data?.error || `Request failed (${res.status})`);
+    throw new Error(
+      data?.detail || data?.error || `Request failed (${res.status})`
+    );
   }
 
   return data;
@@ -172,7 +180,7 @@ export default function DeviceManagerDf572Section({
         throw new Error("Missing auth token. Please logout and login again.");
       }
 
-      const data = await apiFetch("/radar-level/sensors", { method: "GET" });
+      const data = await apiFetch(DF572_ROUTES.list, { method: "GET" });
       if (!isMountedRef.current) return;
 
       const list = Array.isArray(data) ? data : [];
@@ -200,7 +208,7 @@ export default function DeviceManagerDf572Section({
     setErr("");
 
     try {
-      await apiFetch("/radar-level/sensors", {
+      await apiFetch(DF572_ROUTES.add, {
         method: "POST",
         body: JSON.stringify({
           raw_imei_bytes: imei,
@@ -234,7 +242,7 @@ export default function DeviceManagerDf572Section({
     setErr("");
 
     try {
-      await apiFetch(`/radar-level/sensors/${encodeURIComponent(imei)}`, {
+      await apiFetch(DF572_ROUTES.remove(imei), {
         method: "DELETE",
       });
 
@@ -304,7 +312,8 @@ export default function DeviceManagerDf572Section({
                 Device Manager — Wireless Level Sensor DF572
               </div>
               <div className="text-xs text-slate-200">
-                Add radar level sensors by IMEI and view live telemetry from backend.
+                Add radar level sensors by IMEI and view live telemetry from
+                backend.
               </div>
             </div>
           </div>
@@ -340,14 +349,15 @@ export default function DeviceManagerDf572Section({
                 className="md:w-[160px] rounded-lg bg-slate-900 text-white px-4 py-2 text-sm hover:opacity-90 disabled:opacity-50"
                 disabled={loading}
               >
-                + Add Sensor
+                {loading ? "Adding..." : "+ Add Sensor"}
               </button>
             </div>
 
             {err && <div className="mt-2 text-xs text-red-600">{err}</div>}
 
             <div className="mt-2 text-xs text-slate-500">
-              Owner only. This creates the DF572 sensor row in the backend table.
+              Owner only. This creates the DF572 sensor row in the backend
+              table.
             </div>
 
             {!!ownerEmail && (
