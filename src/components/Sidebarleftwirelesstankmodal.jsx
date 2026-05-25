@@ -66,13 +66,13 @@ function evaluateHeightFormula(formula, value) {
   }
 }
 
-function computeCenteredPos({ panelW = 1500, estH = 690 } = {}) {
+function computeCenteredPos({ panelW = 1460, estH = 630 } = {}) {
   const w = window.innerWidth || 1600;
   const h = window.innerHeight || 800;
 
   const width = Math.min(panelW, Math.floor(w * 0.96));
   const left = Math.max(12, Math.floor((w - width) / 2));
-  const top = Math.max(12, Math.floor((h - estH) / 2));
+  const top = Math.max(8, Math.floor((h - estH) / 2));
 
   return { left, top };
 }
@@ -88,26 +88,26 @@ function TelemetryCard({
     <div
       style={{
         display: "grid",
-        gridTemplateColumns: "46px 1fr",
+        gridTemplateColumns: "34px 1fr",
         alignItems: "center",
-        gap: 12,
-        padding: "11px 12px",
-        borderRadius: 12,
+        gap: 10,
+        padding: "8px 10px",
+        borderRadius: 10,
         background: "#ffffff",
         border: "1px solid #e2e8f0",
-        minHeight: 68,
+        minHeight: 54,
       }}
     >
       <div
         style={{
-          width: 42,
-          height: 42,
+          width: 32,
+          height: 32,
           borderRadius: "50%",
           background: bg,
           display: "flex",
           alignItems: "center",
           justifyContent: "center",
-          fontSize: 22,
+          fontSize: 17,
           color: accent,
           fontWeight: 900,
         }}
@@ -118,10 +118,10 @@ function TelemetryCard({
       <div>
         <div
           style={{
-            fontSize: 11,
+            fontSize: 10,
             fontWeight: 900,
             color: "#0f172a",
-            marginBottom: 4,
+            marginBottom: 2,
           }}
         >
           {label}
@@ -129,11 +129,11 @@ function TelemetryCard({
 
         <div
           style={{
-            fontSize: 18,
+            fontSize: 15,
             fontWeight: 900,
             color: accent,
             fontFamily: "monospace",
-            lineHeight: 1.1,
+            lineHeight: 1.05,
           }}
         >
           {value}
@@ -166,7 +166,7 @@ export default function Sidebarleftwirelesstankmodal({
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [unitsError, setUnitsError] = useState("");
 
-  const PANEL_W = 1500;
+  const PANEL_W = 1460;
 
   const dragRef = useRef({
     dragging: false,
@@ -178,7 +178,7 @@ export default function Sidebarleftwirelesstankmodal({
 
   const [pos, setPos] = useState(() => {
     if (typeof window === "undefined") return { left: 12, top: 12 };
-    return computeCenteredPos({ panelW: PANEL_W, estH: 690 });
+    return computeCenteredPos({ panelW: PANEL_W, estH: 630 });
   });
 
   const [isDragging, setIsDragging] = useState(false);
@@ -236,7 +236,7 @@ export default function Sidebarleftwirelesstankmodal({
 
   useLayoutEffect(() => {
     if (!open) return;
-    setPos(computeCenteredPos({ panelW: PANEL_W, estH: 690 }));
+    setPos(computeCenteredPos({ panelW: PANEL_W, estH: 630 }));
   }, [open]);
 
   useEffect(() => {
@@ -348,13 +348,13 @@ export default function Sidebarleftwirelesstankmodal({
   }, []);
 
   const labelStyle = {
-    fontSize: 12,
-    fontWeight: 700,
+    fontSize: 11,
+    fontWeight: 800,
     color: "#0f172a",
   };
 
   const inputStyle = {
-    height: 38,
+    height: 36,
     borderRadius: 10,
     border: "1px solid #cbd5e1",
     padding: "0 10px",
@@ -382,7 +382,7 @@ export default function Sidebarleftwirelesstankmodal({
           top: pos.top,
           width: PANEL_W,
           maxWidth: "96vw",
-          maxHeight: "94vh",
+          maxHeight: "90vh",
           borderRadius: 14,
           background: "#fff",
           boxShadow: "0 24px 70px rgba(0,0,0,0.38)",
@@ -392,7 +392,7 @@ export default function Sidebarleftwirelesstankmodal({
         <div
           onMouseDown={startDrag}
           style={{
-            padding: "12px 18px",
+            padding: "10px 18px",
             borderBottom: "1px solid rgba(255,255,255,0.12)",
             background: "linear-gradient(180deg,#0b1b33,#071327)",
             color: "#fff",
@@ -412,8 +412,8 @@ export default function Sidebarleftwirelesstankmodal({
             data-no-drag="true"
             onClick={onClose}
             style={{
-              width: 34,
-              height: 34,
+              width: 32,
+              height: 32,
               borderRadius: 10,
               border: "1px solid rgba(255,255,255,0.18)",
               background: "rgba(255,255,255,0.08)",
@@ -429,17 +429,17 @@ export default function Sidebarleftwirelesstankmodal({
 
         <div
           style={{
-            padding: 16,
+            padding: 14,
             background: "#f8fafc",
-            maxHeight: "calc(94vh - 60px)",
+            maxHeight: "calc(90vh - 54px)",
             overflowY: "auto",
           }}
         >
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "360px minmax(520px, 1fr) 360px",
-              gap: 16,
+              gridTemplateColumns: "360px minmax(520px, 1fr) 310px",
+              gap: 14,
               alignItems: "start",
             }}
           >
@@ -464,7 +464,7 @@ export default function Sidebarleftwirelesstankmodal({
 
               <div
                 style={{
-                  height: 260,
+                  height: 255,
                   borderRadius: 14,
                   border: "1px solid #e2e8f0",
                   background: "#ffffff",
@@ -612,7 +612,7 @@ export default function Sidebarleftwirelesstankmodal({
                   onChange={(e) => setHeightFormula(e.target.value)}
                   placeholder="Example: (VALUE-4000)*0.005"
                   style={{
-                    minHeight: 76,
+                    minHeight: 74,
                     borderRadius: 10,
                     border: "1px solid #cbd5e1",
                     padding: "10px",
@@ -676,16 +676,16 @@ export default function Sidebarleftwirelesstankmodal({
                 background: "#ffffff",
                 border: "1px solid #e2e8f0",
                 borderRadius: 14,
-                padding: 14,
+                padding: 12,
                 display: "grid",
-                gap: 10,
+                gap: 8,
               }}
             >
-              <div style={{ fontWeight: 900, fontSize: 16, color: "#0f172a" }}>
+              <div style={{ fontWeight: 900, fontSize: 15, color: "#0f172a" }}>
                 Device Binding
               </div>
 
-              <div style={{ display: "grid", gap: 6 }}>
+              <div style={{ display: "grid", gap: 5 }}>
                 <div style={labelStyle}>Model</div>
                 <select
                   value={model}
@@ -700,7 +700,7 @@ export default function Sidebarleftwirelesstankmodal({
                 </select>
               </div>
 
-              <div style={{ display: "grid", gap: 6 }}>
+              <div style={{ display: "grid", gap: 5 }}>
                 <div style={labelStyle}>IMEI Search</div>
                 <input
                   value={unitQuery}
@@ -710,7 +710,7 @@ export default function Sidebarleftwirelesstankmodal({
                 />
               </div>
 
-              <div style={{ display: "grid", gap: 6 }}>
+              <div style={{ display: "grid", gap: 5 }}>
                 <div style={labelStyle}>Registered IMEI</div>
                 <select
                   value={unitId}
@@ -736,8 +736,8 @@ export default function Sidebarleftwirelesstankmodal({
                     border: "1px solid #fecaca",
                     background: "#fef2f2",
                     color: "#b91c1c",
-                    padding: "8px 10px",
-                    fontSize: 12,
+                    padding: "7px 9px",
+                    fontSize: 11,
                     fontWeight: 800,
                   }}
                 >
@@ -752,8 +752,8 @@ export default function Sidebarleftwirelesstankmodal({
                     border: "1px solid #fde68a",
                     background: "#fffbeb",
                     color: "#92400e",
-                    padding: "8px 10px",
-                    fontSize: 12,
+                    padding: "7px 9px",
+                    fontSize: 11,
                     fontWeight: 800,
                   }}
                 >
@@ -763,18 +763,18 @@ export default function Sidebarleftwirelesstankmodal({
 
               <div
                 style={{
-                  marginTop: 2,
+                  marginTop: 0,
                   border: "1px solid #dbeafe",
                   background: "linear-gradient(180deg,#f8fbff,#eef6ff)",
-                  borderRadius: 14,
-                  padding: 14,
+                  borderRadius: 12,
+                  padding: 10,
                 }}
               >
                 <div
                   style={{
                     fontWeight: 900,
-                    fontSize: 14,
-                    marginBottom: 12,
+                    fontSize: 13,
+                    marginBottom: 8,
                     color: "#0f172a",
                   }}
                 >
@@ -785,7 +785,7 @@ export default function Sidebarleftwirelesstankmodal({
                   style={{
                     display: "grid",
                     gridTemplateColumns: "1fr",
-                    gap: 10,
+                    gap: 8,
                   }}
                 >
                   <TelemetryCard
@@ -836,14 +836,14 @@ export default function Sidebarleftwirelesstankmodal({
                 style={{
                   display: "flex",
                   justifyContent: "flex-end",
-                  gap: 10,
-                  marginTop: 4,
+                  gap: 8,
+                  marginTop: 2,
                 }}
               >
                 <button
                   onClick={onClose}
                   style={{
-                    padding: "10px 16px",
+                    padding: "9px 14px",
                     borderRadius: 10,
                     border: "1px solid #cbd5e1",
                     background: "#fff",
@@ -895,7 +895,7 @@ export default function Sidebarleftwirelesstankmodal({
                     onClose?.();
                   }}
                   style={{
-                    padding: "10px 16px",
+                    padding: "9px 14px",
                     borderRadius: 10,
                     border: "1px solid #9ae6b4",
                     background: canApply
