@@ -36,9 +36,15 @@ export default function Sidebarleftwirelesstank({
 
   const showLiquid = fillPercent > 0.001;
 
+  // A = left liquid point
+  // B = rear/center liquid point
+  // C = right liquid point
   const yLeft = 385 - fillPercent * 250;
   const yFront = 452 - fillPercent * 275;
   const yBack = 405 - fillPercent * 275;
+
+  // ✅ B point: completes the liquid top surface A → B → C
+  const yCenter = (yLeft + yBack) / 2 - 8;
 
   return (
     <svg
@@ -62,6 +68,7 @@ export default function Sidebarleftwirelesstank({
               135,452
               492,405
               492,${yBack}
+              360,${yCenter}
               135,${yFront}
               30,${yLeft}
             `}
@@ -69,21 +76,25 @@ export default function Sidebarleftwirelesstank({
             stroke="none"
           />
 
-          {/* flat liquid surface */}
+          {/* liquid top surface: A → B → C → front */}
           <polygon
             points={`
               30,${yLeft}
-              135,${yFront}
+              360,${yCenter}
               492,${yBack}
+              135,${yFront}
             `}
             fill="rgba(255,245,150,0.84)"
             stroke="rgba(180,150,40,0.45)"
             strokeWidth="1.5"
           />
 
-          {/* flat liquid surface line */}
+          {/* liquid surface lines */}
           <path
             d={`
+              M30 ${yLeft}
+              L360 ${yCenter}
+              L492 ${yBack}
               M30 ${yLeft}
               L135 ${yFront}
               L492 ${yBack}
