@@ -35,6 +35,28 @@ function isValidImei(value) {
   return /^\d{15}$/.test(normalizeImei(value));
 }
 
+function toNumberOrNull(value) {
+  if (value === undefined || value === null || value === "") return null;
+  const n = Number(value);
+  return Number.isFinite(n) ? n : null;
+}
+
+function formatHeightInches(heightMm) {
+  const mm = toNumberOrNull(heightMm);
+  if (mm === null) return "—";
+
+  const inches = mm / 25.4;
+  return inches.toFixed(2);
+}
+
+function formatTemperatureF(temperatureC) {
+  const c = toNumberOrNull(temperatureC);
+  if (c === null) return "—";
+
+  const f = (c * 9) / 5 + 32;
+  return f.toFixed(1);
+}
+
 function normalizeDf572Row(row) {
   const r = row || {};
   return {
@@ -445,10 +467,10 @@ export default function RegisterDevicesDf572Section({
                     <th className="px-[6px] py-[3px]" />
                     <th className="px-[6px] py-[3px]" />
                     <th className="px-[6px] py-[3px] text-center text-slate-700">
-                      mm
+                      in
                     </th>
                     <th className="px-[6px] py-[3px] text-center text-slate-700">
-                      °C
+                      °F
                     </th>
                     <th className="px-[6px] py-[3px] text-center text-slate-700">
                       V
@@ -496,11 +518,11 @@ export default function RegisterDevicesDf572Section({
                         </td>
 
                         <td className="px-[6px] py-[3px] text-center text-slate-800">
-                          {r.heightMm ?? "—"}
+                          {formatHeightInches(r.heightMm)}
                         </td>
 
                         <td className="px-[6px] py-[3px] text-center text-slate-800">
-                          {r.temperatureC ?? "—"}
+                          {formatTemperatureF(r.temperatureC)}
                         </td>
 
                         <td className="px-[6px] py-[3px] text-center text-slate-800">
