@@ -40,15 +40,23 @@ function normalizeImei(value) {
   return String(value || "").trim().replace(/\D/g, "");
 }
 
-function evaluateHeightFormula(formula, value) {
+function normalizeNumberInput(value) {
+  return String(value || "").replace(/[^\d.-]/g, "");
+}
+
+function evaluateHeightFormula(formula, value, realTankHeight) {
   const liveValue = Number(value);
   if (!Number.isFinite(liveValue)) return "--";
 
+  const tankHeight = Number(realTankHeight);
   const cleanFormula = String(formula || "").trim();
+
   if (!cleanFormula) return liveValue.toFixed(2);
 
   try {
     const expression = cleanFormula
+      .replace(/\bREAL_TANK_HEIGHT\b/g, Number.isFinite(tankHeight) ? String(tankHeight) : "0")
+      .replace(/\bTANK_HEIGHT\b/g, Number.isFinite(tankHeight) ? String(tankHeight) : "0")
       .replace(/\bVALUE\b/g, String(liveValue))
       .replace(/\bvalue\b/g, String(liveValue));
 
@@ -156,6 +164,12 @@ export default function Sidebarleftwirelesstankmodal({
   const [unitId, setUnitId] = useState(props.unitId || props.bindDeviceId || "");
   const [unitQuery, setUnitQuery] = useState("");
 
+  const [realTankHeight, setRealTankHeight] = useState(
+    props.realTankHeight === undefined || props.realTankHeight === null
+      ? ""
+      : String(props.realTankHeight)
+  );
+
   const [heightFormula, setHeightFormula] = useState(
     props.heightFormula || "(VALUE-4000)*0.005"
   );
@@ -247,6 +261,11 @@ export default function Sidebarleftwirelesstankmodal({
     setModel(p.bindModel || "cfr100");
     setUnitId(p.unitId || p.bindDeviceId || "");
     setUnitQuery("");
+    setRealTankHeight(
+      p.realTankHeight === undefined || p.realTankHeight === null
+        ? ""
+        : String(p.realTankHeight)
+    );
     setHeightFormula(p.heightFormula || "(VALUE-4000)*0.005");
   }, [tank]);
 
@@ -276,9 +295,12 @@ export default function Sidebarleftwirelesstankmodal({
     return units.find((u) => String(u.unitId) === String(unitId)) || null;
   }, [units, unitId]);
 
-  // ✅ Raw Height for the math section is the same Raw Height shown in telemetry.
   const liveRawHeight = selectedUnit?.height_in || "--";
-  const liveMathOutput = evaluateHeightFormula(heightFormula, liveRawHeight);
+  const liveMathOutput = evaluateHeightFormula(
+    heightFormula,
+    liveRawHeight,
+    realTankHeight
+  );
 
   const liveTemperature = selectedUnit?.temperature_F || "--";
   const liveBattery = selectedUnit?.battery_V || "--";
@@ -518,47 +540,23 @@ export default function Sidebarleftwirelesstankmodal({
                 Math
               </div>
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 170px",
-                  gap: 12,
-                  alignItems: "start",
-                }}
-              >
-                <div style={{ display: "grid", gap: 6 }}>
-                  <div style={labelStyle}>Title (Top of Display)</div>
-                  <input
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    style={inputStyle}
-                    placeholder="Tank#1"
-                  />
-                  <div style={{ fontSize: 11, color: "#64748b" }}>
-                    This shows above the label on the widget.
-                  </div>
-                </div>
-
-                <div style={{ display: "grid", gap: 6 }}>
-                  <div style={labelStyle}>Display Digits</div>
-                  <input
-                    value={props.displayDigits || "2"}
-                    readOnly
-                    style={{
-                      ...inputStyle,
-                      background: "#f8fafc",
-                    }}
-                  />
-                  <div style={{ fontSize: 11, color: "#64748b" }}>
-                    4 = 0000, 6 = 000000
-                  </div>
+              <div style={{ display: "grid", gap: 6 }}>
+                <div style={labelStyle}>Title (Top of Display)</div>
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value)}
+                  style={inputStyle}
+                  placeholder="Tank#1"
+                />
+                <div style={{ fontSize: 11, color: "#64748b" }}>
+                  This shows above the label on the widget.
                 </div>
               </div>
 
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
+                  gridTemplateColumns: "1fr 190px 1fr",
                   gap: 12,
                   alignItems: "center",
                   marginTop: 6,
@@ -582,6 +580,41 @@ export default function Sidebarleftwirelesstankmodal({
                   >
                     {liveRawHeight}
                   </div>
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gap: 6,
+                    padding: 10,
+                    borderRadius: 12,
+                    background: "#ffffff",
+                    border: "1px solid #cbd5e1",
+                    boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
+                  }}
+                >
+                  <div
+                    style={{
+                      ...labelStyle,
+                      textAlign: "center",
+                    }}
+                  >
+                    Real Tank Height
+                  </div>
+
+                  <input
+                    value={realTankHeight}
+                    onChange={(e) =>
+                      setRealTankHeight(normalizeNumberInput(e.target.value))
+                    }
+                    style={{
+                      ...inputStyle,
+                      textAlign: "center",
+                      fontFamily: "monospace",
+                      fontWeight: 900,
+                    }}
+                    placeholder="ex: 157"
+                  />
                 </div>
 
                 <div style={{ textAlign: "right" }}>
@@ -611,7 +644,7 @@ export default function Sidebarleftwirelesstankmodal({
                 <textarea
                   value={heightFormula}
                   onChange={(e) => setHeightFormula(e.target.value)}
-                  placeholder="Example: VALUE - 100"
+                  placeholder="Example: REAL_TANK_HEIGHT - VALUE"
                   style={{
                     minHeight: 74,
                     borderRadius: 10,
@@ -656,9 +689,9 @@ export default function Sidebarleftwirelesstankmodal({
                   <div style={{ fontWeight: 900, marginBottom: 7 }}>
                     Combined Examples
                   </div>
+                  <div>REAL_TANK_HEIGHT - VALUE</div>
                   <div>(VALUE * 1.5) + 5</div>
                   <div>(VALUE / 4095) * 20 - 4</div>
-                  <div>VALUE - 100</div>
                 </div>
 
                 <div>
@@ -666,7 +699,7 @@ export default function Sidebarleftwirelesstankmodal({
                     Current Output
                   </div>
                   <div>VALUE = Raw Height</div>
-                  <div>Raw Height = inches</div>
+                  <div>REAL_TANK_HEIGHT = existing tank height</div>
                   <div>Sent to widget as heightValue</div>
                 </div>
               </div>
@@ -876,6 +909,7 @@ export default function Sidebarleftwirelesstankmodal({
                       bindBatteryField: "battery_v",
                       bindDateField: "received_at",
 
+                      realTankHeight,
                       heightFormula,
                       rawHeightValue: selected.height_in || "--",
                       rawHeightMmValue:
