@@ -7,6 +7,11 @@ export default function Sidebarleftwirelesstank({
   // ✅ Output value from math section shown as Liquid Tank Level
   heightValue = "--",
   liquidTankLevelValue,
+
+  // ✅ NEW
+  liquidLevelNumeric = null,
+  tankHeightNumeric = null,
+
   temperatureValue = "--",
   batteryValue = "--",
   dateValue = "--",
@@ -19,6 +24,25 @@ export default function Sidebarleftwirelesstank({
     liquidTankLevelValue !== ""
       ? liquidTankLevelValue
       : heightValue;
+
+  // ✅ Liquid fill percentage
+  const liquidValue = Number(liquidLevelNumeric);
+  const tankHeight = Number(tankHeightNumeric);
+
+  let fillPercent = 0;
+
+  if (
+    Number.isFinite(liquidValue) &&
+    Number.isFinite(tankHeight) &&
+    tankHeight > 0
+  ) {
+    fillPercent = liquidValue / tankHeight;
+  }
+
+  fillPercent = Math.max(0, Math.min(1, fillPercent));
+
+  // Tank liquid geometry
+  const liquidTopY = 385 - fillPercent * 220;
 
   return (
     <svg
@@ -33,6 +57,33 @@ export default function Sidebarleftwirelesstank({
         maxWidth: "100%",
       }}
     >
+      {/* ========================= */}
+      {/* ✅ LIQUID FILL */}
+      {/* ========================= */}
+
+      <polygon
+        points={`
+          135,385
+          135,${liquidTopY}
+          360,${liquidTopY - 25}
+          492,${liquidTopY + 8}
+          492,405
+        `}
+        fill="rgba(255,235,120,0.72)"
+        stroke="none"
+      />
+
+      {/* liquid top line */}
+      <line
+        x1="135"
+        y1={liquidTopY}
+        x2="492"
+        y2={liquidTopY + 8}
+        stroke="rgba(180,150,40,0.55)"
+        strokeWidth="2"
+        strokeDasharray="5 5"
+      />
+
       <g
         stroke={strokeColor}
         strokeWidth="2.4"
@@ -66,7 +117,7 @@ export default function Sidebarleftwirelesstank({
           opacity="0.48"
         />
 
-        {/* top filter box - angle matched to tank */}
+        {/* top filter box */}
         <path d="M58 52 L176 39 L266 58 L146 70 Z" />
         <path d="M58 52 L146 70 L146 122 L58 104 Z" />
         <path d="M146 70 L266 58 L266 110 L146 122 Z" />
@@ -116,11 +167,12 @@ export default function Sidebarleftwirelesstank({
         <path d="M438 413 L438 421 L461 418 L461 410" />
       </g>
 
-      {/* ✅ Telemetry information only, no box/title */}
+      {/* Telemetry */}
       {showTelemetry && (
         <g>
           {/* Liquid Tank Level */}
           <circle cx="560" cy="130" r="30" fill="rgba(34,197,94,0.18)" />
+
           <text
             x="560"
             y="130"
@@ -132,9 +184,11 @@ export default function Sidebarleftwirelesstank({
           >
             ↕
           </text>
+
           <text x="625" y="122" fill="#0f172a" fontSize="24" fontWeight="400">
             Liquid Tank Level
           </text>
+
           <text
             x="625"
             y="160"
@@ -148,6 +202,7 @@ export default function Sidebarleftwirelesstank({
 
           {/* Temperature */}
           <circle cx="560" cy="220" r="30" fill="rgba(249,115,22,0.18)" />
+
           <text
             x="560"
             y="220"
@@ -159,9 +214,11 @@ export default function Sidebarleftwirelesstank({
           >
             ♨
           </text>
+
           <text x="625" y="212" fill="#0f172a" fontSize="24" fontWeight="400">
             Temperature
           </text>
+
           <text
             x="625"
             y="250"
@@ -175,6 +232,7 @@ export default function Sidebarleftwirelesstank({
 
           {/* Battery */}
           <circle cx="560" cy="310" r="30" fill="rgba(34,197,94,0.18)" />
+
           <text
             x="560"
             y="310"
@@ -186,9 +244,11 @@ export default function Sidebarleftwirelesstank({
           >
             🔋
           </text>
+
           <text x="625" y="302" fill="#0f172a" fontSize="24" fontWeight="400">
             Battery
           </text>
+
           <text
             x="625"
             y="340"
@@ -202,6 +262,7 @@ export default function Sidebarleftwirelesstank({
 
           {/* Date */}
           <circle cx="560" cy="400" r="30" fill="rgba(59,130,246,0.18)" />
+
           <text
             x="560"
             y="400"
@@ -213,9 +274,11 @@ export default function Sidebarleftwirelesstank({
           >
             ▣
           </text>
+
           <text x="625" y="392" fill="#0f172a" fontSize="24" fontWeight="400">
             Date
           </text>
+
           <text
             x="625"
             y="430"
