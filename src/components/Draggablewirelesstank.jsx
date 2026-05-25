@@ -367,6 +367,8 @@ export default function Draggablewirelesstank({
           strokeColor={strokeColor}
           liquidTankLevelValue={liquidLevelDisplay}
           heightValue={liquidLevelDisplay}
+          liquidLevelNumeric={liquidLevelValue}
+          tankHeightNumeric={realTankHeight}
           temperatureValue={temperatureText}
           batteryValue={batteryText}
           dateValue={dateText}
