@@ -3,17 +3,13 @@ import React from "react";
 export default function Sidebarleftwirelesstank({
   size = 220,
   strokeColor = "#ffffff",
-
   heightValue = "--",
   liquidTankLevelValue,
-
   liquidLevelNumeric = null,
   tankHeightNumeric = null,
-
   temperatureValue = "--",
   batteryValue = "--",
   dateValue = "--",
-
   showTelemetry = true,
 }) {
   const tankLevelValue =
@@ -27,15 +23,9 @@ export default function Sidebarleftwirelesstank({
   const tankHeight = Number(tankHeightNumeric);
 
   let fillPercent = 0;
-
-  if (
-    Number.isFinite(liquidValue) &&
-    Number.isFinite(tankHeight) &&
-    tankHeight > 0
-  ) {
+  if (Number.isFinite(liquidValue) && Number.isFinite(tankHeight) && tankHeight > 0) {
     fillPercent = liquidValue / tankHeight;
   }
-
   fillPercent = Math.max(0, Math.min(1, fillPercent));
 
   function interp(bottom, top, percent) {
@@ -45,21 +35,23 @@ export default function Sidebarleftwirelesstank({
     };
   }
 
-  // Main tank points
   const frontLeftBottom = { x: 30, y: 385 };
   const frontRightBottom = { x: 135, y: 452 };
   const backRightBottom = { x: 492, y: 405 };
-  const backCenterBottom = { x: 360, y: 325 };
 
   const frontLeftTop = { x: 30, y: 104 };
   const frontRightTop = { x: 135, y: 125 };
   const backRightTop = { x: 492, y: 104 };
-  const backCenterTop = { x: 360, y: 72 };
 
   const lf = interp(frontLeftBottom, frontLeftTop, fillPercent);
   const rf = interp(frontRightBottom, frontRightTop, fillPercent);
   const rb = interp(backRightBottom, backRightTop, fillPercent);
-  const cb = interp(backCenterBottom, backCenterTop, fillPercent);
+
+  // ✅ Corrected top-surface point: follows perspective, does not jump too high
+  const centerBack = {
+    x: 360,
+    y: Math.min(rf.y, rb.y) - 18,
+  };
 
   const showLiquid = fillPercent > 0.001;
 
@@ -70,11 +62,7 @@ export default function Sidebarleftwirelesstank({
       viewBox="0 0 900 470"
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
-      style={{
-        display: "block",
-        overflow: "visible",
-        maxWidth: "100%",
-      }}
+      style={{ display: "block", overflow: "visible", maxWidth: "100%" }}
     >
       {showLiquid && (
         <g>
@@ -86,7 +74,7 @@ export default function Sidebarleftwirelesstank({
               ${rf.x},${rf.y}
               ${lf.x},${lf.y}
             `}
-            fill="rgba(255,235,120,0.66)"
+            fill="rgba(255,235,120,0.64)"
             stroke="none"
           />
 
@@ -96,7 +84,7 @@ export default function Sidebarleftwirelesstank({
               ${frontRightBottom.x},${frontRightBottom.y}
               ${backRightBottom.x},${backRightBottom.y}
               ${rb.x},${rb.y}
-              ${cb.x},${cb.y}
+              ${centerBack.x},${centerBack.y}
               ${rf.x},${rf.y}
             `}
             fill="rgba(255,225,80,0.58)"
@@ -108,7 +96,7 @@ export default function Sidebarleftwirelesstank({
             points={`
               ${lf.x},${lf.y}
               ${rf.x},${rf.y}
-              ${cb.x},${cb.y}
+              ${centerBack.x},${centerBack.y}
               ${rb.x},${rb.y}
             `}
             fill="rgba(255,245,150,0.84)"
@@ -116,12 +104,11 @@ export default function Sidebarleftwirelesstank({
             strokeWidth="1.5"
           />
 
-          {/* liquid surface dashed line */}
           <path
             d={`
               M ${lf.x} ${lf.y}
               L ${rf.x} ${rf.y}
-              L ${cb.x} ${cb.y}
+              L ${centerBack.x} ${centerBack.y}
               L ${rb.x} ${rb.y}
             `}
             stroke="rgba(180,150,40,0.65)"
@@ -132,12 +119,7 @@ export default function Sidebarleftwirelesstank({
         </g>
       )}
 
-      <g
-        stroke={strokeColor}
-        strokeWidth="2.4"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-      >
+      <g stroke={strokeColor} strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
         <path d="M30 104 L72 112" />
         <path d="M135 125 L492 104" />
         <path d="M30 104 L30 385" />
@@ -151,16 +133,8 @@ export default function Sidebarleftwirelesstank({
         <path d="M360 72 L492 104" />
         <path d="M360 72 L360 325" strokeDasharray="7 8" opacity="0.65" />
 
-        <path
-          d="M135 354 L360 325 L492 405"
-          strokeDasharray="7 8"
-          opacity="0.42"
-        />
-        <path
-          d="M135 235 L135 354 L360 325 L360 205"
-          strokeDasharray="7 8"
-          opacity="0.48"
-        />
+        <path d="M135 354 L360 325 L492 405" strokeDasharray="7 8" opacity="0.42" />
+        <path d="M135 235 L135 354 L360 325 L360 205" strokeDasharray="7 8" opacity="0.48" />
 
         <path d="M58 52 L176 39 L266 58 L146 70 Z" />
         <path d="M58 52 L146 70 L146 122 L58 104 Z" />
@@ -208,108 +182,24 @@ export default function Sidebarleftwirelesstank({
       {showTelemetry && (
         <g>
           <circle cx="560" cy="130" r="30" fill="rgba(34,197,94,0.18)" />
-          <text
-            x="560"
-            y="130"
-            fill="#16a34a"
-            fontSize="34"
-            fontWeight="500"
-            textAnchor="middle"
-            dominantBaseline="central"
-          >
-            ↕
-          </text>
-          <text x="625" y="122" fill="#0f172a" fontSize="24" fontWeight="400">
-            Liquid Tank Level
-          </text>
-          <text
-            x="625"
-            y="160"
-            fill="#16a34a"
-            fontSize="36"
-            fontWeight="400"
-            fontFamily="monospace"
-          >
-            {tankLevelValue}
-          </text>
+          <text x="560" y="130" fill="#16a34a" fontSize="34" textAnchor="middle" dominantBaseline="central">↕</text>
+          <text x="625" y="122" fill="#0f172a" fontSize="24">Liquid Tank Level</text>
+          <text x="625" y="160" fill="#16a34a" fontSize="36" fontFamily="monospace">{tankLevelValue}</text>
 
           <circle cx="560" cy="220" r="30" fill="rgba(249,115,22,0.18)" />
-          <text
-            x="560"
-            y="220"
-            fill="#ea580c"
-            fontSize="34"
-            fontWeight="500"
-            textAnchor="middle"
-            dominantBaseline="central"
-          >
-            ♨
-          </text>
-          <text x="625" y="212" fill="#0f172a" fontSize="24" fontWeight="400">
-            Temperature
-          </text>
-          <text
-            x="625"
-            y="250"
-            fill="#ea580c"
-            fontSize="36"
-            fontWeight="400"
-            fontFamily="monospace"
-          >
-            {temperatureValue}
-          </text>
+          <text x="560" y="220" fill="#ea580c" fontSize="34" textAnchor="middle" dominantBaseline="central">♨</text>
+          <text x="625" y="212" fill="#0f172a" fontSize="24">Temperature</text>
+          <text x="625" y="250" fill="#ea580c" fontSize="36" fontFamily="monospace">{temperatureValue}</text>
 
           <circle cx="560" cy="310" r="30" fill="rgba(34,197,94,0.18)" />
-          <text
-            x="560"
-            y="310"
-            fill="#16a34a"
-            fontSize="30"
-            fontWeight="500"
-            textAnchor="middle"
-            dominantBaseline="central"
-          >
-            🔋
-          </text>
-          <text x="625" y="302" fill="#0f172a" fontSize="24" fontWeight="400">
-            Battery
-          </text>
-          <text
-            x="625"
-            y="340"
-            fill="#16a34a"
-            fontSize="36"
-            fontWeight="400"
-            fontFamily="monospace"
-          >
-            {batteryValue}
-          </text>
+          <text x="560" y="310" fill="#16a34a" fontSize="30" textAnchor="middle" dominantBaseline="central">🔋</text>
+          <text x="625" y="302" fill="#0f172a" fontSize="24">Battery</text>
+          <text x="625" y="340" fill="#16a34a" fontSize="36" fontFamily="monospace">{batteryValue}</text>
 
           <circle cx="560" cy="400" r="30" fill="rgba(59,130,246,0.18)" />
-          <text
-            x="560"
-            y="400"
-            fill="#2563eb"
-            fontSize="34"
-            fontWeight="500"
-            textAnchor="middle"
-            dominantBaseline="central"
-          >
-            ▣
-          </text>
-          <text x="625" y="392" fill="#0f172a" fontSize="24" fontWeight="400">
-            Date
-          </text>
-          <text
-            x="625"
-            y="430"
-            fill="#2563eb"
-            fontSize="26"
-            fontWeight="400"
-            fontFamily="monospace"
-          >
-            {dateValue}
-          </text>
+          <text x="560" y="400" fill="#2563eb" fontSize="34" textAnchor="middle" dominantBaseline="central">▣</text>
+          <text x="625" y="392" fill="#0f172a" fontSize="24">Date</text>
+          <text x="625" y="430" fill="#2563eb" fontSize="26" fontFamily="monospace">{dateValue}</text>
         </g>
       )}
     </svg>
