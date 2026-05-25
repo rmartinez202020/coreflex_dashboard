@@ -1,8 +1,46 @@
 // src/components/Sidebarleftwirelesstankmodal.jsx
-import React, { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import React, {
+  useEffect,
+  useLayoutEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import wl3000TankPreview from "../assets/wl3000-tank-preview.png";
+import { API_URL } from "../config/api";
+import { getToken } from "../utils/authToken";
 
-const MODEL_OPTIONS = [{ key: "wl3000", label: "WL-3000" }];
+const MODEL_OPTIONS = [{ key: "cfr100", label: "CF-R100" }];
+
+function getAuthHeaders() {
+  const token = String(getToken() || "").trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function mmToIn(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "--";
+  return (n / 25.4).toFixed(2);
+}
+
+function cToF(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "--";
+  return ((n * 9) / 5 + 32).toFixed(1);
+}
+
+function formatDateTime(value) {
+  if (!value) return "--";
+
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+
+  return d.toLocaleString();
+}
+
+function normalizeImei(value) {
+  return String(value || "").trim().replace(/\D/g, "");
+}
 
 function computeCenteredPos({ panelW = 1180, estH = 500 } = {}) {
   const w = window.innerWidth || 1200;
@@ -92,36 +130,13 @@ export default function Sidebarleftwirelesstankmodal({
   const props = tank?.properties || {};
 
   const [title, setTitle] = useState(props.name || "Tank#1");
-  const [model, setModel] = useState(props.bindModel || "wl3000");
+  const [model, setModel] = useState(props.bindModel || "cfr100");
   const [unitId, setUnitId] = useState(props.unitId || props.bindDeviceId || "");
   const [unitQuery, setUnitQuery] = useState("");
 
-  const [units] = useState([
-    {
-      unitId: "860549070088252",
-      status: "online",
-      height_in: "17.83",
-      temperature_F: "37.4",
-      battery_V: "3.62",
-      received_at: "05/12/2026 09:21:40 PM",
-    },
-    {
-      unitId: "WL3000-000002",
-      status: "offline",
-      height_in: "--",
-      temperature_F: "--",
-      battery_V: "--",
-      received_at: "--",
-    },
-    {
-      unitId: "WL3000-000003",
-      status: "offline",
-      height_in: "--",
-      temperature_F: "--",
-      battery_V: "--",
-      received_at: "--",
-    },
-  ]);
+  const [units, setUnits] = useState([]);
+  const [loadingUnits, setLoadingUnits] = useState(false);
+  const [unitsError, setUnitsError] = useState("");
 
   const PANEL_W = 1180;
 
@@ -140,6 +155,57 @@ export default function Sidebarleftwirelesstankmodal({
 
   const [isDragging, setIsDragging] = useState(false);
 
+  async function loadUserWirelessSensors() {
+    setLoadingUnits(true);
+    setUnitsError("");
+
+    try {
+      const res = await fetch(`${API_URL}/radar-level/my-sensors`, {
+        method: "GET",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+      });
+
+      const data = await res.json().catch(() => []);
+
+      if (!res.ok) {
+        throw new Error(data?.detail || `Failed to load sensors (${res.status})`);
+      }
+
+      const list = Array.isArray(data) ? data : [];
+
+      const normalized = list.map((r) => {
+        const imei = normalizeImei(
+          r.raw_imei_bytes || r.rawImeiBytes || r.imei || ""
+        );
+
+        return {
+          unitId: imei,
+          status: r.received_at ? "online" : "offline",
+          height_mm: r.height_mm,
+          height_in: mmToIn(r.height_mm),
+          temperature_c: r.temperature_c,
+          temperature_F: cToF(r.temperature_c),
+          battery_V:
+            r.battery_v === null || r.battery_v === undefined
+              ? "--"
+              : String(r.battery_v),
+          received_at: formatDateTime(r.received_at),
+          raw: r,
+        };
+      });
+
+      setUnits(normalized);
+    } catch (e) {
+      setUnits([]);
+      setUnitsError(e.message || "Failed to load wireless sensors.");
+    } finally {
+      setLoadingUnits(false);
+    }
+  }
+
   useLayoutEffect(() => {
     if (!open) return;
     setPos(computeCenteredPos({ panelW: PANEL_W, estH: 500 }));
@@ -150,15 +216,31 @@ export default function Sidebarleftwirelesstankmodal({
     const p = tank?.properties || {};
 
     setTitle(p.name || "Tank#1");
-    setModel(p.bindModel || "wl3000");
+    setModel(p.bindModel || "cfr100");
     setUnitId(p.unitId || p.bindDeviceId || "");
     setUnitQuery("");
   }, [tank]);
 
+  useEffect(() => {
+    if (!open) return;
+
+    loadUserWirelessSensors();
+
+    const intervalId = setInterval(() => {
+      if (document.hidden) return;
+      loadUserWirelessSensors();
+    }, 3000);
+
+    return () => clearInterval(intervalId);
+  }, [open]);
+
   const filteredUnits = useMemo(() => {
     const q = String(unitQuery || "").trim().toLowerCase();
     if (!q) return units;
-    return units.filter((u) => String(u.unitId || "").toLowerCase().includes(q));
+
+    return units.filter((u) =>
+      String(u.unitId || "").toLowerCase().includes(q)
+    );
   }, [units, unitQuery]);
 
   const selectedUnit = useMemo(() => {
@@ -186,8 +268,14 @@ export default function Sidebarleftwirelesstankmodal({
     const nextTop = dragRef.current.startTop + dy;
 
     setPos({
-      left: Math.min(Math.max(margin, nextLeft), Math.max(margin, w - margin - 260)),
-      top: Math.min(Math.max(margin, nextTop), Math.max(margin, h - margin - 140)),
+      left: Math.min(
+        Math.max(margin, nextLeft),
+        Math.max(margin, w - margin - 260)
+      ),
+      top: Math.min(
+        Math.max(margin, nextTop),
+        Math.max(margin, h - margin - 140)
+      ),
     });
   };
 
@@ -200,7 +288,12 @@ export default function Sidebarleftwirelesstankmodal({
 
   const startDrag = (e) => {
     if (e.button !== 0) return;
-    if (e.target?.closest?.("button, input, select, textarea, a, [data-no-drag='true']")) return;
+    if (
+      e.target?.closest?.(
+        "button, input, select, textarea, a, [data-no-drag='true']"
+      )
+    )
+      return;
 
     e.preventDefault();
 
@@ -319,7 +412,14 @@ export default function Sidebarleftwirelesstankmodal({
                 padding: 14,
               }}
             >
-              <div style={{ fontWeight: 900, fontSize: 16, color: "#0f172a", marginBottom: 10 }}>
+              <div
+                style={{
+                  fontWeight: 900,
+                  fontSize: 16,
+                  color: "#0f172a",
+                  marginBottom: 10,
+                }}
+              >
                 Preview
               </div>
 
@@ -337,7 +437,7 @@ export default function Sidebarleftwirelesstankmodal({
               >
                 <img
                   src={wl3000TankPreview}
-                  alt="WL-3000 Tank Preview"
+                  alt="CF-R100 Tank Preview"
                   style={{
                     width: "100%",
                     height: "100%",
@@ -359,7 +459,8 @@ export default function Sidebarleftwirelesstankmodal({
                   lineHeight: 1.45,
                 }}
               >
-                This wireless tank uses the WL-3000 model and binds by IMEI.
+                This wireless tank binds to the user’s registered CF-R100 sensor
+                by IMEI.
               </div>
             </div>
 
@@ -377,7 +478,13 @@ export default function Sidebarleftwirelesstankmodal({
                 Device Binding
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 12,
+                }}
+              >
                 <div style={{ display: "grid", gap: 6 }}>
                   <div style={labelStyle}>Title</div>
                   <input
@@ -390,7 +497,11 @@ export default function Sidebarleftwirelesstankmodal({
 
                 <div style={{ display: "grid", gap: 6 }}>
                   <div style={labelStyle}>Model</div>
-                  <select value={model} onChange={(e) => setModel(e.target.value)} style={inputStyle}>
+                  <select
+                    value={model}
+                    onChange={(e) => setModel(e.target.value)}
+                    style={inputStyle}
+                  >
                     {MODEL_OPTIONS.map((m) => (
                       <option key={m.key} value={m.key}>
                         {m.label}
@@ -400,7 +511,13 @@ export default function Sidebarleftwirelesstankmodal({
                 </div>
               </div>
 
-              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 12 }}>
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 12,
+                }}
+              >
                 <div style={{ display: "grid", gap: 6 }}>
                   <div style={labelStyle}>IMEI Search</div>
                   <input
@@ -412,9 +529,16 @@ export default function Sidebarleftwirelesstankmodal({
                 </div>
 
                 <div style={{ display: "grid", gap: 6 }}>
-                  <div style={labelStyle}>IMEI</div>
-                  <select value={unitId} onChange={(e) => setUnitId(e.target.value)} style={inputStyle}>
-                    <option value="">Select IMEI...</option>
+                  <div style={labelStyle}>Registered IMEI</div>
+                  <select
+                    value={unitId}
+                    onChange={(e) => setUnitId(e.target.value)}
+                    style={inputStyle}
+                  >
+                    <option value="">
+                      {loadingUnits ? "Loading sensors..." : "Select IMEI..."}
+                    </option>
+
                     {filteredUnits.map((u) => (
                       <option key={u.unitId} value={u.unitId}>
                         {u.unitId}
@@ -423,6 +547,38 @@ export default function Sidebarleftwirelesstankmodal({
                   </select>
                 </div>
               </div>
+
+              {unitsError ? (
+                <div
+                  style={{
+                    borderRadius: 10,
+                    border: "1px solid #fecaca",
+                    background: "#fef2f2",
+                    color: "#b91c1c",
+                    padding: "8px 10px",
+                    fontSize: 12,
+                    fontWeight: 800,
+                  }}
+                >
+                  {unitsError}
+                </div>
+              ) : null}
+
+              {!loadingUnits && units.length === 0 ? (
+                <div
+                  style={{
+                    borderRadius: 10,
+                    border: "1px solid #fde68a",
+                    background: "#fffbeb",
+                    color: "#92400e",
+                    padding: "8px 10px",
+                    fontSize: 12,
+                    fontWeight: 800,
+                  }}
+                >
+                  No CF-R100 sensors registered for this user.
+                </div>
+              ) : null}
 
               <div
                 style={{
@@ -433,7 +589,14 @@ export default function Sidebarleftwirelesstankmodal({
                   padding: 14,
                 }}
               >
-                <div style={{ fontWeight: 900, fontSize: 14, marginBottom: 12, color: "#0f172a" }}>
+                <div
+                  style={{
+                    fontWeight: 900,
+                    fontSize: 14,
+                    marginBottom: 12,
+                    color: "#0f172a",
+                  }}
+                >
                   Wireless Telemetry
                 </div>
 
@@ -463,7 +626,9 @@ export default function Sidebarleftwirelesstankmodal({
                   <TelemetryCard
                     icon="♨"
                     label="Temperature"
-                    value={`${liveTemperature}${liveTemperature !== "--" ? " °F" : ""}`}
+                    value={`${
+                      liveTemperature
+                    }${liveTemperature !== "--" ? " °F" : ""}`}
                     accent="#ea580c"
                     bg="rgba(254,215,170,0.7)"
                   />
@@ -503,17 +668,26 @@ export default function Sidebarleftwirelesstankmodal({
                 <button
                   disabled={!canApply}
                   onClick={() => {
+                    const selected = selectedUnit || {};
+
                     const nextProps = {
                       ...(tank?.properties || {}),
                       name: String(title || "").trim() || "Tank#1",
                       bindModel: model,
-                      modelLabel: "WL-3000",
+                      modelLabel: "CF-R100",
                       unitId: String(unitId || "").trim(),
                       bindDeviceId: String(unitId || "").trim(),
-                      bindHeightField: "height_in",
-                      bindTemperatureField: "temperature_F",
-                      bindBatteryField: "battery_V",
+                      bindImei: String(unitId || "").trim(),
+
+                      bindHeightField: "height_mm",
+                      bindTemperatureField: "temperature_c",
+                      bindBatteryField: "battery_v",
                       bindDateField: "received_at",
+
+                      heightValue: selected.height_in || "--",
+                      temperatureValue: selected.temperature_F || "--",
+                      batteryValue: selected.battery_V || "--",
+                      dateValue: selected.received_at || "--",
                     };
 
                     onSave?.({
@@ -527,7 +701,9 @@ export default function Sidebarleftwirelesstankmodal({
                     padding: "10px 16px",
                     borderRadius: 10,
                     border: "1px solid #9ae6b4",
-                    background: canApply ? "linear-gradient(180deg,#bbf7d0,#6ee78f)" : "#e5e7eb",
+                    background: canApply
+                      ? "linear-gradient(180deg,#bbf7d0,#6ee78f)"
+                      : "#e5e7eb",
                     color: "#052e16",
                     fontWeight: 900,
                     cursor: canApply ? "pointer" : "not-allowed",
