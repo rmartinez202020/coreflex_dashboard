@@ -2,6 +2,12 @@
 import React, { useMemo } from "react";
 import Sidebarleftwirelesstank from "./Sidebarleftwirelesstank";
 
+function normalizeImei(value) {
+  return String(value || "")
+    .trim()
+    .replace(/\D/g, "");
+}
+
 function readField(row, field) {
   if (!row || !field) return null;
 
@@ -25,7 +31,7 @@ function readField(row, field) {
 }
 
 function getTelemetryRow(telemetryMap, model, deviceId) {
-  const id = String(deviceId || "").trim();
+  const id = normalizeImei(deviceId);
   if (!telemetryMap || !id) return null;
 
   const m = String(model || "").trim();
@@ -78,6 +84,7 @@ function computeMathOutput(liveValue, formula, realTankHeight) {
   if (!Number.isFinite(VALUE)) return liveValue;
 
   const upper = f.toUpperCase();
+
   if (upper.startsWith("CONCAT(") && f.endsWith(")")) {
     const inner = f.slice(7, -1);
     const parts = [];
@@ -155,12 +162,8 @@ function clampLiquidLevel(value, tankHeight) {
 
   if (!Number.isFinite(v)) return null;
 
-  // ✅ Empty / negative liquid level cannot show below 0.
   if (v <= 0) return 0;
 
-  // ✅ Full tank rule:
-  // if liquid level is equal to or higher than tank height,
-  // show tank height as the liquid level.
   if (Number.isFinite(h) && h > 0 && v >= h) return h;
 
   return v;
@@ -181,9 +184,10 @@ export default function Draggablewirelesstank({
   ).trim();
 
   const bindModel = String(props.bindModel || "cfr100").trim();
-  const bindDeviceId = String(
+
+  const bindDeviceId = normalizeImei(
     props.bindDeviceId || props.bindImei || props.unitId || ""
-  ).trim();
+  );
 
   const bindHeightField = String(props.bindHeightField || "height_mm").trim();
   const bindTemperatureField = String(
@@ -216,7 +220,6 @@ export default function Draggablewirelesstank({
     .toLowerCase();
 
   const deviceIsOffline = isPlay && hasBinding && backendStatus === "offline";
-
   const deviceIsOnline = backendStatus ? backendStatus === "online" : true;
 
   const liveRawHeightIn = useMemo(() => {
@@ -225,9 +228,7 @@ export default function Draggablewirelesstank({
       return Number.isFinite(saved) ? saved : null;
     }
 
-    const rawHeight = telemetryRow
-      ? readField(telemetryRow, bindHeightField)
-      : null;
+    const rawHeight = telemetryRow ? readField(telemetryRow, bindHeightField) : null;
 
     const rawNumber =
       rawHeight === null || rawHeight === undefined || rawHeight === ""
@@ -283,7 +284,6 @@ export default function Draggablewirelesstank({
   const liquidLevelText = useMemo(() => {
     const n = Number(liquidLevelValue);
     if (!Number.isFinite(n)) return "--";
-
     return n.toFixed(2);
   }, [liquidLevelValue]);
 

@@ -218,6 +218,10 @@ export default function DashboardCanvas({
       zhc1921: { base: "zhc1921" },
       zhc1661: { base: "zhc1661" },
       tp4000: { base: "tp4000" },
+      cfr100: {
+        base: "radar-level",
+        endpoint: "/radar-level/my-sensors",
+      },
     },
   });
 
