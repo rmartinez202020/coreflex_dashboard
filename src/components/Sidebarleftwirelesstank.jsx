@@ -40,10 +40,6 @@ export default function Sidebarleftwirelesstank({
   const yFront = 452 - fillPercent * 275;
   const yBack = 405 - fillPercent * 275;
 
-  // ✅ FIX: center follows the left/back liquid plane.
-  // This removes the wrong high triangle.
-  const yCenter = (yLeft + yBack) / 2 - 8;
-
   return (
     <svg
       width={size}
@@ -59,13 +55,13 @@ export default function Sidebarleftwirelesstank({
     >
       {showLiquid && (
         <g>
+          {/* liquid body */}
           <polygon
             points={`
               30,385
               135,452
               492,405
               492,${yBack}
-              360,${yCenter}
               135,${yFront}
               30,${yLeft}
             `}
@@ -73,11 +69,11 @@ export default function Sidebarleftwirelesstank({
             stroke="none"
           />
 
+          {/* flat liquid surface */}
           <polygon
             points={`
               30,${yLeft}
               135,${yFront}
-              360,${yCenter}
               492,${yBack}
             `}
             fill="rgba(255,245,150,0.84)"
@@ -85,11 +81,11 @@ export default function Sidebarleftwirelesstank({
             strokeWidth="1.5"
           />
 
+          {/* flat liquid surface line */}
           <path
             d={`
               M30 ${yLeft}
               L135 ${yFront}
-              L360 ${yCenter}
               L492 ${yBack}
             `}
             stroke="rgba(180,150,40,0.65)"
