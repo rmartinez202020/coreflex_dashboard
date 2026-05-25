@@ -8,17 +8,24 @@ import { useMySubscriptionSection } from "./useMySubscriptionSection";
 import RegisterDevicesCf2000Section from "./RegisterDevicesCf2000Section";
 import RegisterDevicesCf1600Section from "./RegisterDevicesCf1600Section";
 import RegisterDevicesTp4000Section from "./RegisterDevicesTp4000Section";
+import RegisterDevicesDf572Section from "./RegisterDevicesDf572Section";
 
 const MODELS = [
   { key: "cf2000", label: "Model CF-2000", desc: "4-DI // 4-DO // 4-AI" },
   { key: "cf1600", label: "Model CF-1600", desc: "4-AI // 2-AO" },
   { key: "tp400", label: "Model TP-400", desc: "8-Thermocouple channels" },
+  {
+    key: "cfr100",
+    label: "Wireless Radar Level Sensor CF-R100",
+    desc: "DF572 radar level sensor // height // temperature // battery",
+  },
 ];
 
 const DEVICE_COUNT_ENDPOINTS = [
   `${API_URL}/zhc1921/my-devices`,
   `${API_URL}/zhc1661/my-devices`,
   `${API_URL}/tp4000/my-devices`,
+  `${API_URL}/radar-level/my-sensors`,
 ];
 
 function getAuthHeaders() {
@@ -205,7 +212,7 @@ export default function RegisterDevicesSection({ onBack }) {
           ) : null}
         </div>
 
-        <div className="p-5 grid grid-cols-1 md:grid-cols-3 gap-4">
+        <div className="p-5 grid grid-cols-1 md:grid-cols-4 gap-4">
           {MODELS.map((m) => (
             <button
               key={m.key}
@@ -248,6 +255,18 @@ export default function RegisterDevicesSection({ onBack }) {
   if (activeModel === "tp400") {
     return (
       <RegisterDevicesTp4000Section
+        onBack={() => {
+          refreshRegisteredDeviceCount();
+          setActiveModel(null);
+        }}
+        {...sharedDeviceLimitProps}
+      />
+    );
+  }
+
+  if (activeModel === "cfr100") {
+    return (
+      <RegisterDevicesDf572Section
         onBack={() => {
           refreshRegisteredDeviceCount();
           setActiveModel(null);
