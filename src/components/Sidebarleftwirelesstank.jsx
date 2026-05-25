@@ -4,11 +4,9 @@ export default function Sidebarleftwirelesstank({
   size = 220,
   strokeColor = "#ffffff",
 
-  // ✅ Output value from math section shown as Liquid Tank Level
   heightValue = "--",
   liquidTankLevelValue,
 
-  // ✅ Liquid fill inputs
   liquidLevelNumeric = null,
   tankHeightNumeric = null,
 
@@ -25,8 +23,6 @@ export default function Sidebarleftwirelesstank({
       ? liquidTankLevelValue
       : heightValue;
 
-  // ✅ Liquid fill percentage
-  // 0 = empty, 1 = full
   const liquidValue = Number(liquidLevelNumeric);
   const tankHeight = Number(tankHeightNumeric);
 
@@ -42,15 +38,6 @@ export default function Sidebarleftwirelesstank({
 
   fillPercent = Math.max(0, Math.min(1, fillPercent));
 
-  // ✅ Corrected 3D tank liquid geometry.
-  const frontLeftBottom = { x: 30, y: 385 };
-  const frontRightBottom = { x: 135, y: 452 };
-  const backRightBottom = { x: 492, y: 405 };
-
-  const frontLeftTop = { x: 30, y: 104 };
-  const frontRightTop = { x: 135, y: 125 };
-  const backRightTop = { x: 492, y: 104 };
-
   function interp(bottom, top, percent) {
     return {
       x: bottom.x + (top.x - bottom.x) * percent,
@@ -58,15 +45,21 @@ export default function Sidebarleftwirelesstank({
     };
   }
 
-  const liquidFrontLeft = interp(frontLeftBottom, frontLeftTop, fillPercent);
-  const liquidFrontRight = interp(frontRightBottom, frontRightTop, fillPercent);
-  const liquidBackRight = interp(backRightBottom, backRightTop, fillPercent);
+  // Main tank points
+  const frontLeftBottom = { x: 30, y: 385 };
+  const frontRightBottom = { x: 135, y: 452 };
+  const backRightBottom = { x: 492, y: 405 };
+  const backCenterBottom = { x: 360, y: 325 };
 
-  // ✅ Back/top surface point to complete the 3D liquid top.
-  const liquidBackCenter = {
-    x: 360,
-    y: liquidFrontRight.y - 28,
-  };
+  const frontLeftTop = { x: 30, y: 104 };
+  const frontRightTop = { x: 135, y: 125 };
+  const backRightTop = { x: 492, y: 104 };
+  const backCenterTop = { x: 360, y: 72 };
+
+  const lf = interp(frontLeftBottom, frontLeftTop, fillPercent);
+  const rf = interp(frontRightBottom, frontRightTop, fillPercent);
+  const rb = interp(backRightBottom, backRightTop, fillPercent);
+  const cb = interp(backCenterBottom, backCenterTop, fillPercent);
 
   const showLiquid = fillPercent > 0.001;
 
@@ -83,47 +76,53 @@ export default function Sidebarleftwirelesstank({
         maxWidth: "100%",
       }}
     >
-      {/* ========================= */}
-      {/* ✅ LIQUID FILL - FIXED */}
-      {/* ========================= */}
-
       {showLiquid && (
         <g>
-          {/* liquid body */}
+          {/* front liquid face */}
           <polygon
             points={`
               ${frontLeftBottom.x},${frontLeftBottom.y}
               ${frontRightBottom.x},${frontRightBottom.y}
-              ${backRightBottom.x},${backRightBottom.y}
-              ${liquidBackRight.x},${liquidBackRight.y}
-              ${liquidFrontRight.x},${liquidFrontRight.y}
-              ${liquidFrontLeft.x},${liquidFrontLeft.y}
+              ${rf.x},${rf.y}
+              ${lf.x},${lf.y}
             `}
-            fill="rgba(255,235,120,0.72)"
+            fill="rgba(255,235,120,0.66)"
             stroke="none"
           />
 
-          {/* ✅ liquid top surface */}
+          {/* right liquid face */}
           <polygon
             points={`
-              ${liquidFrontLeft.x},${liquidFrontLeft.y}
-              ${liquidFrontRight.x},${liquidFrontRight.y}
-              ${liquidBackRight.x},${liquidBackRight.y}
-              ${liquidBackCenter.x},${liquidBackCenter.y}
+              ${frontRightBottom.x},${frontRightBottom.y}
+              ${backRightBottom.x},${backRightBottom.y}
+              ${rb.x},${rb.y}
+              ${cb.x},${cb.y}
+              ${rf.x},${rf.y}
             `}
-            fill="rgba(255,245,150,0.82)"
+            fill="rgba(255,225,80,0.58)"
+            stroke="none"
+          />
+
+          {/* top liquid surface */}
+          <polygon
+            points={`
+              ${lf.x},${lf.y}
+              ${rf.x},${rf.y}
+              ${cb.x},${cb.y}
+              ${rb.x},${rb.y}
+            `}
+            fill="rgba(255,245,150,0.84)"
             stroke="rgba(180,150,40,0.45)"
             strokeWidth="1.5"
           />
 
-          {/* liquid top perspective line */}
+          {/* liquid surface dashed line */}
           <path
             d={`
-              M ${liquidFrontLeft.x} ${liquidFrontLeft.y}
-              L ${liquidFrontRight.x} ${liquidFrontRight.y}
-              L ${liquidBackRight.x} ${liquidBackRight.y}
-              L ${liquidBackCenter.x} ${liquidBackCenter.y}
-              Z
+              M ${lf.x} ${lf.y}
+              L ${rf.x} ${rf.y}
+              L ${cb.x} ${cb.y}
+              L ${rb.x} ${rb.y}
             `}
             stroke="rgba(180,150,40,0.65)"
             strokeWidth="2"
@@ -139,7 +138,6 @@ export default function Sidebarleftwirelesstank({
         strokeLinecap="round"
         strokeLinejoin="round"
       >
-        {/* main tank outer edges */}
         <path d="M30 104 L72 112" />
         <path d="M135 125 L492 104" />
         <path d="M30 104 L30 385" />
@@ -148,13 +146,11 @@ export default function Sidebarleftwirelesstank({
         <path d="M30 385 L135 452" />
         <path d="M135 452 L492 405" />
 
-        {/* top rear opening */}
         <path d="M30 104 L72 100" />
         <path d="M266 82 L360 72" />
         <path d="M360 72 L492 104" />
         <path d="M360 72 L360 325" strokeDasharray="7 8" opacity="0.65" />
 
-        {/* internal CAD lines */}
         <path
           d="M135 354 L360 325 L492 405"
           strokeDasharray="7 8"
@@ -166,28 +162,23 @@ export default function Sidebarleftwirelesstank({
           opacity="0.48"
         />
 
-        {/* top filter box */}
         <path d="M58 52 L176 39 L266 58 L146 70 Z" />
         <path d="M58 52 L146 70 L146 122 L58 104 Z" />
         <path d="M146 70 L266 58 L266 110 L146 122 Z" />
 
-        {/* top cap/lip */}
         <path d="M52 47 L176 33 L272 54" />
         <path d="M52 47 L142 65" />
         <path d="M52 55 L142 73 L272 61" />
 
-        {/* bottom lip connected to tank */}
         <path d="M58 104 L146 122 L266 110" />
         <path d="M54 110 L140 129 L268 117" />
         <path d="M140 129 L135 125" />
         <path d="M268 117 L266 110" />
 
-        {/* top round port */}
         <ellipse cx="92" cy="81" rx="12" ry="22" />
         <ellipse cx="96" cy="82" rx="9" ry="19" />
         <ellipse cx="100" cy="83" rx="5" ry="14" />
 
-        {/* side latches */}
         <path d="M28 160 L45 166 L45 188 L28 183 Z" />
         <path d="M31 160 L38 150 L45 166" />
         <path d="M32 172 L42 175" />
@@ -200,7 +191,6 @@ export default function Sidebarleftwirelesstank({
         <path d="M111 216 L124 220" />
         <path d="M100 197 L106 189 L106 216 L100 223 Z" />
 
-        {/* lower round ports */}
         <ellipse cx="46" cy="360" rx="10" ry="23" />
         <ellipse cx="50" cy="360" rx="8" ry="20" />
         <ellipse cx="54" cy="360" rx="5" ry="15" />
@@ -209,19 +199,15 @@ export default function Sidebarleftwirelesstank({
         <ellipse cx="116" cy="395" rx="9" ry="21" />
         <ellipse cx="120" cy="395" rx="5" ry="16" />
 
-        {/* feet */}
         <path d="M140 452 L140 466 L178 461 L178 447" />
         <path d="M146 453 L146 461 L171 458 L171 449" />
         <path d="M432 413 L432 428 L468 423 L468 409" />
         <path d="M438 413 L438 421 L461 418 L461 410" />
       </g>
 
-      {/* Telemetry */}
       {showTelemetry && (
         <g>
-          {/* Liquid Tank Level */}
           <circle cx="560" cy="130" r="30" fill="rgba(34,197,94,0.18)" />
-
           <text
             x="560"
             y="130"
@@ -233,11 +219,9 @@ export default function Sidebarleftwirelesstank({
           >
             ↕
           </text>
-
           <text x="625" y="122" fill="#0f172a" fontSize="24" fontWeight="400">
             Liquid Tank Level
           </text>
-
           <text
             x="625"
             y="160"
@@ -249,9 +233,7 @@ export default function Sidebarleftwirelesstank({
             {tankLevelValue}
           </text>
 
-          {/* Temperature */}
           <circle cx="560" cy="220" r="30" fill="rgba(249,115,22,0.18)" />
-
           <text
             x="560"
             y="220"
@@ -263,11 +245,9 @@ export default function Sidebarleftwirelesstank({
           >
             ♨
           </text>
-
           <text x="625" y="212" fill="#0f172a" fontSize="24" fontWeight="400">
             Temperature
           </text>
-
           <text
             x="625"
             y="250"
@@ -279,9 +259,7 @@ export default function Sidebarleftwirelesstank({
             {temperatureValue}
           </text>
 
-          {/* Battery */}
           <circle cx="560" cy="310" r="30" fill="rgba(34,197,94,0.18)" />
-
           <text
             x="560"
             y="310"
@@ -293,11 +271,9 @@ export default function Sidebarleftwirelesstank({
           >
             🔋
           </text>
-
           <text x="625" y="302" fill="#0f172a" fontSize="24" fontWeight="400">
             Battery
           </text>
-
           <text
             x="625"
             y="340"
@@ -309,9 +285,7 @@ export default function Sidebarleftwirelesstank({
             {batteryValue}
           </text>
 
-          {/* Date */}
           <circle cx="560" cy="400" r="30" fill="rgba(59,130,246,0.18)" />
-
           <text
             x="560"
             y="400"
@@ -323,11 +297,9 @@ export default function Sidebarleftwirelesstank({
           >
             ▣
           </text>
-
           <text x="625" y="392" fill="#0f172a" fontSize="24" fontWeight="400">
             Date
           </text>
-
           <text
             x="625"
             y="430"
