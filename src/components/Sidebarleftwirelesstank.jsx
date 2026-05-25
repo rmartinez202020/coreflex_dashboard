@@ -4,14 +4,22 @@ export default function Sidebarleftwirelesstank({
   size = 220,
   strokeColor = "#ffffff",
 
-  // ✅ Telemetry values shown on the right side of the tank
+  // ✅ Output value from math section shown as Liquid Tank Level
   heightValue = "--",
+  liquidTankLevelValue,
   temperatureValue = "--",
   batteryValue = "--",
   dateValue = "--",
 
   showTelemetry = true,
 }) {
+  const tankLevelValue =
+    liquidTankLevelValue !== undefined &&
+    liquidTankLevelValue !== null &&
+    liquidTankLevelValue !== ""
+      ? liquidTankLevelValue
+      : heightValue;
+
   return (
     <svg
       width={size}
@@ -111,7 +119,7 @@ export default function Sidebarleftwirelesstank({
       {/* ✅ Telemetry information only, no box/title */}
       {showTelemetry && (
         <g>
-          {/* Height */}
+          {/* Liquid Tank Level */}
           <circle cx="560" cy="130" r="30" fill="rgba(34,197,94,0.18)" />
           <text
             x="560"
@@ -125,7 +133,7 @@ export default function Sidebarleftwirelesstank({
             ↕
           </text>
           <text x="625" y="122" fill="#0f172a" fontSize="24" fontWeight="400">
-            Height
+            Liquid Tank Level
           </text>
           <text
             x="625"
@@ -135,7 +143,7 @@ export default function Sidebarleftwirelesstank({
             fontWeight="400"
             fontFamily="monospace"
           >
-            {heightValue}
+            {tankLevelValue}
           </text>
 
           {/* Temperature */}
