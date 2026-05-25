@@ -36,15 +36,20 @@ export default function Sidebarleftwirelesstank({
 
   const showLiquid = fillPercent > 0.001;
 
-  // A = left liquid point
-  // B = rear/center liquid point
-  // C = right liquid point
+  // Liquid surface control points
+  const xA = 30;
+  const xFront = 135;
+  const xB = 360;
+  const xC = 492;
+
   const yLeft = 385 - fillPercent * 250;
   const yFront = 452 - fillPercent * 275;
   const yBack = 405 - fillPercent * 275;
 
-  // ✅ B point: completes the liquid top surface A → B → C
-  const yCenter = (yLeft + yBack) / 2 - 8;
+  // ✅ Keep angle B as-is.
+  // ✅ Modify angle A to match B.
+  const slopeB = (yBack - yFront) / (xC - xFront);
+  const yCenter = yLeft + slopeB * (xB - xA);
 
   return (
     <svg
@@ -76,7 +81,7 @@ export default function Sidebarleftwirelesstank({
             stroke="none"
           />
 
-          {/* liquid top surface: A → B → C → front */}
+          {/* liquid top surface: A and B now have the same angle */}
           <polygon
             points={`
               30,${yLeft}
