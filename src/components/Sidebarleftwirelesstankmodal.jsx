@@ -66,8 +66,8 @@ function evaluateHeightFormula(formula, value) {
   }
 }
 
-function computeCenteredPos({ panelW = 1180, estH = 690 } = {}) {
-  const w = window.innerWidth || 1200;
+function computeCenteredPos({ panelW = 1500, estH = 690 } = {}) {
+  const w = window.innerWidth || 1600;
   const h = window.innerHeight || 800;
 
   const width = Math.min(panelW, Math.floor(w * 0.96));
@@ -166,7 +166,7 @@ export default function Sidebarleftwirelesstankmodal({
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [unitsError, setUnitsError] = useState("");
 
-  const PANEL_W = 1180;
+  const PANEL_W = 1500;
 
   const dragRef = useRef({
     dragging: false,
@@ -438,7 +438,7 @@ export default function Sidebarleftwirelesstankmodal({
           <div
             style={{
               display: "grid",
-              gridTemplateColumns: "360px 1fr",
+              gridTemplateColumns: "360px minmax(520px, 1fr) 360px",
               gap: 16,
               alignItems: "start",
             }}
@@ -499,7 +499,175 @@ export default function Sidebarleftwirelesstankmodal({
                 }}
               >
                 This wireless tank binds to the user’s registered CF-R100 sensor
-                by IMEI. The formula uses the live raw height value in mm.
+                by IMEI. The math section uses the live Raw Height value.
+              </div>
+            </div>
+
+            <div
+              style={{
+                background: "#ffffff",
+                border: "1px solid #e2e8f0",
+                borderRadius: 14,
+                padding: 14,
+                display: "grid",
+                gap: 10,
+              }}
+            >
+              <div style={{ fontWeight: 900, fontSize: 16, color: "#0f172a" }}>
+                Math
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 170px",
+                  gap: 12,
+                  alignItems: "start",
+                }}
+              >
+                <div style={{ display: "grid", gap: 6 }}>
+                  <div style={labelStyle}>Title (Top of Display)</div>
+                  <input
+                    value={title}
+                    onChange={(e) => setTitle(e.target.value)}
+                    style={inputStyle}
+                    placeholder="Tank#1"
+                  />
+                  <div style={{ fontSize: 11, color: "#64748b" }}>
+                    This shows above the label on the widget.
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gap: 6 }}>
+                  <div style={labelStyle}>Display Digits</div>
+                  <input
+                    value={props.displayDigits || "2"}
+                    readOnly
+                    style={{
+                      ...inputStyle,
+                      background: "#f8fafc",
+                    }}
+                  />
+                  <div style={{ fontSize: 11, color: "#64748b" }}>
+                    4 = 0000, 6 = 000000
+                  </div>
+                </div>
+              </div>
+
+              <div
+                style={{
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr",
+                  gap: 12,
+                  alignItems: "center",
+                  marginTop: 6,
+                }}
+              >
+                <div>
+                  <div style={labelStyle}>Live VALUE</div>
+                  <div
+                    style={{
+                      marginTop: 6,
+                      width: 150,
+                      borderRadius: 999,
+                      background: "#dcfce7",
+                      border: "1px solid #86efac",
+                      color: "#166534",
+                      padding: "8px 12px",
+                      fontFamily: "monospace",
+                      fontWeight: 900,
+                      textAlign: "center",
+                    }}
+                  >
+                    {liveRawHeightMm}
+                  </div>
+                </div>
+
+                <div style={{ textAlign: "right" }}>
+                  <div style={labelStyle}>Output</div>
+                  <div
+                    style={{
+                      marginTop: 6,
+                      marginLeft: "auto",
+                      width: 150,
+                      borderRadius: 999,
+                      background: "#f8fafc",
+                      border: "1px solid #cbd5e1",
+                      color: "#0f172a",
+                      padding: "8px 12px",
+                      fontFamily: "monospace",
+                      fontWeight: 900,
+                      textAlign: "center",
+                    }}
+                  >
+                    {liveMathOutput}
+                  </div>
+                </div>
+              </div>
+
+              <div style={{ display: "grid", gap: 6 }}>
+                <div style={labelStyle}>Formula</div>
+                <textarea
+                  value={heightFormula}
+                  onChange={(e) => setHeightFormula(e.target.value)}
+                  placeholder="Example: (VALUE-4000)*0.005"
+                  style={{
+                    minHeight: 76,
+                    borderRadius: 10,
+                    border: "1px solid #cbd5e1",
+                    padding: "10px",
+                    fontWeight: 700,
+                    fontFamily: "monospace",
+                    background: "#fff",
+                    outline: "none",
+                    width: "100%",
+                    resize: "vertical",
+                  }}
+                />
+              </div>
+
+              <div
+                style={{
+                  marginTop: 6,
+                  borderRadius: 12,
+                  background: "#f1f5f9",
+                  border: "1px solid #cbd5e1",
+                  padding: 12,
+                  display: "grid",
+                  gridTemplateColumns: "1fr 1fr 1fr",
+                  gap: 16,
+                  fontSize: 12,
+                  color: "#0f172a",
+                }}
+              >
+                <div>
+                  <div style={{ fontWeight: 900, marginBottom: 7 }}>
+                    Supported Operators
+                  </div>
+                  <div>VALUE + 10 → add</div>
+                  <div>VALUE - 3 → subtract</div>
+                  <div>VALUE * 2 → multiply</div>
+                  <div>VALUE / 5 → divide</div>
+                  <div>VALUE % 60 → modulo</div>
+                </div>
+
+                <div>
+                  <div style={{ fontWeight: 900, marginBottom: 7 }}>
+                    Combined Examples
+                  </div>
+                  <div>(VALUE * 1.5) + 5</div>
+                  <div>(VALUE / 4095) * 20 - 4</div>
+                  <div>(VALUE-4000)*0.005</div>
+                </div>
+
+                <div>
+                  <div style={{ fontWeight: 900, marginBottom: 7 }}>
+                    Current Output
+                  </div>
+                  <div>VALUE = Raw Height</div>
+                  <div>Output = calculated height</div>
+                  <div>Sent to widget as heightValue</div>
+                </div>
               </div>
             </div>
 
@@ -517,74 +685,48 @@ export default function Sidebarleftwirelesstankmodal({
                 Device Binding
               </div>
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 12,
-                }}
-              >
-                <div style={{ display: "grid", gap: 6 }}>
-                  <div style={labelStyle}>Title</div>
-                  <input
-                    value={title}
-                    onChange={(e) => setTitle(e.target.value)}
-                    style={inputStyle}
-                    placeholder="Tank#1"
-                  />
-                </div>
-
-                <div style={{ display: "grid", gap: 6 }}>
-                  <div style={labelStyle}>Model</div>
-                  <select
-                    value={model}
-                    onChange={(e) => setModel(e.target.value)}
-                    style={inputStyle}
-                  >
-                    {MODEL_OPTIONS.map((m) => (
-                      <option key={m.key} value={m.key}>
-                        {m.label}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+              <div style={{ display: "grid", gap: 6 }}>
+                <div style={labelStyle}>Model</div>
+                <select
+                  value={model}
+                  onChange={(e) => setModel(e.target.value)}
+                  style={inputStyle}
+                >
+                  {MODEL_OPTIONS.map((m) => (
+                    <option key={m.key} value={m.key}>
+                      {m.label}
+                    </option>
+                  ))}
+                </select>
               </div>
 
-              <div
-                style={{
-                  display: "grid",
-                  gridTemplateColumns: "1fr 1fr",
-                  gap: 12,
-                }}
-              >
-                <div style={{ display: "grid", gap: 6 }}>
-                  <div style={labelStyle}>IMEI Search</div>
-                  <input
-                    value={unitQuery}
-                    onChange={(e) => setUnitQuery(e.target.value)}
-                    style={inputStyle}
-                    placeholder="Type to filter IMEI..."
-                  />
-                </div>
+              <div style={{ display: "grid", gap: 6 }}>
+                <div style={labelStyle}>IMEI Search</div>
+                <input
+                  value={unitQuery}
+                  onChange={(e) => setUnitQuery(e.target.value)}
+                  style={inputStyle}
+                  placeholder="Type to filter IMEI..."
+                />
+              </div>
 
-                <div style={{ display: "grid", gap: 6 }}>
-                  <div style={labelStyle}>Registered IMEI</div>
-                  <select
-                    value={unitId}
-                    onChange={(e) => setUnitId(e.target.value)}
-                    style={inputStyle}
-                  >
-                    <option value="">
-                      {loadingUnits ? "Loading sensors..." : "Select IMEI..."}
+              <div style={{ display: "grid", gap: 6 }}>
+                <div style={labelStyle}>Registered IMEI</div>
+                <select
+                  value={unitId}
+                  onChange={(e) => setUnitId(e.target.value)}
+                  style={inputStyle}
+                >
+                  <option value="">
+                    {loadingUnits ? "Loading sensors..." : "Select IMEI..."}
+                  </option>
+
+                  {filteredUnits.map((u) => (
+                    <option key={u.unitId} value={u.unitId}>
+                      {u.unitId}
                     </option>
-
-                    {filteredUnits.map((u) => (
-                      <option key={u.unitId} value={u.unitId}>
-                        {u.unitId}
-                      </option>
-                    ))}
-                  </select>
-                </div>
+                  ))}
+                </select>
               </div>
 
               {unitsError ? (
@@ -621,141 +763,6 @@ export default function Sidebarleftwirelesstankmodal({
 
               <div
                 style={{
-                  border: "1px solid #dbeafe",
-                  background: "linear-gradient(180deg,#f8fbff,#eef6ff)",
-                  borderRadius: 14,
-                  padding: 14,
-                }}
-              >
-                <div
-                  style={{
-                    fontWeight: 900,
-                    fontSize: 14,
-                    marginBottom: 12,
-                    color: "#0f172a",
-                  }}
-                >
-                  Height Math
-                </div>
-
-                <div
-                  style={{
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
-                    gap: 12,
-                    marginBottom: 10,
-                  }}
-                >
-                  <div>
-                    <div style={labelStyle}>Live VALUE</div>
-                    <div
-                      style={{
-                        marginTop: 6,
-                        width: 150,
-                        borderRadius: 999,
-                        background: "#dcfce7",
-                        border: "1px solid #86efac",
-                        color: "#166534",
-                        padding: "8px 12px",
-                        fontFamily: "monospace",
-                        fontWeight: 900,
-                        textAlign: "center",
-                      }}
-                    >
-                      {liveRawHeightMm}
-                    </div>
-                  </div>
-
-                  <div style={{ textAlign: "right" }}>
-                    <div style={labelStyle}>Output</div>
-                    <div
-                      style={{
-                        marginTop: 6,
-                        marginLeft: "auto",
-                        width: 150,
-                        borderRadius: 999,
-                        background: "#f8fafc",
-                        border: "1px solid #cbd5e1",
-                        color: "#0f172a",
-                        padding: "8px 12px",
-                        fontFamily: "monospace",
-                        fontWeight: 900,
-                        textAlign: "center",
-                      }}
-                    >
-                      {liveMathOutput}
-                    </div>
-                  </div>
-                </div>
-
-                <div style={{ display: "grid", gap: 6 }}>
-                  <div style={labelStyle}>Formula</div>
-                  <textarea
-                    value={heightFormula}
-                    onChange={(e) => setHeightFormula(e.target.value)}
-                    placeholder="Example: (VALUE-4000)*0.005"
-                    style={{
-                      minHeight: 76,
-                      borderRadius: 10,
-                      border: "1px solid #cbd5e1",
-                      padding: "10px",
-                      fontWeight: 700,
-                      fontFamily: "monospace",
-                      background: "#fff",
-                      outline: "none",
-                      width: "100%",
-                      resize: "vertical",
-                    }}
-                  />
-                </div>
-
-                <div
-                  style={{
-                    marginTop: 12,
-                    borderRadius: 12,
-                    background: "#f1f5f9",
-                    border: "1px solid #cbd5e1",
-                    padding: 12,
-                    display: "grid",
-                    gridTemplateColumns: "1fr 1fr 1fr",
-                    gap: 16,
-                    fontSize: 12,
-                    color: "#0f172a",
-                  }}
-                >
-                  <div>
-                    <div style={{ fontWeight: 900, marginBottom: 7 }}>
-                      Supported Operators
-                    </div>
-                    <div>VALUE + 10 → add</div>
-                    <div>VALUE - 3 → subtract</div>
-                    <div>VALUE * 2 → multiply</div>
-                    <div>VALUE / 5 → divide</div>
-                    <div>VALUE % 60 → modulo</div>
-                  </div>
-
-                  <div>
-                    <div style={{ fontWeight: 900, marginBottom: 7 }}>
-                      Combined Examples
-                    </div>
-                    <div>(VALUE * 1.5) + 5</div>
-                    <div>(VALUE / 4095) * 20 - 4</div>
-                    <div>(VALUE-4000)*0.005</div>
-                  </div>
-
-                  <div>
-                    <div style={{ fontWeight: 900, marginBottom: 7 }}>
-                      Current Output
-                    </div>
-                    <div>VALUE = raw height mm</div>
-                    <div>Output = calculated height</div>
-                    <div>Sent to widget as heightValue</div>
-                  </div>
-                </div>
-              </div>
-
-              <div
-                style={{
                   marginTop: 2,
                   border: "1px solid #dbeafe",
                   background: "linear-gradient(180deg,#f8fbff,#eef6ff)",
@@ -777,7 +784,7 @@ export default function Sidebarleftwirelesstankmodal({
                 <div
                   style={{
                     display: "grid",
-                    gridTemplateColumns: "1fr 1fr",
+                    gridTemplateColumns: "1fr",
                     gap: 10,
                   }}
                 >
@@ -792,9 +799,7 @@ export default function Sidebarleftwirelesstankmodal({
                   <TelemetryCard
                     icon="📐"
                     label="Math Output"
-                    value={`${
-                      liveMathOutput
-                    }${liveMathOutput !== "--" ? "" : ""}`}
+                    value={liveMathOutput}
                     accent="#16a34a"
                     bg="rgba(187,247,208,0.65)"
                   />
