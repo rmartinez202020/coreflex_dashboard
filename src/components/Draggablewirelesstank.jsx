@@ -149,6 +149,23 @@ function computeMathOutput(liveValue, formula, realTankHeight) {
   }
 }
 
+function clampLiquidLevel(value, tankHeight) {
+  const v = Number(value);
+  const h = Number(tankHeight);
+
+  if (!Number.isFinite(v)) return null;
+
+  // ✅ Empty / negative liquid level cannot show below 0.
+  if (v <= 0) return 0;
+
+  // ✅ Full tank rule:
+  // if liquid level is equal to or higher than tank height,
+  // show tank height as the liquid level.
+  if (Number.isFinite(h) && h > 0 && v >= h) return h;
+
+  return v;
+}
+
 export default function Draggablewirelesstank({
   tank,
   isPlay = false,
@@ -236,7 +253,7 @@ export default function Draggablewirelesstank({
     props.rawHeightValue,
   ]);
 
-  const outputValue = useMemo(() => {
+  const calculatedLiquidLevel = useMemo(() => {
     const fallbackSaved = Number(props.heightValue || props.heightOutputValue);
 
     if (!isPlay) {
@@ -259,14 +276,21 @@ export default function Draggablewirelesstank({
     props.heightOutputValue,
   ]);
 
-  const outputText = useMemo(() => {
-    if (typeof outputValue === "string") return outputValue || "--";
+  const liquidLevelValue = useMemo(() => {
+    return clampLiquidLevel(calculatedLiquidLevel, realTankHeight);
+  }, [calculatedLiquidLevel, realTankHeight]);
 
-    const n = Number(outputValue);
+  const liquidLevelText = useMemo(() => {
+    const n = Number(liquidLevelValue);
     if (!Number.isFinite(n)) return "--";
 
     return n.toFixed(2);
-  }, [outputValue]);
+  }, [liquidLevelValue]);
+
+  const liquidLevelDisplay = useMemo(() => {
+    if (liquidLevelText === "--") return "--";
+    return unit ? `${liquidLevelText} ${unit}` : liquidLevelText;
+  }, [liquidLevelText, unit]);
 
   const temperatureText = useMemo(() => {
     const saved = props.temperatureValue || "--";
@@ -341,12 +365,8 @@ export default function Draggablewirelesstank({
         <Sidebarleftwirelesstank
           size={180 * scale}
           strokeColor={strokeColor}
-          liquidTankLevelValue={
-            outputText !== "--" && unit ? `${outputText} ${unit}` : outputText
-          }
-          heightValue={
-            outputText !== "--" && unit ? `${outputText} ${unit}` : outputText
-          }
+          liquidTankLevelValue={liquidLevelDisplay}
+          heightValue={liquidLevelDisplay}
           temperatureValue={temperatureText}
           batteryValue={batteryText}
           dateValue={dateText}
