@@ -17,10 +17,22 @@ function getAuthHeaders() {
   return token ? { Authorization: `Bearer ${token}` } : {};
 }
 
-function mmToIn(value) {
+function toNumberOrNull(value) {
+  if (value === undefined || value === null || value === "") return null;
   const n = Number(value);
-  if (!Number.isFinite(n)) return "--";
-  return (n / 25.4).toFixed(2);
+  return Number.isFinite(n) ? n : null;
+}
+
+function mmToInNumber(value) {
+  const n = toNumberOrNull(value);
+  if (n === null) return null;
+  return n / 25.4;
+}
+
+function mmToIn(value) {
+  const n = mmToInNumber(value);
+  if (n === null) return "--";
+  return n.toFixed(2);
 }
 
 function cToF(value) {
@@ -42,7 +54,56 @@ function normalizeImei(value) {
   return String(value || "").trim().replace(/\D/g, "");
 }
 
-function computeCenteredPos({ panelW = 1180, estH = 500 } = {}) {
+function normalizeDecimalInput(value) {
+  return String(value || "")
+    .replace(/[^\d.]/g, "")
+    .replace(/^(\d*\.?)|(\d*)\.?/g, (m, first) => first || "");
+}
+
+function clampNumber(value, min, max) {
+  const n = toNumberOrNull(value);
+  if (n === null) return null;
+  return Math.min(Math.max(n, min), max);
+}
+
+function computeHeightOutputIn({
+  rawHeightIn,
+  mathMode,
+  tankHeightIn,
+  offsetIn,
+  minIn,
+  maxIn,
+}) {
+  const raw = toNumberOrNull(rawHeightIn);
+  if (raw === null) return "--";
+
+  const offset = toNumberOrNull(offsetIn) || 0;
+
+  let output = raw + offset;
+
+  if (mathMode === "tank_level") {
+    const tankHeight = toNumberOrNull(tankHeightIn);
+    if (tankHeight !== null) {
+      output = tankHeight - raw + offset;
+    }
+  }
+
+  const min = toNumberOrNull(minIn);
+  const max = toNumberOrNull(maxIn);
+
+  if (min !== null || max !== null) {
+    output = clampNumber(
+      output,
+      min !== null ? min : Number.NEGATIVE_INFINITY,
+      max !== null ? max : Number.POSITIVE_INFINITY
+    );
+  }
+
+  if (output === null) return "--";
+  return output.toFixed(2);
+}
+
+function computeCenteredPos({ panelW = 1180, estH = 650 } = {}) {
   const w = window.innerWidth || 1200;
   const h = window.innerHeight || 800;
 
@@ -134,6 +195,28 @@ export default function Sidebarleftwirelesstankmodal({
   const [unitId, setUnitId] = useState(props.unitId || props.bindDeviceId || "");
   const [unitQuery, setUnitQuery] = useState("");
 
+  const [mathMode, setMathMode] = useState(props.heightMathMode || "raw_height");
+  const [tankHeightIn, setTankHeightIn] = useState(
+    props.tankHeightIn === undefined || props.tankHeightIn === null
+      ? ""
+      : String(props.tankHeightIn)
+  );
+  const [heightOffsetIn, setHeightOffsetIn] = useState(
+    props.heightOffsetIn === undefined || props.heightOffsetIn === null
+      ? "0"
+      : String(props.heightOffsetIn)
+  );
+  const [minHeightIn, setMinHeightIn] = useState(
+    props.minHeightIn === undefined || props.minHeightIn === null
+      ? "0"
+      : String(props.minHeightIn)
+  );
+  const [maxHeightIn, setMaxHeightIn] = useState(
+    props.maxHeightIn === undefined || props.maxHeightIn === null
+      ? ""
+      : String(props.maxHeightIn)
+  );
+
   const [units, setUnits] = useState([]);
   const [loadingUnits, setLoadingUnits] = useState(false);
   const [unitsError, setUnitsError] = useState("");
@@ -150,7 +233,7 @@ export default function Sidebarleftwirelesstankmodal({
 
   const [pos, setPos] = useState(() => {
     if (typeof window === "undefined") return { left: 12, top: 12 };
-    return computeCenteredPos({ panelW: PANEL_W, estH: 500 });
+    return computeCenteredPos({ panelW: PANEL_W, estH: 650 });
   });
 
   const [isDragging, setIsDragging] = useState(false);
@@ -181,11 +264,15 @@ export default function Sidebarleftwirelesstankmodal({
           r.raw_imei_bytes || r.rawImeiBytes || r.imei || ""
         );
 
+        const rawHeightInNumber = mmToInNumber(r.height_mm);
+
         return {
           unitId: imei,
+          model: "CF-R100",
           status: r.received_at ? "online" : "offline",
           height_mm: r.height_mm,
           height_in: mmToIn(r.height_mm),
+          height_in_number: rawHeightInNumber,
           temperature_c: r.temperature_c,
           temperature_F: cToF(r.temperature_c),
           battery_V:
@@ -208,7 +295,7 @@ export default function Sidebarleftwirelesstankmodal({
 
   useLayoutEffect(() => {
     if (!open) return;
-    setPos(computeCenteredPos({ panelW: PANEL_W, estH: 500 }));
+    setPos(computeCenteredPos({ panelW: PANEL_W, estH: 650 }));
   }, [open]);
 
   useEffect(() => {
@@ -219,6 +306,28 @@ export default function Sidebarleftwirelesstankmodal({
     setModel(p.bindModel || "cfr100");
     setUnitId(p.unitId || p.bindDeviceId || "");
     setUnitQuery("");
+
+    setMathMode(p.heightMathMode || "raw_height");
+    setTankHeightIn(
+      p.tankHeightIn === undefined || p.tankHeightIn === null
+        ? ""
+        : String(p.tankHeightIn)
+    );
+    setHeightOffsetIn(
+      p.heightOffsetIn === undefined || p.heightOffsetIn === null
+        ? "0"
+        : String(p.heightOffsetIn)
+    );
+    setMinHeightIn(
+      p.minHeightIn === undefined || p.minHeightIn === null
+        ? "0"
+        : String(p.minHeightIn)
+    );
+    setMaxHeightIn(
+      p.maxHeightIn === undefined || p.maxHeightIn === null
+        ? ""
+        : String(p.maxHeightIn)
+    );
   }, [tank]);
 
   useEffect(() => {
@@ -247,7 +356,26 @@ export default function Sidebarleftwirelesstankmodal({
     return units.find((u) => String(u.unitId) === String(unitId)) || null;
   }, [units, unitId]);
 
-  const liveHeight = selectedUnit?.height_in || "--";
+  const liveRawHeight = selectedUnit?.height_in || "--";
+
+  const liveHeightOutput = useMemo(() => {
+    return computeHeightOutputIn({
+      rawHeightIn: selectedUnit?.height_in_number,
+      mathMode,
+      tankHeightIn,
+      offsetIn: heightOffsetIn,
+      minIn: minHeightIn,
+      maxIn: maxHeightIn,
+    });
+  }, [
+    selectedUnit,
+    mathMode,
+    tankHeightIn,
+    heightOffsetIn,
+    minHeightIn,
+    maxHeightIn,
+  ]);
+
   const liveTemperature = selectedUnit?.temperature_F || "--";
   const liveBattery = selectedUnit?.battery_V || "--";
   const liveDate = selectedUnit?.received_at || "--";
@@ -351,6 +479,7 @@ export default function Sidebarleftwirelesstankmodal({
           top: pos.top,
           width: PANEL_W,
           maxWidth: "96vw",
+          maxHeight: "94vh",
           borderRadius: 14,
           background: "#fff",
           boxShadow: "0 24px 70px rgba(0,0,0,0.38)",
@@ -373,7 +502,7 @@ export default function Sidebarleftwirelesstankmodal({
           title="Drag to move"
         >
           <div style={{ fontWeight: 900, fontSize: 16, letterSpacing: 0.2 }}>
-            Wireless Tank Properties
+            CF-R100 Wireless Tank Properties
           </div>
 
           <button
@@ -395,7 +524,14 @@ export default function Sidebarleftwirelesstankmodal({
           </button>
         </div>
 
-        <div style={{ padding: 16, background: "#f8fafc" }}>
+        <div
+          style={{
+            padding: 16,
+            background: "#f8fafc",
+            maxHeight: "calc(94vh - 60px)",
+            overflowY: "auto",
+          }}
+        >
           <div
             style={{
               display: "grid",
@@ -460,7 +596,8 @@ export default function Sidebarleftwirelesstankmodal({
                 }}
               >
                 This wireless tank binds to the user’s registered CF-R100 sensor
-                by IMEI.
+                by IMEI. The widget receives the calculated Height Output in
+                inches.
               </div>
             </div>
 
@@ -582,6 +719,160 @@ export default function Sidebarleftwirelesstankmodal({
 
               <div
                 style={{
+                  border: "1px solid #dbeafe",
+                  background: "linear-gradient(180deg,#f8fbff,#eef6ff)",
+                  borderRadius: 14,
+                  padding: 14,
+                }}
+              >
+                <div
+                  style={{
+                    fontWeight: 900,
+                    fontSize: 14,
+                    marginBottom: 12,
+                    color: "#0f172a",
+                  }}
+                >
+                  Height Math
+                </div>
+
+                <div
+                  style={{
+                    display: "grid",
+                    gridTemplateColumns: "1.2fr 1fr 1fr 1fr 1fr",
+                    gap: 10,
+                    alignItems: "end",
+                  }}
+                >
+                  <div style={{ display: "grid", gap: 6 }}>
+                    <div style={labelStyle}>Math Mode</div>
+                    <select
+                      value={mathMode}
+                      onChange={(e) => setMathMode(e.target.value)}
+                      style={inputStyle}
+                    >
+                      <option value="raw_height">
+                        Raw Sensor Height + Offset
+                      </option>
+                      <option value="tank_level">
+                        Tank Height - Sensor Reading + Offset
+                      </option>
+                    </select>
+                  </div>
+
+                  <div style={{ display: "grid", gap: 6 }}>
+                    <div style={labelStyle}>Tank Height in</div>
+                    <input
+                      value={tankHeightIn}
+                      onChange={(e) =>
+                        setTankHeightIn(normalizeDecimalInput(e.target.value))
+                      }
+                      style={inputStyle}
+                      placeholder="Example: 144"
+                    />
+                  </div>
+
+                  <div style={{ display: "grid", gap: 6 }}>
+                    <div style={labelStyle}>Offset in</div>
+                    <input
+                      value={heightOffsetIn}
+                      onChange={(e) =>
+                        setHeightOffsetIn(
+                          String(e.target.value || "").replace(/[^\d.-]/g, "")
+                        )
+                      }
+                      style={inputStyle}
+                      placeholder="0"
+                    />
+                  </div>
+
+                  <div style={{ display: "grid", gap: 6 }}>
+                    <div style={labelStyle}>Min in</div>
+                    <input
+                      value={minHeightIn}
+                      onChange={(e) =>
+                        setMinHeightIn(normalizeDecimalInput(e.target.value))
+                      }
+                      style={inputStyle}
+                      placeholder="0"
+                    />
+                  </div>
+
+                  <div style={{ display: "grid", gap: 6 }}>
+                    <div style={labelStyle}>Max in</div>
+                    <input
+                      value={maxHeightIn}
+                      onChange={(e) =>
+                        setMaxHeightIn(normalizeDecimalInput(e.target.value))
+                      }
+                      style={inputStyle}
+                      placeholder="Optional"
+                    />
+                  </div>
+                </div>
+
+                <div
+                  style={{
+                    marginTop: 10,
+                    display: "grid",
+                    gridTemplateColumns: "1fr 1fr",
+                    gap: 10,
+                  }}
+                >
+                  <div
+                    style={{
+                      borderRadius: 12,
+                      background: "#ffffff",
+                      border: "1px solid #e2e8f0",
+                      padding: "10px 12px",
+                    }}
+                  >
+                    <div style={{ fontSize: 11, fontWeight: 900 }}>
+                      Raw Sensor Reading
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 4,
+                        fontSize: 20,
+                        fontWeight: 900,
+                        fontFamily: "monospace",
+                        color: "#2563eb",
+                      }}
+                    >
+                      {liveRawHeight}
+                      {liveRawHeight !== "--" ? " in" : ""}
+                    </div>
+                  </div>
+
+                  <div
+                    style={{
+                      borderRadius: 12,
+                      background: "#ffffff",
+                      border: "1px solid #bbf7d0",
+                      padding: "10px 12px",
+                    }}
+                  >
+                    <div style={{ fontSize: 11, fontWeight: 900 }}>
+                      Height Output Sent To Widget
+                    </div>
+                    <div
+                      style={{
+                        marginTop: 4,
+                        fontSize: 20,
+                        fontWeight: 900,
+                        fontFamily: "monospace",
+                        color: "#16a34a",
+                      }}
+                    >
+                      {liveHeightOutput}
+                      {liveHeightOutput !== "--" ? " in" : ""}
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              <div
+                style={{
                   marginTop: 2,
                   border: "1px solid #dbeafe",
                   background: "linear-gradient(180deg,#f8fbff,#eef6ff)",
@@ -609,8 +900,10 @@ export default function Sidebarleftwirelesstankmodal({
                 >
                   <TelemetryCard
                     icon="↕"
-                    label="Height"
-                    value={`${liveHeight}${liveHeight !== "--" ? " in" : ""}`}
+                    label="Height Output"
+                    value={`${
+                      liveHeightOutput
+                    }${liveHeightOutput !== "--" ? " in" : ""}`}
                     accent="#16a34a"
                     bg="rgba(187,247,208,0.65)"
                   />
@@ -673,7 +966,8 @@ export default function Sidebarleftwirelesstankmodal({
                     const nextProps = {
                       ...(tank?.properties || {}),
                       name: String(title || "").trim() || "Tank#1",
-                      bindModel: model,
+
+                      bindModel: "cfr100",
                       modelLabel: "CF-R100",
                       unitId: String(unitId || "").trim(),
                       bindDeviceId: String(unitId || "").trim(),
@@ -684,7 +978,15 @@ export default function Sidebarleftwirelesstankmodal({
                       bindBatteryField: "battery_v",
                       bindDateField: "received_at",
 
-                      heightValue: selected.height_in || "--",
+                      heightMathMode: mathMode,
+                      tankHeightIn: tankHeightIn,
+                      heightOffsetIn: heightOffsetIn,
+                      minHeightIn: minHeightIn,
+                      maxHeightIn: maxHeightIn,
+
+                      rawHeightValue: selected.height_in || "--",
+                      heightValue: liveHeightOutput || "--",
+                      heightOutputValue: liveHeightOutput || "--",
                       temperatureValue: selected.temperature_F || "--",
                       batteryValue: selected.battery_V || "--",
                       dateValue: selected.received_at || "--",
