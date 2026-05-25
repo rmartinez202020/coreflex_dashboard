@@ -521,21 +521,6 @@ export default function Sidebarleftwirelesstankmodal({
                 />
               </div>
 
-              <div
-                style={{
-                  marginTop: 10,
-                  borderRadius: 12,
-                  background: "#f1f5f9",
-                  border: "1px solid #e2e8f0",
-                  padding: 12,
-                  fontSize: 12,
-                  color: "#334155",
-                  lineHeight: 1.45,
-                }}
-              >
-                This wireless tank binds to the user’s registered CF-R100 sensor
-                by IMEI. Live VALUE uses the same Raw Height shown in telemetry.
-              </div>
             </div>
 
             <div
