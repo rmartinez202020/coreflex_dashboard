@@ -55,8 +55,14 @@ function evaluateHeightFormula(formula, value, realTankHeight) {
 
   try {
     const expression = cleanFormula
-      .replace(/\bREAL_TANK_HEIGHT\b/g, Number.isFinite(tankHeight) ? String(tankHeight) : "0")
-      .replace(/\bTANK_HEIGHT\b/g, Number.isFinite(tankHeight) ? String(tankHeight) : "0")
+      .replace(
+        /\bREAL_TANK_HEIGHT\b/g,
+        Number.isFinite(tankHeight) ? String(tankHeight) : "0"
+      )
+      .replace(
+        /\bTANK_HEIGHT\b/g,
+        Number.isFinite(tankHeight) ? String(tankHeight) : "0"
+      )
       .replace(/\bVALUE\b/g, String(liveValue))
       .replace(/\bvalue\b/g, String(liveValue));
 
@@ -171,7 +177,9 @@ export default function Sidebarleftwirelesstankmodal({
   );
 
   const [heightFormula, setHeightFormula] = useState(
-    props.heightFormula || "(VALUE-4000)*0.005"
+    props.heightFormula === undefined || props.heightFormula === null
+      ? ""
+      : String(props.heightFormula)
   );
 
   const [units, setUnits] = useState([]);
@@ -266,7 +274,11 @@ export default function Sidebarleftwirelesstankmodal({
         ? ""
         : String(p.realTankHeight)
     );
-    setHeightFormula(p.heightFormula || "(VALUE-4000)*0.005");
+    setHeightFormula(
+      p.heightFormula === undefined || p.heightFormula === null
+        ? ""
+        : String(p.heightFormula)
+    );
   }, [tank]);
 
   useEffect(() => {
@@ -593,12 +605,7 @@ export default function Sidebarleftwirelesstankmodal({
                     boxShadow: "0 1px 2px rgba(15,23,42,0.06)",
                   }}
                 >
-                  <div
-                    style={{
-                      ...labelStyle,
-                      textAlign: "center",
-                    }}
-                  >
+                  <div style={{ ...labelStyle, textAlign: "center" }}>
                     Real Tank Height
                   </div>
 
@@ -613,7 +620,7 @@ export default function Sidebarleftwirelesstankmodal({
                       fontFamily: "monospace",
                       fontWeight: 900,
                     }}
-                    placeholder="ex: 157"
+                    placeholder="ex: 48"
                   />
                 </div>
 
