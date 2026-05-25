@@ -2,21 +2,18 @@
 import React, { useMemo } from "react";
 import Sidebarleftwirelesstank from "./Sidebarleftwirelesstank";
 
-// Same strict AI reader as your other draggable tanks
-function readAiField(row, bindField) {
-  if (!row || !bindField) return null;
+function readField(row, field) {
+  if (!row || !field) return null;
 
-  const f = String(bindField || "").trim().toLowerCase();
-  if (!/^ai[1-8]$/.test(f)) return null;
+  const rawField = String(field || "").trim();
+  const f = rawField.toLowerCase();
 
-  const n = f.replace("ai", "");
   const candidates = [
+    rawField,
     f,
-    f.toUpperCase(),
-    `ai_${n}`,
-    `AI_${n}`,
-    `ai-${n}`,
-    `AI-${n}`,
+    rawField.toUpperCase(),
+    f.replace(/-/g, "_"),
+    f.replace(/_/g, "-"),
   ];
 
   for (const k of candidates) {
@@ -34,6 +31,7 @@ function getTelemetryRow(telemetryMap, model, deviceId) {
   const m = String(model || "").trim();
 
   if (m && telemetryMap?.[m]?.[id]) return telemetryMap[m][id];
+  if (telemetryMap?.[id]) return telemetryMap[id];
 
   for (const mk of Object.keys(telemetryMap || {})) {
     if (telemetryMap?.[mk]?.[id]) return telemetryMap[mk][id];
@@ -42,11 +40,42 @@ function getTelemetryRow(telemetryMap, model, deviceId) {
   return null;
 }
 
-function computeMathOutput(liveValue, formula) {
+function mmToIn(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  return n / 25.4;
+}
+
+function cToF(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return null;
+  return (n * 9) / 5 + 32;
+}
+
+function formatNumber(value, digits = 2) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return "--";
+  return n.toFixed(digits);
+}
+
+function formatDateTime(value) {
+  if (!value) return "--";
+
+  const d = new Date(value);
+  if (Number.isNaN(d.getTime())) return String(value);
+
+  return d.toLocaleString();
+}
+
+function computeMathOutput(liveValue, formula, realTankHeight) {
   const f = String(formula || "").trim();
   if (!f) return liveValue;
 
-  const VALUE = liveValue;
+  const VALUE = Number(liveValue);
+  const REAL_TANK_HEIGHT = Number(realTankHeight);
+  const TANK_HEIGHT = REAL_TANK_HEIGHT;
+
+  if (!Number.isFinite(VALUE)) return liveValue;
 
   const upper = f.toUpperCase();
   if (upper.startsWith("CONCAT(") && f.endsWith(")")) {
@@ -73,13 +102,25 @@ function computeMathOutput(liveValue, formula) {
       .map((p) => {
         if (!p) return "";
         if (p === "VALUE" || p === "value") return VALUE ?? "";
+        if (p === "REAL_TANK_HEIGHT") return REAL_TANK_HEIGHT ?? "";
+        if (p === "TANK_HEIGHT") return TANK_HEIGHT ?? "";
         if (p.startsWith('"') && p.endsWith('"')) return p.slice(1, -1);
 
         try {
-          const expr = p.replace(/\bVALUE\b/gi, "VALUE");
+          const expr = p
+            .replace(/\bVALUE\b/gi, "VALUE")
+            .replace(/\bREAL_TANK_HEIGHT\b/g, "REAL_TANK_HEIGHT")
+            .replace(/\bTANK_HEIGHT\b/g, "TANK_HEIGHT");
+
           // eslint-disable-next-line no-new-func
-          const fn = new Function("VALUE", `return (${expr});`);
-          const r = fn(VALUE);
+          const fn = new Function(
+            "VALUE",
+            "REAL_TANK_HEIGHT",
+            "TANK_HEIGHT",
+            `return (${expr});`
+          );
+
+          const r = fn(VALUE, REAL_TANK_HEIGHT, TANK_HEIGHT);
           return r ?? "";
         } catch {
           return "";
@@ -89,10 +130,20 @@ function computeMathOutput(liveValue, formula) {
   }
 
   try {
-    const expr = f.replace(/\bVALUE\b/gi, "VALUE");
+    const expr = f
+      .replace(/\bVALUE\b/gi, "VALUE")
+      .replace(/\bREAL_TANK_HEIGHT\b/g, "REAL_TANK_HEIGHT")
+      .replace(/\bTANK_HEIGHT\b/g, "TANK_HEIGHT");
+
     // eslint-disable-next-line no-new-func
-    const fn = new Function("VALUE", `return (${expr});`);
-    return fn(VALUE);
+    const fn = new Function(
+      "VALUE",
+      "REAL_TANK_HEIGHT",
+      "TANK_HEIGHT",
+      `return (${expr});`
+    );
+
+    return fn(VALUE, REAL_TANK_HEIGHT, TANK_HEIGHT);
   } catch {
     return liveValue;
   }
@@ -106,21 +157,36 @@ export default function Draggablewirelesstank({
   const props = tank?.properties || {};
   const scale = tank?.scale || 1;
 
-  const unit = String(props.unit || "").trim();
+  const unit = String(props.unit || "in").trim();
 
   const strokeColor = String(
     props.strokeColor || props.lineColor || "#111827"
   ).trim();
 
-  const bindModel = String(props.bindModel || "zhc1921").trim();
-  const bindDeviceId = String(props.bindDeviceId || "").trim();
-  const bindField = String(props.bindField || "ai1").trim();
-
-  const formula = String(
-    props.formula ?? props.mathFormula ?? props.math ?? props.mathExpr ?? ""
+  const bindModel = String(props.bindModel || "cfr100").trim();
+  const bindDeviceId = String(
+    props.bindDeviceId || props.bindImei || props.unitId || ""
   ).trim();
 
-  const hasBinding = !!bindDeviceId && !!bindField;
+  const bindHeightField = String(props.bindHeightField || "height_mm").trim();
+  const bindTemperatureField = String(
+    props.bindTemperatureField || "temperature_c"
+  ).trim();
+  const bindBatteryField = String(props.bindBatteryField || "battery_v").trim();
+  const bindDateField = String(props.bindDateField || "received_at").trim();
+
+  const formula = String(
+    props.heightFormula ??
+      props.formula ??
+      props.mathFormula ??
+      props.math ??
+      props.mathExpr ??
+      ""
+  ).trim();
+
+  const realTankHeight = String(props.realTankHeight || "").trim();
+
+  const hasBinding = !!bindDeviceId;
 
   const telemetryRow = useMemo(() => {
     if (!isPlay) return null;
@@ -132,50 +198,142 @@ export default function Draggablewirelesstank({
     .trim()
     .toLowerCase();
 
-  const deviceIsOffline =
-    isPlay && hasBinding && backendStatus === "offline";
+  const deviceIsOffline = isPlay && hasBinding && backendStatus === "offline";
 
-  const deviceIsOnline = backendStatus
-    ? backendStatus === "online"
-    : true;
+  const deviceIsOnline = backendStatus ? backendStatus === "online" : true;
 
-  const liveValue = useMemo(() => {
-    if (!isPlay) return null;
-    if (!hasBinding) return null;
-    if (!deviceIsOnline) return null;
+  const liveRawHeightIn = useMemo(() => {
+    if (!isPlay || !hasBinding || !deviceIsOnline) {
+      const saved = Number(props.rawHeightValue);
+      return Number.isFinite(saved) ? saved : null;
+    }
 
-    const raw = telemetryRow
-      ? readAiField(telemetryRow, bindField)
+    const rawHeight = telemetryRow
+      ? readField(telemetryRow, bindHeightField)
       : null;
 
-    const num =
-      raw === null || raw === undefined || raw === ""
+    const rawNumber =
+      rawHeight === null || rawHeight === undefined || rawHeight === ""
         ? null
-        : typeof raw === "number"
-        ? raw
-        : Number(raw);
+        : Number(rawHeight);
 
-    return Number.isFinite(num) ? num : null;
-  }, [isPlay, hasBinding, deviceIsOnline, telemetryRow, bindField]);
+    if (!Number.isFinite(rawNumber)) {
+      const saved = Number(props.rawHeightValue);
+      return Number.isFinite(saved) ? saved : null;
+    }
+
+    if (String(bindHeightField).toLowerCase().includes("mm")) {
+      return mmToIn(rawNumber);
+    }
+
+    return rawNumber;
+  }, [
+    isPlay,
+    hasBinding,
+    deviceIsOnline,
+    telemetryRow,
+    bindHeightField,
+    props.rawHeightValue,
+  ]);
 
   const outputValue = useMemo(() => {
-    if (!isPlay) return null;
-    return computeMathOutput(liveValue, formula);
-  }, [isPlay, liveValue, formula]);
+    const fallbackSaved = Number(props.heightValue || props.heightOutputValue);
+
+    if (!isPlay) {
+      return Number.isFinite(fallbackSaved) ? fallbackSaved : null;
+    }
+
+    if (!hasBinding || !deviceIsOnline) {
+      return Number.isFinite(fallbackSaved) ? fallbackSaved : null;
+    }
+
+    return computeMathOutput(liveRawHeightIn, formula, realTankHeight);
+  }, [
+    isPlay,
+    hasBinding,
+    deviceIsOnline,
+    liveRawHeightIn,
+    formula,
+    realTankHeight,
+    props.heightValue,
+    props.heightOutputValue,
+  ]);
 
   const outputText = useMemo(() => {
-    if (!hasBinding) return "--";
-    if (!isPlay) return "--";
-    if (!deviceIsOnline) return "--";
-
     if (typeof outputValue === "string") return outputValue || "--";
 
     const n = Number(outputValue);
-
     if (!Number.isFinite(n)) return "--";
 
-    return String(Math.round(n));
-  }, [hasBinding, isPlay, deviceIsOnline, outputValue]);
+    return n.toFixed(2);
+  }, [outputValue]);
+
+  const temperatureText = useMemo(() => {
+    const saved = props.temperatureValue || "--";
+
+    if (!isPlay || !hasBinding || !deviceIsOnline || !telemetryRow) {
+      return saved;
+    }
+
+    const raw = readField(telemetryRow, bindTemperatureField);
+    const n = Number(raw);
+
+    if (!Number.isFinite(n)) return saved;
+
+    const f = String(bindTemperatureField).toLowerCase().includes("_c")
+      ? cToF(n)
+      : n;
+
+    return Number.isFinite(f) ? `${formatNumber(f, 1)} °F` : saved;
+  }, [
+    isPlay,
+    hasBinding,
+    deviceIsOnline,
+    telemetryRow,
+    bindTemperatureField,
+    props.temperatureValue,
+  ]);
+
+  const batteryText = useMemo(() => {
+    const saved = props.batteryValue || "--";
+
+    if (!isPlay || !hasBinding || !deviceIsOnline || !telemetryRow) {
+      return saved;
+    }
+
+    const raw = readField(telemetryRow, bindBatteryField);
+    const n = Number(raw);
+
+    if (!Number.isFinite(n)) return saved;
+
+    return `${formatNumber(n, 2)} V`;
+  }, [
+    isPlay,
+    hasBinding,
+    deviceIsOnline,
+    telemetryRow,
+    bindBatteryField,
+    props.batteryValue,
+  ]);
+
+  const dateText = useMemo(() => {
+    const saved = props.dateValue || "--";
+
+    if (!isPlay || !hasBinding || !deviceIsOnline || !telemetryRow) {
+      return saved;
+    }
+
+    const raw = readField(telemetryRow, bindDateField);
+
+    return raw ? formatDateTime(raw) : saved;
+  }, [
+    isPlay,
+    hasBinding,
+    deviceIsOnline,
+    telemetryRow,
+    bindDateField,
+    props.dateValue,
+  ]);
 
   return (
     <div style={{ textAlign: "center", pointerEvents: "none" }}>
@@ -183,6 +341,15 @@ export default function Draggablewirelesstank({
         <Sidebarleftwirelesstank
           size={180 * scale}
           strokeColor={strokeColor}
+          liquidTankLevelValue={
+            outputText !== "--" && unit ? `${outputText} ${unit}` : outputText
+          }
+          heightValue={
+            outputText !== "--" && unit ? `${outputText} ${unit}` : outputText
+          }
+          temperatureValue={temperatureText}
+          batteryValue={batteryText}
+          dateValue={dateText}
         />
 
         {deviceIsOffline && (
@@ -209,21 +376,6 @@ export default function Draggablewirelesstank({
             Offline
           </div>
         )}
-      </div>
-
-      <div
-        style={{
-          marginTop: 4,
-          fontFamily: "monospace",
-          fontSize: `${15 * scale}px`,
-          fontWeight: 700,
-          color: strokeColor,
-          display: isPlay && hasBinding ? "block" : "none",
-          userSelect: "none",
-        }}
-      >
-        {outputText}
-        {unit ? ` ${unit}` : ""}
       </div>
     </div>
   );
