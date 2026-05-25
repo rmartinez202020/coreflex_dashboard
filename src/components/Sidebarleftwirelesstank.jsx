@@ -36,31 +36,12 @@ export default function Sidebarleftwirelesstank({
 
   const showLiquid = fillPercent > 0.001;
 
-  function interp(bottom, top, percent) {
-    return {
-      x: bottom.x + (top.x - bottom.x) * percent,
-      y: bottom.y + (top.y - bottom.y) * percent,
-    };
-  }
+  const yLeft = 385 - fillPercent * 250;
+  const yFront = 452 - fillPercent * 275;
+  const yBack = 405 - fillPercent * 275;
 
-  const frontLeftBottom = { x: 30, y: 385 };
-  const frontRightBottom = { x: 135, y: 452 };
-  const backRightBottom = { x: 492, y: 405 };
-
-  const frontLeftTop = { x: 30, y: 104 };
-  const frontRightTop = { x: 135, y: 125 };
-  const backRightTop = { x: 492, y: 104 };
-
-  const lf = interp(frontLeftBottom, frontLeftTop, fillPercent);
-  const rf = interp(frontRightBottom, frontRightTop, fillPercent);
-  const rb = interp(backRightBottom, backRightTop, fillPercent);
-
-  // ✅ This fixes the bad high triangle.
-  // The center/back surface point now follows the same liquid plane.
-  const centerBack = {
-    x: 360,
-    y: rb.y + (rf.y - rb.y) * 0.45,
-  };
+  // ✅ fixed: center follows perspective surface, not full tank height
+  const yCenter = (yFront + yBack) / 2 - 12;
 
   return (
     <svg
@@ -77,51 +58,38 @@ export default function Sidebarleftwirelesstank({
     >
       {showLiquid && (
         <g>
-          {/* front liquid face */}
           <polygon
             points={`
-              ${frontLeftBottom.x},${frontLeftBottom.y}
-              ${frontRightBottom.x},${frontRightBottom.y}
-              ${rf.x},${rf.y}
-              ${lf.x},${lf.y}
+              30,385
+              135,452
+              492,405
+              492,${yBack}
+              360,${yCenter}
+              135,${yFront}
+              30,${yLeft}
             `}
             fill="rgba(255,235,120,0.64)"
             stroke="none"
           />
 
-          {/* right liquid face */}
           <polygon
             points={`
-              ${frontRightBottom.x},${frontRightBottom.y}
-              ${backRightBottom.x},${backRightBottom.y}
-              ${rb.x},${rb.y}
-              ${centerBack.x},${centerBack.y}
-              ${rf.x},${rf.y}
-            `}
-            fill="rgba(255,225,80,0.58)"
-            stroke="none"
-          />
-
-          {/* top liquid surface */}
-          <polygon
-            points={`
-              ${lf.x},${lf.y}
-              ${rf.x},${rf.y}
-              ${centerBack.x},${centerBack.y}
-              ${rb.x},${rb.y}
+              30,${yLeft}
+              135,${yFront}
+              360,${yCenter}
+              492,${yBack}
             `}
             fill="rgba(255,245,150,0.84)"
             stroke="rgba(180,150,40,0.45)"
             strokeWidth="1.5"
           />
 
-          {/* liquid surface line */}
           <path
             d={`
-              M ${lf.x} ${lf.y}
-              L ${rf.x} ${rf.y}
-              L ${centerBack.x} ${centerBack.y}
-              L ${rb.x} ${rb.y}
+              M30 ${yLeft}
+              L135 ${yFront}
+              L360 ${yCenter}
+              L492 ${yBack}
             `}
             stroke="rgba(180,150,40,0.65)"
             strokeWidth="2"
@@ -207,98 +175,46 @@ export default function Sidebarleftwirelesstank({
       {showTelemetry && (
         <g>
           <circle cx="560" cy="130" r="30" fill="rgba(34,197,94,0.18)" />
-          <text
-            x="560"
-            y="130"
-            fill="#16a34a"
-            fontSize="34"
-            textAnchor="middle"
-            dominantBaseline="central"
-          >
+          <text x="560" y="130" fill="#16a34a" fontSize="34" textAnchor="middle" dominantBaseline="central">
             ↕
           </text>
           <text x="625" y="122" fill="#0f172a" fontSize="24">
             Liquid Tank Level
           </text>
-          <text
-            x="625"
-            y="160"
-            fill="#16a34a"
-            fontSize="36"
-            fontFamily="monospace"
-          >
+          <text x="625" y="160" fill="#16a34a" fontSize="36" fontFamily="monospace">
             {tankLevelValue}
           </text>
 
           <circle cx="560" cy="220" r="30" fill="rgba(249,115,22,0.18)" />
-          <text
-            x="560"
-            y="220"
-            fill="#ea580c"
-            fontSize="34"
-            textAnchor="middle"
-            dominantBaseline="central"
-          >
+          <text x="560" y="220" fill="#ea580c" fontSize="34" textAnchor="middle" dominantBaseline="central">
             ♨
           </text>
           <text x="625" y="212" fill="#0f172a" fontSize="24">
             Temperature
           </text>
-          <text
-            x="625"
-            y="250"
-            fill="#ea580c"
-            fontSize="36"
-            fontFamily="monospace"
-          >
+          <text x="625" y="250" fill="#ea580c" fontSize="36" fontFamily="monospace">
             {temperatureValue}
           </text>
 
           <circle cx="560" cy="310" r="30" fill="rgba(34,197,94,0.18)" />
-          <text
-            x="560"
-            y="310"
-            fill="#16a34a"
-            fontSize="30"
-            textAnchor="middle"
-            dominantBaseline="central"
-          >
+          <text x="560" y="310" fill="#16a34a" fontSize="30" textAnchor="middle" dominantBaseline="central">
             🔋
           </text>
           <text x="625" y="302" fill="#0f172a" fontSize="24">
             Battery
           </text>
-          <text
-            x="625"
-            y="340"
-            fill="#16a34a"
-            fontSize="36"
-            fontFamily="monospace"
-          >
+          <text x="625" y="340" fill="#16a34a" fontSize="36" fontFamily="monospace">
             {batteryValue}
           </text>
 
           <circle cx="560" cy="400" r="30" fill="rgba(59,130,246,0.18)" />
-          <text
-            x="560"
-            y="400"
-            fill="#2563eb"
-            fontSize="34"
-            textAnchor="middle"
-            dominantBaseline="central"
-          >
+          <text x="560" y="400" fill="#2563eb" fontSize="34" textAnchor="middle" dominantBaseline="central">
             ▣
           </text>
           <text x="625" y="392" fill="#0f172a" fontSize="24">
             Date
           </text>
-          <text
-            x="625"
-            y="430"
-            fill="#2563eb"
-            fontSize="26"
-            fontFamily="monospace"
-          >
+          <text x="625" y="430" fill="#2563eb" fontSize="26" fontFamily="monospace">
             {dateValue}
           </text>
         </g>
