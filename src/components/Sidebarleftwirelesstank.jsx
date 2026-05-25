@@ -40,8 +40,9 @@ export default function Sidebarleftwirelesstank({
   const yFront = 452 - fillPercent * 275;
   const yBack = 405 - fillPercent * 275;
 
-  // ✅ fixed: center follows perspective surface, not full tank height
-  const yCenter = (yFront + yBack) / 2 - 12;
+  // ✅ FIX: center follows the left/back liquid plane.
+  // This removes the wrong high triangle.
+  const yCenter = (yLeft + yBack) / 2 - 8;
 
   return (
     <svg
@@ -175,46 +176,98 @@ export default function Sidebarleftwirelesstank({
       {showTelemetry && (
         <g>
           <circle cx="560" cy="130" r="30" fill="rgba(34,197,94,0.18)" />
-          <text x="560" y="130" fill="#16a34a" fontSize="34" textAnchor="middle" dominantBaseline="central">
+          <text
+            x="560"
+            y="130"
+            fill="#16a34a"
+            fontSize="34"
+            textAnchor="middle"
+            dominantBaseline="central"
+          >
             ↕
           </text>
           <text x="625" y="122" fill="#0f172a" fontSize="24">
             Liquid Tank Level
           </text>
-          <text x="625" y="160" fill="#16a34a" fontSize="36" fontFamily="monospace">
+          <text
+            x="625"
+            y="160"
+            fill="#16a34a"
+            fontSize="36"
+            fontFamily="monospace"
+          >
             {tankLevelValue}
           </text>
 
           <circle cx="560" cy="220" r="30" fill="rgba(249,115,22,0.18)" />
-          <text x="560" y="220" fill="#ea580c" fontSize="34" textAnchor="middle" dominantBaseline="central">
+          <text
+            x="560"
+            y="220"
+            fill="#ea580c"
+            fontSize="34"
+            textAnchor="middle"
+            dominantBaseline="central"
+          >
             ♨
           </text>
           <text x="625" y="212" fill="#0f172a" fontSize="24">
             Temperature
           </text>
-          <text x="625" y="250" fill="#ea580c" fontSize="36" fontFamily="monospace">
+          <text
+            x="625"
+            y="250"
+            fill="#ea580c"
+            fontSize="36"
+            fontFamily="monospace"
+          >
             {temperatureValue}
           </text>
 
           <circle cx="560" cy="310" r="30" fill="rgba(34,197,94,0.18)" />
-          <text x="560" y="310" fill="#16a34a" fontSize="30" textAnchor="middle" dominantBaseline="central">
+          <text
+            x="560"
+            y="310"
+            fill="#16a34a"
+            fontSize="30"
+            textAnchor="middle"
+            dominantBaseline="central"
+          >
             🔋
           </text>
           <text x="625" y="302" fill="#0f172a" fontSize="24">
             Battery
           </text>
-          <text x="625" y="340" fill="#16a34a" fontSize="36" fontFamily="monospace">
+          <text
+            x="625"
+            y="340"
+            fill="#16a34a"
+            fontSize="36"
+            fontFamily="monospace"
+          >
             {batteryValue}
           </text>
 
           <circle cx="560" cy="400" r="30" fill="rgba(59,130,246,0.18)" />
-          <text x="560" y="400" fill="#2563eb" fontSize="34" textAnchor="middle" dominantBaseline="central">
+          <text
+            x="560"
+            y="400"
+            fill="#2563eb"
+            fontSize="34"
+            textAnchor="middle"
+            dominantBaseline="central"
+          >
             ▣
           </text>
           <text x="625" y="392" fill="#0f172a" fontSize="24">
             Date
           </text>
-          <text x="625" y="430" fill="#2563eb" fontSize="26" fontFamily="monospace">
+          <text
+            x="625"
+            y="430"
+            fill="#2563eb"
+            fontSize="26"
+            fontFamily="monospace"
+          >
             {dateValue}
           </text>
         </g>
