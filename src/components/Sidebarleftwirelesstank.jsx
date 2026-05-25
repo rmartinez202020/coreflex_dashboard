@@ -47,10 +47,9 @@ export default function Sidebarleftwirelesstank({
   const rf = interp(frontRightBottom, frontRightTop, fillPercent);
   const rb = interp(backRightBottom, backRightTop, fillPercent);
 
-  // ✅ Corrected top-surface point: follows perspective, does not jump too high
   const centerBack = {
     x: 360,
-    y: Math.min(rf.y, rb.y) - 18,
+    y: rb.y + (rf.y - rb.y) * 0.45,
   };
 
   const showLiquid = fillPercent > 0.001;
@@ -66,7 +65,6 @@ export default function Sidebarleftwirelesstank({
     >
       {showLiquid && (
         <g>
-          {/* front liquid face */}
           <polygon
             points={`
               ${frontLeftBottom.x},${frontLeftBottom.y}
@@ -78,7 +76,6 @@ export default function Sidebarleftwirelesstank({
             stroke="none"
           />
 
-          {/* right liquid face */}
           <polygon
             points={`
               ${frontRightBottom.x},${frontRightBottom.y}
@@ -91,7 +88,6 @@ export default function Sidebarleftwirelesstank({
             stroke="none"
           />
 
-          {/* top liquid surface */}
           <polygon
             points={`
               ${lf.x},${lf.y}
