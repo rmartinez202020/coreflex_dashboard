@@ -606,7 +606,7 @@ export default function Sidebarleftwirelesstankmodal({
                   }}
                 >
                   <div style={{ ...labelStyle, textAlign: "center" }}>
-                    Real Tank Height
+                    Tank Height
                   </div>
 
                   <input
