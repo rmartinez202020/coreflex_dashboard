@@ -43,7 +43,6 @@ export default function Sidebarleftwirelesstank({
   fillPercent = Math.max(0, Math.min(1, fillPercent));
 
   // ✅ Corrected 3D tank liquid geometry.
-  // These points follow the actual visible tank shape.
   const frontLeftBottom = { x: 30, y: 385 };
   const frontRightBottom = { x: 135, y: 452 };
   const backRightBottom = { x: 492, y: 405 };
@@ -62,6 +61,12 @@ export default function Sidebarleftwirelesstank({
   const liquidFrontLeft = interp(frontLeftBottom, frontLeftTop, fillPercent);
   const liquidFrontRight = interp(frontRightBottom, frontRightTop, fillPercent);
   const liquidBackRight = interp(backRightBottom, backRightTop, fillPercent);
+
+  // ✅ Back/top surface point to complete the 3D liquid top.
+  const liquidBackCenter = {
+    x: 360,
+    y: liquidFrontRight.y - 28,
+  };
 
   const showLiquid = fillPercent > 0.001;
 
@@ -84,6 +89,7 @@ export default function Sidebarleftwirelesstank({
 
       {showLiquid && (
         <g>
+          {/* liquid body */}
           <polygon
             points={`
               ${frontLeftBottom.x},${frontLeftBottom.y}
@@ -97,11 +103,27 @@ export default function Sidebarleftwirelesstank({
             stroke="none"
           />
 
+          {/* ✅ liquid top surface */}
+          <polygon
+            points={`
+              ${liquidFrontLeft.x},${liquidFrontLeft.y}
+              ${liquidFrontRight.x},${liquidFrontRight.y}
+              ${liquidBackRight.x},${liquidBackRight.y}
+              ${liquidBackCenter.x},${liquidBackCenter.y}
+            `}
+            fill="rgba(255,245,150,0.82)"
+            stroke="rgba(180,150,40,0.45)"
+            strokeWidth="1.5"
+          />
+
+          {/* liquid top perspective line */}
           <path
             d={`
               M ${liquidFrontLeft.x} ${liquidFrontLeft.y}
               L ${liquidFrontRight.x} ${liquidFrontRight.y}
               L ${liquidBackRight.x} ${liquidBackRight.y}
+              L ${liquidBackCenter.x} ${liquidBackCenter.y}
+              Z
             `}
             stroke="rgba(180,150,40,0.65)"
             strokeWidth="2"
