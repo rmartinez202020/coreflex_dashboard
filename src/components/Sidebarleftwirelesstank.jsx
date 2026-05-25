@@ -8,7 +8,7 @@ export default function Sidebarleftwirelesstank({
   heightValue = "--",
   liquidTankLevelValue,
 
-  // ✅ NEW
+  // ✅ Liquid fill inputs
   liquidLevelNumeric = null,
   tankHeightNumeric = null,
 
@@ -26,6 +26,7 @@ export default function Sidebarleftwirelesstank({
       : heightValue;
 
   // ✅ Liquid fill percentage
+  // 0 = empty, 1 = full
   const liquidValue = Number(liquidLevelNumeric);
   const tankHeight = Number(tankHeightNumeric);
 
@@ -41,8 +42,28 @@ export default function Sidebarleftwirelesstank({
 
   fillPercent = Math.max(0, Math.min(1, fillPercent));
 
-  // Tank liquid geometry
-  const liquidTopY = 385 - fillPercent * 220;
+  // ✅ Corrected 3D tank liquid geometry.
+  // These points follow the actual visible tank shape.
+  const frontLeftBottom = { x: 30, y: 385 };
+  const frontRightBottom = { x: 135, y: 452 };
+  const backRightBottom = { x: 492, y: 405 };
+
+  const frontLeftTop = { x: 30, y: 104 };
+  const frontRightTop = { x: 135, y: 125 };
+  const backRightTop = { x: 492, y: 104 };
+
+  function interp(bottom, top, percent) {
+    return {
+      x: bottom.x + (top.x - bottom.x) * percent,
+      y: bottom.y + (top.y - bottom.y) * percent,
+    };
+  }
+
+  const liquidFrontLeft = interp(frontLeftBottom, frontLeftTop, fillPercent);
+  const liquidFrontRight = interp(frontRightBottom, frontRightTop, fillPercent);
+  const liquidBackRight = interp(backRightBottom, backRightTop, fillPercent);
+
+  const showLiquid = fillPercent > 0.001;
 
   return (
     <svg
@@ -58,31 +79,37 @@ export default function Sidebarleftwirelesstank({
       }}
     >
       {/* ========================= */}
-      {/* ✅ LIQUID FILL */}
+      {/* ✅ LIQUID FILL - FIXED */}
       {/* ========================= */}
 
-      <polygon
-        points={`
-          135,385
-          135,${liquidTopY}
-          360,${liquidTopY - 25}
-          492,${liquidTopY + 8}
-          492,405
-        `}
-        fill="rgba(255,235,120,0.72)"
-        stroke="none"
-      />
+      {showLiquid && (
+        <g>
+          <polygon
+            points={`
+              ${frontLeftBottom.x},${frontLeftBottom.y}
+              ${frontRightBottom.x},${frontRightBottom.y}
+              ${backRightBottom.x},${backRightBottom.y}
+              ${liquidBackRight.x},${liquidBackRight.y}
+              ${liquidFrontRight.x},${liquidFrontRight.y}
+              ${liquidFrontLeft.x},${liquidFrontLeft.y}
+            `}
+            fill="rgba(255,235,120,0.72)"
+            stroke="none"
+          />
 
-      {/* liquid top line */}
-      <line
-        x1="135"
-        y1={liquidTopY}
-        x2="492"
-        y2={liquidTopY + 8}
-        stroke="rgba(180,150,40,0.55)"
-        strokeWidth="2"
-        strokeDasharray="5 5"
-      />
+          <path
+            d={`
+              M ${liquidFrontLeft.x} ${liquidFrontLeft.y}
+              L ${liquidFrontRight.x} ${liquidFrontRight.y}
+              L ${liquidBackRight.x} ${liquidBackRight.y}
+            `}
+            stroke="rgba(180,150,40,0.65)"
+            strokeWidth="2"
+            strokeDasharray="5 5"
+            fill="none"
+          />
+        </g>
+      )}
 
       <g
         stroke={strokeColor}
