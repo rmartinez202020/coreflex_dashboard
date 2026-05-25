@@ -31,10 +31,8 @@ function cToF(value) {
 
 function formatDateTime(value) {
   if (!value) return "--";
-
   const d = new Date(value);
   if (Number.isNaN(d.getTime())) return String(value);
-
   return d.toLocaleString();
 }
 
@@ -209,11 +207,13 @@ export default function Sidebarleftwirelesstankmodal({
           r.raw_imei_bytes || r.rawImeiBytes || r.imei || ""
         );
 
+        const heightIn = mmToIn(r.height_mm);
+
         return {
           unitId: imei,
           status: r.received_at ? "online" : "offline",
           height_mm: r.height_mm,
-          height_in: mmToIn(r.height_mm),
+          height_in: heightIn,
           temperature_c: r.temperature_c,
           temperature_F: cToF(r.temperature_c),
           battery_V:
@@ -276,9 +276,10 @@ export default function Sidebarleftwirelesstankmodal({
     return units.find((u) => String(u.unitId) === String(unitId)) || null;
   }, [units, unitId]);
 
-  const liveRawHeightMm = selectedUnit?.height_mm ?? "--";
-  const liveHeight = selectedUnit?.height_in || "--";
-  const liveMathOutput = evaluateHeightFormula(heightFormula, liveRawHeightMm);
+  // ✅ Raw Height for the math section is the same Raw Height shown in telemetry.
+  const liveRawHeight = selectedUnit?.height_in || "--";
+  const liveMathOutput = evaluateHeightFormula(heightFormula, liveRawHeight);
+
   const liveTemperature = selectedUnit?.temperature_F || "--";
   const liveBattery = selectedUnit?.battery_V || "--";
   const liveDate = selectedUnit?.received_at || "--";
@@ -499,7 +500,7 @@ export default function Sidebarleftwirelesstankmodal({
                 }}
               >
                 This wireless tank binds to the user’s registered CF-R100 sensor
-                by IMEI. The math section uses the live Raw Height value.
+                by IMEI. Live VALUE uses the same Raw Height shown in telemetry.
               </div>
             </div>
 
@@ -579,7 +580,7 @@ export default function Sidebarleftwirelesstankmodal({
                       textAlign: "center",
                     }}
                   >
-                    {liveRawHeightMm}
+                    {liveRawHeight}
                   </div>
                 </div>
 
@@ -610,7 +611,7 @@ export default function Sidebarleftwirelesstankmodal({
                 <textarea
                   value={heightFormula}
                   onChange={(e) => setHeightFormula(e.target.value)}
-                  placeholder="Example: (VALUE-4000)*0.005"
+                  placeholder="Example: VALUE - 100"
                   style={{
                     minHeight: 74,
                     borderRadius: 10,
@@ -657,7 +658,7 @@ export default function Sidebarleftwirelesstankmodal({
                   </div>
                   <div>(VALUE * 1.5) + 5</div>
                   <div>(VALUE / 4095) * 20 - 4</div>
-                  <div>(VALUE-4000)*0.005</div>
+                  <div>VALUE - 100</div>
                 </div>
 
                 <div>
@@ -665,7 +666,7 @@ export default function Sidebarleftwirelesstankmodal({
                     Current Output
                   </div>
                   <div>VALUE = Raw Height</div>
-                  <div>Output = calculated height</div>
+                  <div>Raw Height = inches</div>
                   <div>Sent to widget as heightValue</div>
                 </div>
               </div>
@@ -791,7 +792,9 @@ export default function Sidebarleftwirelesstankmodal({
                   <TelemetryCard
                     icon="↕"
                     label="Raw Height"
-                    value={`${liveHeight}${liveHeight !== "--" ? " in" : ""}`}
+                    value={`${liveRawHeight}${
+                      liveRawHeight !== "--" ? " in" : ""
+                    }`}
                     accent="#2563eb"
                     bg="rgba(191,219,254,0.7)"
                   />
