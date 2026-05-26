@@ -192,12 +192,12 @@ export default function Sidebarleftwirelesstank({
         <path d="M438 413 L438 421 L461 418 L461 410" />
       </g>
 
-      {/* ✅ Tank fill percentage: black text, no background */}
+      {/* ✅ Smaller + more to the right */}
       <text
-        x="250"
-        y="270"
+        x="305"
+        y="255"
         fill="#000000"
-        fontSize="54"
+        fontSize="40"
         fontWeight="900"
         fontFamily="Arial, Helvetica, sans-serif"
         textAnchor="middle"
