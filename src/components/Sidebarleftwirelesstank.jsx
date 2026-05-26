@@ -36,14 +36,14 @@ export default function Sidebarleftwirelesstank({
 
   const showLiquid = fillPercent > 0.001;
 
+  const fillPercentLabel = `${Math.round(fillPercent * 100)}%`;
+
   // Liquid surface control points
   const xA = 30;
   const xFront = 135;
   const xB = 360;
   const xC = 492;
 
-  // ✅ Corrected full-tank geometry:
-  // When fillPercent is almost 1, the liquid must reach almost the top plane.
   const leftBottomY = 385;
   const frontBottomY = 452;
   const backBottomY = 405;
@@ -191,6 +191,21 @@ export default function Sidebarleftwirelesstank({
         <path d="M432 413 L432 428 L468 423 L468 409" />
         <path d="M438 413 L438 421 L461 418 L461 410" />
       </g>
+
+      {/* ✅ Tank fill percentage: black text, no background */}
+      <text
+        x="250"
+        y="270"
+        fill="#000000"
+        fontSize="54"
+        fontWeight="900"
+        fontFamily="Arial, Helvetica, sans-serif"
+        textAnchor="middle"
+        dominantBaseline="central"
+        pointerEvents="none"
+      >
+        {fillPercentLabel}
+      </text>
 
       {showTelemetry && (
         <g>
