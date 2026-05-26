@@ -42,9 +42,19 @@ export default function Sidebarleftwirelesstank({
   const xB = 360;
   const xC = 492;
 
-  const yLeft = 385 - fillPercent * 250;
-  const yFront = 452 - fillPercent * 275;
-  const yBack = 405 - fillPercent * 275;
+  // ✅ Corrected full-tank geometry:
+  // When fillPercent is almost 1, the liquid must reach almost the top plane.
+  const leftBottomY = 385;
+  const frontBottomY = 452;
+  const backBottomY = 405;
+
+  const leftTopY = 104;
+  const frontTopY = 125;
+  const backTopY = 104;
+
+  const yLeft = leftBottomY - fillPercent * (leftBottomY - leftTopY);
+  const yFront = frontBottomY - fillPercent * (frontBottomY - frontTopY);
+  const yBack = backBottomY - fillPercent * (backBottomY - backTopY);
 
   // ✅ Keep angle B as-is.
   // ✅ Modify angle A to match B.
@@ -66,7 +76,6 @@ export default function Sidebarleftwirelesstank({
     >
       {showLiquid && (
         <g>
-          {/* liquid body */}
           <polygon
             points={`
               30,385
@@ -81,7 +90,6 @@ export default function Sidebarleftwirelesstank({
             stroke="none"
           />
 
-          {/* liquid top surface: A and B now have the same angle */}
           <polygon
             points={`
               30,${yLeft}
@@ -94,7 +102,6 @@ export default function Sidebarleftwirelesstank({
             strokeWidth="1.5"
           />
 
-          {/* liquid surface lines */}
           <path
             d={`
               M30 ${yLeft}
