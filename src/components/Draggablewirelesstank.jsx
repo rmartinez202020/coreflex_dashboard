@@ -220,10 +220,9 @@ export default function Draggablewirelesstank({
     .toLowerCase();
 
   const deviceIsOffline = isPlay && hasBinding && backendStatus === "offline";
-  const deviceIsOnline = backendStatus ? backendStatus === "online" : true;
 
   const liveRawHeightIn = useMemo(() => {
-    if (!isPlay || !hasBinding || !deviceIsOnline) {
+    if (!isPlay || !hasBinding) {
       const saved = Number(props.rawHeightValue);
       return Number.isFinite(saved) ? saved : null;
     }
@@ -248,7 +247,6 @@ export default function Draggablewirelesstank({
   }, [
     isPlay,
     hasBinding,
-    deviceIsOnline,
     telemetryRow,
     bindHeightField,
     props.rawHeightValue,
@@ -261,7 +259,7 @@ export default function Draggablewirelesstank({
       return Number.isFinite(fallbackSaved) ? fallbackSaved : null;
     }
 
-    if (!hasBinding || !deviceIsOnline) {
+    if (!hasBinding) {
       return Number.isFinite(fallbackSaved) ? fallbackSaved : null;
     }
 
@@ -269,7 +267,6 @@ export default function Draggablewirelesstank({
   }, [
     isPlay,
     hasBinding,
-    deviceIsOnline,
     liveRawHeightIn,
     formula,
     realTankHeight,
@@ -295,7 +292,7 @@ export default function Draggablewirelesstank({
   const temperatureText = useMemo(() => {
     const saved = props.temperatureValue || "--";
 
-    if (!isPlay || !hasBinding || !deviceIsOnline || !telemetryRow) {
+    if (!isPlay || !hasBinding || !telemetryRow) {
       return saved;
     }
 
@@ -312,7 +309,6 @@ export default function Draggablewirelesstank({
   }, [
     isPlay,
     hasBinding,
-    deviceIsOnline,
     telemetryRow,
     bindTemperatureField,
     props.temperatureValue,
@@ -321,7 +317,7 @@ export default function Draggablewirelesstank({
   const batteryText = useMemo(() => {
     const saved = props.batteryValue || "--";
 
-    if (!isPlay || !hasBinding || !deviceIsOnline || !telemetryRow) {
+    if (!isPlay || !hasBinding || !telemetryRow) {
       return saved;
     }
 
@@ -334,7 +330,6 @@ export default function Draggablewirelesstank({
   }, [
     isPlay,
     hasBinding,
-    deviceIsOnline,
     telemetryRow,
     bindBatteryField,
     props.batteryValue,
@@ -343,7 +338,7 @@ export default function Draggablewirelesstank({
   const dateText = useMemo(() => {
     const saved = props.dateValue || "--";
 
-    if (!isPlay || !hasBinding || !deviceIsOnline || !telemetryRow) {
+    if (!isPlay || !hasBinding || !telemetryRow) {
       return saved;
     }
 
@@ -353,7 +348,6 @@ export default function Draggablewirelesstank({
   }, [
     isPlay,
     hasBinding,
-    deviceIsOnline,
     telemetryRow,
     bindDateField,
     props.dateValue,
