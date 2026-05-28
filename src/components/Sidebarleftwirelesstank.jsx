@@ -73,8 +73,8 @@ export default function Sidebarleftwirelesstank({
   return (
     <svg
       width={size}
-      height={Math.round(size * 1.15)}
-      viewBox="0 0 980 620"
+      height={Math.round(size * 1.18)}
+      viewBox="0 0 980 650"
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       style={{
@@ -201,7 +201,7 @@ export default function Sidebarleftwirelesstank({
         <path d="M438 413 L438 421 L461 418 L461 410" />
       </g>
 
-      {/* ✅ Smaller + more to the right */}
+      {/* Fill percent */}
       <text
         x="305"
         y="255"
@@ -223,10 +223,10 @@ export default function Sidebarleftwirelesstank({
           x="0"
           y="505"
           width="930"
-          height="84"
+          height="115"
           fill="none"
           stroke="#111827"
-          strokeWidth="1.5"
+          strokeWidth="1.8"
         />
 
         {/* Vertical separators */}
@@ -234,37 +234,37 @@ export default function Sidebarleftwirelesstank({
           x1="310"
           y1="505"
           x2="310"
-          y2="589"
+          y2="620"
           stroke="#111827"
-          strokeWidth="1.2"
+          strokeWidth="1.5"
         />
 
         <line
           x1="620"
           y1="505"
           x2="620"
-          y2="589"
+          y2="620"
           stroke="#111827"
-          strokeWidth="1.2"
+          strokeWidth="1.5"
         />
 
         {/* Horizontal separator */}
         <line
           x1="0"
-          y1="547"
+          y1="560"
           x2="930"
-          y2="547"
+          y2="560"
           stroke="#111827"
-          strokeWidth="1.2"
+          strokeWidth="1.5"
         />
 
         {/* Previous #1 */}
         <text
           x="155"
-          y="535"
+          y="542"
           fill="#000"
-          fontSize="18"
-          fontWeight="700"
+          fontSize="24"
+          fontWeight="800"
           textAnchor="middle"
           fontFamily="Arial"
         >
@@ -273,11 +273,13 @@ export default function Sidebarleftwirelesstank({
 
         <text
           x="155"
-          y="578"
+          y="602"
           fill="#000"
-          fontSize="14"
-          fontWeight="600"
+          fontSize="20"
+          fontWeight="700"
           textAnchor="middle"
+          lengthAdjust="spacingAndGlyphs"
+          textLength="270"
           fontFamily="Arial, Helvetica, sans-serif"
         >
           {previous1Date}
@@ -286,10 +288,10 @@ export default function Sidebarleftwirelesstank({
         {/* Previous #2 */}
         <text
           x="465"
-          y="535"
+          y="542"
           fill="#000"
-          fontSize="18"
-          fontWeight="700"
+          fontSize="24"
+          fontWeight="800"
           textAnchor="middle"
           fontFamily="Arial"
         >
@@ -298,11 +300,13 @@ export default function Sidebarleftwirelesstank({
 
         <text
           x="465"
-          y="578"
+          y="602"
           fill="#000"
-          fontSize="14"
-          fontWeight="600"
+          fontSize="20"
+          fontWeight="700"
           textAnchor="middle"
+          lengthAdjust="spacingAndGlyphs"
+          textLength="270"
           fontFamily="Arial, Helvetica, sans-serif"
         >
           {previous2Date}
@@ -311,10 +315,10 @@ export default function Sidebarleftwirelesstank({
         {/* Previous #3 */}
         <text
           x="775"
-          y="535"
+          y="542"
           fill="#000"
-          fontSize="18"
-          fontWeight="700"
+          fontSize="24"
+          fontWeight="800"
           textAnchor="middle"
           fontFamily="Arial"
         >
@@ -323,11 +327,13 @@ export default function Sidebarleftwirelesstank({
 
         <text
           x="775"
-          y="578"
+          y="602"
           fill="#000"
-          fontSize="14"
-          fontWeight="600"
+          fontSize="20"
+          fontWeight="700"
           textAnchor="middle"
+          lengthAdjust="spacingAndGlyphs"
+          textLength="270"
           fontFamily="Arial, Helvetica, sans-serif"
         >
           {previous3Date}
