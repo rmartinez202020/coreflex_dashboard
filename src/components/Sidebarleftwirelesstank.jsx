@@ -74,7 +74,7 @@ export default function Sidebarleftwirelesstank({
     <svg
       width={size}
       height={Math.round(size * 1.15)}
-      viewBox="0 0 900 620"
+      viewBox="0 0 980 620"
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       style={{
@@ -222,7 +222,7 @@ export default function Sidebarleftwirelesstank({
         <rect
           x="0"
           y="505"
-          width="700"
+          width="930"
           height="84"
           fill="none"
           stroke="#111827"
@@ -231,18 +231,18 @@ export default function Sidebarleftwirelesstank({
 
         {/* Vertical separators */}
         <line
-          x1="233"
+          x1="310"
           y1="505"
-          x2="233"
+          x2="310"
           y2="589"
           stroke="#111827"
           strokeWidth="1.2"
         />
 
         <line
-          x1="466"
+          x1="620"
           y1="505"
-          x2="466"
+          x2="620"
           y2="589"
           stroke="#111827"
           strokeWidth="1.2"
@@ -252,7 +252,7 @@ export default function Sidebarleftwirelesstank({
         <line
           x1="0"
           y1="547"
-          x2="700"
+          x2="930"
           y2="547"
           stroke="#111827"
           strokeWidth="1.2"
@@ -260,7 +260,7 @@ export default function Sidebarleftwirelesstank({
 
         {/* Previous #1 */}
         <text
-          x="116"
+          x="155"
           y="535"
           fill="#000"
           fontSize="18"
@@ -272,7 +272,7 @@ export default function Sidebarleftwirelesstank({
         </text>
 
         <text
-          x="116"
+          x="155"
           y="575"
           fill="#000"
           fontSize="11"
@@ -284,7 +284,7 @@ export default function Sidebarleftwirelesstank({
 
         {/* Previous #2 */}
         <text
-          x="350"
+          x="465"
           y="535"
           fill="#000"
           fontSize="18"
@@ -296,7 +296,7 @@ export default function Sidebarleftwirelesstank({
         </text>
 
         <text
-          x="350"
+          x="465"
           y="575"
           fill="#000"
           fontSize="11"
@@ -308,7 +308,7 @@ export default function Sidebarleftwirelesstank({
 
         {/* Previous #3 */}
         <text
-          x="583"
+          x="775"
           y="535"
           fill="#000"
           fontSize="18"
@@ -320,7 +320,7 @@ export default function Sidebarleftwirelesstank({
         </text>
 
         <text
-          x="583"
+          x="775"
           y="575"
           fill="#000"
           fontSize="11"
