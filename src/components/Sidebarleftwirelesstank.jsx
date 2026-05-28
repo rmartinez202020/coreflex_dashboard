@@ -273,11 +273,12 @@ export default function Sidebarleftwirelesstank({
 
         <text
           x="155"
-          y="575"
+          y="578"
           fill="#000"
-          fontSize="11"
+          fontSize="14"
+          fontWeight="600"
           textAnchor="middle"
-          fontFamily="monospace"
+          fontFamily="Arial, Helvetica, sans-serif"
         >
           {previous1Date}
         </text>
@@ -297,11 +298,12 @@ export default function Sidebarleftwirelesstank({
 
         <text
           x="465"
-          y="575"
+          y="578"
           fill="#000"
-          fontSize="11"
+          fontSize="14"
+          fontWeight="600"
           textAnchor="middle"
-          fontFamily="monospace"
+          fontFamily="Arial, Helvetica, sans-serif"
         >
           {previous2Date}
         </text>
@@ -321,11 +323,12 @@ export default function Sidebarleftwirelesstank({
 
         <text
           x="775"
-          y="575"
+          y="578"
           fill="#000"
-          fontSize="11"
+          fontSize="14"
+          fontWeight="600"
           textAnchor="middle"
-          fontFamily="monospace"
+          fontFamily="Arial, Helvetica, sans-serif"
         >
           {previous3Date}
         </text>
