@@ -10,6 +10,15 @@ export default function Sidebarleftwirelesstank({
   temperatureValue = "--",
   batteryValue = "--",
   dateValue = "--",
+
+  previous1Height = "--",
+  previous2Height = "--",
+  previous3Height = "--",
+
+  previous1Date = "--",
+  previous2Date = "--",
+  previous3Date = "--",
+
   showTelemetry = true,
 }) {
   const tankLevelValue =
@@ -64,8 +73,8 @@ export default function Sidebarleftwirelesstank({
   return (
     <svg
       width={size}
-      height={Math.round(size * 0.94)}
-      viewBox="0 0 900 470"
+      height={Math.round(size * 1.15)}
+      viewBox="0 0 900 620"
       xmlns="http://www.w3.org/2000/svg"
       fill="none"
       style={{
@@ -206,6 +215,121 @@ export default function Sidebarleftwirelesstank({
       >
         {fillPercentLabel}
       </text>
+
+      {/* Previous readings table */}
+      <g>
+        {/* Outer table */}
+        <rect
+          x="20"
+          y="505"
+          width="520"
+          height="84"
+          fill="none"
+          stroke="#111827"
+          strokeWidth="1.5"
+        />
+
+        {/* Vertical separators */}
+        <line
+          x1="193"
+          y1="505"
+          x2="193"
+          y2="589"
+          stroke="#111827"
+          strokeWidth="1.2"
+        />
+
+        <line
+          x1="366"
+          y1="505"
+          x2="366"
+          y2="589"
+          stroke="#111827"
+          strokeWidth="1.2"
+        />
+
+        {/* Horizontal separator */}
+        <line
+          x1="20"
+          y1="547"
+          x2="540"
+          y2="547"
+          stroke="#111827"
+          strokeWidth="1.2"
+        />
+
+        {/* Previous #1 */}
+        <text
+          x="106"
+          y="535"
+          fill="#000"
+          fontSize="18"
+          fontWeight="700"
+          textAnchor="middle"
+          fontFamily="Arial"
+        >
+          {previous1Height}
+        </text>
+
+        <text
+          x="106"
+          y="575"
+          fill="#000"
+          fontSize="11"
+          textAnchor="middle"
+          fontFamily="monospace"
+        >
+          {previous1Date}
+        </text>
+
+        {/* Previous #2 */}
+        <text
+          x="279"
+          y="535"
+          fill="#000"
+          fontSize="18"
+          fontWeight="700"
+          textAnchor="middle"
+          fontFamily="Arial"
+        >
+          {previous2Height}
+        </text>
+
+        <text
+          x="279"
+          y="575"
+          fill="#000"
+          fontSize="11"
+          textAnchor="middle"
+          fontFamily="monospace"
+        >
+          {previous2Date}
+        </text>
+
+        {/* Previous #3 */}
+        <text
+          x="452"
+          y="535"
+          fill="#000"
+          fontSize="18"
+          fontWeight="700"
+          textAnchor="middle"
+          fontFamily="Arial"
+        >
+          {previous3Height}
+        </text>
+
+        <text
+          x="452"
+          y="575"
+          fill="#000"
+          fontSize="11"
+          textAnchor="middle"
+          fontFamily="monospace"
+        >
+          {previous3Date}
+        </text>
+      </g>
 
       {showTelemetry && (
         <g>
