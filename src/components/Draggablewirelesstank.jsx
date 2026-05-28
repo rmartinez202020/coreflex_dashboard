@@ -169,7 +169,19 @@ function clampLiquidLevel(value, tankHeight) {
   return v;
 }
 
-function getPreviousLiquidLevelDisplay(row, fieldName, formula, realTankHeight, unit) {
+function liquidLevelToPercent(liquidLevel, tankHeight) {
+  const v = Number(liquidLevel);
+  const h = Number(tankHeight);
+
+  if (!Number.isFinite(v) || !Number.isFinite(h) || h <= 0) {
+    return null;
+  }
+
+  const pct = (v / h) * 100;
+  return Math.max(0, Math.min(100, pct));
+}
+
+function getPreviousLiquidPercentDisplay(row, fieldName, formula, realTankHeight) {
   const raw = readField(row, fieldName);
 
   if (raw === null || raw === undefined || raw === "") {
@@ -184,13 +196,13 @@ function getPreviousLiquidLevelDisplay(row, fieldName, formula, realTankHeight, 
 
   const calculated = computeMathOutput(rawHeightIn, formula, realTankHeight);
   const clamped = clampLiquidLevel(calculated, realTankHeight);
-  const n = Number(clamped);
+  const percent = liquidLevelToPercent(clamped, realTankHeight);
 
-  if (!Number.isFinite(n)) {
+  if (!Number.isFinite(percent)) {
     return "--";
   }
 
-  return unit ? `${formatNumber(n, 2)} ${unit}` : formatNumber(n, 2);
+  return `${Math.round(percent)}%`;
 }
 
 export default function Draggablewirelesstank({
@@ -375,36 +387,33 @@ export default function Draggablewirelesstank({
 
   const previous1Height = useMemo(() => {
     if (!telemetryRow) return "--";
-    return getPreviousLiquidLevelDisplay(
+    return getPreviousLiquidPercentDisplay(
       telemetryRow,
       "height_2_mm",
       formula,
-      realTankHeight,
-      unit
+      realTankHeight
     );
-  }, [telemetryRow, formula, realTankHeight, unit]);
+  }, [telemetryRow, formula, realTankHeight]);
 
   const previous2Height = useMemo(() => {
     if (!telemetryRow) return "--";
-    return getPreviousLiquidLevelDisplay(
+    return getPreviousLiquidPercentDisplay(
       telemetryRow,
       "height_3_mm",
       formula,
-      realTankHeight,
-      unit
+      realTankHeight
     );
-  }, [telemetryRow, formula, realTankHeight, unit]);
+  }, [telemetryRow, formula, realTankHeight]);
 
   const previous3Height = useMemo(() => {
     if (!telemetryRow) return "--";
-    return getPreviousLiquidLevelDisplay(
+    return getPreviousLiquidPercentDisplay(
       telemetryRow,
       "height_4_mm",
       formula,
-      realTankHeight,
-      unit
+      realTankHeight
     );
-  }, [telemetryRow, formula, realTankHeight, unit]);
+  }, [telemetryRow, formula, realTankHeight]);
 
   const previous1Date = useMemo(() => {
     if (!telemetryRow) return "--";
