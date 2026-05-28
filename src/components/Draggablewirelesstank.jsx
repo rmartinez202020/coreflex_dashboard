@@ -169,6 +169,22 @@ function clampLiquidLevel(value, tankHeight) {
   return v;
 }
 
+function getPreviousHeightDisplay(row, fieldName) {
+  const raw = readField(row, fieldName);
+
+  if (raw === null || raw === undefined || raw === "") {
+    return "--";
+  }
+
+  const inches = mmToIn(raw);
+
+  if (!Number.isFinite(inches)) {
+    return "--";
+  }
+
+  return `${formatNumber(inches, 2)} in`;
+}
+
 export default function Draggablewirelesstank({
   tank,
   isPlay = false,
@@ -349,6 +365,36 @@ export default function Draggablewirelesstank({
     props.dateValue,
   ]);
 
+  const previous1Height = useMemo(() => {
+    if (!telemetryRow) return "--";
+    return getPreviousHeightDisplay(telemetryRow, "height_2_mm");
+  }, [telemetryRow]);
+
+  const previous2Height = useMemo(() => {
+    if (!telemetryRow) return "--";
+    return getPreviousHeightDisplay(telemetryRow, "height_3_mm");
+  }, [telemetryRow]);
+
+  const previous3Height = useMemo(() => {
+    if (!telemetryRow) return "--";
+    return getPreviousHeightDisplay(telemetryRow, "height_4_mm");
+  }, [telemetryRow]);
+
+  const previous1Date = useMemo(() => {
+    if (!telemetryRow) return "--";
+    return formatDateTime(readField(telemetryRow, "received_at_2"));
+  }, [telemetryRow]);
+
+  const previous2Date = useMemo(() => {
+    if (!telemetryRow) return "--";
+    return formatDateTime(readField(telemetryRow, "received_at_3"));
+  }, [telemetryRow]);
+
+  const previous3Date = useMemo(() => {
+    if (!telemetryRow) return "--";
+    return formatDateTime(readField(telemetryRow, "received_at_4"));
+  }, [telemetryRow]);
+
   return (
     <div style={{ textAlign: "center", pointerEvents: "none" }}>
       <div style={{ display: "inline-block", position: "relative" }}>
@@ -362,6 +408,14 @@ export default function Draggablewirelesstank({
           temperatureValue={temperatureText}
           batteryValue={batteryText}
           dateValue={dateText}
+
+          previous1Height={previous1Height}
+          previous2Height={previous2Height}
+          previous3Height={previous3Height}
+
+          previous1Date={previous1Date}
+          previous2Date={previous2Date}
+          previous3Date={previous3Date}
         />
       </div>
     </div>
