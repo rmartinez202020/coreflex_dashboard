@@ -136,12 +136,7 @@ export default function useDashboardTelemetryPoller({
       return "tp4000";
     }
 
-    // ✅ NEW
-    if (
-      v === "cfr100" ||
-      v === "cf-r100" ||
-      v === "cf_r100"
-    ) {
+    if (v === "cfr100" || v === "cf-r100" || v === "cf_r100") {
       return "cfr100";
     }
 
@@ -179,55 +174,46 @@ export default function useDashboardTelemetryPoller({
   // EXTRACT BINDINGS
   // ======================================
 
-  const extractBinding = React.useCallback(
-    (t) => {
-      if (!t) return null;
+  const extractBinding = React.useCallback((t) => {
+    if (!t) return null;
 
-      // A) common binding
-      const tag = t?.properties?.tag || t?.tag || null;
+    const tag = t?.properties?.tag || t?.tag || null;
 
-      if (tag) {
-        const model = normalizeModelName(tag?.model);
+    if (tag) {
+      const model = normalizeModelName(tag?.model);
 
-        const deviceId = String(
-          tag?.deviceId || tag?.device_id || ""
-        ).trim();
+      const deviceId = String(tag?.deviceId || tag?.device_id || "").trim();
 
-        if (model && deviceId) {
-          return { model, deviceId };
-        }
+      if (model && deviceId) {
+        return { model, deviceId };
       }
+    }
 
-      // B) graphicDisplay style
-      const bm = normalizeModelName(
-        t?.bindModel ??
-          t?.properties?.bindModel ??
-          ""
-      );
+    const bm = normalizeModelName(
+      t?.bindModel ?? t?.properties?.bindModel ?? ""
+    );
 
-      const bd = String(
-        t?.bindDeviceId ??
-          t?.properties?.bindDeviceId ??
-          t?.bind_device_id ??
-          t?.properties?.bind_device_id ??
-          t?.bindImei ??
-          t?.properties?.bindImei ??
-          t?.unitId ??
-          t?.properties?.unitId ??
-          ""
-      ).trim();
+    const bd = String(
+      t?.bindDeviceId ??
+        t?.properties?.bindDeviceId ??
+        t?.bind_device_id ??
+        t?.properties?.bind_device_id ??
+        t?.bindImei ??
+        t?.properties?.bindImei ??
+        t?.unitId ??
+        t?.properties?.unitId ??
+        ""
+    ).trim();
 
-      if (bm && bd) {
-        return {
-          model: bm,
-          deviceId: bd,
-        };
-      }
+    if (bm && bd) {
+      return {
+        model: bm,
+        deviceId: bd,
+      };
+    }
 
-      return null;
-    },
-    []
-  );
+    return null;
+  }, []);
 
   const collectWanted = React.useCallback(() => {
     const wanted = {};
@@ -236,9 +222,7 @@ export default function useDashboardTelemetryPoller({
       wanted[k] = new Set();
     }
 
-    const list = Array.isArray(droppedTanks)
-      ? droppedTanks
-      : [];
+    const list = Array.isArray(droppedTanks) ? droppedTanks : [];
 
     for (const t of list) {
       const x = extractBinding(t);
@@ -249,9 +233,7 @@ export default function useDashboardTelemetryPoller({
         wanted[x.model] = new Set();
       }
 
-      wanted[x.model].add(
-        normalizeImei(x.deviceId)
-      );
+      wanted[x.model].add(normalizeImei(x.deviceId));
     }
 
     return wanted;
@@ -264,8 +246,7 @@ export default function useDashboardTelemetryPoller({
       const next = {};
 
       for (const k of Object.keys(modelMeta || {})) {
-        const wasSize = Object.keys(prev?.[k] || {})
-          .length;
+        const wasSize = Object.keys(prev?.[k] || {}).length;
 
         next[k] = {};
 
@@ -299,9 +280,7 @@ export default function useDashboardTelemetryPoller({
     try {
       const wanted = collectWanted();
 
-      const anyWanted = Object.values(wanted).some(
-        (s) => s && s.size > 0
-      );
+      const anyWanted = Object.values(wanted).some((s) => s && s.size > 0);
 
       if (!anyWanted) {
         clearTelemetryMap();
@@ -313,6 +292,82 @@ export default function useDashboardTelemetryPoller({
       // ======================================
 
       if (isPublicLaunch) {
+        const email = String(tenantEmail || "").trim().toLowerCase();
+
+        if (
+          !isTenantAuthenticated ||
+          !publicDashSlug ||
+          !publicDashLaunchId ||
+          !email
+        ) {
+          dbg("public mode skip: missing tenant auth/launch data");
+          clearTelemetryMap();
+          return;
+        }
+
+        const qs = new URLSearchParams({
+          dashboard_slug: String(publicDashSlug || "").trim(),
+          public_launch_id: String(publicDashLaunchId || "").trim(),
+          tenant_email: email,
+        });
+
+        const url = `${API_URL}/tenant-access/devices?${qs.toString()}`;
+
+        dbg("public fetch", { url });
+
+        const res = await fetch(url);
+
+        if (!res.ok) {
+          dbgErr("public fetch failed", {
+            status: res.status,
+          });
+
+          clearTelemetryMap();
+          return;
+        }
+
+        const data = await res.json().catch(() => []);
+        const arr = normalizeArray(data);
+
+        const next = {};
+
+        for (const k of Object.keys(modelMeta || {})) {
+          next[k] = {};
+        }
+
+        for (const row of arr || []) {
+          const modelKey = readModelKey(row);
+
+          if (!modelKey) continue;
+
+          if (!next[modelKey]) {
+            next[modelKey] = {};
+          }
+
+          const setWanted = wanted?.[modelKey] || new Set();
+          const id = normalizeImei(readDeviceId(row));
+
+          if (id && setWanted.has(id)) {
+            next[modelKey][id] = {
+              ...row,
+              model: modelKey,
+              deviceId: id,
+              device_id: id,
+            };
+          }
+        }
+
+        dbg(
+          "public telemetryMap built",
+          Object.fromEntries(
+            Object.entries(next).map(([k, bucket]) => [
+              k,
+              Object.keys(bucket).slice(0, 20),
+            ])
+          )
+        );
+
+        setTelemetryMap(next);
         return;
       }
 
@@ -320,9 +375,7 @@ export default function useDashboardTelemetryPoller({
       // PRIVATE MODE
       // ======================================
 
-      const token = String(
-        getToken?.() || ""
-      ).trim();
+      const token = String(getToken?.() || "").trim();
 
       if (!token) {
         dbg("private mode skip: no token");
@@ -341,53 +394,32 @@ export default function useDashboardTelemetryPoller({
 
           const res = await fetch(url, {
             headers: {
-              "Content-Type":
-                "application/json",
+              "Content-Type": "application/json",
               ...(getAuthHeaders?.() || {}),
             },
           });
 
           if (!res.ok) {
-            dbgErr(
-              "fetchModel CFR100 failed",
-              {
-                status: res.status,
-              }
-            );
+            dbgErr("fetchModel CFR100 failed", {
+              status: res.status,
+            });
 
             return [];
           }
 
-          const data = await res
-            .json()
-            .catch(() => []);
-
-          const arr = Array.isArray(data)
-            ? data
-            : [];
+          const data = await res.json().catch(() => []);
+          const arr = Array.isArray(data) ? data : [];
 
           const normalized = arr.map((r) => ({
             ...r,
-
             model: "cfr100",
-
             deviceId: normalizeImei(
-              r.raw_imei_bytes ||
-                r.rawImeiBytes ||
-                r.imei ||
-                ""
+              r.raw_imei_bytes || r.rawImeiBytes || r.imei || ""
             ),
-
             device_id: normalizeImei(
-              r.raw_imei_bytes ||
-                r.rawImeiBytes ||
-                r.imei ||
-                ""
+              r.raw_imei_bytes || r.rawImeiBytes || r.imei || ""
             ),
-
-            status: r.received_at
-              ? "online"
-              : "offline",
+            status: r.received_at ? "online" : "offline",
           }));
 
           dbg("fetchModel CFR100 ok", {
@@ -409,8 +441,7 @@ export default function useDashboardTelemetryPoller({
         });
 
         const res = await fetch(url, {
-          headers:
-            getAuthHeaders?.() || {},
+          headers: getAuthHeaders?.() || {},
         });
 
         if (!res.ok) {
@@ -422,10 +453,7 @@ export default function useDashboardTelemetryPoller({
           return [];
         }
 
-        const data = await res
-          .json()
-          .catch(() => null);
-
+        const data = await res.json().catch(() => null);
         const arr = normalizeArray(data);
 
         dbg("fetchModel ok", {
@@ -437,53 +465,36 @@ export default function useDashboardTelemetryPoller({
       }
 
       const results = await Promise.all(
-        Object.keys(modelMeta || {}).map(
-          async (modelKey) => {
-            const base =
-              modelMeta[modelKey]?.base;
+        Object.keys(modelMeta || {}).map(async (modelKey) => {
+          const base = modelMeta[modelKey]?.base;
 
-            if (!base) {
-              return [modelKey, []];
-            }
-
-            if (
-              !wanted?.[modelKey]?.size
-            ) {
-              return [modelKey, []];
-            }
-
-            const rows =
-              await fetchModel(
-                modelKey,
-                base
-              );
-
-            return [modelKey, rows];
+          if (!base) {
+            return [modelKey, []];
           }
-        )
+
+          if (!wanted?.[modelKey]?.size) {
+            return [modelKey, []];
+          }
+
+          const rows = await fetchModel(modelKey, base);
+
+          return [modelKey, rows];
+        })
       );
 
       const next = {};
 
-      for (const k of Object.keys(
-        modelMeta || {}
-      )) {
+      for (const k of Object.keys(modelMeta || {})) {
         next[k] = {};
       }
 
       for (const [modelKey, rows] of results) {
-        const setWanted =
-          wanted?.[modelKey] || new Set();
+        const setWanted = wanted?.[modelKey] || new Set();
 
         for (const row of rows || []) {
-          const id = normalizeImei(
-            readDeviceId(row)
-          );
+          const id = normalizeImei(readDeviceId(row));
 
-          if (
-            id &&
-            setWanted.has(id)
-          ) {
+          if (id && setWanted.has(id)) {
             next[modelKey][id] = row;
           }
         }
@@ -492,24 +503,16 @@ export default function useDashboardTelemetryPoller({
       dbg(
         "private telemetryMap built",
         Object.fromEntries(
-          Object.entries(next).map(
-            ([k, bucket]) => [
-              k,
-              Object.keys(bucket).slice(
-                0,
-                20
-              ),
-            ]
-          )
+          Object.entries(next).map(([k, bucket]) => [
+            k,
+            Object.keys(bucket).slice(0, 20),
+          ])
         )
       );
 
       setTelemetryMap(next);
     } catch (e) {
-      dbgErr(
-        "poller error",
-        String(e?.message || e)
-      );
+      dbgErr("poller error", String(e?.message || e));
     } finally {
       loadingRef.current = false;
     }
@@ -526,6 +529,10 @@ export default function useDashboardTelemetryPoller({
     collectWanted,
     modelMeta,
     isPublicLaunch,
+    publicDashSlug,
+    publicDashLaunchId,
+    tenantEmail,
+    isTenantAuthenticated,
     clearTelemetryMap,
     dbg,
     dbgErr,
@@ -540,10 +547,7 @@ export default function useDashboardTelemetryPoller({
 
     fetchOnce();
 
-    const ms = Math.max(
-      500,
-      Number(pollMs) || 3000
-    );
+    const ms = Math.max(500, Number(pollMs) || 3000);
 
     const t = setInterval(() => {
       if (document.hidden) return;
