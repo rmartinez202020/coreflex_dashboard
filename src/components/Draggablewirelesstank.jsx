@@ -215,19 +215,15 @@ export default function Draggablewirelesstank({
     return getTelemetryRow(telemetryMap, bindModel, bindDeviceId);
   }, [isPlay, hasBinding, telemetryMap, bindModel, bindDeviceId]);
 
-  const backendStatus = String(telemetryRow?.status || "")
-    .trim()
-    .toLowerCase();
-
-  const deviceIsOffline = isPlay && hasBinding && backendStatus === "offline";
-
   const liveRawHeightIn = useMemo(() => {
     if (!isPlay || !hasBinding) {
       const saved = Number(props.rawHeightValue);
       return Number.isFinite(saved) ? saved : null;
     }
 
-    const rawHeight = telemetryRow ? readField(telemetryRow, bindHeightField) : null;
+    const rawHeight = telemetryRow
+      ? readField(telemetryRow, bindHeightField)
+      : null;
 
     const rawNumber =
       rawHeight === null || rawHeight === undefined || rawHeight === ""
@@ -367,31 +363,6 @@ export default function Draggablewirelesstank({
           batteryValue={batteryText}
           dateValue={dateText}
         />
-
-        {deviceIsOffline && (
-          <div
-            style={{
-              position: "absolute",
-              left: "50%",
-              top: `${78 * scale}px`,
-              transform: "translate(-50%, -50%)",
-              width: `${70 * scale}px`,
-              color: "#dc2626",
-              fontWeight: 600,
-              fontSize: `${11 * scale}px`,
-              lineHeight: 1.05,
-              letterSpacing: "0px",
-              textAlign: "center",
-              whiteSpace: "normal",
-              wordBreak: "break-word",
-              overflowWrap: "break-word",
-              pointerEvents: "none",
-              userSelect: "none",
-            }}
-          >
-            Offline
-          </div>
-        )}
       </div>
     </div>
   );
