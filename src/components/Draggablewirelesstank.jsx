@@ -169,20 +169,28 @@ function clampLiquidLevel(value, tankHeight) {
   return v;
 }
 
-function getPreviousHeightDisplay(row, fieldName) {
+function getPreviousLiquidLevelDisplay(row, fieldName, formula, realTankHeight, unit) {
   const raw = readField(row, fieldName);
 
   if (raw === null || raw === undefined || raw === "") {
     return "--";
   }
 
-  const inches = mmToIn(raw);
+  const rawHeightIn = mmToIn(raw);
 
-  if (!Number.isFinite(inches)) {
+  if (!Number.isFinite(rawHeightIn)) {
     return "--";
   }
 
-  return `${formatNumber(inches, 2)} in`;
+  const calculated = computeMathOutput(rawHeightIn, formula, realTankHeight);
+  const clamped = clampLiquidLevel(calculated, realTankHeight);
+  const n = Number(clamped);
+
+  if (!Number.isFinite(n)) {
+    return "--";
+  }
+
+  return unit ? `${formatNumber(n, 2)} ${unit}` : formatNumber(n, 2);
 }
 
 export default function Draggablewirelesstank({
@@ -367,18 +375,36 @@ export default function Draggablewirelesstank({
 
   const previous1Height = useMemo(() => {
     if (!telemetryRow) return "--";
-    return getPreviousHeightDisplay(telemetryRow, "height_2_mm");
-  }, [telemetryRow]);
+    return getPreviousLiquidLevelDisplay(
+      telemetryRow,
+      "height_2_mm",
+      formula,
+      realTankHeight,
+      unit
+    );
+  }, [telemetryRow, formula, realTankHeight, unit]);
 
   const previous2Height = useMemo(() => {
     if (!telemetryRow) return "--";
-    return getPreviousHeightDisplay(telemetryRow, "height_3_mm");
-  }, [telemetryRow]);
+    return getPreviousLiquidLevelDisplay(
+      telemetryRow,
+      "height_3_mm",
+      formula,
+      realTankHeight,
+      unit
+    );
+  }, [telemetryRow, formula, realTankHeight, unit]);
 
   const previous3Height = useMemo(() => {
     if (!telemetryRow) return "--";
-    return getPreviousHeightDisplay(telemetryRow, "height_4_mm");
-  }, [telemetryRow]);
+    return getPreviousLiquidLevelDisplay(
+      telemetryRow,
+      "height_4_mm",
+      formula,
+      realTankHeight,
+      unit
+    );
+  }, [telemetryRow, formula, realTankHeight, unit]);
 
   const previous1Date = useMemo(() => {
     if (!telemetryRow) return "--";
@@ -408,11 +434,9 @@ export default function Draggablewirelesstank({
           temperatureValue={temperatureText}
           batteryValue={batteryText}
           dateValue={dateText}
-
           previous1Height={previous1Height}
           previous2Height={previous2Height}
           previous3Height={previous3Height}
-
           previous1Date={previous1Date}
           previous2Date={previous2Date}
           previous3Date={previous3Date}
