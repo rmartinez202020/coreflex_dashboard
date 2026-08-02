@@ -50,7 +50,7 @@ export default function Sidebarleftwirelesstank({
   // Dynamic liquid colors
   const liquidFillColor =
     fillPercent >= 0.8
-      ? "rgba(248,113,113,0.55)"
+      ? "rgba(255,80,80,0.90)"
       : "rgba(255,235,120,0.64)";
 
   const liquidSurfaceColor =
@@ -457,5 +457,5 @@ export default function Sidebarleftwirelesstank({
       )}
     </svg>
   );
-  
+
 }
