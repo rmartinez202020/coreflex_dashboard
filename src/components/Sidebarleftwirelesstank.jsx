@@ -47,6 +47,22 @@ export default function Sidebarleftwirelesstank({
 
   const fillPercentLabel = `${Math.round(fillPercent * 100)}%`;
 
+  // Dynamic liquid colors
+  const liquidFillColor =
+    fillPercent >= 0.8
+      ? "rgba(248,113,113,0.55)"
+      : "rgba(255,235,120,0.64)";
+
+  const liquidSurfaceColor =
+    fillPercent >= 0.8
+      ? "rgba(252,165,165,0.82)"
+      : "rgba(255,245,150,0.84)";
+
+  const liquidLineColor =
+    fillPercent >= 0.8
+      ? "rgba(220,38,38,0.60)"
+      : "rgba(180,150,40,0.65)";
+
   // Liquid surface control points
   const xA = 30;
   const xFront = 135;
@@ -95,7 +111,7 @@ export default function Sidebarleftwirelesstank({
               135,${yFront}
               30,${yLeft}
             `}
-            fill="rgba(255,235,120,0.64)"
+            fill={liquidFillColor}
             stroke="none"
           />
 
@@ -106,8 +122,8 @@ export default function Sidebarleftwirelesstank({
               492,${yBack}
               135,${yFront}
             `}
-            fill="rgba(255,245,150,0.84)"
-            stroke="rgba(180,150,40,0.45)"
+            fill={liquidSurfaceColor}
+            stroke={liquidLineColor}
             strokeWidth="1.5"
           />
 
@@ -120,7 +136,7 @@ export default function Sidebarleftwirelesstank({
               L135 ${yFront}
               L492 ${yBack}
             `}
-            stroke="rgba(180,150,40,0.65)"
+            stroke={liquidLineColor}
             strokeWidth="2"
             strokeDasharray="5 5"
             fill="none"
