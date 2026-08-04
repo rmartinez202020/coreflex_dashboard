@@ -5,14 +5,6 @@ import DashboardCanvas from "../components/DashboardCanvas";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 
-// ✅ NEW: shared telemetry poller (same one used by normal dashboard)
-import useDashboardTelemetryPoller from "../hooks/useDashboardTelemetryPoller";
-
-function getAuthHeaders() {
-  const token = String(getToken() || "").trim();
-  return token ? { Authorization: `Bearer ${token}` } : {};
-}
-
 export default function LaunchedMainDashboard() {
   const [sensorsData, setSensorsData] = useState([]);
   const [droppedTanks, setDroppedTanks] = useState([]);
@@ -258,33 +250,6 @@ export default function LaunchedMainDashboard() {
   }, [dashboardId]);
 
   // --------------------------------------------------------------
-  // ✅ STEP 2C — SHARED TELEMETRY (DI/DO/AI/AO rows) for widgets (LED, etc.)
-  // This is the missing piece in Launch.
-  // --------------------------------------------------------------
-  const resolveDashboardId = useCallback(() => {
-    // Launch screen is always "main"
-    return dashboardId;
-  }, [dashboardId]);
-
-  const { telemetryMap } = useDashboardTelemetryPoller({
-    isPlay: true, // ✅ Launch is always play
-    API_URL,
-    getAuthHeaders,
-    getToken,
-    droppedTanks,
-    activeDashboardId: dashboardId,
-    dashboardId,
-    selectedTank: null,
-    resolveDashboardId,
-    pollMs: 3000, 
-    modelMeta: {
-      zhc1921: { base: "zhc1921" },
-      zhc1661: { base: "zhc1661" },
-      tp4000: { base: "tp4000" },
-    },
-  });
-
-  // --------------------------------------------------------------
   // ✅ UI: never show a “mystery blank” page
   // --------------------------------------------------------------
   if (loading) {
@@ -347,8 +312,6 @@ export default function LaunchedMainDashboard() {
         dashboardMode="play"
         embedMode={true}
         dashboardId={dashboardId}
-        /* ✅ NEW: provide shared telemetry to widgets (LED, indicators, etc.) */
-        telemetryMap={telemetryMap}
         /* ----- Layout Objects ----- */
         droppedTanks={droppedTanks}
         setDroppedTanks={setDroppedTanks}
