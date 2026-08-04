@@ -276,7 +276,7 @@ export default function LaunchedMainDashboard() {
     dashboardId,
     selectedTank: null,
     resolveDashboardId,
-    pollMs: 1500, // 🔧 faster in launch (optional). Use 3000 if you prefer.
+    pollMs: 3000, 
     modelMeta: {
       zhc1921: { base: "zhc1921" },
       zhc1661: { base: "zhc1661" },
