@@ -21,6 +21,16 @@ const PAINT_SHAPES = new Set([
   "paintTriangle",
 ]);
 
+const DASHBOARD_MODEL_META = {
+  zhc1921: { base: "zhc1921" },
+  zhc1661: { base: "zhc1661" },
+  tp4000: { base: "tp4000" },
+  cfr100: {
+    base: "radar-level",
+    endpoint: "/radar-level/my-sensors",
+  },
+};
+
 function createId(prefix = "shape") {
   return `${prefix}_${Date.now()}_${Math.random().toString(16).slice(2)}`;
 }
@@ -214,15 +224,7 @@ export default function DashboardCanvas({
     tenantEmail,
     isTenantAuthenticated,
     pollMs: 3000,
-    modelMeta: {
-      zhc1921: { base: "zhc1921" },
-      zhc1661: { base: "zhc1661" },
-      tp4000: { base: "tp4000" },
-      cfr100: {
-        base: "radar-level",
-        endpoint: "/radar-level/my-sensors",
-      },
-    },
+    modelMeta: DASHBOARD_MODEL_META,
   });
 
   const countersRef = React.useRef({ loading: false });
