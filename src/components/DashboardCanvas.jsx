@@ -213,7 +213,7 @@ export default function DashboardCanvas({
     publicDashLaunchId,
     tenantEmail,
     isTenantAuthenticated,
-    pollMs: 2200,
+    pollMs: 3000,
     modelMeta: {
       zhc1921: { base: "zhc1921" },
       zhc1661: { base: "zhc1661" },
