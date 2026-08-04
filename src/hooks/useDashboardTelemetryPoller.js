@@ -51,6 +51,22 @@ export default function useDashboardTelemetryPoller({
   const loadingRef = React.useRef(false);
 
   // ======================================
+// TEMPORARY DIAGNOSTIC: modelMeta reference
+// ======================================
+const previousModelMetaRef = React.useRef(modelMeta);
+
+React.useEffect(() => {
+  if (previousModelMetaRef.current !== modelMeta) {
+    console.warn(
+      "[TelemetryPoller] modelMeta reference changed",
+      new Date().toISOString()
+    );
+  }
+
+  previousModelMetaRef.current = modelMeta;
+}, [modelMeta]);
+
+  // ======================================
   // DEBUG
   // ======================================
   const debugEnabled = React.useMemo(() => {
@@ -542,21 +558,39 @@ export default function useDashboardTelemetryPoller({
   // INTERVAL
   // ======================================
 
-  React.useEffect(() => {
-    if (!isPlay) return;
+ React.useEffect(() => {
+  if (!isPlay) return;
+
+  console.warn(
+    "[TelemetryPoller] EFFECT START",
+    new Date().toISOString()
+  );
+
+  fetchOnce();
+
+  const ms = Math.max(500, Number(pollMs) || 3000);
+
+  const t = setInterval(() => {
+    if (document.hidden) return;
+
+    console.warn(
+      "[TelemetryPoller] INTERVAL TICK",
+      new Date().toISOString()
+    );
 
     fetchOnce();
+  }, ms);
 
-    const ms = Math.max(500, Number(pollMs) || 3000);
+  return () => {
+    console.warn(
+      "[TelemetryPoller] EFFECT CLEANUP",
+      new Date().toISOString()
+    );
 
-    const t = setInterval(() => {
-      if (document.hidden) return;
-
-      fetchOnce();
-    }, ms);
-
-    return () => clearInterval(t);
-  }, [isPlay, fetchOnce, pollMs]);
+    clearInterval(t);
+  };
+ }, [isPlay, fetchOnce, pollMs]);
+ 
 
   return {
     telemetryMap,
