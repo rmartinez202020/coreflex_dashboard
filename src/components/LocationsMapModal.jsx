@@ -14,13 +14,15 @@ const DefaultIcon = L.icon({
   iconSize: [25, 41],
   iconAnchor: [12, 41],
 });
+
 L.Marker.prototype.options.icon = DefaultIcon;
 
 // ------------------------------------------------------------
 // ✅ Backend-first map modal:
 // - NO browser geocoding (no Nominatim, no localStorage cache)
 // - Uses items[].lat/items[].lng from DB
-// - Fits bounds to all markers automatically
+// - Fits bounds to all markers automatically ONCE when opened
+// - User can zoom/pan freely after initial fit
 // - Safe guards if items is not an array (fixes ".map is not a function")
 // ------------------------------------------------------------
 
@@ -32,6 +34,7 @@ function buildAddressString(x) {
     x.zip,
     x.country || "United States",
   ].filter(Boolean);
+
   return parts.join(", ");
 }
 
@@ -40,16 +43,31 @@ function toNumberOrNull(v) {
   return Number.isFinite(n) ? n : null;
 }
 
-function FitBounds({ bounds, padding = [24, 24] }) {
+// ------------------------------------------------------------
+// ✅ Fit bounds ONLY ONCE
+//
+// This lets the map initially show all customer pins,
+// but after that the user can zoom in, zoom out, and pan
+// without the map automatically snapping back.
+// ------------------------------------------------------------
+function FitBounds({ bounds }) {
   const map = useMap();
+  const hasFittedRef = useRef(false);
+
   useEffect(() => {
-    if (!bounds) return;
+    if (!bounds || hasFittedRef.current) return;
+
     try {
-      map.fitBounds(bounds, { padding });
+      map.fitBounds(bounds, {
+        padding: [24, 24],
+      });
+
+      hasFittedRef.current = true;
     } catch {
       // ignore
     }
-  }, [bounds, map, padding]);
+  }, [bounds, map]);
+
   return null;
 }
 
@@ -57,26 +75,39 @@ export default function LocationsMapModal({ open, onClose, items }) {
   const [loading, setLoading] = useState(false);
 
   // ✅ Prevent the ".map is not a function" crash:
-  const safeItems = useMemo(() => (Array.isArray(items) ? items : []), [items]);
+  const safeItems = useMemo(
+    () => (Array.isArray(items) ? items : []),
+    [items]
+  );
 
   // ✅ Markers come directly from DB coords:
   const markers = useMemo(() => {
     const m = [];
+
     for (const x of safeItems) {
       const lat = toNumberOrNull(x.lat);
       const lng = toNumberOrNull(x.lng);
+
       if (lat != null && lng != null) {
-        m.push({ id: x.id, lat, lng, item: x });
+        m.push({
+          id: x.id,
+          lat,
+          lng,
+          item: x,
+        });
       }
     }
+
     return m;
   }, [safeItems]);
 
   const missingCount = useMemo(() => {
     if (!safeItems.length) return 0;
+
     return safeItems.reduce((acc, x) => {
       const lat = toNumberOrNull(x.lat);
       const lng = toNumberOrNull(x.lng);
+
       return acc + (lat == null || lng == null ? 1 : 0);
     }, 0);
   }, [safeItems]);
@@ -87,15 +118,22 @@ export default function LocationsMapModal({ open, onClose, items }) {
   // Bounds for fitting all points
   const bounds = useMemo(() => {
     if (!markers.length) return null;
+
     const latLngs = markers.map((m) => [m.lat, m.lng]);
+
     return L.latLngBounds(latLngs);
   }, [markers]);
 
   // When opening: show quick "loading" for UX consistency
   useEffect(() => {
     if (!open) return;
+
     setLoading(true);
-    const t = setTimeout(() => setLoading(false), 150);
+
+    const t = setTimeout(() => {
+      setLoading(false);
+    }, 150);
+
     return () => clearTimeout(t);
   }, [open]);
 
@@ -105,21 +143,25 @@ export default function LocationsMapModal({ open, onClose, items }) {
     <div
       className="fixed inset-0 z-[99999] flex items-center justify-center bg-black bg-opacity-40 p-4"
       onMouseDown={(e) => {
-        // click outside to close (optional). If you don't want this, remove this block.
-        if (e.target === e.currentTarget) onClose?.();
+        // click outside to close (optional).
+        // If you don't want this, remove this block.
+        if (e.target === e.currentTarget) {
+          onClose?.();
+        }
       }}
     >
       {/* ✅ BIGGER + TALLER MODAL */}
-      <div className="bg-white rounded-xl shadow-xl w-full max-w-[95vw] h-[90vh] overflow-hidden flex flex-col">
+      <div className="bg-white rounded-xl shadow-xl w-full h-[88vh] flex flex-col overflow-hidden">
         {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b">
+        <div className="px-5 py-4 border-b border-gray-200 flex items-center justify-between gap-4">
           <div>
-            <div className="text-lg font-semibold text-gray-800">
+            <h3 className="text-lg font-semibold text-gray-800">
               Customer Locations Map
-            </div>
-            <div className="text-xs text-gray-500">
+            </h3>
+
+            <p className="text-xs text-gray-500 mt-1">
               Pins come from saved coordinates (lat/lng) in your database.
-            </div>
+            </p>
           </div>
 
           <button
@@ -162,9 +204,16 @@ export default function LocationsMapModal({ open, onClose, items }) {
           {/* ✅ Map fills remaining modal height */}
           <div className="flex-1 w-full rounded-lg overflow-hidden border border-gray-200 min-h-0">
             <MapContainer
-              center={markers.length ? [markers[0].lat, markers[0].lng] : fallbackCenter}
+              center={
+                markers.length
+                  ? [markers[0].lat, markers[0].lng]
+                  : fallbackCenter
+              }
               zoom={markers.length ? 10 : 4}
-              style={{ width: "100%", height: "100%" }}
+              style={{
+                width: "100%",
+                height: "100%",
+              }}
               scrollWheelZoom={true}
             >
               <TileLayer
@@ -172,7 +221,7 @@ export default function LocationsMapModal({ open, onClose, items }) {
                 url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
               />
 
-              {/* ✅ Fit map to all markers */}
+              {/* ✅ Fit map to all markers ONCE */}
               {bounds ? <FitBounds bounds={bounds} /> : null}
 
               {markers.map((m) => (
@@ -182,14 +231,17 @@ export default function LocationsMapModal({ open, onClose, items }) {
                       <div className="font-semibold">
                         {m.item.customer_name} — {m.item.site_name}
                       </div>
+
                       <div className="mt-1 text-gray-700">
                         {buildAddressString(m.item)}
                       </div>
+
                       {m.item.notes ? (
                         <div className="mt-2 text-xs text-gray-500">
                           {m.item.notes}
                         </div>
                       ) : null}
+
                       <div className="mt-2 text-xs text-gray-500">
                         Lat: {m.lat.toFixed(6)} • Lng: {m.lng.toFixed(6)}
                       </div>
@@ -202,10 +254,10 @@ export default function LocationsMapModal({ open, onClose, items }) {
               {safeItems.length > 0 && markers.length === 0 ? (
                 <div className="leaflet-bottom leaflet-left">
                   <div className="m-3 p-2 rounded-md bg-white/90 border border-gray-200 text-xs text-gray-700 shadow">
-                    No pins yet. This usually means the locations don&apos;t have
-                    lat/lng saved in the DB yet. Once you create new locations
-                    (or run backend geocoding for existing ones), pins will
-                    appear here.
+                    No pins yet. This usually means the locations don&apos;t
+                    have lat/lng saved in the DB yet. Once you create new
+                    locations (or run backend geocoding for existing ones),
+                    pins will appear here.
                   </div>
                 </div>
               ) : null}
