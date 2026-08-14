@@ -653,3 +653,4 @@ export default function LogsActivitySection({ onBack }) {
     </div>
   );
 }
+
