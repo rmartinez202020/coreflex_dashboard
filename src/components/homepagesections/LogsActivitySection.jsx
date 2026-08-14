@@ -50,6 +50,22 @@ function getStatusClass(status) {
   return "text-gray-800 font-semibold";
 }
 
+function getActorEmail(log) {
+  const actorType = String(log?.actor_type || "")
+    .trim()
+    .toUpperCase();
+
+  if (actorType === "TENANT") {
+    return log?.tenant_email || "—";
+  }
+
+  if (actorType === "OWNER") {
+    return log?.user_email || "—";
+  }
+
+  return log?.tenant_email || log?.user_email || "—";
+}
+
 
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
@@ -371,10 +387,10 @@ export default function LogsActivitySection({ onBack }) {
         ==================================================== */}
 
         <div className="w-full overflow-x-auto">
-          <div className="min-w-[1050px]">
+          <div className="min-w-[1320px]">
             {/* TABLE HEADER */}
 
-            <div className="grid grid-cols-[190px_120px_190px_110px_110px_1fr] bg-gray-50 border-b border-gray-300">
+            <div className="grid grid-cols-[190px_120px_190px_110px_110px_1fr_260px] bg-gray-50 border-b border-gray-300">
               <div className="px-3 py-2 text-[11px] font-bold text-gray-600">
                 TIME
               </div>
@@ -398,20 +414,25 @@ export default function LogsActivitySection({ onBack }) {
               <div className="px-3 py-2 text-[11px] font-bold text-gray-600">
                 MESSAGE
               </div>
+
+              <div className="px-3 py-2 text-[11px] font-bold text-gray-600">
+                EMAIL
+              </div>
             </div>
 
-            {/* TABLE BODY */}
+            {/* TABLE BODY - SCROLLABLE */}
 
-            {loading ? (
-              <div className="px-4 py-10 text-center text-sm text-gray-500">
-                Loading logs...
-              </div>
-            ) : filteredLogs.length === 0 ? (
-              <div className="px-4 py-10 text-center text-sm text-gray-500">
-                {errorMessage ? "Unable to load logs." : "No logs found."}
-              </div>
-            ) : (
-              filteredLogs.map((log) => {
+            <div className="max-h-[520px] overflow-y-auto">
+              {loading ? (
+                <div className="px-4 py-10 text-center text-sm text-gray-500">
+                  Loading logs...
+                </div>
+              ) : filteredLogs.length === 0 ? (
+                <div className="px-4 py-10 text-center text-sm text-gray-500">
+                  {errorMessage ? "Unable to load logs." : "No logs found."}
+                </div>
+              ) : (
+                filteredLogs.map((log) => {
                 const isExpanded = expandedId === log.__row_id;
 
                 return (
@@ -423,7 +444,7 @@ export default function LogsActivitySection({ onBack }) {
                     <button
                       type="button"
                       onClick={() => toggleRow(log.__row_id)}
-                      className="w-full grid grid-cols-[190px_120px_190px_110px_110px_1fr] text-left bg-white border-b border-gray-200 hover:bg-gray-50 transition"
+                      className="w-full grid grid-cols-[190px_120px_190px_110px_110px_1fr_260px] text-left bg-white border-b border-gray-200 hover:bg-gray-50 transition"
                     >
                       <div className="px-3 py-2.5 text-xs text-gray-900 whitespace-nowrap">
                         <span className="inline-block w-4 text-gray-400">
@@ -455,6 +476,13 @@ export default function LogsActivitySection({ onBack }) {
 
                       <div className="px-3 py-2.5 text-xs text-gray-700 truncate">
                         {formatValue(log.message)}
+                      </div>
+
+                      <div
+                        className="px-3 py-2.5 text-xs text-gray-900 truncate"
+                        title={formatValue(getActorEmail(log))}
+                      >
+                        {formatValue(getActorEmail(log))}
                       </div>
                     </button>
 
@@ -628,8 +656,9 @@ export default function LogsActivitySection({ onBack }) {
                     )}
                   </React.Fragment>
                 );
-              })
-            )}
+                })
+              )}
+            </div>
           </div>
         </div>
 
