@@ -8,6 +8,7 @@ import TenantUsersPage from "./homepagesections/TenantUsersPage";
 import MySubscriptionSection from "./homepagesections/MySubscriptionSection";
 import BillingAdminSection from "./homepagesections/BillingAdminSection";
 import AdminSubscriptionsSection from "./homepagesections/admin_subscriptions";
+import LogsActivitySection from "./homepagesections/LogsActivitySection";
 
 import { getToken, parseJwt } from "../utils/authToken";
 
@@ -86,6 +87,9 @@ export default function HomePage({
   const [showBillingAdminPage, setShowBillingAdminPage] = React.useState(false);
 
   const [showAdminSubscriptionsPage, setShowAdminSubscriptionsPage] =
+    React.useState(false);
+
+  const [showLogsActivityPage, setShowLogsActivityPage] =
     React.useState(false);
 
   const [zhc1921Rows, setZhc1921Rows] = React.useState([
@@ -194,6 +198,12 @@ export default function HomePage({
     }
   }, [showAdminSubscriptionsPage]);
 
+  React.useEffect(() => {
+    if (showLogsActivityPage) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [showLogsActivityPage]);
+
   const isDeviceManagerOpen = isPlatformOwner && !!activeModel;
 
   if (showRegisterDevices) {
@@ -290,6 +300,16 @@ export default function HomePage({
         <AdminSubscriptionsSection
           onBack={() => setShowAdminSubscriptionsPage(false)}
           ownerEmail={detectedEmail || normalizedUser}
+        />
+      </div>
+    );
+  }
+
+  if (showLogsActivityPage) {
+    return (
+      <div className="mt-4 md:mt-6">
+        <LogsActivitySection
+          onBack={() => setShowLogsActivityPage(false)}
         />
       </div>
     );
@@ -403,9 +423,16 @@ export default function HomePage({
           </div>
         </div>
 
-        <div className="rounded-xl bg-gray-800 text-white p-4 md:p-5 flex flex-col justify-between">
+        <div
+          className="rounded-xl bg-gray-800 text-white p-4 md:p-5 flex flex-col justify-between cursor-pointer hover:bg-gray-900 transition"
+          onClick={() => setShowLogsActivityPage(true)}
+        >
           <h2 className="text-lg font-semibold mb-2">Logs & Activity</h2>
           <p className="text-sm text-gray-200">Audit recent events.</p>
+
+          <div className="mt-3 text-xs text-gray-300 opacity-90">
+            Click to open Logs & Activity
+          </div>
         </div>
       </div>
 
