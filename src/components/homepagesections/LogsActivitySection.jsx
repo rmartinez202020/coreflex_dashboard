@@ -1,107 +1,8 @@
 // src/components/homepagesections/LogsActivitySection.jsx
 
 import React from "react";
-
-// ============================================================
-// SAMPLE DATA
-// ------------------------------------------------------------
-// Frontend template only.
-//
-// Later this array will be replaced by the real logs returned
-// from the backend / Node-RED historian.
-// ============================================================
-
-const SAMPLE_LOGS = [
-  {
-    id: 1,
-    timestamp: "2026-08-11T04:20:47.536Z",
-    user_id: 11,
-    user_email: "owner@example.com",
-
-    actor_type: "TENANT",
-    tenant_user_id: 12,
-    tenant_email: "tenant@example.com",
-    tenant_name: "Martinez",
-
-    category: "SECURITY",
-    action: "LOGIN_SUCCESS",
-    status: "SUCCESS",
-    message: "Tenant login successful",
-
-    customer_id: null,
-    dashboard_id: "20",
-    device_id: null,
-    gateway_id: null,
-
-    field: null,
-    old_value: null,
-    new_value: null,
-
-    ip_address: "72.76.251.181",
-    user_agent:
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-  },
-
-  {
-    id: 2,
-    timestamp: "2026-08-11T03:59:39.444Z",
-    user_id: 11,
-    user_email: "owner@example.com",
-
-    actor_type: "OWNER",
-    tenant_user_id: null,
-    tenant_email: null,
-    tenant_name: null,
-
-    category: "SECURITY",
-    action: "LOGIN_FAILED",
-    status: "FAILED",
-    message: "Login failed: invalid credentials",
-
-    customer_id: null,
-    dashboard_id: null,
-    device_id: null,
-    gateway_id: null,
-
-    field: null,
-    old_value: null,
-    new_value: null,
-
-    ip_address: "72.76.251.181",
-    user_agent:
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-  },
-
-  {
-    id: 3,
-    timestamp: "2026-08-11T03:58:04.888Z",
-    user_id: 11,
-    user_email: "owner@example.com",
-
-    actor_type: "OWNER",
-    tenant_user_id: null,
-    tenant_email: null,
-    tenant_name: null,
-
-    category: "SECURITY",
-    action: "LOGIN_SUCCESS",
-    status: "SUCCESS",
-    message: "User login successful",
-
-    customer_id: null,
-    dashboard_id: null,
-    device_id: null,
-    gateway_id: null,
-
-    field: null,
-    old_value: null,
-    new_value: null,
-
-    ip_address: "72.76.251.181",
-    user_agent:
-      "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
-  },
-];
+import { API_URL } from "../../config/api";
+import { getToken } from "../../utils/authToken";
 
 // ============================================================
 // HELPERS
@@ -149,6 +50,45 @@ function getStatusClass(status) {
   return "text-gray-800 font-semibold";
 }
 
+
+function getAuthHeaders() {
+  const token = String(getToken() || "").trim();
+
+  if (!token) {
+    return {};
+  }
+
+  return {
+    Authorization: `Bearer ${token}`,
+  };
+}
+
+function getApiErrorMessage(data, fallback) {
+  const detail = data?.detail;
+
+  if (typeof detail === "string" && detail.trim()) {
+    return detail;
+  }
+
+  if (detail && typeof detail === "object") {
+    if (typeof detail.error === "string" && detail.error.trim()) {
+      return detail.error;
+    }
+
+    try {
+      return JSON.stringify(detail);
+    } catch {
+      // Ignore JSON stringify failure.
+    }
+  }
+
+  if (typeof data?.error === "string" && data.error.trim()) {
+    return data.error;
+  }
+
+  return fallback;
+}
+
 // ============================================================
 // DETAIL FIELD
 // ============================================================
@@ -172,7 +112,7 @@ function DetailField({ label, value }) {
 // ============================================================
 
 export default function LogsActivitySection({ onBack }) {
-  const [logs] = React.useState(SAMPLE_LOGS);
+  const [logs, setLogs] = React.useState([]);
 
   const [expandedId, setExpandedId] = React.useState(null);
 
@@ -180,6 +120,88 @@ export default function LogsActivitySection({ onBack }) {
 
   const [categoryFilter, setCategoryFilter] =
     React.useState("ALL");
+
+  const [loading, setLoading] = React.useState(true);
+
+  const [errorMessage, setErrorMessage] = React.useState("");
+
+  const [lastLoadedDate, setLastLoadedDate] = React.useState("");
+
+  // ==========================================================
+  // LOAD REAL LOGS
+  // ----------------------------------------------------------
+  // One request when this page opens.
+  // Another request only when Refresh is clicked.
+  // No continuous polling.
+  // ==========================================================
+
+  const loadLogs = React.useCallback(async () => {
+    const token = String(getToken() || "").trim();
+
+    if (!token) {
+      setLogs([]);
+      setErrorMessage("Missing auth token. Please login again.");
+      setLoading(false);
+      return;
+    }
+
+    setLoading(true);
+    setErrorMessage("");
+
+    try {
+      const response = await fetch(`${API_URL}/logs/read`, {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+          "Cache-Control": "no-cache",
+          Pragma: "no-cache",
+        },
+        cache: "no-store",
+        body: JSON.stringify({}),
+      });
+
+      const data = await response.json().catch(() => ({}));
+
+      if (!response.ok) {
+        throw new Error(
+          getApiErrorMessage(
+            data,
+            `Failed to load logs (${response.status})`
+          )
+        );
+      }
+
+      const rows = Array.isArray(data?.logs)
+        ? data.logs
+        : [];
+
+      // Add a frontend-only row key.
+      // Nothing is written back to the log historian.
+      const normalizedRows = rows.map((log, index) => ({
+        ...log,
+        __row_id:
+          log?.id ??
+          `${String(log?.timestamp || "log")}-${index}`,
+      }));
+
+      setLogs(normalizedRows);
+      setLastLoadedDate(String(data?.date || ""));
+      setExpandedId(null);
+    } catch (error) {
+      console.error("Logs & Activity read failed:", error);
+      setLogs([]);
+      setErrorMessage(
+        String(error?.message || "Unable to load logs.")
+      );
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadLogs();
+  }, [loadLogs]);
 
   // ==========================================================
   // FILTER LOGS
@@ -245,13 +267,10 @@ export default function LogsActivitySection({ onBack }) {
 
   // ==========================================================
   // REFRESH
-  // ----------------------------------------------------------
-  // Template only for now.
-  // Later this will request fresh log data from the backend.
   // ==========================================================
 
   const handleRefresh = () => {
-    setExpandedId(null);
+    loadLogs();
   };
 
   // ==========================================================
@@ -334,11 +353,18 @@ export default function LogsActivitySection({ onBack }) {
           <button
             type="button"
             onClick={handleRefresh}
-            className="h-9 px-4 rounded border border-gray-300 bg-white text-sm font-semibold text-gray-800 hover:bg-gray-50"
+            disabled={loading}
+            className="h-9 px-4 rounded border border-gray-300 bg-white text-sm font-semibold text-gray-800 hover:bg-gray-50 disabled:opacity-50 disabled:cursor-not-allowed"
           >
-            ↻ Refresh
+            {loading ? "Loading..." : "↻ Refresh"}
           </button>
         </div>
+
+        {errorMessage && (
+          <div className="px-4 py-3 border-b border-red-200 bg-red-50 text-sm text-red-700">
+            {errorMessage}
+          </div>
+        )}
 
         {/* ===================================================
             LOG TABLE
@@ -376,23 +402,27 @@ export default function LogsActivitySection({ onBack }) {
 
             {/* TABLE BODY */}
 
-            {filteredLogs.length === 0 ? (
+            {loading ? (
               <div className="px-4 py-10 text-center text-sm text-gray-500">
-                No logs found.
+                Loading logs...
+              </div>
+            ) : filteredLogs.length === 0 ? (
+              <div className="px-4 py-10 text-center text-sm text-gray-500">
+                {errorMessage ? "Unable to load logs." : "No logs found."}
               </div>
             ) : (
               filteredLogs.map((log) => {
-                const isExpanded = expandedId === log.id;
+                const isExpanded = expandedId === log.__row_id;
 
                 return (
-                  <React.Fragment key={log.id}>
+                  <React.Fragment key={log.__row_id}>
                     {/* =======================================
                         LOG ROW
                     ======================================== */}
 
                     <button
                       type="button"
-                      onClick={() => toggleRow(log.id)}
+                      onClick={() => toggleRow(log.__row_id)}
                       className="w-full grid grid-cols-[190px_120px_190px_110px_110px_1fr] text-left bg-white border-b border-gray-200 hover:bg-gray-50 transition"
                     >
                       <div className="px-3 py-2.5 text-xs text-gray-900 whitespace-nowrap">
@@ -614,7 +644,9 @@ export default function LogsActivitySection({ onBack }) {
           </div>
 
           <div className="text-xs text-gray-500">
-            CoreFlex Logs & Activity
+            {lastLoadedDate
+              ? `UTC file: ${lastLoadedDate}`
+              : "CoreFlex Logs & Activity"}
           </div>
         </div>
       </div>
