@@ -400,18 +400,19 @@ export default function LogsActivitySection({ onBack }) {
               </div>
             </div>
 
-            {/* TABLE BODY */}
+            {/* TABLE BODY - SCROLLABLE */}
 
-            {loading ? (
-              <div className="px-4 py-10 text-center text-sm text-gray-500">
-                Loading logs...
-              </div>
-            ) : filteredLogs.length === 0 ? (
-              <div className="px-4 py-10 text-center text-sm text-gray-500">
-                {errorMessage ? "Unable to load logs." : "No logs found."}
-              </div>
-            ) : (
-              filteredLogs.map((log) => {
+            <div className="max-h-[520px] overflow-y-auto">
+              {loading ? (
+                <div className="px-4 py-10 text-center text-sm text-gray-500">
+                  Loading logs...
+                </div>
+              ) : filteredLogs.length === 0 ? (
+                <div className="px-4 py-10 text-center text-sm text-gray-500">
+                  {errorMessage ? "Unable to load logs." : "No logs found."}
+                </div>
+              ) : (
+                filteredLogs.map((log) => {
                 const isExpanded = expandedId === log.__row_id;
 
                 return (
@@ -628,8 +629,9 @@ export default function LogsActivitySection({ onBack }) {
                     )}
                   </React.Fragment>
                 );
-              })
-            )}
+                })
+              )}
+            </div>
           </div>
         </div>
 
