@@ -741,7 +741,6 @@ export default function TenantUsersPage({
 
       {/* TABLE */}
       <div className="border rounded-md overflow-hidden">
-        {/* Fixed table header */}
         <div className="grid grid-cols-6 bg-gray-100 text-sm font-semibold text-gray-700 px-4 py-2">
           <div>Name</div>
           <div>Email</div>
@@ -751,54 +750,45 @@ export default function TenantUsersPage({
           <div className="text-right">Actions</div>
         </div>
 
-        {/* Scrollable tenant-user rows */}
-        <div className="max-h-[300px] overflow-y-auto">
-          {loadingUsers ? (
-            <div className="p-4 text-sm text-gray-500">
-              Loading tenant users from backend...
-            </div>
-          ) : filteredUsers.length === 0 ? (
-            <div className="p-4 text-sm text-gray-500">
-              {!users.length
-                ? "No users created yet."
-                : "No users matched the current search filters."}
-            </div>
-          ) : (
-            filteredUsers.map((u) => (
-              <div
-                key={u.id}
-                className="grid grid-cols-6 px-4 py-2 text-sm border-t items-center gap-3"
-              >
-                <div>{u.name}</div>
-                <div>{u.email}</div>
-
-                <div>
-                  {u.access === "read_control" ? "Read + Control" : "Read"}
-                </div>
-
-                <div>{u.customerName || "—"}</div>
-
-                <div className="text-xs text-gray-600">
-                  {u.dashboards.length === 0
-                    ? "—"
-                    : selectedDashboardNames(
-                        u.dashboards,
-                        u.dashboardObjects
-                      )}
-                </div>
-
-                <div className="flex justify-end">
-                  <button
-                    onClick={() => openEditModal(u)}
-                    className="px-2.5 py-1.5 text-xs rounded-md border bg-white hover:bg-gray-100"
-                  >
-                    ✏️ Edit
-                  </button>
-                </div>
+        {loadingUsers ? (
+          <div className="p-4 text-sm text-gray-500">
+            Loading tenant users from backend...
+          </div>
+        ) : filteredUsers.length === 0 ? (
+          <div className="p-4 text-sm text-gray-500">
+            {!users.length
+              ? "No users created yet."
+              : "No users matched the current search filters."}
+          </div>
+        ) : (
+          filteredUsers.map((u) => (
+            <div
+              key={u.id}
+              className="grid grid-cols-6 px-4 py-2 text-sm border-t items-center gap-3"
+            >
+              <div>{u.name}</div>
+              <div>{u.email}</div>
+              <div>
+                {u.access === "read_control" ? "Read + Control" : "Read"}
               </div>
-            ))
-          )}
-        </div>
+              <div>{u.customerName || "—"}</div>
+              <div className="text-xs text-gray-600">
+                {u.dashboards.length === 0
+                  ? "—"
+                  : selectedDashboardNames(u.dashboards, u.dashboardObjects)}
+              </div>
+
+              <div className="flex justify-end">
+                <button
+                  onClick={() => openEditModal(u)}
+                  className="px-2.5 py-1.5 text-xs rounded-md border bg-white hover:bg-gray-100"
+                >
+                  ✏️ Edit
+                </button>
+              </div>
+            </div>
+          ))
+        )}
       </div>
 
       {/* MODAL */}
