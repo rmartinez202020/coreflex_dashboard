@@ -9,6 +9,7 @@ import MySubscriptionSection from "./homepagesections/MySubscriptionSection";
 import BillingAdminSection from "./homepagesections/BillingAdminSection";
 import AdminSubscriptionsSection from "./homepagesections/admin_subscriptions";
 import LogsActivitySection from "./homepagesections/LogsActivitySection";
+import LogsAdministrationSection from "./homepagesections/LogsAdministrationSection";
 
 import { getToken, parseJwt } from "../utils/authToken";
 
@@ -92,6 +93,9 @@ export default function HomePage({
   const [showLogsActivityPage, setShowLogsActivityPage] =
     React.useState(false);
 
+  const [showLogsAdministrationPage, setShowLogsAdministrationPage] =
+    React.useState(false);
+
   const [zhc1921Rows, setZhc1921Rows] = React.useState([
     {
       deviceId: "1921251024070670",
@@ -150,6 +154,7 @@ export default function HomePage({
       setShowBusinessDashboardsReportPage(false);
       setShowBillingAdminPage(false);
       setShowAdminSubscriptionsPage(false);
+      setShowLogsAdministrationPage(false);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isPlatformOwner, normalizedUser]);
@@ -203,6 +208,12 @@ export default function HomePage({
       window.scrollTo({ top: 0, behavior: "smooth" });
     }
   }, [showLogsActivityPage]);
+
+  React.useEffect(() => {
+    if (showLogsAdministrationPage) {
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    }
+  }, [showLogsAdministrationPage]);
 
   const isDeviceManagerOpen = isPlatformOwner && !!activeModel;
 
@@ -310,6 +321,16 @@ export default function HomePage({
       <div className="mt-4 md:mt-6">
         <LogsActivitySection
           onBack={() => setShowLogsActivityPage(false)}
+        />
+      </div>
+    );
+  }
+
+  if (isPlatformOwner && showLogsAdministrationPage) {
+    return (
+      <div className="mt-4 md:mt-6">
+        <LogsAdministrationSection
+          onBack={() => setShowLogsAdministrationPage(false)}
         />
       </div>
     );
@@ -577,6 +598,7 @@ export default function HomePage({
 
             <button
               type="button"
+              onClick={() => setShowLogsAdministrationPage(true)}
               className="w-full rounded-lg bg-gray-800 text-white px-4 py-3 text-left hover:bg-gray-900 transition min-h-[112px]"
             >
               <div className="text-base font-semibold leading-tight">
