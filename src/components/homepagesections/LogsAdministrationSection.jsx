@@ -1018,7 +1018,7 @@ export default function LogsAdministrationSection({
             </div>
 
             {/* =================================================
-                FOOTER
+                FOOTERR
             ================================================== */}
 
             <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-t border-gray-200 text-xs text-gray-500">
