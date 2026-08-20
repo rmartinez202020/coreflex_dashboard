@@ -11,41 +11,6 @@ const API_URL = String(
 ).replace(/\/+$/, "");
 
 // ============================================================
-// AUTH HELPERS
-// ============================================================
-
-function getStoredToken() {
-  const possibleKeys = [
-    "access_token",
-    "token",
-    "auth_token",
-    "jwt",
-  ];
-
-  for (const key of possibleKeys) {
-    const value = localStorage.getItem(key);
-
-    if (value && String(value).trim()) {
-      return String(value).trim();
-    }
-  }
-
-  return "";
-}
-
-function getAuthHeaders() {
-  const token = getStoredToken();
-
-  if (!token) {
-    return {};
-  }
-
-  return {
-    Authorization: `Bearer ${token}`,
-  };
-}
-
-// ============================================================
 // ERROR HELPER
 // ============================================================
 
@@ -253,17 +218,6 @@ export default function LogsAdministrationSection({
         return;
       }
 
-      const token = getStoredToken();
-
-      if (!token) {
-        setErrorMessage(
-          "Authentication token was not found. Please login again."
-        );
-        setSuccessMessage("");
-        setLogs([]);
-        return;
-      }
-
       setLoading(true);
       setErrorMessage("");
       setSuccessMessage("");
@@ -276,8 +230,6 @@ export default function LogsAdministrationSection({
 
             headers: {
               "Content-Type": "application/json",
-              ...getAuthHeaders(),
-
               "Cache-Control": "no-cache",
               Pragma: "no-cache",
             },
