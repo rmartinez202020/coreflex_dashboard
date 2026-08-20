@@ -512,7 +512,7 @@ export default function HomePage({
             </span>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-3">
+          <div className="grid grid-cols-1 md:grid-cols-5 gap-3">
             <button
               onClick={() => setShowBusinessDashboardsReportPage(true)}
               className="w-full rounded-lg bg-gray-900 text-white px-4 py-3 text-left hover:opacity-90 transition min-h-[112px]"
@@ -572,6 +572,21 @@ export default function HomePage({
               </div>
               <div className="mt-2 text-[11px] opacity-90">
                 Click to open billing admin
+              </div>
+            </button>
+
+            <button
+              type="button"
+              className="w-full rounded-lg bg-gray-800 text-white px-4 py-3 text-left hover:bg-gray-900 transition min-h-[112px]"
+            >
+              <div className="text-base font-semibold leading-tight">
+                Logs administration
+              </div>
+              <div className="mt-1 text-[13px] leading-snug opacity-90">
+                Manage platform logs and audit administration.
+              </div>
+              <div className="mt-2 text-[11px] opacity-90">
+                Logs administration
               </div>
             </button>
           </div>
