@@ -1,6 +1,7 @@
 // src/components/homepagesections/LogsAdministrationSection.jsx
 
 import React from "react";
+import { authHeader } from "../../utils/authToken";
 
 // ============================================================
 // API CONFIGURATION
@@ -232,6 +233,7 @@ export default function LogsAdministrationSection({
               "Content-Type": "application/json",
               "Cache-Control": "no-cache",
               Pragma: "no-cache",
+              ...authHeader(),
             },
 
             cache: "no-store",
