@@ -6,6 +6,7 @@ import { getToken } from "../utils/authToken";
 import useDashboardTelemetryPoller from "../hooks/useDashboardTelemetryPoller";
 import useMultiSelectClick from "../hooks/useMultiSelectClick";
 import DashboardCanvasWidgetLayer from "./DashboardCanvasWidgetLayer";
+import DashboardDrawingLayer from "./DashboardDrawingLayer";
 
 function getAuthHeaders() {
   const token = String(getToken() || "").trim();
@@ -183,6 +184,11 @@ export default function DashboardCanvas({
   tenantAccessLevel = "read_only",
 
   showDashboardIdsDetails = false,
+
+  drawTool = "select",
+  setDrawTool,
+  drawColor = "#000000",
+  drawWidth = 2,
 }) {
   const isPlay = dashboardMode === "play" || dashboardMode === "launch";
 
@@ -577,6 +583,19 @@ export default function DashboardCanvas({
         onMouseMove={(e) => !isPlay && handleCanvasMouseMove(e)}
         onMouseUp={(e) => !isPlay && handleCanvasMouseUp(e)}
       >
+        <DashboardDrawingLayer
+          isPlay={isPlay}
+          drawTool={drawTool}
+          drawColor={drawColor}
+          drawWidth={drawWidth}
+          droppedTanks={droppedTanks}
+          setDroppedTanks={setDroppedTanks}
+          selectedIds={selectedIds}
+          setSelectedIds={setSelectedIds}
+          setSelectedTank={setSelectedTank}
+          hideContextMenu={hideContextMenu}
+        />
+
         <DashboardCanvasWidgetLayer
           droppedTanks={droppedTanks}
           selectedIds={selectedIds}

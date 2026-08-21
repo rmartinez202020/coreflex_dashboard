@@ -275,6 +275,11 @@ export default function App() {
   // ⭐ DASHBOARD MODE — DEFAULT EDIT
   const [dashboardMode, setDashboardMode] = useState("edit");
 
+  // ✏️ DRAW TOOLS — shared state between SidebarLeft and DashboardCanvas
+  const [drawTool, setDrawTool] = useState("select");
+  const [drawColor, setDrawColor] = useState("#000000");
+  const [drawWidth, setDrawWidth] = useState(2);
+
   // ✅ NEW: IDs Details global state from RightPanel
   const [dashboardIdsDetailsState, setDashboardIdsDetailsState] = useState({
     enabled: false,
@@ -795,6 +800,12 @@ export default function App() {
         lastSavedAt={lastSavedAt}
         onGoMainDashboard={goToMainDashboard}
         onGoHome={goHomeHard}
+        drawTool={drawTool}
+        setDrawTool={setDrawTool}
+        drawColor={drawColor}
+        setDrawColor={setDrawColor}
+        drawWidth={drawWidth}
+        setDrawWidth={setDrawWidth}
       />
 
       <main className="flex-1 pt-6 pr-0 pb-6 pl-2 bg-white overflow-visible relative">
@@ -932,6 +943,10 @@ export default function App() {
             activeWirelessTank2Id={activeWirelessTank2Id}
             setActiveWirelessTank2Id={setActiveWirelessTank2Id}
             setShowWirelessTank2Props={setShowWirelessTank2Props}
+            drawTool={drawTool}
+            setDrawTool={setDrawTool}
+            drawColor={drawColor}
+            drawWidth={drawWidth}
           />
         ) : activePage === "deviceControls" ? (
           <div className="w-full h-full border rounded-lg bg-white p-6">

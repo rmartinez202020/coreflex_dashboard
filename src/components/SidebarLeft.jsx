@@ -34,6 +34,12 @@ export default function SidebarLeft({
   lastSavedAt,
   onGoHome,
   onGoMainDashboard,
+  drawTool = "select",
+  setDrawTool,
+  drawColor = "#000000",
+  setDrawColor,
+  drawWidth = 2,
+  setDrawWidth,
 }) {
   const [isSaving, setIsSaving] = useState(false);
   const [saved, setSaved] = useState(false);
@@ -54,7 +60,6 @@ export default function SidebarLeft({
           setShowWirelessLevelSensor(false);
           setShowDashboardShapes(false);
           setShowDrawingTools(false);
-          setShowDrawingTools(false);
         }
         return next;
       });
@@ -70,7 +75,6 @@ export default function SidebarLeft({
           setShowWirelessLevelSensor(false);
           setShowDashboardShapes(false);
           setShowDrawingTools(false);
-          setShowDrawingTools(false);
         }
         return next;
       });
@@ -85,7 +89,6 @@ export default function SidebarLeft({
           setShowLevelSensors(false);
           setShowWirelessLevelSensor(false);
           setShowDashboardShapes(false);
-          setShowDrawingTools(false);
           setShowDrawingTools(false);
         }
         return next;
@@ -394,60 +397,44 @@ export default function SidebarLeft({
           {showDrawingTools && (
             <div className="ml-0 mb-3 bg-slate-800 rounded-lg p-2">
               <div className="grid grid-cols-2 gap-2">
-                <button
-                  type="button"
-                  className="bg-slate-700 hover:bg-slate-600 rounded px-2 py-2 text-[11px]"
-                  title="Select drawing objects"
-                >
-                  ↖ Select
-                </button>
+                {[
+                  { key: "select", label: "↖ Select", title: "Select drawing objects" },
+                  { key: "line", label: "／ Line", title: "Draw line" },
+                  { key: "arrow", label: "→ Arrow", title: "Draw arrow" },
+                  { key: "rectangle", label: "▭ Rectangle", title: "Draw rectangle" },
+                  { key: "circle", label: "○ Circle", title: "Draw circle or ellipse" },
+                  { key: "pencil", label: "✎ Pencil", title: "Freehand pencil" },
+                ].map((tool) => {
+                  const active = drawTool === tool.key;
 
-                <button
-                  type="button"
-                  className="bg-slate-700 hover:bg-slate-600 rounded px-2 py-2 text-[11px]"
-                  title="Draw line"
-                >
-                  ／ Line
-                </button>
-
-                <button
-                  type="button"
-                  className="bg-slate-700 hover:bg-slate-600 rounded px-2 py-2 text-[11px]"
-                  title="Draw arrow"
-                >
-                  → Arrow
-                </button>
-
-                <button
-                  type="button"
-                  className="bg-slate-700 hover:bg-slate-600 rounded px-2 py-2 text-[11px]"
-                  title="Draw rectangle"
-                >
-                  ▭ Rectangle
-                </button>
-
-                <button
-                  type="button"
-                  className="bg-slate-700 hover:bg-slate-600 rounded px-2 py-2 text-[11px]"
-                  title="Draw circle or ellipse"
-                >
-                  ○ Circle
-                </button>
-
-                <button
-                  type="button"
-                  className="bg-slate-700 hover:bg-slate-600 rounded px-2 py-2 text-[11px]"
-                  title="Freehand pencil"
-                >
-                  ✎ Pencil
-                </button>
+                  return (
+                    <button
+                      key={tool.key}
+                      type="button"
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        setDrawTool?.(tool.key);
+                      }}
+                      className={`rounded px-2 py-2 text-[11px] border transition ${
+                        active
+                          ? "bg-blue-600 border-blue-300 text-white shadow"
+                          : "bg-slate-700 border-slate-600 hover:bg-slate-600 text-white"
+                      }`}
+                      title={tool.title}
+                      aria-pressed={active}
+                    >
+                      {tool.label}
+                    </button>
+                  );
+                })}
               </div>
 
               <div className="mt-3">
                 <div className="text-[10px] text-gray-400 mb-1">Thickness</div>
                 <select
                   className="w-full bg-slate-700 text-white text-[11px] rounded px-2 py-1"
-                  defaultValue="2"
+                  value={String(drawWidth)}
+                  onChange={(e) => setDrawWidth?.(Number(e.target.value))}
                 >
                   <option value="1">1 px</option>
                   <option value="2">2 px</option>
@@ -460,10 +447,15 @@ export default function SidebarLeft({
                 <div className="text-[10px] text-gray-400 mb-1">Line Color</div>
                 <input
                   type="color"
-                  defaultValue="#000000"
+                  value={drawColor}
+                  onChange={(e) => setDrawColor?.(e.target.value)}
                   className="w-full h-8 rounded cursor-pointer bg-transparent"
                   title="Choose line color"
                 />
+              </div>
+
+              <div className="mt-2 text-[10px] text-gray-400">
+                Active: <span className="text-white font-semibold">{drawTool}</span>
               </div>
             </div>
           )}
