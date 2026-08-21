@@ -26,6 +26,7 @@ export default function DashboardDrawingLayer({
   hideContextMenu,
 }) {
   const [draft, setDraft] = React.useState(null);
+  const [dragState, setDragState] = React.useState(null);
 
   const isDrawingToolActive =
     !isPlay &&
@@ -308,6 +309,63 @@ export default function DashboardDrawingLayer({
     (t) => DRAW_OBJECT_SHAPES.has(t?.shape)
   );
 
+  const handleSelectDragMove = React.useCallback(
+    (e) => {
+      if (!dragState || isPlay || drawTool !== "select") return;
+
+      e.preventDefault();
+      e.stopPropagation();
+
+      const rect = e.currentTarget.getBoundingClientRect();
+      const pointerX = e.clientX - rect.left;
+      const pointerY = e.clientY - rect.top;
+
+      const dx = pointerX - dragState.startPointerX;
+      const dy = pointerY - dragState.startPointerY;
+
+      setDroppedTanks((prev) =>
+        (Array.isArray(prev) ? prev : []).map((item) => {
+          if (item?.id !== dragState.id) return item;
+
+          const next = {
+            ...item,
+            x: dragState.original.x + dx,
+            y: dragState.original.y + dy,
+            left: dragState.original.left + dx,
+            top: dragState.original.top + dy,
+          };
+
+          if (item.shape === "drawLine" || item.shape === "drawArrow") {
+            next.x1 = dragState.original.x1 + dx;
+            next.y1 = dragState.original.y1 + dy;
+            next.x2 = dragState.original.x2 + dx;
+            next.y2 = dragState.original.y2 + dy;
+          }
+
+          if (item.shape === "drawPencil") {
+            next.points = dragState.original.points.map((p) => ({
+              x: p.x + dx,
+              y: p.y + dy,
+            }));
+          }
+
+          return next;
+        })
+      );
+    },
+    [dragState, isPlay, drawTool, setDroppedTanks]
+  );
+
+  const finishSelectDrag = React.useCallback(
+    (e) => {
+      if (!dragState) return;
+      e.preventDefault();
+      e.stopPropagation();
+      setDragState(null);
+    },
+    [dragState]
+  );
+
   return (
     <svg
       aria-label="Dashboard drawing layer"
@@ -319,12 +377,28 @@ export default function DashboardDrawingLayer({
         overflow: "visible",
         zIndex: 90000,
         cursor: isDrawingToolActive ? "crosshair" : "default",
-        pointerEvents: isDrawingToolActive ? "auto" : "none",
+        pointerEvents: isPlay ? "none" : "auto",
       }}
       onMouseDown={beginDrawing}
-      onMouseMove={continueDrawing}
-      onMouseUp={finishDrawing}
+      onMouseMove={(e) => {
+        if (dragState) {
+          handleSelectDragMove(e);
+          return;
+        }
+        continueDrawing(e);
+      }}
+      onMouseUp={(e) => {
+        if (dragState) {
+          finishSelectDrag(e);
+          return;
+        }
+        finishDrawing(e);
+      }}
       onMouseLeave={(e) => {
+        if (dragState) {
+          finishSelectDrag(e);
+          return;
+        }
         if (draft) finishDrawing(e);
       }}
     >
@@ -373,9 +447,40 @@ export default function DashboardDrawingLayer({
             if (isPlay || drawTool !== "select") return;
             e.preventDefault();
             e.stopPropagation();
+
+            const root = e.currentTarget.ownerSVGElement;
+            if (!root) return;
+
+            const rect = root.getBoundingClientRect();
+            const pointerX = e.clientX - rect.left;
+            const pointerY = e.clientY - rect.top;
+
             setSelectedIds?.([t.id]);
             setSelectedTank?.(t);
             hideContextMenu?.();
+
+            setDragState({
+              id: t.id,
+              shape: t.shape,
+              startPointerX: pointerX,
+              startPointerY: pointerY,
+              original: {
+                x: Number(t.x ?? t.left) || 0,
+                y: Number(t.y ?? t.top) || 0,
+                left: Number(t.left ?? t.x) || 0,
+                top: Number(t.top ?? t.y) || 0,
+                x1: Number(t.x1) || 0,
+                y1: Number(t.y1) || 0,
+                x2: Number(t.x2) || 0,
+                y2: Number(t.y2) || 0,
+                points: Array.isArray(t.points)
+                  ? t.points.map((p) => ({
+                      x: Number(p?.x) || 0,
+                      y: Number(p?.y) || 0,
+                    }))
+                  : [],
+              },
+            });
           },
         };
 
