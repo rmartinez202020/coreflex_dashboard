@@ -42,6 +42,7 @@ export default function SidebarLeft({
   const [showDeviceControls, setShowDeviceControls] = useState(false);
   const [showWirelessLevelSensor, setShowWirelessLevelSensor] = useState(false);
   const [showDashboardShapes, setShowDashboardShapes] = useState(false);
+  const [showDrawingTools, setShowDrawingTools] = useState(false);
 
   const openOnly = (section) => {
     if (section === "indicators") {
@@ -52,6 +53,8 @@ export default function SidebarLeft({
           setShowDeviceControls(false);
           setShowWirelessLevelSensor(false);
           setShowDashboardShapes(false);
+          setShowDrawingTools(false);
+          setShowDrawingTools(false);
         }
         return next;
       });
@@ -66,6 +69,8 @@ export default function SidebarLeft({
           setShowDeviceControls(false);
           setShowWirelessLevelSensor(false);
           setShowDashboardShapes(false);
+          setShowDrawingTools(false);
+          setShowDrawingTools(false);
         }
         return next;
       });
@@ -80,6 +85,8 @@ export default function SidebarLeft({
           setShowLevelSensors(false);
           setShowWirelessLevelSensor(false);
           setShowDashboardShapes(false);
+          setShowDrawingTools(false);
+          setShowDrawingTools(false);
         }
         return next;
       });
@@ -94,6 +101,7 @@ export default function SidebarLeft({
           setShowLevelSensors(false);
           setShowDeviceControls(false);
           setShowDashboardShapes(false);
+          setShowDrawingTools(false);
         }
         return next;
       });
@@ -108,9 +116,26 @@ export default function SidebarLeft({
           setShowLevelSensors(false);
           setShowDeviceControls(false);
           setShowWirelessLevelSensor(false);
+          setShowDrawingTools(false);
         }
         return next;
       });
+      return;
+    }
+
+    if (section === "drawingtools") {
+      setShowDrawingTools((prev) => {
+        const next = !prev;
+        if (next) {
+          setShowIndicators(false);
+          setShowLevelSensors(false);
+          setShowDeviceControls(false);
+          setShowWirelessLevelSensor(false);
+          setShowDashboardShapes(false);
+        }
+        return next;
+      });
+      return;
     }
   };
 
@@ -235,6 +260,7 @@ export default function SidebarLeft({
                   setShowLevelSensors(false);
                   setShowDeviceControls(false);
                   setShowWirelessLevelSensor(false);
+                  setShowDrawingTools(false);
                 }
                 return next;
               })
@@ -354,6 +380,91 @@ export default function SidebarLeft({
           {showDashboardShapes && (
             <div className="ml-0 mb-3">
               <DashboardShapesPanel visible={true} title="Shapes" />
+            </div>
+          )}
+
+          {/* ✅ DRAW TOOLS BELOW SHAPES */}
+          <div
+            className="cursor-pointer mt-3 mb-2 flex items-center gap-2 text-[13px]"
+            onClick={() => openOnly("drawingtools")}
+          >
+            Draw <span>{showDrawingTools ? "▾" : "▸"}</span>
+          </div>
+
+          {showDrawingTools && (
+            <div className="ml-0 mb-3 bg-slate-800 rounded-lg p-2">
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  className="bg-slate-700 hover:bg-slate-600 rounded px-2 py-2 text-[11px]"
+                  title="Select drawing objects"
+                >
+                  ↖ Select
+                </button>
+
+                <button
+                  type="button"
+                  className="bg-slate-700 hover:bg-slate-600 rounded px-2 py-2 text-[11px]"
+                  title="Draw line"
+                >
+                  ／ Line
+                </button>
+
+                <button
+                  type="button"
+                  className="bg-slate-700 hover:bg-slate-600 rounded px-2 py-2 text-[11px]"
+                  title="Draw arrow"
+                >
+                  → Arrow
+                </button>
+
+                <button
+                  type="button"
+                  className="bg-slate-700 hover:bg-slate-600 rounded px-2 py-2 text-[11px]"
+                  title="Draw rectangle"
+                >
+                  ▭ Rectangle
+                </button>
+
+                <button
+                  type="button"
+                  className="bg-slate-700 hover:bg-slate-600 rounded px-2 py-2 text-[11px]"
+                  title="Draw circle or ellipse"
+                >
+                  ○ Circle
+                </button>
+
+                <button
+                  type="button"
+                  className="bg-slate-700 hover:bg-slate-600 rounded px-2 py-2 text-[11px]"
+                  title="Freehand pencil"
+                >
+                  ✎ Pencil
+                </button>
+              </div>
+
+              <div className="mt-3">
+                <div className="text-[10px] text-gray-400 mb-1">Thickness</div>
+                <select
+                  className="w-full bg-slate-700 text-white text-[11px] rounded px-2 py-1"
+                  defaultValue="2"
+                >
+                  <option value="1">1 px</option>
+                  <option value="2">2 px</option>
+                  <option value="3">3 px</option>
+                  <option value="5">5 px</option>
+                </select>
+              </div>
+
+              <div className="mt-3">
+                <div className="text-[10px] text-gray-400 mb-1">Line Color</div>
+                <input
+                  type="color"
+                  defaultValue="#000000"
+                  className="w-full h-8 rounded cursor-pointer bg-transparent"
+                  title="Choose line color"
+                />
+              </div>
             </div>
           )}
         </div>
