@@ -53,7 +53,7 @@ export default function useDashboardPersistence({
   // ⭐ LAST SAVED TIMESTAMP
   const [lastSavedAt, setLastSavedAt] = useState(null);
 
-  // 🔁 AUTO-RESTORE FLAG (must exist BEFORE goToMainDashboard uses it)
+  // 🔁 AUTO-RESTORE FLAG
   const autoRestoreRanRef = useRef(false);
 
   // 🔁 RESET AUTO-RESTORE WHEN DASHBOARD CONTEXT CHANGES
@@ -65,24 +65,36 @@ export default function useDashboardPersistence({
   // ✅ Dashboard API endpoint resolver
   // ==========================================
   const getDashboardEndpoint = useCallback((ctx) => {
-    // main dashboard
-    if (!ctx || ctx.type === "main") return `${API_URL}/dashboard/main`;
+    if (!ctx || ctx.type === "main") {
+      return `${API_URL}/dashboard/main`;
+    }
 
-    // customer dashboard (must have an id)
     if (ctx.type === "customer" && ctx.dashboardId) {
       return `${API_URL}/customers-dashboards/${ctx.dashboardId}`;
     }
 
-    // fallback
     return `${API_URL}/dashboard/main`;
   }, []);
 
-  // ✅ GO BACK TO MAIN DASHBOARD (from customer dashboards)
+  // ==========================================
+  // ♻️ Manual Restore endpoint resolver
+  // ==========================================
+  const getDashboardRestoreEndpoint = useCallback((ctx) => {
+    if (!ctx || ctx.type === "main") {
+      return `${API_URL}/dashboard/main/restore`;
+    }
+
+    if (ctx.type === "customer" && ctx.dashboardId) {
+      return `${API_URL}/customers-dashboards/${ctx.dashboardId}/restore`;
+    }
+
+    return `${API_URL}/dashboard/main/restore`;
+  }, []);
+
+  // ✅ GO BACK TO MAIN DASHBOARD
   const goToMainDashboard = useCallback(() => {
-    // switch to dashboard page
     setActivePage?.("dashboard");
 
-    // reset dashboard context to MAIN
     setActiveDashboard({
       type: "main",
       dashboardId: null,
@@ -91,15 +103,12 @@ export default function useDashboardPersistence({
       customerName: "",
     });
 
-    // ensure edit mode
     setDashboardMode?.("edit");
 
-    // clear canvas so main dashboard auto-restores
     setDroppedTanks?.([]);
     setSelectedIds?.([]);
     setSelectedTank?.(null);
 
-    // allow auto-restore to run again
     autoRestoreRanRef.current = false;
   }, [
     setActivePage,
@@ -109,11 +118,9 @@ export default function useDashboardPersistence({
     setSelectedTank,
   ]);
 
-  // 💾 SAVE PROJECT (MAIN or CUSTOMER)
-  // ✅ IMPORTANT: supports passing an explicit canvas snapshot (for Modal Apply)
+  // 💾 SAVE PROJECT
   const handleSaveProject = useCallback(
     async (overrideObjects = null) => {
-      // ✅ DEBUG: trace save entry + snapshot sources
       console.log("🧪 [Persistence] handleSaveProject START", {
         activePage,
         dashboardType: activeDashboard?.type,
@@ -125,25 +132,28 @@ export default function useDashboardPersistence({
         droppedRefCount: Array.isArray(droppedRef?.current)
           ? droppedRef.current.length
           : null,
-        droppedStateCount: Array.isArray(droppedTanks) ? droppedTanks.length : null,
+        droppedStateCount: Array.isArray(droppedTanks)
+          ? droppedTanks.length
+          : null,
       });
 
-      // ✅ only allow saving from dashboard editor
       if (activePage !== "dashboard") {
-        console.warn("⚠️ [Persistence] Save ignored: not on dashboard editor page");
+        console.warn(
+          "⚠️ [Persistence] Save ignored: not on dashboard editor page"
+        );
         return;
       }
 
-      // ✅ customer dashboard must have an id
-      if (activeDashboard.type === "customer" && !activeDashboard.dashboardId) {
-        console.error("❌ [Persistence] Cannot save customer dashboard: missing dashboardId");
+      if (
+        activeDashboard.type === "customer" &&
+        !activeDashboard.dashboardId
+      ) {
+        console.error(
+          "❌ [Persistence] Cannot save customer dashboard: missing dashboardId"
+        );
         return;
       }
 
-      // ✅ choose what we save:
-      // 1) explicit override (modal Apply)
-      // 2) droppedRef (latest) to avoid stale state
-      // 3) fallback droppedTanks
       const objectsToSave = Array.isArray(overrideObjects)
         ? overrideObjects
         : Array.isArray(droppedRef?.current)
@@ -157,7 +167,9 @@ export default function useDashboardPersistence({
             ? "main_dashboard"
             : "customer_dashboard",
         dashboardId: activeDashboard.dashboardId || null,
-        canvas: { objects: objectsToSave },
+        canvas: {
+          objects: objectsToSave,
+        },
         meta: {
           dashboardMode,
           savedAt: new Date().toISOString(),
@@ -168,24 +180,37 @@ export default function useDashboardPersistence({
 
       try {
         const token = getToken();
-        if (!token) throw new Error("No auth token found");
 
-        console.log("💾 [Persistence] about to call saveMainDashboard", {
-          objects: objectsToSave.length,
-          endpoint: getDashboardEndpoint(activeDashboard),
-        });
+        if (!token) {
+          throw new Error("No auth token found");
+        }
 
-        await saveMainDashboard(dashboardPayload, activeDashboard);
+        console.log(
+          "💾 [Persistence] about to call saveMainDashboard",
+          {
+            objects: objectsToSave.length,
+            endpoint: getDashboardEndpoint(activeDashboard),
+          }
+        );
 
-        console.log("✅ [Persistence] saveMainDashboard finished");
+        await saveMainDashboard(
+          dashboardPayload,
+          activeDashboard
+        );
+
+        console.log(
+          "✅ [Persistence] saveMainDashboard finished"
+        );
 
         const now = new Date();
         setLastSavedAt(now);
 
-        // ✅ make SAVE the new undo baseline (use the SAME objects we saved)
         hardResetHistory?.(objectsToSave);
       } catch (err) {
-        console.error("❌ [Persistence] Save failed (catch):", err);
+        console.error(
+          "❌ [Persistence] Save failed (catch):",
+          err
+        );
       }
     },
     [
@@ -195,27 +220,65 @@ export default function useDashboardPersistence({
       droppedTanks,
       droppedRef,
       hardResetHistory,
-      getDashboardEndpoint, // ✅ used in debug log
+      getDashboardEndpoint,
     ]
   );
 
-  // ⬆ RESTORE PROJECT (manual button)
+  // ==========================================
+  // ♻️ RESTORE PROJECT — MANUAL BUTTON ONLY
+  // ==========================================
   const handleUploadProject = useCallback(async () => {
     let restoredObjects = [];
 
     try {
       const token = getToken();
-      if (!token) throw new Error("No auth token found");
 
-      // ✅ tell history system we are restoring from DB
+      if (!token) {
+        throw new Error("No auth token found");
+      }
+
       beginRestore?.();
 
-      const res = await fetch(getDashboardEndpoint(activeDashboard), {
-        headers: { Authorization: `Bearer ${token}` },
+      const restoreEndpoint =
+        getDashboardRestoreEndpoint(activeDashboard);
+
+      console.log(
+        "♻️ [Persistence] manual restore request",
+        {
+          dashboardType: activeDashboard?.type,
+          dashboardId: activeDashboard?.dashboardId,
+          endpoint: restoreEndpoint,
+        }
+      );
+
+      const res = await fetch(restoreEndpoint, {
+        method: "POST",
+        headers: {
+          Authorization: `Bearer ${token}`,
+          Accept: "application/json",
+        },
       });
-      if (!res.ok) throw new Error("Failed to load dashboard from DB");
+
+      if (!res.ok) {
+        const detail = await res
+          .text()
+          .catch(() => "");
+
+        throw new Error(
+          detail ||
+            `Failed to restore dashboard from DB (${res.status})`
+        );
+      }
 
       const data = await res.json();
+
+      if (data?.success === false) {
+        throw new Error(
+          data?.message ||
+            "No saved dashboard found to restore"
+        );
+      }
+
       const layout = data?.layout ?? data;
 
       restoredObjects =
@@ -234,19 +297,35 @@ export default function useDashboardPersistence({
       hardResetHistory?.(restoredObjects);
 
       const mode =
-        data?.layout?.meta?.dashboardMode || data?.meta?.dashboardMode;
-      if (mode) setDashboardMode(mode);
+        data?.layout?.meta?.dashboardMode ||
+        data?.meta?.dashboardMode;
 
-      const savedAt = data?.layout?.meta?.savedAt || data?.meta?.savedAt;
-      setLastSavedAt(savedAt ? new Date(savedAt) : null);
+      if (mode) {
+        setDashboardMode(mode);
+      }
+
+      const savedAt =
+        data?.layout?.meta?.savedAt ||
+        data?.meta?.savedAt;
+
+      setLastSavedAt(
+        savedAt ? new Date(savedAt) : null
+      );
+
+      console.log(
+        "✅ [Persistence] manual restore completed"
+      );
     } catch (err) {
-      console.error("❌ Upload failed:", err);
+      console.error(
+        "❌ Restore failed:",
+        err
+      );
     } finally {
       endRestore?.();
     }
   }, [
     activeDashboard,
-    getDashboardEndpoint,
+    getDashboardRestoreEndpoint,
     setDroppedTanks,
     setSelectedIds,
     setSelectedTank,
@@ -256,19 +335,25 @@ export default function useDashboardPersistence({
     endRestore,
   ]);
 
-  // ⭐ LOAD LAST SAVED TIMESTAMP (per user + per dashboard)
+  // ⭐ LOAD LAST SAVED TIMESTAMP
   useEffect(() => {
     const loadLastSavedTimestamp = async () => {
       try {
         const token = getToken();
+
         if (!token) {
           setLastSavedAt(null);
           return;
         }
 
-        const res = await fetch(getDashboardEndpoint(activeDashboard), {
-          headers: { Authorization: `Bearer ${token}` },
-        });
+        const res = await fetch(
+          getDashboardEndpoint(activeDashboard),
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
 
         if (!res.ok) {
           setLastSavedAt(null);
@@ -276,41 +361,75 @@ export default function useDashboardPersistence({
         }
 
         const data = await res.json();
-        const savedAt = data?.layout?.meta?.savedAt || data?.meta?.savedAt;
 
-        setLastSavedAt(savedAt ? new Date(savedAt) : null);
+        const savedAt =
+          data?.layout?.meta?.savedAt ||
+          data?.meta?.savedAt;
+
+        setLastSavedAt(
+          savedAt ? new Date(savedAt) : null
+        );
       } catch (err) {
-        console.error("Failed to load last saved timestamp:", err);
+        console.error(
+          "Failed to load last saved timestamp:",
+          err
+        );
+
         setLastSavedAt(null);
       }
     };
 
     loadLastSavedTimestamp();
-  }, [currentUserKey, activeDashboard, getDashboardEndpoint]);
+  }, [
+    currentUserKey,
+    activeDashboard,
+    getDashboardEndpoint,
+  ]);
 
+  // ==========================================
   // ✅ AUTO-RESTORE FROM DB ON REFRESH
+  // IMPORTANT:
+  // Uses normal GET endpoint.
+  // Does NOT create DASHBOARD_RESTORE log.
+  // ==========================================
   useEffect(() => {
     const autoRestore = async () => {
-      if (autoRestoreRanRef.current) return;
+      if (autoRestoreRanRef.current) {
+        return;
+      }
 
-      // only for dashboard page
-      if (activePage !== "dashboard") return;
+      if (activePage !== "dashboard") {
+        return;
+      }
 
-      // don't overwrite if already has objects
-      if ((droppedTanks?.length || 0) > 0) return;
+      if ((droppedTanks?.length || 0) > 0) {
+        return;
+      }
 
       const token = getToken();
-      if (!token) return;
+
+      if (!token) {
+        return;
+      }
 
       autoRestoreRanRef.current = true;
 
       try {
-        const res = await fetch(getDashboardEndpoint(activeDashboard), {
-          headers: { Authorization: `Bearer ${token}` },
-        });
-        if (!res.ok) return;
+        const res = await fetch(
+          getDashboardEndpoint(activeDashboard),
+          {
+            headers: {
+              Authorization: `Bearer ${token}`,
+            },
+          }
+        );
+
+        if (!res.ok) {
+          return;
+        }
 
         const data = await res.json();
+
         const objects =
           data?.canvas?.objects ||
           data?.layout?.canvas?.objects ||
@@ -320,13 +439,25 @@ export default function useDashboardPersistence({
         setDroppedTanks(objects);
 
         const mode =
-          data?.layout?.meta?.dashboardMode || data?.meta?.dashboardMode;
-        if (mode) setDashboardMode(mode);
+          data?.layout?.meta?.dashboardMode ||
+          data?.meta?.dashboardMode;
 
-        const savedAt = data?.layout?.meta?.savedAt || data?.meta?.savedAt;
-        setLastSavedAt(savedAt ? new Date(savedAt) : null);
+        if (mode) {
+          setDashboardMode(mode);
+        }
+
+        const savedAt =
+          data?.layout?.meta?.savedAt ||
+          data?.meta?.savedAt;
+
+        setLastSavedAt(
+          savedAt ? new Date(savedAt) : null
+        );
       } catch (err) {
-        console.error("❌ Auto restore failed:", err);
+        console.error(
+          "❌ Auto restore failed:",
+          err
+        );
       }
     };
 
@@ -347,6 +478,8 @@ export default function useDashboardPersistence({
     lastSavedAt,
 
     getDashboardEndpoint,
+    getDashboardRestoreEndpoint,
+
     goToMainDashboard,
 
     handleSaveProject,
