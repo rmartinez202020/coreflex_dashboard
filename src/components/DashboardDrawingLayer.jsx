@@ -377,7 +377,7 @@ export default function DashboardDrawingLayer({
         overflow: "visible",
         zIndex: 90000,
         cursor: isDrawingToolActive ? "crosshair" : "default",
-        pointerEvents: isPlay ? "none" : "auto",
+        pointerEvents: isDrawingToolActive ? "auto" : "none",
       }}
       onMouseDown={beginDrawing}
       onMouseMove={(e) => {
