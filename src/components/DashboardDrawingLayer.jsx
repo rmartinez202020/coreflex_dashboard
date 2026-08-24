@@ -377,7 +377,7 @@ export default function DashboardDrawingLayer({
         overflow: "visible",
         zIndex: 90000,
         cursor: isDrawingToolActive ? "crosshair" : "default",
-        pointerEvents: isPlay ? "none" : "auto",
+        pointerEvents: isDrawingToolActive ? "auto" : "none",
       }}
       onMouseDown={beginDrawing}
       onMouseMove={(e) => {
@@ -500,19 +500,6 @@ export default function DashboardDrawingLayer({
                 />
               )}
 
-              {!isPlay && drawTool === "select" && (
-                <line
-                  {...selectableProps}
-                  x1={Number(t.x1) || 0}
-                  y1={Number(t.y1) || 0}
-                  x2={Number(t.x2) || 0}
-                  y2={Number(t.y2) || 0}
-                  stroke="transparent"
-                  strokeWidth={Math.max(10, strokeWidth + 8)}
-                  markerEnd={undefined}
-                />
-              )}
-
               <line
                 {...selectableProps}
                 x1={Number(t.x1) || 0}
@@ -537,17 +524,6 @@ export default function DashboardDrawingLayer({
 
           return (
             <g key={t.id} style={{ pointerEvents: "auto" }}>
-              {!isPlay && drawTool === "select" && (
-                <rect
-                  {...selectableProps}
-                  x={x}
-                  y={y}
-                  width={w}
-                  height={h}
-                  stroke="transparent"
-                  strokeWidth={Math.max(10, strokeWidth + 8)}
-                />
-              )}
               <rect {...selectableProps} x={x} y={y} width={w} height={h} />
               {selected && (
                 <rect
@@ -574,17 +550,6 @@ export default function DashboardDrawingLayer({
 
           return (
             <g key={t.id} style={{ pointerEvents: "auto" }}>
-              {!isPlay && drawTool === "select" && (
-                <ellipse
-                  {...selectableProps}
-                  cx={x + w / 2}
-                  cy={y + h / 2}
-                  rx={w / 2}
-                  ry={h / 2}
-                  stroke="transparent"
-                  strokeWidth={Math.max(10, strokeWidth + 8)}
-                />
-              )}
               <ellipse
                 {...selectableProps}
                 cx={x + w / 2}
@@ -616,14 +581,6 @@ export default function DashboardDrawingLayer({
 
           return (
             <g key={t.id} style={{ pointerEvents: "auto" }}>
-              {!isPlay && drawTool === "select" && (
-                <polyline
-                  {...selectableProps}
-                  points={points}
-                  stroke="transparent"
-                  strokeWidth={Math.max(10, strokeWidth + 8)}
-                />
-              )}
               <polyline {...selectableProps} points={points} />
               {selected && (
                 <rect
