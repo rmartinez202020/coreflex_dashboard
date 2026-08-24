@@ -35,6 +35,134 @@ const PAINT_SHAPES = new Set([
   "paintTriangle",
 ]);
 
+const DRAW_SHAPES = new Set([
+  "drawLine",
+  "drawArrow",
+  "drawRectangle",
+  "drawCircle",
+  "drawPencil",
+]);
+
+function DrawDashboardShape({ tank }) {
+  const stroke =
+    tank.stroke ||
+    tank.strokeColor ||
+    tank?.properties?.stroke ||
+    tank?.properties?.strokeColor ||
+    "#000000";
+  const strokeWidth = Number(
+    tank.strokeWidth ?? tank?.properties?.strokeWidth ?? 2
+  );
+
+  // New Draw objects may be stored either as local coordinates or as
+  // canvas coordinates. Normalize them into a local SVG so the entire
+  // drawing can be owned/moved by DraggableDroppedTank.
+  const rawPoints =
+    tank.shape === "drawPencil" && Array.isArray(tank.points)
+      ? tank.points
+      : [];
+
+  let minX = Number(tank.x ?? 0);
+  let minY = Number(tank.y ?? 0);
+  let maxX = minX + Number(tank.w ?? tank.width ?? 1);
+  let maxY = minY + Number(tank.h ?? tank.height ?? 1);
+
+  if (tank.shape === "drawLine" || tank.shape === "drawArrow") {
+    const x1 = Number(tank.x1 ?? 0);
+    const y1 = Number(tank.y1 ?? 0);
+    const x2 = Number(tank.x2 ?? 0);
+    const y2 = Number(tank.y2 ?? 0);
+    minX = Math.min(x1, x2);
+    minY = Math.min(y1, y2);
+    maxX = Math.max(x1, x2);
+    maxY = Math.max(y1, y2);
+  } else if (tank.shape === "drawPencil" && rawPoints.length) {
+    minX = Math.min(...rawPoints.map((p) => Number(p.x ?? 0)));
+    minY = Math.min(...rawPoints.map((p) => Number(p.y ?? 0)));
+    maxX = Math.max(...rawPoints.map((p) => Number(p.x ?? 0)));
+    maxY = Math.max(...rawPoints.map((p) => Number(p.y ?? 0)));
+  }
+
+  const pad = Math.max(6, strokeWidth * 3);
+  const w = Math.max(1, maxX - minX);
+  const h = Math.max(1, maxY - minY);
+  const svgW = w + pad * 2;
+  const svgH = h + pad * 2;
+
+  const lx = (v) => Number(v ?? 0) - minX + pad;
+  const ly = (v) => Number(v ?? 0) - minY + pad;
+
+  const common = {
+    fill: "none",
+    stroke,
+    strokeWidth,
+    strokeLinecap: "round",
+    strokeLinejoin: "round",
+    vectorEffect: "non-scaling-stroke",
+  };
+
+  if (tank.shape === "drawRectangle") {
+    const rw = Math.max(1, Number(tank.w ?? tank.width ?? w));
+    const rh = Math.max(1, Number(tank.h ?? tank.height ?? h));
+    return (
+      <svg width={rw + pad * 2} height={rh + pad * 2} style={{ display: "block", pointerEvents: "none", overflow: "visible" }}>
+        <rect x={pad} y={pad} width={rw} height={rh} {...common} />
+      </svg>
+    );
+  }
+
+  if (tank.shape === "drawCircle") {
+    const cw = Math.max(1, Number(tank.w ?? tank.width ?? w));
+    const ch = Math.max(1, Number(tank.h ?? tank.height ?? h));
+    return (
+      <svg width={cw + pad * 2} height={ch + pad * 2} style={{ display: "block", pointerEvents: "none", overflow: "visible" }}>
+        <ellipse cx={pad + cw / 2} cy={pad + ch / 2} rx={cw / 2} ry={ch / 2} {...common} />
+      </svg>
+    );
+  }
+
+  if (tank.shape === "drawLine" || tank.shape === "drawArrow") {
+    const x1 = lx(tank.x1);
+    const y1 = ly(tank.y1);
+    const x2 = lx(tank.x2);
+    const y2 = ly(tank.y2);
+
+    if (tank.shape === "drawArrow") {
+      const angle = Math.atan2(y2 - y1, x2 - x1);
+      const head = Math.max(10, strokeWidth * 5);
+      const a1 = angle + Math.PI * 0.82;
+      const a2 = angle - Math.PI * 0.82;
+      const hx1 = x2 + Math.cos(a1) * head;
+      const hy1 = y2 + Math.sin(a1) * head;
+      const hx2 = x2 + Math.cos(a2) * head;
+      const hy2 = y2 + Math.sin(a2) * head;
+      return (
+        <svg width={svgW} height={svgH} style={{ display: "block", pointerEvents: "none", overflow: "visible" }}>
+          <line x1={x1} y1={y1} x2={x2} y2={y2} {...common} />
+          <polyline points={`${hx1},${hy1} ${x2},${y2} ${hx2},${hy2}`} {...common} />
+        </svg>
+      );
+    }
+
+    return (
+      <svg width={svgW} height={svgH} style={{ display: "block", pointerEvents: "none", overflow: "visible" }}>
+        <line x1={x1} y1={y1} x2={x2} y2={y2} {...common} />
+      </svg>
+    );
+  }
+
+  if (tank.shape === "drawPencil") {
+    const points = rawPoints.map((p) => `${lx(p.x)},${ly(p.y)}`).join(" ");
+    return (
+      <svg width={svgW} height={svgH} style={{ display: "block", pointerEvents: "none", overflow: "visible" }}>
+        <polyline points={points} {...common} />
+      </svg>
+    );
+  }
+
+  return null;
+}
+
 function PaintDashboardShape({ tank }) {
   const w = tank.w ?? tank.width ?? (tank.shape === "paintRectangle" ? 140 : 100);
   const h = tank.h ?? tank.height ?? (tank.shape === "paintRectangle" ? 80 : 100);
@@ -574,6 +702,14 @@ export default function DashboardCanvasWidgetLayer({
         return (
           <DraggableDroppedTank {...commonProps}>
             <PaintDashboardShape tank={tank} />
+          </DraggableDroppedTank>
+        );
+      }
+
+      if (DRAW_SHAPES.has(tank.shape)) {
+        return (
+          <DraggableDroppedTank {...commonProps}>
+            <DrawDashboardShape tank={tank} />
           </DraggableDroppedTank>
         );
       }
