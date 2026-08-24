@@ -5,6 +5,14 @@ import useAlignmentGuides from "./useAlignmentGuides";
 // ✅ helpers
 const clamp = (v, min, max) => Math.min(max, Math.max(min, v));
 
+const DRAW_SHAPES = new Set([
+  "drawLine",
+  "drawArrow",
+  "drawRectangle",
+  "drawCircle",
+  "drawPencil",
+]);
+
 const getCanvasRect = () => {
   const el = document.getElementById("coreflex-canvas-root");
   if (!el) return null;
@@ -53,10 +61,8 @@ const getObjSize = (obj) => {
       return { w: obj?.width ?? 160, h: obj?.height ?? 60 };
 
     case "img":
-      // If you later store natural size, we can use it here.
       return { w: 220 * scale, h: 140 * scale };
 
-    // Tanks / symbols / other
     default:
       return { w: 180, h: 120 };
   }
@@ -74,14 +80,13 @@ export default function useObjectDragging({
   // ✅ Compute a clamped delta for ONE object
   const clampDeltaForObj = (obj, delta) => {
     const canvas = getCanvasRect();
-    if (!canvas) return delta; // if canvas not found, don't block dragging
+    if (!canvas) return delta;
 
     const { w: objW, h: objH } = getObjSize(obj);
 
     const curX = obj?.x ?? 0;
     const curY = obj?.y ?? 0;
 
-    // Allowed range for top-left corner
     const minX = 0;
     const minY = 0;
     const maxX = Math.max(0, canvas.w - objW);
@@ -120,13 +125,11 @@ export default function useObjectDragging({
       const maxX = Math.max(0, canvas.w - objW);
       const maxY = Math.max(0, canvas.h - objH);
 
-      // For this object, what deltas keep it in bounds?
       const objMinDx = minX - curX;
       const objMaxDx = maxX - curX;
       const objMinDy = minY - curY;
       const objMaxDy = maxY - curY;
 
-      // Intersect constraints
       minAllowedDx = Math.max(minAllowedDx, objMinDx);
       maxAllowedDx = Math.min(maxAllowedDx, objMaxDx);
       minAllowedDy = Math.max(minAllowedDy, objMinDy);
@@ -139,12 +142,11 @@ export default function useObjectDragging({
     };
   };
 
-  // LIVE DRAG (no snapping) — we only track delta visually, but keep guides
+  // LIVE DRAG (no snapping)
   const handleDragMove = ({ active, delta }) => {
     const activeObj = droppedTanks.find((o) => o.id === active?.id);
     if (activeObj) checkAlignment(activeObj, droppedTanks);
 
-    // ✅ keep UI feedback but clamp the shown delta so preview doesn't drift outside
     if (!activeObj) {
       setDragDelta(delta);
       return;
@@ -164,26 +166,27 @@ export default function useObjectDragging({
     }
   };
 
-  // END DRAG (✅ supports multi-move + ✅ clamps to dashboard bounds)
+  // END DRAG
   const handleDragEnd = ({ active, delta }) => {
     const activeId = active?.id;
 
     const isGroupMove =
       activeId && selectedIds?.length > 1 && selectedIds.includes(activeId);
 
-    // Find objects to move
     const groupObjs = isGroupMove
       ? droppedTanks.filter((o) => selectedIds.includes(o.id))
       : [];
 
     const activeObj = droppedTanks.find((o) => o.id === activeId);
 
-    // ✅ compute clamped delta (single or group)
     const clampedDelta = isGroupMove
       ? clampDeltaForGroup(groupObjs, delta)
       : activeObj
         ? clampDeltaForObj(activeObj, delta)
         : { x: delta?.x || 0, y: delta?.y || 0 };
+
+    const dx = clampedDelta.x || 0;
+    const dy = clampedDelta.y || 0;
 
     setDroppedTanks((prev) =>
       prev.map((obj) => {
@@ -193,11 +196,32 @@ export default function useObjectDragging({
 
         if (!shouldMove) return obj;
 
-        return {
+        const moved = {
           ...obj,
-          x: (obj.x || 0) + (clampedDelta.x || 0),
-          y: (obj.y || 0) + (clampedDelta.y || 0),
+          x: (obj.x || 0) + dx,
+          y: (obj.y || 0) + dy,
+          left: (obj.left ?? obj.x ?? 0) + dx,
+          top: (obj.top ?? obj.y ?? 0) + dy,
         };
+
+        // ✅ Draw lines/arrows use absolute endpoints too
+        if (obj.shape === "drawLine" || obj.shape === "drawArrow") {
+          moved.x1 = (obj.x1 || 0) + dx;
+          moved.y1 = (obj.y1 || 0) + dy;
+          moved.x2 = (obj.x2 || 0) + dx;
+          moved.y2 = (obj.y2 || 0) + dy;
+        }
+
+        // ✅ Pencil stores every point in canvas coordinates
+        if (obj.shape === "drawPencil" && Array.isArray(obj.points)) {
+          moved.points = obj.points.map((p) => ({
+            ...p,
+            x: (p?.x || 0) + dx,
+            y: (p?.y || 0) + dy,
+          }));
+        }
+
+        return moved;
       })
     );
 
@@ -205,7 +229,6 @@ export default function useObjectDragging({
     clearGuides();
   };
 
-  // ✅ if you ever wire onDragCancel, this prevents “stuck floating”
   const handleDragCancel = () => {
     setDragDelta({ x: 0, y: 0 });
     clearGuides();
@@ -220,4 +243,3 @@ export default function useObjectDragging({
     guides,
   };
 }
-
