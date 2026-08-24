@@ -27,6 +27,7 @@ export default function DashboardDrawingLayer({
 }) {
   const [draft, setDraft] = React.useState(null);
   const [dragState, setDragState] = React.useState(null);
+  const svgRef = React.useRef(null);
 
   const isDrawingToolActive =
     !isPlay &&
@@ -309,16 +310,16 @@ export default function DashboardDrawingLayer({
     (t) => DRAW_OBJECT_SHAPES.has(t?.shape)
   );
 
-  const handleSelectDragMove = React.useCallback(
-    (e) => {
+  const moveSelectedDrawingToPointer = React.useCallback(
+    (clientX, clientY) => {
       if (!dragState || isPlay || drawTool !== "select") return;
 
-      e.preventDefault();
-      e.stopPropagation();
+      const root = svgRef.current;
+      if (!root) return;
 
-      const rect = e.currentTarget.getBoundingClientRect();
-      const pointerX = e.clientX - rect.left;
-      const pointerY = e.clientY - rect.top;
+      const rect = root.getBoundingClientRect();
+      const pointerX = clientX - rect.left;
+      const pointerY = clientY - rect.top;
 
       const dx = pointerX - dragState.startPointerX;
       const dy = pointerY - dragState.startPointerY;
@@ -356,18 +357,56 @@ export default function DashboardDrawingLayer({
     [dragState, isPlay, drawTool, setDroppedTanks]
   );
 
+  const handleSelectDragMove = React.useCallback(
+    (e) => {
+      if (!dragState || isPlay || drawTool !== "select") return;
+      e.preventDefault();
+      e.stopPropagation();
+      moveSelectedDrawingToPointer(e.clientX, e.clientY);
+    },
+    [dragState, isPlay, drawTool, moveSelectedDrawingToPointer]
+  );
+
   const finishSelectDrag = React.useCallback(
     (e) => {
       if (!dragState) return;
-      e.preventDefault();
-      e.stopPropagation();
+      e?.preventDefault?.();
+      e?.stopPropagation?.();
       setDragState(null);
     },
     [dragState]
   );
 
+  React.useEffect(() => {
+    if (!dragState || isPlay || drawTool !== "select") return;
+
+    const onMove = (e) => {
+      e.preventDefault();
+      moveSelectedDrawingToPointer(e.clientX, e.clientY);
+    };
+
+    const onUp = (e) => {
+      e.preventDefault();
+      setDragState(null);
+    };
+
+    window.addEventListener("mousemove", onMove, { passive: false });
+    window.addEventListener("mouseup", onUp, { passive: false });
+
+    return () => {
+      window.removeEventListener("mousemove", onMove);
+      window.removeEventListener("mouseup", onUp);
+    };
+  }, [
+    dragState,
+    isPlay,
+    drawTool,
+    moveSelectedDrawingToPointer,
+  ]);
+
   return (
     <svg
+      ref={svgRef}
       aria-label="Dashboard drawing layer"
       style={{
         position: "absolute",
@@ -437,9 +476,9 @@ export default function DashboardDrawingLayer({
           strokeLinecap: "round",
           strokeLinejoin: "round",
           vectorEffect: "non-scaling-stroke",
+          pointerEvents:
+            !isPlay && drawTool === "select" ? "stroke" : "none",
           style: {
-            pointerEvents:
-              !isPlay && drawTool === "select" ? "stroke" : "none",
             cursor:
               !isPlay && drawTool === "select" ? "pointer" : "default",
           },
@@ -486,7 +525,7 @@ export default function DashboardDrawingLayer({
 
         if (t.shape === "drawLine" || t.shape === "drawArrow") {
           return (
-            <g key={t.id} style={{ pointerEvents: "auto" }}>
+            <g key={t.id} style={{ pointerEvents: "none" }}>
               {selected && (
                 <line
                   x1={Number(t.x1) || 0}
@@ -497,6 +536,19 @@ export default function DashboardDrawingLayer({
                   strokeWidth={strokeWidth + 5}
                   opacity="0.25"
                   pointerEvents="none"
+                />
+              )}
+
+              {!isPlay && drawTool === "select" && (
+                <line
+                  {...selectableProps}
+                  x1={Number(t.x1) || 0}
+                  y1={Number(t.y1) || 0}
+                  x2={Number(t.x2) || 0}
+                  y2={Number(t.y2) || 0}
+                  stroke="transparent"
+                  strokeWidth={Math.max(10, strokeWidth + 8)}
+                  markerEnd={undefined}
                 />
               )}
 
@@ -523,7 +575,18 @@ export default function DashboardDrawingLayer({
           const h = Math.max(1, Number(t.h ?? t.height) || 1);
 
           return (
-            <g key={t.id} style={{ pointerEvents: "auto" }}>
+            <g key={t.id} style={{ pointerEvents: "none" }}>
+              {!isPlay && drawTool === "select" && (
+                <rect
+                  {...selectableProps}
+                  x={x}
+                  y={y}
+                  width={w}
+                  height={h}
+                  stroke="transparent"
+                  strokeWidth={Math.max(10, strokeWidth + 8)}
+                />
+              )}
               <rect {...selectableProps} x={x} y={y} width={w} height={h} />
               {selected && (
                 <rect
@@ -549,7 +612,18 @@ export default function DashboardDrawingLayer({
           const h = Math.max(1, Number(t.h ?? t.height) || 1);
 
           return (
-            <g key={t.id} style={{ pointerEvents: "auto" }}>
+            <g key={t.id} style={{ pointerEvents: "none" }}>
+              {!isPlay && drawTool === "select" && (
+                <ellipse
+                  {...selectableProps}
+                  cx={x + w / 2}
+                  cy={y + h / 2}
+                  rx={w / 2}
+                  ry={h / 2}
+                  stroke="transparent"
+                  strokeWidth={Math.max(10, strokeWidth + 8)}
+                />
+              )}
               <ellipse
                 {...selectableProps}
                 cx={x + w / 2}
@@ -580,7 +654,15 @@ export default function DashboardDrawingLayer({
             .join(" ");
 
           return (
-            <g key={t.id} style={{ pointerEvents: "auto" }}>
+            <g key={t.id} style={{ pointerEvents: "none" }}>
+              {!isPlay && drawTool === "select" && (
+                <polyline
+                  {...selectableProps}
+                  points={points}
+                  stroke="transparent"
+                  strokeWidth={Math.max(10, strokeWidth + 8)}
+                />
+              )}
               <polyline {...selectableProps} points={points} />
               {selected && (
                 <rect
