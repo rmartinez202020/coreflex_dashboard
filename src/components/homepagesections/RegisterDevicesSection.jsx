@@ -17,7 +17,7 @@ const MODELS = [
   {
     key: "cfr100",
     label: "Wireless Radar Level Sensor CF-R100",
-    desc: "DF572 radar level sensor // height // temperature // battery",
+    desc: "height // temperature // battery //  date",
   },
 ];
 
