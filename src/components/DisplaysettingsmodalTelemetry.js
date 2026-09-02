@@ -10,6 +10,7 @@ import { getToken } from "../utils/authToken";
 const MODEL_META = {
   zhc1921: { label: "CF-2000", base: "zhc1921" },
   zhc1661: { label: "CF-1600", base: "zhc1661" },
+  tp4000: { label: "TP-4000", base: "tp4000" },
 };
 
 // ✅ Fixed polling interval (2 seconds)
@@ -124,7 +125,11 @@ async function loadDevicesForModel(modelKey, { signal } = {}) {
   const candidates =
     base === "zhc1921"
       ? ["/zhc1921/my-devices", "/zhc1921/list", "/zhc1921"]
-      : ["/zhc1661/my-devices", "/zhc1661/list", "/zhc1661"];
+      : base === "zhc1661"
+      ? ["/zhc1661/my-devices", "/zhc1661/list", "/zhc1661"]
+      : base === "tp4000"
+      ? ["/tp4000/my-devices", "/tp4000/list", "/tp4000"]
+      : [];
 
   for (const p of candidates) {
     try {
@@ -146,7 +151,11 @@ async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
   const listCandidates =
     base === "zhc1921"
       ? ["/zhc1921/my-devices", "/zhc1921/list", "/zhc1921"]
-      : ["/zhc1661/my-devices", "/zhc1661/list", "/zhc1661"];
+      : base === "zhc1661"
+      ? ["/zhc1661/my-devices", "/zhc1661/list", "/zhc1661"]
+      : base === "tp4000"
+      ? ["/tp4000/my-devices", "/tp4000/list", "/tp4000"]
+      : [];
 
   for (const p of listCandidates) {
     try {
@@ -162,34 +171,53 @@ async function loadLiveRowForDevice(modelKey, deviceId, { signal } = {}) {
   return null;
 }
 
-function readAiField(row, bindField) {
+function readBoundField(row, bindField) {
   if (!row || !bindField) return null;
 
-  const f = String(bindField).toLowerCase();
-  const n = f.replace("ai", "");
+  const f = String(bindField).trim().toLowerCase();
+  if (!f) return null;
 
   const directCandidates = [
     f,
     f.toUpperCase(),
-    f.replace("ai", "a"),
-    f.replace("ai", "A"),
-    f.replace("ai", "analog"),
-    f.replace("ai", "ANALOG"),
-    `ai_${n}`,
-    `AI_${n}`,
-    `ai-${n}`,
-    `AI-${n}`,
-    `analog_${n}`,
-    `ANALOG_${n}`,
-    `analog-${n}`,
-    `ANALOG-${n}`,
+    f.replace(/(\D+)(\d+)/, "$1_$2"),
+    f.replace(/(\D+)(\d+)/, "$1-$2"),
   ];
+
+  if (/^ai\d+$/.test(f)) {
+    const n = f.replace("ai", "");
+    directCandidates.push(
+      f.replace("ai", "a"),
+      f.replace("ai", "A"),
+      f.replace("ai", "analog"),
+      f.replace("ai", "ANALOG"),
+      `ai_${n}`,
+      `AI_${n}`,
+      `ai-${n}`,
+      `AI-${n}`,
+      `analog_${n}`,
+      `ANALOG_${n}`,
+      `analog-${n}`,
+      `ANALOG-${n}`
+    );
+  }
+
+  if (/^te\d+$/.test(f)) {
+    const n = f.replace("te", "");
+    directCandidates.push(
+      `te${n}`,
+      `TE${n}`,
+      `te_${n}`,
+      `TE_${n}`,
+      `te-${n}`,
+      `TE-${n}`
+    );
+  }
 
   for (const k of directCandidates) {
     if (row[k] !== undefined) return row[k];
   }
 
-  // ✅ nested shapes commonly returned by APIs / Node-RED
   const nestedContainers = [
     row.data,
     row.row,
@@ -208,8 +236,9 @@ function readAiField(row, bindField) {
     }
   }
 
-  // ✅ array-based tag/value shape fallback
-  const tagArrays = [row.tags, row.points, row.values, row.readings].filter(Array.isArray);
+  const tagArrays = [row.tags, row.points, row.values, row.readings].filter(
+    Array.isArray
+  );
 
   for (const arr of tagArrays) {
     const hit = arr.find((item) => {
@@ -218,7 +247,10 @@ function readAiField(row, bindField) {
       )
         .trim()
         .toLowerCase();
-      return name === f || name === `ai_${n}` || name === `ai-${n}`;
+
+      return directCandidates.some(
+        (candidate) => String(candidate).trim().toLowerCase() === name
+      );
     });
 
     if (hit) {
@@ -255,7 +287,6 @@ export function useDisplaySettingDevices({
 
         setDevices(list);
 
-        // keep selection if still exists
         if (
           bindDeviceId &&
           !list.find((d) => String(d.deviceId) === String(bindDeviceId))
@@ -287,7 +318,12 @@ export function useDisplaySettingDevices({
    HOOK: LIVE VALUE POLL (FIXED 2s)
 =========================================== */
 
-export function useDisplaySettingLiveValue({ open, bindModel, bindDeviceId, bindField }) {
+export function useDisplaySettingLiveValue({
+  open,
+  bindModel,
+  bindDeviceId,
+  bindField,
+}) {
   const [liveValue, setLiveValue] = useState(null);
   const [pollError, setPollError] = useState("");
 
@@ -312,7 +348,7 @@ export function useDisplaySettingLiveValue({ open, bindModel, bindDeviceId, bind
           signal: ctrl.signal,
         });
 
-        const value = row ? readAiField(row, bindField) : null;
+        const value = row ? readBoundField(row, bindField) : null;
 
         const num =
           value === null || value === undefined || value === ""

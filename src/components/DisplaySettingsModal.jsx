@@ -9,6 +9,32 @@ import DisplaySettingsmodalOptions from "./DisplaySettingsmodalOptions";
 const MODEL_META = {
   zhc1921: { label: "CF-2000", base: "zhc1921" },
   zhc1661: { label: "CF-1600", base: "zhc1661" },
+  tp4000: { label: "TP-4000", base: "tp4000" },
+};
+
+const FIELD_OPTIONS_BY_MODEL = {
+  zhc1921: [
+    { value: "ai1", label: "AI-1" },
+    { value: "ai2", label: "AI-2" },
+    { value: "ai3", label: "AI-3" },
+    { value: "ai4", label: "AI-4" },
+  ],
+  zhc1661: [
+    { value: "ai1", label: "AI-1" },
+    { value: "ai2", label: "AI-2" },
+    { value: "ai3", label: "AI-3" },
+    { value: "ai4", label: "AI-4" },
+  ],
+  tp4000: [
+    { value: "te101", label: "TE-101" },
+    { value: "te102", label: "TE-102" },
+    { value: "te103", label: "TE-103" },
+    { value: "te104", label: "TE-104" },
+    { value: "te105", label: "TE-105" },
+    { value: "te106", label: "TE-106" },
+    { value: "te107", label: "TE-107" },
+    { value: "te108", label: "TE-108" },
+  ],
 };
 
 function computeMathOutput(liveValue, formula) {
@@ -108,6 +134,9 @@ export default function DisplaySettingModal({
   const [bindDeviceId, setBindDeviceId] = useState(props.bindDeviceId || "");
   const [bindField, setBindField] = useState(props.bindField || "ai1");
 
+  const fieldOptions =
+    FIELD_OPTIONS_BY_MODEL[bindModel] || FIELD_OPTIONS_BY_MODEL.zhc1921;
+
   const [displayStyle, setDisplayStyle] = useState(
     props.displayStyle || "classic"
   );
@@ -206,6 +235,17 @@ export default function DisplaySettingModal({
     setDisplayStyle(p.displayStyle ?? "classic");
     setDigitCount(normalizeDigitCount(p.digitCount ?? p.displayDigits ?? 4));
   }, [tank]);
+
+  useEffect(() => {
+    const options =
+      FIELD_OPTIONS_BY_MODEL[bindModel] || FIELD_OPTIONS_BY_MODEL.zhc1921;
+
+    const stillValid = options.some((opt) => opt.value === bindField);
+
+    if (!stillValid) {
+      setBindField(options[0]?.value || "");
+    }
+  }, [bindModel, bindField]);
 
   const onDragMove = (e) => {
     if (!dragRef.current.dragging) return;
@@ -626,13 +666,16 @@ export default function DisplaySettingModal({
                 gap: 10,
               }}
             >
-              <div style={sectionTitleStyle}>Tag that drives the Trend (AI)</div>
+              <div style={sectionTitleStyle}>Tag that drives the Display</div>
 
               <div style={{ display: "grid", gap: 5 }}>
                 <div style={labelStyle}>Model</div>
                 <select
                   value={bindModel}
-                  onChange={(e) => setBindModel(e.target.value)}
+                  onChange={(e) => {
+                    setBindModel(e.target.value);
+                    setBindDeviceId("");
+                  }}
                   style={fieldSelectStyle}
                 >
                   {Object.entries(MODEL_META).map(([k, v]) => (
@@ -660,20 +703,21 @@ export default function DisplaySettingModal({
               </div>
 
               <div style={{ display: "grid", gap: 5 }}>
-                <div style={labelStyle}>Analog Input (AI)</div>
+                <div style={labelStyle}>
+                  {bindModel === "tp4000"
+                    ? "Temperature Input (TE)"
+                    : "Analog Input (AI)"}
+                </div>
                 <select
                   value={bindField}
                   onChange={(e) => setBindField(e.target.value)}
                   style={fieldSelectStyle}
                 >
-                  <option value="ai1">AI-1</option>
-                  <option value="ai2">AI-2</option>
-                  <option value="ai3">AI-3</option>
-                  <option value="ai4">AI-4</option>
-                  <option value="ai5">AI-5</option>
-                  <option value="ai6">AI-6</option>
-                  <option value="ai7">AI-7</option>
-                  <option value="ai8">AI-8</option>
+                  {fieldOptions.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
                 </select>
               </div>
 
