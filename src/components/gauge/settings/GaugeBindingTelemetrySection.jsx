@@ -10,12 +10,38 @@ import {
    MODEL + FIELD OPTIONS
 =========================================== */
 
-const FIELD_OPTIONS = ["ai1", "ai2", "ai3", "ai4"];
-
 const MODEL_OPTIONS = [
   { value: "zhc1921", label: "CF-2000" },
   { value: "zhc1661", label: "CF-1600" },
+  { value: "tp4000", label: "TP-4000" },
 ];
+
+const FIELD_OPTIONS_BY_MODEL = {
+  zhc1921: [
+    { value: "ai1", label: "AI1" },
+    { value: "ai2", label: "AI2" },
+    { value: "ai3", label: "AI3" },
+    { value: "ai4", label: "AI4" },
+  ],
+
+  zhc1661: [
+    { value: "ai1", label: "AI1" },
+    { value: "ai2", label: "AI2" },
+    { value: "ai3", label: "AI3" },
+    { value: "ai4", label: "AI4" },
+  ],
+
+  tp4000: [
+    { value: "te101", label: "TE-101" },
+    { value: "te102", label: "TE-102" },
+    { value: "te103", label: "TE-103" },
+    { value: "te104", label: "TE-104" },
+    { value: "te105", label: "TE-105" },
+    { value: "te106", label: "TE-106" },
+    { value: "te107", label: "TE-107" },
+    { value: "te108", label: "TE-108" },
+  ],
+};
 
 /* ===========================================
    DEVICE ROW
@@ -191,6 +217,9 @@ export default function GaugeBindingTelemetrySection({
   onPollMsChange,
   onSelectedDeviceChange,
 }) {
+  const fieldOptions =
+    FIELD_OPTIONS_BY_MODEL[bindModel] || FIELD_OPTIONS_BY_MODEL.zhc1921;
+
   const { devices, selectedDevice } = useGaugeSettingDevices({
     open,
     bindModel,
@@ -204,6 +233,15 @@ export default function GaugeBindingTelemetrySection({
     bindDeviceId,
     bindField,
   });
+
+  // Keep the selected field valid when model changes.
+  useEffect(() => {
+    const stillValid = fieldOptions.some((item) => item.value === bindField);
+
+    if (!stillValid) {
+      setBindField?.(fieldOptions[0]?.value || "");
+    }
+  }, [bindModel, bindField, fieldOptions, setBindField]);
 
   // ✅ Push live telemetry back to parent modal
   useEffect(() => {
@@ -225,12 +263,18 @@ export default function GaugeBindingTelemetrySection({
   const deviceOptions = useMemo(() => {
     return (Array.isArray(devices) ? devices : []).map((d, idx) => {
       const id = d?.deviceId || "";
+
       return {
         id,
         label: <DeviceRow device={d} key={idx} />,
       };
     });
   }, [devices]);
+
+  const fieldLabel =
+    bindModel === "tp4000"
+      ? "Type J Thermocouple - Celsius"
+      : "AI Field";
 
   return (
     <section
@@ -249,7 +293,7 @@ export default function GaugeBindingTelemetrySection({
           color: "#111827",
         }}
       >
-        AI Binding
+        Telemetry Binding
       </div>
 
       <div
@@ -274,7 +318,16 @@ export default function GaugeBindingTelemetrySection({
 
           <select
             value={bindModel}
-            onChange={(e) => setBindModel(e.target.value)}
+            onChange={(e) => {
+              const nextModel = e.target.value;
+              const nextFields =
+                FIELD_OPTIONS_BY_MODEL[nextModel] ||
+                FIELD_OPTIONS_BY_MODEL.zhc1921;
+
+              setBindModel(nextModel);
+              setBindDeviceId?.("");
+              setBindField?.(nextFields[0]?.value || "");
+            }}
             style={{
               height: 38,
               border: "1px solid #d1d5db",
@@ -333,7 +386,7 @@ export default function GaugeBindingTelemetrySection({
               color: "#374151",
             }}
           >
-            AI Field
+            {fieldLabel}
           </span>
 
           <select
@@ -347,9 +400,9 @@ export default function GaugeBindingTelemetrySection({
               background: "#fff",
             }}
           >
-            {FIELD_OPTIONS.map((f) => (
-              <option key={f} value={f}>
-                {f.toUpperCase()}
+            {fieldOptions.map((item) => (
+              <option key={item.value} value={item.value}>
+                {item.label}
               </option>
             ))}
           </select>
