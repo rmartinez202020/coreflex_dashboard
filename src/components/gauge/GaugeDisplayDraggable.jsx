@@ -1,8 +1,9 @@
+// src/components/gauge/GaugeDisplayDraggable.jsx
 import React from "react";
 
 export default function GaugeDisplayDraggable({
   onDragStart,
-  title = "Gauge Display (AI)",
+  title = "Gauge Display",
 }) {
   const payload = {
     type: "gaugeDisplay",
