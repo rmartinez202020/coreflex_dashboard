@@ -84,6 +84,22 @@ function formatDateTime(value) {
 }
 
 /**
+ * ✅ MAC helpers
+ * keep lowercase as system standard
+ */
+function normalizeMac(value) {
+  return String(value || "")
+    .trim()
+    .toLowerCase()
+    .replace(/-/g, ":")
+    .replace(/\s+/g, "");
+}
+
+function isValidMac(value) {
+  return /^([0-9a-f]{2}:){5}[0-9a-f]{2}$/.test(normalizeMac(value));
+}
+
+/**
  * ✅ Professional confirm modal (white background)
  */
 function ConfirmDeleteModal({ open, deviceId, busy, onCancel, onConfirm }) {
@@ -216,6 +232,7 @@ export default function DeviceManagerTp4000Section({
   setTp4000Rows,
 }) {
   const [newDeviceId, setNewDeviceId] = React.useState("");
+  const [newDeviceMac, setNewDeviceMac] = React.useState("");
   const [err, setErr] = React.useState("");
   const [loading, setLoading] = React.useState(false);
 
@@ -292,21 +309,39 @@ export default function DeviceManagerTp4000Section({
 
   async function addTp4000Device() {
     const id = String(newDeviceId || "").trim();
+    const mac = normalizeMac(newDeviceMac);
+
     if (!id) return setErr("Please enter a DEVICE ID.");
     if (!/^\d+$/.test(id))
       return setErr("DEVICE ID must be numeric (digits only).");
+
+    if (!mac) return setErr("Please enter a MAC address.");
+    if (!isValidMac(mac))
+      return setErr("MAC address must be in format aa:bb:cc:dd:ee:ff.");
 
     setLoading(true);
     setErr("");
 
     try {
-      // ✅ Backend must provide: POST /tp4000/devices
+      // ✅ KEEP EXISTING TP-4000 DEVICE ADD FLOW
       await apiFetch("/tp4000/devices", {
         method: "POST",
         body: JSON.stringify({ device_id: id }),
       });
 
+      // ✅ ALSO SAVE DEVICE ID + MAC IN SHARED DEVICE REGISTRY
+      await apiFetch("/device-registry", {
+        method: "POST",
+        body: JSON.stringify({
+          device_id: id,
+          device_model: "tp4000",
+          device_mac: mac,
+          is_claimed: true,
+        }),
+      });
+
       setNewDeviceId("");
+      setNewDeviceMac("");
       await loadTp4000({ silent: false });
     } catch (e) {
       setErr(e.message || "Failed to add device.");
@@ -345,13 +380,42 @@ export default function DeviceManagerTp4000Section({
         method: "DELETE",
       });
 
+      // ✅ remove matching TP-4000 record from shared device registry
+      try {
+        await apiFetch(
+          `/device-registry/by-device-id/${encodeURIComponent(
+            id
+          )}?device_model=tp4000`,
+          {
+            method: "DELETE",
+          }
+        );
+      } catch {
+        // keep legacy TP-4000 remove flow working even if registry cleanup fails
+      }
+
       await loadTp4000({ silent: false });
     } catch (e) {
-      // fallback endpoint (optional)
+      // fallback endpoint
       try {
         await apiFetch(`/tp4000/devices/${encodeURIComponent(id)}`, {
           method: "DELETE",
         });
+
+        // ✅ remove matching TP-4000 record from shared device registry
+        try {
+          await apiFetch(
+            `/device-registry/by-device-id/${encodeURIComponent(
+              id
+            )}?device_model=tp4000`,
+            {
+              method: "DELETE",
+            }
+          );
+        } catch {
+          // keep legacy TP-4000 remove flow working even if registry cleanup fails
+        }
+
         await loadTp4000({ silent: false });
       } catch (e2) {
         setErr(e2.message || e.message || "Remove failed");
@@ -564,6 +628,7 @@ export default function DeviceManagerTp4000Section({
             <button
               onClick={() => {
                 setNewDeviceId("");
+                setNewDeviceMac("");
                 setErr("");
                 onBack?.();
               }}
@@ -594,14 +659,24 @@ export default function DeviceManagerTp4000Section({
         <div className="mt-4 rounded-xl border border-slate-200 bg-white p-4 w-full max-w-full">
           <div className="mb-4">
             <div className="text-sm font-semibold text-slate-900 mb-2">
-              Add Device ID (authorized backend device)
+              Add Device ID and MAC address
             </div>
 
-            <div className="flex flex-col md:flex-row gap-3">
+            <div className="flex flex-col gap-3">
               <input
                 value={newDeviceId}
                 onChange={(e) => setNewDeviceId(e.target.value)}
                 placeholder="Enter DEVICE ID"
+                className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300"
+                onKeyDown={(e) => {
+                  if (e.key === "Enter" && !loading) addTp4000Device();
+                }}
+              />
+
+              <input
+                value={newDeviceMac}
+                onChange={(e) => setNewDeviceMac(normalizeMac(e.target.value))}
+                placeholder="Enter MAC address (example: 00:ee:11:07:06:70)"
                 className="w-full rounded-lg border border-slate-200 px-3 py-2 text-sm outline-none focus:ring-2 focus:ring-slate-300"
                 onKeyDown={(e) => {
                   if (e.key === "Enter" && !loading) addTp4000Device();
@@ -620,13 +695,8 @@ export default function DeviceManagerTp4000Section({
             {err && <div className="mt-2 text-xs text-red-600">{err}</div>}
 
             <div className="mt-2 text-xs text-slate-500">
-              Owner only. This will create a new row in the backend table.
-            </div>
-
-            <div className="mt-2 text-xs text-slate-500">
-              Note: backend endpoints expected:{" "}
-              <span className="font-semibold">GET /tp4000/devices</span> and{" "}
-              <span className="font-semibold">POST /tp4000/devices</span>
+              Owner only. This keeps the existing TP-4000 device add flow and also
+              saves the MAC address in the device registry.
             </div>
 
             {!!ownerEmail && (
