@@ -231,7 +231,6 @@ export default function GaugeDisplaySettingsModal({
 
   const [telemetryLiveValue, setTelemetryLiveValue] = useState(null);
   const [telemetryPollError, setTelemetryPollError] = useState("");
-  const [telemetryPollMs, setTelemetryPollMs] = useState(2000);
   const [telemetrySelectedDevice, setTelemetrySelectedDevice] = useState(null);
 
   const [modalPos, setModalPos] = useState(null);
@@ -274,7 +273,6 @@ export default function GaugeDisplaySettingsModal({
 
     setTelemetryLiveValue(null);
     setTelemetryPollError("");
-    setTelemetryPollMs(2000);
     setTelemetrySelectedDevice(null);
 
     if (open) {
@@ -367,14 +365,8 @@ export default function GaugeDisplaySettingsModal({
         text: "ONLINE",
         subtext:
           telemetryLiveValue === null || telemetryLiveValue === undefined
-            ? `Connected. Waiting for live value... (${Math.max(
-                250,
-                Number(telemetryPollMs) || 2000
-              )} ms)`
-            : `Live telemetry is updating every ${Math.max(
-                250,
-                Number(telemetryPollMs) || 2000
-              )} ms.`,
+            ? "Connected. Waiting for live value..."
+            : "Live telemetry is updating.",
         color: "#16a34a",
         subColor: "#475569",
         fontWeight: 900,
@@ -393,7 +385,6 @@ export default function GaugeDisplaySettingsModal({
     telemetryPollError,
     telemetrySelectedDevice,
     telemetryLiveValue,
-    telemetryPollMs,
     normalizedDeviceStatus.online,
   ]);
 
@@ -494,7 +485,7 @@ export default function GaugeDisplaySettingsModal({
               Gauge Display Settings
             </div>
             <div style={{ fontSize: 12, color: "#6b7280", marginTop: 4 }}>
-              Configure gauge style, AI binding, live telemetry, math formula,
+              Configure gauge style, device binding, live telemetry, math formula,
               and display range.
             </div>
           </div>
@@ -661,7 +652,6 @@ export default function GaugeDisplaySettingsModal({
               setBindField={setBindField}
               onLiveValueChange={setTelemetryLiveValue}
               onPollErrorChange={setTelemetryPollError}
-              onPollMsChange={setTelemetryPollMs}
               onSelectedDeviceChange={setTelemetrySelectedDevice}
             />
 
@@ -739,7 +729,6 @@ export default function GaugeDisplaySettingsModal({
               highWarn={highWarn}
               telemetryLiveValue={telemetryLiveValue}
               telemetryPollError={telemetryPollError}
-              telemetryPollMs={telemetryPollMs}
               telemetrySelectedDevice={telemetrySelectedDevice}
             />
 

@@ -64,7 +64,6 @@ function DeviceRow({ device }) {
 
 function TelemetryInfoCard({
   selectedDevice,
-  pollMs,
   liveValue,
   pollError,
 }) {
@@ -83,7 +82,7 @@ function TelemetryInfoCard({
           background: "#ffffff",
           padding: 12,
           display: "grid",
-          gridTemplateColumns: "repeat(4, minmax(0, 1fr))",
+          gridTemplateColumns: "repeat(3, minmax(0, 1fr))",
           gap: 12,
         }}
       >
@@ -107,29 +106,6 @@ function TelemetryInfoCard({
             }}
           >
             {selectedDeviceText}
-          </div>
-        </div>
-
-        <div>
-          <div
-            style={{
-              fontSize: 11,
-              fontWeight: 700,
-              color: "#6b7280",
-            }}
-          >
-            Polling
-          </div>
-
-          <div
-            style={{
-              fontSize: 13,
-              fontWeight: 700,
-              color: "#111827",
-              marginTop: 4,
-            }}
-          >
-            {pollMs} ms
           </div>
         </div>
 
@@ -214,7 +190,6 @@ export default function GaugeBindingTelemetrySection({
   setBindField,
   onLiveValueChange,
   onPollErrorChange,
-  onPollMsChange,
   onSelectedDeviceChange,
 }) {
   const fieldOptions =
@@ -227,7 +202,7 @@ export default function GaugeBindingTelemetrySection({
     setBindDeviceId,
   });
 
-  const { liveValue, pollError, pollMs } = useGaugeSettingLiveValue({
+  const { liveValue, pollError } = useGaugeSettingLiveValue({
     open,
     bindModel,
     bindDeviceId,
@@ -251,10 +226,6 @@ export default function GaugeBindingTelemetrySection({
   useEffect(() => {
     onPollErrorChange?.(pollError || "");
   }, [pollError, onPollErrorChange]);
-
-  useEffect(() => {
-    onPollMsChange?.(pollMs);
-  }, [pollMs, onPollMsChange]);
 
   useEffect(() => {
     onSelectedDeviceChange?.(selectedDevice || null);
@@ -411,7 +382,6 @@ export default function GaugeBindingTelemetrySection({
 
       <TelemetryInfoCard
         selectedDevice={selectedDevice}
-        pollMs={pollMs}
         liveValue={liveValue}
         pollError={pollError}
       />
