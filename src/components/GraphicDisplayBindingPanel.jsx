@@ -3,7 +3,7 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import { API_URL } from "../config/api";
 import { getToken } from "../utils/authToken";
 
-// ✅ Only analog inputs for CF-2000 + CF-1600
+// ✅ Field options by model
 const AI_OPTIONS = [
   { key: "ai1", label: "AI-1" },
   { key: "ai2", label: "AI-2" },
@@ -11,10 +11,22 @@ const AI_OPTIONS = [
   { key: "ai4", label: "AI-4" },
 ];
 
-// ✅ Models allowed for this widget (labels WITHOUT ZHCxxxx)
+const TP4000_OPTIONS = [
+  { key: "te101", label: "TE-101" },
+  { key: "te102", label: "TE-102" },
+  { key: "te103", label: "TE-103" },
+  { key: "te104", label: "TE-104" },
+  { key: "te105", label: "TE-105" },
+  { key: "te106", label: "TE-106" },
+  { key: "te107", label: "TE-107" },
+  { key: "te108", label: "TE-108" },
+];
+
+// ✅ Models allowed for this widget
 const MODEL_META = {
   zhc1921: { label: "CF-2000", base: "zhc1921" },
   zhc1661: { label: "CF-1600", base: "zhc1661" },
+  tp4000: { label: "TP-4000", base: "tp4000" },
 };
 
 function getAuthHeaders() {
@@ -71,28 +83,55 @@ function readDeviceId(row) {
   );
 }
 
-// ✅ read AI field from row, accept multiple naming styles
+// ✅ Read AI or TP-4000 TE field from row
 function readAiField(row, bindField) {
   if (!row || !bindField) return null;
-  const f = String(bindField).toLowerCase();
 
-  const candidates = [
+  const f = String(bindField).trim().toLowerCase();
+
+  const direct = [
     f,
     f.toUpperCase(),
-    f.replace("ai", "a"),
-    f.replace("ai", "A"),
-    f.replace("ai", "analog"),
-    f.replace("ai", "ANALOG"),
+    f.replace(/(\\D+)(\\d+)/, "$1_$2"),
+    f.replace(/(\\D+)(\\d+)/, "$1-$2"),
   ];
 
-  for (const k of candidates) {
+  for (const k of direct) {
     if (row[k] !== undefined) return row[k];
   }
 
-  const n = f.replace("ai", "");
-  const extra = [`ai_${n}`, `AI_${n}`, `ai-${n}`, `AI-${n}`];
-  for (const k of extra) {
-    if (row[k] !== undefined) return row[k];
+  if (/^ai\\d+$/.test(f)) {
+    const n = f.replace("ai", "");
+    const candidates = [
+      `a${n}`,
+      `A${n}`,
+      `analog${n}`,
+      `ANALOG${n}`,
+      `ai_${n}`,
+      `AI_${n}`,
+      `ai-${n}`,
+      `AI-${n}`,
+    ];
+
+    for (const k of candidates) {
+      if (row[k] !== undefined) return row[k];
+    }
+  }
+
+  if (/^te\\d+$/.test(f)) {
+    const n = f.replace("te", "");
+    const candidates = [
+      `te${n}`,
+      `TE${n}`,
+      `te_${n}`,
+      `TE_${n}`,
+      `te-${n}`,
+      `TE-${n}`,
+    ];
+
+    for (const k of candidates) {
+      if (row[k] !== undefined) return row[k];
+    }
   }
 
   return null;
@@ -374,6 +413,18 @@ export default function GraphicDisplayBindingPanel({
     return String(currentValue);
   }, [currentValue]);
 
+  const fieldOptions = bindModel === "tp4000" ? TP4000_OPTIONS : AI_OPTIONS;
+
+  // Keep the selected field valid when switching models.
+  useEffect(() => {
+    const valid = fieldOptions.some((x) => x.key === bindField);
+    if (!valid) {
+      setBindField(bindModel === "tp4000" ? "te101" : "ai1");
+      setCurrentValue(null);
+      setValueErr("");
+    }
+  }, [bindModel, bindField, fieldOptions, setBindField]);
+
   return (
     <div
       style={{
@@ -387,7 +438,7 @@ export default function GraphicDisplayBindingPanel({
       }}
     >
       <div style={{ fontWeight: 900, color: "#111827" }}>
-        Tag that drives the Trend (AI)
+        Tag that drives the Trend
       </div>
 
       {/* Model */}
@@ -475,7 +526,7 @@ export default function GraphicDisplayBindingPanel({
         </select>
       </label>
 
-      {/* Tag (AI only) */}
+      {/* Tag / temperature input */}
       <label style={{ display: "grid", gap: 6 }}>
         <span style={{ fontSize: 12, fontWeight: 800, color: "#374151" }}>
           Analog Input (AI)
@@ -494,7 +545,7 @@ export default function GraphicDisplayBindingPanel({
             fontSize: 14,
           }}
         >
-          {AI_OPTIONS.map((t) => (
+          {fieldOptions.map((t) => (
             <option key={t.key} value={t.key}>
               {t.label}
             </option>
@@ -541,10 +592,10 @@ export default function GraphicDisplayBindingPanel({
 
           <div>
             <div style={{ fontSize: 12, fontWeight: 900, color: "#111827" }}>
-              Selected AI
+              {bindModel === "tp4000" ? "Selected TE" : "Selected AI"}
             </div>
             <div style={{ fontSize: 12, color: "#374151" }}>
-              {AI_OPTIONS.find((x) => x.key === bindField)?.label || bindField}
+              {fieldOptions.find((x) => x.key === bindField)?.label || bindField}
             </div>
           </div>
         </div>
