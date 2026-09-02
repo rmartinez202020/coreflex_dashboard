@@ -547,8 +547,20 @@ export default function DraggableDisplayBox({
   const titleFontW = 500;
   const labelFontW = 500;
 
-  const decimalWidth = decimalCount > 0 ? 14 + decimalCount * 18 : 0;
-  const boxWidth = Math.max(92, 44 + digitCount * 24 + decimalWidth) * scale;
+  // Size the box from the exact number of visible characters.
+  // This prevents decimal values from being clipped when the widget is scaled.
+  const visibleCharCount =
+    digitCount + (decimalCount > 0 ? decimalCount + 1 : 0); // +1 for "."
+  const charWidth = 18;
+  const scaledLetterSpacing = styleCfg.letterSpacing * scale;
+  const horizontalPadding = 12 * scale;
+  const boxWidth =
+    Math.max(
+      92 * scale,
+      visibleCharCount * (charWidth * scale + scaledLetterSpacing) +
+        horizontalPadding * 2 +
+        styleCfg.borderW * 2
+    );
 
   return (
     <div style={{ textAlign: "center", pointerEvents: "none" }}>
@@ -598,8 +610,9 @@ export default function DraggableDisplayBox({
             isOffline ? styleCfg.offlineBorder : styleCfg.border
           }`,
           boxShadow: styleCfg.shadow,
-          letterSpacing: `${styleCfg.letterSpacing}px`,
-          padding: "0 8px",
+          letterSpacing: `${scaledLetterSpacing}px`,
+          padding: `0 ${horizontalPadding}px`,
+          boxSizing: "border-box",
           fontWeight: String(styleCfg.fontWeight),
           pointerEvents: "none",
           whiteSpace: "nowrap",
