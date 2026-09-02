@@ -705,7 +705,7 @@ export default function DisplaySettingModal({
               <div style={{ display: "grid", gap: 5 }}>
                 <div style={labelStyle}>
                   {bindModel === "tp4000"
-                    ? "Temperature Input (TE)"
+                    ? "Type J Thermocouple - Celsius"
                     : "Analog Input (AI)"}
                 </div>
                 <select
