@@ -30,6 +30,7 @@ const FIXED_GRAPH_STYLE = "line";
 const MODEL_META = {
   zhc1921: { label: "CF-2000", base: "zhc1921" },
   zhc1661: { label: "CF-1600", base: "zhc1661" },
+  tp4000: { label: "TP-4000", base: "tp4000" },
 };
 
 function getAuthHeaders() {
@@ -105,7 +106,8 @@ function normalizeModelKey(m) {
   const s = String(m || "").trim().toLowerCase();
   if (s === "cf-2000" || s === "cf2000") return "zhc1921";
   if (s === "cf-1600" || s === "cf1600") return "zhc1661";
-  if (s === "zhc1921" || s === "zhc1661") return s;
+  if (s === "tp-4000" || s === "tp4000") return "tp4000";
+  if (s === "zhc1921" || s === "zhc1661" || s === "tp4000") return s;
   return s;
 }
 

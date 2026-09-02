@@ -90,27 +90,74 @@ export async function apiGet(path, { signal } = {}) {
   return json;
 }
 
+// Kept as readAiField for backward compatibility.
+// Now supports both AI fields and TP-4000 TE101...TE108 fields.
 export function readAiField(row, bindField) {
   if (!row || !bindField) return null;
-  const f = String(bindField).toLowerCase();
 
-  const candidates = [
+  const f = String(bindField).trim().toLowerCase();
+
+  const direct = [
     f,
     f.toUpperCase(),
-    f.replace("ai", "a"),
-    f.replace("ai", "A"),
-    f.replace("ai", "analog"),
-    f.replace("ai", "ANALOG"),
+    f.replace(/(\D+)(\d+)/, "$1_$2"),
+    f.replace(/(\D+)(\d+)/, "$1-$2"),
   ];
 
-  for (const k of candidates) {
+  for (const k of direct) {
     if (row[k] !== undefined) return row[k];
   }
 
-  const n = f.replace("ai", "");
-  const extra = [`ai_${n}`, `AI_${n}`, `ai-${n}`, `AI-${n}`];
-  for (const k of extra) {
-    if (row[k] !== undefined) return row[k];
+  if (/^ai\d+$/.test(f)) {
+    const n = f.replace("ai", "");
+    const candidates = [
+      `a${n}`,
+      `A${n}`,
+      `analog${n}`,
+      `ANALOG${n}`,
+      `ai_${n}`,
+      `AI_${n}`,
+      `ai-${n}`,
+      `AI-${n}`,
+    ];
+
+    for (const k of candidates) {
+      if (row[k] !== undefined) return row[k];
+    }
+  }
+
+  if (/^te\d+$/.test(f)) {
+    const n = f.replace("te", "");
+    const candidates = [
+      `te${n}`,
+      `TE${n}`,
+      `te_${n}`,
+      `TE_${n}`,
+      `te-${n}`,
+      `TE-${n}`,
+    ];
+
+    for (const k of candidates) {
+      if (row[k] !== undefined) return row[k];
+    }
+  }
+
+  const nestedContainers = [
+    row.data,
+    row.row,
+    row.device,
+    row.telemetry,
+    row.values,
+    row.payload,
+    row.latest,
+    row.readings,
+    row.tags,
+  ].filter(Boolean);
+
+  for (const obj of nestedContainers) {
+    for (const k of direct) {
+      if (obj?.[k] !== undefined) return obj[k];
+    }
   }
 
   return null;
