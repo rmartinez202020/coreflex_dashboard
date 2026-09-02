@@ -94,6 +94,12 @@ function normalizeDigitCount(value) {
   return Math.min(12, Math.max(1, Math.round(n)));
 }
 
+function normalizeDecimalCount(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(6, Math.max(0, Math.round(n)));
+}
+
 function getWidgetDigitCount(tank, props) {
   return normalizeDigitCount(
     props?.digitCount ??
@@ -101,6 +107,14 @@ function getWidgetDigitCount(tank, props) {
       tank?.digitCount ??
       tank?.displayDigits ??
       4
+  );
+}
+
+function getWidgetDecimalCount(tank, props) {
+  return normalizeDecimalCount(
+    props?.decimalCount ??
+      tank?.decimalCount ??
+      0
   );
 }
 
@@ -297,6 +311,21 @@ function getTelemetryValue(row, field) {
     }
   }
 
+  if (/^te\d+$/.test(f)) {
+    const n = f.replace("te", "");
+    const extra = [
+      `te${n}`,
+      `TE${n}`,
+      `te_${n}`,
+      `TE_${n}`,
+      `te-${n}`,
+      `TE-${n}`,
+    ];
+    for (const key of extra) {
+      if (row[key] !== undefined) return row[key];
+    }
+  }
+
   const nestedContainers = [
     row.data,
     row.row,
@@ -433,9 +462,7 @@ export default function DraggableDisplayBox({
   const title = String(props.title ?? props.displayTitle ?? "").trim();
 
   const digitCount = getWidgetDigitCount(tank, props);
-  const decimalCount = Number.isFinite(Number(props.decimalCount))
-    ? Math.max(0, Math.min(6, Math.round(Number(props.decimalCount))))
-    : 0;
+  const decimalCount = getWidgetDecimalCount(tank, props);
 
   const label = props.label || "";
   const theme = props.theme || "gray";
@@ -520,7 +547,8 @@ export default function DraggableDisplayBox({
   const titleFontW = 500;
   const labelFontW = 500;
 
-  const boxWidth = Math.max(92, 44 + digitCount * 24) * scale;
+  const decimalWidth = decimalCount > 0 ? 14 + decimalCount * 18 : 0;
+  const boxWidth = Math.max(92, 44 + digitCount * 24 + decimalWidth) * scale;
 
   return (
     <div style={{ textAlign: "center", pointerEvents: "none" }}>
