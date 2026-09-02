@@ -98,7 +98,13 @@ function normalizeDigitCount(value) {
   return Math.min(12, Math.max(1, Math.round(n)));
 }
 
-function formatDisplayPreviewValue(value, digitCount) {
+function normalizeDecimalCount(value) {
+  const n = Number(value);
+  if (!Number.isFinite(n)) return 0;
+  return Math.min(6, Math.max(0, Math.round(n)));
+}
+
+function formatDisplayPreviewValue(value, digitCount, decimalCount = 0) {
   const digits = normalizeDigitCount(digitCount);
 
   if (value === undefined || value === null || value === "") {
@@ -110,7 +116,24 @@ function formatDisplayPreviewValue(value, digitCount) {
   }
 
   if (Number.isFinite(Number(value))) {
-    const rounded = Math.round(Number(value));
+    const decimals = normalizeDecimalCount(decimalCount);
+    const n = Number(value);
+
+    if (decimals > 0) {
+      let formatted = n.toFixed(decimals);
+      let [integerPart, decimalPart] = formatted.split(".");
+
+      const isNegative = integerPart.startsWith("-");
+      const unsignedInteger = isNegative ? integerPart.slice(1) : integerPart;
+      const paddedInteger = unsignedInteger.slice(-digits).padStart(digits, "0");
+
+      integerPart = isNegative ? `-${paddedInteger}` : paddedInteger;
+      decimalPart = String(decimalPart || "").padEnd(decimals, "0");
+
+      return `${integerPart}.${decimalPart}`;
+    }
+
+    const rounded = Math.round(n);
     return String(rounded).slice(-digits).padStart(digits, "0");
   }
 
@@ -143,6 +166,10 @@ export default function DisplaySettingModal({
 
   const [digitCount, setDigitCount] = useState(
     normalizeDigitCount(props.digitCount ?? props.displayDigits ?? 4)
+  );
+
+  const [decimalCount, setDecimalCount] = useState(
+    normalizeDecimalCount(props.decimalCount ?? 0)
   );
 
   const { devices, selectedDevice } = useDisplaySettingDevices({
@@ -181,8 +208,17 @@ export default function DisplaySettingModal({
 
   const previewValue = useMemo(() => {
     if (!selectedDeviceIsOnline) return "-".repeat(digitCount);
-    return formatDisplayPreviewValue(effectiveOutputValue, digitCount);
-  }, [selectedDeviceIsOnline, effectiveOutputValue, digitCount]);
+    return formatDisplayPreviewValue(
+      effectiveOutputValue,
+      digitCount,
+      decimalCount
+    );
+  }, [
+    selectedDeviceIsOnline,
+    effectiveOutputValue,
+    digitCount,
+    decimalCount,
+  ]);
 
   const liveErr = pollError;
 
@@ -234,6 +270,7 @@ export default function DisplaySettingModal({
     setBindField(p.bindField ?? "ai1");
     setDisplayStyle(p.displayStyle ?? "classic");
     setDigitCount(normalizeDigitCount(p.digitCount ?? p.displayDigits ?? 4));
+    setDecimalCount(normalizeDecimalCount(p.decimalCount ?? 0));
   }, [tank]);
 
   useEffect(() => {
@@ -437,7 +474,7 @@ export default function DisplaySettingModal({
               <div
                 style={{
                   display: "grid",
-                  gridTemplateColumns: "1fr 170px",
+                  gridTemplateColumns: "1fr 170px 190px",
                   gap: 10,
                   alignItems: "start",
                 }}
@@ -473,6 +510,32 @@ export default function DisplaySettingModal({
                   />
                   <div style={{ fontSize: 11, color: "#64748b" }}>
                     4 = 0000, 6 = 000000
+                  </div>
+                </div>
+
+                <div style={{ display: "grid", gap: 5 }}>
+                  <div style={labelStyle}>Decimals</div>
+                  <select
+                    value={decimalCount}
+                    onChange={(e) =>
+                      setDecimalCount(normalizeDecimalCount(e.target.value))
+                    }
+                    style={{
+                      ...fieldSelectStyle,
+                      fontWeight: 700,
+                      fontFamily: "monospace",
+                    }}
+                  >
+                    <option value={0}>0 - No decimals</option>
+                    <option value={1}>1 - 0.0</option>
+                    <option value={2}>2 - 0.00</option>
+                    <option value={3}>3 - 0.000</option>
+                    <option value={4}>4 - 0.0000</option>
+                    <option value={5}>5 - 0.00000</option>
+                    <option value={6}>6 - 0.000000</option>
+                  </select>
+                  <div style={{ fontSize: 11, color: "#64748b" }}>
+                    Choose digits after the decimal point.
                   </div>
                 </div>
               </div>
@@ -513,7 +576,7 @@ export default function DisplaySettingModal({
                     }}
                   >
                     {Number.isFinite(effectiveLiveValue)
-                      ? effectiveLiveValue.toFixed(2)
+                      ? effectiveLiveValue.toFixed(decimalCount)
                       : "--"}
                   </div>
                 </div>
@@ -548,7 +611,7 @@ export default function DisplaySettingModal({
                     {typeof effectiveOutputValue === "string"
                       ? effectiveOutputValue || "--"
                       : Number.isFinite(Number(effectiveOutputValue))
-                      ? Number(effectiveOutputValue).toFixed(2)
+                      ? Number(effectiveOutputValue).toFixed(decimalCount)
                       : "--"}
                   </div>
                 </div>
@@ -788,7 +851,7 @@ export default function DisplaySettingModal({
                     }}
                   >
                     {Number.isFinite(effectiveLiveValue)
-                      ? effectiveLiveValue.toFixed(2)
+                      ? effectiveLiveValue.toFixed(decimalCount)
                       : "--"}
                   </div>
                 </div>
@@ -832,6 +895,7 @@ export default function DisplaySettingModal({
                       displayStyle,
                       digitCount: cleanDigitCount,
                       displayDigits: cleanDigitCount,
+                      decimalCount: normalizeDecimalCount(decimalCount),
                     };
 
                     const nextTank = {
@@ -844,6 +908,7 @@ export default function DisplaySettingModal({
                       displayStyle,
                       digitCount: cleanDigitCount,
                       displayDigits: cleanDigitCount,
+                      decimalCount: normalizeDecimalCount(decimalCount),
                       properties: nextProps,
                     };
 
