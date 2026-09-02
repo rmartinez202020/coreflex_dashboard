@@ -92,15 +92,15 @@ function readAiField(row, bindField) {
   const direct = [
     f,
     f.toUpperCase(),
-    f.replace(/(\\D+)(\\d+)/, "$1_$2"),
-    f.replace(/(\\D+)(\\d+)/, "$1-$2"),
+    f.replace(/(\D+)(\d+)/, "$1_$2"),
+    f.replace(/(\D+)(\d+)/, "$1-$2"),
   ];
 
   for (const k of direct) {
     if (row[k] !== undefined) return row[k];
   }
 
-  if (/^ai\\d+$/.test(f)) {
+  if (/^ai\d+$/.test(f)) {
     const n = f.replace("ai", "");
     const candidates = [
       `a${n}`,
@@ -118,7 +118,7 @@ function readAiField(row, bindField) {
     }
   }
 
-  if (/^te\\d+$/.test(f)) {
+  if (/^te\d+$/.test(f)) {
     const n = f.replace("te", "");
     const candidates = [
       `te${n}`,
@@ -529,7 +529,9 @@ export default function GraphicDisplayBindingPanel({
       {/* Tag / temperature input */}
       <label style={{ display: "grid", gap: 6 }}>
         <span style={{ fontSize: 12, fontWeight: 800, color: "#374151" }}>
-          Analog Input (AI)
+          {bindModel === "tp4000"
+            ? "Type J Thermocouple (°C)"
+            : "Analog Input (AI)"}
         </span>
         <select
           value={bindField}
@@ -592,10 +594,13 @@ export default function GraphicDisplayBindingPanel({
 
           <div>
             <div style={{ fontSize: 12, fontWeight: 900, color: "#111827" }}>
-              {bindModel === "tp4000" ? "Selected TE" : "Selected AI"}
+              {bindModel === "tp4000"
+                ? "Type J Thermocouple"
+                : "Selected AI"}
             </div>
             <div style={{ fontSize: 12, color: "#374151" }}>
               {fieldOptions.find((x) => x.key === bindField)?.label || bindField}
+              {bindModel === "tp4000" ? " · °C" : ""}
             </div>
           </div>
         </div>
@@ -630,6 +635,7 @@ export default function GraphicDisplayBindingPanel({
               title={`Live value (polling every ${formatSampleLabel(sampleMs)})`}
             >
               {currentValueLabel}
+              {bindModel === "tp4000" && currentValueLabel !== "—" ? " °C" : ""}
             </div>
           </div>
 
