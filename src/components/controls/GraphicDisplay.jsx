@@ -838,6 +838,13 @@ export default function GraphicDisplay({
   const exploreEndMs =
     exploreOpen && exploreEnd ? new Date(exploreEnd).getTime() : null;
 
+  // Normal trend mode must always respect the complete user-selected window.
+  // Example: 10 days means the X-axis spans the full last 10 days even if
+  // historian recording only began recently. Missing older time stays blank.
+  const normalEndMs = Date.now();
+  const normalStartMs =
+    windowMs > 0 && Number.isFinite(windowMs) ? normalEndMs - windowMs : null;
+
   const { plotRef, sel, hover, timeTicks, pointsForView, handlers } =
     usePingZoom({
       points: activePoints,
@@ -848,6 +855,8 @@ export default function GraphicDisplay({
       isExploreMode: exploreOpen,
       exploreStartMs,
       exploreEndMs,
+      normalStartMs,
+      normalEndMs,
     });
 
   const { svg } = useTrendSvg({

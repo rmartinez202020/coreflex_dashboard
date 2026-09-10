@@ -56,6 +56,8 @@ export default function usePingZoom({
   isExploreMode = false,
   exploreStartMs = null,
   exploreEndMs = null,
+  normalStartMs = null,
+  normalEndMs = null,
 }) {
   const plotRef = useRef(null);
 
@@ -87,6 +89,15 @@ export default function usePingZoom({
     }
   }, [isExploreMode, exploreStartMs, exploreEndMs]);
 
+  useEffect(() => {
+    if (!isExploreMode) {
+      setZoom(null);
+      setSel(null);
+      selRef.current.dragging = false;
+      pinchRef.current.active = false;
+    }
+  }, [normalStartMs, normalEndMs, isExploreMode]);
+
   const basePoints = useMemo(() => {
     const arr = Array.isArray(points) ? points : [];
 
@@ -117,33 +128,62 @@ export default function usePingZoom({
   }, [basePoints, zoom, isExploreMode]);
 
   const timeRange = useMemo(() => {
-  const arr = Array.isArray(pointsForView) ? pointsForView : [];
+    const arr = Array.isArray(pointsForView) ? pointsForView : [];
 
-  const drawable = arr
-    .map((p) => ({
-      t: Number(p?.t),
-      y: Number(p?.y),
-      gap: !!p?.gap,
-    }))
-    .filter((p) => !p.gap && Number.isFinite(p.t) && Number.isFinite(p.y));
+    const drawable = arr
+      .map((p) => ({
+        t: Number(p?.t),
+        y: Number(p?.y),
+        gap: !!p?.gap,
+      }))
+      .filter((p) => !p.gap && Number.isFinite(p.t) && Number.isFinite(p.y));
 
-  if (!drawable.length) return { tMin: null, tMax: null };
+    const first = drawable.length ? drawable[0].t : null;
+    const last = drawable.length ? drawable[drawable.length - 1].t : null;
 
-  const first = drawable[0].t;
-  const last = drawable[drawable.length - 1].t;
+    // Explore mode: selected Start/End controls the X-axis.
+    if (isExploreMode) {
+      const tMin = Number.isFinite(exploreStartMs) ? exploreStartMs : first;
+      const tMax = Number.isFinite(exploreEndMs) ? exploreEndMs : last;
 
-  // ✅ In Explore mode, still obey the selected Start/End if they exist,
-  // but default to the first/last drawable points, not raw gap points.
-  if (isExploreMode) {
-    const tMin = Number.isFinite(exploreStartMs) ? exploreStartMs : first;
-    const tMax = Number.isFinite(exploreEndMs) ? exploreEndMs : last;
-    return tMax > tMin ? { tMin, tMax } : { tMin: first, tMax: last };
-  }
+      if (Number.isFinite(tMin) && Number.isFinite(tMax) && tMax > tMin) {
+        return { tMin, tMax };
+      }
 
-  return { tMin: first, tMax: last };
-}, [pointsForView, isExploreMode, exploreStartMs, exploreEndMs]);
+      return { tMin: first, tMax: last };
+    }
 
+    // Manual drag/pinch zoom controls the X-axis while zoomed.
+    if (zoom) {
+      const tMin = Math.min(Number(zoom.t0), Number(zoom.t1));
+      const tMax = Math.max(Number(zoom.t0), Number(zoom.t1));
 
+      if (Number.isFinite(tMin) && Number.isFinite(tMax) && tMax > tMin) {
+        return { tMin, tMax };
+      }
+    }
+
+    // Normal mode: respect the complete window requested by the user,
+    // even when part of that window has no historian data.
+    if (
+      Number.isFinite(normalStartMs) &&
+      Number.isFinite(normalEndMs) &&
+      normalEndMs > normalStartMs
+    ) {
+      return { tMin: normalStartMs, tMax: normalEndMs };
+    }
+
+    // Fallback for callers that do not provide a normal window.
+    return { tMin: first, tMax: last };
+  }, [
+    pointsForView,
+    isExploreMode,
+    exploreStartMs,
+    exploreEndMs,
+    zoom,
+    normalStartMs,
+    normalEndMs,
+  ]);
 
   const timeTicks = useMemo(() => {
     const { tMin, tMax } = timeRange;
@@ -322,8 +362,18 @@ export default function usePingZoom({
       let newTMax = newTMin + newSpan;
 
       const fullArr = Array.isArray(basePoints) ? basePoints : [];
-      const fullMin = fullArr.length ? Number(fullArr[0]?.t) : null;
-      const fullMax = fullArr.length ? Number(fullArr[fullArr.length - 1]?.t) : null;
+      let fullMin = fullArr.length ? Number(fullArr[0]?.t) : null;
+      let fullMax = fullArr.length ? Number(fullArr[fullArr.length - 1]?.t) : null;
+
+      if (
+        !isExploreMode &&
+        Number.isFinite(normalStartMs) &&
+        Number.isFinite(normalEndMs) &&
+        normalEndMs > normalStartMs
+      ) {
+        fullMin = normalStartMs;
+        fullMax = normalEndMs;
+      }
 
       if (Number.isFinite(fullMin) && Number.isFinite(fullMax) && fullMax > fullMin) {
         const minSpan = Math.max(1000, (fullMax - fullMin) / 5000);
