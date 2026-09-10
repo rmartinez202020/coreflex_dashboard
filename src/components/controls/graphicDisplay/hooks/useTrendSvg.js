@@ -9,6 +9,7 @@ import { useMemo } from "react";
  * - points: full points array [{t,y,gap}]
  * - pointsForView: optional zoomed subset from usePingZoom
  * - yMin, yMax: numeric axis range
+ * - timeRange: exact X-axis domain from usePingZoom { tMin, tMax }
  * - dbg / dbgWarn: optional logging fns (no-ops if not provided)
  *
  * Output:
@@ -19,12 +20,15 @@ import { useMemo } from "react";
  *   consecutive valid history readings is more than 1 hour.
  * - We do NOT compare the last reading time to "now".
  * - We do NOT let null/gap placeholder samples define the X domain.
+ * - The SVG uses the SAME X-axis domain as usePingZoom.
+ * - Missing historian time remains blank; no fake data is generated.
  */
 export default function useTrendSvg({
   points,
   pointsForView,
   yMin,
   yMax,
+  timeRange = null,
   dbg,
   dbgWarn,
 } = {}) {
@@ -65,6 +69,7 @@ export default function useTrendSvg({
         pointsCount: Array.isArray(points) ? points.length : 0,
         viewCount: Array.isArray(pointsForView) ? pointsForView.length : 0,
       });
+
       return { svg: { segs: [], W, H } };
     }
 
@@ -82,8 +87,7 @@ export default function useTrendSvg({
       return { svg: { segs: [], W, H } };
     }
 
-    // ✅ Use only real drawable points to define X domain.
-    // This prevents placeholder gap/null samples from creating fake blank space.
+    // ✅ Real drawable historian points only.
     const drawable = arr.filter(
       (p) => !p.gap && Number.isFinite(Number(p.y))
     );
@@ -93,8 +97,45 @@ export default function useTrendSvg({
       return { svg: { segs: [], W, H } };
     }
 
-    const tMin = drawable[0].t;
-    const tMax = drawable[drawable.length - 1].t;
+    // ==========================================================
+    // IMPORTANT FIX
+    //
+    // Do NOT stretch the real historian points between their own
+    // first and last timestamps.
+    //
+    // Use the exact same X-axis time domain produced by usePingZoom.
+    //
+    // Example:
+    //
+    // Visible window:
+    // Sep 2 ------------------------------------------- Sep 10
+    //
+    // Actual historian:
+    //                                                  Sep 10
+    //
+    // The Sep 10 line now appears on the RIGHT side only.
+    // Sep 2-Sep 9 remains blank.
+    // ==========================================================
+
+    const suppliedTMin = Number(timeRange?.tMin);
+    const suppliedTMax = Number(timeRange?.tMax);
+
+    let tMin;
+    let tMax;
+
+    if (
+      Number.isFinite(suppliedTMin) &&
+      Number.isFinite(suppliedTMax) &&
+      suppliedTMax > suppliedTMin
+    ) {
+      tMin = suppliedTMin;
+      tMax = suppliedTMax;
+    } else {
+      // Safety fallback only.
+      tMin = drawable[0].t;
+      tMax = drawable[drawable.length - 1].t;
+    }
+
     const tSpan = Math.max(1, tMax - tMin);
 
     const clamp = (v, a, b) => Math.min(Math.max(v, a), b);
@@ -113,15 +154,20 @@ export default function useTrendSvg({
 
     for (const p of arr) {
       // Ignore placeholder gap points for drawing.
-      // They should not compare against "now" or create fake trailing gaps.
       if (p.gap) {
         flushCurrent();
         continue;
       }
 
       const yyNum = Number(p.y);
+
       if (!Number.isFinite(yyNum)) {
         flushCurrent();
+        continue;
+      }
+
+      // Point is outside current visible X-axis domain.
+      if (p.t < tMin || p.t > tMax) {
         continue;
       }
 
@@ -135,10 +181,12 @@ export default function useTrendSvg({
       }
 
       const x = PAD_LEFT + ((p.t - tMin) / tSpan) * INNER_W;
+
       const yy = clamp(yyNum, minY, maxY);
       const y = H - ((yy - minY) / ySpan) * H;
 
       current.push(`${x.toFixed(2)},${y.toFixed(2)}`);
+
       prevValidT = p.t;
     }
 
@@ -151,6 +199,10 @@ export default function useTrendSvg({
       tMin,
       tMax,
       tSpan,
+      suppliedTimeRange: {
+        tMin: suppliedTMin,
+        tMax: suppliedTMax,
+      },
       padLeft: PAD_LEFT,
       padRight: PAD_RIGHT,
       maxPointGapMs: MAX_POINT_GAP_MS,
@@ -170,6 +222,20 @@ export default function useTrendSvg({
           : null,
     });
 
-    return { svg: { segs, W, H } };
-  }, [points, pointsForView, yMin, yMax, dbg, dbgWarn]);
+    return {
+      svg: {
+        segs,
+        W,
+        H,
+      },
+    };
+  }, [
+    points,
+    pointsForView,
+    yMin,
+    yMax,
+    timeRange,
+    dbg,
+    dbgWarn,
+  ]);
 }
