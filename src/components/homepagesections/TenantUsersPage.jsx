@@ -114,6 +114,10 @@ export default function TenantUsersPage({
   const [loadingEditDashboards, setLoadingEditDashboards] = useState(false);
   const [editDashboardsError, setEditDashboardsError] = useState("");
 
+  // Explicit Edit User workflow for adding another dashboard by customer.
+  const [addAccessCustomerName, setAddAccessCustomerName] = useState("");
+  const [addAccessDashboardId, setAddAccessDashboardId] = useState("");
+
   const [pageMsg, setPageMsg] = useState("");
 
   const [formError, setFormError] = useState("");
@@ -413,6 +417,17 @@ export default function TenantUsersPage({
       }));
   }, [editAllDashboards]);
 
+  const addAccessAvailableDashboards = useMemo(() => {
+    const customerName = norm(addAccessCustomerName);
+    if (!customerName) return [];
+
+    return editAllDashboards.filter(
+      (dashboard) =>
+        norm(dashboard.customerName) === customerName &&
+        !form.dashboards.includes(String(dashboard.id))
+    );
+  }, [addAccessCustomerName, editAllDashboards, form.dashboards]);
+
   const allKnownDashboards = useMemo(() => {
     const map = new Map();
 
@@ -501,6 +516,8 @@ export default function TenantUsersPage({
     setDashboardsError("");
     setEditAllDashboards([]);
     setEditDashboardsError("");
+    setAddAccessCustomerName("");
+    setAddAccessDashboardId("");
     setFormError("");
     setIsDeleting(false);
   };
@@ -702,6 +719,22 @@ export default function TenantUsersPage({
     });
   };
 
+  const handleAddDashboardAccess = () => {
+    const dashboardId = String(addAccessDashboardId || "").trim();
+    if (!dashboardId) return;
+
+    setFormError("");
+    setForm((prev) => {
+      if (prev.dashboards.includes(dashboardId)) return prev;
+      return {
+        ...prev,
+        dashboards: [...prev.dashboards, dashboardId],
+      };
+    });
+
+    setAddAccessDashboardId("");
+  };
+
   const openCreateModal = async () => {
     resetForm();
     setShowModal(true);
@@ -724,6 +757,8 @@ export default function TenantUsersPage({
     });
     setFormError("");
     setEditDashboardsError("");
+    setAddAccessCustomerName("");
+    setAddAccessDashboardId("");
     setShowModal(true);
 
     let customerRows = customers;
@@ -1197,6 +1232,88 @@ export default function TenantUsersPage({
                       ))}
                     </div>
                   )}
+                </div>
+
+                <div className="mt-3 rounded-md border border-blue-200 bg-blue-50 p-3">
+                  <div className="text-sm font-semibold text-gray-800 mb-1">
+                    + Add Dashboard Access
+                  </div>
+                  <div className="text-xs text-gray-600 mb-2">
+                    Select a customer and then choose another dashboard to add to this tenant.
+                  </div>
+
+                  <div className="grid grid-cols-1 gap-2">
+                    <select
+                      className="w-full border rounded-md px-3 py-2 bg-white text-sm"
+                      value={addAccessCustomerName}
+                      onChange={(e) => {
+                        setAddAccessCustomerName(e.target.value);
+                        setAddAccessDashboardId("");
+                        setFormError("");
+                      }}
+                      disabled={
+                        loadingCustomers ||
+                        loadingEditDashboards ||
+                        isSubmitting ||
+                        isDeleting
+                      }
+                    >
+                      <option value="">Select customer</option>
+                      {customers.map((customer) => (
+                        <option key={customer.id} value={customer.name}>
+                          {customer.name}
+                        </option>
+                      ))}
+                    </select>
+
+                    <div className="flex gap-2">
+                      <select
+                        className="min-w-0 flex-1 border rounded-md px-3 py-2 bg-white text-sm"
+                        value={addAccessDashboardId}
+                        onChange={(e) => {
+                          setAddAccessDashboardId(e.target.value);
+                          setFormError("");
+                        }}
+                        disabled={
+                          !addAccessCustomerName ||
+                          loadingEditDashboards ||
+                          isSubmitting ||
+                          isDeleting
+                        }
+                      >
+                        <option value="">
+                          {!addAccessCustomerName
+                            ? "Select customer first"
+                            : addAccessAvailableDashboards.length === 0
+                            ? "No additional dashboards available"
+                            : "Select dashboard"}
+                        </option>
+
+                        {addAccessAvailableDashboards.map((dashboard) => (
+                          <option key={dashboard.id} value={dashboard.id}>
+                            {dashboard.name}
+                          </option>
+                        ))}
+                      </select>
+
+                      <button
+                        type="button"
+                        onClick={handleAddDashboardAccess}
+                        disabled={
+                          !addAccessDashboardId ||
+                          isSubmitting ||
+                          isDeleting
+                        }
+                        className="shrink-0 px-3 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      >
+                        + Add
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="mt-2 text-xs text-gray-500">
+                    The dashboard is staged above immediately. Click Save Changes to apply the updated access.
+                  </div>
                 </div>
               </div>
             )}
