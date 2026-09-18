@@ -893,7 +893,8 @@ export default function PushButtonNCPropertiesModal({
               alignItems: "start",
             }}
           >
-            <SectionCard>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <SectionCard>
               <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}>
                 Active Interlock
               </div>
@@ -1025,39 +1026,13 @@ export default function PushButtonNCPropertiesModal({
                 <option value="NO">NO - Normally Open</option>
                 <option value="NC">NC - Normally Closed</option>
               </select>
-            </SectionCard>
-
-            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
-              <SectionCard>
-                <div
-                  style={{ fontSize: 13, fontWeight: 1000, marginBottom: 10 }}
-                >
-                  Display Title (optional)
-                </div>
-
-                <Label>Title shown above the push button</Label>
-                <input
-                  value={title}
-                  onChange={(e) => setTitle(e.target.value.slice(0, 40))}
-                  placeholder="Example: Stop Pump"
-                  style={{
-                    width: "100%",
-                    padding: "10px 12px",
-                    borderRadius: 10,
-                    border: "1px solid #cbd5e1",
-                    fontSize: 14,
-                  }}
-                />
-                <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
-                  Leave blank to hide the title. Max 40 characters.
-                </div>
               </SectionCard>
 
               <SectionCard>
                 <div
                   style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}
                 >
-                  Control PIN Protection
+                  PIN Protection
                 </div>
 
                 <label
@@ -1083,9 +1058,9 @@ export default function PushButtonNCPropertiesModal({
                     }}
                   />
                   <span>
-                    <div style={{ fontWeight: 900, fontSize: 14 }}>Require PIN</div>
+                    <div style={{ fontWeight: 900, fontSize: 14 }}>Require PIN to Operate</div>
                     <div style={{ fontSize: 12, color: "#64748b" }}>
-                      Operator must enter the PIN before this NC control can operate.
+                      The operator must enter this widget's PIN before the control can operate.
                     </div>
                   </span>
                 </label>
@@ -1185,6 +1160,33 @@ export default function PushButtonNCPropertiesModal({
                     )}
                   </div>
                 )}
+              </SectionCard>
+            </div>
+
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <SectionCard>
+                <div
+                  style={{ fontSize: 13, fontWeight: 1000, marginBottom: 10 }}
+                >
+                  Display Title (optional)
+                </div>
+
+                <Label>Title shown above the push button</Label>
+                <input
+                  value={title}
+                  onChange={(e) => setTitle(e.target.value.slice(0, 40))}
+                  placeholder="Example: Stop Pump"
+                  style={{
+                    width: "100%",
+                    padding: "10px 12px",
+                    borderRadius: 10,
+                    border: "1px solid #cbd5e1",
+                    fontSize: 14,
+                  }}
+                />
+                <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
+                  Leave blank to hide the title. Max 40 characters.
+                </div>
               </SectionCard>
 
               <SectionCard>
