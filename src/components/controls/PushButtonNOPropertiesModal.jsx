@@ -176,6 +176,11 @@ export default function PushButtonNOPropertiesModal({
     initialInterlock.type || p.interlock_type || "NO"
   ).toUpperCase();
 
+  const initialPinRequired =
+    Boolean(p.pinRequired) || Boolean(p.pin_required);
+  const initialPinConfigured =
+    Boolean(p.pinConfigured) || Boolean(p.pin_configured);
+
   const [deviceId, setDeviceId] = React.useState(initialDeviceId);
   const [field, setField] = React.useState(
     /^do[1-4]$/.test(String(initialField || "").toLowerCase())
@@ -223,6 +228,12 @@ export default function PushButtonNOPropertiesModal({
     initialInterlockTypeRaw === "NC" ? "NC" : "NO"
   );
 
+  const [pinRequired, setPinRequired] = React.useState(initialPinRequired);
+  const [pinConfigured, setPinConfigured] = React.useState(initialPinConfigured);
+  const [pin, setPin] = React.useState("");
+  const [confirmPin, setConfirmPin] = React.useState("");
+  const [changePin, setChangePin] = React.useState(false);
+
   React.useEffect(() => {
     if (isLaunched && open) onClose?.();
   }, [isLaunched, open, onClose]);
@@ -261,6 +272,17 @@ export default function PushButtonNOPropertiesModal({
       /^di[1-6]$/.test(nextInterlockField) ? nextInterlockField : "di1"
     );
     setInterlockType(nextInterlockType === "NC" ? "NC" : "NO");
+
+    const nextPinRequired =
+      Boolean(pp.pinRequired) || Boolean(pp.pin_required);
+    const nextPinConfigured =
+      Boolean(pp.pinConfigured) || Boolean(pp.pin_configured);
+
+    setPinRequired(nextPinRequired);
+    setPinConfigured(nextPinConfigured);
+    setPin("");
+    setConfirmPin("");
+    setChangePin(false);
   }, [open, pushButton, pushButton?.id, isLaunched]);
 
   const modalRef = React.useRef(null);
@@ -547,6 +569,14 @@ export default function PushButtonNOPropertiesModal({
       /^di[1-6]$/.test(String(interlockField || "").toLowerCase()) &&
       ["NO", "NC"].includes(String(interlockType || "").toUpperCase()));
 
+  const pinNeedsEntry = pinRequired && (!pinConfigured || changePin);
+  const pinFormatValid = /^\d{4,8}$/.test(String(pin || ""));
+  const pinMatches = String(pin || "") === String(confirmPin || "");
+  const pinValid =
+    !pinRequired ||
+    (pinConfigured && !changePin) ||
+    (pinNeedsEntry && pinFormatValid && pinMatches);
+
   const [saving, setSaving] = React.useState(false);
   const [saveErr, setSaveErr] = React.useState("");
 
@@ -560,6 +590,7 @@ export default function PushButtonNOPropertiesModal({
   const canApply =
     canApplyLocal &&
     interlockValid &&
+    pinValid &&
     !!String(dashboardId || "").trim() &&
     !!String(widgetId || "").trim() &&
     !usedByOther &&
@@ -592,6 +623,17 @@ export default function PushButtonNOPropertiesModal({
     }
 
     if (!dev || !/^do[1-4]$/.test(f)) return;
+
+    if (pinRequired && (!pinConfigured || changePin)) {
+      if (!/^\d{4,8}$/.test(String(pin || ""))) {
+        setSaveErr("PIN must contain 4 to 8 digits.");
+        return;
+      }
+      if (String(pin || "") !== String(confirmPin || "")) {
+        setSaveErr("PIN and Confirm PIN do not match.");
+        return;
+      }
+    }
 
     if (
       interlockEnabled &&
@@ -629,6 +671,12 @@ export default function PushButtonNOPropertiesModal({
         interlock_device_id: interlockEnabled ? safeInterlockDeviceId : "",
         interlock_field: interlockEnabled ? safeInterlockField : "",
         interlock_type: safeInterlockType,
+
+        // Safe metadata only. Never store the actual PIN or its hash in project JSON.
+        pinRequired: Boolean(pinRequired),
+        pinConfigured: Boolean(pinRequired && (pinConfigured || pin)),
+        pin_required: Boolean(pinRequired),
+        pin_configured: Boolean(pinRequired && (pinConfigured || pin)),
       };
 
       const next = { ...pushButton, properties: nextProps };
@@ -654,6 +702,11 @@ export default function PushButtonNOPropertiesModal({
         interlockField: interlockEnabled ? safeInterlockField : "",
         interlockType: safeInterlockType,
         interlockMode: "block_when_active",
+        pinRequired: Boolean(pinRequired),
+        pin:
+          pinRequired && (!pinConfigured || changePin)
+            ? String(pin || "")
+            : undefined,
       });
 
       await loadUsed();
@@ -835,7 +888,8 @@ export default function PushButtonNOPropertiesModal({
               alignItems: "start",
             }}
           >
-            <SectionCard>
+            <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
+              <SectionCard>
               <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}>
                 Active Interlock
               </div>
@@ -967,7 +1021,174 @@ export default function PushButtonNOPropertiesModal({
                 <option value="NO">NO - Normally Open</option>
                 <option value="NC">NC - Normally Closed</option>
               </select>
-            </SectionCard>
+              </SectionCard>
+
+              <SectionCard>
+                <div style={{ fontSize: 13, fontWeight: 1000, marginBottom: 12 }}>
+                  PIN Protection
+                </div>
+
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "12px 14px",
+                    borderRadius: 10,
+                    border: pinRequired
+                      ? "1px solid #bfdbfe"
+                      : "1px solid #e2e8f0",
+                    background: pinRequired ? "#eff6ff" : "#f8fafc",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={pinRequired}
+                    onChange={(e) => {
+                      const checked = Boolean(e.target.checked);
+                      setPinRequired(checked);
+                      setPin("");
+                      setConfirmPin("");
+                      setChangePin(false);
+                    }}
+                  />
+                  <span>
+                    <div style={{ fontWeight: 900, fontSize: 14 }}>
+                      Require PIN to Operate
+                    </div>
+                    <div style={{ fontSize: 12, color: "#64748b" }}>
+                      The operator must enter this widget's PIN before the control can operate.
+                    </div>
+                  </span>
+                </label>
+
+                {pinRequired && pinConfigured && !changePin && (
+                  <div
+                    style={{
+                      marginTop: 12,
+                      padding: "12px 14px",
+                      borderRadius: 10,
+                      border: "1px solid #bbf7d0",
+                      background: "#f0fdf4",
+                    }}
+                  >
+                    <div style={{ fontSize: 13, fontWeight: 900 }}>
+                      PIN configured
+                    </div>
+                    <div style={{ marginTop: 4, fontSize: 12, color: "#64748b" }}>
+                      The saved PIN is hidden and cannot be displayed.
+                    </div>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setChangePin(true);
+                        setPin("");
+                        setConfirmPin("");
+                      }}
+                      style={{
+                        marginTop: 10,
+                        padding: "8px 12px",
+                        borderRadius: 9,
+                        border: "1px solid #cbd5e1",
+                        background: "white",
+                        cursor: "pointer",
+                        fontWeight: 700,
+                      }}
+                    >
+                      Change PIN
+                    </button>
+                  </div>
+                )}
+
+                {pinRequired && (!pinConfigured || changePin) && (
+                  <div style={{ marginTop: 12 }}>
+                    <Label>{pinConfigured ? "New PIN" : "PIN"}</Label>
+                    <input
+                      type="password"
+                      inputMode="numeric"
+                      autoComplete="new-password"
+                      value={pin}
+                      onChange={(e) =>
+                        setPin(String(e.target.value || "").replace(/\D/g, "").slice(0, 8))
+                      }
+                      placeholder="4-8 digits"
+                      style={{
+                        width: "100%",
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        border: "1px solid #cbd5e1",
+                        fontSize: 14,
+                        marginBottom: 12,
+                      }}
+                    />
+
+                    <Label>Confirm PIN</Label>
+                    <input
+                      type="password"
+                      inputMode="numeric"
+                      autoComplete="new-password"
+                      value={confirmPin}
+                      onChange={(e) =>
+                        setConfirmPin(
+                          String(e.target.value || "").replace(/\D/g, "").slice(0, 8)
+                        )
+                      }
+                      placeholder="Re-enter PIN"
+                      style={{
+                        width: "100%",
+                        padding: "10px 12px",
+                        borderRadius: 10,
+                        border:
+                          confirmPin && !pinMatches
+                            ? "1px solid #ef4444"
+                            : "1px solid #cbd5e1",
+                        fontSize: 14,
+                      }}
+                    />
+
+                    <div
+                      style={{
+                        marginTop: 8,
+                        fontSize: 12,
+                        color:
+                          (pin && !pinFormatValid) || (confirmPin && !pinMatches)
+                            ? "#dc2626"
+                            : "#64748b",
+                      }}
+                    >
+                      {pin && !pinFormatValid
+                        ? "PIN must contain 4 to 8 digits."
+                        : confirmPin && !pinMatches
+                        ? "PINs do not match."
+                        : "Use 4 to 8 digits. The PIN itself is never saved in the dashboard project."}
+                    </div>
+
+                    {pinConfigured && changePin && (
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setChangePin(false);
+                          setPin("");
+                          setConfirmPin("");
+                        }}
+                        style={{
+                          marginTop: 10,
+                          padding: "8px 12px",
+                          borderRadius: 9,
+                          border: "1px solid #cbd5e1",
+                          background: "white",
+                          cursor: "pointer",
+                          fontWeight: 700,
+                        }}
+                      >
+                        Keep Current PIN
+                      </button>
+                    )}
+                  </div>
+                )}
+              </SectionCard>
+            </div>
 
             <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
               <SectionCard>
@@ -1251,6 +1472,8 @@ export default function PushButtonNOPropertiesModal({
                 ? "This DO is already used"
                 : !interlockValid
                 ? "Interlock configuration is incomplete"
+                : !pinValid
+                ? "PIN configuration is incomplete"
                 : "Apply"
             }
           >

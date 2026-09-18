@@ -90,12 +90,17 @@ export async function bindControlField({
   aoScaleMin,
   aoScaleMax,
 
-  // ✅ Interlock values - backend only applies these to toggle / push_no / push_nc
+  // ✅ Interlock values
+  // Backend only applies these to toggle / push_no / push_nc
   interlockEnabled,
   interlockDeviceId,
   interlockField,
   interlockType,
   interlockMode,
+
+  // 🔐 Per-widget PIN protection
+  pinRequired,
+  pin,
 
   signal,
 } = {}) {
@@ -105,7 +110,9 @@ export async function bindControlField({
     throw new Error(`Unsupported control field: ${safeField || "(empty)"}`);
   }
 
-  const safeInterlockField = String(interlockField || "").trim().toLowerCase();
+  const safeInterlockField = String(interlockField || "")
+    .trim()
+    .toLowerCase();
 
   const body = {
     dashboardId,
@@ -116,41 +123,94 @@ export async function bindControlField({
     deviceId,
     field: safeField,
 
-    ...(scaleMin !== undefined ? { scaleMin: Number(scaleMin) } : {}),
-    ...(scaleMax !== undefined ? { scaleMax: Number(scaleMax) } : {}),
-    ...(aoScaleMin !== undefined ? { aoScaleMin: Number(aoScaleMin) } : {}),
-    ...(aoScaleMax !== undefined ? { aoScaleMax: Number(aoScaleMax) } : {}),
+    ...(scaleMin !== undefined
+      ? { scaleMin: Number(scaleMin) }
+      : {}),
 
-    // ✅ Send interlock payload when provided.
-    // Safe for display_output because backend ignores/clears it for unsupported widget types.
+    ...(scaleMax !== undefined
+      ? { scaleMax: Number(scaleMax) }
+      : {}),
+
+    ...(aoScaleMin !== undefined
+      ? { aoScaleMin: Number(aoScaleMin) }
+      : {}),
+
+    ...(aoScaleMax !== undefined
+      ? { aoScaleMax: Number(aoScaleMax) }
+      : {}),
+
+    // ===============================
+    // 🔒 Interlock
+    // ===============================
+
     ...(interlockEnabled !== undefined
       ? { interlockEnabled: Boolean(interlockEnabled) }
       : {}),
+
     ...(interlockDeviceId !== undefined
-      ? { interlockDeviceId: String(interlockDeviceId || "").trim() }
+      ? {
+          interlockDeviceId: String(
+            interlockDeviceId || ""
+          ).trim(),
+        }
       : {}),
+
     ...(interlockField !== undefined
-      ? { interlockField: safeInterlockField }
+      ? {
+          interlockField: safeInterlockField,
+        }
       : {}),
+
     ...(interlockType !== undefined
-      ? { interlockType: normalizeInterlockType(interlockType) }
+      ? {
+          interlockType: normalizeInterlockType(
+            interlockType
+          ),
+        }
       : {}),
+
     ...(interlockMode !== undefined
-      ? { interlockMode: normalizeInterlockMode(interlockMode) }
+      ? {
+          interlockMode: normalizeInterlockMode(
+            interlockMode
+          ),
+        }
+      : {}),
+
+    // ===============================
+    // 🔐 PIN Protection
+    // ===============================
+    // PIN is only transported to the backend.
+    // It is NOT stored by this frontend helper.
+
+    ...(pinRequired !== undefined
+      ? {
+          pinRequired: Boolean(pinRequired),
+        }
+      : {}),
+
+    ...(pin !== undefined &&
+    String(pin).trim() !== ""
+      ? {
+          pin: String(pin).trim(),
+        }
       : {}),
   };
 
-  const res = await fetch(`${API_URL}/control-bindings/bind`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(),
-      "Cache-Control": "no-cache",
-      Pragma: "no-cache",
-    },
-    body: JSON.stringify(body),
-    signal,
-  });
+  const res = await fetch(
+    `${API_URL}/control-bindings/bind`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+      },
+      body: JSON.stringify(body),
+      signal,
+    }
+  );
 
   if (res.ok) {
     try {
@@ -162,15 +222,21 @@ export async function bindControlField({
   }
 
   let payload = null;
+
   try {
     payload = await res.json();
   } catch {}
 
   if (res.status === 409) {
     const detail = payload?.detail || payload || {};
-    const err = new Error(detail?.error || "Control field already used");
+
+    const err = new Error(
+      detail?.error || "Control field already used"
+    );
+
     err.code = 409;
     err.detail = detail;
+
     throw err;
   }
 
@@ -180,9 +246,15 @@ export async function bindControlField({
     payload?.error ||
     `Bind failed (${res.status})`;
 
-  const err = new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+  const err = new Error(
+    typeof msg === "string"
+      ? msg
+      : JSON.stringify(msg)
+  );
+
   err.code = res.status;
   err.detail = payload;
+
   throw err;
 }
 
@@ -199,17 +271,23 @@ export async function deleteControlBinding({
   widgetId,
   signal,
 } = {}) {
-  const q = qs({ dashboardId, widgetId });
-
-  const res = await fetch(`${API_URL}/control-bindings/?${q}`, {
-    method: "DELETE",
-    headers: {
-      ...getAuthHeaders(),
-      "Cache-Control": "no-cache",
-      Pragma: "no-cache",
-    },
-    signal,
+  const q = qs({
+    dashboardId,
+    widgetId,
   });
+
+  const res = await fetch(
+    `${API_URL}/control-bindings/?${q}`,
+    {
+      method: "DELETE",
+      headers: {
+        ...getAuthHeaders(),
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+      },
+      signal,
+    }
+  );
 
   if (res.ok) {
     try {
@@ -221,6 +299,7 @@ export async function deleteControlBinding({
   }
 
   let payload = null;
+
   try {
     payload = await res.json();
   } catch {}
@@ -230,16 +309,24 @@ export async function deleteControlBinding({
     payload?.error ||
     `Delete binding failed (${res.status})`;
 
-  const err = new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+  const err = new Error(
+    typeof msg === "string"
+      ? msg
+      : JSON.stringify(msg)
+  );
+
   err.code = res.status;
   err.detail = payload;
+
   throw err;
 }
 
 // ===============================
 // 🕹️ Write Control Value
+// ===============================
 // ✅ DO => value01
 // ✅ AO => value
+// 🔐 PIN is forwarded only when supplied
 // ===============================
 export async function writeControlValue({
   dashboardId,
@@ -247,39 +334,73 @@ export async function writeControlValue({
   field,
   value,
   value01,
+  pin,
   signal,
 } = {}) {
-  const safeField = String(field || "").trim().toLowerCase();
+  const safeField = String(field || "")
+    .trim()
+    .toLowerCase();
 
   if (!isSupportedControlField(safeField)) {
-    throw new Error(`Unsupported control field: ${safeField || "(empty)"}`);
+    throw new Error(
+      `Unsupported control field: ${
+        safeField || "(empty)"
+      }`
+    );
   }
 
   const body = {
     dashboardId,
     widgetId,
     field: safeField,
+
     ...(isDOField(safeField)
-      ? { value01: Number(value01) === 1 ? 1 : 0 }
-      : { value: Number(value) }),
+      ? {
+          value01:
+            Number(value01) === 1 ? 1 : 0,
+        }
+      : {
+          value: Number(value),
+        }),
+
+    // ===============================
+    // 🔐 PIN
+    // ===============================
+    // Never persist the PIN here.
+    // It exists only in this API request.
+
+    ...(pin !== undefined &&
+    String(pin).trim() !== ""
+      ? {
+          pin: String(pin).trim(),
+        }
+      : {}),
   };
 
-  const res = await fetch(`${API_URL}/control-bindings/write`, {
-    method: "POST",
-    headers: {
-      "Content-Type": "application/json",
-      ...getAuthHeaders(),
-      "Cache-Control": "no-cache",
-      Pragma: "no-cache",
-    },
-    body: JSON.stringify(body),
-    signal,
-  });
+  const res = await fetch(
+    `${API_URL}/control-bindings/write`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+        "Cache-Control": "no-cache",
+        Pragma: "no-cache",
+      },
+      body: JSON.stringify(body),
+      signal,
+    }
+  );
 
   if (res.ok) {
     try {
       const data = await res.json();
-      console.log("🕹️ writeControlValue ← data:", data);
+
+      console.log(
+        "🕹️ writeControlValue ← data:",
+        data
+      );
+
       return data;
     } catch {
       return { ok: true };
@@ -287,35 +408,56 @@ export async function writeControlValue({
   }
 
   let payload = null;
+
   try {
     payload = await res.json();
   } catch {}
 
-  const msg = payload?.detail || `Write failed (${res.status})`;
-  const err = new Error(typeof msg === "string" ? msg : JSON.stringify(msg));
+  const msg =
+    payload?.detail ||
+    `Write failed (${res.status})`;
+
+  const err = new Error(
+    typeof msg === "string"
+      ? msg
+      : JSON.stringify(msg)
+  );
+
   err.code = res.status;
   err.detail = payload;
+
   throw err;
 }
 
-// ✅ generic AO writer
+// ===============================
+// ✅ Generic AO writer
+// ===============================
 export async function writeControlAO({
   dashboardId,
   widgetId,
   field = "ao1",
   value,
+  pin,
   signal,
 } = {}) {
-  const safeField = String(field || "").trim().toLowerCase();
+  const safeField = String(field || "")
+    .trim()
+    .toLowerCase();
 
   if (!isAOField(safeField)) {
-    throw new Error(`Unsupported AO field: ${safeField || "(empty)"}`);
+    throw new Error(
+      `Unsupported AO field: ${
+        safeField || "(empty)"
+      }`
+    );
   }
 
   const numericValue = Number(value);
 
   if (!Number.isFinite(numericValue)) {
-    throw new Error(`Invalid AO value: ${value}`);
+    throw new Error(
+      `Invalid AO value: ${value}`
+    );
   }
 
   return writeControlValue({
@@ -323,22 +465,36 @@ export async function writeControlAO({
     widgetId,
     field: safeField,
     value: numericValue,
+    pin,
     signal,
   });
 }
 
-// ✅ keep old name so toggle/push button stay working
+// ===============================
+// ✅ DO writer
+// Keep old name so toggle /
+// push button code stays working
+// ===============================
 export async function writeControlDO({
   dashboardId,
   widgetId,
   value01,
+  pin,
   signal,
 } = {}) {
   return writeControlValue({
     dashboardId,
     widgetId,
-    field: "do1", // not used by old backend if widget binding resolves server-side
+
+    // Backend resolves the actual bound
+    // DO from dashboardId + widgetId.
+    field: "do1",
+
     value01,
+
+    // 🔐 Forward operator PIN when supplied.
+    pin,
+
     signal,
   });
 }
