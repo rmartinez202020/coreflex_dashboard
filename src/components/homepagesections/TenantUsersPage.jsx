@@ -109,6 +109,11 @@ export default function TenantUsersPage({
   const [loadingDashboards, setLoadingDashboards] = useState(false);
   const [dashboardsError, setDashboardsError] = useState("");
 
+  // Edit User can manage dashboard access across every customer.
+  const [editAllDashboards, setEditAllDashboards] = useState([]);
+  const [loadingEditDashboards, setLoadingEditDashboards] = useState(false);
+  const [editDashboardsError, setEditDashboardsError] = useState("");
+
   const [pageMsg, setPageMsg] = useState("");
 
   const [formError, setFormError] = useState("");
@@ -289,6 +294,84 @@ export default function TenantUsersPage({
     }
   }, []);
 
+  const fetchAllDashboardsForEdit = useCallback(
+    async (customerRows = customers) => {
+      const sourceCustomers = Array.isArray(customerRows) ? customerRows : [];
+
+      if (!sourceCustomers.length) {
+        setEditAllDashboards([]);
+        setEditDashboardsError("");
+        return [];
+      }
+
+      try {
+        setLoadingEditDashboards(true);
+        setEditDashboardsError("");
+
+        const results = await Promise.all(
+          sourceCustomers.map(async (customerRow) => {
+            const customerName = norm(customerRow?.name);
+            if (!customerName) return [];
+
+            const res = await fetch(
+              `${API_URL}/customers-dashboards?customer_name=${encodeURIComponent(
+                customerName
+              )}`,
+              {
+                headers: {
+                  "Content-Type": "application/json",
+                  ...getAuthHeaders(),
+                },
+              }
+            );
+
+            if (!res.ok) {
+              const text = await res.text().catch(() => "");
+              throw new Error(
+                text || `Failed to load dashboards for ${customerName}.`
+              );
+            }
+
+            const rows = await res.json().catch(() => []);
+            const arr = Array.isArray(rows) ? rows : [];
+
+            return arr
+              .map((row) => ({
+                id: String(row?.id ?? "").trim(),
+                name: norm(row?.dashboard_name),
+                customerName: norm(row?.customer_name || customerName),
+              }))
+              .filter((d) => d.id && d.name);
+          })
+        );
+
+        const map = new Map();
+        for (const rows of results) {
+          for (const dashboard of rows) {
+            map.set(String(dashboard.id), dashboard);
+          }
+        }
+
+        const cleaned = Array.from(map.values()).sort((a, b) => {
+          const customerCompare = a.customerName.localeCompare(b.customerName);
+          if (customerCompare !== 0) return customerCompare;
+          return a.name.localeCompare(b.name);
+        });
+
+        setEditAllDashboards(cleaned);
+        return cleaned;
+      } catch (err) {
+        console.error("❌ Failed to load all dashboards for Edit User:", err);
+        setEditAllDashboards([]);
+        setEditDashboardsError(String(err?.message || err));
+        return [];
+      } finally {
+        setLoadingEditDashboards(false);
+      }
+    },
+    [customers]
+  );
+
   useEffect(() => {
     fetchTenantUsersFromBackend();
     fetchCustomersFromBackend();
@@ -300,8 +383,9 @@ export default function TenantUsersPage({
   ]);
 
   useEffect(() => {
+    if (editingUserId) return;
     fetchDashboardsForCustomer(form.customerName);
-  }, [form.customerName, fetchDashboardsForCustomer]);
+  }, [editingUserId, form.customerName, fetchDashboardsForCustomer]);
 
   const availableDashboards = useMemo(() => {
     const selectedCustomer = norm(form.customerName);
@@ -312,10 +396,31 @@ export default function TenantUsersPage({
     );
   }, [customerDashboards, form.customerName]);
 
+  const editDashboardsByCustomer = useMemo(() => {
+    const groups = new Map();
+
+    for (const dashboard of editAllDashboards) {
+      const customerName = norm(dashboard.customerName) || "Customer";
+      if (!groups.has(customerName)) groups.set(customerName, []);
+      groups.get(customerName).push(dashboard);
+    }
+
+    return Array.from(groups.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([customerName, dashboards]) => ({
+        customerName,
+        dashboards: [...dashboards].sort((a, b) => a.name.localeCompare(b.name)),
+      }));
+  }, [editAllDashboards]);
+
   const allKnownDashboards = useMemo(() => {
     const map = new Map();
 
     for (const d of customerDashboards) {
+      map.set(String(d.id), d);
+    }
+
+    for (const d of editAllDashboards) {
       map.set(String(d.id), d);
     }
 
@@ -328,15 +433,22 @@ export default function TenantUsersPage({
     }
 
     return Array.from(map.values());
-  }, [customerDashboards, users]);
+  }, [customerDashboards, editAllDashboards, users]);
 
   const filteredUsers = useMemo(() => {
     const customerQuery = norm(searchCustomer).toLowerCase();
     const emailQuery = norm(searchEmail).toLowerCase();
 
     return users.filter((u) => {
+      const dashboardCustomers = Array.isArray(u.dashboardObjects)
+        ? u.dashboardObjects
+            .map((d) => norm(d?.customerName).toLowerCase())
+            .filter(Boolean)
+        : [];
+
       const customerOk = customerQuery
-        ? norm(u.customerName).toLowerCase().includes(customerQuery)
+        ? norm(u.customerName).toLowerCase().includes(customerQuery) ||
+          dashboardCustomers.some((name) => name.includes(customerQuery))
         : true;
 
       const emailOk = emailQuery
@@ -387,6 +499,8 @@ export default function TenantUsersPage({
     setEditingUserId(null);
     setCustomerDashboards([]);
     setDashboardsError("");
+    setEditAllDashboards([]);
+    setEditDashboardsError("");
     setFormError("");
     setIsDeleting(false);
   };
@@ -404,7 +518,7 @@ export default function TenantUsersPage({
     if (!name) return "Name is required.";
     if (!email) return "Email is required.";
     if (!isValidEmail(email)) return "Please enter a valid email address.";
-    if (!customerName) return "Customer is required.";
+    if (!editingUserId && !customerName) return "Customer is required.";
     if (!norm(form.access)) return "Access level is required.";
     if (!Array.isArray(form.dashboards) || form.dashboards.length === 0) {
       return "Select at least one dashboard.";
@@ -427,7 +541,11 @@ export default function TenantUsersPage({
     setFormError("");
     setPageMsg("");
 
-    const selectedDashboardObjects = availableDashboards.filter((d) =>
+    const dashboardSource = editingUserId
+      ? editAllDashboards
+      : availableDashboards;
+
+    const selectedDashboardObjects = dashboardSource.filter((d) =>
       form.dashboards.includes(String(d.id))
     );
 
@@ -457,12 +575,13 @@ export default function TenantUsersPage({
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) {
-        const text = await res.text().catch(() => "");
-        throw new Error(text || "Failed to save tenant user.");
-      }
-
       const data = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(
+          String(data?.detail || data?.error || "Failed to save tenant user.")
+        );
+      }
 
       const normalizedSavedUser = data?.id
         ? normalizeUserFromBackend(data)
@@ -604,15 +723,57 @@ export default function TenantUsersPage({
         : [],
     });
     setFormError("");
+    setEditDashboardsError("");
     setShowModal(true);
 
-    if (!customers.length) {
-      await fetchCustomersFromBackend();
+    let customerRows = customers;
+
+    if (!customerRows.length) {
+      try {
+        setLoadingCustomers(true);
+        setCustomersError("");
+
+        const res = await fetch(`${API_URL}/customer-locations`, {
+          headers: {
+            "Content-Type": "application/json",
+            ...getAuthHeaders(),
+          },
+        });
+
+        if (!res.ok) {
+          const text = await res.text().catch(() => "");
+          throw new Error(text || "Failed to load customers.");
+        }
+
+        const rows = await res.json().catch(() => []);
+        const arr = Array.isArray(rows) ? rows : [];
+        const seen = new Set();
+
+        customerRows = arr
+          .map((row) => ({
+            id: row?.id,
+            name: norm(row?.customer_name),
+          }))
+          .filter((row) => {
+            if (!row.name) return false;
+            const key = row.name.toLowerCase();
+            if (seen.has(key)) return false;
+            seen.add(key);
+            return true;
+          })
+          .sort((a, b) => a.name.localeCompare(b.name));
+
+        setCustomers(customerRows);
+      } catch (err) {
+        console.error("❌ Failed to load customer list:", err);
+        setCustomersError(String(err?.message || err));
+        customerRows = [];
+      } finally {
+        setLoadingCustomers(false);
+      }
     }
 
-    if (user.customerName) {
-      await fetchDashboardsForCustomer(user.customerName);
-    }
+    await fetchAllDashboardsForEdit(customerRows);
   };
 
   const selectedDashboardNames = (dashboardIds, dashboardObjects = null) => {
@@ -800,7 +961,17 @@ export default function TenantUsersPage({
               <div>
                 {u.access === "read_control" ? "Read + Control" : "Read"}
               </div>
-              <div>{u.customerName || "—"}</div>
+              <div className="text-xs text-gray-600">
+                {Array.isArray(u.dashboardObjects) && u.dashboardObjects.length > 0
+                  ? Array.from(
+                      new Set(
+                        u.dashboardObjects
+                          .map((d) => norm(d?.customerName))
+                          .filter(Boolean)
+                      )
+                    ).join(", ") || u.customerName || "—"
+                  : u.customerName || "—"}
+              </div>
               <div className="text-xs text-gray-600">
                 {u.dashboards.length === 0
                   ? "—"
@@ -889,79 +1060,146 @@ export default function TenantUsersPage({
               ))}
             </select>
 
-            <select
-              className="w-full border rounded-md px-3 py-2 mb-3"
-              value={form.customerName}
-              onChange={(e) => {
-                setFormError("");
-                setForm((p) => ({
-                  ...p,
-                  customerName: e.target.value,
-                  dashboards: [],
-                }));
-              }}
-              disabled={loadingCustomers || isSubmitting || isDeleting}
-            >
-              <option value="">
-                {loadingCustomers ? "Loading customers..." : "Select customer"}
-              </option>
+            {!editingUserId ? (
+              <>
+                <select
+                  className="w-full border rounded-md px-3 py-2 mb-3"
+                  value={form.customerName}
+                  onChange={(e) => {
+                    setFormError("");
+                    setForm((p) => ({
+                      ...p,
+                      customerName: e.target.value,
+                      dashboards: [],
+                    }));
+                  }}
+                  disabled={loadingCustomers || isSubmitting || isDeleting}
+                >
+                  <option value="">
+                    {loadingCustomers ? "Loading customers..." : "Select customer"}
+                  </option>
 
-              {customers.map((c) => (
-                <option key={c.id} value={c.name}>
-                  {c.name}
-                </option>
-              ))}
-            </select>
+                  {customers.map((c) => (
+                    <option key={c.id} value={c.name}>
+                      {c.name}
+                    </option>
+                  ))}
+                </select>
 
-            {customersError ? (
-              <div className="mb-3 text-xs text-red-600">
-                Failed to load customers from backend: {customersError}
-              </div>
-            ) : null}
-
-            <div className="mb-3">
-              <div className="text-sm font-semibold mb-1">
-                Assign Dashboards
-              </div>
-
-              <div className="text-xs text-gray-500 mb-2">
-                After selecting a customer, the system searches the dashboard DB
-                for dashboards assigned to that customer under the authenticated
-                admin user.
-              </div>
-
-              <div className="space-y-1 max-h-[140px] overflow-y-auto border rounded-md p-2">
-                {!form.customerName ? (
-                  <div className="text-sm text-gray-500">
-                    Select a customer first.
+                {customersError ? (
+                  <div className="mb-3 text-xs text-red-600">
+                    Failed to load customers from backend: {customersError}
                   </div>
-                ) : loadingDashboards ? (
-                  <div className="text-sm text-gray-500">
-                    Loading customer dashboards...
+                ) : null}
+
+                <div className="mb-3">
+                  <div className="text-sm font-semibold mb-1">
+                    Assign Dashboards
                   </div>
-                ) : dashboardsError ? (
-                  <div className="text-sm text-red-600">
-                    Failed to load dashboards: {dashboardsError}
+
+                  <div className="text-xs text-gray-500 mb-2">
+                    Select a customer, then choose one or more dashboards for the
+                    tenant's initial access.
                   </div>
-                ) : availableDashboards.length === 0 ? (
-                  <div className="text-sm text-gray-500">
-                    No dashboards found for this customer under this admin user.
+
+                  <div className="space-y-1 max-h-[140px] overflow-y-auto border rounded-md p-2">
+                    {!form.customerName ? (
+                      <div className="text-sm text-gray-500">
+                        Select a customer first.
+                      </div>
+                    ) : loadingDashboards ? (
+                      <div className="text-sm text-gray-500">
+                        Loading customer dashboards...
+                      </div>
+                    ) : dashboardsError ? (
+                      <div className="text-sm text-red-600">
+                        Failed to load dashboards: {dashboardsError}
+                      </div>
+                    ) : availableDashboards.length === 0 ? (
+                      <div className="text-sm text-gray-500">
+                        No dashboards found for this customer under this admin user.
+                      </div>
+                    ) : (
+                      availableDashboards.map((d) => (
+                        <label key={d.id} className="flex items-center gap-2 text-sm">
+                          <input
+                            type="checkbox"
+                            checked={form.dashboards.includes(String(d.id))}
+                            onChange={() => toggleDashboard(d.id)}
+                            disabled={isSubmitting || isDeleting}
+                          />
+                          <span>{d.name}</span>
+                        </label>
+                      ))
+                    )}
                   </div>
-                ) : (
-                  availableDashboards.map((d) => (
-                    <label key={d.id} className="flex items-center gap-2 text-sm">
-                      <input
-                        type="checkbox"
-                        checked={form.dashboards.includes(String(d.id))}
-                        onChange={() => toggleDashboard(d.id)}
-                        disabled={isSubmitting || isDeleting}
-                      />
-                      <span>{d.name}</span>
-                    </label>
-                  ))
-                )}
+                </div>
+              </>
+            ) : (
+              <div className="mb-3">
+                <div className="text-sm font-semibold mb-1">
+                  Assign Dashboards
+                </div>
+
+                <div className="text-xs text-gray-500 mb-2">
+                  Manage this tenant's complete dashboard access across all customers.
+                  Existing assignments stay checked. Check or uncheck dashboards, then
+                  click Save Changes.
+                </div>
+
+                {customersError ? (
+                  <div className="mb-2 text-xs text-red-600">
+                    Failed to load customers from backend: {customersError}
+                  </div>
+                ) : null}
+
+                <div className="max-h-[300px] overflow-y-auto border rounded-md p-2 bg-gray-50">
+                  {loadingCustomers || loadingEditDashboards ? (
+                    <div className="text-sm text-gray-500 py-2">
+                      Loading all customer dashboards...
+                    </div>
+                  ) : editDashboardsError ? (
+                    <div className="text-sm text-red-600 py-2">
+                      Failed to load dashboards: {editDashboardsError}
+                    </div>
+                  ) : editDashboardsByCustomer.length === 0 ? (
+                    <div className="text-sm text-gray-500 py-2">
+                      No dashboards found under this admin user.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {editDashboardsByCustomer.map((group) => (
+                        <div
+                          key={group.customerName}
+                          className="rounded-md border border-gray-200 bg-white p-2"
+                        >
+                          <div className="text-xs font-bold text-gray-700 mb-1.5">
+                            {group.customerName}
+                          </div>
+
+                          <div className="space-y-1">
+                            {group.dashboards.map((d) => (
+                              <label
+                                key={d.id}
+                                className="flex items-center gap-2 text-sm"
+                              >
+                                <input
+                                  type="checkbox"
+                                  checked={form.dashboards.includes(String(d.id))}
+                                  onChange={() => toggleDashboard(d.id)}
+                                  disabled={isSubmitting || isDeleting}
+                                />
+                                <span>{d.name}</span>
+                              </label>
+                            ))}
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
+                </div>
               </div>
-            </div>
+            )}
 
             {formError ? (
               <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
@@ -1003,11 +1241,12 @@ export default function TenantUsersPage({
                     !norm(form.name) ||
                     !norm(form.email) ||
                     !isValidEmail(form.email) ||
-                    !norm(form.customerName) ||
+                    (!editingUserId && !norm(form.customerName)) ||
                     !Array.isArray(form.dashboards) ||
                     form.dashboards.length === 0 ||
                     loadingCustomers ||
-                    loadingDashboards ||
+                    (!editingUserId && loadingDashboards) ||
+                    (Boolean(editingUserId) && loadingEditDashboards) ||
                     isSubmitting ||
                     isDeleting ||
                     tenantLimitBlocksCurrentCreate
