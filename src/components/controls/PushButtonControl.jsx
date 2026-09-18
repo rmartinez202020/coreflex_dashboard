@@ -502,7 +502,6 @@ export default function PushButtonControl({
   const [pinModalOpen, setPinModalOpen] = useState(false);
   const [pinValue, setPinValue] = useState("");
   const [pinError, setPinError] = useState("");
-  const [pinSubmitting, setPinSubmitting] = useState(false);
   const pinInputRef = useRef(null);
 
   const pointerActiveRef = useRef(false);
@@ -691,7 +690,6 @@ export default function PushButtonControl({
   }
 
   function closePinModal() {
-    if (pinSubmitting) return;
     setPinModalOpen(false);
     setPinValue("");
     setPinError("");
@@ -870,8 +868,10 @@ export default function PushButtonControl({
 
   async function submitPin(e) {
     e?.preventDefault?.();
+    e?.stopPropagation?.();
 
     const safePin = String(pinValue || "").trim();
+
     if (!safePin) {
       setPinError("Enter PIN");
       pinInputRef.current?.focus?.();
@@ -884,19 +884,19 @@ export default function PushButtonControl({
       return;
     }
 
-    setPinSubmitting(true);
+    // IMPORTANT:
+    // The PIN modal is rendered inside the push-button component.
+    // Submitting the form can otherwise bubble into the control's pointer/
+    // keyboard handling. Close the modal first, clear the visible PIN state,
+    // then start the pulse on the next event-loop turn.
     setPinError("");
-
-    // Close and clear the input state before actuation. The local safePin
-    // is retained only long enough to authorize START and END of this pulse.
     setPinModalOpen(false);
     setPinValue("");
+    pointerActiveRef.current = false;
 
-    try {
-      await performPulse(safePin);
-    } finally {
-      setPinSubmitting(false);
-    }
+    setTimeout(() => {
+      void performPulse(safePin);
+    }, 0);
   }
 
   function handlePressStart(e) {
@@ -1121,7 +1121,6 @@ export default function PushButtonControl({
               autoComplete="off"
               maxLength={12}
               value={pinValue}
-              disabled={pinSubmitting}
               onChange={(e) => {
                 const next = String(e.target.value || "").replace(/\D/g, "").slice(0, 12);
                 setPinValue(next);
@@ -1165,7 +1164,6 @@ export default function PushButtonControl({
             >
               <button
                 type="button"
-                disabled={pinSubmitting}
                 onClick={closePinModal}
                 style={{
                   flex: 1,
@@ -1175,7 +1173,7 @@ export default function PushButtonControl({
                   background: "#ffffff",
                   color: "#334155",
                   fontWeight: 800,
-                  cursor: pinSubmitting ? "not-allowed" : "pointer",
+                  cursor: "pointer",
                 }}
               >
                 Cancel
@@ -1183,7 +1181,6 @@ export default function PushButtonControl({
 
               <button
                 type="submit"
-                disabled={pinSubmitting}
                 style={{
                   flex: 1,
                   border: 0,
@@ -1192,11 +1189,11 @@ export default function PushButtonControl({
                   background: "#0f172a",
                   color: "#ffffff",
                   fontWeight: 800,
-                  cursor: pinSubmitting ? "not-allowed" : "pointer",
-                  opacity: pinSubmitting ? 0.7 : 1,
+                  cursor: "pointer",
+                  opacity: 1,
                 }}
               >
-                {pinSubmitting ? "Checking..." : "Operate"}
+                Operate
               </button>
             </div>
           </form>
