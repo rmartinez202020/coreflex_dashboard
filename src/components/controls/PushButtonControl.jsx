@@ -1061,11 +1061,9 @@ export default function PushButtonControl({
         <div
           role="presentation"
           onPointerDown={(e) => {
-            e.preventDefault();
             e.stopPropagation();
           }}
           onClick={(e) => {
-            e.preventDefault();
             e.stopPropagation();
           }}
           style={{
@@ -1180,7 +1178,8 @@ export default function PushButtonControl({
               </button>
 
               <button
-                type="submit"
+                type="button"
+                onClick={submitPin}
                 style={{
                   flex: 1,
                   border: 0,
