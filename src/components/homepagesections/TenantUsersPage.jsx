@@ -60,7 +60,12 @@ function normalizeUserFromBackend(row) {
       .map((d) => ({
         id: String(d?.id ?? "").trim(),
         name: norm(d?.dashboard_name || d?.name),
-        customerName: norm(row?.customer_name || row?.customerName),
+        customerName: norm(
+          d?.customer_name ||
+            d?.customerName ||
+            row?.customer_name ||
+            row?.customerName
+        ),
       }))
       .filter((d) => d.id && d.name),
     isActive: Boolean(row?.is_active ?? true),
@@ -357,6 +362,20 @@ export default function TenantUsersPage({
     totalTenantUserSlots - usedTenantUsers
   );
 
+  const createEmailMatchesExistingTenant = useMemo(() => {
+    if (editingUserId) return false;
+    const email = norm(form.email).toLowerCase();
+    if (!isValidEmail(email)) return false;
+
+    return users.some((u) => norm(u.email).toLowerCase() === email);
+  }, [editingUserId, form.email, users]);
+
+  const tenantLimitBlocksCurrentCreate =
+    !editingUserId &&
+    !createEmailMatchesExistingTenant &&
+    totalTenantUserSlots > 0 &&
+    usedTenantUsers >= totalTenantUserSlots;
+
   const resetForm = () => {
     setForm({
       name: "",
@@ -391,12 +410,8 @@ export default function TenantUsersPage({
       return "Select at least one dashboard.";
     }
 
-    if (
-      !editingUserId &&
-      totalTenantUserSlots > 0 &&
-      usedTenantUsers >= totalTenantUserSlots
-    ) {
-      return "Tenant user limit reached for your current subscription.";
+    if (tenantLimitBlocksCurrentCreate) {
+      return "Tenant user limit reached for your current subscription. You can still enter an existing tenant email to assign additional dashboard access.";
     }
 
     return "";
@@ -471,9 +486,26 @@ export default function TenantUsersPage({
         );
         setPageMsg("✅ Tenant user updated.");
       } else {
-        setUsers((prev) => [normalizedSavedUser, ...prev]);
+        const wasExistingTenant = users.some(
+          (u) => norm(u.email).toLowerCase() === payload.email
+        );
+
+        setUsers((prev) => {
+          if (!wasExistingTenant) {
+            return [normalizedSavedUser, ...prev];
+          }
+
+          return prev.map((u) =>
+            norm(u.email).toLowerCase() === payload.email
+              ? normalizedSavedUser
+              : u
+          );
+        });
+
         setPageMsg(
-          "✅ Tenant user created. Temporary credentials were sent to the tenant email."
+          wasExistingTenant
+            ? "✅ Dashboard access added to the existing tenant. The tenant keeps the same password."
+            : "✅ Tenant user created. Temporary credentials were sent to the tenant email."
         );
       }
 
@@ -729,10 +761,7 @@ export default function TenantUsersPage({
 
         <button
           onClick={openCreateModal}
-          disabled={
-            loadingSubscription ||
-            (totalTenantUserSlots > 0 && usedTenantUsers >= totalTenantUserSlots)
-          }
+          disabled={loadingSubscription}
           className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
         >
           + Add User
@@ -837,6 +866,10 @@ export default function TenantUsersPage({
             ) : form.email && !isValidEmail(form.email) ? (
               <div className="mb-2 text-xs text-red-600">
                 Please enter a valid email address.
+              </div>
+            ) : createEmailMatchesExistingTenant ? (
+              <div className="mb-2 text-xs text-blue-600">
+                Existing tenant account found. Additional dashboards will be added without creating another tenant-user or changing the tenant password.
               </div>
             ) : null}
 
@@ -977,9 +1010,7 @@ export default function TenantUsersPage({
                     loadingDashboards ||
                     isSubmitting ||
                     isDeleting ||
-                    (!editingUserId &&
-                      totalTenantUserSlots > 0 &&
-                      usedTenantUsers >= totalTenantUserSlots)
+                    tenantLimitBlocksCurrentCreate
                   }
                 >
                   {isSubmitting
