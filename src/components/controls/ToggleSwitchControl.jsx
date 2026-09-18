@@ -80,6 +80,7 @@ async function defaultWriteToBackend({
   dashboardId,
   widgetId,
   value01,
+  pin = "",
   tenantEmail = "",
   tenantAccessLevel = "",
 }) {
@@ -104,6 +105,7 @@ async function defaultWriteToBackend({
       dashboardId: dash,
       widgetId: wid,
       value01: Number(value01) ? 1 : 0,
+      ...(String(pin || "").trim() ? { pin: String(pin).trim() } : {}),
     }),
   });
 
@@ -290,6 +292,27 @@ export default function ToggleSwitchControl({
 
   const title = String(p.title || "").trim();
 
+  // =========================
+  // 🔐 Control PIN protection
+  // Only configuration flags are stored in the widget.
+  // The actual PIN is never stored or verified in the frontend.
+  // =========================
+  const pinRequired = Boolean(
+    p.pinRequired ??
+      p.pin_required ??
+      p?.controlBinding?.pinRequired ??
+      p?.controlBinding?.pin_required ??
+      false
+  );
+
+  const pinConfigured = Boolean(
+    p.pinConfigured ??
+      p.pin_configured ??
+      p?.controlBinding?.pinConfigured ??
+      p?.controlBinding?.pin_configured ??
+      false
+  );
+
   const token = String(getToken() || "").trim();
   const tenantEmailSafe = String(tenantEmail || "").trim().toLowerCase();
   const tenantAccessSafe = String(tenantAccessLevel || "").trim();
@@ -314,6 +337,24 @@ export default function ToggleSwitchControl({
   const bannerTimerRef = React.useRef(null);
 
   const pendingWriteRef = React.useRef(null);
+
+  // 🔐 Runtime PIN modal
+  const [pinModalOpen, setPinModalOpen] = React.useState(false);
+  const [pinValue, setPinValue] = React.useState("");
+  const [pinError, setPinError] = React.useState("");
+  const pinInputRef = React.useRef(null);
+
+  const closePinModal = React.useCallback(() => {
+    setPinModalOpen(false);
+    setPinValue("");
+    setPinError("");
+  }, []);
+
+  React.useEffect(() => {
+    if (!pinModalOpen) return;
+    const t = setTimeout(() => pinInputRef.current?.focus?.(), 0);
+    return () => clearTimeout(t);
+  }, [pinModalOpen]);
 
   React.useEffect(() => {
     if (play) return;
@@ -552,10 +593,7 @@ export default function ToggleSwitchControl({
     !isManualCooldown &&
     !interlockBlocksActivation;
 
-  const handleToggle = async (e) => {
-    e?.preventDefault?.();
-    e?.stopPropagation?.();
-
+  const performToggle = async (authorizedPin = "") => {
     const prevUi = uiIsOn;
     const nextUi = !uiIsOn;
 
@@ -563,15 +601,14 @@ export default function ToggleSwitchControl({
     // UI OFF => DO 1
     const nextDo01 = nextUi ? 0 : 1;
 
-    // ✅ Block ONLY when command is trying to turn ON
-    // Your mapping: ON = DO 0, OFF = DO 1
-
+    // Block ONLY when command is trying to turn ON.
+    // Your mapping: ON = DO 0, OFF = DO 1.
     if (showInterlockText && !uiIsOn) {
       pendingWriteRef.current = null;
       showBanner("error", "Interlock active", 5000);
-    return;
+      return;
     }
-    
+
     if (!canInteractInPlay) return;
 
     showBanner("none", "");
@@ -588,6 +625,7 @@ export default function ToggleSwitchControl({
           deviceId: bindDeviceId,
           field: bindField,
           value01: nextDo01,
+          pin: authorizedPin,
           widget,
           tenantEmail,
           tenantAccessLevel,
@@ -613,6 +651,7 @@ export default function ToggleSwitchControl({
           dashboardId: dash,
           widgetId: wid,
           value01: nextDo01,
+          pin: authorizedPin,
           tenantEmail,
           tenantAccessLevel,
         });
@@ -662,6 +701,17 @@ export default function ToggleSwitchControl({
       const msg = String(err?.message || err || "");
       const lower = msg.toLowerCase();
 
+      if (
+        lower.includes("pin") ||
+        lower.includes("403") ||
+        lower.includes("forbidden")
+      ) {
+        pendingWriteRef.current = null;
+        setUiIsOn(prevUi);
+        showBanner("error", "Incorrect PIN", 4000);
+        return;
+      }
+
       if (lower.includes("interlock")) {
         pendingWriteRef.current = null;
         setUiIsOn(prevUi);
@@ -690,6 +740,59 @@ export default function ToggleSwitchControl({
       setUiIsOn(prevUi);
       showBanner("error", "Failed", 4000);
     }
+  };
+
+  const requestPin = () => {
+    setPinValue("");
+    setPinError("");
+    setPinModalOpen(true);
+  };
+
+  const submitPin = (e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+
+    const safePin = String(pinValue || "").trim();
+
+    if (!/^\d{4,12}$/.test(safePin)) {
+      setPinError("Enter a 4 to 12 digit PIN.");
+      return;
+    }
+
+    setPinModalOpen(false);
+    setPinValue("");
+    setPinError("");
+
+    // Run after the modal click event has fully completed.
+    setTimeout(() => {
+      void performToggle(safePin);
+    }, 0);
+  };
+
+  const handleToggle = (e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+
+    // Preserve all existing runtime guards before opening the PIN modal.
+    if (showInterlockText && !uiIsOn) {
+      pendingWriteRef.current = null;
+      showBanner("error", "Interlock active", 5000);
+      return;
+    }
+
+    if (!canInteractInPlay) return;
+
+    if (pinRequired) {
+      if (!pinConfigured) {
+        showBanner("error", "PIN is not configured", 5000);
+        return;
+      }
+
+      requestPin();
+      return;
+    }
+
+    void performToggle("");
   };
 
   React.useEffect(() => {
@@ -980,6 +1083,152 @@ export default function ToggleSwitchControl({
           </div>
         )}
       </div>
+
+      {pinModalOpen && (
+        <div
+          role="presentation"
+          onPointerDown={(e) => {
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.stopPropagation();
+          }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000000,
+            background: "rgba(15, 23, 42, 0.42)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 20,
+          }}
+        >
+          <form
+            onSubmit={submitPin}
+            onPointerDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: "min(360px, calc(100vw - 40px))",
+              background: "#ffffff",
+              borderRadius: 14,
+              border: "1px solid #cbd5e1",
+              boxShadow: "0 24px 60px rgba(15, 23, 42, 0.30)",
+              padding: 20,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 17,
+                fontWeight: 900,
+                color: "#0f172a",
+                marginBottom: 6,
+              }}
+            >
+              PIN Required
+            </div>
+
+            <div
+              style={{
+                fontSize: 13,
+                color: "#64748b",
+                lineHeight: 1.45,
+                marginBottom: 14,
+              }}
+            >
+              Enter the PIN to operate this toggle.
+            </div>
+
+            <input
+              ref={pinInputRef}
+              type="password"
+              inputMode="numeric"
+              autoComplete="off"
+              value={pinValue}
+              onChange={(e) => {
+                const next = String(e.target.value || "")
+                  .replace(/\D/g, "")
+                  .slice(0, 12);
+                setPinValue(next);
+                if (pinError) setPinError("");
+              }}
+              placeholder="4 to 12 digits"
+              maxLength={12}
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                height: 42,
+                borderRadius: 9,
+                border: pinError ? "1px solid #dc2626" : "1px solid #cbd5e1",
+                padding: "0 12px",
+                fontSize: 16,
+                letterSpacing: 2,
+                outline: "none",
+              }}
+            />
+
+            {pinError && (
+              <div
+                style={{
+                  marginTop: 7,
+                  fontSize: 12,
+                  fontWeight: 700,
+                  color: "#dc2626",
+                }}
+              >
+                {pinError}
+              </div>
+            )}
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 9,
+                marginTop: 18,
+              }}
+            >
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  closePinModal();
+                }}
+                style={{
+                  height: 38,
+                  padding: "0 15px",
+                  borderRadius: 9,
+                  border: "1px solid #cbd5e1",
+                  background: "#ffffff",
+                  color: "#0f172a",
+                  fontWeight: 800,
+                  cursor: "pointer",
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                onClick={submitPin}
+                style={{
+                  height: 38,
+                  padding: "0 16px",
+                  borderRadius: 9,
+                  border: "1px solid #16a34a",
+                  background: "#22c55e",
+                  color: "#ffffff",
+                  fontWeight: 900,
+                  cursor: "pointer",
+                }}
+              >
+                Operate
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
 
       <ToggleSwitchPropertiesModal
         open={openProps}
