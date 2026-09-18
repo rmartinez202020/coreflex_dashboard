@@ -1028,75 +1028,321 @@ export default function TenantUsersPage({
 
       {/* MODAL */}
       {showModal && (
-        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40">
-          <div className="bg-white w-[560px] rounded-lg shadow-lg p-5">
+        <div className="fixed inset-0 z-[99999] flex items-center justify-center bg-black/40 p-4">
+          <div
+            className={`bg-white rounded-lg shadow-lg ${
+              editingUserId
+                ? "w-[min(1120px,94vw)] max-h-[88vh] p-5"
+                : "w-[560px] max-w-[94vw] max-h-[88vh] overflow-y-auto p-5"
+            }`}
+          >
             <h3 className="text-lg font-semibold mb-3">
               {editingUserId ? "Edit User" : "Create User"}
             </h3>
 
-            <input
-              placeholder="Name"
-              className="w-full border rounded-md px-3 py-2 mb-2"
-              value={form.name}
-              onChange={(e) => {
-                setFormError("");
-                setForm((p) => ({ ...p, name: e.target.value }));
-              }}
-              disabled={isSubmitting || isDeleting}
-            />
-
-            <input
-              placeholder="Email"
-              className={`w-full border rounded-md px-3 py-2 mb-1 ${
-                form.email && !isValidEmail(form.email)
-                  ? "border-red-400 bg-red-50"
-                  : ""
-              } ${
-                editingUserId
-                  ? "bg-gray-100 text-gray-500 cursor-not-allowed"
-                  : ""
-              }`}
-              value={form.email}
-              onChange={(e) => {
-                if (editingUserId) return;
-                setFormError("");
-                setForm((p) => ({ ...p, email: e.target.value }));
-              }}
-              disabled={Boolean(editingUserId) || isSubmitting || isDeleting}
-            />
-
             {editingUserId ? (
-              <div className="mb-2 text-xs text-gray-500">
-                Email cannot be modified after the tenant user is created.
-              </div>
-            ) : form.email && !isValidEmail(form.email) ? (
-              <div className="mb-2 text-xs text-red-600">
-                Please enter a valid email address.
-              </div>
-            ) : createEmailMatchesExistingTenant ? (
-              <div className="mb-2 text-xs text-blue-600">
-                Existing tenant account found. Additional dashboards will be added without creating another tenant-user or changing the tenant password.
-              </div>
-            ) : null}
-
-            <select
-              className="w-full border rounded-md px-3 py-2 mb-2"
-              value={form.access}
-              onChange={(e) => {
-                setFormError("");
-                setForm((p) => ({ ...p, access: e.target.value }));
-              }}
-              disabled={isSubmitting || isDeleting}
-            >
-              {ACCESS_OPTIONS.map((o) => (
-                <option key={o.value} value={o.value}>
-                  {o.label}
-                </option>
-              ))}
-            </select>
-
-            {!editingUserId ? (
               <>
+                <div className="grid grid-cols-1 lg:grid-cols-[minmax(0,0.9fr)_minmax(0,1.1fr)] gap-5">
+                  {/* LEFT SIDE: USER INFO + ADD DASHBOARD ACCESS */}
+                  <div className="min-w-0 lg:pr-5 lg:border-r lg:border-gray-200">
+                    <input
+                      placeholder="Name"
+                      className="w-full border rounded-md px-3 py-2 mb-2"
+                      value={form.name}
+                      onChange={(e) => {
+                        setFormError("");
+                        setForm((p) => ({ ...p, name: e.target.value }));
+                      }}
+                      disabled={isSubmitting || isDeleting}
+                    />
+
+                    <input
+                      placeholder="Email"
+                      className="w-full border rounded-md px-3 py-2 mb-1 bg-gray-100 text-gray-500 cursor-not-allowed"
+                      value={form.email}
+                      disabled
+                    />
+
+                    <div className="mb-2 text-xs text-gray-500">
+                      Email cannot be modified after the tenant user is created.
+                    </div>
+
+                    <select
+                      className="w-full border rounded-md px-3 py-2 mb-4"
+                      value={form.access}
+                      onChange={(e) => {
+                        setFormError("");
+                        setForm((p) => ({ ...p, access: e.target.value }));
+                      }}
+                      disabled={isSubmitting || isDeleting}
+                    >
+                      {ACCESS_OPTIONS.map((o) => (
+                        <option key={o.value} value={o.value}>
+                          {o.label}
+                        </option>
+                      ))}
+                    </select>
+
+                    <div className="rounded-md border border-blue-200 bg-blue-50 p-4">
+                      <div className="text-sm font-semibold text-gray-800 mb-1">
+                        + Add Dashboard Access
+                      </div>
+
+                      <div className="text-xs text-gray-600 mb-3">
+                        Select a customer and then choose another dashboard to add to
+                        this tenant.
+                      </div>
+
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Customer
+                      </label>
+                      <select
+                        className="w-full border rounded-md px-3 py-2 bg-white text-sm mb-3"
+                        value={addAccessCustomerName}
+                        onChange={(e) => {
+                          setAddAccessCustomerName(e.target.value);
+                          setAddAccessDashboardId("");
+                          setFormError("");
+                        }}
+                        disabled={
+                          loadingCustomers ||
+                          loadingEditDashboards ||
+                          isSubmitting ||
+                          isDeleting
+                        }
+                      >
+                        <option value="">Select customer</option>
+                        {customers.map((customer) => (
+                          <option key={customer.id} value={customer.name}>
+                            {customer.name}
+                          </option>
+                        ))}
+                      </select>
+
+                      <label className="block text-xs font-medium text-gray-700 mb-1">
+                        Dashboard
+                      </label>
+                      <select
+                        className="w-full border rounded-md px-3 py-2 bg-white text-sm mb-3"
+                        value={addAccessDashboardId}
+                        onChange={(e) => {
+                          setAddAccessDashboardId(e.target.value);
+                          setFormError("");
+                        }}
+                        disabled={
+                          !addAccessCustomerName ||
+                          loadingEditDashboards ||
+                          isSubmitting ||
+                          isDeleting
+                        }
+                      >
+                        <option value="">
+                          {!addAccessCustomerName
+                            ? "Select customer first"
+                            : addAccessAvailableDashboards.length === 0
+                            ? "No additional dashboards available"
+                            : "Select dashboard"}
+                        </option>
+
+                        {addAccessAvailableDashboards.map((dashboard) => (
+                          <option key={dashboard.id} value={dashboard.id}>
+                            {dashboard.name}
+                          </option>
+                        ))}
+                      </select>
+
+                      <button
+                        type="button"
+                        onClick={handleAddDashboardAccess}
+                        disabled={
+                          !addAccessDashboardId || isSubmitting || isDeleting
+                        }
+                        className="w-full px-3 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      >
+                        + Add Dashboard
+                      </button>
+
+                      <div className="mt-3 text-xs text-gray-500">
+                        The dashboard is added to the list on the right immediately.
+                        Click Save Changes to apply the updated access.
+                      </div>
+                    </div>
+
+                    {customersError ? (
+                      <div className="mt-3 text-xs text-red-600">
+                        Failed to load customers from backend: {customersError}
+                      </div>
+                    ) : null}
+                  </div>
+
+                  {/* RIGHT SIDE: ALL ASSIGNED/AVAILABLE DASHBOARDS */}
+                  <div className="min-w-0 flex flex-col">
+                    <div className="flex items-start justify-between gap-3 mb-1">
+                      <div className="text-sm font-semibold">Assign Dashboards</div>
+                      <div className="text-xs text-gray-500 whitespace-nowrap">
+                        {editDashboardsByCustomer.length} customers •{" "}
+                        {editAllDashboards.length} dashboards
+                      </div>
+                    </div>
+
+                    <div className="text-xs text-gray-500 mb-2">
+                      Manage this tenant's complete dashboard access across all
+                      customers. Existing assignments stay checked. Check or uncheck
+                      dashboards to modify access.
+                    </div>
+
+                    <div className="h-[460px] overflow-y-scroll overscroll-contain border rounded-md p-2 bg-gray-50">
+                      {loadingCustomers || loadingEditDashboards ? (
+                        <div className="text-sm text-gray-500 py-2">
+                          Loading all customer dashboards...
+                        </div>
+                      ) : editDashboardsError ? (
+                        <div className="text-sm text-red-600 py-2">
+                          Failed to load dashboards: {editDashboardsError}
+                        </div>
+                      ) : editDashboardsByCustomer.length === 0 ? (
+                        <div className="text-sm text-gray-500 py-2">
+                          No dashboards found under this admin user.
+                        </div>
+                      ) : (
+                        <div className="space-y-3">
+                          {editDashboardsByCustomer.map((group) => (
+                            <div
+                              key={group.customerName}
+                              className="rounded-md border border-gray-200 bg-white p-2"
+                            >
+                              <div className="text-xs font-bold text-gray-700 mb-1.5">
+                                {group.customerName} ({group.dashboards.length})
+                              </div>
+
+                              <div className="space-y-1">
+                                {group.dashboards.map((d) => (
+                                  <label
+                                    key={d.id}
+                                    className="flex items-center gap-2 text-sm"
+                                  >
+                                    <input
+                                      type="checkbox"
+                                      checked={form.dashboards.includes(String(d.id))}
+                                      onChange={() => toggleDashboard(d.id)}
+                                      disabled={isSubmitting || isDeleting}
+                                    />
+                                    <span>{d.name}</span>
+                                  </label>
+                                ))}
+                              </div>
+                            </div>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                </div>
+
+                {formError ? (
+                  <div className="mt-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {formError}
+                  </div>
+                ) : null}
+
+                <div className="mt-4 flex justify-between items-center gap-2">
+                  <button
+                    onClick={handleDeleteUser}
+                    className="px-3 py-2 rounded-md text-sm border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    disabled={isSubmitting || isDeleting}
+                  >
+                    {isDeleting ? "Deleting..." : "Delete User"}
+                  </button>
+
+                  <div className="flex justify-end gap-2">
+                    <button
+                      onClick={() => {
+                        resetForm();
+                        setShowModal(false);
+                      }}
+                      className="px-3 py-2 border rounded-md text-sm"
+                      disabled={isSubmitting || isDeleting}
+                    >
+                      Cancel
+                    </button>
+
+                    <button
+                      onClick={handleSaveUser}
+                      className="px-3 py-2 bg-blue-600 text-white rounded-md text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
+                      disabled={
+                        !norm(form.name) ||
+                        !norm(form.email) ||
+                        !isValidEmail(form.email) ||
+                        !Array.isArray(form.dashboards) ||
+                        form.dashboards.length === 0 ||
+                        loadingCustomers ||
+                        loadingEditDashboards ||
+                        isSubmitting ||
+                        isDeleting
+                      }
+                    >
+                      {isSubmitting ? "Saving..." : "Save Changes"}
+                    </button>
+                  </div>
+                </div>
+              </>
+            ) : (
+              <>
+                {/* CREATE USER KEEPS THE EXISTING COMPACT WORKFLOW */}
+                <input
+                  placeholder="Name"
+                  className="w-full border rounded-md px-3 py-2 mb-2"
+                  value={form.name}
+                  onChange={(e) => {
+                    setFormError("");
+                    setForm((p) => ({ ...p, name: e.target.value }));
+                  }}
+                  disabled={isSubmitting || isDeleting}
+                />
+
+                <input
+                  placeholder="Email"
+                  className={`w-full border rounded-md px-3 py-2 mb-1 ${
+                    form.email && !isValidEmail(form.email)
+                      ? "border-red-400 bg-red-50"
+                      : ""
+                  }`}
+                  value={form.email}
+                  onChange={(e) => {
+                    setFormError("");
+                    setForm((p) => ({ ...p, email: e.target.value }));
+                  }}
+                  disabled={isSubmitting || isDeleting}
+                />
+
+                {form.email && !isValidEmail(form.email) ? (
+                  <div className="mb-2 text-xs text-red-600">
+                    Please enter a valid email address.
+                  </div>
+                ) : createEmailMatchesExistingTenant ? (
+                  <div className="mb-2 text-xs text-blue-600">
+                    Existing tenant account found. Additional dashboards will be added
+                    without creating another tenant-user or changing the tenant
+                    password.
+                  </div>
+                ) : null}
+
+                <select
+                  className="w-full border rounded-md px-3 py-2 mb-2"
+                  value={form.access}
+                  onChange={(e) => {
+                    setFormError("");
+                    setForm((p) => ({ ...p, access: e.target.value }));
+                  }}
+                  disabled={isSubmitting || isDeleting}
+                >
+                  {ACCESS_OPTIONS.map((o) => (
+                    <option key={o.value} value={o.value}>
+                      {o.label}
+                    </option>
+                  ))}
+                </select>
+
                 <select
                   className="w-full border rounded-md px-3 py-2 mb-3"
                   value={form.customerName}
@@ -1169,216 +1415,47 @@ export default function TenantUsersPage({
                     )}
                   </div>
                 </div>
-              </>
-            ) : (
-              <div className="mb-3">
-                <div className="text-sm font-semibold mb-1">
-                  Assign Dashboards
-                </div>
 
-                <div className="text-xs text-gray-500 mb-2">
-                  Manage this tenant's complete dashboard access across all customers.
-                  Existing assignments stay checked. Check or uncheck dashboards, then
-                  click Save Changes.
-                </div>
-
-                {customersError ? (
-                  <div className="mb-2 text-xs text-red-600">
-                    Failed to load customers from backend: {customersError}
+                {formError ? (
+                  <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
+                    {formError}
                   </div>
                 ) : null}
 
-                <div className="max-h-[300px] overflow-y-auto border rounded-md p-2 bg-gray-50">
-                  {loadingCustomers || loadingEditDashboards ? (
-                    <div className="text-sm text-gray-500 py-2">
-                      Loading all customer dashboards...
-                    </div>
-                  ) : editDashboardsError ? (
-                    <div className="text-sm text-red-600 py-2">
-                      Failed to load dashboards: {editDashboardsError}
-                    </div>
-                  ) : editDashboardsByCustomer.length === 0 ? (
-                    <div className="text-sm text-gray-500 py-2">
-                      No dashboards found under this admin user.
-                    </div>
-                  ) : (
-                    <div className="space-y-3">
-                      {editDashboardsByCustomer.map((group) => (
-                        <div
-                          key={group.customerName}
-                          className="rounded-md border border-gray-200 bg-white p-2"
-                        >
-                          <div className="text-xs font-bold text-gray-700 mb-1.5">
-                            {group.customerName}
-                          </div>
-
-                          <div className="space-y-1">
-                            {group.dashboards.map((d) => (
-                              <label
-                                key={d.id}
-                                className="flex items-center gap-2 text-sm"
-                              >
-                                <input
-                                  type="checkbox"
-                                  checked={form.dashboards.includes(String(d.id))}
-                                  onChange={() => toggleDashboard(d.id)}
-                                  disabled={isSubmitting || isDeleting}
-                                />
-                                <span>{d.name}</span>
-                              </label>
-                            ))}
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
-
-                <div className="mt-3 rounded-md border border-blue-200 bg-blue-50 p-3">
-                  <div className="text-sm font-semibold text-gray-800 mb-1">
-                    + Add Dashboard Access
-                  </div>
-                  <div className="text-xs text-gray-600 mb-2">
-                    Select a customer and then choose another dashboard to add to this tenant.
-                  </div>
-
-                  <div className="grid grid-cols-1 gap-2">
-                    <select
-                      className="w-full border rounded-md px-3 py-2 bg-white text-sm"
-                      value={addAccessCustomerName}
-                      onChange={(e) => {
-                        setAddAccessCustomerName(e.target.value);
-                        setAddAccessDashboardId("");
-                        setFormError("");
-                      }}
-                      disabled={
-                        loadingCustomers ||
-                        loadingEditDashboards ||
-                        isSubmitting ||
-                        isDeleting
-                      }
-                    >
-                      <option value="">Select customer</option>
-                      {customers.map((customer) => (
-                        <option key={customer.id} value={customer.name}>
-                          {customer.name}
-                        </option>
-                      ))}
-                    </select>
-
-                    <div className="flex gap-2">
-                      <select
-                        className="min-w-0 flex-1 border rounded-md px-3 py-2 bg-white text-sm"
-                        value={addAccessDashboardId}
-                        onChange={(e) => {
-                          setAddAccessDashboardId(e.target.value);
-                          setFormError("");
-                        }}
-                        disabled={
-                          !addAccessCustomerName ||
-                          loadingEditDashboards ||
-                          isSubmitting ||
-                          isDeleting
-                        }
-                      >
-                        <option value="">
-                          {!addAccessCustomerName
-                            ? "Select customer first"
-                            : addAccessAvailableDashboards.length === 0
-                            ? "No additional dashboards available"
-                            : "Select dashboard"}
-                        </option>
-
-                        {addAccessAvailableDashboards.map((dashboard) => (
-                          <option key={dashboard.id} value={dashboard.id}>
-                            {dashboard.name}
-                          </option>
-                        ))}
-                      </select>
-
-                      <button
-                        type="button"
-                        onClick={handleAddDashboardAccess}
-                        disabled={
-                          !addAccessDashboardId ||
-                          isSubmitting ||
-                          isDeleting
-                        }
-                        className="shrink-0 px-3 py-2 rounded-md bg-blue-600 text-white text-sm hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                      >
-                        + Add
-                      </button>
-                    </div>
-                  </div>
-
-                  <div className="mt-2 text-xs text-gray-500">
-                    The dashboard is staged above immediately. Click Save Changes to apply the updated access.
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {formError ? (
-              <div className="mb-3 rounded-md border border-red-200 bg-red-50 px-3 py-2 text-sm text-red-700">
-                {formError}
-              </div>
-            ) : null}
-
-            <div className="flex justify-between items-center gap-2">
-              <div>
-                {editingUserId ? (
+                <div className="flex justify-end gap-2">
                   <button
-                    onClick={handleDeleteUser}
-                    className="px-3 py-2 rounded-md text-sm border border-red-300 bg-red-50 text-red-700 hover:bg-red-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                    onClick={() => {
+                      resetForm();
+                      setShowModal(false);
+                    }}
+                    className="px-3 py-2 border rounded-md text-sm"
                     disabled={isSubmitting || isDeleting}
                   >
-                    {isDeleting ? "Deleting..." : "Delete User"}
+                    Cancel
                   </button>
-                ) : (
-                  <span />
-                )}
-              </div>
 
-              <div className="flex justify-end gap-2">
-                <button
-                  onClick={() => {
-                    resetForm();
-                    setShowModal(false);
-                  }}
-                  className="px-3 py-2 border rounded-md text-sm"
-                  disabled={isSubmitting || isDeleting}
-                >
-                  Cancel
-                </button>
-
-                <button
-                  onClick={handleSaveUser}
-                  className="px-3 py-2 bg-blue-600 text-white rounded-md text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
-                  disabled={
-                    !norm(form.name) ||
-                    !norm(form.email) ||
-                    !isValidEmail(form.email) ||
-                    (!editingUserId && !norm(form.customerName)) ||
-                    !Array.isArray(form.dashboards) ||
-                    form.dashboards.length === 0 ||
-                    loadingCustomers ||
-                    (!editingUserId && loadingDashboards) ||
-                    (Boolean(editingUserId) && loadingEditDashboards) ||
-                    isSubmitting ||
-                    isDeleting ||
-                    tenantLimitBlocksCurrentCreate
-                  }
-                >
-                  {isSubmitting
-                    ? editingUserId
-                      ? "Saving..."
-                      : "Creating..."
-                    : editingUserId
-                    ? "Save Changes"
-                    : "Create"}
-                </button>
-              </div>
-            </div>
+                  <button
+                    onClick={handleSaveUser}
+                    className="px-3 py-2 bg-blue-600 text-white rounded-md text-sm disabled:bg-gray-400 disabled:cursor-not-allowed"
+                    disabled={
+                      !norm(form.name) ||
+                      !norm(form.email) ||
+                      !isValidEmail(form.email) ||
+                      !norm(form.customerName) ||
+                      !Array.isArray(form.dashboards) ||
+                      form.dashboards.length === 0 ||
+                      loadingCustomers ||
+                      loadingDashboards ||
+                      isSubmitting ||
+                      isDeleting ||
+                      tenantLimitBlocksCurrentCreate
+                    }
+                  >
+                    {isSubmitting ? "Creating..." : "Create"}
+                  </button>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}
