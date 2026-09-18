@@ -68,6 +68,7 @@ async function defaultWriteToBackend({
   dashboardId,
   widgetId,
   value01,
+  pin = "",
   tenantEmail = "",
   tenantAccessLevel = "",
 }) {
@@ -94,8 +95,24 @@ async function defaultWriteToBackend({
       dashboardId: dash,
       widgetId: wid,
       value01: Number(value01) ? 1 : 0,
+      ...(String(pin || "").trim() ? { pin: String(pin).trim() } : {}),
     }),
   });
+
+  if (res.status === 403) {
+    let detail = null;
+    try {
+      detail = await res.json();
+    } catch {
+      detail = null;
+    }
+
+    const message = readErrorMessage(detail) || "Invalid PIN";
+    const err = new Error(message);
+    err.code = 403;
+    err.detail = detail;
+    throw err;
+  }
 
   if (res.status === 409) {
     let detail = null;
@@ -269,6 +286,22 @@ function buildRuntimeConfig({ row, widget }) {
 
   const hasBinding = !!bindDeviceId && /^do[1-4]$/.test(bindField);
 
+  const pinRequired = Boolean(
+    bindingProps.pin_required ??
+      bindingProps.pinRequired ??
+      p.pinRequired ??
+      p.pin_required ??
+      false
+  );
+
+  const pinConfigured = Boolean(
+    bindingProps.pin_configured ??
+      bindingProps.pinConfigured ??
+      p.pinConfigured ??
+      p.pin_configured ??
+      false
+  );
+
   const hasInterlockConfig =
     interlockEnabled &&
     !!interlockDeviceId &&
@@ -284,6 +317,8 @@ function buildRuntimeConfig({ row, widget }) {
     interlockField,
     interlockType,
     hasInterlockConfig,
+    pinRequired,
+    pinConfigured,
   };
 }
 
@@ -462,6 +497,14 @@ export default function PushButtonControl({
   const [interlockKnown, setInterlockKnown] = useState(false);
   const [backendInterlockBlocked, setBackendInterlockBlocked] = useState(false);
 
+  // 🔐 Runtime PIN prompt. The raw PIN exists only in component memory
+  // while the operator is authorizing/performing this pulse.
+  const [pinModalOpen, setPinModalOpen] = useState(false);
+  const [pinValue, setPinValue] = useState("");
+  const [pinError, setPinError] = useState("");
+  const [pinSubmitting, setPinSubmitting] = useState(false);
+  const pinInputRef = useRef(null);
+
   const pointerActiveRef = useRef(false);
   const runningRef = useRef(false);
   const pulseTimerRef = useRef(null);
@@ -476,6 +519,8 @@ export default function PushButtonControl({
   const localConfig = buildRuntimeConfig({ row: null, widget });
 
   const hasLocalBinding = localConfig.hasBinding;
+  const pinRequired = localConfig.pinRequired;
+  const pinConfigured = localConfig.pinConfigured;
   const hasRuntimeIdentity = !!resolvedDashboardId && !!resolvedWidgetId;
 
   const isOffline = play && deviceStatus === "offline";
@@ -645,7 +690,22 @@ export default function PushButtonControl({
     };
   }
 
-  async function performPulse() {
+  function closePinModal() {
+    if (pinSubmitting) return;
+    setPinModalOpen(false);
+    setPinValue("");
+    setPinError("");
+    pointerActiveRef.current = false;
+  }
+
+  function requestPin() {
+    setPinValue("");
+    setPinError("");
+    setPinModalOpen(true);
+    setTimeout(() => pinInputRef.current?.focus?.(), 0);
+  }
+
+  async function performPulse(authorizedPin = "") {
     if (!play || visualOnly || disabled || isBusy || runningRef.current) return;
 
     const wid = resolvedWidgetId;
@@ -693,6 +753,7 @@ export default function PushButtonControl({
           deviceId: prepared.config.bindDeviceId,
           field: prepared.config.bindField,
           value01: pulseStartValue01,
+          pin: authorizedPin,
           widget,
           tenantEmail,
           tenantAccessLevel,
@@ -702,6 +763,7 @@ export default function PushButtonControl({
           dashboardId: dash,
           widgetId: wid,
           value01: pulseStartValue01,
+          pin: authorizedPin,
           tenantEmail,
           tenantAccessLevel,
         });
@@ -739,6 +801,7 @@ export default function PushButtonControl({
               deviceId: prepared.config.bindDeviceId,
               field: prepared.config.bindField,
               value01: pulseEndValue01,
+              pin: authorizedPin,
               widget,
               tenantEmail,
               tenantAccessLevel,
@@ -748,6 +811,7 @@ export default function PushButtonControl({
               dashboardId: dash,
               widgetId: wid,
               value01: pulseEndValue01,
+              pin: authorizedPin,
               tenantEmail,
               tenantAccessLevel,
             });
@@ -791,8 +855,47 @@ export default function PushButtonControl({
         setLocalPressed(false);
         setIsBusy(false);
         runningRef.current = false;
-        showBanner("error", "Failed", 4000);
+
+        if (
+          Number(err?.code) === 403 ||
+          msg.includes("pin")
+        ) {
+          showBanner("error", "Invalid PIN", 4000);
+        } else {
+          showBanner("error", "Failed", 4000);
+        }
       }
+    }
+  }
+
+  async function submitPin(e) {
+    e?.preventDefault?.();
+
+    const safePin = String(pinValue || "").trim();
+    if (!safePin) {
+      setPinError("Enter PIN");
+      pinInputRef.current?.focus?.();
+      return;
+    }
+
+    if (!/^\d{4,12}$/.test(safePin)) {
+      setPinError("PIN must be 4 to 12 digits");
+      pinInputRef.current?.focus?.();
+      return;
+    }
+
+    setPinSubmitting(true);
+    setPinError("");
+
+    // Close and clear the input state before actuation. The local safePin
+    // is retained only long enough to authorize START and END of this pulse.
+    setPinModalOpen(false);
+    setPinValue("");
+
+    try {
+      await performPulse(safePin);
+    } finally {
+      setPinSubmitting(false);
     }
   }
 
@@ -810,6 +913,19 @@ export default function PushButtonControl({
       }
 
       onPressStart?.(e);
+
+      if (pinRequired) {
+        if (!pinConfigured) {
+          pointerActiveRef.current = false;
+          showBanner("error", "PIN not configured", 5000);
+          return;
+        }
+
+        pointerActiveRef.current = false;
+        requestPin();
+        return;
+      }
+
       void performPulse();
       return;
     }
@@ -855,6 +971,19 @@ export default function PushButtonControl({
       }
 
       onPressStart?.(e);
+
+      if (pinRequired) {
+        if (!pinConfigured) {
+          pointerActiveRef.current = false;
+          showBanner("error", "PIN not configured", 5000);
+          return;
+        }
+
+        pointerActiveRef.current = false;
+        requestPin();
+        return;
+      }
+
       void performPulse();
       return;
     }
@@ -928,6 +1057,152 @@ export default function PushButtonControl({
         WebkitUserSelect: "none",
       }}
     >
+      {pinModalOpen && (
+        <div
+          role="presentation"
+          onPointerDown={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+          }}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 100000,
+            background: "rgba(15, 23, 42, 0.38)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+          }}
+        >
+          <form
+            onSubmit={submitPin}
+            style={{
+              width: 320,
+              maxWidth: "calc(100vw - 32px)",
+              background: "#ffffff",
+              borderRadius: 14,
+              boxShadow: "0 24px 60px rgba(0,0,0,0.28)",
+              border: "1px solid #e2e8f0",
+              padding: 20,
+              color: "#0f172a",
+            }}
+          >
+            <div
+              style={{
+                fontSize: 18,
+                fontWeight: 900,
+                textAlign: "center",
+                marginBottom: 5,
+              }}
+            >
+              PIN Required
+            </div>
+
+            <div
+              style={{
+                fontSize: 13,
+                color: "#64748b",
+                textAlign: "center",
+                marginBottom: 16,
+              }}
+            >
+              Enter the PIN to operate this control.
+            </div>
+
+            <input
+              ref={pinInputRef}
+              type="password"
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={12}
+              value={pinValue}
+              disabled={pinSubmitting}
+              onChange={(e) => {
+                const next = String(e.target.value || "").replace(/\D/g, "").slice(0, 12);
+                setPinValue(next);
+                if (pinError) setPinError("");
+              }}
+              placeholder="Enter PIN"
+              aria-label="Control PIN"
+              style={{
+                width: "100%",
+                boxSizing: "border-box",
+                border: pinError ? "1px solid #dc2626" : "1px solid #cbd5e1",
+                borderRadius: 9,
+                padding: "10px 12px",
+                fontSize: 16,
+                outline: "none",
+                textAlign: "center",
+                letterSpacing: 3,
+              }}
+            />
+
+            {pinError && (
+              <div
+                style={{
+                  color: "#dc2626",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  textAlign: "center",
+                  marginTop: 7,
+                }}
+              >
+                {pinError}
+              </div>
+            )}
+
+            <div
+              style={{
+                display: "flex",
+                gap: 10,
+                marginTop: 18,
+              }}
+            >
+              <button
+                type="button"
+                disabled={pinSubmitting}
+                onClick={closePinModal}
+                style={{
+                  flex: 1,
+                  border: "1px solid #cbd5e1",
+                  borderRadius: 9,
+                  padding: "9px 12px",
+                  background: "#ffffff",
+                  color: "#334155",
+                  fontWeight: 800,
+                  cursor: pinSubmitting ? "not-allowed" : "pointer",
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="submit"
+                disabled={pinSubmitting}
+                style={{
+                  flex: 1,
+                  border: 0,
+                  borderRadius: 9,
+                  padding: "9px 12px",
+                  background: "#0f172a",
+                  color: "#ffffff",
+                  fontWeight: 800,
+                  cursor: pinSubmitting ? "not-allowed" : "pointer",
+                  opacity: pinSubmitting ? 0.7 : 1,
+                }}
+              >
+                {pinSubmitting ? "Checking..." : "Operate"}
+              </button>
+            </div>
+          </form>
+        </div>
+      )}
+
       {safeTitle && (
         <div
           style={{
