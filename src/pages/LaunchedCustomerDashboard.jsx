@@ -97,6 +97,11 @@ export default function LaunchedCustomerDashboard() {
   const [passwordChangeLoading, setPasswordChangeLoading] = useState(false);
   const [passwordChangeError, setPasswordChangeError] = useState("");
 
+  // ✅ Tenant dashboard selector state
+  const [tenantDashboards, setTenantDashboards] = useState([]);
+  const [tenantDashboardsLoading, setTenantDashboardsLoading] = useState(false);
+  const [tenantDashboardsError, setTenantDashboardsError] = useState("");
+
   useEffect(() => {
     tenantSessionRef.current = String(tenantSessionId || "").trim();
   }, [tenantSessionId]);
@@ -182,6 +187,9 @@ export default function LaunchedCustomerDashboard() {
     setPasswordChangeError("");
     setTenantPassword("");
     setSensorsData([]);
+    setTenantDashboards([]);
+    setTenantDashboardsLoading(false);
+    setTenantDashboardsError("");
   };
 
   const handleTenantLogout = async () => {
@@ -587,6 +595,146 @@ export default function LaunchedCustomerDashboard() {
     publicDashLaunchId,
   ]);
 
+  const fetchTenantDashboards = async () => {
+    if (!isPublicLaunch || !isTenantAuthenticated) return [];
+
+    const payload = buildTenantSessionPayload();
+
+    if (
+      !payload.dashboard_slug ||
+      !payload.public_launch_id ||
+      !payload.email ||
+      !payload.session_id
+    ) {
+      return [];
+    }
+
+    try {
+      setTenantDashboardsLoading(true);
+      setTenantDashboardsError("");
+
+      const res = await fetch(
+        `${API_URL}/customers-dashboards/tenant-access/my-dashboards`,
+        {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify(payload),
+        }
+      );
+
+      const data = await res.json().catch(() => []);
+
+      if (!res.ok) {
+        throw new Error(
+          String(
+            data?.detail ||
+              data?.error ||
+              "Failed to load the dashboards assigned to this tenant."
+          )
+        );
+      }
+
+      const rows = Array.isArray(data)
+        ? data
+        : Array.isArray(data?.dashboards)
+        ? data.dashboards
+        : [];
+
+      const cleaned = rows
+        .map((row) => ({
+          id: String(row?.id ?? row?.dashboard_id ?? "").trim(),
+          dashboardName: String(
+            row?.dashboard_name || row?.name || "Dashboard"
+          ).trim(),
+          customerName: String(
+            row?.customer_name || row?.customerName || "Customer"
+          ).trim(),
+          dashboardSlug: String(
+            row?.dashboard_slug || row?.slug || ""
+          ).trim(),
+          publicLaunchId: String(
+            row?.public_launch_id || row?.publicLaunchId || ""
+          ).trim(),
+          publicLaunchUrl: String(
+            row?.public_launch_url || row?.publicLaunchUrl || ""
+          ).trim(),
+          isCurrent: Boolean(row?.is_current),
+        }))
+        .filter(
+          (row) =>
+            row.dashboardSlug &&
+            row.publicLaunchId
+        );
+
+      setTenantDashboards(cleaned);
+      return cleaned;
+    } catch (err) {
+      console.error("❌ Failed to load tenant dashboards:", err);
+      setTenantDashboards([]);
+      setTenantDashboardsError(String(err?.message || err));
+      return [];
+    } finally {
+      setTenantDashboardsLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!isPublicLaunch || !isTenantAuthenticated || !tenantSessionId) {
+      setTenantDashboards([]);
+      setTenantDashboardsError("");
+      return;
+    }
+
+    fetchTenantDashboards();
+  }, [
+    isPublicLaunch,
+    isTenantAuthenticated,
+    tenantSessionId,
+    tenantEmail,
+    publicDashSlug,
+    publicDashLaunchId,
+  ]);
+
+  const handleSwitchTenantDashboard = async (dashboard) => {
+    if (!isPublicLaunch || !isTenantAuthenticated || !dashboard) return;
+
+    const targetSlug = String(dashboard?.dashboardSlug || "").trim();
+    const targetLaunchId = String(dashboard?.publicLaunchId || "").trim();
+
+    if (!targetSlug || !targetLaunchId) {
+      setTenantDashboardsError("The selected dashboard does not have a valid launch link.");
+      return;
+    }
+
+    const isCurrent =
+      targetSlug === String(publicDashSlug || "").trim() &&
+      targetLaunchId === String(publicDashLaunchId || "").trim();
+
+    if (isCurrent) return;
+
+    const currentSessionId = String(tenantSessionRef.current || "").trim();
+
+    if (currentSessionId) {
+      await releaseTenantSession(currentSessionId);
+    }
+
+    // Current architecture intentionally requires authentication again after
+    // switching. The current dashboard session is released first so the
+    // tenant-wide one-dashboard-at-a-time rule is preserved.
+    tenantSessionRef.current = "";
+    setTenantSessionId("");
+
+    const targetUrl =
+      String(dashboard?.publicLaunchUrl || "").trim() ||
+      `/launchDashboard/${encodeURIComponent(
+        targetSlug
+      )}/${encodeURIComponent(targetLaunchId)}`;
+
+    window.location.assign(targetUrl);
+  };
+
   const handleOpenAlarmLog = () => {
     const dashboardIdSafe =
       String(resolvedDashboardId || privateDashId || "main").trim() || "main";
@@ -648,7 +796,10 @@ export default function LaunchedCustomerDashboard() {
       if (!res.ok) {
         if (res.status === 409) {
           throw new Error(
-            "This tenant user is already logged in to this dashboard. Please logout from the other session first."
+            String(
+              data?.detail ||
+                "This tenant user already has an active dashboard session. Please logout from the active dashboard first."
+            )
           );
         }
 
@@ -746,7 +897,10 @@ export default function LaunchedCustomerDashboard() {
       if (!res.ok) {
         if (res.status === 409) {
           throw new Error(
-            "This tenant user is already logged in to this dashboard. Please logout from the other session first."
+            String(
+              data?.detail ||
+                "This tenant user already has an active dashboard session. Please logout from the active dashboard first."
+            )
           );
         }
 
@@ -848,6 +1002,12 @@ export default function LaunchedCustomerDashboard() {
         isAuthenticated={!shouldHideDashboard}
         hasAlarmLog={hasAlarmLog}
         onOpenAlarmLog={handleOpenAlarmLog}
+        showMyDashboards={isPublicLaunch && isTenantAuthenticated}
+        tenantDashboards={tenantDashboards}
+        tenantDashboardsLoading={tenantDashboardsLoading}
+        tenantDashboardsError={tenantDashboardsError}
+        onRefreshTenantDashboards={fetchTenantDashboards}
+        onSwitchTenantDashboard={handleSwitchTenantDashboard}
         onLogin={() => {}}
         onLogout={() => {
           if (isPublicLaunch) {
