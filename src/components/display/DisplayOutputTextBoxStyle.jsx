@@ -633,7 +633,7 @@ export default function DisplayOutputTextBoxStyle({
   };
 
   const performSet = async (authorizedPin = "") => {
-    if (!isPlay || isWriting || holdActive) return;
+    if (!isPlay || isWriting || holdActive) return false;
 
     const committed = commitFormattedValue();
     const storedValue = committed?.storedValue ?? "";
@@ -725,6 +725,8 @@ export default function DisplayOutputTextBoxStyle({
           },
         })
       );
+
+      return true;
     } catch (err) {
       if (isControlActionInProgressError(err)) {
         const holdMs = getActuationHoldMsFromError(err);
@@ -749,6 +751,8 @@ export default function DisplayOutputTextBoxStyle({
           setWriteError(msg);
         }
       }
+
+      return false;
     } finally {
       setIsWriting(false);
     }
@@ -785,7 +789,14 @@ export default function DisplayOutputTextBoxStyle({
 
     setPinError("");
     setWriteError("");
-    await performSet(cleanPin);
+
+    const success = await performSet(cleanPin);
+
+    if (success) {
+      setPinModalOpen(false);
+      setPinValue("");
+      setPinError("");
+    }
   };
 
   const displayText = displayedSetpoint;
