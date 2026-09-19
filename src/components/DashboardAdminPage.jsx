@@ -531,9 +531,9 @@ export default function DashboardAdminPage({
           type="button"
           className="px-2.5 py-1.5 rounded-md text-xs border bg-green-600 text-white hover:bg-green-700 whitespace-nowrap"
           onClick={() => onLaunchDashboard?.(d)}
-          title="Launch play-mode in a new tab"
+          title="Open dashboard in a new tab for operation"
         >
-          🚀 Launch
+          ↗ Operate
         </button>
 
         <button
