@@ -180,7 +180,9 @@ export default function SidebarLeft({
 
       {!isLeftCollapsed && (
         <div className="mt-10">
-          <h1 className="text-[15px] font-bold mb-2">CoreFlex IOTs V1.18</h1>
+          <h1 className="text-[15px] font-bold mb-2">
+            CoreFlex IIoTs<sup className="text-[0.55em] align-super ml-0.5">™</sup> V1.18
+          </h1>
 
           <button
             onClick={handleSaveClick}
