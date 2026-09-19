@@ -310,7 +310,7 @@ export default function LoginPage() {
 
         <div className="relative w-full max-w-[460px] rounded-[22px] border border-white/30 bg-white/30 backdrop-blur-xl shadow-2xl px-8 py-9">
           <h1 className="text-[2.15rem] font-extrabold text-center text-slate-950 mb-3 tracking-tight">
-            CoreFlex IIoTs<sup className="text-[0.58em] align-super ml-0.5">™</sup> Platform
+            CoreFlex IIoTs<sup className="text-[0.68em] align-super ml-0.5">™</sup> Platform
           </h1>
 
           {blockedPhone ? (
