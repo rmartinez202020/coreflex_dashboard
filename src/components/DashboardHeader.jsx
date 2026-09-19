@@ -81,7 +81,7 @@ export default function DashboardHeader({
         ✎ Edit
       </button>
 
-      {/* LAUNCH + MINIMIZED TRAY */}
+      {/* OPERATE + MINIMIZED TRAY */}
       <div className="flex items-center gap-2 flex-nowrap">
         <button
           type="button"
@@ -90,9 +90,9 @@ export default function DashboardHeader({
             onLaunch?.();
           }}
           className="px-2 py-1 rounded-md text-[12px] bg-green-600 text-white hover:bg-green-700"
-          title="Launch dashboard in play mode"
+          title="Open dashboard in a new tab for operation"
         >
-          🚀 Launch
+          ↗ Operate
         </button>
 
         {/* Minimized Windows */}
