@@ -112,6 +112,18 @@ export default function useDisplayOutputSettingModal({
   const [bindField, setBindField] = useState(props.bindField || "ao1");
   const [isApplying, setIsApplying] = useState(false);
 
+  // 🔐 Optional per-widget PIN protection.
+  const [pinRequired, setPinRequired] = useState(
+    Boolean(props.pinRequired ?? props.pin_required ?? false)
+  );
+  const [pinConfigured, setPinConfigured] = useState(
+    Boolean(props.pinConfigured ?? props.pin_configured ?? false)
+  );
+  const [pinValue, setPinValue] = useState("");
+  const [changePin, setChangePin] = useState(
+    !Boolean(props.pinConfigured ?? props.pin_configured ?? false)
+  );
+
   const [scaleMin, setScaleMin] = useState(
     props.scaleMin ??
       props.setValue4000 ??
@@ -169,6 +181,15 @@ export default function useDisplayOutputSettingModal({
     setBindModel(FIXED_MODEL);
     setBindDeviceId(p.bindDeviceId ?? tank?.bindDeviceId ?? "");
     setBindField((p.bindField ?? tank?.bindField) === "ao2" ? "ao2" : "ao1");
+
+    const nextPinRequired = Boolean(p.pinRequired ?? p.pin_required ?? false);
+    const nextPinConfigured = Boolean(
+      p.pinConfigured ?? p.pin_configured ?? false
+    );
+    setPinRequired(nextPinRequired);
+    setPinConfigured(nextPinConfigured);
+    setPinValue("");
+    setChangePin(!nextPinConfigured);
 
     setScaleMin(
       p.scaleMin ??
@@ -457,13 +478,18 @@ export default function useDisplayOutputSettingModal({
     };
   }, []);
 
+  const safePinValue = String(pinValue || "").trim();
+  const needsPinEntry = pinRequired && (!pinConfigured || changePin);
+  const pinValid = !needsPinEntry || /^\d{4,12}$/.test(safePinValue);
+
   const canApply = useMemo(() => {
     return (
       !!bindDeviceId &&
       (bindField === "ao1" || bindField === "ao2") &&
-      !scaleError
+      !scaleError &&
+      pinValid
     );
-  }, [bindDeviceId, bindField, scaleError]);
+  }, [bindDeviceId, bindField, scaleError, pinValid]);
 
   async function handleApply() {
     if (!canApply || isApplying) {
@@ -500,6 +526,10 @@ export default function useDisplayOutputSettingModal({
       scalingMode: "ao_reference",
       scalingReferenceMinMilliAmp: resolvedAoScaleMin * 1000,
       scalingReferenceMaxMilliAmp: resolvedAoScaleMax * 1000,
+
+      // 🔐 Safe metadata only. Never store the actual PIN in dashboard JSON.
+      pinRequired: Boolean(pinRequired),
+      pinConfigured: Boolean(pinRequired && (pinConfigured || safePinValue)),
 
       // ✅ clear persisted setpoint so widget comes back blank after refresh
       value: "",
@@ -577,6 +607,11 @@ export default function useDisplayOutputSettingModal({
           scaleMax: resolvedScaleMax,
           aoScaleMin: resolvedAoScaleMin,
           aoScaleMax: resolvedAoScaleMax,
+          pinRequired: Boolean(pinRequired),
+          pin:
+            pinRequired && (!pinConfigured || changePin)
+              ? safePinValue
+              : "",
         });
       } else if (resolvedDashboardId && widgetId) {
         await deleteControlBinding({
@@ -612,6 +647,16 @@ export default function useDisplayOutputSettingModal({
     bindField,
     setBindField,
     isApplying,
+
+    pinRequired,
+    setPinRequired,
+    pinConfigured,
+    pinValue,
+    setPinValue,
+    changePin,
+    setChangePin,
+    safePinValue,
+    pinValid,
 
     scaleMin,
     setScaleMin,

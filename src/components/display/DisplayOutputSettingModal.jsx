@@ -27,6 +27,16 @@ export default function DisplayOutputSettingModal({
     setBindField,
     isApplying,
 
+    pinRequired,
+    setPinRequired,
+    pinConfigured,
+    pinValue,
+    setPinValue,
+    changePin,
+    setChangePin,
+    safePinValue,
+    pinValid,
+
     scaleMin,
     setScaleMin,
     scaleMax,
@@ -632,6 +642,147 @@ export default function DisplayOutputSettingModal({
 
               <div
                 style={{
+                  border: "1px solid #e5e7eb",
+                  borderRadius: 12,
+                  padding: 12,
+                  background: "#ffffff",
+                }}
+              >
+                <div style={{ fontSize: 14, fontWeight: 800, marginBottom: 10 }}>
+                  PIN Protection
+                </div>
+
+                <label
+                  style={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 10,
+                    padding: "11px 12px",
+                    borderRadius: 10,
+                    border: pinRequired ? "1px solid #bfdbfe" : "1px solid #e2e8f0",
+                    background: pinRequired ? "#eff6ff" : "#f8fafc",
+                    cursor: "pointer",
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={pinRequired}
+                    onChange={(e) => {
+                      const checked = Boolean(e.target.checked);
+                      setPinRequired(checked);
+                      setPinValue("");
+                      if (checked && !pinConfigured) setChangePin(true);
+                    }}
+                  />
+                  <span>
+                    <div style={{ fontWeight: 800, fontSize: 13 }}>
+                      Require PIN to Operate
+                    </div>
+                    <div style={{ fontSize: 11, color: "#64748b", marginTop: 2 }}>
+                      The operator must enter this widget&apos;s PIN before the AO control can operate.
+                    </div>
+                  </span>
+                </label>
+
+                {pinRequired && (
+                  <div style={{ marginTop: 12 }}>
+                    {pinConfigured && !changePin ? (
+                      <>
+                        <div
+                          style={{
+                            padding: "9px 11px",
+                            borderRadius: 10,
+                            background: "#f0fdf4",
+                            border: "1px solid #bbf7d0",
+                            color: "#166534",
+                            fontSize: 12,
+                            fontWeight: 800,
+                          }}
+                        >
+                          PIN configured
+                        </div>
+                        <button
+                          type="button"
+                          onClick={() => {
+                            setChangePin(true);
+                            setPinValue("");
+                          }}
+                          style={{
+                            marginTop: 9,
+                            padding: "8px 11px",
+                            borderRadius: 9,
+                            border: "1px solid #cbd5e1",
+                            background: "#fff",
+                            color: "#334155",
+                            fontWeight: 700,
+                            cursor: "pointer",
+                          }}
+                        >
+                          Change PIN
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div style={labelStyle}>{pinConfigured ? "New PIN" : "PIN"}</div>
+                        <input
+                          type="password"
+                          inputMode="numeric"
+                          autoComplete="new-password"
+                          maxLength={12}
+                          value={pinValue}
+                          onChange={(e) =>
+                            setPinValue(
+                              String(e.target.value || "")
+                                .replace(/\D/g, "")
+                                .slice(0, 12)
+                            )
+                          }
+                          placeholder="4 to 12 digits"
+                          style={{
+                            ...fieldSelectStyle,
+                            width: "100%",
+                            boxSizing: "border-box",
+                            marginTop: 6,
+                            textAlign: "center",
+                            letterSpacing: 3,
+                            border:
+                              safePinValue && !/^\d{4,12}$/.test(safePinValue)
+                                ? "1px solid #dc2626"
+                                : "1px solid #cbd5e1",
+                          }}
+                        />
+                        <div style={{ marginTop: 6, fontSize: 11, color: "#64748b" }}>
+                          The PIN is sent to the backend for hashing. It is not saved in the dashboard project.
+                        </div>
+                        {pinConfigured && (
+                          <button
+                            type="button"
+                            onClick={() => {
+                              setChangePin(false);
+                              setPinValue("");
+                            }}
+                            style={{
+                              marginTop: 9,
+                              padding: "8px 11px",
+                              borderRadius: 9,
+                              border: "1px solid #cbd5e1",
+                              background: "#fff",
+                              color: "#334155",
+                              fontWeight: 700,
+                              cursor: "pointer",
+                            }}
+                          >
+                            Keep Existing PIN
+                          </button>
+                        )}
+                      </>
+                    )}
+                  </div>
+                )}
+              </div>
+
+              <div
+                style={{
                   marginTop: 4,
                   border: "1px solid #e5e7eb",
                   background: "#f8fafc",
@@ -725,6 +876,11 @@ export default function DisplayOutputSettingModal({
                 <button
                   disabled={!canApply || isApplying}
                   onClick={handleApplyClick}
+                  title={
+                    !pinValid
+                      ? "Enter a 4 to 12 digit PIN"
+                      : "Apply"
+                  }
                   style={{
                     padding: "10px 14px",
                     borderRadius: 10,
