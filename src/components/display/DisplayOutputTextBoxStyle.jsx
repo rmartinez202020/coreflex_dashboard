@@ -387,6 +387,14 @@ export default function DisplayOutputTextBoxStyle({
 
   const formula = tank?.properties?.formula ?? tank?.formula ?? "";
 
+  // 🔐 Optional per-widget PIN protection.
+  const pinRequired = Boolean(
+    tank?.properties?.pinRequired ?? tank?.properties?.pin_required ?? false
+  );
+  const pinConfigured = Boolean(
+    tank?.properties?.pinConfigured ?? tank?.properties?.pin_configured ?? false
+  );
+
   // ✅ Engineering display range
   const scaleMin = parseFiniteNumber(tank?.properties?.scaleMin);
   const scaleMax = parseFiniteNumber(tank?.properties?.scaleMax);
@@ -513,6 +521,11 @@ export default function DisplayOutputTextBoxStyle({
   const [isWriting, setIsWriting] = React.useState(false);
   const [writeError, setWriteError] = React.useState("");
 
+  const [pinModalOpen, setPinModalOpen] = React.useState(false);
+  const [pinValue, setPinValue] = React.useState("");
+  const [pinError, setPinError] = React.useState("");
+  const pinInputRef = React.useRef(null);
+
   const [holdActive, setHoldActive] = React.useState(false);
   const holdTimerRef = React.useRef(null);
 
@@ -546,6 +559,19 @@ export default function DisplayOutputTextBoxStyle({
       setDraft(computedDisplaySetpoint);
     }
   }, [computedDisplaySetpoint, editing]);
+
+  React.useEffect(() => {
+    if (!pinModalOpen) return;
+    const timer = window.setTimeout(() => pinInputRef.current?.focus(), 0);
+    return () => window.clearTimeout(timer);
+  }, [pinModalOpen]);
+
+  const closePinModal = React.useCallback(() => {
+    if (isWriting) return;
+    setPinModalOpen(false);
+    setPinValue("");
+    setPinError("");
+  }, [isWriting]);
 
   const displayedSetpoint = isPlay
     ? editing
@@ -606,7 +632,7 @@ export default function DisplayOutputTextBoxStyle({
     return { storedValue, displayValue };
   };
 
-  const handleSet = async () => {
+  const performSet = async (authorizedPin = "") => {
     if (!isPlay || isWriting || holdActive) return;
 
     const committed = commitFormattedValue();
@@ -670,6 +696,7 @@ export default function DisplayOutputTextBoxStyle({
           widgetId: resolvedWidgetId,
           field,
           value: numericValue,
+          pin: authorizedPin,
         });
 
         const holdMs = Number(res?.actuationHoldMs);
@@ -706,12 +733,59 @@ export default function DisplayOutputTextBoxStyle({
       } else {
         const msg =
           String(err?.message || "").trim() || "Failed to write AO value";
+        const lower = msg.toLowerCase();
+        const isPinError =
+          lower.includes("pin") ||
+          Number(err?.status) === 403 ||
+          Number(err?.statusCode) === 403;
+
         console.error("❌ DisplayOutput AO write failed:", err);
-        setWriteError(msg);
+
+        if (isPinError) {
+          setPinError("Incorrect PIN.");
+          setWriteError("");
+          setPinModalOpen(true);
+        } else {
+          setWriteError(msg);
+        }
       }
     } finally {
       setIsWriting(false);
     }
+  };
+
+  const handleSet = () => {
+    if (!isPlay || isWriting || holdActive) return;
+
+    if (pinRequired) {
+      if (!pinConfigured) {
+        setWriteError("PIN protection is enabled, but no PIN is configured.");
+        return;
+      }
+
+      setPinValue("");
+      setPinError("");
+      setWriteError("");
+      setPinModalOpen(true);
+      return;
+    }
+
+    performSet("");
+  };
+
+  const submitPin = async (e) => {
+    e?.preventDefault?.();
+    e?.stopPropagation?.();
+
+    const cleanPin = String(pinValue || "").trim();
+    if (!/^\d{4,12}$/.test(cleanPin)) {
+      setPinError("Enter the 4 to 12 digit PIN.");
+      return;
+    }
+
+    setPinError("");
+    setWriteError("");
+    await performSet(cleanPin);
   };
 
   const displayText = displayedSetpoint;
@@ -987,6 +1061,149 @@ export default function DisplayOutputTextBoxStyle({
           }}
         >
           Control Action in Progress
+        </div>
+      ) : null}
+
+      {pinModalOpen ? (
+        <div
+          onPointerDown={(e) => e.stopPropagation()}
+          onMouseDown={(e) => e.stopPropagation()}
+          onClick={(e) => e.stopPropagation()}
+          style={{
+            position: "fixed",
+            inset: 0,
+            zIndex: 1000000,
+            background: "rgba(15,23,42,0.38)",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            padding: 16,
+          }}
+        >
+          <form
+            onSubmit={submitPin}
+            onPointerDown={(e) => e.stopPropagation()}
+            onMouseDown={(e) => e.stopPropagation()}
+            onClick={(e) => e.stopPropagation()}
+            style={{
+              width: 310,
+              maxWidth: "calc(100vw - 32px)",
+              background: "#ffffff",
+              border: "1px solid #cbd5e1",
+              borderRadius: 14,
+              boxShadow: "0 22px 60px rgba(15,23,42,0.35)",
+              padding: 18,
+            }}
+          >
+            <div
+              style={{
+                fontSize: 16,
+                fontWeight: 900,
+                color: "#0f172a",
+                textAlign: "center",
+              }}
+            >
+              Enter Control PIN
+            </div>
+
+            <div
+              style={{
+                marginTop: 5,
+                fontSize: 12,
+                color: "#64748b",
+                textAlign: "center",
+              }}
+            >
+              Enter the PIN to send this analog output setpoint.
+            </div>
+
+            <input
+              ref={pinInputRef}
+              type="password"
+              inputMode="numeric"
+              autoComplete="off"
+              maxLength={12}
+              value={pinValue}
+              disabled={isWriting}
+              onChange={(e) => {
+                setPinValue(
+                  String(e.target.value || "")
+                    .replace(/\D/g, "")
+                    .slice(0, 12)
+                );
+                if (pinError) setPinError("");
+              }}
+              style={{
+                width: "100%",
+                height: 42,
+                boxSizing: "border-box",
+                marginTop: 14,
+                borderRadius: 10,
+                border: pinError ? "1px solid #dc2626" : "1px solid #cbd5e1",
+                outline: "none",
+                textAlign: "center",
+                fontSize: 20,
+                fontWeight: 800,
+                letterSpacing: 5,
+              }}
+            />
+
+            {pinError ? (
+              <div
+                style={{
+                  marginTop: 8,
+                  color: "#dc2626",
+                  fontSize: 12,
+                  fontWeight: 700,
+                  textAlign: "center",
+                }}
+              >
+                {pinError}
+              </div>
+            ) : null}
+
+            <div
+              style={{
+                display: "flex",
+                justifyContent: "flex-end",
+                gap: 8,
+                marginTop: 14,
+              }}
+            >
+              <button
+                type="button"
+                disabled={isWriting}
+                onClick={closePinModal}
+                style={{
+                  padding: "9px 13px",
+                  borderRadius: 9,
+                  border: "1px solid #cbd5e1",
+                  background: "#ffffff",
+                  fontWeight: 700,
+                  cursor: isWriting ? "default" : "pointer",
+                }}
+              >
+                Cancel
+              </button>
+
+              <button
+                type="button"
+                disabled={isWriting}
+                onClick={submitPin}
+                style={{
+                  padding: "9px 14px",
+                  borderRadius: 9,
+                  border: "1px solid #15803d",
+                  background: "#22c55e",
+                  color: "#ffffff",
+                  fontWeight: 900,
+                  cursor: isWriting ? "default" : "pointer",
+                }}
+              >
+                {isWriting ? "Operating..." : "Operate"}
+              </button>
+            </div>
+          </form>
         </div>
       ) : null}
 
