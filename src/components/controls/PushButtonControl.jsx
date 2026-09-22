@@ -52,166 +52,6 @@ function readStatusFromRow(row) {
     .toLowerCase();
 }
 
-// ============================================================
-// SHARED TELEMETRY STATUS
-// Uses the existing DashboardCanvas telemetryMap.
-// NO additional polling is created by this component.
-// ============================================================
-
-function normalizeTelemetryModel(raw) {
-  const s = String(raw || "").trim().toLowerCase();
-
-  if (!s) return "";
-
-  if (s.includes("zhc1921") || s === "cf-2000" || s === "cf2000") {
-    return "zhc1921";
-  }
-
-  if (s.includes("zhc1661") || s === "cf-1600" || s === "cf1600") {
-    return "zhc1661";
-  }
-
-  if (s.includes("tp4000") || s === "tp-4000") {
-    return "tp4000";
-  }
-
-  if (s.includes("cfr100") || s === "cfr-100") {
-    return "cfr100";
-  }
-
-  return s;
-}
-
-function getWidgetBoundModel(widget, fallback = "zhc1921") {
-  const p = widget?.properties || {};
-
-  return normalizeTelemetryModel(
-    widget?.bindModel ??
-      p.bindModel ??
-      widget?.deviceModel ??
-      p.deviceModel ??
-      widget?.model ??
-      p.model ??
-      widget?.tag?.model ??
-      p?.tag?.model ??
-      fallback
-  );
-}
-
-function normalizeTelemetryDeviceId(raw) {
-  return String(raw || "").trim();
-}
-
-function getSharedTelemetryRow(telemetryMap, model, deviceId) {
-  if (!telemetryMap || typeof telemetryMap !== "object") return null;
-
-  const wantedId = normalizeTelemetryDeviceId(deviceId);
-  if (!wantedId) return null;
-
-  const wantedModel = normalizeTelemetryModel(model);
-
-  const modelMap = telemetryMap?.[wantedModel];
-
-  if (modelMap && typeof modelMap === "object") {
-    if (modelMap[wantedId]) {
-      return modelMap[wantedId];
-    }
-
-    for (const [key, row] of Object.entries(modelMap)) {
-      const rowId = normalizeTelemetryDeviceId(
-        row?.deviceId ??
-          row?.device_id ??
-          row?.imei ??
-          row?.serial ??
-          row?.serialNumber ??
-          key
-      );
-
-      if (rowId === wantedId) {
-        return row;
-      }
-    }
-  }
-
-  // Fallback:
-  // Search all model buckets in case the widget model was saved
-  // using a legacy model name.
-  for (const bucket of Object.values(telemetryMap)) {
-    if (!bucket || typeof bucket !== "object") continue;
-
-    if (bucket[wantedId]) {
-      return bucket[wantedId];
-    }
-
-    for (const [key, row] of Object.entries(bucket)) {
-      const rowId = normalizeTelemetryDeviceId(
-        row?.deviceId ??
-          row?.device_id ??
-          row?.imei ??
-          row?.serial ??
-          row?.serialNumber ??
-          key
-      );
-
-      if (rowId === wantedId) {
-        return row;
-      }
-    }
-  }
-
-  return null;
-}
-
-function getSharedTelemetryStatus(row) {
-  if (!row || typeof row !== "object") return "offline";
-
-  const raw =
-    row?.status ??
-    row?.Status ??
-    row?.deviceStatus ??
-    row?.telemetryStatus ??
-    row?.onlineStatus ??
-    row?.connectionStatus ??
-    row?.state ??
-    row?.online ??
-    row?.connected ??
-    "";
-
-  if (typeof raw === "boolean") {
-    return raw ? "online" : "offline";
-  }
-
-  if (typeof raw === "number") {
-    return raw > 0 ? "online" : "offline";
-  }
-
-  const s = String(raw || "").trim().toLowerCase();
-
-  if (
-    s === "offline" ||
-    s === "false" ||
-    s === "0" ||
-    s === "down" ||
-    s === "disconnected" ||
-    s === "not_running" ||
-    s === "not running"
-  ) {
-    return "offline";
-  }
-
-  if (
-    s === "online" ||
-    s === "true" ||
-    s === "1" ||
-    s === "up" ||
-    s === "connected"
-  ) {
-    return "online";
-  }
-
-  return s || "offline";
-}
-
 function readErrorMessage(payload) {
   const detail = payload?.detail;
 
@@ -641,11 +481,6 @@ export default function PushButtonControl({
   isLaunched = false,
   visualOnly = false,
   widget = null,
-
-  // Shared DashboardCanvas telemetry.
-  // No independent polling is created here.
-  telemetryMap = null,
-
   dashboardId = null,
   pulseMs = 12000,
   onWrite = null,
@@ -687,38 +522,7 @@ export default function PushButtonControl({
   const pinConfigured = localConfig.pinConfigured;
   const hasRuntimeIdentity = !!resolvedDashboardId && !!resolvedWidgetId;
 
-  // ============================================================
-  // LIVE OFFLINE STATUS
-  // ============================================================
-  // Monitoring widgets already receive the shared telemetryMap.
-  // The push button now uses the SAME map instead of waiting until
-  // the operator presses the button.
-  //
-  // If telemetryMap has not been supplied by the parent yet,
-  // preserve the original deviceStatus behavior as fallback.
-  // ============================================================
-
-  const boundModel = getWidgetBoundModel(widget, "zhc1921");
-
-  const sharedTelemetryRow = getSharedTelemetryRow(
-    telemetryMap,
-    boundModel,
-    localConfig.bindDeviceId
-  );
-
-  const sharedTelemetryStatus = getSharedTelemetryStatus(sharedTelemetryRow);
-
-  const hasSharedTelemetryMap =
-    telemetryMap !== null &&
-    telemetryMap !== undefined &&
-    typeof telemetryMap === "object";
-
-  const isOffline =
-    play &&
-    hasLocalBinding &&
-    (hasSharedTelemetryMap
-      ? sharedTelemetryStatus === "offline"
-      : deviceStatus === "offline");
+  const isOffline = play && deviceStatus === "offline";
 
   const safeW = Math.max(70, Number(width) || 110);
   const safeH = Math.max(70, Number(height) || 110);
@@ -847,10 +651,6 @@ export default function PushButtonControl({
       };
     }
 
-    // IMPORTANT:
-    // Keep the existing direct backend validation immediately before
-    // actuation. Shared telemetry controls the live visual status, while
-    // this remains the final safety check before the write.
     const status = await fetchRuntimeStatus({
       config,
       tenantEmail,
@@ -904,16 +704,7 @@ export default function PushButtonControl({
   }
 
   async function performPulse(authorizedPin = "") {
-    if (
-      !play ||
-      visualOnly ||
-      disabled ||
-      isOffline ||
-      isBusy ||
-      runningRef.current
-    ) {
-      return;
-    }
+    if (!play || visualOnly || disabled || isBusy || runningRef.current) return;
 
     const wid = resolvedWidgetId;
     const dash = resolvedDashboardId;
@@ -1117,14 +908,7 @@ export default function PushButtonControl({
     pointerActiveRef.current = true;
 
     if (play) {
-      if (
-        visualOnly ||
-        isOffline ||
-        isBusy ||
-        runningRef.current ||
-        !hasRuntimeIdentity
-      ) {
-        pointerActiveRef.current = false;
+      if (visualOnly || isBusy || runningRef.current || !hasRuntimeIdentity) {
         return;
       }
 
@@ -1182,14 +966,7 @@ export default function PushButtonControl({
     pointerActiveRef.current = true;
 
     if (play) {
-      if (
-        visualOnly ||
-        isOffline ||
-        isBusy ||
-        runningRef.current ||
-        !hasRuntimeIdentity
-      ) {
-        pointerActiveRef.current = false;
+      if (visualOnly || isBusy || runningRef.current || !hasRuntimeIdentity) {
         return;
       }
 
@@ -1263,10 +1040,9 @@ export default function PushButtonControl({
 
   const cursorBlocked =
     disabled ||
-    isOffline ||
     isBusy ||
     !hasRuntimeIdentity ||
-    !hasLocalBinding;
+    (!hasLocalBinding && !hasRuntimeIdentity);
 
   return (
     <div
@@ -1468,7 +1244,7 @@ export default function PushButtonControl({
         }}
         title={
           play
-            ? !hasRuntimeIdentity || !hasLocalBinding
+            ? !hasRuntimeIdentity
               ? "Bind this push button to a DO"
               : isOffline
               ? "Device Offline"
