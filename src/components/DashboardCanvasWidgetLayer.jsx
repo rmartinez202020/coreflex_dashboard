@@ -1055,6 +1055,7 @@ export default function DashboardCanvasWidgetLayer({
                 dashboardId={resolvedDash}
                 dashboardName={resolvedDashboardName}
                 tenantEmail={tenantEmail}
+                telemetryMap={telemetryMap}
                 tenantAccessLevel={tenantAccessLevel}
               />
             )}
@@ -1095,6 +1096,7 @@ export default function DashboardCanvasWidgetLayer({
                 dashboardId={resolvedDash}
                 dashboardName={resolvedDashboardName}
                 tenantEmail={tenantEmail}
+                telemetryMap={telemetryMap}
                 tenantAccessLevel={tenantAccessLevel}
               />
             )}
