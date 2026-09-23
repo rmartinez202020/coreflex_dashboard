@@ -10,8 +10,8 @@ function getAuthHeaders() {
 
 // ✅ Model options (must match useDashboardTelemetryPoller modelMeta keys)
 const MODEL_META = {
-  zhc1921: { label: "CF-2000 (ZHC1921)", base: "zhc1921" },
-  zhc1661: { label: "CF-1600 (ZHC1661)", base: "zhc1661" },
+  zhc1921: { label: "CF-2000", base: "zhc1921" },
+  zhc1661: { label: "CF-1600", base: "zhc1661" },
   tp4000: { label: "TP-4000", base: "tp4000" },
 };
 
@@ -766,9 +766,6 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
                     </option>
                   ))}
                 </select>
-                <div style={{ marginTop: 6, fontSize: 12, color: "#64748b" }}>
-                  Endpoint: <b>/{base}/my-devices</b>
-                </div>
               </div>
 
               {/* Device */}
@@ -926,7 +923,7 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
 
                 {deviceId && field && (
                   <div style={{ marginTop: 8, fontSize: 12, color: "#64748b" }}>
-                    Bound Tag: <b>{model}:{deviceId}/{field}</b>
+                    Bound Tag: <b>{MODEL_META?.[model]?.label || model}:{deviceId}/{field}</b>
                   </div>
                 )}
               </div>
