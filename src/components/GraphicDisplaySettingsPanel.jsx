@@ -3,6 +3,13 @@ import React from "react";
 
 const TIME_UNITS = ["seconds", "minutes", "hours", "days"];
 
+const TIME_UNIT_SECONDS = {
+  seconds: 1,
+  minutes: 60,
+  hours: 60 * 60,
+  days: 24 * 60 * 60,
+};
+
 // ✅ normalize to hex-ish default
 function normalizeHexColor(v, fallback = "#0c5ac8") {
   const s = String(v || "").trim();
@@ -17,6 +24,12 @@ function normalizeHexColor(v, fallback = "#0c5ac8") {
   return fallback;
 }
 
+function formatPlanName(plan) {
+  const s = String(plan || "free").trim();
+  if (!s) return "Free";
+  return s.charAt(0).toUpperCase() + s.slice(1).toLowerCase();
+}
+
 export default function GraphicDisplaySettingsPanel({
   title,
   setTitle,
@@ -24,6 +37,14 @@ export default function GraphicDisplaySettingsPanel({
   setTimeUnit,
   windowSize,
   setWindowSize,
+
+  // ✅ Subscription history restriction
+  subscriptionPlan = "free",
+  historyLimitDays = 7,
+  historyLimitLabel = "7 days",
+  historyWindowValid = true,
+  subscriptionLoading = false,
+
   yMin,
   setYMin,
   yMax,
@@ -42,6 +63,16 @@ export default function GraphicDisplaySettingsPanel({
   const safeYMax = Number.isFinite(yMax) ? yMax : 0;
 
   const safeLineColor = normalizeHexColor(lineColor);
+
+  const unitSeconds =
+    TIME_UNIT_SECONDS[String(timeUnit || "").trim().toLowerCase()] || 0;
+
+  const maxWindowForUnit =
+    Number.isFinite(historyLimitDays) && unitSeconds > 0
+      ? Math.floor((Number(historyLimitDays) * 24 * 60 * 60) / unitSeconds)
+      : null;
+
+  const planName = formatPlanName(subscriptionPlan);
 
   return (
     <div
@@ -170,14 +201,71 @@ export default function GraphicDisplaySettingsPanel({
               value={safeWindow}
               onChange={(e) => setWindowSize(Number(e.target.value || 0))}
               min={1}
+              max={maxWindowForUnit ?? undefined}
               style={{
-                border: "1px solid #d1d5db",
+                border: historyWindowValid
+                  ? "1px solid #d1d5db"
+                  : "1px solid #dc2626",
                 borderRadius: 10,
                 padding: "10px 10px",
                 fontSize: 14,
+                background: historyWindowValid ? "#fff" : "#fff7f7",
               }}
             />
           </label>
+        </div>
+
+        {/* ✅ Subscription history limit */}
+        <div
+          style={{
+            border: historyWindowValid
+              ? "1px solid #dbeafe"
+              : "1px solid #fecaca",
+            borderRadius: 10,
+            padding: "9px 10px",
+            background: historyWindowValid ? "#eff6ff" : "#fff1f2",
+            display: "grid",
+            gap: 4,
+          }}
+        >
+          <div
+            style={{
+              fontSize: 11,
+              fontWeight: 900,
+              color: historyWindowValid ? "#1e40af" : "#991b1b",
+            }}
+          >
+            {subscriptionLoading
+              ? "Checking subscription..."
+              : `${planName} plan · Data history: ${historyLimitLabel}`}
+          </div>
+
+          {!subscriptionLoading && !historyWindowValid && (
+            <div
+              style={{
+                fontSize: 11,
+                fontWeight: 800,
+                color: "#b42318",
+              }}
+            >
+              Selected history window exceeds your {historyLimitLabel} plan
+              limit.
+            </div>
+          )}
+
+          {!subscriptionLoading &&
+            historyWindowValid &&
+            Number.isFinite(maxWindowForUnit) && (
+              <div
+                style={{
+                  fontSize: 10,
+                  fontWeight: 700,
+                  color: "#64748b",
+                }}
+              >
+                Maximum for {timeUnit}: {maxWindowForUnit}
+              </div>
+            )}
         </div>
 
         {/* Vertical axis */}

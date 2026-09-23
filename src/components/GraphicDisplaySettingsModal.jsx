@@ -26,6 +26,39 @@ import {
 const SAMPLE_OPTIONS = [3000, 6000, 30000, 60000, 300000, 600000];
 const FIXED_GRAPH_STYLE = "line";
 
+// Subscription history limits used by the Graphic Display UI.
+// Enterprise is unlimited.
+const HISTORY_LIMITS = {
+  free: { days: 7, label: "7 days" },
+  starter: { days: 30, label: "30 days" },
+  professional: { days: 365, label: "1 year" },
+  industrial: { days: 730, label: "2 years" },
+  enterprise: { days: Infinity, label: "Unlimited" },
+};
+
+const TIME_UNIT_MS = {
+  seconds: 1000,
+  minutes: 60 * 1000,
+  hours: 60 * 60 * 1000,
+  days: 24 * 60 * 60 * 1000,
+};
+
+function normalizePlanKey(v) {
+  const key = String(v || "free").trim().toLowerCase();
+  return HISTORY_LIMITS[key] ? key : "free";
+}
+
+function historyLimitForPlan(planKey) {
+  return HISTORY_LIMITS[normalizePlanKey(planKey)];
+}
+
+function requestedHistoryMs(timeUnit, windowSize) {
+  const unitMs = TIME_UNIT_MS[String(timeUnit || "").trim().toLowerCase()] || 0;
+  const win = Number(windowSize);
+  if (!unitMs || !Number.isFinite(win) || win <= 0) return 0;
+  return unitMs * win;
+}
+
 // ✅ Models allowed (UI labels + bases)
 const MODEL_META = {
   zhc1921: { label: "CF-2000", base: "zhc1921" },
@@ -263,6 +296,11 @@ export default function GraphicDisplaySettingsModal({
   // ✅ prevent double-click spam and show disabled Apply while saving
   const [isApplying, setIsApplying] = useState(false);
 
+  // ✅ Subscription-based Graphic Display history limit
+  // Fail closed to FREE until /subscription/me confirms the account plan.
+  const [subscriptionPlan, setSubscriptionPlan] = useState("free");
+  const [subscriptionLoading, setSubscriptionLoading] = useState(false);
+
   useLayoutEffect(() => {
     if (!open) return;
     setPos(calcCenteredPos(PANEL_W, 700));
@@ -280,6 +318,37 @@ export default function GraphicDisplaySettingsModal({
     window.addEventListener("resize", onResize);
     return () => window.removeEventListener("resize", onResize);
     // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
+
+  useEffect(() => {
+    if (!open) return;
+
+    let cancelled = false;
+    const ctrl = new AbortController();
+
+    const loadSubscription = async () => {
+      setSubscriptionLoading(true);
+      try {
+        const data = await apiGet("/subscription/me", { signal: ctrl.signal });
+        if (cancelled) return;
+        setSubscriptionPlan(normalizePlanKey(data?.plan_key));
+      } catch (e) {
+        if (cancelled) return;
+        if (String(e?.name || "").toLowerCase().includes("abort")) return;
+
+        // Safe fallback: never grant a larger history window when plan lookup fails.
+        setSubscriptionPlan("free");
+      } finally {
+        if (!cancelled) setSubscriptionLoading(false);
+      }
+    };
+
+    loadSubscription();
+
+    return () => {
+      cancelled = true;
+      ctrl.abort();
+    };
   }, [open]);
 
   useEffect(() => {
@@ -327,9 +396,38 @@ export default function GraphicDisplaySettingsModal({
   const safeLineColor = normalizeHexColor(lineColor);
   const yRangeValid = safeYMax > safeYMin;
 
+  const historyLimit = useMemo(
+    () => historyLimitForPlan(subscriptionPlan),
+    [subscriptionPlan]
+  );
+
+  const historyWindowValid = useMemo(() => {
+    if (!Number.isFinite(safeWindow) || safeWindow < 1) return false;
+    if (!Number.isFinite(historyLimit?.days)) return true;
+
+    const requestedMs = requestedHistoryMs(timeUnit, safeWindow);
+    const maxMs = Number(historyLimit.days) * 24 * 60 * 60 * 1000;
+
+    return requestedMs > 0 && requestedMs <= maxMs;
+  }, [safeWindow, timeUnit, historyLimit]);
+
   const canApply = useMemo(() => {
-    return yRangeValid && !!bindDeviceId && !!bindField && !isApplying;
-  }, [yRangeValid, bindDeviceId, bindField, isApplying]);
+    return (
+      yRangeValid &&
+      historyWindowValid &&
+      !subscriptionLoading &&
+      !!bindDeviceId &&
+      !!bindField &&
+      !isApplying
+    );
+  }, [
+    yRangeValid,
+    historyWindowValid,
+    subscriptionLoading,
+    bindDeviceId,
+    bindField,
+    isApplying,
+  ]);
 
   // ✅ LIVE VALUE POLL
   useEffect(() => {
@@ -500,7 +598,7 @@ export default function GraphicDisplaySettingsModal({
       e?.stopPropagation?.();
       e?.preventDefault?.();
 
-      if (!yRangeValid || !bindDeviceId || !bindField) return;
+      if (!yRangeValid || !historyWindowValid || subscriptionLoading || !bindDeviceId || !bindField) return;
       if (isApplying) return;
 
       setIsApplying(true);
@@ -667,6 +765,11 @@ export default function GraphicDisplaySettingsModal({
               setTimeUnit={setTimeUnit}
               windowSize={windowSize}
               setWindowSize={setWindowSize}
+              subscriptionPlan={subscriptionPlan}
+              historyLimitDays={historyLimit?.days}
+              historyLimitLabel={historyLimit?.label}
+              historyWindowValid={historyWindowValid}
+              subscriptionLoading={subscriptionLoading}
               yMin={safeYMin}
               setYMin={setYMin}
               yMax={safeYMax}
