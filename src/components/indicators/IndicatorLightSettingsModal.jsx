@@ -11,8 +11,6 @@ function getAuthHeaders() {
 // ✅ Model options (must match useDashboardTelemetryPoller modelMeta keys)
 const MODEL_META = {
   zhc1921: { label: "CF-2000", base: "zhc1921" },
-  zhc1661: { label: "CF-1600", base: "zhc1661" },
-  tp4000: { label: "TP-4000", base: "tp4000" },
 };
 
 // ✅ Tag options (DI + DO)
@@ -226,8 +224,7 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
     setOffText(String(tank?.properties?.offText || "OFF"));
     setOnText(String(tank?.properties?.onText || "ON"));
 
-    const savedModelRaw = String(tank?.properties?.tag?.model || "zhc1921").trim();
-    const nextModel = MODEL_META[savedModelRaw] ? savedModelRaw : "zhc1921";
+    const nextModel = "zhc1921";
     prevModelRef.current = nextModel;
 
     setModel(nextModel);
@@ -748,24 +745,20 @@ export default function IndicatorLightSettingsModal({ open, tank, onClose, onSav
               {/* Model */}
               <div style={{ marginBottom: 10 }}>
                 <div style={{ fontSize: 13, fontWeight: 900, marginBottom: 8 }}>Model</div>
-                <select
-                  value={model}
-                  onChange={(e) => setModel(e.target.value)}
+                <div
                   style={{
                     width: "100%",
                     padding: "10px 12px",
                     borderRadius: 10,
                     border: "1px solid #cbd5e1",
                     fontSize: 14,
-                    background: "white",
+                    background: "#f8fafc",
+                    color: "#0f172a",
+                    boxSizing: "border-box",
                   }}
                 >
-                  {Object.keys(MODEL_META).map((k) => (
-                    <option key={k} value={k}>
-                      {MODEL_META[k].label}
-                    </option>
-                  ))}
-                </select>
+                  CF-2000
+                </div>
               </div>
 
               {/* Device */}
