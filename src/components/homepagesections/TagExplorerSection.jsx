@@ -499,54 +499,22 @@ export default function TagExplorerSection({ onBack }) {
   return (
     <div className="mt-4 md:mt-6">
       {/* ======================================================
-          BACK BUTTON
+          TOP BAR — BACK + TAG EXPLORER
           ====================================================== */}
 
-      <button
-        type="button"
-        onClick={onBack}
-        className="
-          mb-5
-          inline-flex
-          items-center
-          gap-2
-          rounded-lg
-          border
-          border-gray-200
-          bg-white
-          px-4
-          py-2
-          text-sm
-          font-semibold
-          text-gray-700
-          shadow-sm
-          transition
-          hover:bg-gray-50
-        "
-      >
-        <span aria-hidden="true">←</span>
-        Back to Home
-      </button>
+      <div className="mb-5 flex flex-wrap items-center gap-4">
+        <button type="button" onClick={onBack}
+          className="inline-flex h-10 items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50">
+          <span aria-hidden="true">←</span>
+          Back to Home
+        </button>
 
-      {/* ======================================================
-          HEADER
-          ====================================================== */}
-
-      <div className="rounded-2xl border border-amber-200 bg-white p-5 shadow-sm md:p-6">
-        <div className="flex items-center gap-3">
-          <div className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-2xl">
-            🏷️
-          </div>
-
-          <div>
-            <h1 className="text-2xl font-bold text-slate-900">
-              Tag Explorer
-            </h1>
-
-            <p className="mt-1 text-sm leading-6 text-slate-600">
-              View and document all device points in one place.
-              Add clear descriptions to your I/O points for easier
-              identification, monitoring, and system organization.
+        <div className="flex min-w-0 items-center gap-3">
+          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-xl">🏷️</div>
+          <div className="min-w-0">
+            <h1 className="text-xl font-bold leading-tight text-slate-900">Tag Explorer</h1>
+            <p className="mt-0.5 hidden text-xs text-slate-500 lg:block">
+              View, document, organize, and manage your device points.
             </p>
           </div>
         </div>
@@ -854,7 +822,7 @@ export default function TagExplorerSection({ onBack }) {
           </span>
 
           <span>
-            Scroll horizontally to view all tag properties.
+            Scroll inside the tag table to move up/down or left/right.
           </span>
         </div>
       </div>
