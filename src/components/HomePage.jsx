@@ -10,6 +10,7 @@ import BillingAdminSection from "./homepagesections/BillingAdminSection";
 import AdminSubscriptionsSection from "./homepagesections/admin_subscriptions";
 import LogsActivitySection from "./homepagesections/LogsActivitySection";
 import LogsAdministrationSection from "./homepagesections/LogsAdministrationSection";
+import TagExplorerSection from "./homepagesections/TagExplorerSection";
 
 import { getToken, parseJwt } from "../utils/authToken";
 
@@ -386,41 +387,12 @@ export default function HomePage({
     );
   }
 
-  // TEMPORARY TAG EXPLORER PAGE
-  // Later we can replace this with the real TagExplorerSection component.
+  // TAG EXPLORER PAGE
   if (showTagExplorerPage) {
     return (
-      <div className="mt-4 md:mt-6">
-        <button
-          type="button"
-          onClick={() => setShowTagExplorerPage(false)}
-          className="mb-5 inline-flex items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 py-2 text-sm font-semibold text-gray-700 shadow-sm hover:bg-gray-50 transition"
-        >
-          <span aria-hidden="true">←</span>
-          Back to Home
-        </button>
-
-        <div className="rounded-2xl border border-amber-200 bg-white p-6 shadow-sm">
-          <div className="flex items-center gap-3">
-            <div className="flex h-12 w-12 items-center justify-center rounded-xl bg-amber-100 text-2xl">
-              🏷️
-            </div>
-
-            <div>
-              <h1 className="text-2xl font-bold text-slate-900">
-                Tag Explorer
-              </h1>
-
-              <p className="mt-1 text-sm text-slate-600">
-                View and document all device points in one
-                place. Add clear descriptions to your I/O
-                points for easier identification, monitoring,
-                and system organization.
-              </p>
-            </div>
-          </div>
-        </div>
-      </div>
+      <TagExplorerSection
+        onBack={() => setShowTagExplorerPage(false)}
+      />
     );
   }
 
