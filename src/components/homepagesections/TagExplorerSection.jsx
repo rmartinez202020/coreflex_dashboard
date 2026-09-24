@@ -1,4 +1,6 @@
 import React from "react";
+import { API_URL } from "../../config/api";
+import { getToken } from "../../utils/authToken";
 
 /**
  * TagExplorerSection
@@ -22,52 +24,43 @@ import React from "react";
  * live telemetry, and backend tag configuration.
  */
 
-const DEMO_TAGS = [
-  {
-    id: "demo-1",
-    deviceModel: "CF-2000",
-    deviceId: "1921251024070670",
-    tag: "DI-1",
-    description: "",
-    currentValue: "0",
-    math: "",
-    unit: "",
-    group: "",
-  },
-  {
-    id: "demo-2",
-    deviceModel: "CF-2000",
-    deviceId: "1921251024070670",
-    tag: "DI-2",
-    description: "",
-    currentValue: "0",
-    math: "",
-    unit: "",
-    group: "",
-  },
-  {
-    id: "demo-3",
-    deviceModel: "CF-2000",
-    deviceId: "1921251024070670",
-    tag: "AI-1",
-    description: "",
-    currentValue: "11192",
-    math: "",
-    unit: "",
-    group: "",
-  },
-  {
-    id: "demo-4",
-    deviceModel: "CF-2000",
-    deviceId: "1921260331072644",
-    tag: "DO-1",
-    description: "",
-    currentValue: "0",
-    math: "",
-    unit: "",
-    group: "",
-  },
+const DEVICE_SOURCES = [
+  { deviceModel: "CF-2000", endpoint: "/zhc1921/my-devices", points: [
+    ["DI-1","in1"],["DI-2","in2"],["DI-3","in3"],["DI-4","in4"],["DI-5","in5"],["DI-6","in6"],
+    ["DO-1","do1"],["DO-2","do2"],["DO-3","do3"],["DO-4","do4"],
+    ["AI-1","ai1"],["AI-2","ai2"],["AI-3","ai3"],["AI-4","ai4"]
+  ]},
+  { deviceModel: "CF-1600", endpoint: "/zhc1661/my-devices", points: [
+    ["AI-1","ai1"],["AI-2","ai2"],["AO-1","ao1"],["AO-2","ao2"]
+  ]},
+  { deviceModel: "TP-4000", endpoint: "/tp4000/my-devices", points: [
+    ["TE-101","te101"],["TE-102","te102"],["TE-103","te103"],["TE-104","te104"],
+    ["TE-105","te105"],["TE-106","te106"],["TE-107","te107"],["TE-108","te108"]
+  ]}
 ];
+
+function getAuthHeaders() {
+  const token = String(getToken() || "").trim();
+  return token ? { Authorization: `Bearer ${token}` } : {};
+}
+
+function buildTagRows(source, devices) {
+  return (Array.isArray(devices) ? devices : []).flatMap((device) => {
+    const deviceId = String(device?.deviceId ?? "").trim();
+    if (!deviceId) return [];
+    return source.points.map(([tag, key]) => ({
+      id: `${source.deviceModel}:${deviceId}:${tag}`,
+      deviceModel: source.deviceModel,
+      deviceId,
+      tag,
+      description: "",
+      currentValue: device?.[key] ?? "",
+      math: "",
+      unit: "",
+      group: "",
+    }));
+  });
+}
 
 /* ============================================================
    SMALL HELPERS
@@ -375,12 +368,74 @@ function EditableInput({
    ============================================================ */
 
 export default function TagExplorerSection({ onBack }) {
-  const [rows, setRows] = React.useState(DEMO_TAGS);
+  const [rows, setRows] = React.useState([]);
+  const [loading, setLoading] = React.useState(true);
+  const [loadError, setLoadError] = React.useState("");
+  const rowsRef = React.useRef([]);
+  const loadingRef = React.useRef(false);
 
   const [deviceIdFilter, setDeviceIdFilter] = React.useState("");
   const [groupFilter, setGroupFilter] = React.useState("");
 
   const [savedRowIds, setSavedRowIds] = React.useState([]);
+
+  React.useEffect(() => {
+    rowsRef.current = rows;
+  }, [rows]);
+
+  const loadRegisteredDevices = React.useCallback(async ({ silent = false } = {}) => {
+    if (loadingRef.current) return;
+    loadingRef.current = true;
+    if (!silent) setLoading(true);
+    setLoadError("");
+
+    try {
+      if (!String(getToken() || "").trim()) {
+        throw new Error("Missing auth token. Please logout and login again.");
+      }
+
+      const resultSets = await Promise.all(
+        DEVICE_SOURCES.map(async (source) => {
+          const res = await fetch(`${API_URL}${source.endpoint}`, {
+            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+          });
+          if (!res.ok) {
+            const body = await res.json().catch(() => ({}));
+            throw new Error(body?.detail || `Failed to load ${source.deviceModel} devices (${res.status})`);
+          }
+          return buildTagRows(source, await res.json());
+        })
+      );
+
+      const oldRows = new Map(rowsRef.current.map((row) => [row.id, row]));
+      const nextRows = resultSets.flat().map((live) => {
+        const old = oldRows.get(live.id);
+        return old ? {
+          ...live,
+          description: old.description,
+          math: old.math,
+          unit: old.unit,
+          group: old.group,
+        } : live;
+      });
+
+      rowsRef.current = nextRows;
+      setRows(nextRows);
+    } catch (e) {
+      setLoadError(e?.message || "Failed to load registered devices.");
+    } finally {
+      loadingRef.current = false;
+      if (!silent) setLoading(false);
+    }
+  }, []);
+
+  React.useEffect(() => {
+    loadRegisteredDevices({ silent: false });
+    const id = window.setInterval(() => {
+      if (!document.hidden) loadRegisteredDevices({ silent: true });
+    }, 3000);
+    return () => window.clearInterval(id);
+  }, [loadRegisteredDevices]);
 
   const deviceIds = React.useMemo(
     () => uniqueValues(rows, "deviceId"),
@@ -613,6 +668,23 @@ export default function TagExplorerSection({ onBack }) {
             </thead>
 
             <tbody>
+              {loading && rows.length === 0 && (
+                <tr><td colSpan={9} className="px-6 py-16 text-center text-slate-500">Loading registered devices...</td></tr>
+              )}
+
+              {!loading && loadError && rows.length === 0 && (
+                <tr>
+                  <td colSpan={9} className="px-6 py-16 text-center">
+                    <div className="font-bold text-red-700">Unable to load registered devices</div>
+                    <div className="mt-2 text-sm text-red-600">{loadError}</div>
+                    <button type="button" onClick={() => loadRegisteredDevices({ silent: false })}
+                      className="mt-4 rounded-lg bg-amber-400 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-amber-500">
+                      Retry
+                    </button>
+                  </td>
+                </tr>
+              )}
+
               {filteredRows.map((row) => {
                 const saved = savedRowIds.includes(row.id);
 
@@ -740,7 +812,7 @@ export default function TagExplorerSection({ onBack }) {
                 );
               })}
 
-              {filteredRows.length === 0 && (
+              {!loading && !loadError && filteredRows.length === 0 && (
                 <tr>
                   <td
                     colSpan={9}
