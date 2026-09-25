@@ -499,87 +499,63 @@ export default function TagExplorerSection({ onBack }) {
   return (
     <div className="mt-4 md:mt-6">
       {/* ======================================================
-          TOP BAR — BACK + TAG EXPLORER
+          TOP BAR — BACK + TAG EXPLORER + FILTERS
           ====================================================== */}
 
-      <div className="mb-5 flex flex-wrap items-center gap-4">
-        <button type="button" onClick={onBack}
-          className="inline-flex h-10 items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50">
-          <span aria-hidden="true">←</span>
-          Back to Home
-        </button>
+      <div className="mb-3 flex flex-col gap-3 xl:flex-row xl:items-end xl:justify-between">
+        <div className="flex min-w-0 flex-wrap items-center gap-4">
+          <button
+            type="button"
+            onClick={onBack}
+            className="inline-flex h-10 items-center gap-2 rounded-lg border border-gray-200 bg-white px-4 text-sm font-semibold text-gray-700 shadow-sm transition hover:bg-gray-50"
+          >
+            <span aria-hidden="true">←</span>
+            Back to Home
+          </button>
 
-        <div className="flex min-w-0 items-center gap-3">
-          <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-xl">🏷️</div>
-          <div className="min-w-0">
-            <h1 className="text-xl font-bold leading-tight text-slate-900">Tag Explorer</h1>
-            <p className="mt-0.5 hidden text-xs text-slate-500 lg:block">
-              View, document, organize, and manage your device points.
-            </p>
+          <div className="flex min-w-0 items-center gap-3">
+            <div className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-amber-100 text-xl">
+              🏷️
+            </div>
+            <div className="min-w-0">
+              <h1 className="text-xl font-bold leading-tight text-slate-900">Tag Explorer</h1>
+              <p className="mt-0.5 hidden text-xs text-slate-500 lg:block">
+                View, document, organize, and manage your device points.
+              </p>
+            </div>
           </div>
         </div>
-      </div>
 
-      {/* ======================================================
-          FILTER AREA
-          ====================================================== */}
+        <div className="flex flex-col gap-2 sm:flex-row sm:items-end xl:justify-end">
+          <SearchableFilter
+            label="Device ID #"
+            value={deviceIdFilter}
+            options={deviceIds}
+            allLabel="All Devices"
+            searchPlaceholder="Search Device ID..."
+            onChange={setDeviceIdFilter}
+          />
 
-      <div className="mt-5 rounded-2xl border border-slate-200 bg-white p-4 shadow-sm md:p-5">
-        <div className="flex flex-col gap-4 lg:flex-row lg:items-end lg:justify-between">
-          <div className="flex flex-col gap-3 sm:flex-row">
-            {/* DEVICE ID FILTER */}
+          <SearchableFilter
+            label="Group"
+            value={groupFilter}
+            options={groups}
+            allLabel="All Groups"
+            searchPlaceholder="Search Group..."
+            onChange={setGroupFilter}
+          />
 
-            <SearchableFilter
-              label="Device ID #"
-              value={deviceIdFilter}
-              options={deviceIds}
-              allLabel="All Devices"
-              searchPlaceholder="Search Device ID..."
-              onChange={setDeviceIdFilter}
-            />
-
-            {/* GROUP FILTER */}
-
-            <SearchableFilter
-              label="Group"
-              value={groupFilter}
-              options={groups}
-              allLabel="All Groups"
-              searchPlaceholder="Search Group..."
-              onChange={setGroupFilter}
-            />
-          </div>
-
-          <div className="flex items-center gap-3">
-            <div className="text-sm text-slate-500">
-              Showing{" "}
-              <span className="font-bold text-slate-800">
-                {filteredRows.length}
-              </span>{" "}
-              of{" "}
-              <span className="font-bold text-slate-800">
-                {rows.length}
-              </span>{" "}
-              tags
+          <div className="flex h-11 items-center gap-2 whitespace-nowrap">
+            <div className="text-xs text-slate-500">
+              Showing <span className="font-bold text-slate-800">{filteredRows.length}</span>{" "}
+              of <span className="font-bold text-slate-800">{rows.length}</span> tags
             </div>
 
             {filtersActive && (
               <button
                 type="button"
                 onClick={clearFilters}
-                className="
-                  rounded-lg
-                  border
-                  border-slate-200
-                  bg-white
-                  px-3
-                  py-2
-                  text-xs
-                  font-bold
-                  text-slate-600
-                  transition
-                  hover:bg-slate-50
-                "
+                className="rounded-lg border border-slate-200 bg-white px-3 py-2 text-xs font-bold text-slate-600 transition hover:bg-slate-50"
               >
                 Clear Filters
               </button>
@@ -594,7 +570,7 @@ export default function TagExplorerSection({ onBack }) {
 
       <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
         {/* Fixed tag window with independent vertical + horizontal scrolling. */}
-        <div className="h-[500px] max-h-[500px] overflow-auto overscroll-contain">
+        <div className="h-[620px] max-h-[620px] overflow-auto overscroll-contain">
           <table className="min-w-[1500px] w-full border-collapse text-left">
             <thead className="sticky top-0 z-20 bg-amber-50">
               <tr className="border-b border-amber-200 bg-amber-50 shadow-sm">
