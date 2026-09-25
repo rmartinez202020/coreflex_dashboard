@@ -465,55 +465,81 @@ export default function HomePage({
       {/* ADMIN DASHBOARD CARD */}
       <div className="mt-4 md:mt-6">
         <div
-          className="rounded-xl bg-gray-700 text-white p-4 md:p-5 flex flex-col justify-between cursor-pointer hover:bg-gray-800 transition"
+          className="rounded-xl bg-gray-700 text-white p-4 md:p-5 cursor-pointer hover:bg-gray-800 transition"
           onClick={() => {
             setActiveSubPage("dashboardAdmin");
             setSubPageColor("bg-gray-700");
           }}
         >
-          <div>
-            <h2 className="text-lg font-semibold">
-              Admin Dashboard
-            </h2>
+          <div className="flex flex-col gap-5 lg:flex-row lg:items-center">
+            {/* TITLE */}
+            <div className="shrink-0 lg:w-[260px]">
+              <h2 className="text-lg font-semibold">
+                Admin Dashboard
+              </h2>
 
-            <p className="mt-1 text-sm text-gray-200">
-              Manage your customer dashboards.
-            </p>
-          </div>
+              <p className="mt-1 text-sm text-gray-200">
+                Manage the complete dashboard lifecycle.
+              </p>
+            </div>
 
-          <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
-            <div className="rounded-lg border border-gray-500/70 bg-gray-600/60 px-4 py-3">
-              <div className="text-xl leading-none">＋</div>
-              <div className="mt-2 text-sm font-semibold">
-                Create Dashboard
+            {/* TIMELINE */}
+            <div className="min-w-0 flex-1">
+              <div className="relative">
+                {/* horizontal connecting line */}
+                <div className="absolute left-[12.5%] right-[12.5%] top-[9px] hidden h-px bg-gray-400/80 sm:block" />
+
+                <div className="relative grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-4">
+                  <div className="flex flex-col items-center text-center">
+                    <div className="h-[18px] w-[18px] rounded-full bg-blue-400 ring-4 ring-gray-700" />
+                    <div className="mt-2 text-xs font-bold uppercase tracking-wide">
+                      Create
+                    </div>
+                    <div className="text-xs text-gray-100">
+                      Dashboard
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center text-center">
+                    <div className="h-[18px] w-[18px] rounded-full bg-purple-400 ring-4 ring-gray-700" />
+                    <div className="mt-2 text-xs font-bold uppercase tracking-wide">
+                      Assign
+                    </div>
+                    <div className="text-xs text-gray-100">
+                      Customer
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center text-center">
+                    <div className="h-[18px] w-[18px] rounded-full bg-amber-400 ring-4 ring-gray-700" />
+                    <div className="mt-2 text-xs font-bold uppercase tracking-wide">
+                      Edit
+                    </div>
+                    <div className="text-xs text-gray-100">
+                      Dashboard
+                    </div>
+                  </div>
+
+                  <div className="flex flex-col items-center text-center">
+                    <div className="h-[18px] w-[18px] rounded-full bg-emerald-400 ring-4 ring-gray-700" />
+                    <div className="mt-2 text-xs font-bold uppercase tracking-wide">
+                      Operate
+                    </div>
+                    <div className="text-xs text-gray-100">
+                      Dashboard
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
 
-            <div className="rounded-lg border border-gray-500/70 bg-gray-600/60 px-4 py-3">
-              <div className="text-xl leading-none">👤</div>
-              <div className="mt-2 text-sm font-semibold">
-                Assign Customer
+            {/* OPEN ACTION */}
+            <div className="shrink-0 lg:border-l lg:border-gray-500 lg:pl-6">
+              <div className="inline-flex min-h-[44px] items-center justify-center rounded-lg bg-blue-600 px-5 text-sm font-semibold text-white shadow-sm transition hover:bg-blue-500">
+                <span>Open Dashboard Admin</span>
+                <span className="ml-2 text-base">→</span>
               </div>
             </div>
-
-            <div className="rounded-lg border border-gray-500/70 bg-gray-600/60 px-4 py-3">
-              <div className="text-xl leading-none">✎</div>
-              <div className="mt-2 text-sm font-semibold">
-                Edit Dashboard
-              </div>
-            </div>
-
-            <div className="rounded-lg border border-gray-500/70 bg-gray-600/60 px-4 py-3">
-              <div className="text-xl leading-none">▶</div>
-              <div className="mt-2 text-sm font-semibold">
-                Operate Dashboard
-              </div>
-            </div>
-          </div>
-
-          <div className="mt-4 flex items-center justify-end text-xs font-medium text-gray-200">
-            <span>Open Dashboard Admin</span>
-            <span className="ml-2 text-base">→</span>
           </div>
         </div>
       </div>
