@@ -465,13 +465,13 @@ export default function HomePage({
       {/* ADMIN DASHBOARD CARD */}
       <div className="mt-4 md:mt-6">
         <div
-          className="rounded-xl bg-gray-700 text-white p-4 md:p-5 cursor-pointer hover:bg-gray-800 transition"
+          className="min-h-[150px] rounded-xl bg-gray-700 text-white px-4 py-6 md:px-5 md:py-7 cursor-pointer hover:bg-gray-800 transition"
           onClick={() => {
             setActiveSubPage("dashboardAdmin");
             setSubPageColor("bg-gray-700");
           }}
         >
-          <div className="flex flex-col gap-5 lg:flex-row lg:items-center">
+          <div className="flex min-h-[94px] flex-col gap-5 lg:flex-row lg:items-center">
             {/* TITLE */}
             <div className="shrink-0 lg:w-[260px]">
               <h2 className="text-lg font-semibold">
@@ -487,11 +487,11 @@ export default function HomePage({
             <div className="min-w-0 flex-1">
               <div className="relative">
                 {/* horizontal connecting line */}
-                <div className="absolute left-[12.5%] right-[12.5%] top-[9px] hidden h-px bg-gray-400/80 sm:block" />
+                <div className="absolute left-[12.5%] right-[12.5%] top-[6px] hidden h-px bg-gray-400/80 sm:block" />
 
                 <div className="relative grid grid-cols-2 gap-x-4 gap-y-5 sm:grid-cols-4">
                   <div className="flex flex-col items-center text-center">
-                    <div className="h-[18px] w-[18px] rounded-full bg-blue-400 ring-4 ring-gray-700" />
+                    <div className="h-3 w-3 rounded-full bg-blue-400 ring-[3px] ring-gray-700" />
                     <div className="mt-2 text-xs font-bold uppercase tracking-wide">
                       Create
                     </div>
@@ -501,7 +501,7 @@ export default function HomePage({
                   </div>
 
                   <div className="flex flex-col items-center text-center">
-                    <div className="h-[18px] w-[18px] rounded-full bg-purple-400 ring-4 ring-gray-700" />
+                    <div className="h-3 w-3 rounded-full bg-purple-400 ring-[3px] ring-gray-700" />
                     <div className="mt-2 text-xs font-bold uppercase tracking-wide">
                       Assign
                     </div>
@@ -511,7 +511,7 @@ export default function HomePage({
                   </div>
 
                   <div className="flex flex-col items-center text-center">
-                    <div className="h-[18px] w-[18px] rounded-full bg-amber-400 ring-4 ring-gray-700" />
+                    <div className="h-3 w-3 rounded-full bg-amber-400 ring-[3px] ring-gray-700" />
                     <div className="mt-2 text-xs font-bold uppercase tracking-wide">
                       Edit
                     </div>
@@ -521,7 +521,7 @@ export default function HomePage({
                   </div>
 
                   <div className="flex flex-col items-center text-center">
-                    <div className="h-[18px] w-[18px] rounded-full bg-emerald-400 ring-4 ring-gray-700" />
+                    <div className="h-3 w-3 rounded-full bg-emerald-400 ring-[3px] ring-gray-700" />
                     <div className="mt-2 text-xs font-bold uppercase tracking-wide">
                       Operate
                     </div>
