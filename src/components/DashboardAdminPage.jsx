@@ -466,10 +466,6 @@ export default function DashboardAdminPage({
               showTitle ? "mt-3" : ""
             }`}
           >
-            <div className="text-xs font-semibold uppercase tracking-wide text-gray-700 mb-1">
-              Public Launch Link
-            </div>
-
             <div className="text-sm font-medium text-gray-900 break-all select-all">
               {publicUrl}
             </div>
