@@ -593,10 +593,11 @@ export default function TagExplorerSection({ onBack }) {
           ====================================================== */}
 
       <div className="mt-5 overflow-hidden rounded-2xl border border-slate-200 bg-white shadow-sm">
-        <div className="overflow-x-auto">
+        {/* Fixed tag window with independent vertical + horizontal scrolling. */}
+        <div className="h-[500px] max-h-[500px] overflow-auto overscroll-contain">
           <table className="min-w-[1500px] w-full border-collapse text-left">
-            <thead>
-              <tr className="border-b border-amber-200 bg-amber-50">
+            <thead className="sticky top-0 z-20 bg-amber-50">
+              <tr className="border-b border-amber-200 bg-amber-50 shadow-sm">
                 <th className="whitespace-nowrap px-4 py-3 text-xs font-bold uppercase tracking-wide text-slate-600">
                   Device/Model
                 </th>
