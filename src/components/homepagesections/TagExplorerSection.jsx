@@ -18,10 +18,10 @@ import { getToken } from "../../utils/authToken";
  * 8. Group
  * 9. Actions
  *
- * NOTE:
- * For now this is the frontend structure.
- * Later we will connect it to the real registered devices,
- * live telemetry, and backend tag configuration.
+ * Backend-connected:
+ * - registered devices + live telemetry come from device endpoints
+ * - Description / Math / Unit / Group persist through /tag-explorer
+ * - live polling updates Current Value without overwriting edits/configuration
  */
 
 const DEVICE_SOURCES = [
@@ -60,6 +60,38 @@ function buildTagRows(source, devices) {
       group: "",
     }));
   });
+}
+
+
+function normalizeDeviceModelKey(value) {
+  const v = String(value || "").trim().toLowerCase();
+
+  if (["cf-2000", "cf2000", "zhc1921"].includes(v)) return "zhc1921";
+  if (["cf-1600", "cf1600", "zhc1661"].includes(v)) return "zhc1661";
+  if (["tp-4000", "tp4000"].includes(v)) return "tp4000";
+
+  return v;
+}
+
+function makeConfigKey(deviceModel, deviceId, tag) {
+  return [
+    normalizeDeviceModelKey(deviceModel),
+    String(deviceId || "").trim(),
+    String(tag || "").trim().toUpperCase(),
+  ].join(":");
+}
+
+function configMapFromRows(configRows) {
+  return new Map(
+    (Array.isArray(configRows) ? configRows : []).map((config) => [
+      makeConfigKey(
+        config?.device_model_key || config?.device_model,
+        config?.device_id,
+        config?.tag
+      ),
+      config,
+    ])
+  );
 }
 
 /* ============================================================
@@ -379,6 +411,10 @@ export default function TagExplorerSection({ onBack }) {
   const [groupFilter, setGroupFilter] = React.useState("");
 
   const [savedRowIds, setSavedRowIds] = React.useState([]);
+  const [savingRowIds, setSavingRowIds] = React.useState([]);
+  const [saveErrors, setSaveErrors] = React.useState({});
+  const tagConfigRef = React.useRef(new Map());
+  const tagConfigLoadedRef = React.useRef(false);
 
   React.useEffect(() => {
     rowsRef.current = rows;
@@ -395,29 +431,81 @@ export default function TagExplorerSection({ onBack }) {
         throw new Error("Missing auth token. Please logout and login again.");
       }
 
+      const headers = {
+        "Content-Type": "application/json",
+        ...getAuthHeaders(),
+      };
+
+      // Load persisted Tag Explorer metadata on the initial load.
+      // The 3-second telemetry poll does NOT reload configuration, so it cannot
+      // overwrite unsaved Description / Math / Unit / Group edits.
+      if (!tagConfigLoadedRef.current) {
+        const configRes = await fetch(`${API_URL}/tag-explorer`, {
+          headers,
+        });
+
+        if (!configRes.ok) {
+          const body = await configRes.json().catch(() => ({}));
+          throw new Error(
+            body?.detail ||
+              `Failed to load Tag Explorer configuration (${configRes.status})`
+          );
+        }
+
+        const configRows = await configRes.json();
+        tagConfigRef.current = configMapFromRows(configRows);
+        tagConfigLoadedRef.current = true;
+      }
+
       const resultSets = await Promise.all(
         DEVICE_SOURCES.map(async (source) => {
           const res = await fetch(`${API_URL}${source.endpoint}`, {
-            headers: { "Content-Type": "application/json", ...getAuthHeaders() },
+            headers,
           });
+
           if (!res.ok) {
             const body = await res.json().catch(() => ({}));
-            throw new Error(body?.detail || `Failed to load ${source.deviceModel} devices (${res.status})`);
+            throw new Error(
+              body?.detail ||
+                `Failed to load ${source.deviceModel} devices (${res.status})`
+            );
           }
+
           return buildTagRows(source, await res.json());
         })
       );
 
       const oldRows = new Map(rowsRef.current.map((row) => [row.id, row]));
+
       const nextRows = resultSets.flat().map((live) => {
         const old = oldRows.get(live.id);
-        return old ? {
+
+        // Once a row exists in local state, preserve its editable fields.
+        // Polling is allowed to refresh only the live device portion.
+        if (old) {
+          return {
+            ...live,
+            description: old.description,
+            math: old.math,
+            unit: old.unit,
+            group: old.group,
+          };
+        }
+
+        // First appearance of a row: merge its persisted PostgreSQL config.
+        const config = tagConfigRef.current.get(
+          makeConfigKey(live.deviceModel, live.deviceId, live.tag)
+        );
+
+        if (!config) return live;
+
+        return {
           ...live,
-          description: old.description,
-          math: old.math,
-          unit: old.unit,
-          group: old.group,
-        } : live;
+          description: config.description ?? "",
+          math: config.math_formula ?? "",
+          unit: config.unit ?? "",
+          group: config.group_name ?? "",
+        };
       });
 
       rowsRef.current = nextRows;
@@ -469,33 +557,116 @@ export default function TagExplorerSection({ onBack }) {
   }, [rows, deviceModelFilter, deviceIdFilter, groupFilter]);
 
   function updateRow(rowId, field, value) {
-    setRows((previousRows) =>
-      previousRows.map((row) =>
+    setRows((previousRows) => {
+      const nextRows = previousRows.map((row) =>
         row.id === rowId
           ? {
               ...row,
               [field]: value,
             }
           : row
-      )
+      );
+
+      rowsRef.current = nextRows;
+      return nextRows;
+    });
+
+    setSavedRowIds((previous) =>
+      previous.filter((id) => id !== rowId)
+    );
+
+    setSaveErrors((previous) => {
+      if (!previous[rowId]) return previous;
+      const next = { ...previous };
+      delete next[rowId];
+      return next;
+    });
+  }
+
+  async function saveRow(rowId) {
+    const row = rowsRef.current.find((item) => item.id === rowId);
+    if (!row) return;
+
+    if (savingRowIds.includes(rowId)) return;
+
+    setSavingRowIds((previous) =>
+      previous.includes(rowId) ? previous : [...previous, rowId]
     );
 
     setSavedRowIds((previous) =>
       previous.filter((id) => id !== rowId)
     );
-  }
 
-  function saveRow(rowId) {
-    /*
-     * Backend save will be connected later.
-     * For now this visually confirms the row was saved.
-     */
+    setSaveErrors((previous) => {
+      const next = { ...previous };
+      delete next[rowId];
+      return next;
+    });
 
-    setSavedRowIds((previous) =>
-      previous.includes(rowId)
-        ? previous
-        : [...previous, rowId]
-    );
+    try {
+      if (!String(getToken() || "").trim()) {
+        throw new Error("Missing auth token. Please logout and login again.");
+      }
+
+      const modelKey = normalizeDeviceModelKey(row.deviceModel);
+      const url =
+        `${API_URL}/tag-explorer/` +
+        `${encodeURIComponent(modelKey)}/` +
+        `${encodeURIComponent(row.deviceId)}/` +
+        `${encodeURIComponent(row.tag)}`;
+
+      const res = await fetch(url, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          ...getAuthHeaders(),
+        },
+        body: JSON.stringify({
+          description: row.description || null,
+          math_formula: row.math || null,
+          unit: row.unit || null,
+          group_name: row.group || null,
+        }),
+      });
+
+      const body = await res.json().catch(() => ({}));
+
+      if (!res.ok) {
+        throw new Error(
+          body?.detail || `Failed to save Tag Explorer row (${res.status})`
+        );
+      }
+
+      const savedConfig = body?.tag_config || {
+        device_model_key: modelKey,
+        device_id: row.deviceId,
+        tag: row.tag,
+        description: row.description || "",
+        math_formula: row.math || "",
+        unit: row.unit || "",
+        group_name: row.group || "",
+      };
+
+      tagConfigRef.current.set(
+        makeConfigKey(modelKey, row.deviceId, row.tag),
+        savedConfig
+      );
+
+      setSavedRowIds((previous) =>
+        previous.includes(rowId)
+          ? previous
+          : [...previous, rowId]
+      );
+    } catch (e) {
+      setSaveErrors((previous) => ({
+        ...previous,
+        [rowId]: e?.message || "Save failed.",
+      }));
+    } finally {
+      setSavingRowIds((previous) =>
+        previous.filter((id) => id !== rowId)
+      );
+    }
   }
 
   function clearFilters() {
@@ -653,6 +824,8 @@ export default function TagExplorerSection({ onBack }) {
 
               {filteredRows.map((row) => {
                 const saved = savedRowIds.includes(row.id);
+                const saving = savingRowIds.includes(row.id);
+                const saveError = saveErrors[row.id] || "";
 
                 return (
                   <tr
@@ -750,29 +923,43 @@ export default function TagExplorerSection({ onBack }) {
                     {/* ACTIONS */}
 
                     <td className="whitespace-nowrap px-4 py-3">
-                      <button
-                        type="button"
-                        onClick={() => saveRow(row.id)}
-                        className={`
-                          inline-flex
-                          h-9
-                          items-center
-                          justify-center
-                          rounded-lg
-                          px-4
-                          text-sm
-                          font-bold
-                          shadow-sm
-                          transition
-                          ${
-                            saved
-                              ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
-                              : "bg-amber-400 text-slate-950 hover:bg-amber-500"
-                          }
-                        `}
-                      >
-                        {saved ? "✓ Saved" : "Save"}
-                      </button>
+                      <div className="flex items-center gap-2">
+                        <button
+                          type="button"
+                          disabled={saving}
+                          onClick={() => saveRow(row.id)}
+                          className={`
+                            inline-flex
+                            h-9
+                            items-center
+                            justify-center
+                            rounded-lg
+                            px-4
+                            text-sm
+                            font-bold
+                            shadow-sm
+                            transition
+                            ${
+                              saving
+                                ? "cursor-wait border border-slate-200 bg-slate-100 text-slate-500"
+                                : saved
+                                  ? "border border-emerald-200 bg-emerald-50 text-emerald-700"
+                                  : "bg-amber-400 text-slate-950 hover:bg-amber-500"
+                            }
+                          `}
+                        >
+                          {saving ? "Saving..." : saved ? "✓ Saved" : "Save"}
+                        </button>
+
+                        {saveError && (
+                          <span
+                            className="max-w-[220px] whitespace-normal text-xs font-semibold text-red-600"
+                            title={saveError}
+                          >
+                            Save failed
+                          </span>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 );
@@ -815,8 +1002,7 @@ export default function TagExplorerSection({ onBack }) {
 
         <div className="flex flex-col gap-2 border-t border-slate-100 bg-slate-50 px-4 py-3 text-xs text-slate-500 sm:flex-row sm:items-center sm:justify-between">
           <span>
-            Device values will update automatically when live
-            telemetry is connected.
+            Device values update automatically. Tag details are saved to your account.
           </span>
 
           <span>
