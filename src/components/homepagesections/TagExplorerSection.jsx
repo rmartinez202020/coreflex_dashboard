@@ -374,6 +374,7 @@ export default function TagExplorerSection({ onBack }) {
   const rowsRef = React.useRef([]);
   const loadingRef = React.useRef(false);
 
+  const [deviceModelFilter, setDeviceModelFilter] = React.useState("");
   const [deviceIdFilter, setDeviceIdFilter] = React.useState("");
   const [groupFilter, setGroupFilter] = React.useState("");
 
@@ -437,6 +438,11 @@ export default function TagExplorerSection({ onBack }) {
     return () => window.clearInterval(id);
   }, [loadRegisteredDevices]);
 
+  const deviceModels = React.useMemo(
+    () => uniqueValues(rows, "deviceModel"),
+    [rows]
+  );
+
   const deviceIds = React.useMemo(
     () => uniqueValues(rows, "deviceId"),
     [rows]
@@ -449,15 +455,18 @@ export default function TagExplorerSection({ onBack }) {
 
   const filteredRows = React.useMemo(() => {
     return rows.filter((row) => {
+      const modelMatches =
+        !deviceModelFilter || row.deviceModel === deviceModelFilter;
+
       const deviceMatches =
         !deviceIdFilter || row.deviceId === deviceIdFilter;
 
       const groupMatches =
         !groupFilter || row.group === groupFilter;
 
-      return deviceMatches && groupMatches;
+      return modelMatches && deviceMatches && groupMatches;
     });
-  }, [rows, deviceIdFilter, groupFilter]);
+  }, [rows, deviceModelFilter, deviceIdFilter, groupFilter]);
 
   function updateRow(rowId, field, value) {
     setRows((previousRows) =>
@@ -490,11 +499,14 @@ export default function TagExplorerSection({ onBack }) {
   }
 
   function clearFilters() {
+    setDeviceModelFilter("");
     setDeviceIdFilter("");
     setGroupFilter("");
   }
 
-  const filtersActive = Boolean(deviceIdFilter || groupFilter);
+  const filtersActive = Boolean(
+    deviceModelFilter || deviceIdFilter || groupFilter
+  );
 
   return (
     <div className="mt-4 md:mt-6">
@@ -527,6 +539,15 @@ export default function TagExplorerSection({ onBack }) {
         </div>
 
         <div className="flex flex-col gap-2 sm:flex-row sm:items-end xl:justify-end">
+          <SearchableFilter
+            label="Device Model"
+            value={deviceModelFilter}
+            options={deviceModels}
+            allLabel="All Models"
+            searchPlaceholder="Search Device Model..."
+            onChange={setDeviceModelFilter}
+          />
+
           <SearchableFilter
             label="Device ID #"
             value={deviceIdFilter}
@@ -770,8 +791,8 @@ export default function TagExplorerSection({ onBack }) {
                     </div>
 
                     <div className="mt-1 text-sm text-slate-500">
-                      No tags match the selected Device ID and
-                      Group filters.
+                      No tags match the selected Device Model,
+                      Device ID, and Group filters.
                     </div>
 
                     {filtersActive && (
