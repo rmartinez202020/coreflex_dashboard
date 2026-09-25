@@ -471,22 +471,49 @@ export default function HomePage({
             setSubPageColor("bg-gray-700");
           }}
         >
-          <h2 className="text-lg font-semibold mb-2">
-            Admin Dashboard
-          </h2>
+          <div>
+            <h2 className="text-lg font-semibold">
+              Admin Dashboard
+            </h2>
 
-          <p className="text-sm text-gray-200 mb-2">
-            Create and manage customer dashboards.
-          </p>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-2 text-xs md:text-sm">
-            <span>• Create Dashboards</span>
-            <span>• Assign to Customers</span>
-            <span>• Open / Edit / Launch</span>
+            <p className="mt-1 text-sm text-gray-200">
+              Manage your customer dashboards.
+            </p>
           </div>
 
-          <div className="mt-3 text-xs text-gray-300 opacity-90">
-            Click to open Dashboard Admin
+          <div className="mt-4 grid grid-cols-2 gap-3 md:grid-cols-4">
+            <div className="rounded-lg border border-gray-500/70 bg-gray-600/60 px-4 py-3">
+              <div className="text-xl leading-none">＋</div>
+              <div className="mt-2 text-sm font-semibold">
+                Create Dashboard
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-gray-500/70 bg-gray-600/60 px-4 py-3">
+              <div className="text-xl leading-none">👤</div>
+              <div className="mt-2 text-sm font-semibold">
+                Assign Customer
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-gray-500/70 bg-gray-600/60 px-4 py-3">
+              <div className="text-xl leading-none">✎</div>
+              <div className="mt-2 text-sm font-semibold">
+                Edit Dashboard
+              </div>
+            </div>
+
+            <div className="rounded-lg border border-gray-500/70 bg-gray-600/60 px-4 py-3">
+              <div className="text-xl leading-none">▶</div>
+              <div className="mt-2 text-sm font-semibold">
+                Operate Dashboard
+              </div>
+            </div>
+          </div>
+
+          <div className="mt-4 flex items-center justify-end text-xs font-medium text-gray-200">
+            <span>Open Dashboard Admin</span>
+            <span className="ml-2 text-base">→</span>
           </div>
         </div>
       </div>
