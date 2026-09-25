@@ -657,7 +657,7 @@ export default function TagExplorerSection({ onBack }) {
                     {/* TAG */}
 
                     <td className="whitespace-nowrap px-4 py-3">
-                      <span className="inline-flex rounded-lg bg-slate-100 px-2.5 py-1.5 text-sm font-bold text-slate-800">
+                      <span className="text-sm font-normal text-slate-800">
                         {row.tag}
                       </span>
                     </td>
