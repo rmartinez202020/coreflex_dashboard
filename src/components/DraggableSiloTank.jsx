@@ -1,10 +1,12 @@
 // src/components/DraggableSiloTank.jsx
+
 import React, { useMemo } from "react";
 import { SiloTank } from "./ProTankIconSilo";
 
 // ✅ Convert AI field from telemetry row (ai1..ai4 etc)
 function readAiField(row, bindField) {
   if (!row || !bindField) return null;
+
   const f = String(bindField).toLowerCase();
 
   const candidates = [
@@ -91,7 +93,6 @@ function computeMathOutput(liveValue, formula) {
   if (!f) return liveValue;
 
   const VALUE = liveValue;
-
   const upper = f.toUpperCase();
 
   if (upper.startsWith("CONCAT(") && f.endsWith(")")) {
@@ -655,12 +656,22 @@ export default function DraggableSiloTank({
           IMPORTANT:
           This appears ONLY when the modal
           selected Scale / MOXA.
+
+          The extra top margin is intentional.
+          SiloTank renders the current weight
+          below the silo body, so the history
+          table needs enough clearance to avoid
+          overlapping that current-value box.
          ================================== */}
 
       {isPlay && isWeightScale ? (
         <div
           style={{
-            marginTop: `${5 * scale}px`,
+            // CHANGED:
+            // Was 5px. Give the current-weight
+            // box enough vertical clearance.
+            marginTop: `${28 * scale}px`,
+
             width: `${210 * scale}px`,
             maxWidth: `${210 * scale}px`,
             marginLeft: "auto",
