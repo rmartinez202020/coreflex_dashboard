@@ -706,7 +706,7 @@ export default function DraggableSiloTank({
                 textAlign: "center",
               }}
             >
-              Age
+              Period
             </div>
 
             <div
