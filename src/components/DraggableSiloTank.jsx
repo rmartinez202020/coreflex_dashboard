@@ -667,9 +667,6 @@ export default function DraggableSiloTank({
       {isPlay && isWeightScale ? (
         <div
           style={{
-            // CHANGED:
-            // Was 5px. Give the current-weight
-            // box enough vertical clearance.
             marginTop: `${28 * scale}px`,
 
             width: `${210 * scale}px`,
@@ -690,8 +687,11 @@ export default function DraggableSiloTank({
           <div
             style={{
               display: "grid",
+
+              // Period / Weight / Time
               gridTemplateColumns:
                 "58px 58px 1fr",
+
               alignItems: "center",
               minHeight: `${22 * scale}px`,
               background: "#f3f4f6",
@@ -739,8 +739,12 @@ export default function DraggableSiloTank({
                 key={item.label}
                 style={{
                   display: "grid",
+
+                  // IMPORTANT:
+                  // Must match the header exactly.
                   gridTemplateColumns:
-                    "42px 58px 1fr",
+                    "58px 58px 1fr",
+
                   alignItems: "center",
                   minHeight: `${23 * scale}px`,
                   borderBottom:
