@@ -9,7 +9,6 @@ import React from "react";
  * - Public tenant mode: fetches /tenant-access/devices once per tick
  * - Builds telemetryMap[model][deviceId] = row
  */
-
 export default function useDashboardTelemetryPoller({
   isPlay,
   API_URL,
@@ -35,40 +34,52 @@ export default function useDashboardTelemetryPoller({
     zhc1661: { base: "zhc1661" },
     tp4000: { base: "tp4000" },
 
-    // ✅ NEW
+    // Radar
     cfr100: {
       base: "radar-level",
       endpoint: "/radar-level/my-sensors",
+    },
+
+    // Scale / MOXA
+    weight_scale: {
+      base: "weight-scale-systems",
+      endpoint: "/weight-scale-systems/readings",
     },
   },
 } = {}) {
   const [telemetryMap, setTelemetryMap] = React.useState(() => {
     const out = {};
-    for (const k of Object.keys(modelMeta || {})) out[k] = {};
+
+    for (const k of Object.keys(modelMeta || {})) {
+      out[k] = {};
+    }
+
     return out;
   });
 
   const loadingRef = React.useRef(false);
 
   // ======================================
-// TEMPORARY DIAGNOSTIC: modelMeta reference
-// ======================================
-const previousModelMetaRef = React.useRef(modelMeta);
+  // TEMPORARY DIAGNOSTIC: modelMeta reference
+  // ======================================
 
-React.useEffect(() => {
-  if (previousModelMetaRef.current !== modelMeta) {
-    console.warn(
-      "[TelemetryPoller] modelMeta reference changed",
-      new Date().toISOString()
-    );
-  }
+  const previousModelMetaRef = React.useRef(modelMeta);
 
-  previousModelMetaRef.current = modelMeta;
-}, [modelMeta]);
+  React.useEffect(() => {
+    if (previousModelMetaRef.current !== modelMeta) {
+      console.warn(
+        "[TelemetryPoller] modelMeta reference changed",
+        new Date().toISOString()
+      );
+    }
+
+    previousModelMetaRef.current = modelMeta;
+  }, [modelMeta]);
 
   // ======================================
   // DEBUG
   // ======================================
+
   const debugEnabled = React.useMemo(() => {
     try {
       if (typeof window === "undefined") return false;
@@ -156,7 +167,78 @@ React.useEffect(() => {
       return "cfr100";
     }
 
+    if (
+      v === "weight_scale" ||
+      v === "weight-scale" ||
+      v === "weightscale" ||
+      v === "scale" ||
+      v === "moxa" ||
+      v === "scale/moxa"
+    ) {
+      return "weight_scale";
+    }
+
     return v;
+  }
+
+  // ======================================
+  // SCALE / MOXA DEVICE ID HELPERS
+  // ======================================
+
+  /**
+   * Scale devices do NOT use an IMEI-style identifier.
+   *
+   * The frontend identifies a scale connection using:
+   *
+   *   IP:PORT
+   *
+   * Example:
+   *
+   *   192.168.1.50:4001
+   *
+   * We must therefore NEVER pass a scale ID through normalizeImei(),
+   * because normalizeImei() removes ":" and ".".
+   */
+  function normalizeScaleDeviceId(value) {
+    return String(value || "").trim();
+  }
+
+  function buildScaleDeviceId(row) {
+    const direct = normalizeScaleDeviceId(
+      row?.deviceId ?? row?.device_id ?? ""
+    );
+
+    if (direct) {
+      return direct;
+    }
+
+    const ip = String(
+      row?.device_ip ??
+        row?.deviceIp ??
+        ""
+    ).trim();
+
+    const port = String(
+      row?.device_port ??
+        row?.devicePort ??
+        ""
+    ).trim();
+
+    if (!ip || !port) {
+      return "";
+    }
+
+    return `${ip}:${port}`;
+  }
+
+  function normalizeDeviceIdForModel(modelKey, value) {
+    const model = normalizeModelName(modelKey);
+
+    if (model === "weight_scale") {
+      return normalizeScaleDeviceId(value);
+    }
+
+    return normalizeImei(value);
   }
 
   function readDeviceId(row) {
@@ -198,15 +280,24 @@ React.useEffect(() => {
     if (tag) {
       const model = normalizeModelName(tag?.model);
 
-      const deviceId = String(tag?.deviceId || tag?.device_id || "").trim();
+      const deviceId = String(
+        tag?.deviceId ||
+          tag?.device_id ||
+          ""
+      ).trim();
 
       if (model && deviceId) {
-        return { model, deviceId };
+        return {
+          model,
+          deviceId,
+        };
       }
     }
 
     const bm = normalizeModelName(
-      t?.bindModel ?? t?.properties?.bindModel ?? ""
+      t?.bindModel ??
+        t?.properties?.bindModel ??
+        ""
     );
 
     const bd = String(
@@ -231,6 +322,10 @@ React.useEffect(() => {
     return null;
   }, []);
 
+  // ======================================
+  // COLLECT DEVICES NEEDED BY DASHBOARD
+  // ======================================
+
   const collectWanted = React.useCallback(() => {
     const wanted = {};
 
@@ -238,22 +333,37 @@ React.useEffect(() => {
       wanted[k] = new Set();
     }
 
-    const list = Array.isArray(droppedTanks) ? droppedTanks : [];
+    const list = Array.isArray(droppedTanks)
+      ? droppedTanks
+      : [];
 
     for (const t of list) {
       const x = extractBinding(t);
 
-      if (!x) continue;
+      if (!x) {
+        continue;
+      }
 
       if (!wanted[x.model]) {
         wanted[x.model] = new Set();
       }
 
-      wanted[x.model].add(normalizeImei(x.deviceId));
+      const normalizedId = normalizeDeviceIdForModel(
+        x.model,
+        x.deviceId
+      );
+
+      if (normalizedId) {
+        wanted[x.model].add(normalizedId);
+      }
     }
 
     return wanted;
   }, [droppedTanks, extractBinding, modelMeta]);
+
+  // ======================================
+  // CLEAR TELEMETRY
+  // ======================================
 
   const clearTelemetryMap = React.useCallback(() => {
     setTelemetryMap((prev) => {
@@ -262,11 +372,15 @@ React.useEffect(() => {
       const next = {};
 
       for (const k of Object.keys(modelMeta || {})) {
-        const wasSize = Object.keys(prev?.[k] || {}).length;
+        const wasSize = Object.keys(
+          prev?.[k] || {}
+        ).length;
 
         next[k] = {};
 
-        if (wasSize) changed = true;
+        if (wasSize) {
+          changed = true;
+        }
       }
 
       return changed ? next : prev;
@@ -278,7 +392,9 @@ React.useEffect(() => {
   // ======================================
 
   const fetchOnce = React.useCallback(async () => {
-    if (!isPlay) return;
+    if (!isPlay) {
+      return;
+    }
 
     const dash = resolveDashboardId?.({
       activeDashboardId,
@@ -287,16 +403,22 @@ React.useEffect(() => {
       droppedTanks,
     });
 
-    if (!dash) return;
+    if (!dash) {
+      return;
+    }
 
-    if (loadingRef.current) return;
+    if (loadingRef.current) {
+      return;
+    }
 
     loadingRef.current = true;
 
     try {
       const wanted = collectWanted();
 
-      const anyWanted = Object.values(wanted).some((s) => s && s.size > 0);
+      const anyWanted = Object.values(wanted).some(
+        (s) => s && s.size > 0
+      );
 
       if (!anyWanted) {
         clearTelemetryMap();
@@ -308,7 +430,11 @@ React.useEffect(() => {
       // ======================================
 
       if (isPublicLaunch) {
-        const email = String(tenantEmail || "").trim().toLowerCase();
+        const email = String(
+          tenantEmail || ""
+        )
+          .trim()
+          .toLowerCase();
 
         if (
           !isTenantAuthenticated ||
@@ -316,20 +442,32 @@ React.useEffect(() => {
           !publicDashLaunchId ||
           !email
         ) {
-          dbg("public mode skip: missing tenant auth/launch data");
+          dbg(
+            "public mode skip: missing tenant auth/launch data"
+          );
+
           clearTelemetryMap();
           return;
         }
 
         const qs = new URLSearchParams({
-          dashboard_slug: String(publicDashSlug || "").trim(),
-          public_launch_id: String(publicDashLaunchId || "").trim(),
+          dashboard_slug: String(
+            publicDashSlug || ""
+          ).trim(),
+
+          public_launch_id: String(
+            publicDashLaunchId || ""
+          ).trim(),
+
           tenant_email: email,
         });
 
-        const url = `${API_URL}/tenant-access/devices?${qs.toString()}`;
+        const url =
+          `${API_URL}/tenant-access/devices?${qs.toString()}`;
 
-        dbg("public fetch", { url });
+        dbg("public fetch", {
+          url,
+        });
 
         const res = await fetch(url);
 
@@ -342,7 +480,10 @@ React.useEffect(() => {
           return;
         }
 
-        const data = await res.json().catch(() => []);
+        const data = await res
+          .json()
+          .catch(() => []);
+
         const arr = normalizeArray(data);
 
         const next = {};
@@ -354,16 +495,32 @@ React.useEffect(() => {
         for (const row of arr || []) {
           const modelKey = readModelKey(row);
 
-          if (!modelKey) continue;
+          if (!modelKey) {
+            continue;
+          }
 
           if (!next[modelKey]) {
             next[modelKey] = {};
           }
 
-          const setWanted = wanted?.[modelKey] || new Set();
-          const id = normalizeImei(readDeviceId(row));
+          const setWanted =
+            wanted?.[modelKey] ||
+            new Set();
 
-          if (id && setWanted.has(id)) {
+          let id = "";
+
+          if (modelKey === "weight_scale") {
+            id = buildScaleDeviceId(row);
+          } else {
+            id = normalizeImei(
+              readDeviceId(row)
+            );
+          }
+
+          if (
+            id &&
+            setWanted.has(id)
+          ) {
             next[modelKey][id] = {
               ...row,
               model: modelKey,
@@ -375,11 +532,17 @@ React.useEffect(() => {
 
         dbg(
           "public telemetryMap built",
+
           Object.fromEntries(
-            Object.entries(next).map(([k, bucket]) => [
-              k,
-              Object.keys(bucket).slice(0, 20),
-            ])
+            Object.entries(next).map(
+              ([k, bucket]) => [
+                k,
+                Object.keys(bucket).slice(
+                  0,
+                  20
+                ),
+              ]
+            )
           )
         );
 
@@ -391,56 +554,232 @@ React.useEffect(() => {
       // PRIVATE MODE
       // ======================================
 
-      const token = String(getToken?.() || "").trim();
+      const token = String(
+        getToken?.() || ""
+      ).trim();
 
       if (!token) {
-        dbg("private mode skip: no token");
+        dbg(
+          "private mode skip: no token"
+        );
+
         return;
       }
 
-      async function fetchModel(modelKey, base) {
+      // ======================================
+      // FETCH ONE DEVICE MODEL
+      // ======================================
+
+      async function fetchModel(
+        modelKey,
+        base
+      ) {
         // ======================================
         // CFR100
         // ======================================
 
         if (modelKey === "cfr100") {
-          const url = `${API_URL}/radar-level/my-sensors`;
+          const url =
+            `${API_URL}/radar-level/my-sensors`;
 
-          dbg("fetchModel CFR100", { url });
+          dbg(
+            "fetchModel CFR100",
+            {
+              url,
+            }
+          );
 
-          const res = await fetch(url, {
-            headers: {
-              "Content-Type": "application/json",
-              ...(getAuthHeaders?.() || {}),
-            },
-          });
+          const res = await fetch(
+            url,
+            {
+              headers: {
+                "Content-Type":
+                  "application/json",
+
+                ...(getAuthHeaders?.() ||
+                  {}),
+              },
+            }
+          );
 
           if (!res.ok) {
-            dbgErr("fetchModel CFR100 failed", {
-              status: res.status,
-            });
+            dbgErr(
+              "fetchModel CFR100 failed",
+              {
+                status:
+                  res.status,
+              }
+            );
 
             return [];
           }
 
-          const data = await res.json().catch(() => []);
-          const arr = Array.isArray(data) ? data : [];
+          const data = await res
+            .json()
+            .catch(() => []);
 
-          const normalized = arr.map((r) => ({
-            ...r,
-            model: "cfr100",
-            deviceId: normalizeImei(
-              r.raw_imei_bytes || r.rawImeiBytes || r.imei || ""
-            ),
-            device_id: normalizeImei(
-              r.raw_imei_bytes || r.rawImeiBytes || r.imei || ""
-            ),
-            status: r.received_at ? "online" : "offline",
-          }));
+          const arr =
+            Array.isArray(data)
+              ? data
+              : [];
 
-          dbg("fetchModel CFR100 ok", {
-            rows: normalized.length,
-          });
+          const normalized =
+            arr.map((r) => ({
+              ...r,
+
+              model:
+                "cfr100",
+
+              deviceId:
+                normalizeImei(
+                  r.raw_imei_bytes ||
+                    r.rawImeiBytes ||
+                    r.imei ||
+                    ""
+                ),
+
+              device_id:
+                normalizeImei(
+                  r.raw_imei_bytes ||
+                    r.rawImeiBytes ||
+                    r.imei ||
+                    ""
+                ),
+
+              status:
+                r.received_at
+                  ? "online"
+                  : "offline",
+            }));
+
+          dbg(
+            "fetchModel CFR100 ok",
+            {
+              rows:
+                normalized.length,
+            }
+          );
+
+          return normalized;
+        }
+
+        // ======================================
+        // SCALE / MOXA
+        // ======================================
+
+        if (
+          modelKey ===
+          "weight_scale"
+        ) {
+          /**
+           * This endpoint returns the current scale row
+           * together with:
+           *
+           * weight
+           * weight_2
+           * weight_3
+           * weight_4
+           * weight_5
+           *
+           * and the matching timestamps.
+           */
+          const url =
+            `${API_URL}/weight-scale-systems/readings?limit=1000`;
+
+          dbg(
+            "fetchModel Scale/MOXA",
+            {
+              url,
+            }
+          );
+
+          const res = await fetch(
+            url,
+            {
+              headers: {
+                "Content-Type":
+                  "application/json",
+
+                ...(getAuthHeaders?.() ||
+                  {}),
+              },
+
+              cache: "no-store",
+            }
+          );
+
+          if (!res.ok) {
+            dbgErr(
+              "fetchModel Scale/MOXA failed",
+              {
+                status:
+                  res.status,
+              }
+            );
+
+            return [];
+          }
+
+          const data = await res
+            .json()
+            .catch(() => []);
+
+          const arr =
+            Array.isArray(data)
+              ? data
+              : Array.isArray(
+                  data?.readings
+                )
+              ? data.readings
+              : Array.isArray(
+                  data?.rows
+                )
+              ? data.rows
+              : [];
+
+          const normalized = arr
+            .map((r) => {
+              const deviceId =
+                buildScaleDeviceId(
+                  r
+                );
+
+              if (!deviceId) {
+                return null;
+              }
+
+              return {
+                ...r,
+
+                model:
+                  "weight_scale",
+
+                deviceId,
+
+                device_id:
+                  deviceId,
+
+                /**
+                 * A successful protected
+                 * scale reading is considered
+                 * available telemetry.
+                 *
+                 * The backend timestamps are
+                 * preserved below in ...r.
+                 */
+                status:
+                  "online",
+              };
+            })
+            .filter(Boolean);
+
+          dbg(
+            "fetchModel Scale/MOXA ok",
+            {
+              rows:
+                normalized.length,
+            }
+          );
 
           return normalized;
         }
@@ -449,88 +788,206 @@ React.useEffect(() => {
         // DEFAULT
         // ======================================
 
-        const url = `${API_URL}/${base}/my-devices`;
+        const url =
+          `${API_URL}/${base}/my-devices`;
 
-        dbg("fetchModel", {
-          base,
+        dbg(
+          "fetchModel",
+          {
+            base,
+            url,
+          }
+        );
+
+        const res = await fetch(
           url,
-        });
-
-        const res = await fetch(url, {
-          headers: getAuthHeaders?.() || {},
-        });
+          {
+            headers:
+              getAuthHeaders?.() ||
+              {},
+          }
+        );
 
         if (!res.ok) {
-          dbgErr("fetchModel failed", {
-            base,
-            status: res.status,
-          });
+          dbgErr(
+            "fetchModel failed",
+            {
+              base,
+              status:
+                res.status,
+            }
+          );
 
           return [];
         }
 
-        const data = await res.json().catch(() => null);
-        const arr = normalizeArray(data);
+        const data = await res
+          .json()
+          .catch(() => null);
 
-        dbg("fetchModel ok", {
-          base,
-          rows: arr.length,
-        });
+        const arr =
+          normalizeArray(data);
+
+        dbg(
+          "fetchModel ok",
+          {
+            base,
+            rows:
+              arr.length,
+          }
+        );
 
         return arr;
       }
 
-      const results = await Promise.all(
-        Object.keys(modelMeta || {}).map(async (modelKey) => {
-          const base = modelMeta[modelKey]?.base;
+      // ======================================
+      // FETCH MODELS USED BY THIS DASHBOARD
+      // ======================================
 
-          if (!base) {
-            return [modelKey, []];
-          }
+      const results =
+        await Promise.all(
+          Object.keys(
+            modelMeta || {}
+          ).map(
+            async (
+              modelKey
+            ) => {
+              const base =
+                modelMeta[
+                  modelKey
+                ]?.base;
 
-          if (!wanted?.[modelKey]?.size) {
-            return [modelKey, []];
-          }
+              if (!base) {
+                return [
+                  modelKey,
+                  [],
+                ];
+              }
 
-          const rows = await fetchModel(modelKey, base);
+              if (
+                !wanted?.[
+                  modelKey
+                ]?.size
+              ) {
+                return [
+                  modelKey,
+                  [],
+                ];
+              }
 
-          return [modelKey, rows];
-        })
-      );
+              const rows =
+                await fetchModel(
+                  modelKey,
+                  base
+                );
+
+              return [
+                modelKey,
+                rows,
+              ];
+            }
+          )
+        );
+
+      // ======================================
+      // BUILD TELEMETRY MAP
+      // ======================================
 
       const next = {};
 
-      for (const k of Object.keys(modelMeta || {})) {
+      for (const k of Object.keys(
+        modelMeta || {}
+      )) {
         next[k] = {};
       }
 
-      for (const [modelKey, rows] of results) {
-        const setWanted = wanted?.[modelKey] || new Set();
+      for (
+        const [
+          modelKey,
+          rows,
+        ] of results
+      ) {
+        const setWanted =
+          wanted?.[modelKey] ||
+          new Set();
 
-        for (const row of rows || []) {
-          const id = normalizeImei(readDeviceId(row));
+        for (
+          const row of rows || []
+        ) {
+          const id =
+            modelKey ===
+            "weight_scale"
+              ? buildScaleDeviceId(
+                  row
+                )
+              : normalizeImei(
+                  readDeviceId(
+                    row
+                  )
+                );
 
-          if (id && setWanted.has(id)) {
-            next[modelKey][id] = row;
+          if (
+            id &&
+            setWanted.has(id)
+          ) {
+            next[
+              modelKey
+            ][id] =
+              modelKey ===
+              "weight_scale"
+                ? {
+                    ...row,
+
+                    model:
+                      "weight_scale",
+
+                    deviceId:
+                      id,
+
+                    device_id:
+                      id,
+                  }
+                : row;
           }
         }
       }
 
       dbg(
         "private telemetryMap built",
+
         Object.fromEntries(
-          Object.entries(next).map(([k, bucket]) => [
-            k,
-            Object.keys(bucket).slice(0, 20),
-          ])
+          Object.entries(
+            next
+          ).map(
+            ([
+              k,
+              bucket,
+            ]) => [
+              k,
+
+              Object.keys(
+                bucket
+              ).slice(
+                0,
+                20
+              ),
+            ]
+          )
         )
       );
 
       setTelemetryMap(next);
     } catch (e) {
-      dbgErr("poller error", String(e?.message || e));
+      dbgErr(
+        "poller error",
+        String(
+          e?.message ||
+            e
+        )
+      );
     } finally {
-      loadingRef.current = false;
+      loadingRef.current =
+        false;
     }
   }, [
     isPlay,
@@ -558,42 +1015,59 @@ React.useEffect(() => {
   // INTERVAL
   // ======================================
 
- React.useEffect(() => {
-  if (!isPlay) return;
-
-  console.warn(
-    "[TelemetryPoller] EFFECT START",
-    new Date().toISOString()
-  );
-
-  fetchOnce();
-
-  const ms = Math.max(500, Number(pollMs) || 3000);
-
-  const t = setInterval(() => {
-    if (document.hidden) return;
+  React.useEffect(() => {
+    if (!isPlay) {
+      return;
+    }
 
     console.warn(
-      "[TelemetryPoller] INTERVAL TICK",
+      "[TelemetryPoller] EFFECT START",
       new Date().toISOString()
     );
 
     fetchOnce();
-  }, ms);
 
-  return () => {
-    console.warn(
-      "[TelemetryPoller] EFFECT CLEANUP",
-      new Date().toISOString()
+    const ms = Math.max(
+      500,
+      Number(pollMs) ||
+        3000
     );
 
-    clearInterval(t);
-  };
- }, [isPlay, fetchOnce, pollMs]);
- 
+    const t = setInterval(
+      () => {
+        if (
+          document.hidden
+        ) {
+          return;
+        }
+
+        console.warn(
+          "[TelemetryPoller] INTERVAL TICK",
+          new Date().toISOString()
+        );
+
+        fetchOnce();
+      },
+      ms
+    );
+
+    return () => {
+      console.warn(
+        "[TelemetryPoller] EFFECT CLEANUP",
+        new Date().toISOString()
+      );
+
+      clearInterval(t);
+    };
+  }, [
+    isPlay,
+    fetchOnce,
+    pollMs,
+  ]);
 
   return {
     telemetryMap,
-    fetchTelemetryOnce: fetchOnce,
+    fetchTelemetryOnce:
+      fetchOnce,
   };
 }
