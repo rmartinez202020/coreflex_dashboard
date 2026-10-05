@@ -1,4 +1,5 @@
 // src/hooks/useDashboardTelemetryPoller.js
+
 import React from "react";
 
 /**
@@ -6,6 +7,7 @@ import React from "react";
  * - ONE poller per DashboardCanvas (Play/Launch only)
  * - Polls every pollMs (default 3000ms)
  * - Private mode: fetches telemetry per model per tick
+ * - Scale / MOXA uses /weight-scale-systems/latest per selected IP:PORT
  * - Public tenant mode: fetches /tenant-access/devices once per tick
  * - Builds telemetryMap[model][deviceId] = row
  */
@@ -43,7 +45,7 @@ export default function useDashboardTelemetryPoller({
     // Scale / MOXA
     weight_scale: {
       base: "weight-scale-systems",
-      endpoint: "/weight-scale-systems/readings",
+      endpoint: "/weight-scale-systems/latest",
     },
   },
 } = {}) {
@@ -186,9 +188,7 @@ export default function useDashboardTelemetryPoller({
   // ======================================
 
   /**
-   * Scale devices do NOT use an IMEI-style identifier.
-   *
-   * The frontend identifies a scale connection using:
+   * Scale devices use:
    *
    *   IP:PORT
    *
@@ -196,11 +196,44 @@ export default function useDashboardTelemetryPoller({
    *
    *   192.168.1.50:4001
    *
-   * We must therefore NEVER pass a scale ID through normalizeImei(),
-   * because normalizeImei() removes ":" and ".".
+   * IMPORTANT:
+   * Never pass Scale / MOXA IDs through normalizeImei().
    */
   function normalizeScaleDeviceId(value) {
     return String(value || "").trim();
+  }
+
+  function parseScaleDeviceId(value) {
+    const raw = normalizeScaleDeviceId(value);
+
+    if (!raw) {
+      return null;
+    }
+
+    const separatorIndex = raw.lastIndexOf(":");
+
+    if (separatorIndex <= 0) {
+      return null;
+    }
+
+    const deviceIp = raw.slice(0, separatorIndex).trim();
+    const portRaw = raw.slice(separatorIndex + 1).trim();
+
+    const devicePort = Number(portRaw);
+
+    if (
+      !deviceIp ||
+      !Number.isFinite(devicePort) ||
+      devicePort <= 0
+    ) {
+      return null;
+    }
+
+    return {
+      deviceIp,
+      devicePort,
+      deviceId: `${deviceIp}:${devicePort}`,
+    };
   }
 
   function buildScaleDeviceId(row) {
@@ -667,115 +700,211 @@ export default function useDashboardTelemetryPoller({
         // SCALE / MOXA
         // ======================================
 
-        if (
-          modelKey ===
-          "weight_scale"
-        ) {
-          /**
-           * This endpoint returns the current scale row
-           * together with:
-           *
-           * weight
-           * weight_2
-           * weight_3
-           * weight_4
-           * weight_5
-           *
-           * and the matching timestamps.
-           */
-          const url =
-            `${API_URL}/weight-scale-systems/readings?limit=1000`;
-
-          dbg(
-            "fetchModel Scale/MOXA",
-            {
-              url,
-            }
+        if (modelKey === "weight_scale") {
+          const wantedScaleIds = Array.from(
+            wanted?.weight_scale || []
           );
 
-          const res = await fetch(
-            url,
-            {
-              headers: {
-                "Content-Type":
-                  "application/json",
-
-                ...(getAuthHeaders?.() ||
-                  {}),
-              },
-
-              cache: "no-store",
-            }
-          );
-
-          if (!res.ok) {
-            dbgErr(
-              "fetchModel Scale/MOXA failed",
-              {
-                status:
-                  res.status,
-              }
-            );
-
+          if (!wantedScaleIds.length) {
             return [];
           }
 
-          const data = await res
-            .json()
-            .catch(() => []);
+          /**
+           * IMPORTANT:
+           *
+           * Unlike the old version, we do NOT fetch:
+           *
+           * /weight-scale-systems/readings?limit=1000
+           *
+           * Each selected Scale / MOXA Silo already stores:
+           *
+           *   bindDeviceId = "IP:PORT"
+           *
+           * We use that exact selection to call:
+           *
+           * /weight-scale-systems/latest
+           *
+           * This is the same data source used by the working
+           * Silo properties modal.
+           */
+          const scaleRows = await Promise.all(
+            wantedScaleIds.map(async (wantedId) => {
+              const scale = parseScaleDeviceId(
+                wantedId
+              );
 
-          const arr =
-            Array.isArray(data)
-              ? data
-              : Array.isArray(
-                  data?.readings
-                )
-              ? data.readings
-              : Array.isArray(
-                  data?.rows
-                )
-              ? data.rows
-              : [];
-
-          const normalized = arr
-            .map((r) => {
-              const deviceId =
-                buildScaleDeviceId(
-                  r
+              if (!scale) {
+                dbgErr(
+                  "Scale/MOXA invalid device ID",
+                  {
+                    wantedId,
+                  }
                 );
 
-              if (!deviceId) {
                 return null;
               }
 
-              return {
-                ...r,
+              const qs = new URLSearchParams({
+                device_ip: scale.deviceIp,
+                device_port: String(
+                  scale.devicePort
+                ),
+              });
 
-                model:
-                  "weight_scale",
+              const url =
+                `${API_URL}/weight-scale-systems/latest?${qs.toString()}`;
 
-                deviceId,
+              dbg(
+                "fetchModel Scale/MOXA latest",
+                {
+                  deviceId:
+                    scale.deviceId,
+                  url,
+                }
+              );
 
-                device_id:
-                  deviceId,
+              try {
+                const res = await fetch(
+                  url,
+                  {
+                    headers: {
+                      "Content-Type":
+                        "application/json",
+
+                      ...(getAuthHeaders?.() ||
+                        {}),
+                    },
+
+                    cache: "no-store",
+                  }
+                );
+
+                if (!res.ok) {
+                  dbgErr(
+                    "fetchModel Scale/MOXA latest failed",
+                    {
+                      deviceId:
+                        scale.deviceId,
+                      status:
+                        res.status,
+                    }
+                  );
+
+                  return null;
+                }
+
+                const data = await res
+                  .json()
+                  .catch(() => null);
 
                 /**
-                 * A successful protected
-                 * scale reading is considered
-                 * available telemetry.
+                 * Backend /latest returns:
                  *
-                 * The backend timestamps are
-                 * preserved below in ...r.
+                 * {
+                 *   reading: {
+                 *     device_ip,
+                 *     device_port,
+                 *     weight,
+                 *     received_at,
+                 *     weight_2,
+                 *     received_at_2,
+                 *     weight_3,
+                 *     received_at_3,
+                 *     weight_4,
+                 *     received_at_4,
+                 *     weight_5,
+                 *     received_at_5,
+                 *     ...
+                 *   }
+                 * }
+                 *
+                 * Be tolerant in case the backend later returns
+                 * the reading object directly.
                  */
-                status:
-                  "online",
-              };
+                const reading =
+                  data?.reading &&
+                  typeof data.reading === "object"
+                    ? data.reading
+                    : data &&
+                      typeof data === "object"
+                    ? data
+                    : null;
+
+                if (!reading) {
+                  dbgErr(
+                    "Scale/MOXA latest returned no reading",
+                    {
+                      deviceId:
+                        scale.deviceId,
+                    }
+                  );
+
+                  return null;
+                }
+
+                /**
+                 * Force the selected IP:PORT as the map ID.
+                 *
+                 * This guarantees that the exact ID saved by
+                 * SiloPropertiesModal matches the key used by
+                 * DraggableSiloTank.
+                 */
+                return {
+                  ...reading,
+
+                  model:
+                    "weight_scale",
+
+                  deviceId:
+                    scale.deviceId,
+
+                  device_id:
+                    scale.deviceId,
+
+                  device_ip:
+                    reading?.device_ip ??
+                    reading?.deviceIp ??
+                    scale.deviceIp,
+
+                  device_port:
+                    reading?.device_port ??
+                    reading?.devicePort ??
+                    scale.devicePort,
+
+                  /**
+                   * A successful /latest response means telemetry
+                   * was obtained for this selected scale.
+                   */
+                  status:
+                    "online",
+                };
+              } catch (error) {
+                dbgErr(
+                  "fetchModel Scale/MOXA latest exception",
+                  {
+                    deviceId:
+                      scale.deviceId,
+                    error:
+                      String(
+                        error?.message ||
+                          error
+                      ),
+                  }
+                );
+
+                return null;
+              }
             })
-            .filter(Boolean);
+          );
+
+          const normalized =
+            scaleRows.filter(Boolean);
 
           dbg(
-            "fetchModel Scale/MOXA ok",
+            "fetchModel Scale/MOXA latest ok",
             {
+              requested:
+                wantedScaleIds.length,
               rows:
                 normalized.length,
             }
