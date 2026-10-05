@@ -251,6 +251,7 @@ function formatHistoryTimestamp(value) {
  * ✅ Current "weight" controls Silo level
  * ✅ Historical table appears ONLY for Scale / MOXA
  * ✅ Shows ~6h / ~12h / ~18h / ~24h snapshots
+ * ✅ History table is absolutely positioned so it does not move the Silo
  */
 export default function DraggableSiloTank({
   tank,
@@ -575,6 +576,13 @@ export default function DraggableSiloTank({
       style={{
         textAlign: "center",
         pointerEvents: "none",
+
+        // IMPORTANT:
+        // Keep this component sized by the Silo itself.
+        // The history table is absolutely positioned
+        // and therefore cannot move/recenter the Silo.
+        position: "relative",
+        display: "inline-block",
       }}
     >
       {name ? (
@@ -590,6 +598,10 @@ export default function DraggableSiloTank({
           {name}
         </div>
       ) : null}
+
+      {/* ==================================
+          FIXED SILO ANCHOR
+         ================================== */}
 
       <div
         style={{
@@ -648,148 +660,166 @@ export default function DraggableSiloTank({
             Offline
           </div>
         )}
-      </div>
 
-      {/* ==================================
-          SCALE / MOXA HISTORY TABLE
-         ================================== */}
+        {/* ==================================
+            SCALE / MOXA HISTORY TABLE
 
-      {isPlay && isWeightScale ? (
-        <div
-          style={{
-            marginTop: `${28 * scale}px`,
+            IMPORTANT:
+            Absolute positioning means this table
+            does NOT change the Silo's layout size.
 
-            width: `${210 * scale}px`,
-            maxWidth: `${210 * scale}px`,
-            marginLeft: "auto",
-            marginRight: "auto",
-            border:
-              "1px solid #d1d5db",
-            borderRadius: `${5 * scale}px`,
-            overflow: "hidden",
-            background: "#ffffff",
-            color: "#111827",
-            fontSize: `${9 * scale}px`,
-            lineHeight: 1.2,
-          }}
-        >
-          {/* TABLE HEADER */}
+            The Silo stays at exactly the same X/Y
+            position when switching Edit -> Play.
+
+            The table extends DOWNWARD from the Silo.
+           ================================== */}
+
+        {isPlay && isWeightScale ? (
           <div
             style={{
-              display: "grid",
+              position: "absolute",
 
-              // Period / Weight / Time
-              // Wider Period + Weight columns
-              gridTemplateColumns:
-                "72px 72px 1fr",
+              // Position below Silo + current weight box.
+              top: `${198 * scale}px`,
 
-              alignItems: "center",
-              minHeight: `${22 * scale}px`,
-              background: "#f3f4f6",
-              borderBottom:
+              // Center the wider table under the Silo.
+              left: "50%",
+              transform: "translateX(-50%)",
+
+              width: `${210 * scale}px`,
+              maxWidth: `${210 * scale}px`,
+
+              border:
                 "1px solid #d1d5db",
-              fontWeight: 600,
+              borderRadius: `${5 * scale}px`,
+              overflow: "hidden",
+              background: "#ffffff",
+              color: "#111827",
+              fontSize: `${9 * scale}px`,
+              lineHeight: 1.2,
+
+              // Keep it above neighboring dashboard
+              // content where possible.
+              zIndex: 2,
             }}
           >
+            {/* TABLE HEADER */}
             <div
               style={{
-                padding: `${4 * scale}px`,
-                textAlign: "center",
-              }}
-            >
-              Period
-            </div>
+                display: "grid",
 
-            <div
-              style={{
-                padding: `${4 * scale}px`,
-                textAlign: "center",
-                borderLeft:
+                // Period / Weight / Time
+                gridTemplateColumns:
+                  "72px 72px 1fr",
+
+                alignItems: "center",
+                minHeight: `${22 * scale}px`,
+                background: "#f3f4f6",
+                borderBottom:
                   "1px solid #d1d5db",
+                fontWeight: 600,
               }}
             >
-              Weight
-            </div>
-
-            <div
-              style={{
-                padding: `${4 * scale}px`,
-                textAlign: "center",
-                borderLeft:
-                  "1px solid #d1d5db",
-              }}
-            >
-              Time
-            </div>
-          </div>
-
-          {/* TABLE ROWS */}
-          {scaleHistory.map(
-            (item, index) => (
               <div
-                key={item.label}
                 style={{
-                  display: "grid",
-
-                  // Must match header exactly
-                  gridTemplateColumns:
-                    "72px 72px 1fr",
-
-                  alignItems: "center",
-                  minHeight: `${23 * scale}px`,
-                  borderBottom:
-                    index <
-                    scaleHistory.length - 1
-                      ? "1px solid #e5e7eb"
-                      : "none",
+                  padding: `${4 * scale}px`,
+                  textAlign: "center",
                 }}
               >
-                <div
-                  style={{
-                    padding: `${4 * scale}px`,
-                    textAlign: "center",
-                    fontWeight: 600,
-                  }}
-                >
-                  {item.label}
-                </div>
-
-                <div
-                  style={{
-                    padding: `${4 * scale}px`,
-                    textAlign: "center",
-                    borderLeft:
-                      "1px solid #e5e7eb",
-                  }}
-                >
-                  {formatHistoryWeight(
-                    item.weight
-                  )}
-                  {unit
-                    ? ` ${unit}`
-                    : ""}
-                </div>
-
-                <div
-                  style={{
-                    padding: `${4 * scale}px`,
-                    textAlign: "center",
-                    borderLeft:
-                      "1px solid #e5e7eb",
-                    whiteSpace: "normal",
-                    overflowWrap:
-                      "anywhere",
-                  }}
-                >
-                  {formatHistoryTimestamp(
-                    item.timestamp
-                  )}
-                </div>
+                Period
               </div>
-            )
-          )}
-        </div>
-      ) : null}
+
+              <div
+                style={{
+                  padding: `${4 * scale}px`,
+                  textAlign: "center",
+                  borderLeft:
+                    "1px solid #d1d5db",
+                }}
+              >
+                Weight
+              </div>
+
+              <div
+                style={{
+                  padding: `${4 * scale}px`,
+                  textAlign: "center",
+                  borderLeft:
+                    "1px solid #d1d5db",
+                }}
+              >
+                Time
+              </div>
+            </div>
+
+            {/* TABLE ROWS */}
+            {scaleHistory.map(
+              (item, index) => (
+                <div
+                  key={item.label}
+                  style={{
+                    display: "grid",
+
+                    // Must match header exactly.
+                    gridTemplateColumns:
+                      "72px 72px 1fr",
+
+                    alignItems: "center",
+                    minHeight: `${23 * scale}px`,
+                    borderBottom:
+                      index <
+                      scaleHistory.length - 1
+                        ? "1px solid #e5e7eb"
+                        : "none",
+                  }}
+                >
+                  <div
+                    style={{
+                      padding: `${4 * scale}px`,
+                      textAlign: "center",
+                      fontWeight: 600,
+                    }}
+                  >
+                    {item.label}
+                  </div>
+
+                  <div
+                    style={{
+                      padding: `${4 * scale}px`,
+                      textAlign: "center",
+                      borderLeft:
+                        "1px solid #e5e7eb",
+                    }}
+                  >
+                    {formatHistoryWeight(
+                      item.weight
+                    )}
+                    {unit
+                      ? ` ${unit}`
+                      : ""}
+                  </div>
+
+                  <div
+                    style={{
+                      padding: `${4 * scale}px`,
+                      textAlign: "center",
+                      borderLeft:
+                        "1px solid #e5e7eb",
+                      whiteSpace: "normal",
+                      overflowWrap:
+                        "anywhere",
+                    }}
+                  >
+                    {formatHistoryTimestamp(
+                      item.timestamp
+                    )}
+                  </div>
+                </div>
+              )
+            )}
+          </div>
+        ) : null}
+      </div>
     </div>
   );
 }
