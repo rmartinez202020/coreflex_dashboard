@@ -652,16 +652,6 @@ export default function DraggableSiloTank({
 
       {/* ==================================
           SCALE / MOXA HISTORY TABLE
-
-          IMPORTANT:
-          This appears ONLY when the modal
-          selected Scale / MOXA.
-
-          The extra top margin is intentional.
-          SiloTank renders the current weight
-          below the silo body, so the history
-          table needs enough clearance to avoid
-          overlapping that current-value box.
          ================================== */}
 
       {isPlay && isWeightScale ? (
@@ -689,8 +679,9 @@ export default function DraggableSiloTank({
               display: "grid",
 
               // Period / Weight / Time
+              // Wider Period + Weight columns
               gridTemplateColumns:
-                "58px 58px 1fr",
+                "72px 72px 1fr",
 
               alignItems: "center",
               minHeight: `${22 * scale}px`,
@@ -740,10 +731,9 @@ export default function DraggableSiloTank({
                 style={{
                   display: "grid",
 
-                  // IMPORTANT:
-                  // Must match the header exactly.
+                  // Must match header exactly
                   gridTemplateColumns:
-                    "58px 58px 1fr",
+                    "72px 72px 1fr",
 
                   alignItems: "center",
                   minHeight: `${23 * scale}px`,
