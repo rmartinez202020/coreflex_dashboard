@@ -691,7 +691,7 @@ export default function DraggableSiloTank({
             style={{
               display: "grid",
               gridTemplateColumns:
-                "42px 58px 1fr",
+                "58px 58px 1fr",
               alignItems: "center",
               minHeight: `${22 * scale}px`,
               background: "#f3f4f6",
