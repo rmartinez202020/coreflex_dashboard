@@ -30,6 +30,12 @@ const DASHBOARD_MODEL_META = {
     base: "radar-level",
     endpoint: "/radar-level/my-sensors",
   },
+
+  // Scale / MOXA
+  weight_scale: {
+    base: "weight-scale-systems",
+    endpoint: "/weight-scale-systems/latest",
+  },  
 };
 
 function createId(prefix = "shape") {
