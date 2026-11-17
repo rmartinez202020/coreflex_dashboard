@@ -1,17 +1,22 @@
 // src/components/homepagesections/RegisterDevicesSection.jsx
 import React from "react";
+import cf2000Photo from "../../assets/CF-2000-upright.png";
 import { API_URL } from "../../config/api";
 import { getToken } from "../../utils/authToken";
 import { useMySubscriptionSection } from "./useMySubscriptionSection";
 
-// ✅ extracted sections
 import RegisterDevicesCf2000Section from "./RegisterDevicesCf2000Section";
 import RegisterDevicesCf1600Section from "./RegisterDevicesCf1600Section";
 import RegisterDevicesTp4000Section from "./RegisterDevicesTp4000Section";
 import RegisterDevicesDf572Section from "./RegisterDevicesDf572Section";
 
 const MODELS = [
-  { key: "cf2000", label: "Model CF-2000", desc: "4-DI // 4-DO // 4-AI" },
+  {
+    key: "cf2000",
+    label: "Model CF-2000",
+    desc: "4-DI // 4-DO // 4-AI",
+    photo: cf2000Photo,
+  },
   { key: "cf1600", label: "Model CF-1600", desc: "4-AI // 2-AO" },
   { key: "tp400", label: "Model TP-400", desc: "8-Thermocouple channels" },
   {
@@ -212,7 +217,7 @@ export default function RegisterDevicesSection({ onBack }) {
           ) : null}
         </div>
 
-        <div className="p-5 grid grid-cols-1 md:grid-cols-4 gap-4">
+        <div className="p-5 grid grid-cols-1 md:grid-cols-4 items-start gap-4">
           {MODELS.map((m) => (
             <button
               key={m.key}
@@ -221,6 +226,14 @@ export default function RegisterDevicesSection({ onBack }) {
             >
               <div className="text-lg font-semibold">{m.label}</div>
               <div className="mt-1 text-sm text-slate-600">{m.desc}</div>
+
+              {m.photo && (
+                <img
+                  src={m.photo}
+                  alt=""
+                  className="mx-auto mt-3 block h-32 w-full object-contain"
+                />
+              )}
             </button>
           ))}
         </div>
