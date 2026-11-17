@@ -228,11 +228,14 @@ export default function RegisterDevicesSection({ onBack }) {
               <div className="mt-1 text-sm text-slate-600">{m.desc}</div>
 
               {m.photo && (
-                <img
-                  src={m.photo}
-                  alt=""
-                  className="mx-auto mt-3 block h-32 w-full object-contain"
-                />
+                <div className="mt-3 h-32 w-full overflow-hidden">
+                  <img
+                    src={m.photo}
+                    alt=""
+                    className="block h-full w-full object-contain"
+                    style={{ transform: "scale(1.18)" }}
+                  />
+                </div>
               )}
             </button>
           ))}
