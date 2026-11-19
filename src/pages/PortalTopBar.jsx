@@ -1,4 +1,4 @@
-// src/components/pages/PortalTopBar.jsx
+
 import React, { useEffect, useMemo, useState } from "react";
 import logoWhite from "../assets/coreflex-logo-white.png";
 
@@ -38,12 +38,16 @@ export default function PortalTopBar({
   onLogin,
   isAuthenticated = false,
 
-  // ✅ NEW: public alarm-log support
+  // Public alarm-log support
   hasAlarmLog = false,
   onOpenAlarmLog,
 }) {
   const [now, setNow] = useState(() => new Date());
 
+  // Fullscreen state
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  // Update clock every second
   useEffect(() => {
     const timer = setInterval(() => {
       setNow(new Date());
@@ -52,11 +56,50 @@ export default function PortalTopBar({
     return () => clearInterval(timer);
   }, []);
 
+  // Keep fullscreen state synchronized with the browser
+  useEffect(() => {
+    const syncFullscreen = () => {
+      setIsFullscreen(Boolean(document.fullscreenElement));
+    };
+
+    syncFullscreen();
+
+    document.addEventListener(
+      "fullscreenchange",
+      syncFullscreen
+    );
+
+    return () => {
+      document.removeEventListener(
+        "fullscreenchange",
+        syncFullscreen
+      );
+    };
+  }, []);
+
+  // Enter or exit fullscreen mode
+  const toggleFullscreen = async () => {
+    try {
+      if (document.fullscreenElement) {
+        await document.exitFullscreen();
+      } else {
+        await document.documentElement.requestFullscreen();
+      }
+    } catch (error) {
+      console.error(
+        "CoreFlex fullscreen operation failed:",
+        error
+      );
+    }
+  };
+
   const clockText = useMemo(() => formatClock(now), [now]);
+
   const accessLabel = useMemo(
     () => getAccessLabel(accessLevel),
     [accessLevel]
   );
+
   const accessClasses = useMemo(
     () => getAccessClasses(accessLevel),
     [accessLevel]
@@ -64,11 +107,12 @@ export default function PortalTopBar({
 
   return (
     <div className="w-full bg-[#374151] border-b border-slate-600 shadow-sm">
-      {/* top accent line */}
+      {/* Top accent line */}
       <div className="h-[3px] w-full bg-sky-300" />
 
       <div className="w-full px-4 md:px-6 py-2">
         <div className="flex items-center justify-between gap-4">
+
           {/* LEFT */}
           <div className="flex items-center gap-3 min-w-0 shrink-0">
             <img
@@ -81,13 +125,15 @@ export default function PortalTopBar({
             />
 
             <div className="flex flex-col leading-tight shrink-0">
-              <span className="text-xl font-bold text-white">CoreFlex</span>
+              <span className="text-xl font-bold text-white">
+                CoreFlex
+              </span>
               <span className="text-[10px] uppercase tracking-[0.18em] text-slate-300">
                 IIoTs Platform
               </span>
             </div>
 
-            {/* ✅ MOVED: desktop alarm button now right of CoreFlex */}
+            {/* Desktop Alarm Log */}
             {hasAlarmLog ? (
               <div className="hidden md:flex items-center ml-3">
                 <button
@@ -112,22 +158,58 @@ export default function PortalTopBar({
 
           {/* RIGHT */}
           <div className="flex items-center gap-3 md:gap-4 shrink-0">
+
+            {/* Clock */}
             <div className="hidden md:block text-sm font-medium text-slate-200 whitespace-nowrap">
               {clockText}
             </div>
 
             {isAuthenticated ? (
               <>
+                {/* Tenant name */}
                 <div className="hidden lg:block text-sm text-slate-200 whitespace-nowrap">
                   {tenantName}
                 </div>
 
+                {/* Access Level */}
                 <span
                   className={`inline-flex items-center rounded-full border px-3 py-1 text-xs font-semibold whitespace-nowrap ${accessClasses}`}
                 >
                   {accessLabel}
                 </span>
 
+                {/* FULLSCREEN BUTTON - RIGHT OF ACCESS LEVEL */}
+                <button
+                  type="button"
+                  onClick={toggleFullscreen}
+                  title={
+                    isFullscreen
+                      ? "Exit Fullscreen"
+                      : "Enter Fullscreen"
+                  }
+                  aria-label={
+                    isFullscreen
+                      ? "Exit Fullscreen"
+                      : "Enter Fullscreen"
+                  }
+                  aria-pressed={isFullscreen}
+                  className="inline-flex items-center gap-2 rounded-md border border-slate-500 bg-[#4B5563] px-3 py-1.5 text-sm font-medium text-white hover:bg-[#6B7280] whitespace-nowrap transition-colors"
+                >
+                  <span
+                    aria-hidden="true"
+                    className="text-base leading-none"
+                  >
+                    {isFullscreen ? "⤢" : "⛶"}
+                  </span>
+
+                  <span className="hidden sm:inline">
+                    {isFullscreen
+                      ? "Exit Fullscreen"
+                      : "Fullscreen"}
+                  </span>
+                </button>
+
+                {/* Logout */}
                 <button
                   type="button"
                   onClick={() => onLogout?.()}
@@ -137,6 +219,7 @@ export default function PortalTopBar({
                 </button>
               </>
             ) : (
+              /* Login */
               <button
                 type="button"
                 onClick={() => onLogin?.()}
@@ -148,7 +231,7 @@ export default function PortalTopBar({
           </div>
         </div>
 
-        {/* ✅ mobile alarm row */}
+        {/* Mobile Alarm Log */}
         {hasAlarmLog ? (
           <div className="mt-2 flex md:hidden justify-center">
             <button
@@ -163,18 +246,21 @@ export default function PortalTopBar({
           </div>
         ) : null}
 
-        {/* mobile row */}
+        {/* Mobile row */}
         <div className="mt-1.5 flex md:hidden items-center justify-between gap-3 text-xs text-slate-300">
           {isAuthenticated ? (
             <div className="truncate">{tenantName}</div>
           ) : (
-            <div className="truncate">Authorized portal access only</div>
+            <div className="truncate">
+              Authorized portal access only
+            </div>
           )}
+
           <div className="shrink-0">{clockText}</div>
         </div>
       </div>
 
-      {/* bottom accent */}
+      {/* Bottom accent line */}
       <div className="h-[2px] w-full bg-sky-200" />
     </div>
   );
